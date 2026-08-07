@@ -83,6 +83,7 @@ pub(crate) async fn real_crate_smoke_opt_in() -> anyhow::Result<()> {
     let status = Command::new("cargo")
         .args([
             "test",
+            "--locked",
             "--manifest-path",
             REAL_ADAPTER_MANIFEST,
             "--features",
@@ -95,7 +96,7 @@ pub(crate) async fn real_crate_smoke_opt_in() -> anyhow::Result<()> {
 
 fn build_default_adapter() -> anyhow::Result<()> {
     let status = Command::new("cargo")
-        .args(["build", "--manifest-path", ADAPTER_MANIFEST])
+        .args(["build", "--locked", "--manifest-path", ADAPTER_MANIFEST])
         .status()?;
     anyhow::ensure!(status.success(), "default TDB adapter build failed");
     Ok(())
