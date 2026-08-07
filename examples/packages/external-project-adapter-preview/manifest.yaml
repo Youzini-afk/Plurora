@@ -2,7 +2,7 @@ schema_version: 1
 id: thirdparty/example-adapter
 version: 0.1.0
 display_name: Example External Project Adapter
-description: "Example adapter/wrapper package preview proving unadapted external projects can be wrapped as ordinary Ygg packages. Generated from project-intake-lab adapter manifest preview — not written to filesystem, not auto-published, no network/filesystem/process permissions."
+description: "Example adapter/wrapper package preview proving unadapted external projects can be wrapped as ordinary Plurora Packages. Generated from project-intake-lab adapter manifest preview — not written to filesystem, not auto-published, no network/filesystem/process permissions."
 entry:
   kind: subprocess
   command:

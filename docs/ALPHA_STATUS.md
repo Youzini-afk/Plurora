@@ -180,7 +180,7 @@
 - `capability-tool-bridge-lab` —— 发现能力、预览权限、显式 provider 选择、调用 / 流式计划，并覆盖嵌套委派、target branch 写入、提示词注入、secret 外泄、出站扩张、大输出 redaction 等风险。
 - `agentic-forge-lab` —— Agentic Forge 的核心包：能力包持有的运行生命周期、工作状态、计划图、scratch branch / candidate / compare / promote、推理节点（确定性 / 录制 / 云适配计划 / 本地 fake）、replay、输出校验、9 类失败 taxonomy。
 - `inference-local-lab` —— 不依赖云 API、HTTP、bearer token 的本地 fake 推理 provider，证明推理接缝可以脱离这些。
-- `inference-playtest-lab` —— Ygg-native 的「推理 → 提案 → 审视 → 批/拒 → 应用 → fork」纵切片。
+- `inference-playtest-lab` —— Plurora-native 的「推理 → 提案 → 审视 → 批/拒 → 应用 → fork」纵切片。
 
 **体验**
 
@@ -212,7 +212,7 @@ Forge profile (`profiles/forge-alpha.yaml`) 会自动加载这些包以及示例
 - `secure-execution` —— `secret_ref` 构造与校验、网络声明、出站审计、伪造流帧客户端。
 - `inference-capability` —— transport-neutral 推理契约。
 - `model-provider-adapter` —— 云 provider adapter helper。
-- `agent-adapter` —— 把 Ygg 能力映射为 pi 风格 tool。
+- `agent-adapter` —— 把 Plurora 能力映射为 pi 风格 tool。
 - `agentic-forge` —— 运行生命周期、计划图、工作状态、candidate / compare / promote、推理节点、tool bridge v2 helper。
 - `experience-runtime` —— 体验运行时类型与构造器。
 - `text-surface` —— 前端文字 surface helper（流式 buffer、frame 适配、滚动锚、字体加载）。

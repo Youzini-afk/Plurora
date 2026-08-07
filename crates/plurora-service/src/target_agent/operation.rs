@@ -2589,7 +2589,7 @@ mod tests {
     use plurora_runtime::InMemoryEventStore;
 
     const TEST_CREDENTIAL: &str =
-        "yggagent.remote-1.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+        "plurora_agent.remote-1.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
 
     fn test_registry() -> TargetAgentRegistry {
         let registry = TargetAgentRegistry::default();
@@ -2697,7 +2697,7 @@ mod tests {
         .map_err(anyhow::Error::msg)?;
         assert!(verify_target_operation_authority(
             &record,
-            "yggagent.remote-1.bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "plurora_agent.remote-1.bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
             "remote-1",
             7,
             11,

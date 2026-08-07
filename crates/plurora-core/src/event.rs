@@ -175,7 +175,7 @@ impl Default for RedactionState {
 /// Generic outbound audit record / envelope.
 ///
 /// Records an outbound network request made by a package through
-/// Ygg-provided network/request helpers. This is a platform event
+/// Plurora-provided network/request helpers. This is a platform event
 /// payload — it does NOT contain raw secrets, bodies, headers,
 /// prompts, or responses. Only `secret_ref` identifiers and the
 /// `redaction_state` are recorded.

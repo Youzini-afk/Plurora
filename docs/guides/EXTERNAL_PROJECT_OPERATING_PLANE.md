@@ -2,7 +2,7 @@
 
 > [English](./EXTERNAL_PROJECT_OPERATING_PLANE.en.md) · [中文](./EXTERNAL_PROJECT_OPERATING_PLANE.md)
 
-External Project Operating Plane 说明 Plurora 不必只接入已经适配清单和能力契约的项目。未适配的 git、npm、本地目录或 archive 项目可以先作为 external project 被平台理解、评估风险、规划、展示和包装。只有稳定的 adapter 或 wrapper 才进入普通 Ygg 包和能力体系。
+External Project Operating Plane 说明 Plurora 不必只接入已经适配清单和能力契约的项目。未适配的 git、npm、本地目录或 archive 项目可以先作为 external project 被平台理解、评估风险、规划、展示和包装。只有稳定的 adapter 或 wrapper 才进入普通 Plurora Package和能力体系。
 
 安全边界从一个事实出发：install/run 等于执行不可信代码，workflow 与 secret 泄漏都是真实风险。因此未适配项目先进入计划、策略、proposal 和审计边界；只有用户批准且被类型化 executor 约束的操作才产生副作用。
 
@@ -10,10 +10,10 @@ External Project Operating Plane 说明 Plurora 不必只接入已经适配清�
 
 | 对象 | 含义 | 是否进入 capability registry |
 |---|---|---:|
-| Ygg Package | 已适配的能力提供者，有清单、能力、权限、surface 和检查。 | 是 |
+| Plurora Package | 已适配的能力提供者，有清单、能力、权限、surface 和检查。 | 是 |
 | External Project | 未适配项目引用，例如 git/npm/local/archive。默认不可信。 | 否 |
 | Managed Workspace | External Project 的受控实例、计划或 fixture，包含 source ref、workspace state、entrypoint、patch proposal 和 audit ref。它不是内核对象。 | 否 |
-| Adapter / Wrapper Package | 把外部项目的稳定操作包装成普通 Ygg 包和能力。 | 是 |
+| Adapter / Wrapper Package | 把外部项目的稳定操作包装成普通 Plurora Package和能力。 | 是 |
 
 这让平台避免退回“所有项目必须先写插件”的旧模式。外部项目可以保持原样。Plurora 围绕它做 intake、workspace plan、风险摘要、项目聚合 UI、patch proposal 和 adapter preview。
 
@@ -26,7 +26,7 @@ External Project Operating Plane 说明 Plurora 不必只接入已经适配清�
 当前支持两种明确所有权：
 
 - `managed`（默认）：本地目录或 git tree 复制/获取到 `<data>/workspaces/external/<project_id>/<content_digest>`。安装计划记录内容 digest，重复安装同一来源和内容是幂等的；卸载只会归档/删除这个 host-owned 根，不会触碰用户源目录。
-- `linked_local`（CLI `--link-local`）：workspace 直接指向 canonical 本地源目录，descriptor 明确标记为用户拥有。它是可变引用，不伪造 content digest；卸载永远只移除 Ygg 项目记录，不删除或归档源目录。
+- `linked_local`（CLI `--link-local`）：workspace 直接指向 canonical 本地源目录，descriptor 明确标记为用户拥有。它是可变引用，不伪造 content digest；卸载永远只移除 Plurora Project记录，不删除或归档源目录。
 
 managed local copy 会保留 `.gitignore` 等源码元数据，但跳过 VCS 目录、`node_modules`、`target`、虚拟环境和常见语言缓存；materialized tree 默认最多 25,000 个文件、25,000 个目录和 256 MiB，直接 capability 调用也不能把硬上限抬过 100,000 个文件、100,000 个目录或 1 GiB。绝对、悬空或逃逸 workspace root 的 symlink 会被拒绝；托管存储的每一级祖先都必须是 canonical data root 下的真实目录。HTTPS git tree 接受同一套有界 materialization、hash、大小和 symlink 校验；submodule entry 等不支持的 tree mode 会明确失败。临时 bare fetch 现在会在 gix 读取时累计 Git pack 字节，超过默认 512 MiB 即 fail-closed 中断；Host 部署 workspace clone 因其 1 GiB tree 上限而显式使用 2 GiB 硬上限。transport 仍是如实标注的 full bare fetch，而不是伪称 shallow clone，但已不再无界。内联凭据、query 参数与 fragment 都会被拒绝，认证只能由 Host 带外提供，绝不嵌入 descriptor。
 

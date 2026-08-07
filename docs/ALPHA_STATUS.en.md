@@ -180,7 +180,7 @@ All ordinary packages, no kernel privilege. They live in `packages/plurora/` and
 - `capability-tool-bridge-lab` — capability discovery, permission preview, explicit provider selection, invocation / streaming plans, covering nested delegation, target-branch writes, prompt injection, secret exfiltration, outbound expansion, and large-output redaction.
 - `agentic-forge-lab` — the core of Agentic Forge: package-owned run lifecycle, working state, plan graph, scratch branch / candidate / compare / promote, inference nodes (deterministic / recorded / cloud-adapter plan / local fake), replay, output validation, and a 9-class failure taxonomy.
 - `inference-local-lab` — a local fake inference provider that proves the inference seam doesn't depend on cloud APIs, HTTP, or bearer tokens.
-- `inference-playtest-lab` — the Ygg-native "inference → proposal → inspect → approve / reject → apply → fork" vertical slice.
+- `inference-playtest-lab` — the Plurora-native "inference → proposal → inspect → approve / reject → apply → fork" vertical slice.
 
 **Experience**
 
@@ -212,7 +212,7 @@ Under `sdk/typescript/`:
 - `secure-execution` — `secret_ref` construction and validation, network declarations, outbound audit, faux stream-frame client.
 - `inference-capability` — transport-neutral inference contract.
 - `model-provider-adapter` — cloud-provider adapter helpers.
-- `agent-adapter` — maps Ygg capabilities into pi-style tools.
+- `agent-adapter` — maps Plurora capabilities into pi-style tools.
 - `agentic-forge` — run lifecycle, plan graph, working state, candidate / compare / promote, inference nodes, tool bridge v2 helpers.
 - `experience-runtime` — experience runtime types and constructors.
 - `text-surface` — frontend text-surface helpers (streaming buffer, frame adapter, scroll anchor, font loading).

@@ -1,6 +1,6 @@
 //! Handler for `plurora/inference-playtest-lab` capabilities.
 //!
-//! Ygg-native inference proposal vertical slice. Proves inference is not
+//! Plurora-native inference proposal vertical slice. Proves inference is not
 //! "prompt -> text response", but ordinary package participation in
 //! session / branch / proposal / inspection / fork creative runtime.
 //!

@@ -709,7 +709,7 @@ where
     S: EventStore,
 {
     let id = plurora_core::new_id("target-enrollment");
-    let token = format!("yggenroll.{id}.{}", random_secret());
+    let token = format!("plurora_enroll.{id}.{}", random_secret());
     let now_ms = Utc::now().timestamp_millis();
     let ttl_ms = i64::try_from(
         request
@@ -819,7 +819,7 @@ where
                         agent.target.policy_epoch.saturating_add(1),
                     )
                 });
-        let credential = format!("yggagent.{}.{}", enrollment.target_id, random_secret());
+        let credential = format!("plurora_agent.{}.{}", enrollment.target_id, random_secret());
         let target = ExecutionTarget {
             id: enrollment.target_id.clone(),
             name: enrollment.display_name.clone(),
@@ -1118,14 +1118,14 @@ fn credential_digest(domain: &str, credential: &str) -> String {
 }
 
 fn enrollment_token_id(token: &str) -> Option<&str> {
-    let remainder = token.strip_prefix("yggenroll.")?;
+    let remainder = token.strip_prefix("plurora_enroll.")?;
     let (id, secret) = remainder.rsplit_once('.')?;
     (!id.is_empty() && secret.len() == 64 && secret.bytes().all(|byte| byte.is_ascii_hexdigit()))
         .then_some(id)
 }
 
 fn credential_target_id(credential: &str) -> Option<&str> {
-    let remainder = credential.strip_prefix("yggagent.")?;
+    let remainder = credential.strip_prefix("plurora_agent.")?;
     let (target_id, secret) = remainder.rsplit_once('.')?;
     (valid_target_id(target_id)
         && target_id != "local"
@@ -1148,7 +1148,7 @@ fn target_credential(headers: &HeaderMap) -> Option<&str> {
         .get(header::AUTHORIZATION)?
         .to_str()
         .ok()?
-        .strip_prefix("YggTarget ")
+        .strip_prefix("PluroraTarget ")
         .filter(|credential| credential_target_id(credential).is_some())
 }
 
@@ -1344,11 +1344,11 @@ mod tests {
     fn target_credentials_have_distinct_strict_formats() {
         let secret = "a".repeat(64);
         assert_eq!(
-            credential_target_id(&format!("yggagent.region.remote-1.{secret}")),
+            credential_target_id(&format!("plurora_agent.region.remote-1.{secret}")),
             Some("region.remote-1")
         );
-        assert!(credential_target_id(&format!("yggaccess.remote-1.{secret}")).is_none());
-        assert!(enrollment_token_id(&format!("yggenroll.id.{secret}")).is_some());
-        assert!(enrollment_token_id(&format!("yggpair.id.{secret}")).is_none());
+        assert!(credential_target_id(&format!("plurora_access.remote-1.{secret}")).is_none());
+        assert!(enrollment_token_id(&format!("plurora_enroll.id.{secret}")).is_some());
+        assert!(enrollment_token_id(&format!("plurora_pair.id.{secret}")).is_none());
     }
 }

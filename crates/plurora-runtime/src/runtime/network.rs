@@ -1,7 +1,7 @@
 //! Network policy checker and outbound audit helpers.
 //!
 //! This module provides the generic network policy enforcement for
-//! Ygg-provided network/request helpers. It does NOT intercept
+//! Plurora-provided network/request helpers. It does NOT intercept
 //! arbitrary subprocess OS calls — it checks whether a package's
 //! manifest and the host policy permit a given outbound request.
 //!
@@ -45,7 +45,7 @@ pub struct NetworkPolicyDecision {
 /// 5. First-party Packages have no bypass — they must declare network
 ///    permissions like any other package.
 ///
-/// This is designed for the Ygg-provided network/request helper path,
+/// This is designed for the Plurora-provided network/request helper path,
 /// not for intercepting arbitrary subprocess OS calls.
 pub fn check_network_policy(
     permissions: &NetworkPermissions,
@@ -218,7 +218,7 @@ where
     /// record an outbound audit event with redacted state.
     ///
     /// If denied, records an outbound denial audit event and returns an error.
-    /// This is the primary entry point for Ygg-provided network helpers.
+    /// This is the primary entry point for Plurora-provided network helpers.
     pub async fn check_and_audit_outbound(
         &self,
         request: OutboundRequest,

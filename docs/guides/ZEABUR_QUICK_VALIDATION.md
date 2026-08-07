@@ -52,7 +52,7 @@ plurora host serve --http 0.0.0.0:$PORT --data-dir /data --profile /data/profile
 
 在 Zeabur/公网验证时，请设置随机 token，打开应用 URL 后在登录页输入该 token。不要复用生产凭据，也不要在该验证实例中保存真实 provider secret。URL token（`?plurora_token=<token>` 或 `?access_token=<token>`）仍可作为可选的一次性 bootstrap 路径使用。
 
-如果要验证虚拟主机部署入口，需要把 wildcard DNS（例如 `*.apps.example.com`）指向该 Zeabur 服务，并设置 `PLURORA_APP_BASE_DOMAIN=apps.example.com`。Ygg 管理 UI 仍在主域上使用 token；项目应用域不要求 Ygg token。
+如果要验证虚拟主机部署入口，需要把 wildcard DNS（例如 `*.apps.example.com`）指向该 Zeabur 服务，并设置 `PLURORA_APP_BASE_DOMAIN=apps.example.com`。Plurora 管理 UI 仍在主域上使用 token；项目应用域不要求 Plurora token。
 
 ## 本地 smoke test
 

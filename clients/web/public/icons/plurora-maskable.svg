@@ -1,8 +1,11 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Plurora">
   <rect width="512" height="512" fill="#18171a"/>
-  <circle cx="256" cy="256" r="205" fill="#22201e"/>
-  <g fill="none" stroke="#c9a87a" stroke-linecap="round" stroke-linejoin="round">
-    <path stroke-width="26" d="M256 390V198m0 58-79-66m79 21 76-69m-76 154-64 62m64-33 59 51"/>
-    <path stroke-width="19" d="M256 198c-45 0-82-31-82-70 45 0 82 31 82 70Zm0 12c45 0 82-31 82-70-45 0-82 31-82 70Z"/>
+  <circle cx="256" cy="256" r="205" fill="#211f20"/>
+  <g fill="none" stroke-linecap="round">
+    <path d="M143 318C176 214 267 143 371 187" stroke="#e2c08b" stroke-width="27"/>
+    <path d="M136 255C210 171 317 167 379 241" stroke="#bc9b6c" stroke-width="23"/>
+    <path d="M163 196C264 152 354 204 365 309" stroke="#8e7352" stroke-width="19"/>
   </g>
+  <circle cx="256" cy="256" r="39" fill="#18171a" stroke="#e2c08b" stroke-width="9"/>
+  <circle cx="256" cy="256" r="10" fill="#e2c08b"/>
 </svg>

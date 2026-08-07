@@ -2,7 +2,7 @@
 
 > [English](./EXTERNAL_PROJECT_OPERATING_PLANE.en.md) · [中文](./EXTERNAL_PROJECT_OPERATING_PLANE.md)
 
-External Project Operating Plane shows that Plurora does not have to accept only projects that already implement the manifest and capability contract. Unadapted git, npm, local, or archive projects can first be understood, risk-scored, planned, displayed, and wrapped by the platform. Only stable adapters or wrappers enter the ordinary Ygg package and capability world.
+External Project Operating Plane shows that Plurora does not have to accept only projects that already implement the manifest and capability contract. Unadapted git, npm, local, or archive projects can first be understood, risk-scored, planned, displayed, and wrapped by the platform. Only stable adapters or wrappers enter the ordinary Plurora Package and capability world.
 
 The security boundary starts from one fact: install/run means executing untrusted code, and workflow or secret exfiltration are real risks. An unadapted project therefore enters planning, policy, proposal, and audit boundaries first; only user-approved operations constrained by typed executors may produce effects.
 
@@ -10,10 +10,10 @@ The security boundary starts from one fact: install/run means executing untruste
 
 | Object | Meaning | Enters capability registry |
 |---|---|---:|
-| Ygg Package | Adapted provider with manifest, capabilities, permissions, surfaces, and conformance. | Yes |
+| Plurora Package | Adapted provider with manifest, capabilities, permissions, surfaces, and conformance. | Yes |
 | External Project | Unadapted reference such as git/npm/local/archive. Untrusted by default. | No |
 | Managed Workspace | Controlled instance/plan/fixture around an External Project, including source ref, workspace state, entrypoints, patch proposals, and audit refs. Not a kernel object. | No |
-| Adapter / Wrapper Package | Ordinary Ygg package/capability wrapper around stable external-project operations. | Yes |
+| Adapter / Wrapper Package | Ordinary Plurora Package/capability wrapper around stable external-project operations. | Yes |
 
 This avoids the old plugin-host trap. An external project can remain unchanged while Plurora performs intake, workspace planning, risk summaries, project aggregation UI, patch proposals, and adapter previews around it.
 
@@ -26,7 +26,7 @@ This avoids the old plugin-host trap. An external project can remain unchanged w
 Two ownership modes are explicit:
 
 - `managed` (default): copy a local directory or fetch a git tree into `<data>/workspaces/external/<project_id>/<content_digest>`. The plan records the content digest, so reinstalling the same source and content is idempotent. Uninstall may archive/delete only that host-owned root and never touches the user's source directory.
-- `linked_local` (CLI `--link-local`): point the workspace at the canonical local source directory and mark it as user-owned in the descriptor. This is a mutable reference and does not invent a content digest. Uninstall removes only the Ygg project record; it never deletes or archives the linked source.
+- `linked_local` (CLI `--link-local`): point the workspace at the canonical local source directory and mark it as user-owned in the descriptor. This is a mutable reference and does not invent a content digest. Uninstall removes only the Plurora project record; it never deletes or archives the linked source.
 
 A managed local copy preserves source metadata such as `.gitignore` while skipping VCS directories, `node_modules`, `target`, virtual environments, and common language caches. A materialized tree defaults to at most 25,000 files, 25,000 directories, and 256 MiB; even direct capability callers cannot raise the hard ceiling above 100,000 files, 100,000 directories, or 1 GiB. Absolute, dangling, or root-escaping symlinks fail closed. Managed storage ancestors must be real directories under the canonical data root. HTTPS Git trees receive the same bounded materialization, hash, size, and symlink checks; unsupported tree modes such as submodule entries fail explicitly. The temporary bare fetch now counts Git pack bytes while gix reads them and interrupts fail-closed above a 512 MiB default. Host deployment workspace cloning explicitly uses the 2 GiB hard ceiling for its 1 GiB tree limit. The transport remains a full bare fetch rather than a claimed shallow clone, but it is no longer unbounded. Inline credentials, query parameters, and fragments are rejected, so any authentication must be supplied out of band by the host and is never embedded in the descriptor.
 

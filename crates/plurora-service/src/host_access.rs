@@ -1303,7 +1303,7 @@ where
     S: EventStore,
 {
     let id = plurora_core::new_id("pair");
-    let pairing_token = format!("yggpair.{id}.{}", random_secret());
+    let pairing_token = format!("plurora_pair.{id}.{}", random_secret());
     let now_ms = Utc::now().timestamp_millis();
     let pairing = StoredPairing {
         id,
@@ -1362,7 +1362,7 @@ where
     let pairing_id = pairing_token_id(pairing_token)
         .ok_or_else(|| anyhow::anyhow!("invalid Host pairing token format"))?;
     let grant_id = plurora_core::new_id("grant");
-    let access_token = format!("yggaccess.{grant_id}.{}", random_secret());
+    let access_token = format!("plurora_access.{grant_id}.{}", random_secret());
     for _ in 0..8 {
         sync_host_access_journal(store, registry).await?;
         let pairing = registry
@@ -1625,7 +1625,7 @@ pub fn constant_time_eq(left: &[u8], right: &[u8]) -> bool {
 
 fn pairing_token_id(token: &str) -> Option<&str> {
     token
-        .strip_prefix("yggpair.")?
+        .strip_prefix("plurora_pair.")?
         .split_once('.')
         .and_then(|(id, secret)| {
             (!id.is_empty()
@@ -1637,7 +1637,7 @@ fn pairing_token_id(token: &str) -> Option<&str> {
 
 fn access_token_grant_id(token: &str) -> Option<&str> {
     token
-        .strip_prefix("yggaccess.")?
+        .strip_prefix("plurora_access.")?
         .split_once('.')
         .and_then(|(id, secret)| {
             (!id.is_empty()
@@ -1782,7 +1782,7 @@ mod tests {
         let now_ms = Utc::now().timestamp_millis();
         let pairing_id = "legacy-pairing";
         let grant_id = "legacy-grant";
-        let access_token = format!("yggaccess.{grant_id}.{}", "a".repeat(64));
+        let access_token = format!("plurora_access.{grant_id}.{}", "a".repeat(64));
 
         let created = json!({
             "kind": "pairing_created",

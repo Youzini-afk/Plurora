@@ -63,7 +63,7 @@ The goal is not to wrap Pretext as a kernel feature. The goal is to prove that c
 The web shell adds the optional Pretext engine integration:
 
 - **`pretext-shim.ts`**: Local type definitions mirroring the Pretext API surface (v0.0.7). Allows TypeScript compilation without the package. Defines `PretextModuleShape` for safe dynamic import casting.
-- **`pretext-bridge.ts`**: Isolated mapping between Ygg text-layout types and Pretext shapes. Option/result conversion and opaque handle bridging.
+- **`pretext-bridge.ts`**: Isolated mapping between Plurora text-layout types and Pretext shapes. Option/result conversion and opaque handle bridging.
 - **`pretext-engine.ts`**: `PretextTextEngine implements TextEngine` with async `initialize()`. Uses dynamic import (`import("@chenglou/pretext")`) with unknown-safe casting. If the module is unavailable, throws a diagnostic error for registry fallback.
 - **`config.ts`**: Runtime engine preference resolution (`auto|fallback|pretext`) from URL, localStorage, and global env. Default is `auto`.
 - **Registry additions**: `initializeTextEnginePreference()` (async init with fallback), `getInitializationResult()`, `isPretextEngineAvailable()`.

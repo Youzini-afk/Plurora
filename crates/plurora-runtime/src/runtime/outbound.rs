@@ -16,7 +16,7 @@
 //!   echoed back or stored.
 //! - No provider-specific fields in core; opaque `metadata` for
 //!   executor-specific data.
-//! - This boundary secures the Ygg-provided outbound path. It does not
+//! - This boundary secures the Plurora-provided outbound path. It does not
 //!   claim to intercept arbitrary subprocess OS network calls.
 //! - Live executor is opt-in only; `RuntimeConfig::default()` uses
 //!   `DenyAll`. Live executor rejects non-HTTPS URLs, does not follow
@@ -851,7 +851,7 @@ impl Default for LiveHttpOutboundExecutorConfig {
 ///   is true and the host is 127.0.0.1 or localhost).
 /// - Does not follow redirects by default (configurable, but L2 does
 ///   not implement redirect policy re-checking).
-/// - Only sends `content-type: application/json` and Ygg placeholder
+/// - Only sends `content-type: application/json` and Plurora placeholder
 ///   headers. Never sends raw secret/auth header values (L3 handles
 ///   secret injection).
 /// - Records only shape/redacted metadata in responses — never raw
@@ -999,7 +999,7 @@ impl LiveHttpOutboundExecutor {
     ///
     /// L2 only sends:
     /// - `content-type: application/json` (for JSON body)
-    /// - `x-plurora-outbound: true` (Ygg placeholder)
+    /// - `x-plurora-outbound: true` (Plurora placeholder)
     ///
     /// L4 injects resolved secret headers (e.g. `Authorization: Bearer <key>`)
     /// from `request.resolved_secret_headers`. These values exist only in the
@@ -1023,7 +1023,7 @@ impl LiveHttpOutboundExecutor {
             );
         }
 
-        // Ygg placeholder header (identifies the source as Plurora)
+        // Plurora placeholder header (identifies the source as Plurora)
         headers.insert(
             reqwest::header::HeaderName::from_static("x-plurora-outbound"),
             reqwest::header::HeaderValue::from_static("true"),

@@ -120,9 +120,9 @@ Boundary rules:
 - `ProxyRouteAccess` is a generic proxy-route property. Hostname derivation remains service-layer behavior; the kernel does not know DNS.
 - Only `<slug>.<app_base_domain>` matches. Arbitrary hosts, the bare base domain, and fake suffixes such as `foo.apps.example.com.evil.com` do not match.
 - `X-Forwarded-Host` is not trusted.
-- Only a `route_access=public` vhost entry bypasses Ygg Host identity; it is the deployed app's public entry. A private vhost returns 404, while `/p`, RPC, and Host APIs still require Host identity and scopes.
+- Only a `route_access=public` vhost entry bypasses Plurora Host identity; it is the deployed app's public entry. A private vhost returns 404, while `/p`, RPC, and Host APIs still require Host identity and scopes.
 - Upstream must still be a loopback lease, and the route must be active + ready.
-- vhost requests set upstream `Host` to the app hostname; `Authorization`, Ygg `access_token` query values, and `Referer` are not forwarded.
+- vhost requests set upstream `Host` to the app hostname; `Authorization`, Plurora `access_token` query values, and `Referer` are not forwarded.
 - vhost responses strip the `Domain` attribute from `Set-Cookie`, making cookies host-only. `Location` is only rewritten for same-upstream redirects; external absolute redirects are still stripped.
 
 ## Build & Deploy flow

@@ -93,7 +93,7 @@ pub(crate) async fn read_signed_tag_unsigned() -> anyhow::Result<()> {
     let repo = tmp.path().join("repo");
     fs::create_dir(&repo)?;
     run_git(&repo, &["init"])?;
-    run_git(&repo, &["config", "user.name", "Ygg Conformance"])?;
+    run_git(&repo, &["config", "user.name", "Plurora Conformance"])?;
     run_git(&repo, &["config", "user.email", "plurora@example.com"])?;
     fs::write(repo.join("README.md"), "# fixture\n")?;
     run_git(&repo, &["add", "README.md"])?;

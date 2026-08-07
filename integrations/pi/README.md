@@ -18,7 +18,7 @@
 
 ### Adapter-now
 
-这些能力可在 Ygg SDK / template / reference package 中立刻吸收，但要通过 Ygg public protocol 表达：
+这些能力可在 Plurora SDK / template / reference package 中立刻吸收，但要通过 Plurora public contract 表达：
 
 - pi-agent-core 的 `AgentEvent` 思路：run/turn/message/tool execution lifecycle。
 - pi-agent-core 的 `AgentTool` 思路：label、argument preparation、execution mode、result/error/terminate。
@@ -57,22 +57,22 @@
 
 ### Rejected
 
-这些明确不进入 Ygg agent infrastructure：
+这些明确不进入 Plurora agent infrastructure：
 
-- `pi-coding-agent` 作为 Ygg 产品壳。
+- `pi-coding-agent` 作为 Plurora 产品壳。
 - 默认 bash/read/write/edit tools。
 - kernel agent/model/prompt/memory methods。
 - private runtime access。
 - first-party Package priority。
 - raw prompt/response/secret persistence。
 
-## Ygg 映射
+## Plurora 映射
 
-| pi-inspired idea | Ygg landing point |
+| pi-inspired idea | Plurora landing point |
 |---|---|
 | Agent run | ordinary package capability via `capability.invoke/stream` |
 | Abort/cancel | `capability.cancel` |
-| Tool | adapter view of Ygg capability |
+| Tool | adapter view of Plurora capability |
 | Tool execution | `capability.invoke/stream` with explicit provider package |
 | Tool gate | permission preview + before/after helper in SDK/package |
 | Trace | package-owned events and stream frames |

@@ -2,7 +2,7 @@
   "$defs": {
     "Payload": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
-      "description": "Generic outbound audit record / envelope.\n\nRecords an outbound network request made by a package through Ygg-provided network/request helpers. This is a platform event payload — it does NOT contain raw secrets, bodies, headers, prompts, or responses. Only `secret_ref` identifiers and the `redaction_state` are recorded.",
+      "description": "Generic outbound audit record / envelope.\n\nRecords an outbound network request made by a package through Plurora-provided network/request helpers. This is a platform event payload — it does NOT contain raw secrets, bodies, headers, prompts, or responses. Only `secret_ref` identifiers and the `redaction_state` are recorded.",
       "properties": {
         "capability_id": {
           "description": "Capability through which the request was made.",

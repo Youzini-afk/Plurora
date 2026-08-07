@@ -8,7 +8,7 @@ This guide documents how to author inference capability packages for Plurora. Pl
 
 1. Inference is an ordinary capability, not a kernel primitive. There are no `platform.model.*`, `platform.prompt.*`, `platform.chat.*`, or `platform.embedding.*`.
 2. The request envelope is transport-neutral. It does not contain URL, HTTP header, status code, or OpenAI messages fields.
-3. Cloud adapters are one class of provider, not the platform model abstraction. `plurora/model-provider-lab` is an ordinary cloud API adapter lab; it does not represent Ygg's model worldview.
+3. Cloud adapters are one class of provider, not the platform model abstraction. `plurora/model-provider-lab` is an ordinary cloud API adapter lab; it does not represent Plurora's model worldview.
 4. `local_process`, `in_memory`, `ipc`, `websocket`, and `http` have equal standing.
 5. Secrets use `secret_ref`. Raw secrets are rejected in every field.
 

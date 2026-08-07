@@ -25,7 +25,7 @@ flowchart LR
 | Identity | Credential | Purpose |
 |---|---|---|
 | Host root | Bearer token from `PLURORA_HTTP_ACCESS_TOKEN` / `--access-token`; Desktop may exchange a one-time bootstrap nonce for a root cookie | Local administration, first authorization, and recovery; owns every scope |
-| Paired device | `yggaccess.*` token; after PWA claim it exists only in the `__Host-plurora_remote_session` cookie | Routine remote control; owns only the grant's scopes and project/target selectors |
+| Paired device | `plurora_access.*` token; after PWA claim it exists only in the `__Host-plurora_remote_session` cookie | Routine remote control; owns only the grant's scopes and project/target selectors |
 
 Optional authentication with no configured root token is a loopback development mode. `host serve` refuses a non-loopback bind without a non-empty root token. The root token is a root credential and must never enter a pairing URL, browser persistence, application upstream, or logs.
 
@@ -56,7 +56,7 @@ A sandboxed surface frame has an opaque origin and cannot safely carry a Host Co
 ## Pairing lifecycle
 
 1. A client with `access_manage` calls `POST /host/v1/access/pairings` with a device name, scopes, project/target selectors, and expiration.
-2. The Host returns a one-time `yggpair.*` token valid for at most ten minutes. The Web UI places it in `/pair` under an operator-supplied HTTPS Host origin.
+2. The Host returns a one-time `plurora_pair.*` token valid for at most ten minutes. The Web UI places it in `/pair` under an operator-supplied HTTPS Host origin.
 3. The new device removes the token from the address bar immediately and retains it in memory only. It first calls the public inspect endpoint so the user can verify device name, scopes, and expiry.
 4. On confirmation, the public claim endpoint atomically consumes the pairing, creates a grant valid for at most 365 days, and sets a Secure, HttpOnly, SameSite=Strict, host-only cookie.
 5. Expired or revoked grants fail on the next authentication check. Revoking the current device also clears its cookie. A pending pairing can be cancelled before claim.
@@ -137,7 +137,7 @@ route_access: host_authenticated # default; old descriptors resolve this way
 - `host_authenticated`: exposes only `/p/<route_id>/...`, inside Host authentication and requiring at least `observe`.
 - `public`: when `--app-base-domain` is configured, additionally enables the derived vhost; only that vhost bypasses Host authentication. Without a base domain, the authenticated `/p` fallback is still the only entry.
 - Route access is written into proxy registration events and durable deployment revisions; recover and rollback preserve the original choice.
-- A public vhost does not forward Host `Authorization`, Ygg query tokens, Host session cookies, or `Referer` to the app. The upstream must remain an active, ready loopback lease.
+- A public vhost does not forward Host `Authorization`, Plurora query tokens, Host session cookies, or `Referer` to the app. The upstream must remain an active, ready loopback lease.
 
 A public route's application owns internet-input validation, application identity, CSRF protection, rate limiting, and content security. A Plurora Host grant is not an application user system.
 

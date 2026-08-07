@@ -1,11 +1,11 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Plurora">
   <rect width="512" height="512" rx="112" fill="#18171a"/>
-  <g fill="none" stroke="#c9a87a" stroke-linecap="round" stroke-linejoin="round">
-    <path stroke-width="30" d="M256 404V188m0 68-94-79m94 25 91-83m-91 195-76 74m76-39 70 61"/>
-    <path stroke-width="22" d="M256 188c-54 0-98-37-98-83 54 0 98 37 98 83Zm0 14c54 0 98-37 98-83-54 0-98 37-98 83Z"/>
+  <circle cx="256" cy="256" r="154" fill="#211f20" stroke="#393431" stroke-width="2"/>
+  <g fill="none" stroke-linecap="round">
+    <path d="M112 333C154 199 267 105 399 163" stroke="#e2c08b" stroke-width="30"/>
+    <path d="M103 251C199 143 334 137 414 233" stroke="#bc9b6c" stroke-width="25"/>
+    <path d="M137 176C266 119 381 185 394 320" stroke="#8e7352" stroke-width="20"/>
   </g>
-  <g fill="#b8956a">
-    <circle cx="162" cy="177" r="22"/><circle cx="347" cy="119" r="22"/>
-    <circle cx="180" cy="388" r="19"/><circle cx="326" cy="410" r="19"/>
-  </g>
+  <circle cx="256" cy="256" r="43" fill="#18171a" stroke="#e2c08b" stroke-width="10"/>
+  <circle cx="256" cy="256" r="11" fill="#e2c08b"/>
 </svg>

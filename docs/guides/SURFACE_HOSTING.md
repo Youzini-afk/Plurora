@@ -146,7 +146,7 @@ frame -> host: rpc.call | stream.subscribe | stream.unsubscribe | mount.error
 
 ## RPC bridge
 
-Surface 通过 `window.yggHost.callRpc(method, params)` 发起调用。未配置 `hostBridge.callRpc` 时，调用返回标准化的 `no_bridge` 错误。
+Surface 通过 `window.pluroraHost.callRpc(method, params)` 发起调用。未配置 `hostBridge.callRpc` 时，调用返回标准化的 `no_bridge` 错误。
 
 当前 bridge 方法 allowlist：
 

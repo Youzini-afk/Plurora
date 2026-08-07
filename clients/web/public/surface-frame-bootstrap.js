@@ -30,7 +30,7 @@ function postToHost(message) {
   );
 }
 
-window.yggHost = {
+window.pluroraHost = {
   async callRpc(method, params) {
     const id = String(++nextRpcId);
     return new Promise((resolve, reject) => {

@@ -19,7 +19,7 @@
  * - `ToolCall` / `ToolResult`       — invocation request / result
  * - `AgentTraceEvent`               — trace event emitted by an agent
  * - `AgentProposalDraft`            — proposal draft artifact
- * - `createYggAgentAdapter`         — main adapter factory
+ * - `createPluroraAgentAdapter`         — main adapter factory
  * - `capabilityToTool`              — convert descriptor → tool
  * - `createCapabilityTool`          — create a CapabilityTool
  * - `invokeCapabilityTool`          — invoke a tool through protocol
@@ -29,7 +29,7 @@
  * - `diagnosePermissions`          — permission diagnostics helper
  * - `diagnoseProvider`             — provider diagnostics helper
  * - `blockRawSecrets`             — reject raw secrets in payloads
- * - `runYggAgentAdapterSelfTest`   — pure-TS self-test
+ * - `runPluroraAgentAdapterSelfTest`   — pure-TS self-test
  */
 
 // ---------------------------------------------------------------------------
@@ -280,7 +280,7 @@ export interface RawSecretScanResult {
 }
 
 /** Adapter configuration. */
-export interface YggAgentAdapterConfig {
+export interface PluroraAgentAdapterConfig {
   /** Protocol client for invoking capabilities. */
   protocolClient: ProtocolClient;
   /** The package id of the adapter consumer. */
@@ -289,8 +289,8 @@ export interface YggAgentAdapterConfig {
   principal?: string;
 }
 
-/** The Ygg Agent Adapter. */
-export interface YggAgentAdapter {
+/** The Plurora Agent Adapter. */
+export interface PluroraAgentAdapter {
   /** The adapter's package id. */
   readonly packageId: string;
   /** The adapter's principal (if set). */
@@ -791,20 +791,20 @@ function truncate(s: string, maxLen: number): string {
 }
 
 // ---------------------------------------------------------------------------
-// createYggAgentAdapter
+// createPluroraAgentAdapter
 // ---------------------------------------------------------------------------
 
 /**
- * Create a YggAgentAdapter — the main entry point.
+ * Create a PluroraAgentAdapter — the main entry point.
  *
  * The adapter wraps a ProtocolClient and provides tool mapping,
  * invocation, streaming, trace event creation, proposal drafting,
  * and permission/provider diagnostics.
  *
  * @param config — adapter configuration
- * @returns YggAgentAdapter
+ * @returns PluroraAgentAdapter
  */
-export function createYggAgentAdapter(config: YggAgentAdapterConfig): YggAgentAdapter {
+export function createPluroraAgentAdapter(config: PluroraAgentAdapterConfig): PluroraAgentAdapter {
   const { protocolClient, packageId, principal } = config;
 
   return {
@@ -885,7 +885,7 @@ export function createYggAgentAdapter(config: YggAgentAdapterConfig): YggAgentAd
  *
  * @returns array of { name, passed, detail? }
  */
-export async function runYggAgentAdapterSelfTest(): Promise<Array<{ name: string; passed: boolean; detail?: string }>> {
+export async function runPluroraAgentAdapterSelfTest(): Promise<Array<{ name: string; passed: boolean; detail?: string }>> {
   const results: Array<{ name: string; passed: boolean; detail?: string }> = [];
 
   // Helper
@@ -1166,14 +1166,14 @@ export async function runYggAgentAdapterSelfTest(): Promise<Array<{ name: string
     assert("raw secrets (Bearer): flagged", result.flagged_fields.some((f) => f.includes("authorization")));
   }
 
-  // --- 21. createYggAgentAdapter end-to-end ---
+  // --- 21. createPluroraAgentAdapter end-to-end ---
   {
     const mockClient: ProtocolClient = {
       async call(req: ProtocolRequest) {
         return { ok: true, capability_id: req.capability_id, provider_package_id: req.provider_package_id };
       },
     };
-    const adapter = createYggAgentAdapter({
+    const adapter = createPluroraAgentAdapter({
       protocolClient: mockClient,
       packageId: "test/adapter-pkg",
       principal: "user:alice",
@@ -1213,12 +1213,12 @@ export async function runYggAgentAdapterSelfTest(): Promise<Array<{ name: string
 // Detection: this file is the main module being run
 // We use a non-intrusive check so bundlers don't trip
 if (typeof globalThis !== "undefined" && typeof (globalThis as Record<string, unknown>).__plurora_agent_adapter_self_test_auto !== "undefined") {
-  const results = runYggAgentAdapterSelfTest();
-  const failed = results.filter((r) => !r.passed);
-  if (failed.length > 0) {
-    for (const f of failed) {
-      console.error(`FAIL: ${f.name} — ${f.detail}`);
+  void runPluroraAgentAdapterSelfTest().then((results) => {
+    const failed = results.filter((result) => !result.passed);
+    if (failed.length === 0) return;
+    for (const failure of failed) {
+      console.error(`FAIL: ${failure.name} — ${failure.detail}`);
     }
     throw new Error(`${failed.length} self-test(s) failed`);
-  }
+  });
 }

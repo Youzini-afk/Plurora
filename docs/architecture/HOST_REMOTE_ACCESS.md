@@ -25,7 +25,7 @@ flowchart LR
 | 身份 | 凭据 | 用途 |
 |---|---|---|
 | Host root | `PLURORA_HTTP_ACCESS_TOKEN` / `--access-token` 的 Bearer token；桌面可通过一次性 bootstrap 换取 root cookie | 本机管理、首次授权、紧急恢复；拥有全部 scope |
-| Paired device | `yggaccess.*` token；PWA claim 后只放入 `__Host-plurora_remote_session` Cookie | 日常远程控制；仅拥有 grant 中列出的 scope 与 project/target selector |
+| Paired device | `plurora_access.*` token；PWA claim 后只放入 `__Host-plurora_remote_session` Cookie | 日常远程控制；仅拥有 grant 中列出的 scope 与 project/target selector |
 
 未配置 root token 时的可选认证只用于 loopback 开发。`host serve` 绑定非 loopback 地址时会拒绝没有非空 root token 的启动。root token 是根凭据，不应进入 pairing URL、浏览器持久存储、应用上游或日志。
 
@@ -56,7 +56,7 @@ sandbox surface frame 是 opaque origin，不能安全携带 Host Cookie 或 Bea
 ## Pairing 生命周期
 
 1. 拥有 `access_manage` 的客户端调用 `POST /host/v1/access/pairings`，提交设备名、scope、project/target selector 和期限。
-2. Host 返回最多存活 10 分钟的一次性 `yggpair.*` token。Web UI 把它放进用户指定的 HTTPS Host origin 下的 `/pair` URL。
+2. Host 返回最多存活 10 分钟的一次性 `plurora_pair.*` token。Web UI 把它放进用户指定的 HTTPS Host origin 下的 `/pair` URL。
 3. 新设备打开链接后立即从地址栏清除 token，只在内存中保留；先调用公开 inspect，让用户核对设备名、scope 和过期时间。
 4. 用户确认后调用公开 claim。Host 原子消费 pairing，创建最长 365 天的 grant，并设置 Secure、HttpOnly、SameSite=Strict、host-only Cookie。
 5. grant 到期或被撤销后，每次认证都会立即失败；撤销当前设备还会清除其 Cookie。pending pairing 可在领取前取消。
@@ -137,7 +137,7 @@ route_access: host_authenticated # 默认；旧描述符也按此解释
 - `host_authenticated`：只提供 `/p/<route_id>/...`；它位于 Host auth middleware 内，至少需要 `observe`。
 - `public`：在配置 `--app-base-domain` 后额外启用派生 vhost，且只有该 vhost 绕过 Host 认证。没有 base domain 时仍只有受保护的 `/p` fallback。
 - route access 会写进 proxy 注册事件和 durable deployment revision，recover / rollback 保留原选择。
-- public vhost 不把 Host `Authorization`、Ygg query token、Host session Cookie 或 `Referer` 转发给应用；upstream 仍必须是 active、ready 的 loopback lease。
+- public vhost 不把 Host `Authorization`、Plurora query token、Host session Cookie 或 `Referer` 转发给应用；upstream 仍必须是 active、ready 的 loopback lease。
 
 公开 route 的应用必须自己承担互联网输入、应用级身份、CSRF、速率限制和内容安全。Plurora 的 Host grant 不是应用用户系统。
 

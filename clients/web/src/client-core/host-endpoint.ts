@@ -21,7 +21,7 @@ interface StoredHostConnections {
 
 type HostConnectionStorage = Pick<Storage, "getItem" | "setItem" | "removeItem">;
 
-export interface YggRuntimeBootstrap {
+export interface PluroraRuntimeBootstrap {
   hostBaseUrl?: string;
   platform?: "web" | "desktop" | "pwa";
   profile?: string;
@@ -29,7 +29,7 @@ export interface YggRuntimeBootstrap {
 
 declare global {
   interface Window {
-    __PLURORA_RUNTIME__?: YggRuntimeBootstrap;
+    __PLURORA_RUNTIME__?: PluroraRuntimeBootstrap;
   }
 }
 

@@ -362,11 +362,9 @@ pub struct PermissionSet {
     /// `host.outbound.execute` calls. Each entry must be a valid
     /// env-backed secret reference (e.g. `secret_ref:env:OPENAI_API_KEY`,
     /// `secretRef:env:MY_KEY`, `secret-ref:env:NAME`, `host:env:NAME`).
-    ///
     /// The runtime enforces fail-closed: any `secret_ref` used in
     /// `secret_headers` or top-level `secret_refs` at dispatch time
     /// **must** appear in this list, or the request is denied.
-    ///
     /// Default: empty vec (no secret refs allowed; backward compatible).
     #[serde(default)]
     pub secret_refs: Vec<String>,

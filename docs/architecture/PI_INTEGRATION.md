@@ -48,7 +48,7 @@ Agent 基础设施必须复用现有公开原语：
 
 当前仓库通过普通 SDK、Component Package 和 integration fixture 实现并持续检查这条边界：
 
-- `sdk/typescript/agent-adapter` 把 Ygg capability 映射为 pi-style tool；
+- `sdk/typescript/agent-adapter` 把 Plurora capability 映射为 pi-style tool；
 - `sdk/typescript/agentic-forge` 提供包拥有的 run lifecycle、plan graph、working state 和 candidate helper；
 - `plurora/pi-agent-runtime-lab` 提供默认不联网的参考 agent 包；
 - `plurora/capability-tool-bridge-lab` 负责 capability discovery、permission preview、显式 provider 选择和受控调用；

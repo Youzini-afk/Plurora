@@ -146,7 +146,7 @@ Other than the initial `ready`, Host and frame messages are bound to the current
 
 ## RPC bridge
 
-A surface calls `window.yggHost.callRpc(method, params)`. Without `hostBridge.callRpc`, the call receives a normalized `no_bridge` error.
+A surface calls `window.pluroraHost.callRpc(method, params)`. Without `hostBridge.callRpc`, the call receives a normalized `no_bridge` error.
 
 The current bridge method allowlist is:
 

@@ -10,7 +10,7 @@ let replacedUrl: string | undefined;
 const browserWindow = {
   location: {
     pathname: "/pair",
-    search: "?from=phone&pairing_token=yggpair.secret-once",
+    search: "?from=phone&pairing_token=plurora_pair.secret-once",
     hash: "#details",
   },
   history: {
@@ -22,14 +22,14 @@ const browserWindow = {
 };
 
 const lease = new PendingPairingCredentialLease(browserWindow);
-assertEqual(lease.resolve(), "yggpair.secret-once");
+assertEqual(lease.resolve(), "plurora_pair.secret-once");
 assertEqual(replacedUrl, "/pair?from=phone#details");
 assertEqual(replacedUrl?.includes("secret-once"), false);
 
 // React StrictMode can remount the page; resolving again must return the
 // in-memory credential without reading or reintroducing it into the URL.
 browserWindow.location.search = "?from=phone";
-assertEqual(lease.resolve(), "yggpair.secret-once");
+assertEqual(lease.resolve(), "plurora_pair.secret-once");
 
 lease.clear();
 assertEqual(lease.resolve(), undefined);

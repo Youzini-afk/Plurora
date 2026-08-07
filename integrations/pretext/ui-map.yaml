@@ -51,7 +51,7 @@ api_mappings:
     adapter_path: "clients/web/src/text-layout/fallback-engine.ts"
     pretext_bridge: "clients/web/src/text-layout/pretext-bridge.ts → fromPretextLineRange()"
     pretext_engine: "clients/web/src/text-layout/pretext-engine.ts → PretextTextEngine.walkLineRanges()"
-    note: "Non-materializing walker. Bridge maps PretextLayoutLineRange to Ygg LayoutLineRange."
+    note: "Non-materializing walker. Bridge maps PretextLayoutLineRange to Plurora LayoutLineRange."
 
 engine_abstraction:
   - interface: "TextEngine"
@@ -68,7 +68,7 @@ engine_abstraction:
 
   - bridge: "PretextBridge (T3)"
     path: "clients/web/src/text-layout/pretext-bridge.ts"
-    note: "Isolated mapping between Ygg text-layout types and Pretext shapes. Option/result conversion and opaque handle bridging."
+    note: "Isolated mapping between Plurora text-layout types and Pretext shapes. Option/result conversion and opaque handle bridging."
 
   - shim: "PretextShim (T3)"
     path: "clients/web/src/text-layout/pretext-shim.ts"

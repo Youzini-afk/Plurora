@@ -13,7 +13,7 @@
 //! - draft_security_risk_summary: produce security risk summary
 //! - list_candidate_entrypoints: list candidate entrypoints with risk annotations
 //! - draft_adapter_plan: produce plan-only adapter plan
-//! - generate_adapter_manifest_preview: produce Ygg package manifest preview for an adapter (no file write)
+//! - generate_adapter_manifest_preview: produce Plurora Package manifest preview for an adapter (no file write)
 //! - generate_subprocess_wrapper_preview: produce subprocess wrapper code preview (no file write, no execution)
 //! - generate_adapter_fixture_preview: produce package fixture input/output sample (redacted)
 //! - check_adapter_readiness: produce readiness checklist for adapter package

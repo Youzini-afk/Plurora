@@ -57,7 +57,7 @@ cargo run -p plurora-cli -- package conformance /tmp/plurora-agent/manifest.yaml
 
 `sdk/typescript/agent-adapter` is a thin adapter, not a full agent framework. It helps you:
 
-- map Ygg capability descriptors to pi-style tool descriptors;
+- map Plurora capability descriptors to pi-style tool descriptors;
 - build `capability.invoke` / `capability.stream` request payloads;
 - build package-owned trace event payloads;
 - build approval-gated proposal draft payloads;
@@ -66,9 +66,9 @@ cargo run -p plurora-cli -- package conformance /tmp/plurora-agent/manifest.yaml
 Example:
 
 ```ts
-import { createYggAgentAdapter } from "../../sdk/typescript/agent-adapter/index.js";
+import { createPluroraAgentAdapter } from "../../sdk/typescript/agent-adapter/index.js";
 
-const adapter = createYggAgentAdapter({
+const adapter = createPluroraAgentAdapter({
   protocolClient,
   packageId: "example/agent-runtime",
 });

@@ -120,9 +120,9 @@ PLURORA_APP_BASE_DOMAIN=apps.example.com plurora host serve
 - `ProxyRouteAccess` 是 proxy route 的通用访问属性；hostname 仍是 service 层派生方式，kernel 不知道 DNS。
 - 只接受 `<slug>.<app_base_domain>`。任意其他 Host、裸域、伪后缀（如 `foo.apps.example.com.evil.com`）不会命中。
 - 不信任 `X-Forwarded-Host`。
-- 只有 `route_access=public` 的 vhost 入口不要求 Ygg Host 身份；它代表被部署应用自己的公开入口。私有 vhost 返回 404，`/p`、RPC、Host API 等仍走 Host 身份和 scope。
+- 只有 `route_access=public` 的 vhost 入口不要求 Plurora Host 身份；它代表被部署应用自己的公开入口。私有 vhost 返回 404，`/p`、RPC、Host API 等仍走 Host 身份和 scope。
 - 上游仍必须是 loopback lease，且 route 必须 active + ready。
-- vhost 请求会把 `Host` 设为应用自己的 hostname；`Authorization`、Ygg `access_token` query、`Referer` 不转发。
+- vhost 请求会把 `Host` 设为应用自己的 hostname；`Authorization`、Plurora `access_token` query、`Referer` 不转发。
 - vhost 响应会把 `Set-Cookie` 的 `Domain` 去掉，变成 host-only cookie；只重写同 upstream 的 `Location`，外部 absolute redirect 仍被剥离。
 
 ## Build & Deploy 流程

@@ -125,7 +125,7 @@ integrations/tdb/rust-adapter-real-crate
 
 默认 adapter：
 
-- 可由 Ygg runtime 作为 ordinary subprocess package 加载；
+- 可由 Plurora runtime 作为 ordinary subprocess package 加载；
 - 提供 `describe_real_tdb_adapter` 与 `run_real_tdb_smoke`；
 - 不依赖 `triviumdb`；
 - 不打开 backend；

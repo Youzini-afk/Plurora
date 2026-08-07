@@ -40,7 +40,7 @@ Default adapter:
 
 - is an ordinary JSON-RPC stdio subprocess package;
 - has no `triviumdb` dependency;
-- can be loaded and invoked by the Ygg runtime;
+- can be loaded and invoked by the Plurora runtime;
 - makes `run_real_tdb_smoke` report `real_tdb_available=false` instead of pretending success.
 
 Real published-crate proof:

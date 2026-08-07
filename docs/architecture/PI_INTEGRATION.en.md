@@ -48,7 +48,7 @@ The detailed upstream ledger is in [`../../integrations/pi/README.md`](../../int
 
 The repository implements and continuously checks this boundary through ordinary SDKs, Component Packages, and integration fixtures:
 
-- `sdk/typescript/agent-adapter` maps Ygg capabilities to pi-style tools;
+- `sdk/typescript/agent-adapter` maps Plurora capabilities to pi-style tools;
 - `sdk/typescript/agentic-forge` provides package-owned run lifecycle, plan graph, working state, and candidate helpers;
 - `plurora/pi-agent-runtime-lab` is a no-network-by-default reference agent package;
 - `plurora/capability-tool-bridge-lab` handles capability discovery, permission preview, explicit provider selection, and controlled invocation;

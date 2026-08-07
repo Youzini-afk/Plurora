@@ -9311,7 +9311,7 @@ mod tests {
     #[tokio::test]
     async fn serves_static_files_when_configured() -> anyhow::Result<()> {
         let dir = tempfile::tempdir()?;
-        std::fs::write(dir.path().join("index.html"), "<main>Ygg web</main>")?;
+        std::fs::write(dir.path().join("index.html"), "<main>Plurora web</main>")?;
         std::fs::write(
             dir.path().join("sw.js"),
             "self.addEventListener('fetch',()=>{});",

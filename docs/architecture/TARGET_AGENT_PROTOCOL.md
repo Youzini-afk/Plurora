@@ -63,7 +63,7 @@ Host journal 只保存 public identity、credential digest/serial、状态和审
 |---|---|---|
 | Host 客户端 | `POST /host/v1/targets/{target_id}/enrollments` | `deploy` scope + target selector；创建最长 15 分钟的单次 challenge |
 | Agent | `POST /target-agent/v1/enroll` | 消费 challenge，协商版本/能力并一次性接收 Host 生成的 bootstrap target credential |
-| Agent | `POST /target-agent/v1/heartbeat` | 独立 `YggTarget` credential；刷新 observation 与 45 秒 liveness |
+| Agent | `POST /target-agent/v1/heartbeat` | 独立 `PluroraTarget` credential；刷新 observation 与 45 秒 liveness |
 | Host 客户端 | `GET /host/v1/targets/{target_id}/observe` | `observe` scope + target selector；读取声明、有效能力、epoch 与观测摘要 |
 | Host 客户端 | `POST /host/v1/targets/{target_id}/revoke` | `deploy` scope + target selector；撤销身份并同时推进 lease/policy epoch |
 
@@ -88,7 +88,7 @@ Operation authority 绑定 target/operation/step/project/effect/artifact/lease e
 
 Driver routing 按 `ExecutionTargetReachability` 选择 local 或 Agent，不接受调用方提供的任意网络地址作为 fallback。Local 与 Agent 的部署 operation 共用一个类型化 Docker driver：固定非特权 bridge、只绑定 `127.0.0.1`、不接受 command/env/mount，并以 target/project/deployment/route/lease/operation ownership labels 幂等查找；`apply` 回执返回 Docker 实际分配的 loopback port。Host 将成功回执中的实际端口投影回 target-owned lease，并只在 route/lease/project/target 全部匹配时提升 route readiness；重启恢复不会用 Host-local Docker 观察误删远端 lease。Docker effect 发出后无法确认结果时回执为 `outcome_unknown`，不会误报失败；Host 重启时遗留的 local Accepted/Running 也持久收敛到该状态。
 
-authenticated reverse tunnel/private preview 的 Candidate 基线也已实现。具有 `reverse_tunnel` reachability 与 Deployment 能力的 Agent 使用同一 `YggTarget` 身份主动连接 `GET /target-agent/v1/tunnel`；Host 对每个 target 只接受一个 identity/lease epoch/policy epoch 都匹配的 live tunnel。每次 `Open` 都精确绑定 target、route、port lease、port name、Docker 实际端口和两个 epoch；有界 binary stream 只使用 Host 生成的 opaque stream ID 复用。Agent 在连接前重新验证受管容器的全部 ownership labels、Running 状态以及精确的 `127.0.0.1` 端口映射，因此 tunnel 不能被用来拨号任意 Agent loopback 端口。断线或 revoke 会令该 target 的 route 立即 unready，重连后再按 durable receipt 投影恢复；public/Host-authenticated 判定仍只属于 Host route policy，Host 也没有放宽任意网络 upstream。
+authenticated reverse tunnel/private preview 的 Candidate 基线也已实现。具有 `reverse_tunnel` reachability 与 Deployment 能力的 Agent 使用同一 `PluroraTarget` 身份主动连接 `GET /target-agent/v1/tunnel`；Host 对每个 target 只接受一个 identity/lease epoch/policy epoch 都匹配的 live tunnel。每次 `Open` 都精确绑定 target、route、port lease、port name、Docker 实际端口和两个 epoch；有界 binary stream 只使用 Host 生成的 opaque stream ID 复用。Agent 在连接前重新验证受管容器的全部 ownership labels、Running 状态以及精确的 `127.0.0.1` 端口映射，因此 tunnel 不能被用来拨号任意 Agent loopback 端口。断线或 revoke 会令该 target 的 route 立即 unready，重连后再按 durable receipt 投影恢复；public/Host-authenticated 判定仍只属于 Host route policy，Host 也没有放宽任意网络 upstream。
 
 ## Transport session
 
@@ -107,7 +107,7 @@ CancelRequest / CancelReceipt
 ArtifactRequest / ArtifactChunk / ArtifactReceipt
 ```
 
-当前 V1 不把 durable operation control 混进易失的流量 tunnel：identity、heartbeat、operation、receipt 与 artifact 使用版本化 HTTP 路由，Agent 另行主动建立带 `YggTarget` 认证的 WebSocket，只承载被 Host route 授权的 multiplexed byte streams。operation 恢复依赖 Host journal 与 Agent ledger，而不是 tunnel 内存 channel。未来直接 mTLS HTTPS/HTTP2 可以替换连接适配器，但不能改变 operation authority、receipt 或 fencing 语义。
+当前 V1 不把 durable operation control 混进易失的流量 tunnel：identity、heartbeat、operation、receipt 与 artifact 使用版本化 HTTP 路由，Agent 另行主动建立带 `PluroraTarget` 认证的 WebSocket，只承载被 Host route 授权的 multiplexed byte streams。operation 恢复依赖 Host journal 与 Agent ledger，而不是 tunnel 内存 channel。未来直接 mTLS HTTPS/HTTP2 可以替换连接适配器，但不能改变 operation authority、receipt 或 fencing 语义。
 
 ## 类型化操作
 

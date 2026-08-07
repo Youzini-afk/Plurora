@@ -789,7 +789,7 @@ mod tests {
             format!("ws://{host_addr}/target-agent/v1/tunnel").into_client_request()?;
         request.headers_mut().insert(
             header::AUTHORIZATION,
-            HeaderValue::from_str(&format!("YggTarget {credential}"))?,
+            HeaderValue::from_str(&format!("PluroraTarget {credential}"))?,
         );
         let stream = TcpStream::connect(host_addr).await?;
         let (socket, response) = tokio::time::timeout(
@@ -824,7 +824,7 @@ mod tests {
             format!("ws://{host_addr}/target-agent/v1/tunnel").into_client_request()?;
         request.headers_mut().insert(
             header::AUTHORIZATION,
-            HeaderValue::from_str(&format!("YggTarget {credential}"))?,
+            HeaderValue::from_str(&format!("PluroraTarget {credential}"))?,
         );
         let stream = TcpStream::connect(host_addr).await?;
         let result = tokio::time::timeout(
@@ -1079,7 +1079,7 @@ mod tests {
 
         let next = client
             .get(format!("{base_url}/target-agent/v1/operations/next"))
-            .header(header::AUTHORIZATION, format!("YggTarget {credential}"))
+            .header(header::AUTHORIZATION, format!("PluroraTarget {credential}"))
             .send()
             .await?;
         anyhow::ensure!(next.status() == StatusCode::OK, "agent work poll failed");
@@ -1101,7 +1101,7 @@ mod tests {
                     "{base_url}/target-agent/v1/operations/{}/progress",
                     operation.operation_id
                 ))
-                .header(header::AUTHORIZATION, format!("YggTarget {credential}"))
+                .header(header::AUTHORIZATION, format!("PluroraTarget {credential}"))
                 .json(&TargetOperationProgressRequest {
                     request_digest: operation.authority.request_digest.clone(),
                     authority_digest: operation.authority.authority_digest.clone(),
@@ -1122,7 +1122,7 @@ mod tests {
                 "{base_url}/target-agent/v1/operations/{}/receipt",
                 operation.operation_id
             ))
-            .header(header::AUTHORIZATION, format!("YggTarget {credential}"))
+            .header(header::AUTHORIZATION, format!("PluroraTarget {credential}"))
             .json(&TargetOperationReceipt {
                 operation_id: operation.operation_id,
                 target_id: target_id.to_string(),

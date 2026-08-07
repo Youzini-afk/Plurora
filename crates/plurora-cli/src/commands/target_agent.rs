@@ -180,7 +180,7 @@ where
         .request(method, url)
         .header("accept", "application/json");
     if let Some(credential) = credential {
-        request = request.header("authorization", format!("YggTarget {credential}"));
+        request = request.header("authorization", format!("PluroraTarget {credential}"));
     }
     if let Some(body) = body {
         request = request.json(body);
@@ -269,7 +269,7 @@ fn sync_directory(_path: &Path) -> anyhow::Result<()> {
 }
 
 fn credential_target_id(credential: &str) -> Option<&str> {
-    let remainder = credential.strip_prefix("yggagent.")?;
+    let remainder = credential.strip_prefix("plurora_agent.")?;
     let (target_id, secret) = remainder.rsplit_once('.')?;
     (!target_id.is_empty()
         && secret.len() == 64
@@ -702,7 +702,7 @@ async fn run_target_tunnel_connection(
     request.headers_mut().insert(
         tokio_tungstenite::tungstenite::http::header::AUTHORIZATION,
         tokio_tungstenite::tungstenite::http::HeaderValue::from_str(&format!(
-            "YggTarget {credential}"
+            "PluroraTarget {credential}"
         ))?,
     );
     let (socket, _) = tokio_tungstenite::connect_async(request)
@@ -1566,7 +1566,7 @@ async fn materialize_artifact(
     )?;
     let mut response = client
         .get(url)
-        .header("authorization", format!("YggTarget {credential}"))
+        .header("authorization", format!("PluroraTarget {credential}"))
         .header("accept", "application/octet-stream")
         .send()
         .await

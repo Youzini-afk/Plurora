@@ -52,7 +52,7 @@ If `/data/profiles/$PLURORA_PROFILE.yaml` does not exist, the entrypoint creates
 
 For Zeabur/public validation, set a random token, open the app URL, and enter that token on the login screen. Do not reuse production credentials and do not store real provider secrets in this validation instance. URL tokens (`?plurora_token=<token>` or `?access_token=<token>`) remain available as an optional one-time bootstrap path.
 
-To validate virtual-host app entry, point wildcard DNS such as `*.apps.example.com` at this Zeabur service and set `PLURORA_APP_BASE_DOMAIN=apps.example.com`. The Ygg management UI still uses the main domain and token; app vhost domains do not require the Ygg token.
+To validate virtual-host app entry, point wildcard DNS such as `*.apps.example.com` at this Zeabur service and set `PLURORA_APP_BASE_DOMAIN=apps.example.com`. The Plurora management UI still uses the main domain and token; app vhost domains do not require the Plurora token.
 
 ## Local smoke test
 

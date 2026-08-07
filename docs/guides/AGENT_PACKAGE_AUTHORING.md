@@ -57,7 +57,7 @@ cargo run -p plurora-cli -- package conformance /tmp/plurora-agent/manifest.yaml
 
 `sdk/typescript/agent-adapter` 是一层薄适配器，不是完整 agent 框架。它用于：
 
-- 把 Ygg 能力描述符映射为 pi 风格工具描述符。
+- 把 Plurora 能力描述符映射为 pi 风格工具描述符。
 - 构造 `capability.invoke` / `capability.stream` 请求载荷。
 - 生成包拥有的追踪事件载荷。
 - 生成需审批的提案草案载荷。
@@ -66,9 +66,9 @@ cargo run -p plurora-cli -- package conformance /tmp/plurora-agent/manifest.yaml
 示意：
 
 ```ts
-import { createYggAgentAdapter } from "../../sdk/typescript/agent-adapter/index.js";
+import { createPluroraAgentAdapter } from "../../sdk/typescript/agent-adapter/index.js";
 
-const adapter = createYggAgentAdapter({
+const adapter = createPluroraAgentAdapter({
   protocolClient,
   packageId: "example/agent-runtime",
 });

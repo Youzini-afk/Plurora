@@ -8,7 +8,7 @@ Pure TypeScript agent adapter that lets capability packages expose themselves as
 
 ```ts
 import {
-  createYggAgentAdapter,
+  createPluroraAgentAdapter,
   capabilityToTool,
   createCapabilityTool,
   invokeCapabilityTool,
@@ -18,14 +18,14 @@ import {
   diagnosePermissions,
   diagnoseProvider,
   blockRawSecrets,
-  runYggAgentAdapterSelfTest,
+  runPluroraAgentAdapterSelfTest,
 } from "./index";
 ```
 
 ### Create adapter
 
 ```ts
-const adapter = createYggAgentAdapter({
+const adapter = createPluroraAgentAdapter({
   protocolClient: myProtocolClient,  // implements ProtocolClient.call(request)
   packageId: "my/agent-package",
   principal: "user:alice",           // optional
@@ -131,7 +131,7 @@ blockRawSecrets({ api_key: "secret_ref:env:MY_KEY" }).has_raw_secrets; // false
 ### Self-test
 
 ```ts
-const results = runYggAgentAdapterSelfTest();
+const results = runPluroraAgentAdapterSelfTest();
 const failed = results.filter(r => !r.passed);
 if (failed.length > 0) {
   for (const f of failed) console.error(`FAIL: ${f.name} — ${f.detail}`);
@@ -151,7 +151,7 @@ if (failed.length > 0) {
 | `AgentProposalDraft` | interface | Proposal draft artifact |
 | `StreamRequest` / `StreamFrameAdapter` / `StreamAdapterFrame` | interface | Stream request / frame builder |
 | `PermissionDiagnostics` / `ProviderDiagnostics` / `RawSecretScanResult` | interface | Diagnostic results |
-| `createYggAgentAdapter` | function | Create adapter |
+| `createPluroraAgentAdapter` | function | Create adapter |
 | `capabilityToTool` | function | Descriptor → tool |
 | `createCapabilityTool` | function | Create tool from fields |
 | `invokeCapabilityTool` | function | Invoke tool through protocol |
@@ -161,7 +161,7 @@ if (failed.length > 0) {
 | `diagnosePermissions` | function | Permission diagnostics |
 | `diagnoseProvider` | function | Provider diagnostics |
 | `blockRawSecrets` | function | Raw secret scanner |
-| `runYggAgentAdapterSelfTest` | function | Pure-TS self-test |
+| `runPluroraAgentAdapterSelfTest` | function | Pure-TS self-test |
 
 ## Design constraints
 

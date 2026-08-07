@@ -18,7 +18,7 @@ This directory records how Plurora studies and absorbs [pi](https://github.com/e
 
 ### Adapter-now
 
-These can be absorbed into Ygg SDKs, templates, or reference packages now, but must be expressed through Ygg public protocol:
+These can be absorbed into Plurora SDKs, templates, or reference packages now, but must be expressed through Plurora public contract:
 
 - pi-agent-core `AgentEvent` idea: run/turn/message/tool execution lifecycle.
 - pi-agent-core `AgentTool` idea: label, argument preparation, execution mode, result/error/terminate.
@@ -57,22 +57,22 @@ These are deferred until dedicated packages and host policy are ready:
 
 ### Rejected
 
-These are explicitly out of Ygg agent infrastructure:
+These are explicitly out of Plurora agent infrastructure:
 
-- `pi-coding-agent` as the Ygg product shell;
+- `pi-coding-agent` as the Plurora product shell;
 - default bash/read/write/edit tools;
 - kernel agent/model/prompt/memory methods;
 - private runtime access;
 - first-party Package priority;
 - raw prompt/response/secret persistence.
 
-## Ygg mapping
+## Plurora mapping
 
-| pi-inspired idea | Ygg landing point |
+| pi-inspired idea | Plurora landing point |
 |---|---|
 | Agent run | ordinary package capability via `capability.invoke/stream` |
 | Abort/cancel | `capability.cancel` |
-| Tool | adapter view of Ygg capability |
+| Tool | adapter view of Plurora capability |
 | Tool execution | `capability.invoke/stream` with explicit provider package |
 | Tool gate | permission preview + before/after helper in SDK/package |
 | Trace | package-owned events and stream frames |

@@ -21,7 +21,7 @@ from typing import Any
 
 
 ROOT = Path(__file__).resolve().parents[1]
-YGG = Path(os.environ.get("PLURORA_BIN", ROOT / "target" / "debug" / "plurora"))
+PLURORA_BIN = Path(os.environ.get("PLURORA_BIN", ROOT / "target" / "debug" / "plurora"))
 REAL_SOURCE = (
     "https://github.com/mdn/beginner-html-site-styled"
     "#6c7a360ddb4a0d75be06044bf8a914f260ff10c7"
@@ -73,7 +73,7 @@ def run_checked(command: list[str], *, timeout: int = 600) -> subprocess.Complet
 def install_project(source: str, data_dir: Path) -> str:
     result = run_checked(
         [
-            str(YGG),
+            str(PLURORA_BIN),
             "install",
             source,
             "--profile",
@@ -192,7 +192,7 @@ def start_host(
         log_handle = log_path.open("w", encoding="utf-8")
         process = subprocess.Popen(
             [
-                str(YGG),
+                str(PLURORA_BIN),
                 "host",
                 "serve",
                 "--http",
@@ -538,7 +538,7 @@ def main() -> None:
         os.environ.get("PLURORA_HOST_OPERATIONS_ACCEPTANCE") == "1",
         "set PLURORA_HOST_OPERATIONS_ACCEPTANCE=1; this Docker workload is intended for GitHub CI",
     )
-    require(YGG.is_file(), f"Plurora CLI binary was not found at {YGG}")
+    require(PLURORA_BIN.is_file(), f"Plurora CLI binary was not found at {PLURORA_BIN}")
     run_checked(["docker", "info"], timeout=60)
 
     output_dir = Path(

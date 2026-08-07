@@ -58,7 +58,7 @@ The `target-agent.v1` identity and observation control plane exposes:
 |---|---|---|
 | Host client | `POST /host/v1/targets/{target_id}/enrollments` | `deploy` scope plus target selector; creates a single-use challenge with a maximum 15-minute lifetime |
 | Agent | `POST /target-agent/v1/enroll` | Consumes the challenge, negotiates version/capabilities, and receives a Host-generated bootstrap target credential once |
-| Agent | `POST /target-agent/v1/heartbeat` | Separate `YggTarget` credential; refreshes observation and 45-second liveness |
+| Agent | `POST /target-agent/v1/heartbeat` | Separate `PluroraTarget` credential; refreshes observation and 45-second liveness |
 | Host client | `GET /host/v1/targets/{target_id}/observe` | `observe` scope plus target selector; returns declarations, effective capabilities, epochs, and observed summary |
 | Host client | `POST /host/v1/targets/{target_id}/revoke` | `deploy` scope plus target selector; revokes identity and advances both lease and policy epochs |
 
@@ -83,7 +83,7 @@ Operation authority binds target, operation, step, project, effect, artifacts, l
 
 Driver routing selects local or Agent execution from `ExecutionTargetReachability`; no caller-provided network address can act as a fallback. Local and Agent deployment operations share one typed Docker driver: non-privileged bridge networking, `127.0.0.1` binding only, no command/env/mount inputs, and idempotent lookup through target/project/deployment/route/lease/operation ownership labels. The `apply` receipt returns Docker's actual loopback port. The Host projects a successful receipt back into the target-owned lease and promotes route readiness only when route, lease, project, and target all match; restart recovery never uses Host-local Docker observation to discard remote leases. An effect that was issued but cannot be confirmed becomes `outcome_unknown` rather than a false failure; Host startup durably resolves interrupted local Accepted/Running records the same way.
 
-The Candidate authenticated reverse-tunnel/private-preview baseline is also implemented. An Agent with `reverse_tunnel` reachability and the Deployment capability initiates `GET /target-agent/v1/tunnel` with its existing `YggTarget` identity. The Host accepts one live tunnel per target only when identity, lease epoch, and policy epoch match. Every `Open` binds the target, route, port lease, port name, Docker-observed port, and both epochs; bounded binary streams are multiplexed only by Host-generated opaque stream IDs. Before connecting, the Agent revalidates every managed-container ownership label, Running state, and exact `127.0.0.1` port mapping, so the tunnel cannot dial an arbitrary Agent loopback port. Disconnect or revoke immediately makes that target's routes unready; reconnect restores them only from durable receipt projection. Public versus Host-authenticated access remains Host route policy, and arbitrary network upstreams remain forbidden.
+The Candidate authenticated reverse-tunnel/private-preview baseline is also implemented. An Agent with `reverse_tunnel` reachability and the Deployment capability initiates `GET /target-agent/v1/tunnel` with its existing `PluroraTarget` identity. The Host accepts one live tunnel per target only when identity, lease epoch, and policy epoch match. Every `Open` binds the target, route, port lease, port name, Docker-observed port, and both epochs; bounded binary streams are multiplexed only by Host-generated opaque stream IDs. Before connecting, the Agent revalidates every managed-container ownership label, Running state, and exact `127.0.0.1` port mapping, so the tunnel cannot dial an arbitrary Agent loopback port. Disconnect or revoke immediately makes that target's routes unready; reconnect restores them only from durable receipt projection. Public versus Host-authenticated access remains Host route policy, and arbitrary network upstreams remain forbidden.
 
 ## Transport session
 
@@ -102,7 +102,7 @@ CancelRequest / CancelReceipt
 ArtifactRequest / ArtifactChunk / ArtifactReceipt
 ```
 
-Current V1 keeps durable operation control out of the volatile traffic tunnel. Identity, heartbeat, operation, receipt, and artifact flows use versioned HTTP routes; the Agent separately initiates a `YggTarget`-authenticated WebSocket that carries only multiplexed byte streams authorized by Host routes. Operation recovery uses the Host journal and Agent ledger, never an in-memory tunnel channel. Direct mTLS HTTP/2 may later replace a connection adapter without changing authority, receipt, or fencing semantics.
+Current V1 keeps durable operation control out of the volatile traffic tunnel. Identity, heartbeat, operation, receipt, and artifact flows use versioned HTTP routes; the Agent separately initiates a `PluroraTarget`-authenticated WebSocket that carries only multiplexed byte streams authorized by Host routes. Operation recovery uses the Host journal and Agent ledger, never an in-memory tunnel channel. Direct mTLS HTTP/2 may later replace a connection adapter without changing authority, receipt, or fencing semantics.
 
 ## Typed operations
 

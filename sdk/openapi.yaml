@@ -2165,7 +2165,7 @@ components:
         description: |-
           Generic outbound audit record / envelope.
 
-          Records an outbound network request made by a package through Ygg-provided network/request helpers. This is a platform event payload — it does NOT contain raw secrets, bodies, headers, prompts, or responses. Only `secret_ref` identifiers and the `redaction_state` are recorded.
+          Records an outbound network request made by a package through Plurora-provided network/request helpers. This is a platform event payload — it does NOT contain raw secrets, bodies, headers, prompts, or responses. Only `secret_ref` identifiers and the `redaction_state` are recorded.
         properties:
           capability_id:
             description: Capability through which the request was made.
@@ -3093,7 +3093,7 @@ components:
       description: |-
         Generic outbound audit record / envelope.
 
-        Records an outbound network request made by a package through Ygg-provided network/request helpers. This is a platform event payload — it does NOT contain raw secrets, bodies, headers, prompts, or responses. Only `secret_ref` identifiers and the `redaction_state` are recorded.
+        Records an outbound network request made by a package through Plurora-provided network/request helpers. This is a platform event payload — it does NOT contain raw secrets, bodies, headers, prompts, or responses. Only `secret_ref` identifiers and the `redaction_state` are recorded.
       properties:
         capability_id:
           description: Capability through which the request was made.
@@ -3192,7 +3192,7 @@ components:
       description: |-
         Generic outbound audit record / envelope.
 
-        Records an outbound network request made by a package through Ygg-provided network/request helpers. This is a platform event payload — it does NOT contain raw secrets, bodies, headers, prompts, or responses. Only `secret_ref` identifiers and the `redaction_state` are recorded.
+        Records an outbound network request made by a package through Plurora-provided network/request helpers. This is a platform event payload — it does NOT contain raw secrets, bodies, headers, prompts, or responses. Only `secret_ref` identifiers and the `redaction_state` are recorded.
       properties:
         capability_id:
           description: Capability through which the request was made.
@@ -4249,12 +4249,7 @@ components:
             max_count: null
         secret_refs:
           default: []
-          description: |-
-            Declared secret references this package may use in `host.outbound.execute` calls. Each entry must be a valid env-backed secret reference (e.g. `secret_ref:env:OPENAI_API_KEY`, `secretRef:env:MY_KEY`, `secret-ref:env:NAME`, `host:env:NAME`).
-
-            The runtime enforces fail-closed: any `secret_ref` used in `secret_headers` or top-level `secret_refs` at dispatch time **must** appear in this list, or the request is denied.
-
-            Default: empty vec (no secret refs allowed; backward compatible).
+          description: 'Declared secret references this package may use in `host.outbound.execute` calls. Each entry must be a valid env-backed secret reference (e.g. `secret_ref:env:OPENAI_API_KEY`, `secretRef:env:MY_KEY`, `secret-ref:env:NAME`, `host:env:NAME`). The runtime enforces fail-closed: any `secret_ref` used in `secret_headers` or top-level `secret_refs` at dispatch time **must** appear in this list, or the request is denied. Default: empty vec (no secret refs allowed; backward compatible).'
           items:
             type: string
           type: array
@@ -9759,7 +9754,7 @@ paths:
                       description: |-
                         Generic outbound audit record / envelope.
 
-                        Records an outbound network request made by a package through Ygg-provided network/request helpers. This is a platform event payload — it does NOT contain raw secrets, bodies, headers, prompts, or responses. Only `secret_ref` identifiers and the `redaction_state` are recorded.
+                        Records an outbound network request made by a package through Plurora-provided network/request helpers. This is a platform event payload — it does NOT contain raw secrets, bodies, headers, prompts, or responses. Only `secret_ref` identifiers and the `redaction_state` are recorded.
                       properties:
                         capability_id:
                           description: Capability through which the request was made.

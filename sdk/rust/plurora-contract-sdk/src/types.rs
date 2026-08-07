@@ -7659,7 +7659,7 @@ pub struct HostInfo {
 ///  "title": "HostOutboundAuditResult",
 ///  "type": "array",
 ///  "items": {
-///    "description": "Generic outbound audit record / envelope.\n\nRecords an outbound network request made by a package through Ygg-provided network/request helpers. This is a platform event payload — it does NOT contain raw secrets, bodies, headers, prompts, or responses. Only `secret_ref` identifiers and the `redaction_state` are recorded.",
+///    "description": "Generic outbound audit record / envelope.\n\nRecords an outbound network request made by a package through Plurora-provided network/request helpers. This is a platform event payload — it does NOT contain raw secrets, bodies, headers, prompts, or responses. Only `secret_ref` identifiers and the `redaction_state` are recorded.",
 ///    "type": "object",
 ///    "required": [
 ///      "capability_id",
@@ -7771,13 +7771,13 @@ impl ::std::convert::From<::std::vec::Vec<HostOutboundAuditResultItem>>
 }
 /**Generic outbound audit record / envelope.
 
-Records an outbound network request made by a package through Ygg-provided network/request helpers. This is a platform event payload — it does NOT contain raw secrets, bodies, headers, prompts, or responses. Only `secret_ref` identifiers and the `redaction_state` are recorded.*/
+Records an outbound network request made by a package through Plurora-provided network/request helpers. This is a platform event payload — it does NOT contain raw secrets, bodies, headers, prompts, or responses. Only `secret_ref` identifiers and the `redaction_state` are recorded.*/
 ///
 /// <details><summary>JSON schema</summary>
 ///
 /// ```json
 ///{
-///  "description": "Generic outbound audit record / envelope.\n\nRecords an outbound network request made by a package through Ygg-provided network/request helpers. This is a platform event payload — it does NOT contain raw secrets, bodies, headers, prompts, or responses. Only `secret_ref` identifiers and the `redaction_state` are recorded.",
+///  "description": "Generic outbound audit record / envelope.\n\nRecords an outbound network request made by a package through Plurora-provided network/request helpers. This is a platform event payload — it does NOT contain raw secrets, bodies, headers, prompts, or responses. Only `secret_ref` identifiers and the `redaction_state` are recorded.",
 ///  "type": "object",
 ///  "required": [
 ///    "capability_id",
@@ -11260,14 +11260,14 @@ pub struct OutboundAuditParams {
 }
 /**Generic outbound audit record / envelope.
 
-Records an outbound network request made by a package through Ygg-provided network/request helpers. This is a platform event payload — it does NOT contain raw secrets, bodies, headers, prompts, or responses. Only `secret_ref` identifiers and the `redaction_state` are recorded.*/
+Records an outbound network request made by a package through Plurora-provided network/request helpers. This is a platform event payload — it does NOT contain raw secrets, bodies, headers, prompts, or responses. Only `secret_ref` identifiers and the `redaction_state` are recorded.*/
 ///
 /// <details><summary>JSON schema</summary>
 ///
 /// ```json
 ///{
 ///  "title": "OutboundAuditRecord",
-///  "description": "Generic outbound audit record / envelope.\n\nRecords an outbound network request made by a package through Ygg-provided network/request helpers. This is a platform event payload — it does NOT contain raw secrets, bodies, headers, prompts, or responses. Only `secret_ref` identifiers and the `redaction_state` are recorded.",
+///  "description": "Generic outbound audit record / envelope.\n\nRecords an outbound network request made by a package through Plurora-provided network/request helpers. This is a platform event payload — it does NOT contain raw secrets, bodies, headers, prompts, or responses. Only `secret_ref` identifiers and the `redaction_state` are recorded.",
 ///  "type": "object",
 ///  "required": [
 ///    "capability_id",
@@ -11438,14 +11438,14 @@ pub struct OutboundAuditRecord {
 }
 /**Generic outbound audit record / envelope.
 
-Records an outbound network request made by a package through Ygg-provided network/request helpers. This is a platform event payload — it does NOT contain raw secrets, bodies, headers, prompts, or responses. Only `secret_ref` identifiers and the `redaction_state` are recorded.*/
+Records an outbound network request made by a package through Plurora-provided network/request helpers. This is a platform event payload — it does NOT contain raw secrets, bodies, headers, prompts, or responses. Only `secret_ref` identifiers and the `redaction_state` are recorded.*/
 ///
 /// <details><summary>JSON schema</summary>
 ///
 /// ```json
 ///{
 ///  "title": "OutboundAuditRecord2",
-///  "description": "Generic outbound audit record / envelope.\n\nRecords an outbound network request made by a package through Ygg-provided network/request helpers. This is a platform event payload — it does NOT contain raw secrets, bodies, headers, prompts, or responses. Only `secret_ref` identifiers and the `redaction_state` are recorded.",
+///  "description": "Generic outbound audit record / envelope.\n\nRecords an outbound network request made by a package through Plurora-provided network/request helpers. This is a platform event payload — it does NOT contain raw secrets, bodies, headers, prompts, or responses. Only `secret_ref` identifiers and the `redaction_state` are recorded.",
 ///  "type": "object",
 ///  "required": [
 ///    "capability_id",
@@ -13789,7 +13789,7 @@ pub struct PermissionRevokeParams {
 ///      ]
 ///    },
 ///    "secret_refs": {
-///      "description": "Declared secret references this package may use in `host.outbound.execute` calls. Each entry must be a valid env-backed secret reference (e.g. `secret_ref:env:OPENAI_API_KEY`, `secretRef:env:MY_KEY`, `secret-ref:env:NAME`, `host:env:NAME`).\n\nThe runtime enforces fail-closed: any `secret_ref` used in `secret_headers` or top-level `secret_refs` at dispatch time **must** appear in this list, or the request is denied.\n\nDefault: empty vec (no secret refs allowed; backward compatible).",
+///      "description": "Declared secret references this package may use in `host.outbound.execute` calls. Each entry must be a valid env-backed secret reference (e.g. `secret_ref:env:OPENAI_API_KEY`, `secretRef:env:MY_KEY`, `secret-ref:env:NAME`, `host:env:NAME`). The runtime enforces fail-closed: any `secret_ref` used in `secret_headers` or top-level `secret_refs` at dispatch time **must** appear in this list, or the request is denied. Default: empty vec (no secret refs allowed; backward compatible).",
 ///      "default": [],
 ///      "type": "array",
 ///      "items": {
@@ -13821,11 +13821,7 @@ pub struct PermissionSet {
     pub ports: PortPermissions,
     #[serde(default = "defaults::permission_set_proxy")]
     pub proxy: ProxyPermissions,
-    /**Declared secret references this package may use in `host.outbound.execute` calls. Each entry must be a valid env-backed secret reference (e.g. `secret_ref:env:OPENAI_API_KEY`, `secretRef:env:MY_KEY`, `secret-ref:env:NAME`, `host:env:NAME`).
-
-    The runtime enforces fail-closed: any `secret_ref` used in `secret_headers` or top-level `secret_refs` at dispatch time **must** appear in this list, or the request is denied.
-
-    Default: empty vec (no secret refs allowed; backward compatible).*/
+    ///Declared secret references this package may use in `host.outbound.execute` calls. Each entry must be a valid env-backed secret reference (e.g. `secret_ref:env:OPENAI_API_KEY`, `secretRef:env:MY_KEY`, `secret-ref:env:NAME`, `host:env:NAME`). The runtime enforces fail-closed: any `secret_ref` used in `secret_headers` or top-level `secret_refs` at dispatch time **must** appear in this list, or the request is denied. Default: empty vec (no secret refs allowed; backward compatible).
     #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
     pub secret_refs: ::std::vec::Vec<::std::string::String>,
 }

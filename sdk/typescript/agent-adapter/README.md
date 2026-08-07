@@ -8,7 +8,7 @@
 
 ```ts
 import {
-  createYggAgentAdapter,
+  createPluroraAgentAdapter,
   capabilityToTool,
   createCapabilityTool,
   invokeCapabilityTool,
@@ -18,14 +18,14 @@ import {
   diagnosePermissions,
   diagnoseProvider,
   blockRawSecrets,
-  runYggAgentAdapterSelfTest,
+  runPluroraAgentAdapterSelfTest,
 } from "./index";
 ```
 
 ### 创建 adapter
 
 ```ts
-const adapter = createYggAgentAdapter({
+const adapter = createPluroraAgentAdapter({
   protocolClient: myProtocolClient,  // 实现 ProtocolClient.call(request)
   packageId: "my/agent-package",
   principal: "user:alice",           // 可选
@@ -131,7 +131,7 @@ blockRawSecrets({ api_key: "secret_ref:env:MY_KEY" }).has_raw_secrets; // false
 ### 自测
 
 ```ts
-const results = runYggAgentAdapterSelfTest();
+const results = runPluroraAgentAdapterSelfTest();
 const failed = results.filter(r => !r.passed);
 if (failed.length > 0) {
   for (const f of failed) console.error(`FAIL: ${f.name} — ${f.detail}`);
@@ -151,7 +151,7 @@ if (failed.length > 0) {
 | `AgentProposalDraft` | interface | Proposal 草稿 |
 | `StreamRequest` / `StreamFrameAdapter` / `StreamAdapterFrame` | interface | 流式请求 / 帧构造器 |
 | `PermissionDiagnostics` / `ProviderDiagnostics` / `RawSecretScanResult` | interface | 诊断结果 |
-| `createYggAgentAdapter` | function | 创建 adapter |
+| `createPluroraAgentAdapter` | function | 创建 adapter |
 | `capabilityToTool` | function | 描述符 → tool |
 | `createCapabilityTool` | function | 从字段创建 tool |
 | `invokeCapabilityTool` | function | 通过协议调用 tool |
@@ -161,7 +161,7 @@ if (failed.length > 0) {
 | `diagnosePermissions` | function | 权限诊断 |
 | `diagnoseProvider` | function | Provider 诊断 |
 | `blockRawSecrets` | function | 原始秘密扫描 |
-| `runYggAgentAdapterSelfTest` | function | 纯 TS 自测 |
+| `runPluroraAgentAdapterSelfTest` | function | 纯 TS 自测 |
 
 ## 设计约束
 

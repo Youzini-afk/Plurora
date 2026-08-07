@@ -40,7 +40,7 @@ examples/packages/tdb-rust-adapter/manifest.yaml
 
 - 是普通 JSON-RPC stdio subprocess package；
 - 不依赖 `triviumdb`；
-- 可通过 Ygg runtime 加载和调用；
+- 可通过 Plurora runtime 加载和调用；
 - `run_real_tdb_smoke` 明确返回 `real_tdb_available=false`，不会伪装成功。
 
 真实 published-crate proof：
