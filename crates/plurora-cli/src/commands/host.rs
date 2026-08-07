@@ -260,7 +260,7 @@ fn ensure_host_store_schema(data_dir: &Path) -> Result<()> {
         .with_context(|| format!("failed to ensure store schema under {}", data_dir.display()))?
     {
         println!(
-            "kernel/v1/host.store_schema_migrated: from={:?} to={} preserved_paths_count={} preserved_path={}",
+            "host/store_schema_migrated: from={:?} to={} preserved_paths_count={} preserved_path={}",
             migration.from,
             migration.to,
             migration.preserved_paths_count,
@@ -293,7 +293,7 @@ fn should_skip_dangling_store_autoload_in_store(
     }
     if is_under_store_dir(resolved_manifest, store_dir) {
         eprintln!(
-            "kernel/v1/host.autoload.skipped: missing migrated store manifest {}",
+            "host/autoload.skipped: missing migrated store manifest {}",
             resolved_manifest.display()
         );
         return true;
@@ -727,54 +727,44 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn host_stdio_attaches_legacy_adapter_diagnostics_without_changing_the_result() {
+    async fn host_stdio_accepts_only_current_method_ids() {
         let runtime = Runtime::new(
             Arc::new(InMemoryEventStore::default()),
             RuntimeConfig::default(),
         );
         let context = ProtocolContext::host_dev("host_stdio_test");
-        let canonical = host_stdio_response(
+        let current = host_stdio_response(
             &runtime,
             &context,
-            r#"{"id":"canonical","method":"host.info","params":{}}"#,
+            r#"{"id":"current","method":"host.info","params":{}}"#,
         )
         .await;
-        let legacy = host_stdio_response(
-            &runtime,
-            &context,
-            r#"{"id":"legacy","method":"kernel.v1.host.info","params":{}}"#,
-        )
-        .await;
+        assert!(current.result.is_some());
 
-        assert_eq!(canonical.result, legacy.result);
-        assert!(canonical.diagnostics.is_empty());
-        assert_eq!(legacy.diagnostics.len(), 1);
+        let removed = host_stdio_response(
+            &runtime,
+            &context,
+            r#"{"id":"removed","method":"platform.host.info","params":{}}"#,
+        )
+        .await;
         assert_eq!(
-            legacy.diagnostics[0].code,
-            "plurora.contract.alias.legacy_adapter"
+            removed.error.expect("removed method must fail").code,
+            "runtime/error/invalid_request"
         );
-        assert_eq!(
-            legacy.diagnostics[0].maturity,
-            plurora_runtime::ContractMaturity::LegacyAdapter
-        );
-        assert!(legacy.diagnostics[0]
-            .message
-            .contains("no new field semantics"));
 
         let malformed_contract = host_stdio_response(
             &runtime,
             &context,
-            r#"{"id":"legacy-error","method":"kernel.v1.host.info","contract":"bad","params":{}}"#,
+            r#"{"id":"contract-error","method":"host.info","contract":"bad","params":{}}"#,
         )
         .await;
-        assert_eq!(malformed_contract.id, "legacy-error");
+        assert_eq!(malformed_contract.id, "contract-error");
         assert_eq!(
-            malformed_contract.error.unwrap().code,
-            "kernel/v1/error/invalid_request"
-        );
-        assert_eq!(
-            malformed_contract.diagnostics[0].code,
-            "plurora.contract.alias.legacy_adapter"
+            malformed_contract
+                .error
+                .expect("invalid contract must fail")
+                .code,
+            "runtime/error/invalid_request"
         );
     }
 
@@ -902,7 +892,7 @@ where
     println!("Plurora host serving http://{bound_http}");
     println!("  event store: {backend_kind} (config redacted)");
     println!("  RPC: POST http://{bound_http}/rpc");
-    println!("  SSE: GET  http://{bound_http}/kernel/v1/event.subscribe/:session_id");
+    println!("  SSE: GET  http://{bound_http}/journal/subscribe/:session_id");
     if let Some(static_dir) = &static_dir {
         println!(
             "  static: GET http://{bound_http}/ -> {}",
@@ -1090,7 +1080,6 @@ where
                 error: Some(plurora_runtime::ProtocolError::invalid_request(
                     error.to_string(),
                 )),
-                diagnostics: Vec::new(),
             };
         }
     };
@@ -1099,11 +1088,6 @@ where
         .and_then(serde_json::Value::as_str)
         .unwrap_or("invalid")
         .to_string();
-    let diagnostics = raw
-        .get("method")
-        .and_then(serde_json::Value::as_str)
-        .map(plurora_runtime::contract_diagnostics)
-        .unwrap_or_default();
     let request = match serde_json::from_value::<plurora_runtime::ProtocolRequest>(raw) {
         Ok(request) => request,
         Err(error) => {
@@ -1113,7 +1097,6 @@ where
                 error: Some(plurora_runtime::ProtocolError::invalid_request(
                     error.to_string(),
                 )),
-                diagnostics,
             };
         }
     };
@@ -1134,13 +1117,11 @@ where
             id,
             result: Some(result),
             error: None,
-            diagnostics,
         },
         Err(error) => plurora_runtime::ProtocolResponse {
             id,
             result: None,
             error: Some(error),
-            diagnostics,
         },
     }
 }

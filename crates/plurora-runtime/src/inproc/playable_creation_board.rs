@@ -8,10 +8,10 @@
 //!
 //! Deterministic, no-network, no real model inference.
 //!
-//! No `kernel.v1.experience.*`, `kernel.v1.world.*`, `kernel.v1.scene.*`,
-//! `kernel.v1.character.*`, `kernel.v1.turn.*`, `kernel.v1.chat.*`,
-//! `kernel.v1.memory.*`, `kernel.v1.agent.*`, `kernel.v1.model.*`,
-//! `kernel.v1.prompt.*`, or `kernel.v1.director.*` namespace references.
+//! No `platform.experience.*`, `platform.world.*`, `platform.scene.*`,
+//! `platform.character.*`, `platform.turn.*`, `platform.chat.*`,
+//! `platform.memory.*`, `platform.agent.*`, `platform.model.*`,
+//! `platform.prompt.*`, or `platform.director.*` namespace references.
 //!
 //! State terminology: board, module, constraint, marker — not
 //! world/scene/character/chat/message/turn/memory/prompt/director.
@@ -1496,7 +1496,7 @@ mod tests {
     }
 
     #[test]
-    fn no_forbidden_kernel_namespace_in_output() {
+    fn no_forbidden_platform_namespace_in_output() {
         let caps = [
             "official/playable-creation-board/describe_contract",
             "official/playable-creation-board/launch",
@@ -1511,17 +1511,17 @@ mod tests {
             "official/playable-creation-board/explain_provenance",
         ];
         let forbidden = [
-            "kernel.v1.experience.",
-            "kernel.v1.world.",
-            "kernel.v1.scene.",
-            "kernel.v1.character.",
-            "kernel.v1.turn.",
-            "kernel.v1.chat.",
-            "kernel.v1.memory.",
-            "kernel.v1.agent.",
-            "kernel.v1.model.",
-            "kernel.v1.prompt.",
-            "kernel.v1.director.",
+            "platform.experience.",
+            "platform.world.",
+            "platform.scene.",
+            "platform.character.",
+            "platform.turn.",
+            "platform.chat.",
+            "platform.memory.",
+            "platform.agent.",
+            "platform.model.",
+            "platform.prompt.",
+            "platform.director.",
         ];
         for cap in &caps {
             let req = make_request(cap, json!({"board_id": "test"}));
@@ -1762,24 +1762,24 @@ mod tests {
     }
 
     #[test]
-    fn no_forbidden_kernel_namespace_in_beta2_output() {
+    fn no_forbidden_platform_namespace_in_beta2_output() {
         let beta2_caps = [
             "official/playable-creation-board/preview_state_diff",
             "official/playable-creation-board/describe_asset_provenance",
         ];
         let forbidden = [
-            "kernel.v1.experience.",
-            "kernel.v1.world.",
-            "kernel.v1.scene.",
-            "kernel.v1.character.",
-            "kernel.v1.turn.",
-            "kernel.v1.chat.",
-            "kernel.v1.memory.",
-            "kernel.v1.agent.",
-            "kernel.v1.model.",
-            "kernel.v1.prompt.",
-            "kernel.v1.director.",
-            "kernel.v1.state.",
+            "platform.experience.",
+            "platform.world.",
+            "platform.scene.",
+            "platform.character.",
+            "platform.turn.",
+            "platform.chat.",
+            "platform.memory.",
+            "platform.agent.",
+            "platform.model.",
+            "platform.prompt.",
+            "platform.director.",
+            "platform.state.",
         ];
         for cap in &beta2_caps {
             let req = make_request(cap, json!({"board_id": "test"}));

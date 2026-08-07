@@ -2,8 +2,8 @@
 //!
 //! In addition to host-initiated `package.handshake` and
 //! `capability.invoke` calls, subprocess packages may initiate reverse
-//! public kernel calls by writing JSON-RPC requests whose method starts with
-//! `kernel.v1.` to stdout.  The supervisor dispatches those requests with the
+//! public platform calls by writing JSON-RPC requests to stdout. The
+//! supervisor accepts only exact registered method IDs, dispatches them with the
 //! caller principal locked to the subprocess package id and writes responses
 //! back to the child's stdin.
 
@@ -24,8 +24,7 @@ use tokio::sync::{oneshot, Mutex, RwLock};
 use tokio::time::timeout;
 
 use crate::{
-    contract_diagnostics, resolve_contract_method, EventStore, KernelMethod, ProtocolContext,
-    ProtocolError, Runtime,
+    resolve_contract_method, EventStore, PlatformMethod, ProtocolContext, ProtocolError, Runtime,
 };
 
 #[derive(Default)]
@@ -41,7 +40,7 @@ pub struct SubprocessHandle {
     stderr: Mutex<BufReader<ChildStderr>>,
     invoke_timeout: Duration,
     pending_responses: Mutex<HashMap<String, oneshot::Sender<Value>>>,
-    reverse_kernel_requests: Mutex<HashSet<String>>,
+    reverse_platform_requests: Mutex<HashSet<String>>,
     current_session_id: Mutex<Option<String>>,
 }
 
@@ -113,7 +112,7 @@ impl SubprocessSupervisor {
             stderr: Mutex::new(BufReader::new(stderr)),
             invoke_timeout: Duration::from_millis(manifest.sandbox_policy.cpu_quota_ms_per_invoke),
             pending_responses: Mutex::new(HashMap::new()),
-            reverse_kernel_requests: Mutex::new(HashSet::new()),
+            reverse_platform_requests: Mutex::new(HashSet::new()),
             current_session_id: Mutex::new(None),
         });
 
@@ -138,7 +137,7 @@ impl SubprocessSupervisor {
             "id": "handshake-1",
             "method": "package.handshake",
             "params": {
-                "protocol_version": crate::KERNEL_PROTOCOL_VERSION,
+                "protocol_version": crate::PLATFORM_PROTOCOL_VERSION,
                 "package_id": manifest.id,
                 "manifest_version": manifest.version,
                 "contract_mode": manifest.entry.contract,
@@ -173,7 +172,7 @@ impl SubprocessSupervisor {
 
         let reverse_handle = handle.clone();
         tokio::spawn(async move {
-            reverse_handle.pump_reverse_kernel_requests(runtime).await;
+            reverse_handle.pump_reverse_platform_requests(runtime).await;
         });
 
         self.handles
@@ -324,7 +323,7 @@ impl SubprocessHandle {
         logs
     }
 
-    async fn pump_reverse_kernel_requests<S>(self: Arc<Self>, runtime: Runtime<S>)
+    async fn pump_reverse_platform_requests<S>(self: Arc<Self>, runtime: Runtime<S>)
     where
         S: EventStore,
     {
@@ -358,7 +357,7 @@ impl SubprocessHandle {
             };
             let id = frame.get("id").cloned().unwrap_or(Value::Null);
             let request_id = id_to_key(&id);
-            self.reverse_kernel_requests
+            self.reverse_platform_requests
                 .lock()
                 .await
                 .insert(request_id.clone());
@@ -371,28 +370,29 @@ impl SubprocessHandle {
                 let _ = self
                     .write_json_frame(json!({"jsonrpc": "2.0", "id": id, "error": error}))
                     .await;
-                self.reverse_kernel_requests
+                self.reverse_platform_requests
                     .lock()
                     .await
                     .remove(&request_id);
                 continue;
             };
-            let kernel_method = resolved.method;
+            let platform_method = resolved.method;
 
-            let stream_events = if kernel_method.streaming() {
+            let stream_events = if platform_method.streaming() {
                 Some(runtime.store().subscribe())
             } else {
                 None
             };
             let session_id = self.current_session_id.lock().await.clone();
             let response =
-                dispatch_reverse_kernel_frame(&runtime, &self.package_id, session_id, frame).await;
-            let stream_id = if kernel_method.streaming() {
+                dispatch_reverse_platform_frame(&runtime, &self.package_id, session_id, frame)
+                    .await;
+            let stream_id = if platform_method.streaming() {
                 response
                     .get("result")
                     .and_then(|result| result.get("stream_id"))
                     .or_else(|| {
-                        if matches!(kernel_method, KernelMethod::OutboundWebSocketOpen) {
+                        if matches!(platform_method, PlatformMethod::OutboundWebSocketOpen) {
                             response
                                 .get("result")
                                 .and_then(|result| result.get("connection_id"))
@@ -407,7 +407,7 @@ impl SubprocessHandle {
             };
 
             if self.write_json_frame(response).await.is_err() {
-                self.reverse_kernel_requests
+                self.reverse_platform_requests
                     .lock()
                     .await
                     .remove(&request_id);
@@ -429,7 +429,7 @@ impl SubprocessHandle {
                         .await;
                 });
             } else {
-                self.reverse_kernel_requests
+                self.reverse_platform_requests
                     .lock()
                     .await
                     .remove(&request_id);
@@ -461,7 +461,7 @@ impl SubprocessHandle {
                     "error": "stream not found"
                 }))
                 .await;
-            self.reverse_kernel_requests
+            self.reverse_platform_requests
                 .lock()
                 .await
                 .remove(&request_id);
@@ -481,28 +481,28 @@ impl SubprocessHandle {
                 plurora_core::EVENT_OUTBOUND_WEBSOCKET_OPENED => json!({
                     "jsonrpc": "2.0",
                     "id": id,
-                    "kind": "kernel/v1/outbound.websocket.opened",
+                    "kind": "host/outbound.websocket.opened",
                     "connection_id": stream_id,
                     "payload": event.payload,
                 }),
                 plurora_core::EVENT_OUTBOUND_WEBSOCKET_FRAME => json!({
                     "jsonrpc": "2.0",
                     "id": id,
-                    "kind": "kernel/v1/outbound.websocket.frame",
+                    "kind": "host/outbound.websocket.frame",
                     "connection_id": stream_id,
                     "payload": event.payload,
                 }),
                 plurora_core::EVENT_OUTBOUND_WEBSOCKET_ERROR => json!({
                     "jsonrpc": "2.0",
                     "id": id,
-                    "kind": "kernel/v1/outbound.websocket.error",
+                    "kind": "host/outbound.websocket.error",
                     "connection_id": stream_id,
                     "payload": event.payload,
                 }),
                 plurora_core::EVENT_OUTBOUND_WEBSOCKET_COMPLETED => json!({
                     "jsonrpc": "2.0",
                     "id": id,
-                    "kind": "kernel/v1/outbound.websocket.completed",
+                    "kind": "host/outbound.websocket.completed",
                     "connection_id": stream_id,
                     "payload": event.payload,
                 }),
@@ -519,7 +519,7 @@ impl SubprocessHandle {
                     json!({
                         "jsonrpc": "2.0",
                         "id": id,
-                        "kind": "kernel/v1/stream.chunk",
+                        "kind": "capability/stream.chunk",
                         "stream_id": stream_id,
                         "sequence": sequence,
                         "data": event.payload,
@@ -528,27 +528,27 @@ impl SubprocessHandle {
                 plurora_core::EVENT_STREAM_ENDED => json!({
                     "jsonrpc": "2.0",
                     "id": id,
-                    "kind": "kernel/v1/stream.ended",
+                    "kind": "capability/stream.ended",
                     "stream_id": stream_id,
                     "summary": event.payload,
                 }),
                 plurora_core::EVENT_STREAM_ERROR => json!({
                     "jsonrpc": "2.0",
                     "id": id,
-                    "kind": "kernel/v1/stream.error",
+                    "kind": "capability/stream.error",
                     "stream_id": stream_id,
                     "error": event.payload.get("error").cloned().unwrap_or(event.payload),
                 }),
                 plurora_core::EVENT_STREAM_CANCELLED => json!({
                     "jsonrpc": "2.0",
                     "id": id,
-                    "kind": "kernel/v1/stream.cancelled",
+                    "kind": "capability/stream.cancelled",
                     "stream_id": stream_id,
                 }),
                 plurora_core::EVENT_STREAM_TIMEOUT => json!({
                     "jsonrpc": "2.0",
                     "id": id,
-                    "kind": "kernel/v1/stream.timeout",
+                    "kind": "capability/stream.timeout",
                     "stream_id": stream_id,
                 }),
                 _ => continue,
@@ -557,18 +557,18 @@ impl SubprocessHandle {
             let terminal = matches!(
                 frame.get("kind").and_then(Value::as_str),
                 Some(
-                    "kernel/v1/stream.ended"
-                        | "kernel/v1/stream.error"
-                        | "kernel/v1/stream.cancelled"
-                        | "kernel/v1/stream.timeout"
-                        | "kernel/v1/outbound.websocket.completed"
+                    "capability/stream.ended"
+                        | "capability/stream.error"
+                        | "capability/stream.cancelled"
+                        | "capability/stream.timeout"
+                        | "host/outbound.websocket.completed"
                 )
             );
             if self.write_json_frame(frame).await.is_err() || terminal {
                 break;
             }
         }
-        self.reverse_kernel_requests
+        self.reverse_platform_requests
             .lock()
             .await
             .remove(&request_id);
@@ -592,24 +592,10 @@ pub(crate) fn id_to_key(id: &Value) -> String {
     }
 }
 
-fn reverse_response_with_diagnostics(method: &str, mut response: Value) -> Value {
-    let diagnostics = contract_diagnostics(method);
-    if !diagnostics.is_empty() {
-        response
-            .as_object_mut()
-            .expect("reverse response is always a JSON object")
-            .insert(
-                "diagnostics".to_string(),
-                serde_json::to_value(diagnostics).expect("contract diagnostics serialize"),
-            );
-    }
-    response
-}
-
-/// Dispatch one reverse contract JSON-RPC frame from a subprocess child.
+/// Dispatch one reverse public-contract JSON-RPC frame from a subprocess child.
 /// The caller principal is always locked to `package_id`; any package_id in
 /// params is treated as untrusted request data by downstream dispatch.
-pub async fn dispatch_reverse_kernel_frame<S>(
+pub async fn dispatch_reverse_platform_frame<S>(
     runtime: &Runtime<S>,
     package_id: &str,
     session_id: Option<String>,
@@ -623,28 +609,25 @@ where
         return json!({
             "jsonrpc": "2.0",
             "id": id,
-            "error": ProtocolError::invalid_request("reverse kernel frame missing method"),
+            "error": ProtocolError::invalid_request("reverse platform frame missing method"),
         });
     };
     let contract = match frame.get("contract") {
         Some(value) => match serde_json::from_value::<crate::ContractSelection>(value.clone()) {
             Ok(contract) => Some(contract),
             Err(error) => {
-                return reverse_response_with_diagnostics(
-                    method,
-                    json!({
-                        "jsonrpc": "2.0",
-                        "id": id,
-                        "error": ProtocolError::invalid_request(format!("invalid contract selection: {error}")),
-                    }),
-                );
+                return json!({
+                    "jsonrpc": "2.0",
+                    "id": id,
+                    "error": ProtocolError::invalid_request(format!("invalid contract selection: {error}")),
+                });
             }
         },
         None => None,
     };
     let mut context = ProtocolContext::package(package_id.to_string(), "subprocess_stdio");
     context.session_id = session_id;
-    let response = match runtime
+    match runtime
         .call_subprocess_protocol_negotiated(
             &context,
             method,
@@ -655,8 +638,7 @@ where
     {
         Ok(result) => json!({"jsonrpc": "2.0", "id": id, "result": result}),
         Err(error) => json!({"jsonrpc": "2.0", "id": id, "error": error}),
-    };
-    reverse_response_with_diagnostics(method, response)
+    }
 }
 
 fn resolve_subprocess_program(program: &str) -> String {
@@ -675,36 +657,29 @@ mod tests {
     use crate::{InMemoryEventStore, RuntimeConfig, DEFAULT_CONTRACT_PROFILE};
 
     #[tokio::test]
-    async fn reverse_dispatch_resolves_aliases_before_the_shared_handler() {
+    async fn reverse_dispatch_accepts_only_registered_method_ids() {
         let runtime = Runtime::new(
             Arc::new(InMemoryEventStore::default()),
             RuntimeConfig::default(),
         );
-        let canonical = dispatch_reverse_kernel_frame(
+        let current = dispatch_reverse_platform_frame(
             &runtime,
             "example/reverse",
             None,
-            json!({"id":"canonical","method":"host.info","params":{}}),
+            json!({"id":"current","method":"host.info","params":{}}),
         )
         .await;
-        let legacy = dispatch_reverse_kernel_frame(
+        assert!(current.get("result").is_some());
+
+        let removed = dispatch_reverse_platform_frame(
             &runtime,
             "example/reverse",
             None,
-            json!({"id":"legacy","method":"kernel.v1.host.info","params":{}}),
+            json!({"id":"removed","method":"platform.host.info","params":{}}),
         )
         .await;
-        assert_eq!(canonical["result"], legacy["result"]);
-        assert!(canonical.get("diagnostics").is_none());
-        assert_eq!(
-            legacy["diagnostics"][0]["code"],
-            "plurora.contract.alias.legacy_adapter"
-        );
-        assert_eq!(legacy["diagnostics"][0]["replacement"], "host.info");
-        assert_eq!(legacy["diagnostics"][0]["maturity"], "legacy_adapter");
-        assert!(legacy["diagnostics"][0]["message"]
-            .as_str()
-            .is_some_and(|message| message.contains("no new field semantics")));
+        assert_eq!(removed["error"]["code"], "runtime/error/invalid_request");
+        assert!(removed.get("diagnostics").is_none());
     }
 
     #[tokio::test]
@@ -713,7 +688,7 @@ mod tests {
             Arc::new(InMemoryEventStore::default()),
             RuntimeConfig::default(),
         );
-        let response = dispatch_reverse_kernel_frame(
+        let response = dispatch_reverse_platform_frame(
             &runtime,
             "example/reverse",
             None,
@@ -730,29 +705,23 @@ mod tests {
         .await;
         assert_eq!(
             response["error"]["code"],
-            "kernel/v1/error/unsupported_contract"
+            "protocol/error/unsupported_contract"
         );
         assert!(response.get("result").is_none());
 
-        let malformed = dispatch_reverse_kernel_frame(
+        let malformed = dispatch_reverse_platform_frame(
             &runtime,
             "example/reverse",
             None,
             json!({
                 "id": "malformed",
-                "method": "kernel.v1.host.info",
+                "method": "host.info",
                 "params": {},
                 "contract": "bad"
             }),
         )
         .await;
-        assert_eq!(
-            malformed["error"]["code"],
-            "kernel/v1/error/invalid_request"
-        );
-        assert_eq!(
-            malformed["diagnostics"][0]["code"],
-            "plurora.contract.alias.legacy_adapter"
-        );
+        assert_eq!(malformed["error"]["code"], "runtime/error/invalid_request");
+        assert!(malformed.get("diagnostics").is_none());
     }
 }

@@ -135,7 +135,7 @@ where
     ) -> anyhow::Result<Value> {
         if !context.allows_host_action("observe") {
             anyhow::bail!(
-                "kernel.v1.project.list permission denied: authenticated authority lacks observe"
+                "host.project.list permission denied: authenticated authority lacks observe"
             );
         }
         let filter_state = params
@@ -165,8 +165,8 @@ where
         context: &ProtocolContext,
         params: &Value,
     ) -> anyhow::Result<Value> {
-        let id = Self::project_id_param(params, "kernel.v1.project.get")?;
-        Self::ensure_project_access(context, "observe", &id, "kernel.v1.project.get")?;
+        let id = Self::project_id_param(params, "host.project.get")?;
+        Self::ensure_project_access(context, "observe", &id, "host.project.get")?;
         let entry = self
             .config
             .project_registry
@@ -193,8 +193,8 @@ where
         context: &ProtocolContext,
         params: &Value,
     ) -> anyhow::Result<Value> {
-        let id = Self::project_id_param(params, "kernel.v1.project.status")?;
-        Self::ensure_project_access(context, "observe", &id, "kernel.v1.project.status")?;
+        let id = Self::project_id_param(params, "host.project.status")?;
+        Self::ensure_project_access(context, "observe", &id, "host.project.status")?;
         let entry = self
             .config
             .project_registry
@@ -223,8 +223,8 @@ where
         context: &ProtocolContext,
         params: &Value,
     ) -> anyhow::Result<Value> {
-        let id = Self::project_id_param(params, "kernel.v1.project.start")?;
-        Self::ensure_project_access(context, "project_operate", &id, "kernel.v1.project.start")?;
+        let id = Self::project_id_param(params, "host.project.start")?;
+        Self::ensure_project_access(context, "project_operate", &id, "host.project.start")?;
         let entry = self
             .config
             .project_registry
@@ -272,7 +272,7 @@ where
             .await?;
         let session_id = session.id.clone();
 
-        self.append_kernel_event(
+        self.append_platform_event(
             &session_id,
             plurora_core::PROJECT_STARTED,
             json!({
@@ -303,8 +303,8 @@ where
         context: &ProtocolContext,
         params: &Value,
     ) -> anyhow::Result<Value> {
-        let id = Self::project_id_param(params, "kernel.v1.project.stop")?;
-        Self::ensure_project_access(context, "project_operate", &id, "kernel.v1.project.stop")?;
+        let id = Self::project_id_param(params, "host.project.stop")?;
+        Self::ensure_project_access(context, "project_operate", &id, "host.project.stop")?;
         let entry = self
             .config
             .project_registry
@@ -320,7 +320,7 @@ where
             .set_state(&id, ProjectState::Stopping)?;
 
         if let Some(session_id) = &session_id {
-            self.append_kernel_event(
+            self.append_platform_event(
                 session_id,
                 plurora_core::PROJECT_STOPPED,
                 json!({

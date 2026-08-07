@@ -1,0 +1,68 @@
+{
+  "$defs": {
+    "Errors": {
+      "items": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "details": true,
+          "message": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "details",
+          "message"
+        ],
+        "title": "ErrorShape",
+        "type": "object"
+      },
+      "type": "array"
+    },
+    "Params": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "title": "EmptyParams",
+      "type": "object"
+    },
+    "Result": {
+      "type": "null"
+    }
+  },
+  "$id": "urn:plurora:schema:method:identity.current:v1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Plurora public platform method identity.current.",
+  "properties": {
+    "errors": {
+      "$ref": "#/$defs/Errors"
+    },
+    "method": {
+      "const": "identity.current"
+    },
+    "params": {
+      "$ref": "#/$defs/Params"
+    },
+    "result": {
+      "$ref": "#/$defs/Result"
+    }
+  },
+  "required": [
+    "method",
+    "params"
+  ],
+  "title": "identity.current",
+  "type": "object",
+  "x-plurora-contract": {
+    "id": "identity.current",
+    "implementation_status": "planned",
+    "introduced_in": "plurora.contract.default/v1@0.1.0",
+    "maturity": "experimental",
+    "owner_layer": "substrate",
+    "request_schema": "urn:plurora:schema:method:identity.current:v1#/$defs/Params",
+    "response_schema": "urn:plurora:schema:method:identity.current:v1#/$defs/Result",
+    "streaming": false
+  }
+}

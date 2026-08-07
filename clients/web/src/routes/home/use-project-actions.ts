@@ -2,7 +2,7 @@ import { useCallback, useEffect } from "react";
 import type { FailureDetail } from "@/components/install/failure-modal";
 import type { ToastInput } from "@/components/ui/toast";
 import type { RelativeAgeLabels } from "@/lib/format";
-import type { YggProtocolClient, PackageRecord, ProjectRecord } from "@/protocol/client";
+import type { PluroraProtocolClient, PackageRecord, ProjectRecord } from "@/protocol/client";
 import {
   failureDetailFromPackage,
   noFailureDiagnostic,
@@ -11,7 +11,7 @@ import {
 import { recordOpen } from "./use-recently-opened";
 
 interface UseProjectActionsArgs {
-  client: YggProtocolClient;
+  client: PluroraProtocolClient;
   onLaunch: (projectId: string) => void;
   pushToast: (toast: ToastInput) => string;
   refreshProjects: () => void;

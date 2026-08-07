@@ -1,0 +1,20 @@
+{
+  "$defs": {
+    "Payload": {
+      "type": "object"
+    }
+  },
+  "$id": "urn:plurora:schema:event:capability/stream.started:v1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "Payload schema for event kind capability/stream.started.",
+  "properties": {
+    "kind": {
+      "const": "capability/stream.started"
+    },
+    "payload": {
+      "$ref": "#/$defs/Payload"
+    }
+  },
+  "title": "capability/stream.started",
+  "type": "object"
+}

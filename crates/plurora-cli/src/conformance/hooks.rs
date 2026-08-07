@@ -8,7 +8,7 @@ pub(crate) async fn ordering_stable() -> anyhow::Result<()> {
     runtime
         .load_package(hook_package(
             "example/hook-b",
-            "kernel/v1/event.before_append",
+            "journal/before_append",
             "observe",
             0,
         ))
@@ -16,13 +16,13 @@ pub(crate) async fn ordering_stable() -> anyhow::Result<()> {
     runtime
         .load_package(hook_package(
             "example/hook-a",
-            "kernel/v1/event.before_append",
+            "journal/before_append",
             "observe",
             0,
         ))
         .await?;
     let result = runtime
-        .dispatch_extension("kernel/v1/event.before_append", json!({}))
+        .dispatch_extension("journal/before_append", json!({}))
         .await;
     let invoked: Vec<_> = result
         .invoked
@@ -45,7 +45,7 @@ pub(crate) async fn veto_blocks_event_append() -> anyhow::Result<()> {
     runtime
         .load_package(hook_package(
             "example/veto",
-            "kernel/v1/event.before_append",
+            "journal/before_append",
             "veto",
             0,
         ))
@@ -72,7 +72,7 @@ pub(crate) async fn metadata_mutation_allowed() -> anyhow::Result<()> {
     runtime
         .load_package(hook_package(
             "example/tracer",
-            "kernel/v1/event.before_append",
+            "journal/before_append",
             "metadata_trace",
             0,
         ))
@@ -102,7 +102,7 @@ pub(crate) async fn package_owned_handler() -> anyhow::Result<()> {
     runtime
         .load_package(hook_handler_package(
             "example/hook-owner",
-            "kernel/v1/event.before_append",
+            "journal/before_append",
             "example/hook-owner/trace",
         ))
         .await?;
@@ -131,7 +131,7 @@ pub(crate) async fn unload_removes_subscription() -> anyhow::Result<()> {
     runtime
         .load_package(hook_package(
             "example/veto",
-            "kernel/v1/event.before_append",
+            "journal/before_append",
             "veto",
             0,
         ))

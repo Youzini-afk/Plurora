@@ -149,12 +149,12 @@ Host 为各层提供受权的现实资源，但不创造反向语义依赖。
 
 Contract V1 是当前可运行、可生成 SDK、由 conformance 守护的公开合同。它同时承载了多层职责：
 
-- `kernel.v1.session.*` / event / capability / authority 接近基底；
+- `platform.session.*` / event / capability / authority 接近基底；
 - Project、target、exec、port、proxy、diagnostics 属于 Host；
 - projection、proposal/change、extension point 属于可演化协议；
 - surface slot 与 shell contribution 属于 Shell Profile。
 
-当前客户端和第三方集成可以继续使用 v1。新的语义不应继续无差别地扩大 `kernel.v1.*`；优先使用明确 owner 的 namespace、Contract Registry、Profile 协商和 legacy adapter。逐项归属见 [`../spec/CONTRACT_LAYERING_MATRIX.md`](../spec/CONTRACT_LAYERING_MATRIX.md)。
+当前客户端和第三方集成可以继续使用 v1。新的语义不应继续无差别地扩大 `platform.*`；优先使用明确 owner 的 namespace、Contract Registry、Profile 协商和 legacy adapter。逐项归属见 [`../spec/CONTRACT_LAYERING_MATRIX.md`](../spec/CONTRACT_LAYERING_MATRIX.md)。
 
 ## 当前官方发行版
 

@@ -1,0 +1,20 @@
+{
+  "$defs": {
+    "Payload": {
+      "type": "object"
+    }
+  },
+  "$id": "urn:plurora:schema:event:host/exec.request:v1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "Payload schema for event kind host/exec.request.",
+  "properties": {
+    "kind": {
+      "const": "host/exec.request"
+    },
+    "payload": {
+      "$ref": "#/$defs/Payload"
+    }
+  },
+  "title": "host/exec.request",
+  "type": "object"
+}

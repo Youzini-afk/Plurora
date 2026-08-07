@@ -27,17 +27,6 @@ export interface AssetGetResponse {
   "record": AssetRecord;
 }
 
-export type AssetListResult = Array<{
-  "created_at": string;
-  "descriptor"?: ArtifactDescriptor | null;
-  "hash": string;
-  "id": string;
-  "metadata"?: unknown;
-  "mime": string;
-  "origin_package_id": string;
-  "size_bytes": number;
-}>;
-
 export interface AssetPermissions {
   "read"?: boolean;
   "write"?: boolean;
@@ -66,6 +55,35 @@ export interface AuditPackageParams {
   "since"?: null | string;
   "until"?: null | string;
 }
+
+export type AuthorityDecisionListResult = Array<{
+  "id": string;
+  "kind": string;
+  "metadata"?: unknown;
+  "payload": unknown;
+  "schema_version": number;
+  "sequence": number;
+  "session_id": string;
+  "timestamp": string;
+  "writer_package_id": string;
+}>;
+
+export interface AuthorityDeniedPayload {
+  "operation"?: string;
+  "package_id"?: string;
+}
+
+export type AuthorityGrantListResult = Array<{
+  "granted_at": string;
+  "id": string;
+  "permission": string;
+  "principal": ProtocolPrincipal;
+  "reason"?: null | string;
+  "revoked_at"?: null | string;
+  "scope"?: null | string;
+}>;
+
+export type AuthorityHandleRevokeResult = Record<string, unknown>;
 
 export interface BranchRecord {
   "child_session_id": string;
@@ -110,8 +128,6 @@ export interface CapListForParams {
 export interface CapRevokeParams {
   "handle": CapHandleId;
 }
-
-export type CapRevokeResult = Record<string, unknown>;
 
 export interface CapabilityCancelParams {
   "invocation_id"?: null | string;
@@ -205,6 +221,8 @@ export interface CapabilityStreamParams {
 
 export type CapabilityStreamResult = Record<string, unknown>;
 
+export type CapabilityStreamStartedPayload = Record<string, unknown>;
+
 export interface ChangeCommit {
   "branch_id"?: null | string;
   "change_set_id": string;
@@ -233,6 +251,25 @@ export interface ChangePrecondition {
   "kind": string;
   "target"?: null | string;
 }
+
+export type ChangeProposalListResult = Array<{
+  "approval"?: ProposalApproval | null;
+  "change_set"?: ChangeSet | null;
+  "commit"?: ChangeCommit | null;
+  "created_at"?: string;
+  "created_by"?: ProtocolPrincipal;
+  "expected_effects"?: unknown;
+  "id"?: string;
+  "intent"?: Intent | null;
+  "operations"?: Array<ProposalOperation>;
+  "policy_decision"?: PolicyDecision | null;
+  "receipt"?: ArtifactDescriptor | null;
+  "required_permissions"?: Array<string>;
+  "result"?: unknown;
+  "status"?: ProposalStatus;
+  "target_branch_id"?: null | string;
+  "target_session_id"?: null | string;
+}>;
 
 export interface ChangeSet {
   "change_set_type_uri"?: string;
@@ -301,31 +338,20 @@ export interface CompositionLock {
   "schema": string;
 }
 
-export type ContractAdapter = "identity";
-
-export interface ContractAlias {
-  "canonical_id": string;
-  "deprecated_in"?: null | string;
+export type ContextBranchListResult = Array<{
+  "child_session_id": string;
+  "created_at": string;
+  "forked_from_sequence": number;
   "id": string;
-  "introduced_in": string;
-  "maturity": ContractMaturity;
-  "replacement"?: null | string;
-  "request_adapter": ContractAdapter;
-  "response_adapter": ContractAdapter;
-  "support_until"?: null | string;
-}
+  "metadata"?: unknown;
+  "parent_session_id": string;
+}>;
 
-export interface ContractDiagnostic {
-  "canonical_id": string;
-  "code": string;
-  "deprecated_in"?: null | string;
-  "maturity": ContractMaturity;
-  "message": string;
-  "replacement"?: null | string;
-  "requested_id": string;
-  "severity": string;
-  "support_until"?: null | string;
-}
+export type ContextClosedPayload = Record<string, unknown>;
+
+export type ContextListResult = null;
+
+export type ContextOpenedPayload = Record<string, unknown>;
 
 export interface ContractLayerInfo {
   "description": string;
@@ -333,27 +359,22 @@ export interface ContractLayerInfo {
   "maturity": ContractMaturity;
 }
 
-export type ContractMaturity = "experimental" | "candidate" | "stable" | "deprecated" | "legacy_adapter";
+export type ContractMaturity = "experimental" | "candidate" | "stable";
 
 export interface ContractMethod {
-  "aliases": Array<ContractAlias>;
-  "canonical_id": string;
-  "deprecated_in"?: null | string;
+  "id": string;
   "implementation_status": MethodStatus;
   "introduced_in": string;
   "maturity": ContractMaturity;
   "owner_layer": ContractOwnerLayer;
-  "replacement"?: null | string;
-  "request_adapter": ContractAdapter;
   "request_schema": string;
-  "response_adapter": ContractAdapter;
   "response_schema": string;
   "streaming": boolean;
 }
 
 export type ContractMode = "none" | "v1";
 
-export type ContractOwnerLayer = "substrate" | "host" | "protocol" | "shell" | "cross_layer" | "legacy_adapter";
+export type ContractOwnerLayer = "substrate" | "host" | "protocol" | "shell";
 
 export interface ContractProfileInfo {
   "id": string;
@@ -513,61 +534,14 @@ export interface EventListRequest {
   "writer_package_id"?: null | string;
 }
 
-export type EventListResult = Array<{
-  "id": string;
-  "kind": string;
-  "metadata"?: unknown;
-  "payload": unknown;
-  "schema_version": number;
-  "sequence": number;
-  "session_id": string;
-  "timestamp": string;
-  "writer_package_id": string;
-}>;
-
 export interface EventPermissions {
   "append"?: boolean;
   "read"?: boolean;
 }
 
-export type EventSubscribeResult = null;
-
 export interface ExecCommand {
   "args"?: Array<string>;
   "program": string;
-}
-
-export interface ExecCompletedPayload {
-  "receipt"?: null | {
-  "annotations"?: Record<string, unknown>;
-  "artifact_type_uri": string;
-  "digest": string;
-  "media_type": string;
-  "references"?: Array<string>;
-  "size_bytes": number;
-};
-}
-
-export interface ExecDeniedPayload {
-  "receipt"?: null | {
-  "annotations"?: Record<string, unknown>;
-  "artifact_type_uri": string;
-  "digest": string;
-  "media_type": string;
-  "references"?: Array<string>;
-  "size_bytes": number;
-};
-}
-
-export interface ExecFailedPayload {
-  "receipt"?: null | {
-  "annotations"?: Record<string, unknown>;
-  "artifact_type_uri": string;
-  "digest": string;
-  "media_type": string;
-  "references"?: Array<string>;
-  "size_bytes": number;
-};
 }
 
 export interface ExecIdParams {
@@ -576,16 +550,12 @@ export interface ExecIdParams {
 
 export type ExecLifecyclePolicy = "stop_on_session_close" | "keep_alive" | "stop_on_idle";
 
-export type ExecRequestPayload = Record<string, unknown>;
-
 export interface ExecResourceLimits {
   "max_cpu_millis"?: null | number;
   "max_duration_ms"?: null | number;
   "max_log_bytes"?: null | number;
   "max_memory_mb"?: null | number;
 }
-
-export type ExecStartedPayload = Record<string, unknown>;
 
 export interface ExecStatus {
   "exec_id"?: null | string;
@@ -597,17 +567,6 @@ export interface ExecStatus {
 }
 
 export type ExecStatusKind = "pending" | "running" | "stopped" | "exited" | "failed" | "denied" | "unknown";
-
-export interface ExecStoppedPayload {
-  "receipt"?: null | {
-  "annotations"?: Record<string, unknown>;
-  "artifact_type_uri": string;
-  "digest": string;
-  "media_type": string;
-  "references"?: Array<string>;
-  "size_bytes": number;
-};
-}
 
 export interface ExecutionTarget {
   /**
@@ -652,8 +611,6 @@ export type ExecutionTargetStatusKind = "enrolling" | "available" | "degraded" |
  */
 export type ExecutorKind = "deny_all" | "fake" | "real";
 
-export type ExtensionPointDescribeResult = null;
-
 export interface ExtensionPointDescriptor {
   "id": string;
   "modifiable": boolean;
@@ -662,8 +619,6 @@ export interface ExtensionPointDescriptor {
   "timing": HookTiming;
   "version": string;
 }
-
-export type ExtensionPointListResult = Array<string>;
 
 export interface ExternalProjectData {
   /**
@@ -716,7 +671,7 @@ export interface HandleLease {
 export interface HandleProvenance {
   "granted_at": string;
   /**
-   * "kernel" if minted by kernel itself.
+   * "plurora/runtime" if minted by the platform runtime.
    */
   "granted_by_package_id": string;
   /**
@@ -730,11 +685,6 @@ export interface HandleScope {
   "session_id"?: null | string;
 }
 
-export type HookListResult = Array<{
-  "subscriber_package_id": string;
-  "subscription": HookSubscription;
-}>;
-
 export interface HookSubscription {
   "extension_point": string;
   "handler": string;
@@ -746,8 +696,55 @@ export type HookTiming = "sync" | "async";
 
 export type HostDiagnosticsResult = Record<string, unknown>;
 
+export interface HostExecCompletedPayload {
+  "receipt"?: null | {
+  "annotations"?: Record<string, unknown>;
+  "artifact_type_uri": string;
+  "digest": string;
+  "media_type": string;
+  "references"?: Array<string>;
+  "size_bytes": number;
+};
+}
+
+export interface HostExecDeniedPayload {
+  "receipt"?: null | {
+  "annotations"?: Record<string, unknown>;
+  "artifact_type_uri": string;
+  "digest": string;
+  "media_type": string;
+  "references"?: Array<string>;
+  "size_bytes": number;
+};
+}
+
+export interface HostExecFailedPayload {
+  "receipt"?: null | {
+  "annotations"?: Record<string, unknown>;
+  "artifact_type_uri": string;
+  "digest": string;
+  "media_type": string;
+  "references"?: Array<string>;
+  "size_bytes": number;
+};
+}
+
+export type HostExecRequestPayload = Record<string, unknown>;
+
+export type HostExecStartedPayload = Record<string, unknown>;
+
+export interface HostExecStoppedPayload {
+  "receipt"?: null | {
+  "annotations"?: Record<string, unknown>;
+  "artifact_type_uri": string;
+  "digest": string;
+  "media_type": string;
+  "references"?: Array<string>;
+  "size_bytes": number;
+};
+}
+
 export interface HostInfo {
-  "aliases"?: Array<ContractAlias> | null;
   "contract_methods"?: Array<ContractMethod> | null;
   "contract_registry_version"?: null | string;
   "default_profile"?: null | string;
@@ -762,11 +759,201 @@ export interface HostInfo {
   "versions"?: Array<ContractVersionInfo> | null;
 }
 
+export type HostOutboundAuditResult = Array<{
+  /**
+   * Capability through which the request was made.
+   */
+  "capability_id": string;
+  /**
+   * Cost placeholder.
+   */
+  "cost"?: unknown;
+  /**
+   * Destination host.
+   */
+  "destination_host": string;
+  /**
+   * Error message if status is not "allowed".
+   */
+  "error"?: null | string;
+  /**
+   * Unique record id.
+   */
+  "id": string;
+  /**
+   * HTTP method (GET, POST, etc).
+   */
+  "method": string;
+  /**
+   * Package that owns the outbound request.
+   */
+  "package_id": string;
+  /**
+   * The principal that initiated the request.
+   */
+  "principal": string;
+  /**
+   * Declared purpose from the manifest or request context.
+   */
+  "purpose"?: null | string;
+  /**
+   * Redaction state — what data, if any, was recorded.
+   */
+  "redaction_state"?: RedactionState;
+  /**
+   * Secret references used (not raw secrets).
+   */
+  "secret_refs_used"?: Array<string>;
+  /**
+   * Request status: "allowed", "denied", "error", etc.
+   */
+  "status": string;
+  /**
+   * Usage placeholder (e.g. token count).
+   */
+  "usage"?: unknown;
+}>;
+
+export interface HostOutboundExecuteCompletedPayload {
+  "receipt"?: null | {
+  "annotations"?: Record<string, unknown>;
+  "artifact_type_uri": string;
+  "digest": string;
+  "media_type": string;
+  "references"?: Array<string>;
+  "size_bytes": number;
+};
+}
+
+export type HostOutboundWebsocketCloseResult = Record<string, unknown>;
+
+export interface HostOutboundWebsocketCompletedPayload {
+  "receipt"?: null | {
+  "annotations"?: Record<string, unknown>;
+  "artifact_type_uri": string;
+  "digest": string;
+  "media_type": string;
+  "references"?: Array<string>;
+  "size_bytes": number;
+};
+}
+
+export type HostOutboundWebsocketErrorPayload = Record<string, unknown>;
+
+export type HostOutboundWebsocketFramePayload = Record<string, unknown>;
+
+export type HostOutboundWebsocketOpenResult = Record<string, unknown>;
+
+export type HostOutboundWebsocketOpenedPayload = Record<string, unknown>;
+
+export type HostOutboundWebsocketSendResult = Record<string, unknown>;
+
+export type HostPackageDescribeResult = null;
+
+export type HostPackageListResult = Array<{
+  "capability_count": number;
+  "components"?: Array<ComponentDescriptor>;
+  "enforced_boundaries"?: ComponentBoundaryClaims;
+  "entry_kind": string;
+  "extension_point_count": number;
+  "hook_count": number;
+  "id": string;
+  "last_failure"?: PackageFailureSummary | null;
+  "loaded_at": string;
+  "manifest": PackageManifest;
+  "package_envelope"?: PackageEnvelopeDescriptor | null;
+  "state": PackageState;
+  /**
+   * Canonical Contract v2 trust classification. Unlike `trust_level`, this distinguishes `contract:none` as a foreign capsule.
+   */
+  "trust_class"?: ComponentTrustClass;
+  "trust_level": TrustLevel;
+  "updated_at": string;
+  "version": string;
+}>;
+
+export type HostPackageLogsResult = Array<{
+  "line": string;
+  "package_id": string;
+  "stream": string;
+}>;
+
 export interface HostPingResult {
   "ok": true;
 }
 
-export type HostPrincipalResult = null;
+export type HostPortDeniedPayload = Record<string, unknown>;
+
+export type HostPortLeasedPayload = Record<string, unknown>;
+
+export type HostPortListResult = Array<{
+  "bind": PortBindScope;
+  "host": string;
+  "id": string;
+  "port": number;
+  "port_name": string;
+  "protocol": PortProtocol;
+  "status": PortLeaseStatusKind;
+  "target_id": string;
+}>;
+
+export type HostPortReleasedPayload = Record<string, unknown>;
+
+export type HostProjectGetResult = {
+  /**
+   * The actual project content.
+   */
+  "project": ProjectInner;
+  /**
+   * Schema version. Currently always 1.
+   */
+  "schema_version": number;
+};
+
+export type HostProxyDeniedPayload = Record<string, unknown>;
+
+export type HostProxyListResult = Array<{
+  "access"?: ProxyRouteAccess;
+  "id": string;
+  "iframe_url": string;
+  "protocol": ProxyProtocol;
+  "public_url": string;
+  "ready": boolean;
+  "status": ProxyRouteStatusKind;
+  "upstream": ProxyRouteUpstream;
+}>;
+
+export type HostProxyRegisteredPayload = Record<string, unknown>;
+
+export type HostProxyUnregisteredPayload = Record<string, unknown>;
+
+export type HostTargetListResult = Array<{
+  /**
+   * Effective capabilities after protocol negotiation and Host policy.
+   */
+  "capabilities"?: Array<ExecutionTargetCapability>;
+  /**
+   * Capabilities declared by the target before Host policy is applied.
+   */
+  "declared_capabilities"?: Array<ExecutionTargetCapability>;
+  "enrolled_at_ms"?: null | number;
+  "heartbeat_expires_at_ms"?: null | number;
+  "id": string;
+  "identity_ref"?: null | string;
+  "labels"?: Record<string, string>;
+  "last_seen_at_ms"?: null | number;
+  "lease_epoch"?: number;
+  "name": string;
+  "observed"?: ExecutionTargetObservedSummary | null;
+  "policy_epoch"?: number;
+  "protocol_versions"?: Array<string>;
+  "reachability": ExecutionTargetReachability;
+  "revoked_at_ms"?: null | number;
+  "selected_protocol_version"?: null | string;
+  "status": ExecutionTargetStatusKind;
+}>;
+
+export type IdentityCurrentResult = null;
 
 export interface Intent {
   "annotations"?: Record<string, unknown>;
@@ -779,44 +966,19 @@ export interface Intent {
   "target_session_id"?: null | string;
 }
 
-/**
- * Response returned by `kernel.v1.outbound.stream` on the initial call.
- *
- * Contains the stream_id for subscribing to events, the start status, and metadata about the executor that will handle the stream.
- */
-export interface KernelOutboundStreamResponse {
-  /**
-   * What kind of executor is handling the stream.
-   */
-  "executor_kind": ExecutorKind;
-  /**
-   * Whether real network I/O will be performed.
-   */
-  "network_performed": boolean;
-  /**
-   * Redaction state applied to stream frames.
-   */
-  "redaction_state"?: RedactionState;
-  /**
-   * Whether the stream started successfully.
-   */
-  "status": StreamStartStatus;
-  /**
-   * The stream_id to subscribe to for stream frames.
-   */
-  "stream_id": string;
-}
-
-export interface KernelSession {
-  "active_package_set": Array<string>;
-  "created_at": string;
+export type JournalListResult = Array<{
   "id": string;
-  "labels": Array<string>;
+  "kind": string;
   "metadata"?: unknown;
-  "principal_scope"?: null | string;
-  "status": SessionStatus;
-  "updated_at": string;
-}
+  "payload": unknown;
+  "schema_version": number;
+  "sequence": number;
+  "session_id": string;
+  "timestamp": string;
+  "writer_package_id": string;
+}>;
+
+export type JournalSubscribeResult = null;
 
 export interface LocalExecDeclaration {
   "max_count"?: null | number;
@@ -931,6 +1093,17 @@ export interface NetworkPermissions {
   "hosts"?: Array<string>;
 }
 
+export type ObjectListResult = Array<{
+  "created_at": string;
+  "descriptor"?: ArtifactDescriptor | null;
+  "hash": string;
+  "id": string;
+  "metadata"?: unknown;
+  "mime": string;
+  "origin_package_id": string;
+  "size_bytes": number;
+}>;
+
 export interface OpenSessionRequest {
   "active_package_set": Array<string>;
   "labels": Array<string>;
@@ -944,7 +1117,7 @@ export interface OutboundAuditParams {
 /**
  * Generic outbound audit record / envelope.
  *
- * Records an outbound network request made by a package through Ygg-provided network/request helpers. This is a kernel event payload — it does NOT contain raw secrets, bodies, headers, prompts, or responses. Only `secret_ref` identifiers and the `redaction_state` are recorded.
+ * Records an outbound network request made by a package through Ygg-provided network/request helpers. This is a platform event payload — it does NOT contain raw secrets, bodies, headers, prompts, or responses. Only `secret_ref` identifiers and the `redaction_state` are recorded.
  */
 export interface OutboundAuditRecord {
   /**
@@ -1012,7 +1185,7 @@ export interface OutboundAuditRecord {
 /**
  * Generic outbound audit record / envelope.
  *
- * Records an outbound network request made by a package through Ygg-provided network/request helpers. This is a kernel event payload — it does NOT contain raw secrets, bodies, headers, prompts, or responses. Only `secret_ref` identifiers and the `redaction_state` are recorded.
+ * Records an outbound network request made by a package through Ygg-provided network/request helpers. This is a platform event payload — it does NOT contain raw secrets, bodies, headers, prompts, or responses. Only `secret_ref` identifiers and the `redaction_state` are recorded.
  */
 export interface OutboundAuditRecord2 {
   /**
@@ -1067,72 +1240,6 @@ export interface OutboundAuditRecord2 {
    * Usage placeholder (e.g. token count).
    */
   "usage"?: unknown;
-}
-
-export type OutboundAuditResult = Array<{
-  /**
-   * Capability through which the request was made.
-   */
-  "capability_id": string;
-  /**
-   * Cost placeholder.
-   */
-  "cost"?: unknown;
-  /**
-   * Destination host.
-   */
-  "destination_host": string;
-  /**
-   * Error message if status is not "allowed".
-   */
-  "error"?: null | string;
-  /**
-   * Unique record id.
-   */
-  "id": string;
-  /**
-   * HTTP method (GET, POST, etc).
-   */
-  "method": string;
-  /**
-   * Package that owns the outbound request.
-   */
-  "package_id": string;
-  /**
-   * The principal that initiated the request.
-   */
-  "principal": string;
-  /**
-   * Declared purpose from the manifest or request context.
-   */
-  "purpose"?: null | string;
-  /**
-   * Redaction state — what data, if any, was recorded.
-   */
-  "redaction_state"?: RedactionState;
-  /**
-   * Secret references used (not raw secrets).
-   */
-  "secret_refs_used"?: Array<string>;
-  /**
-   * Request status: "allowed", "denied", "error", etc.
-   */
-  "status": string;
-  /**
-   * Usage placeholder (e.g. token count).
-   */
-  "usage"?: unknown;
-}>;
-
-export interface OutboundExecuteCompletedPayload {
-  "receipt"?: null | {
-  "annotations"?: Record<string, unknown>;
-  "artifact_type_uri": string;
-  "digest": string;
-  "media_type": string;
-  "references"?: Array<string>;
-  "size_bytes": number;
-};
 }
 
 export interface OutboundExecuteParams {
@@ -1199,7 +1306,7 @@ export interface OutboundExecutorResponse {
 }
 
 /**
- * Specification for a secret-derived HTTP header to be injected by the host during outbound execution. Packages declare these in `kernel.v1.outbound.execute` params as `secret_headers`; the host resolves the `secret_ref` at execution time and injects the resulting header value into the live HTTP request.
+ * Specification for a secret-derived HTTP header to be injected by the host during outbound execution. Packages declare these in `host.outbound.execute` params as `secret_headers`; the host resolves the `secret_ref` at execution time and injects the resulting header value into the live HTTP request.
  *
  * Raw secret values never appear in audit, response, or Debug output.
  */
@@ -1236,6 +1343,34 @@ export interface OutboundStreamParams {
   "static_headers": Array<OutboundStaticHeader>;
   "stream_format"?: StreamFormat | null;
   "timeout_ms"?: null | number;
+}
+
+/**
+ * Response returned by `host.outbound.stream` on the initial call.
+ *
+ * Contains the stream_id for subscribing to events, the start status, and metadata about the executor that will handle the stream.
+ */
+export interface OutboundStreamResponse {
+  /**
+   * What kind of executor is handling the stream.
+   */
+  "executor_kind": ExecutorKind;
+  /**
+   * Whether real network I/O will be performed.
+   */
+  "network_performed": boolean;
+  /**
+   * Redaction state applied to stream frames.
+   */
+  "redaction_state"?: RedactionState;
+  /**
+   * Whether the stream started successfully.
+   */
+  "status": StreamStartStatus;
+  /**
+   * The stream_id to subscribe to for stream frames.
+   */
+  "stream_id": string;
 }
 
 /**
@@ -1325,29 +1460,6 @@ export interface OutboundWebSocketSendParams {
   "reason"?: null | string;
 }
 
-export type OutboundWebsocketCloseResult = Record<string, unknown>;
-
-export interface OutboundWebsocketCompletedPayload {
-  "receipt"?: null | {
-  "annotations"?: Record<string, unknown>;
-  "artifact_type_uri": string;
-  "digest": string;
-  "media_type": string;
-  "references"?: Array<string>;
-  "size_bytes": number;
-};
-}
-
-export type OutboundWebsocketErrorPayload = Record<string, unknown>;
-
-export type OutboundWebsocketFramePayload = Record<string, unknown>;
-
-export type OutboundWebsocketOpenResult = Record<string, unknown>;
-
-export type OutboundWebsocketOpenedPayload = Record<string, unknown>;
-
-export type OutboundWebsocketSendResult = Record<string, unknown>;
-
 export interface PackageAuditReport {
   "declared": DeclaredAuthority;
   "package_id": string;
@@ -1383,8 +1495,6 @@ export interface PackageDependency {
    */
   "version"?: string;
 }
-
-export type PackageDescribeResult = null;
 
 export interface PackageEnvelopeDescriptor {
   "artifact": ArtifactDescriptor;
@@ -1429,34 +1539,6 @@ export interface PackageLifecyclePayload {
   "state": string;
   "version": string;
 }
-
-export type PackageListResult = Array<{
-  "capability_count": number;
-  "components"?: Array<ComponentDescriptor>;
-  "enforced_boundaries"?: ComponentBoundaryClaims;
-  "entry_kind": string;
-  "extension_point_count": number;
-  "hook_count": number;
-  "id": string;
-  "last_failure"?: PackageFailureSummary | null;
-  "loaded_at": string;
-  "manifest": PackageManifest;
-  "package_envelope"?: PackageEnvelopeDescriptor | null;
-  "state": PackageState;
-  /**
-   * Canonical Contract v2 trust classification. Unlike `trust_level`, this distinguishes `contract:none` as a foreign capsule.
-   */
-  "trust_class"?: ComponentTrustClass;
-  "trust_level": TrustLevel;
-  "updated_at": string;
-  "version": string;
-}>;
-
-export type PackageLogsResult = Array<{
-  "line": string;
-  "package_id": string;
-  "stream": string;
-}>;
 
 export interface PackageManifest {
   "author"?: null | string;
@@ -1517,23 +1599,6 @@ export interface PackagedSurfaceDescriptor {
   "version": string;
 }
 
-export type PermissionAuditResult = Array<{
-  "id": string;
-  "kind": string;
-  "metadata"?: unknown;
-  "payload": unknown;
-  "schema_version": number;
-  "sequence": number;
-  "session_id": string;
-  "timestamp": string;
-  "writer_package_id": string;
-}>;
-
-export interface PermissionDeniedPayload {
-  "operation"?: string;
-  "package_id"?: string;
-}
-
 export interface PermissionGrantParams {
   "permission": string;
   "principal": ProtocolPrincipal;
@@ -1555,16 +1620,6 @@ export interface PermissionListParams {
   "principal"?: ProtocolPrincipal | null;
 }
 
-export type PermissionListResult = Array<{
-  "granted_at": string;
-  "id": string;
-  "permission": string;
-  "principal": ProtocolPrincipal;
-  "reason"?: null | string;
-  "revoked_at"?: null | string;
-  "scope"?: null | string;
-}>;
-
 export interface PermissionRevokeParams {
   "grant_id": string;
 }
@@ -1580,7 +1635,7 @@ export interface PermissionSet {
   "ports"?: PortPermissions;
   "proxy"?: ProxyPermissions;
   /**
-   * Declared secret references this package may use in `kernel.v1.outbound.execute` calls. Each entry must be a valid env-backed secret reference (e.g. `secret_ref:env:OPENAI_API_KEY`, `secretRef:env:MY_KEY`, `secret-ref:env:NAME`, `host:env:NAME`).
+   * Declared secret references this package may use in `host.outbound.execute` calls. Each entry must be a valid env-backed secret reference (e.g. `secret_ref:env:OPENAI_API_KEY`, `secretRef:env:MY_KEY`, `secret-ref:env:NAME`, `host:env:NAME`).
    *
    * The runtime enforces fail-closed: any `secret_ref` used in `secret_headers` or top-level `secret_refs` at dispatch time **must** appear in this list, or the request is denied.
    *
@@ -1611,8 +1666,6 @@ export interface PortDeclaration {
   "target_id": string;
 }
 
-export type PortDeniedPayload = Record<string, unknown>;
-
 export interface PortLeaseIdParams {
   "lease_id": string;
 }
@@ -1641,27 +1694,12 @@ export interface PortLeaseResponse {
 
 export type PortLeaseStatusKind = "active" | "reserved" | "released";
 
-export type PortLeasedPayload = Record<string, unknown>;
-
-export type PortListResult = Array<{
-  "bind": PortBindScope;
-  "host": string;
-  "id": string;
-  "port": number;
-  "port_name": string;
-  "protocol": PortProtocol;
-  "status": PortLeaseStatusKind;
-  "target_id": string;
-}>;
-
 export interface PortPermissions {
   "declarations"?: Array<PortDeclaration>;
   "max_count"?: null | number;
 }
 
 export type PortProtocol = "tcp" | "udp";
-
-export type PortReleasedPayload = Record<string, unknown>;
 
 export type PrincipalIdentity = {
   "assistant_id": string;
@@ -1677,21 +1715,10 @@ export type PrincipalIdentity = {
   "kind": "human";
   "user_id": string;
 } | {
-  "kind": "kernel";
-} | {
   "kind": "package";
   "package_id": string;
-};
-
-export type ProjectGetResult = {
-  /**
-   * The actual project content.
-   */
-  "project": ProjectInner;
-  /**
-   * Schema version. Currently always 1.
-   */
-  "schema_version": number;
+} | {
+  "kind": "platform_runtime";
 };
 
 export interface ProjectIdParams {
@@ -1855,25 +1882,6 @@ export interface ProposalIdParams {
   "proposal_id": string;
 }
 
-export type ProposalListResult = Array<{
-  "approval"?: ProposalApproval | null;
-  "change_set"?: ChangeSet | null;
-  "commit"?: ChangeCommit | null;
-  "created_at"?: string;
-  "created_by"?: ProtocolPrincipal;
-  "expected_effects"?: unknown;
-  "id"?: string;
-  "intent"?: Intent | null;
-  "operations"?: Array<ProposalOperation>;
-  "policy_decision"?: PolicyDecision | null;
-  "receipt"?: ArtifactDescriptor | null;
-  "required_permissions"?: Array<string>;
-  "result"?: unknown;
-  "status"?: ProposalStatus;
-  "target_branch_id"?: null | string;
-  "target_session_id"?: null | string;
-}>;
-
 export interface ProposalOperation {
   "op": string;
   "payload"?: unknown;
@@ -1973,6 +1981,15 @@ export interface ProtocolError {
   "message": string;
 }
 
+export type ProtocolExtensionDescribeResult = null;
+
+export type ProtocolExtensionListResult = Array<string>;
+
+export type ProtocolHookListResult = Array<{
+  "subscriber_package_id": string;
+  "subscription": HookSubscription;
+}>;
+
 /**
  * Request-specific Host operation facts established by a trusted transport adapter after it has parsed and authorized the request. Unlike authority, this is never populated from the request body itself.
  */
@@ -1997,7 +2014,7 @@ export interface ProtocolImplementationDeclaration {
   "version": string;
 }
 
-export type ProtocolMaturity = "experimental" | "candidate" | "stable" | "deprecated" | "legacy_adapter";
+export type ProtocolMaturity = "experimental" | "candidate" | "stable" | "deprecated";
 
 export interface ProtocolMethod {
   "id": string;
@@ -2051,7 +2068,6 @@ export interface ProtocolResourceSelector {
 }
 
 export interface ProtocolResponse {
-  "diagnostics"?: Array<ContractDiagnostic>;
   "error"?: ProtocolError | null;
   "id": string;
   "result"?: unknown;
@@ -2077,27 +2093,12 @@ export interface ProxyDeclaration {
   "route_ids"?: Array<string>;
 }
 
-export type ProxyDeniedPayload = Record<string, unknown>;
-
-export type ProxyListResult = Array<{
-  "access"?: ProxyRouteAccess;
-  "id": string;
-  "iframe_url": string;
-  "protocol": ProxyProtocol;
-  "public_url": string;
-  "ready": boolean;
-  "status": ProxyRouteStatusKind;
-  "upstream": ProxyRouteUpstream;
-}>;
-
 export interface ProxyPermissions {
   "declarations"?: Array<ProxyDeclaration>;
   "max_count"?: null | number;
 }
 
 export type ProxyProtocol = "http" | "websocket";
-
-export type ProxyRegisteredPayload = Record<string, unknown>;
 
 export type ProxyRouteAccess = "host_authenticated" | "public";
 
@@ -2133,8 +2134,6 @@ export interface ProxyRouteUpstream {
   "port_lease_id": string;
   "port_name": string;
 }
-
-export type ProxyUnregisteredPayload = Record<string, unknown>;
 
 export interface ReadinessProbe {
   "initial_delay_ms"?: null | number;
@@ -2184,20 +2183,9 @@ export interface SessionBranchListParams {
   "session_id": string;
 }
 
-export type SessionBranchListResult = Array<{
-  "child_session_id": string;
-  "created_at": string;
-  "forked_from_sequence": number;
-  "id": string;
-  "metadata"?: unknown;
-  "parent_session_id": string;
-}>;
-
 export interface SessionCloseParams {
   "session_id": string;
 }
-
-export type SessionClosedPayload = Record<string, unknown>;
 
 export interface SessionForkParams {
   "forked_from_sequence": number;
@@ -2209,16 +2197,27 @@ export interface SessionGetParams {
   "session_id": string;
 }
 
-export type SessionListResult = null;
-
-export type SessionOpenedPayload = Record<string, unknown>;
+export interface SessionRecord {
+  "active_package_set": Array<string>;
+  "created_at": string;
+  "id": string;
+  "labels": Array<string>;
+  "metadata"?: unknown;
+  "principal_scope"?: null | string;
+  "status": SessionStatus;
+  "updated_at": string;
+}
 
 export type SessionStatus = "open" | "closed";
+
+export type ShellContributionDescribeResult = Record<string, unknown>;
+
+export type ShellContributionListResult = Array<unknown>;
 
 export type StorageMeasurementStateSchema = "measured" | "unknown";
 
 /**
- * The format of a streaming response for `kernel.v1.outbound.stream`.
+ * The format of a streaming response for `host.outbound.stream`.
  */
 export type StreamFormat = "ndjson" | "raw" | "sse";
 
@@ -2320,8 +2319,6 @@ export type StreamFrameType = "cancelled" | "chunk" | "end" | "error" | "progres
  */
 export type StreamStartStatus = "denied" | "error" | "ok";
 
-export type StreamStartedPayload = Record<string, unknown>;
-
 export interface SubprocessLogLine {
   "line": string;
   "package_id": string;
@@ -2356,10 +2353,6 @@ export interface SurfaceContribution {
   "title": string;
   "version"?: string;
 }
-
-export type SurfaceContributionDescribeResult = Record<string, unknown>;
-
-export type SurfaceContributionListResult = Array<unknown>;
 
 export interface SurfaceDescribeParams {
   "surface_id": string;
@@ -2397,32 +2390,6 @@ export type SurfaceSlot = "experience_entry" | "home_card" | "quick_action" | "w
 export interface TargetIdParams {
   "target_id": string;
 }
-
-export type TargetListResult = Array<{
-  /**
-   * Effective capabilities after protocol negotiation and Host policy.
-   */
-  "capabilities"?: Array<ExecutionTargetCapability>;
-  /**
-   * Capabilities declared by the target before Host policy is applied.
-   */
-  "declared_capabilities"?: Array<ExecutionTargetCapability>;
-  "enrolled_at_ms"?: null | number;
-  "heartbeat_expires_at_ms"?: null | number;
-  "id": string;
-  "identity_ref"?: null | string;
-  "labels"?: Record<string, string>;
-  "last_seen_at_ms"?: null | number;
-  "lease_epoch"?: number;
-  "name": string;
-  "observed"?: ExecutionTargetObservedSummary | null;
-  "policy_epoch"?: number;
-  "protocol_versions"?: Array<string>;
-  "reachability": ExecutionTargetReachability;
-  "revoked_at_ms"?: null | number;
-  "selected_protocol_version"?: null | string;
-  "status": ExecutionTargetStatusKind;
-}>;
 
 export interface TighteningSuggestion {
   "kind": string;
@@ -2508,11 +2475,3 @@ export interface WorldLineageEntry {
   "parent_heads"?: Array<ArtifactDescriptor>;
   "relation": string;
 }
-
-export type PackageManifest2 = PackageManifest;
-
-export type PermissionSet2 = PermissionSet;
-
-export type PortLeaseRecord2 = PortLeaseRecord;
-
-export type ProxyRouteRecord2 = ProxyRouteRecord;

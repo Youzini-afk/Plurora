@@ -66,4 +66,4 @@ Request normalization should stay in the package/SDK layer: generation params, h
 
 ## Boundaries
 
-Model integration is an ordinary capability-package capability, such as `official/model-provider-lab`, `model-connector-lab`, and `model-routing-lab`; it is not kernel ontology. Plurora does not add `kernel.v1.model.*`, `kernel.v1.prompt.*`, `kernel.v1.chat.*`, or `kernel.v1.embedding.*`, does not host user balances or a platform master API key, does not act as a relay, does not provide channel admin, and gives official provider packages no implicit network, secret, routing, or UI privilege.
+Model integration is an ordinary capability-package capability, such as `official/model-provider-lab`, `model-connector-lab`, and `model-routing-lab`; it is not kernel ontology. Plurora does not add `platform.model.*`, `platform.prompt.*`, `platform.chat.*`, or `platform.embedding.*`, does not host user balances or a platform master API key, does not act as a relay, does not provide channel admin, and gives official provider packages no implicit network, secret, routing, or UI privilege.

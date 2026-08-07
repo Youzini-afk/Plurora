@@ -2,10 +2,10 @@ use anyhow::Result;
 use async_trait::async_trait;
 use futures::Stream;
 
-use crate::types::{ContractDiagnostic, ContractSelection, HostInfo};
+use crate::types::{ContractSelection, HostInfo};
 
 #[async_trait]
-pub trait KernelTransport: Send + Sync {
+pub trait PluroraTransport: Send + Sync {
     async fn invoke(&self, method: &str, params: serde_json::Value) -> Result<serde_json::Value>;
 
     async fn invoke_with_contract(
@@ -15,7 +15,7 @@ pub trait KernelTransport: Send + Sync {
         contract: &ContractSelection,
     ) -> Result<serde_json::Value> {
         let _ = (method, params, contract);
-        anyhow::bail!("kernel transport does not support explicit contract selection")
+        anyhow::bail!("Plurora transport does not support explicit contract selection")
     }
 
     fn invoke_stream(
@@ -23,19 +23,15 @@ pub trait KernelTransport: Send + Sync {
         method: &str,
         params: serde_json::Value,
     ) -> Box<dyn Stream<Item = Result<serde_json::Value>> + Unpin + Send>;
-
-    fn drain_contract_diagnostics(&self) -> Vec<ContractDiagnostic> {
-        Vec::new()
-    }
 }
 
-pub struct KernelClient {
-    pub transport: Box<dyn KernelTransport>,
+pub struct PluroraClient {
+    pub transport: Box<dyn PluroraTransport>,
     contract: Option<ContractSelection>,
 }
 
-impl KernelClient {
-    pub fn new(transport: Box<dyn KernelTransport>) -> Self {
+impl PluroraClient {
+    pub fn new(transport: Box<dyn PluroraTransport>) -> Self {
         Self {
             transport,
             contract: None,
@@ -69,9 +65,5 @@ impl KernelClient {
 
     pub fn clear_contract_selection(&mut self) {
         self.contract = None;
-    }
-
-    pub fn drain_contract_diagnostics(&self) -> Vec<ContractDiagnostic> {
-        self.transport.drain_contract_diagnostics()
     }
 }

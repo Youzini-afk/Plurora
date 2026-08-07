@@ -3,25 +3,13 @@ import readline from "node:readline";
 /**
  * Thin helper for JSON-RPC-over-stdio subprocess capability packages.
  * Packages can handle host-initiated handshake/invoke requests and can also
- * initiate reverse public `kernel.v1.*` requests (for example
- * `kernel.v1.outbound.execute` and `kernel.v1.outbound.stream`) over the same stdio
- * channel via `kernelClient`.
+ * initiate reverse public-contract requests (for example
+ * `host.outbound.execute` and `host.outbound.stream`) over the same stdio
+ * channel via `pluroraClient`.
  */
 
 export type JsonValue = null | boolean | number | string | JsonValue[] | { [key: string]: JsonValue };
 export type CapHandleId = string;
-
-export interface ContractDiagnostic {
-  code: string;
-  severity: string;
-  requested_id: string;
-  canonical_id: string;
-  maturity: "deprecated" | "legacy_adapter" | string;
-  message: string;
-  deprecated_in?: string;
-  replacement?: string;
-  support_until?: string;
-}
 
 export interface JsonRpcRequest {
   [key: string]: unknown;
@@ -35,7 +23,6 @@ export interface JsonRpcRequest {
   stream_id?: string;
   data?: JsonValue;
   summary?: JsonValue;
-  diagnostics?: ContractDiagnostic[];
 }
 
 export interface CapabilityInvokeParams {
@@ -55,7 +42,7 @@ export interface HandshakeParams {
 export type CapabilityHandler = (params: CapabilityInvokeParams) => JsonValue | Promise<JsonValue>;
 export type CapabilityHandlerWithContext = (
   params: CapabilityInvokeParams,
-  context: { kernelClient: KernelClient },
+  context: { pluroraClient: PluroraClient },
 ) => JsonValue | Promise<JsonValue>;
 export type HandshakeHandler = (params: HandshakeParams) => JsonValue | Promise<JsonValue>;
 
@@ -64,7 +51,7 @@ export interface SubprocessPackageOptions {
   onInvoke: CapabilityHandler | CapabilityHandlerWithContext;
 }
 
-export interface KernelStreamCallbacks {
+export interface PluroraStreamCallbacks {
   onChunk: (chunk: unknown) => void;
   onEnd?: (summary: unknown) => void;
   onError?: (error: unknown) => void;
@@ -72,30 +59,30 @@ export interface KernelStreamCallbacks {
   onTimeout?: () => void;
 }
 
-export interface KernelStreamHandle {
+export interface PluroraStreamHandle {
   readonly streamId: string | undefined;
   cancel(): void;
 }
 
-export type KernelWebSocketFrame =
+export type PluroraWebSocketFrame =
   | { kind: "text"; data: string }
   | { kind: "binary"; data: Uint8Array };
 
-export interface KernelWebSocketHandle {
+export interface PluroraWebSocketHandle {
   readonly connectionId: string;
   readonly subprotocol?: string;
-  send(frame: KernelWebSocketFrame): Promise<void>;
+  send(frame: PluroraWebSocketFrame): Promise<void>;
   close(code?: number, reason?: string): Promise<void>;
 }
 
-export interface KernelWebSocketCallbacks {
+export interface PluroraWebSocketCallbacks {
   onOpen?: (info: { connectionId: string; subprotocol?: string }) => void;
-  onFrame: (frame: KernelWebSocketFrame & { seq: number; direction: "inbound" }) => void;
+  onFrame: (frame: PluroraWebSocketFrame & { seq: number; direction: "inbound" }) => void;
   onClose?: (info: { code: number; reason: string }) => void;
   onError?: (err: { code: string; message: string }) => void;
 }
 
-export interface KernelWebSocketOpenParams {
+export interface PluroraWebSocketOpenParams {
   capability_id: string;
   destination_host: string;
   path?: string;
@@ -112,37 +99,36 @@ export interface KernelWebSocketOpenParams {
   max_duration_ms?: number;
 }
 
-export interface KernelClient {
+export interface PluroraClient {
   bindings: Record<string, CapHandleId>;
-  sendKernelRequest<T = unknown>(method: string, params: unknown): Promise<T>;
-  streamKernelRequest(method: string, params: unknown, callbacks: KernelStreamCallbacks): KernelStreamHandle;
-  drainContractDiagnostics(): ContractDiagnostic[];
+  sendRequest<T = unknown>(method: string, params: unknown): Promise<T>;
+  streamRequest(method: string, params: unknown, callbacks: PluroraStreamCallbacks): PluroraStreamHandle;
   invokeBinding<T = unknown>(name: string, input: unknown): Promise<T>;
-  invokeBindingStream(name: string, input: unknown, callbacks: KernelStreamCallbacks): KernelStreamHandle;
+  invokeBindingStream(name: string, input: unknown, callbacks: PluroraStreamCallbacks): PluroraStreamHandle;
   openWebSocket(
-    params: KernelWebSocketOpenParams,
-    callbacks: KernelWebSocketCallbacks,
-  ): Promise<KernelWebSocketHandle>;
+    params: PluroraWebSocketOpenParams,
+    callbacks: PluroraWebSocketCallbacks,
+  ): Promise<PluroraWebSocketHandle>;
 }
 
-interface PendingKernelRequest {
+interface PendingPluroraRequest {
   resolve: (value: unknown) => void;
   reject: (error: unknown) => void;
 }
 
-interface PendingKernelStream {
-  callbacks: KernelStreamCallbacks;
+interface PendingPluroraStream {
+  callbacks: PluroraStreamCallbacks;
   streamId?: string;
 }
 
-interface PendingKernelWebSocketOpen {
-  callbacks: KernelWebSocketCallbacks;
-  resolve: (handle: KernelWebSocketHandle) => void;
+interface PendingPluroraWebSocketOpen {
+  callbacks: PluroraWebSocketCallbacks;
+  resolve: (handle: PluroraWebSocketHandle) => void;
   reject: (error: unknown) => void;
 }
 
-interface ActiveKernelWebSocket {
-  callbacks: KernelWebSocketCallbacks;
+interface ActivePluroraWebSocket {
+  callbacks: PluroraWebSocketCallbacks;
   requestId: string;
   connectionId: string;
   subprotocol?: string;
@@ -150,26 +136,25 @@ interface ActiveKernelWebSocket {
   closeWaiters: Set<(error: Error) => void>;
 }
 
-let nextKernelRequestId = 1;
-const pendingKernelRequests = new Map<string, PendingKernelRequest>();
-const pendingKernelStreams = new Map<string, PendingKernelStream>();
+let nextPluroraRequestId = 1;
+const pendingPluroraRequests = new Map<string, PendingPluroraRequest>();
+const pendingPluroraStreams = new Map<string, PendingPluroraStream>();
 const streamRequestIdsByStreamId = new Map<string, string>();
-const pendingKernelWebSocketOpens = new Map<string, PendingKernelWebSocketOpen>();
-const kernelWebSocketsByRequestId = new Map<string, ActiveKernelWebSocket>();
-const kernelWebSocketsByConnectionId = new Map<string, ActiveKernelWebSocket>();
-let contractDiagnostics: ContractDiagnostic[] = [];
+const pendingPluroraWebSocketOpens = new Map<string, PendingPluroraWebSocketOpen>();
+const pluroraWebSocketsByRequestId = new Map<string, ActivePluroraWebSocket>();
+const pluroraWebSocketsByConnectionId = new Map<string, ActivePluroraWebSocket>();
 
 function respond(id: JsonRpcRequest["id"], payload: Record<string, JsonValue>) {
   process.stdout.write(JSON.stringify({ jsonrpc: "2.0", id, ...payload }) + "\n");
 }
 
-function sendKernelFrame(method: string, params: unknown): string {
-  const id = `kreq-${nextKernelRequestId++}`;
+function sendPlatformFrame(method: string, params: unknown): string {
+  const id = `kreq-${nextPluroraRequestId++}`;
   process.stdout.write(JSON.stringify({ jsonrpc: "2.0", id, method, params }) + "\n");
   return id;
 }
 
-function rejectKernelError(error: unknown): Error {
+function rejectPlatformError(error: unknown): Error {
   if (error && typeof error === "object" && "message" in error) {
     return new Error(String((error as { message: unknown }).message));
   }
@@ -181,11 +166,11 @@ function asRecord(value: unknown): Record<string, unknown> | undefined {
 }
 
 function isWebSocketEventKind(kind: unknown): kind is string {
-  return kind === "kernel/v1/outbound.websocket.opened"
-    || kind === "kernel/v1/outbound.websocket.frame"
-    || kind === "kernel/v1/outbound.websocket.error"
-    || kind === "kernel/v1/outbound.websocket.closed"
-    || kind === "kernel/v1/outbound.websocket.completed";
+  return kind === "host/outbound.websocket.opened"
+    || kind === "host/outbound.websocket.frame"
+    || kind === "host/outbound.websocket.error"
+    || kind === "host/outbound.websocket.closed"
+    || kind === "host/outbound.websocket.completed";
 }
 
 function getFramePayload(frame: JsonRpcRequest): Record<string, unknown> {
@@ -199,7 +184,7 @@ function getConnectionIdFromFrame(frame: JsonRpcRequest): string | undefined {
   return typeof payload.connection_id === "string" ? payload.connection_id : undefined;
 }
 
-function encodeWebSocketFrame(frame: KernelWebSocketFrame): Record<string, unknown> {
+function encodeWebSocketFrame(frame: PluroraWebSocketFrame): Record<string, unknown> {
   if (frame.kind === "text") {
     return { kind: "text", data: frame.data };
   }
@@ -221,7 +206,7 @@ function decodeBinaryData(value: unknown): Uint8Array | undefined {
   return undefined;
 }
 
-function decodeInboundWebSocketFrame(payload: Record<string, unknown>): KernelWebSocketFrame | undefined {
+function decodeInboundWebSocketFrame(payload: Record<string, unknown>): PluroraWebSocketFrame | undefined {
   const nested = asRecord(payload.frame) ?? asRecord(payload.payload) ?? payload;
   const kind = nested.kind ?? payload.frame_kind;
   if (kind === "text") {
@@ -240,18 +225,18 @@ function normalizeSendStatus(status: unknown): string {
   return String(status ?? "ok").toLowerCase().replace(/[^a-z0-9]/g, "");
 }
 
-function markWebSocketClosed(session: ActiveKernelWebSocket, error: Error) {
+function markWebSocketClosed(session: ActivePluroraWebSocket, error: Error) {
   session.closed = true;
   for (const waiter of session.closeWaiters) waiter(error);
   session.closeWaiters.clear();
 }
 
-function removeWebSocketSession(session: ActiveKernelWebSocket) {
-  kernelWebSocketsByRequestId.delete(session.requestId);
-  kernelWebSocketsByConnectionId.delete(session.connectionId);
+function removeWebSocketSession(session: ActivePluroraWebSocket) {
+  pluroraWebSocketsByRequestId.delete(session.requestId);
+  pluroraWebSocketsByConnectionId.delete(session.connectionId);
 }
 
-function createWebSocketHandle(session: ActiveKernelWebSocket): KernelWebSocketHandle {
+function createWebSocketHandle(session: ActivePluroraWebSocket): PluroraWebSocketHandle {
   return {
     get connectionId() {
       return session.connectionId;
@@ -259,7 +244,7 @@ function createWebSocketHandle(session: ActiveKernelWebSocket): KernelWebSocketH
     get subprotocol() {
       return session.subprotocol;
     },
-    async send(frame: KernelWebSocketFrame): Promise<void> {
+    async send(frame: PluroraWebSocketFrame): Promise<void> {
       if (session.closed) {
         throw new Error(`WebSocket connection ${session.connectionId} is closed`);
       }
@@ -270,7 +255,7 @@ function createWebSocketHandle(session: ActiveKernelWebSocket): KernelWebSocketH
       });
       try {
         const result = await Promise.race([
-          kernelClient.sendKernelRequest<{ status?: unknown }>("kernel.v1.outbound.websocket.send", {
+          pluroraClient.sendRequest<{ status?: unknown }>("host.outbound.websocket.send", {
             connection_id: session.connectionId,
             ...encodeWebSocketFrame(frame),
           }),
@@ -289,7 +274,7 @@ function createWebSocketHandle(session: ActiveKernelWebSocket): KernelWebSocketH
     async close(code?: number, reason?: string): Promise<void> {
       if (session.closed) return;
       markWebSocketClosed(session, new Error(`WebSocket connection ${session.connectionId} is closed`));
-      await kernelClient.sendKernelRequest("kernel.v1.outbound.websocket.close", {
+      await pluroraClient.sendRequest("host.outbound.websocket.close", {
         connection_id: session.connectionId,
         code,
         reason,
@@ -298,7 +283,7 @@ function createWebSocketHandle(session: ActiveKernelWebSocket): KernelWebSocketH
   };
 }
 
-function handleWebSocketEvent(session: ActiveKernelWebSocket, frame: JsonRpcRequest): boolean {
+function handleWebSocketEvent(session: ActivePluroraWebSocket, frame: JsonRpcRequest): boolean {
   const kind = frame.kind;
   if (!isWebSocketEventKind(kind)) return false;
   const payload = getFramePayload(frame);
@@ -306,13 +291,13 @@ function handleWebSocketEvent(session: ActiveKernelWebSocket, frame: JsonRpcRequ
   if (connectionId !== session.connectionId) return false;
 
   switch (kind) {
-    case "kernel/v1/outbound.websocket.opened": {
+    case "host/outbound.websocket.opened": {
       const subprotocol = typeof payload.subprotocol === "string" ? payload.subprotocol : session.subprotocol;
       if (typeof subprotocol === "string") session.subprotocol = subprotocol;
       session.callbacks.onOpen?.({ connectionId: session.connectionId, subprotocol });
       return true;
     }
-    case "kernel/v1/outbound.websocket.frame": {
+    case "host/outbound.websocket.frame": {
       const direction = typeof payload.direction === "string" ? payload.direction : "inbound";
       if (direction !== "inbound") return true;
       const decoded = decodeInboundWebSocketFrame(payload);
@@ -322,14 +307,14 @@ function handleWebSocketEvent(session: ActiveKernelWebSocket, frame: JsonRpcRequ
       }
       return true;
     }
-    case "kernel/v1/outbound.websocket.error": {
+    case "host/outbound.websocket.error": {
       const code = String(payload.error_code ?? payload.code ?? "websocket_error");
       const message = String(payload.message_redacted ?? payload.message ?? payload.error ?? "WebSocket error");
       session.callbacks.onError?.({ code, message });
       return true;
     }
-    case "kernel/v1/outbound.websocket.closed":
-    case "kernel/v1/outbound.websocket.completed": {
+    case "host/outbound.websocket.closed":
+    case "host/outbound.websocket.completed": {
       const code = typeof payload.code === "number" ? payload.code : Number(payload.code ?? 1000);
       const reason = typeof payload.reason === "string" ? payload.reason : "closed";
       markWebSocketClosed(session, new Error(`WebSocket connection ${session.connectionId} closed: ${code} ${reason}`));
@@ -341,11 +326,11 @@ function handleWebSocketEvent(session: ActiveKernelWebSocket, frame: JsonRpcRequ
   return false;
 }
 
-function resolveWebSocketOpen(requestId: string, pending: PendingKernelWebSocketOpen, result: unknown) {
+function resolveWebSocketOpen(requestId: string, pending: PendingPluroraWebSocketOpen, result: unknown) {
   const record = asRecord(result) ?? {};
   const connectionId = record.connection_id;
   if (typeof connectionId !== "string") {
-    pending.reject(new Error("kernel.v1.outbound.websocket.open response missing connection_id"));
+    pending.reject(new Error("host.outbound.websocket.open response missing connection_id"));
     return;
   }
   const subprotocol = typeof record.subprotocol_negotiated === "string"
@@ -353,7 +338,7 @@ function resolveWebSocketOpen(requestId: string, pending: PendingKernelWebSocket
     : typeof record.subprotocol === "string"
       ? record.subprotocol
       : undefined;
-  const session: ActiveKernelWebSocket = {
+  const session: ActivePluroraWebSocket = {
     callbacks: pending.callbacks,
     requestId,
     connectionId,
@@ -361,36 +346,30 @@ function resolveWebSocketOpen(requestId: string, pending: PendingKernelWebSocket
     closed: false,
     closeWaiters: new Set(),
   };
-  kernelWebSocketsByRequestId.set(requestId, session);
-  kernelWebSocketsByConnectionId.set(connectionId, session);
+  pluroraWebSocketsByRequestId.set(requestId, session);
+  pluroraWebSocketsByConnectionId.set(connectionId, session);
   pending.resolve(createWebSocketHandle(session));
 }
 
 function getBindingHandle(name: string): CapHandleId {
-  const handle = kernelClient.bindings[name];
-  if (!handle) throw new Error(`unknown kernel binding: ${name}`);
+  const handle = pluroraClient.bindings[name];
+  if (!handle) throw new Error(`unknown capability binding: ${name}`);
   return handle;
 }
 
-export const kernelClient: KernelClient = {
+export const pluroraClient: PluroraClient = {
   bindings: {},
-  drainContractDiagnostics(): ContractDiagnostic[] {
-    const diagnostics = contractDiagnostics;
-    contractDiagnostics = [];
-    return diagnostics;
-  },
-
-  sendKernelRequest<T = unknown>(method: string, params: unknown): Promise<T> {
-    const id = sendKernelFrame(method, params);
+  sendRequest<T = unknown>(method: string, params: unknown): Promise<T> {
+    const id = sendPlatformFrame(method, params);
     return new Promise<T>((resolve, reject) => {
-      pendingKernelRequests.set(id, { resolve: resolve as (value: unknown) => void, reject });
+      pendingPluroraRequests.set(id, { resolve: resolve as (value: unknown) => void, reject });
     });
   },
 
-  streamKernelRequest(method: string, params: unknown, callbacks: KernelStreamCallbacks): KernelStreamHandle {
-    const id = sendKernelFrame(method, params);
-    const pending: PendingKernelStream = { callbacks };
-    pendingKernelStreams.set(id, pending);
+  streamRequest(method: string, params: unknown, callbacks: PluroraStreamCallbacks): PluroraStreamHandle {
+    const id = sendPlatformFrame(method, params);
+    const pending: PendingPluroraStream = { callbacks };
+    pendingPluroraStreams.set(id, pending);
     let cancelled = false;
 
     return {
@@ -402,62 +381,61 @@ export const kernelClient: KernelClient = {
         cancelled = true;
         const streamId = pending.streamId;
         if (!streamId) return;
-        sendKernelFrame("kernel.v1.capability.cancel", { stream_id: streamId, invocation_id: streamId, session_id: `subprocess_reverse_${streamId}` });
+        sendPlatformFrame("capability.cancel", { stream_id: streamId, invocation_id: streamId, session_id: `subprocess_reverse_${streamId}` });
       },
     };
   },
 
   async invokeBinding<T = unknown>(name: string, input: unknown): Promise<T> {
-    const result = await this.sendKernelRequest<{ output?: T } & Record<string, unknown>>("kernel.v1.capability.invoke", {
+    const result = await this.sendRequest<{ output?: T } & Record<string, unknown>>("capability.invoke", {
       handle: getBindingHandle(name),
       input,
     });
     return (result && typeof result === "object" && "output" in result) ? (result.output as T) : (result as T);
   },
 
-  invokeBindingStream(name: string, input: unknown, callbacks: KernelStreamCallbacks): KernelStreamHandle {
-    return this.streamKernelRequest("kernel.v1.capability.stream", {
+  invokeBindingStream(name: string, input: unknown, callbacks: PluroraStreamCallbacks): PluroraStreamHandle {
+    return this.streamRequest("capability.stream", {
       handle: getBindingHandle(name),
       input,
       session_id: `subprocess_binding_${name}`,
     }, callbacks);
   },
 
-  openWebSocket(params: KernelWebSocketOpenParams, callbacks: KernelWebSocketCallbacks): Promise<KernelWebSocketHandle> {
-    const id = sendKernelFrame("kernel.v1.outbound.websocket.open", params);
-    return new Promise<KernelWebSocketHandle>((resolve, reject) => {
-      pendingKernelWebSocketOpens.set(id, { callbacks, resolve, reject });
+  openWebSocket(params: PluroraWebSocketOpenParams, callbacks: PluroraWebSocketCallbacks): Promise<PluroraWebSocketHandle> {
+    const id = sendPlatformFrame("host.outbound.websocket.open", params);
+    return new Promise<PluroraWebSocketHandle>((resolve, reject) => {
+      pendingPluroraWebSocketOpens.set(id, { callbacks, resolve, reject });
     });
   },
 };
 
-function handleKernelInbound(frame: JsonRpcRequest): boolean {
-  if (Array.isArray(frame.diagnostics)) contractDiagnostics.push(...frame.diagnostics);
+function handlePlatformInbound(frame: JsonRpcRequest): boolean {
   if (typeof frame.id !== "string" || !frame.id.startsWith("kreq-")) {
     const connectionId = getConnectionIdFromFrame(frame);
-    const session = connectionId ? kernelWebSocketsByConnectionId.get(connectionId) : undefined;
+    const session = connectionId ? pluroraWebSocketsByConnectionId.get(connectionId) : undefined;
     return session ? handleWebSocketEvent(session, frame) : false;
   }
   const requestId = frame.id;
 
-  const pendingWebSocketOpen = pendingKernelWebSocketOpens.get(requestId);
+  const pendingWebSocketOpen = pendingPluroraWebSocketOpens.get(requestId);
   if (pendingWebSocketOpen) {
     if (frame.result && typeof frame.result === "object") {
-      pendingKernelWebSocketOpens.delete(requestId);
+      pendingPluroraWebSocketOpens.delete(requestId);
       resolveWebSocketOpen(requestId, pendingWebSocketOpen, frame.result);
       return true;
     }
     if (frame.error) {
-      pendingKernelWebSocketOpens.delete(requestId);
-      pendingWebSocketOpen.reject(rejectKernelError(frame.error));
+      pendingPluroraWebSocketOpens.delete(requestId);
+      pendingWebSocketOpen.reject(rejectPlatformError(frame.error));
       return true;
     }
   }
 
-  const websocket = kernelWebSocketsByRequestId.get(requestId);
+  const websocket = pluroraWebSocketsByRequestId.get(requestId);
   if (websocket && handleWebSocketEvent(websocket, frame)) return true;
 
-  const pendingStream = pendingKernelStreams.get(requestId);
+  const pendingStream = pendingPluroraStreams.get(requestId);
   if (pendingStream) {
     if (frame.result && typeof frame.result === "object") {
       const streamId = (frame.result as { stream_id?: unknown }).stream_id;
@@ -468,37 +446,37 @@ function handleKernelInbound(frame: JsonRpcRequest): boolean {
       return true;
     }
     if (frame.error) {
-      pendingKernelStreams.delete(requestId);
+      pendingPluroraStreams.delete(requestId);
       pendingStream.callbacks.onError?.(frame.error);
       return true;
     }
 
     switch (frame.kind) {
-      case "kernel/v1/stream.chunk":
+      case "capability/stream.chunk":
       case "stream.chunk":
         pendingStream.callbacks.onChunk(frame.data);
         return true;
-      case "kernel/v1/stream.ended":
+      case "capability/stream.ended":
       case "stream.ended":
-        pendingKernelStreams.delete(requestId);
+        pendingPluroraStreams.delete(requestId);
         if (pendingStream.streamId) streamRequestIdsByStreamId.delete(pendingStream.streamId);
         pendingStream.callbacks.onEnd?.(frame.summary);
         return true;
-      case "kernel/v1/stream.error":
+      case "capability/stream.error":
       case "stream.error":
-        pendingKernelStreams.delete(requestId);
+        pendingPluroraStreams.delete(requestId);
         if (pendingStream.streamId) streamRequestIdsByStreamId.delete(pendingStream.streamId);
         pendingStream.callbacks.onError?.(frame.error);
         return true;
-      case "kernel/v1/stream.cancelled":
+      case "capability/stream.cancelled":
       case "stream.cancelled":
-        pendingKernelStreams.delete(requestId);
+        pendingPluroraStreams.delete(requestId);
         if (pendingStream.streamId) streamRequestIdsByStreamId.delete(pendingStream.streamId);
         pendingStream.callbacks.onCancelled?.();
         return true;
-      case "kernel/v1/stream.timeout":
+      case "capability/stream.timeout":
       case "stream.timeout":
-        pendingKernelStreams.delete(requestId);
+        pendingPluroraStreams.delete(requestId);
         if (pendingStream.streamId) streamRequestIdsByStreamId.delete(pendingStream.streamId);
         pendingStream.callbacks.onTimeout?.();
         return true;
@@ -507,15 +485,15 @@ function handleKernelInbound(frame: JsonRpcRequest): boolean {
     }
   }
 
-  const pending = pendingKernelRequests.get(requestId);
+  const pending = pendingPluroraRequests.get(requestId);
   if (!pending) return false;
-  pendingKernelRequests.delete(requestId);
-  if (frame.error) pending.reject(rejectKernelError(frame.error));
+  pendingPluroraRequests.delete(requestId);
+  if (frame.error) pending.reject(rejectPlatformError(frame.error));
   else pending.resolve(frame.result);
   return true;
 }
 
-export const __handleKernelInboundForTest = handleKernelInbound;
+export const __handlePlatformInboundForTest = handlePlatformInbound;
 
 export function serveSubprocessPackage(options: SubprocessPackageOptions) {
   const rl = readline.createInterface({ input: process.stdin, crlfDelay: Infinity });
@@ -528,18 +506,18 @@ export function serveSubprocessPackage(options: SubprocessPackageOptions) {
       return;
     }
 
-    if (handleKernelInbound(request)) return;
+    if (handlePlatformInbound(request)) return;
 
     try {
       if (request.method === "package.handshake") {
         const params = (request.params ?? {}) as HandshakeParams;
-        kernelClient.bindings = { ...(params.bindings ?? {}) };
+        pluroraClient.bindings = { ...(params.bindings ?? {}) };
         const result = options.onHandshake
           ? await options.onHandshake(params)
           : { ready: true, package_protocol_version: "0.1.0" };
         respond(request.id, { result: result as JsonValue });
       } else if (request.method === "capability.invoke") {
-        const output = await options.onInvoke((request.params ?? {}) as unknown as CapabilityInvokeParams, { kernelClient });
+        const output = await options.onInvoke((request.params ?? {}) as unknown as CapabilityInvokeParams, { pluroraClient });
         respond(request.id, { result: { output } as JsonValue });
       } else {
         respond(request.id, { error: { code: "unknown_method", message: request.method ?? "<missing>" } as JsonValue });

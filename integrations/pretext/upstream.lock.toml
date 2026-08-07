@@ -23,7 +23,7 @@ internal_analysis = "src/analysis.ts (not an integration boundary)"
 internal_measurement = "src/measurement.ts (not an integration boundary)"
 
 [notes]
-no_kernel_dependency = true
+no_platform_dependency = true
 no_package_protocol_dependency = true
 no_markdown_engine = true
 font_recommendation = "Use named fonts; avoid system-ui for accurate canvas/DOM parity on macOS"

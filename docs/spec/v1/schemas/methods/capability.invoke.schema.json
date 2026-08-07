@@ -1,0 +1,248 @@
+{
+  "$defs": {
+    "ArtifactDescriptor": {
+      "properties": {
+        "annotations": {
+          "additionalProperties": true,
+          "default": {},
+          "type": "object"
+        },
+        "artifact_type_uri": {
+          "type": "string"
+        },
+        "digest": {
+          "type": "string"
+        },
+        "media_type": {
+          "type": "string"
+        },
+        "references": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "size_bytes": {
+          "format": "uint64",
+          "minimum": 0.0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "artifact_type_uri",
+        "digest",
+        "media_type",
+        "size_bytes"
+      ],
+      "type": "object"
+    },
+    "CapHandleId": {
+      "format": "uint128",
+      "type": "string"
+    },
+    "ComponentTrustClass": {
+      "enum": [
+        "sandboxed_component",
+        "isolated_process",
+        "remote_boundary",
+        "trusted_native",
+        "static_resource",
+        "foreign_capsule"
+      ],
+      "type": "string"
+    },
+    "EffectReplayMode": {
+      "enum": [
+        "live",
+        "historical",
+        "reexecute"
+      ],
+      "type": "string"
+    },
+    "Errors": {
+      "items": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "details": true,
+          "message": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "details",
+          "message"
+        ],
+        "title": "ErrorShape",
+        "type": "object"
+      },
+      "type": "array"
+    },
+    "Params": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "properties": {
+        "caller_package_id": {
+          "default": null,
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "capability_id": {
+          "default": null,
+          "description": "Legacy path. Runtime auto-mints a one-use transient handle when no handle is supplied.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "handle": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/CapHandleId"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "New preferred path: invoke by kernel-minted handle."
+        },
+        "input": {
+          "default": null
+        },
+        "provider_package_id": {
+          "default": null,
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "session_id": {
+          "description": "Kernel session id this invocation is part of, if any. Propagated from ProtocolContext for downstream scope resolution.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "version": {
+          "default": null,
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "title": "CapabilityInvocationRequest",
+      "type": "object"
+    },
+    "Result": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "properties": {
+        "capability_id": {
+          "type": "string"
+        },
+        "correlation_id": {
+          "format": "uuid",
+          "type": "string"
+        },
+        "duration_ms": {
+          "format": "uint64",
+          "minimum": 0.0,
+          "type": "integer"
+        },
+        "output": true,
+        "provider_behavior_digest": {
+          "default": "",
+          "type": "string"
+        },
+        "provider_component_digest": {
+          "default": "",
+          "type": "string"
+        },
+        "provider_component_id": {
+          "default": "",
+          "type": "string"
+        },
+        "provider_package_id": {
+          "type": "string"
+        },
+        "provider_trust_class": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/ComponentTrustClass"
+            }
+          ],
+          "default": "foreign_capsule"
+        },
+        "receipt": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ArtifactDescriptor"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "replay_mode": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/EffectReplayMode"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "capability_id",
+        "correlation_id",
+        "duration_ms",
+        "output",
+        "provider_package_id"
+      ],
+      "title": "CapabilityInvocationResult",
+      "type": "object"
+    }
+  },
+  "$id": "urn:plurora:schema:method:capability.invoke:v1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Plurora public platform method capability.invoke.",
+  "properties": {
+    "errors": {
+      "$ref": "#/$defs/Errors"
+    },
+    "method": {
+      "const": "capability.invoke"
+    },
+    "params": {
+      "$ref": "#/$defs/Params"
+    },
+    "result": {
+      "$ref": "#/$defs/Result"
+    }
+  },
+  "required": [
+    "method",
+    "params"
+  ],
+  "title": "capability.invoke",
+  "type": "object",
+  "x-plurora-contract": {
+    "id": "capability.invoke",
+    "implementation_status": "partial",
+    "introduced_in": "plurora.contract.default/v1@0.1.0",
+    "maturity": "experimental",
+    "owner_layer": "substrate",
+    "request_schema": "urn:plurora:schema:method:capability.invoke:v1#/$defs/Params",
+    "response_schema": "urn:plurora:schema:method:capability.invoke:v1#/$defs/Result",
+    "streaming": false
+  }
+}

@@ -63,11 +63,11 @@ Plurora 使用它不是为了复杂化 API，而是为了把最小权限、衰�
 句柄通过 bindings 注入：
 
 - subprocess：`package.handshake` 的 `bindings` 字典；
-- rust_inproc：`KernelEnv`；
+- rust_inproc：`ComponentEnv`；
 - wasm：未来 WIT resource imports；
 - remote：未来 SPIFFE + Biscuit token 兑换。
 
-SDK 把这些句柄封装成 `kernelClient` 方法，包不需要手写协议字段。
+SDK 把这些句柄封装成 `pluroraClient` 方法，包不需要手写协议字段。
 
 ### 3. Attenuate
 
@@ -75,11 +75,11 @@ SDK 把这些句柄封装成 `kernelClient` 方法，包不需要手写协议字
 
 ### 4. Use
 
-调用 `kernel.v1.capability.invoke`、出站方法或事件方法时，运行时检查句柄 id、调用方、scope、constraints、lease 与 revoke 状态。失败时 fail closed 并写审计。
+调用 `capability.invoke`、出站方法或事件方法时，运行时检查句柄 id、调用方、scope、constraints、lease 与 revoke 状态。失败时 fail closed 并写审计。
 
 ### 5. Revoke
 
-`kernel.v1.cap.revoke(handle)` 让句柄立即失效。撤销可以只影响一个 handle，也可以按策略影响子树。卸载 package 时，内核撤销该包持有的 live handles。
+`authority.handle.revoke(handle)` 让句柄立即失效。撤销可以只影响一个 handle，也可以按策略影响子树。卸载 package 时，内核撤销该包持有的 live handles。
 
 ### 6. Expire
 
@@ -90,7 +90,7 @@ SDK 把这些句柄封装成 `kernelClient` 方法，包不需要手写协议字
 包作者通常不直接操作裸句柄，而是用 SDK：
 
 ```ts
-const result = await kernelClient.invoke("provider/capability", input)
+const result = await pluroraClient.invoke("provider/capability", input)
 ```
 
 SDK 从 bindings 中选择合适 handle，把它放进 protocol context。若没有 handle，调用失败而不是退回匿名 host 权限。
@@ -116,7 +116,7 @@ stdout 保留给 JSON-RPC 帧；stderr 可被内核捕获为 package log。
 
 ## Rust in-process bindings
 
-Rust in-process 包通过 `KernelEnv` 获得句柄。Host catalog 负责把 manifest entry 与 in-process provider trait 绑定。未在 catalog 中注册的 in-process provider 会被拒绝加载。
+Rust in-process 包通过 `ComponentEnv` 获得句柄。Host catalog 负责把 manifest entry 与 in-process provider trait 绑定。未在 catalog 中注册的 in-process provider 会被拒绝加载。
 
 ## 出站与 secret
 
@@ -130,7 +130,7 @@ Rust in-process 包通过 `KernelEnv` 获得句柄。Host catalog 负责把 mani
 
 ## Effect audit 如何消费句柄
 
-`kernel.v1.audit.package` 与 `plurora audit --package <id>` 把三类数据合并：
+`host.package.audit` 与 `plurora audit --package <id>` 把三类数据合并：
 
 1. declared：manifest 中声明的 capability、permission、network、secret_refs；
 2. granted：内核实际铸造、衰减、撤销、过期的 handles；

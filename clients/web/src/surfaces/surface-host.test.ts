@@ -45,7 +45,7 @@ const bridge: SurfaceHostBridge = {
   allowedCapabilityIds: ["pkg/cap"],
   callRpc: async (method, params) => {
     calls.push({ method, params });
-    if (method === "kernel.v1.capability.stream") {
+    if (method === "capability.stream") {
       return { invocation: { invocation_id: "inv-1", stream_id: "stream-1" } };
     }
     return { ok: true };
@@ -108,22 +108,22 @@ assertDeepEqual(createStreamFrameMessageForTest("sub-1", "chunk", { stream_id: "
 });
 
 await rejectsWithCode(
-  callSurfaceBridgeForTest(bridge, { id: "1", method: "kernel.v1.install.execute", params: {} }),
+  callSurfaceBridgeForTest(bridge, { id: "1", method: "platform.install.execute", params: {} }),
   "rpc_denied",
 );
 
 await callSurfaceBridgeForTest(bridge, {
   id: "2",
-  method: "kernel.v1.capability.invoke",
+  method: "capability.invoke",
   params: { capability_id: "pkg/cap", session_id: "attacker-session", input: { hello: "world" } },
 });
-assertEqual(calls.at(-1)?.method, "kernel.v1.capability.invoke");
+assertEqual(calls.at(-1)?.method, "capability.invoke");
 assertEqual((calls.at(-1)?.params as { session_id?: string }).session_id, "session-current");
 
 await rejectsWithCode(
   callSurfaceBridgeForTest(bridge, {
     id: "2b",
-    method: "kernel.v1.capability.invoke",
+    method: "capability.invoke",
     params: { capability_id: "pkg/unrelated", input: {} },
   }),
   "capability_denied",
@@ -132,7 +132,7 @@ await rejectsWithCode(
 const state = createSurfaceBridgeState();
 await callSurfaceBridgeForTest(
   bridge,
-  { id: "3", method: "kernel.v1.capability.stream", params: { capability_id: "pkg/cap", session_id: "other" } },
+  { id: "3", method: "capability.stream", params: { capability_id: "pkg/cap", session_id: "other" } },
   state,
 );
 assertDeepEqual(canSubscribeSurfaceStreamForTest("sub-1", "stream-unknown", [], ["stream-1"]), {
@@ -147,7 +147,7 @@ assertDeepEqual(canSubscribeSurfaceStreamForTest("sub-1", "stream-1", ["sub-1"],
 await rejectsWithCode(
   callSurfaceBridgeForTest(
     bridge,
-    { id: "4", method: "kernel.v1.capability.cancel", params: { stream_id: "not-owned" } },
+    { id: "4", method: "capability.cancel", params: { stream_id: "not-owned" } },
     state,
   ),
   "not_owned",
@@ -155,7 +155,7 @@ await rejectsWithCode(
 
 await callSurfaceBridgeForTest(
   bridge,
-  { id: "5", method: "kernel.v1.capability.cancel", params: { stream_id: "stream-1" } },
+  { id: "5", method: "capability.cancel", params: { stream_id: "stream-1" } },
   state,
 );
 assertEqual((calls.at(-1)?.params as { session_id?: string }).session_id, "session-current");

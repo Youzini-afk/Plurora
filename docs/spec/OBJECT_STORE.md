@@ -2,7 +2,7 @@
 
 > [English](./OBJECT_STORE.en.md) · [中文](./OBJECT_STORE.md)
 
-本文定义当前已实现的内容寻址对象基础。它是 Constitutional Substrate 的 Experimental 合同，不改变 `kernel.v1.asset.*` 的方法 ID 或现有请求形状。
+本文定义当前已实现的内容寻址对象基础。它是 Constitutional Substrate 的 Experimental 合同，不改变 `platform.asset.*` 的方法 ID 或现有请求形状。
 
 ## 身份与描述符
 
@@ -36,13 +36,13 @@ ArtifactDescriptor
 
 ## 字节与日志分离
 
-对象 bytes 只进入 ObjectStore。journal、event 与后续 receipt 只保存 descriptor 或 digest ref，不得复制大正文。`kernel/v1/asset.put` 的事件 payload 保存 additive `AssetRecord.descriptor`，event metadata 只保存 `artifact_digest`、`size_bytes` 和 `content_included: false`。
+对象 bytes 只进入 ObjectStore。journal、event 与后续 receipt 只保存 descriptor 或 digest ref，不得复制大正文。`object/put` 的事件 payload 保存 additive `AssetRecord.descriptor`，event metadata 只保存 `artifact_digest`、`size_bytes` 和 `content_included: false`。
 
 这条边界不改变 secret policy：asset 内容仍是任意用户数据，不做原始 secret 扫描；asset metadata 继续执行现有 raw-secret 拒绝规则。
 
 ## v1 Asset adapter
 
-`kernel.v1.asset.put/get/list` 保持 wire 兼容：
+`object.put/get/list` 保持 wire 兼容：
 
 - `put` 把 UTF-8 content 提交为通用 blob artifact；
 - `AssetRecord.hash` 现在是 canonical SHA-256 digest；
@@ -54,7 +54,7 @@ FNV-1a 仅由 `legacy_content_address()` 和显式 `scheme: "fnv1a64"` 兼容路
 
 ## 旧事件迁移
 
-rehydration 读取含 `metadata.content` 的旧 `kernel/v1/asset.put` 事件时：
+rehydration 读取含 `metadata.content` 的旧 `object/put` 事件时：
 
 1. 把旧 content 幂等提交到 ObjectStore；
 2. 计算 SHA-256 descriptor，并校正 canonical hash/size；

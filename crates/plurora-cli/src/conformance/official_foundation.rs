@@ -65,7 +65,7 @@ pub(crate) async fn foundation_packages() -> anyhow::Result<()> {
     let surfaces = runtime
         .call_protocol(
             &ProtocolContext::host_dev("conformance"),
-            "kernel.v1.surface.contribution.list",
+            "shell.contribution.list",
             json!({"slot": "forge_panel"}),
         )
         .await

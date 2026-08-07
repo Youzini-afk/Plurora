@@ -1,0 +1,56 @@
+{
+  "$defs": {
+    "Payload": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "properties": {
+        "execs_failed": {
+          "format": "uint",
+          "minimum": 0.0,
+          "type": "integer"
+        },
+        "leases_promoted": {
+          "format": "uint",
+          "minimum": 0.0,
+          "type": "integer"
+        },
+        "leases_released": {
+          "format": "uint",
+          "minimum": 0.0,
+          "type": "integer"
+        },
+        "routes_promoted": {
+          "format": "uint",
+          "minimum": 0.0,
+          "type": "integer"
+        },
+        "routes_removed": {
+          "format": "uint",
+          "minimum": 0.0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "execs_failed",
+        "leases_promoted",
+        "leases_released",
+        "routes_promoted",
+        "routes_removed"
+      ],
+      "title": "DeploymentReconcileSummary",
+      "type": "object"
+    }
+  },
+  "$id": "urn:plurora:schema:event:host/deployment.reconciled:v1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "Payload schema for event kind host/deployment.reconciled.",
+  "properties": {
+    "kind": {
+      "const": "host/deployment.reconciled"
+    },
+    "payload": {
+      "$ref": "#/$defs/Payload"
+    }
+  },
+  "title": "host/deployment.reconciled",
+  "type": "object"
+}

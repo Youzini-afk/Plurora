@@ -133,8 +133,7 @@
         "experimental",
         "candidate",
         "stable",
-        "deprecated",
-        "legacy_adapter"
+        "deprecated"
       ],
       "type": "string"
     },

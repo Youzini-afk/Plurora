@@ -1,0 +1,155 @@
+{
+  "$defs": {
+    "Errors": {
+      "items": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "details": true,
+          "message": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "details",
+          "message"
+        ],
+        "title": "ErrorShape",
+        "type": "object"
+      },
+      "type": "array"
+    },
+    "Params": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "properties": {
+        "after_sequence": {
+          "default": null,
+          "format": "uint64",
+          "minimum": 0.0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "kind_prefix": {
+          "default": null,
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "limit": {
+          "default": null,
+          "format": "uint",
+          "minimum": 0.0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "session_id": {
+          "type": "string"
+        },
+        "writer_package_id": {
+          "default": null,
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "session_id"
+      ],
+      "title": "EventListRequest",
+      "type": "object"
+    },
+    "Result": {
+      "items": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "metadata": {
+            "default": null
+          },
+          "payload": true,
+          "schema_version": {
+            "format": "uint16",
+            "minimum": 0.0,
+            "type": "integer"
+          },
+          "sequence": {
+            "format": "uint64",
+            "minimum": 0.0,
+            "type": "integer"
+          },
+          "session_id": {
+            "type": "string"
+          },
+          "timestamp": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "writer_package_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "payload",
+          "schema_version",
+          "sequence",
+          "session_id",
+          "timestamp",
+          "writer_package_id"
+        ],
+        "title": "EventEnvelope",
+        "type": "object"
+      },
+      "type": "array"
+    }
+  },
+  "$id": "urn:plurora:schema:method:journal.list:v1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Plurora public platform method journal.list.",
+  "properties": {
+    "errors": {
+      "$ref": "#/$defs/Errors"
+    },
+    "method": {
+      "const": "journal.list"
+    },
+    "params": {
+      "$ref": "#/$defs/Params"
+    },
+    "result": {
+      "$ref": "#/$defs/Result"
+    }
+  },
+  "required": [
+    "method",
+    "params"
+  ],
+  "title": "journal.list",
+  "type": "object",
+  "x-plurora-contract": {
+    "id": "journal.list",
+    "implementation_status": "partial",
+    "introduced_in": "plurora.contract.default/v1@0.1.0",
+    "maturity": "experimental",
+    "owner_layer": "substrate",
+    "request_schema": "urn:plurora:schema:method:journal.list:v1#/$defs/Params",
+    "response_schema": "urn:plurora:schema:method:journal.list:v1#/$defs/Result",
+    "streaming": false
+  }
+}

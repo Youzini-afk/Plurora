@@ -17,7 +17,7 @@ Plurora 的安装系统让用户从 GitHub 或本地路径安装能力包和项�
 ## 设计原则
 
 - 内核不知道 git。
-- git 通过 `official/git-tools-lab`（能力包）走 `kernel.v1.outbound.execute` 边界。
+- git 通过 `official/git-tools-lab`（能力包）走 `host.outbound.execute` 边界。
 - 安装编排在 `official/install-lab`（能力包）中，不在 kernel。
 - 默认拒绝：HTTPS-only，拒绝 `ssh://`、`git://`、`file://`。
 - 默认拒绝：URL 不能含 username/password。

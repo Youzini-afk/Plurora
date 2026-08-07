@@ -24,15 +24,12 @@ use bollard::query_parameters::CreateContainerOptionsBuilder;
 use bollard::Docker;
 use futures::{SinkExt, Stream, StreamExt};
 use plurora_core::{
-    ArtifactDescriptor, EventEnvelope, EventSequence, KernelSession, PackageId, PackageManifest,
-    ProjectId, SessionId,
+    ArtifactDescriptor, EventEnvelope, EventSequence, PackageId, ProjectId, SessionId,
 };
 use plurora_runtime::{
-    contract_diagnostics, host_info as runtime_host_info, resolve_contract_method,
-    CapabilityInvocationRequest, CapabilityInvocationResult, EventListRequest,
-    ExecutionTargetCapability, ExecutionTargetReachability, ExecutionTargetStatusKind,
-    PackageRecord, ProtocolContext, ProtocolError, ProtocolRequest, ProtocolResourceSelector,
-    ProtocolResponse, RegisteredCapability,
+    resolve_contract_method, EventListRequest, ExecutionTargetCapability,
+    ExecutionTargetReachability, ExecutionTargetStatusKind, ProtocolContext, ProtocolError,
+    ProtocolRequest, ProtocolResourceSelector, ProtocolResponse,
 };
 use plurora_runtime::{
     AppendEventRequest, EventStore, InMemoryEventStore, OpenSessionRequest, Runtime, RuntimeConfig,
@@ -237,26 +234,6 @@ where
     }
 }
 
-#[derive(Debug, Deserialize)]
-pub struct OpenSessionHttpRequest {
-    #[serde(default)]
-    pub labels: Vec<String>,
-    #[serde(default)]
-    pub active_package_set: Vec<PackageId>,
-    #[serde(default)]
-    pub metadata: Value,
-}
-
-#[derive(Debug, Deserialize)]
-pub struct AppendEventHttpRequest {
-    pub writer_package_id: PackageId,
-    pub kind: String,
-    #[serde(default)]
-    pub payload: Value,
-    #[serde(default)]
-    pub metadata: Value,
-}
-
 #[derive(Debug, Default, Deserialize)]
 pub struct EventListQuery {
     #[serde(default)]
@@ -305,32 +282,7 @@ where
         state.host_access.clone(),
     );
     let protected_control = Router::new()
-        .route("/kernel/v1/session.open", post(open_session::<S>))
-        .route(
-            "/kernel/v1/event.append/:session_id",
-            post(append_event::<S>),
-        )
-        .route("/kernel/v1/event.list/:session_id", get(list_events::<S>))
-        .route(
-            "/kernel/v1/event.subscribe/:session_id",
-            get(subscribe_events::<S>),
-        )
-        .route("/kernel/v1/package.load", post(load_package::<S>))
-        .route("/kernel/v1/package.list", get(list_packages::<S>))
-        .route(
-            "/kernel/v1/package.status/:namespace/:name",
-            get(package_status::<S>),
-        )
-        .route(
-            "/kernel/v1/package.unload/:namespace/:name",
-            post(unload_package::<S>),
-        )
-        .route(
-            "/kernel/v1/capability.discover",
-            get(discover_capabilities::<S>),
-        )
-        .route("/kernel/v1/capability.invoke", post(invoke_capability::<S>))
-        .route("/kernel/v1/host.info", get(host_info))
+        .route("/journal/subscribe/:session_id", get(subscribe_events::<S>))
         .route("/host/v1/deploy", post(deploy_project::<S>))
         .route("/host/v1/deploy/stop", post(stop_project_deployment::<S>))
         .route("/host/v1/build-deploy", post(build_deploy_project::<S>))
@@ -867,7 +819,6 @@ fn is_reserved_vhost_slug(slug: &str) -> bool {
             | "api"
             | "admin"
             | "host"
-            | "kernel"
             | "rpc"
             | "health"
             | "surface-bundles"
@@ -990,7 +941,7 @@ fn query_access_token(uri: &Uri) -> Option<String> {
 fn event_stream_query_credentials_allowed(request: &Request) -> bool {
     let path = request.uri().path();
     request.method() == Method::GET
-        && (path.starts_with("/kernel/v1/event.subscribe/")
+        && (path.starts_with("/journal/subscribe/")
             || (path.starts_with("/host/v1/build-deploy/") && path.ends_with("/events")))
 }
 
@@ -1082,15 +1033,8 @@ fn required_host_scope_for_http(method: &Method, path: &str) -> Option<HostAcces
             HostAccessScope::Deploy
         });
     }
-    if path == "/kernel/v1/session.open" {
-        return Some(HostAccessScope::ProjectOperate);
-    }
-    if path.starts_with("/kernel/v1/") {
-        return Some(if method == Method::GET {
-            HostAccessScope::Observe
-        } else {
-            HostAccessScope::AccessManage
-        });
+    if path.starts_with("/journal/subscribe/") {
+        return Some(HostAccessScope::Observe);
     }
     if path == "/p" || path.starts_with("/p/") {
         return Some(HostAccessScope::Observe);
@@ -1110,10 +1054,7 @@ fn project_id_from_host_path(path: &str) -> Option<&str> {
 }
 
 fn requires_global_project_authority(path: &str) -> bool {
-    path.starts_with("/kernel/v1/package.")
-        || path == "/kernel/v1/capability.discover"
-        || (path.starts_with("/surface-bundles/")
-            && !path.starts_with("/surface-bundles/projects/"))
+    path.starts_with("/surface-bundles/") && !path.starts_with("/surface-bundles/projects/")
 }
 
 fn require_identity_project(
@@ -1192,87 +1133,6 @@ fn strip_host_session_cookie(headers: &mut HeaderMap) {
     }
 }
 
-async fn open_session<S>(
-    State(state): State<AppState<S>>,
-    Extension(identity): Extension<HostAccessIdentity>,
-    Json(request): Json<OpenSessionHttpRequest>,
-) -> anyhow::Result<Json<KernelSession>, ServiceError>
-where
-    S: EventStore,
-{
-    let requested_project = request.metadata.get("project_id").and_then(Value::as_str);
-    if let Some(project_id) = requested_project {
-        require_identity_project(&identity, project_id)?;
-    } else if identity.kind == HostAccessIdentityKind::Device
-        && !identity.allows_all(HostAccessResourceKind::Project)
-    {
-        return Err(ServiceError::with_status(
-            StatusCode::FORBIDDEN,
-            "project-scoped devices must open sessions with metadata.project_id",
-        ));
-    }
-    Ok(Json(
-        state
-            .runtime
-            .open_session(OpenSessionRequest {
-                labels: request.labels,
-                active_package_set: request.active_package_set,
-                metadata: request.metadata,
-            })
-            .await?,
-    ))
-}
-
-async fn append_event<S>(
-    State(state): State<AppState<S>>,
-    Extension(identity): Extension<HostAccessIdentity>,
-    Path(session_id): Path<SessionId>,
-    Json(request): Json<AppendEventHttpRequest>,
-) -> anyhow::Result<Json<EventEnvelope>, ServiceError>
-where
-    S: EventStore,
-{
-    Ok(Json(
-        state
-            .runtime
-            .append_event_with_context(
-                &identity.protocol_context("http_ad_hoc"),
-                AppendEventRequest {
-                    session_id,
-                    writer_package_id: request.writer_package_id,
-                    kind: request.kind,
-                    payload: request.payload,
-                    metadata: request.metadata,
-                },
-            )
-            .await?,
-    ))
-}
-
-async fn list_events<S>(
-    State(state): State<AppState<S>>,
-    Extension(identity): Extension<HostAccessIdentity>,
-    Path(session_id): Path<SessionId>,
-    Query(query): Query<EventListQuery>,
-) -> anyhow::Result<Json<Vec<EventEnvelope>>, ServiceError>
-where
-    S: EventStore,
-{
-    let request = EventListRequest {
-        session_id,
-        after_sequence: query.after_sequence,
-        limit: query.limit,
-        kind_prefix: query.kind_prefix,
-        writer_package_id: query.writer_package_id,
-    };
-    Ok(Json(
-        state
-            .runtime
-            .list_events_range_with_context(&identity.protocol_context("http_ad_hoc"), &request)
-            .await?,
-    ))
-}
-
 async fn subscribe_events<S>(
     State(state): State<AppState<S>>,
     Extension(identity): Extension<HostAccessIdentity>,
@@ -1300,18 +1160,18 @@ where
         |(mut replay, mut rx, session_id, query)| async move {
             if let Some(event) = replay.pop_front() {
                 let sse = SseEvent::default()
-                    .event("kernel.v1.event")
+                    .event("journal.event")
                     .json_data(event)
-                    .unwrap_or_else(|_| SseEvent::default().event("kernel.v1.error"));
+                    .unwrap_or_else(|_| SseEvent::default().event("runtime.error"));
                 return Some((Ok(sse), (replay, rx, session_id, query)));
             }
             loop {
                 match rx.recv().await {
                     Ok(event) if event_matches_query(&event, &session_id, &query) => {
                         let sse = SseEvent::default()
-                            .event("kernel.v1.event")
+                            .event("journal.event")
                             .json_data(event)
-                            .unwrap_or_else(|_| SseEvent::default().event("kernel.v1.error"));
+                            .unwrap_or_else(|_| SseEvent::default().event("runtime.error"));
                         return Some((Ok(sse), (replay, rx, session_id, query)));
                     }
                     Ok(_) => continue,
@@ -1343,108 +1203,6 @@ fn event_matches_query(event: &EventEnvelope, session_id: &str, query: &EventLis
         }
     }
     true
-}
-
-async fn load_package<S>(
-    State(state): State<AppState<S>>,
-    Json(manifest): Json<PackageManifest>,
-) -> anyhow::Result<Json<PackageRecord>, ServiceError>
-where
-    S: EventStore,
-{
-    Ok(Json(state.runtime.load_package(manifest).await?))
-}
-
-async fn list_packages<S>(State(state): State<AppState<S>>) -> Json<Vec<PackageRecord>>
-where
-    S: EventStore,
-{
-    Json(state.runtime.list_packages().await)
-}
-
-async fn package_status<S>(
-    State(state): State<AppState<S>>,
-    Path((namespace, name)): Path<(String, String)>,
-) -> anyhow::Result<Json<PackageRecord>, ServiceError>
-where
-    S: EventStore,
-{
-    let package_id = format!("{namespace}/{name}");
-    state
-        .runtime
-        .package_status(&package_id)
-        .await
-        .map(Json)
-        .ok_or_else(|| anyhow::anyhow!("package '{package_id}' is not loaded").into())
-}
-
-async fn unload_package<S>(
-    State(state): State<AppState<S>>,
-    Path((namespace, name)): Path<(String, String)>,
-) -> anyhow::Result<Json<PackageRecord>, ServiceError>
-where
-    S: EventStore,
-{
-    let package_id = format!("{namespace}/{name}");
-    Ok(Json(state.runtime.unload_package(&package_id).await?))
-}
-
-async fn discover_capabilities<S>(
-    State(state): State<AppState<S>>,
-) -> Json<Vec<RegisteredCapability>>
-where
-    S: EventStore,
-{
-    Json(state.runtime.discover_capabilities().await)
-}
-
-async fn invoke_capability<S>(
-    State(state): State<AppState<S>>,
-    Extension(identity): Extension<HostAccessIdentity>,
-    Json(request): Json<CapabilityInvocationRequest>,
-) -> anyhow::Result<Json<CapabilityInvocationResult>, ServiceError>
-where
-    S: EventStore,
-{
-    Ok(Json(
-        state
-            .runtime
-            .invoke_capability_with_context(&identity.protocol_context("http_ad_hoc"), request)
-            .await?,
-    ))
-}
-
-async fn host_info() -> impl IntoResponse {
-    let mut headers = HeaderMap::new();
-    if let Some(diagnostic) = contract_diagnostics("kernel.v1.host.info")
-        .into_iter()
-        .next()
-    {
-        headers.insert(
-            "x-plurora-contract-diagnostic",
-            HeaderValue::from_str(&diagnostic.code).expect("diagnostic code is a valid header"),
-        );
-        headers.insert(
-            "x-plurora-contract-replacement",
-            HeaderValue::from_str(&diagnostic.canonical_id)
-                .expect("canonical method id is a valid header"),
-        );
-        headers.insert(
-            header::LINK,
-            HeaderValue::from_static("</rpc>; rel=\"alternate\"; type=\"application/json\""),
-        );
-        if let Some(support_until) = diagnostic.support_until {
-            headers.insert(
-                "x-plurora-contract-support-until",
-                HeaderValue::from_str(&support_until)
-                    .expect("registry support window is a valid header"),
-            );
-        }
-    }
-    (
-        headers,
-        Json(serde_json::to_value(runtime_host_info()).expect("host info serializes")),
-    )
 }
 
 #[derive(Debug, Deserialize)]
@@ -3051,7 +2809,7 @@ where
             call_host_protocol(
                 state,
                 &context,
-                "kernel.v1.proxy.register",
+                "host.proxy.register",
                 serde_json::json!({
                     "route_id": route.route_id,
                     "protocol": "http",
@@ -3375,7 +3133,7 @@ where
     let lease = match call_host_protocol(
         &state,
         &context,
-        "kernel.v1.port.lease",
+        "host.port.lease",
         serde_json::json!({
             "target_id": "local",
             "port_name": &request.port_name,
@@ -3383,7 +3141,7 @@ where
         }),
     )
     .await
-    .and_then(|value| value_field(value, "lease", "kernel.v1.port.lease"))
+    .and_then(|value| value_field(value, "lease", "host.port.lease"))
     {
         Ok(lease) => lease,
         Err(error) => return Err(anyhow::anyhow!("deployment port lease failed: {error}").into()),
@@ -3509,7 +3267,7 @@ where
     let route = match call_host_protocol(
         &state,
         &context,
-        "kernel.v1.proxy.register",
+        "host.proxy.register",
         serde_json::json!({
             "route_id": &request.route_id,
             "protocol": "http",
@@ -3521,7 +3279,7 @@ where
         }),
     )
     .await
-    .and_then(|value| value_field(value, "route", "kernel.v1.proxy.register"))
+    .and_then(|value| value_field(value, "route", "host.proxy.register"))
     {
         Ok(route) => route,
         Err(error) => {
@@ -4788,7 +4546,7 @@ where
             if let Err(error) = call_host_protocol(
                 state,
                 context,
-                "kernel.v1.proxy.unregister",
+                "host.proxy.unregister",
                 serde_json::json!({ "route_id": route_id }),
             )
             .await
@@ -4801,7 +4559,7 @@ where
             if let Err(error) = call_host_protocol(
                 state,
                 context,
-                "kernel.v1.port.release",
+                "host.port.release",
                 serde_json::json!({ "lease_id": lease_id }),
             )
             .await
@@ -4966,7 +4724,7 @@ where
     let lease = match call_host_protocol(
         state,
         &context,
-        "kernel.v1.port.lease",
+        "host.port.lease",
         serde_json::json!({
             "target_id": "local",
             "port_name": &request.port_name,
@@ -4974,7 +4732,7 @@ where
         }),
     )
     .await
-    .and_then(|value| value_field(value, "lease", "kernel.v1.port.lease"))
+    .and_then(|value| value_field(value, "lease", "host.port.lease"))
     {
         Ok(lease) => lease,
         Err(error) => return Err(anyhow::anyhow!("deployment port lease failed: {error}")),
@@ -5128,7 +4886,7 @@ where
     let route = match call_host_protocol(
         state,
         &context,
-        "kernel.v1.proxy.register",
+        "host.proxy.register",
         serde_json::json!({
             "route_id": &request.route_id,
             "protocol": "http",
@@ -5140,7 +4898,7 @@ where
         }),
     )
     .await
-    .and_then(|value| value_field(value, "route", "kernel.v1.proxy.register"))
+    .and_then(|value| value_field(value, "route", "host.proxy.register"))
     {
         Ok(route) => route,
         Err(error) => {
@@ -5276,7 +5034,7 @@ where
     call_host_protocol(
         state,
         &context,
-        "kernel.v1.proxy.register",
+        "host.proxy.register",
         serde_json::json!({
             "route_id": route_id,
             "protocol": "http",
@@ -5373,7 +5131,7 @@ where
     let value = call_host_protocol(
         state,
         context,
-        "kernel.v1.capability.invoke",
+        "capability.invoke",
         serde_json::json!({
             "capability_id": capability_id,
             "provider_package_id": "official/docker-runtime-lab",
@@ -5381,7 +5139,7 @@ where
         }),
     )
     .await?;
-    value_field(value, "output", "kernel.v1.capability.invoke")
+    value_field(value, "output", "capability.invoke")
 }
 
 pub async fn clone_project_workspace_from_git<S>(
@@ -5481,7 +5239,7 @@ where
     let value = call_host_protocol(
         state,
         context,
-        "kernel.v1.capability.invoke",
+        "capability.invoke",
         serde_json::json!({
             "capability_id": capability_id,
             "provider_package_id": "official/git-tools-lab",
@@ -5489,7 +5247,7 @@ where
         }),
     )
     .await?;
-    value_field(value, "output", "kernel.v1.capability.invoke")
+    value_field(value, "output", "capability.invoke")
 }
 
 fn build_project_workspace_clone_invocation(
@@ -5907,7 +5665,7 @@ where
                     &ProtocolContext::host_dev("health_supervisor"),
                     AppendEventRequest {
                         session_id: deployment_health_session(&state, &mut health_session_id).await,
-                        writer_package_id: plurora_core::KERNEL_PACKAGE_ID.to_string(),
+                        writer_package_id: plurora_core::PLATFORM_RUNTIME_ID.to_string(),
                         kind: plurora_core::EVENT_DEPLOYMENT_HEALTH.to_string(),
                         payload,
                         metadata: serde_json::json!({}),
@@ -5934,7 +5692,7 @@ where
     match state
         .runtime
         .open_session(OpenSessionRequest {
-            labels: vec!["kernel:deployment-health".to_string()],
+            labels: vec!["host:deployment-health".to_string()],
             metadata: serde_json::json!({"kind":"deployment_health"}),
             ..OpenSessionRequest::default()
         })
@@ -5944,7 +5702,7 @@ where
             *cached = Some(session.id.clone());
             session.id
         }
-        Err(_) => "kernel_deployment_health".to_string(),
+        Err(_) => "host_deployment_health".to_string(),
     }
 }
 
@@ -6078,7 +5836,7 @@ where
         if let Err(error) = call_host_protocol(
             state,
             context,
-            "kernel.v1.proxy.unregister",
+            "host.proxy.unregister",
             serde_json::json!({ "route_id": route_id }),
         )
         .await
@@ -6129,7 +5887,7 @@ where
         if let Err(error) = call_host_protocol(
             state,
             context,
-            "kernel.v1.port.release",
+            "host.port.release",
             serde_json::json!({ "lease_id": lease_id }),
         )
         .await
@@ -7935,8 +7693,6 @@ where
 fn is_reserved_service_path(path: &str) -> bool {
     path == "/rpc"
         || path.starts_with("/rpc/")
-        || path == "/kernel"
-        || path.starts_with("/kernel/")
         || path == "/p"
         || path.starts_with("/p/")
         || path == "/host"
@@ -8155,11 +7911,6 @@ where
         .and_then(Value::as_str)
         .unwrap_or("invalid")
         .to_string();
-    let diagnostics = raw
-        .get("method")
-        .and_then(Value::as_str)
-        .map(contract_diagnostics)
-        .unwrap_or_default();
     let request = match serde_json::from_value::<ProtocolRequest>(raw) {
         Ok(request) => request,
         Err(error) => {
@@ -8167,7 +7918,6 @@ where
                 id: response_id,
                 result: None,
                 error: Some(ProtocolError::invalid_request(error.to_string())),
-                diagnostics,
             });
         }
     };
@@ -8181,7 +7931,7 @@ where
     let resolved_method = resolve_contract_method(&method).ok();
     let policy_method = resolved_method
         .as_ref()
-        .map(|resolved| resolved.contract.canonical_id.as_str())
+        .map(|resolved| resolved.contract.id.as_str())
         .unwrap_or(method.as_str());
     let required_scope = required_host_scope_for_protocol_method(policy_method);
     if !identity.allows(required_scope) {
@@ -8189,11 +7939,10 @@ where
             id,
             result: None,
             error: Some(ProtocolError::new(
-                "kernel/v1/error/permission_denied",
+                "runtime/error/permission_denied",
                 "Host access grant does not include the required scope",
                 serde_json::json!({ "required_scope": required_scope }),
             )),
-            diagnostics,
         });
     }
     let operation_resources = host_operation_resources_for_protocol_method(policy_method, &params);
@@ -8218,13 +7967,11 @@ where
             id,
             result: Some(result),
             error: None,
-            diagnostics,
         }),
         Err(error) => Json(ProtocolResponse {
             id,
             result: None,
             error: Some(error),
-            diagnostics,
         }),
     }
 }
@@ -8232,6 +7979,12 @@ where
 fn required_host_scope_for_protocol_method(method: &str) -> HostAccessScope {
     match method {
         "host.info"
+        | "host.ping"
+        | "host.diagnostics"
+        | "host.package.logs"
+        | "host.package.list"
+        | "host.package.status"
+        | "host.package.describe"
         | "host.project.list"
         | "host.project.get"
         | "host.project.status"
@@ -8251,52 +8004,21 @@ fn required_host_scope_for_protocol_method(method: &str) -> HostAccessScope {
         | "change.proposal.list"
         | "projection.get"
         | "projection.list"
-        | "kernel.v1.session.branch.list"
-        | "kernel.v1.session.get"
-        | "kernel.v1.session.list"
-        | "kernel.v1.event.list"
-        | "kernel.v1.event.subscribe"
-        | "kernel.v1.package.logs"
-        | "kernel.v1.package.list"
-        | "kernel.v1.package.status"
-        | "kernel.v1.package.describe"
-        | "kernel.v1.project.list"
-        | "kernel.v1.project.get"
-        | "kernel.v1.project.status"
-        | "kernel.v1.target.list"
-        | "kernel.v1.target.status"
-        | "kernel.v1.exec.list"
-        | "kernel.v1.exec.status"
-        | "kernel.v1.exec.logs"
-        | "kernel.v1.port.list"
-        | "kernel.v1.port.status"
-        | "kernel.v1.proxy.list"
-        | "kernel.v1.proxy.status"
-        | "kernel.v1.capability.discover"
-        | "kernel.v1.capability.describe"
-        | "kernel.v1.extension_point.list"
-        | "kernel.v1.extension_point.describe"
-        | "kernel.v1.hook.list"
-        | "kernel.v1.asset.get"
-        | "kernel.v1.asset.list"
-        | "kernel.v1.projection.get"
-        | "kernel.v1.projection.list"
-        | "kernel.v1.host.info"
-        | "kernel.v1.host.ping"
-        | "kernel.v1.host.diagnostics"
-        | "kernel.v1.surface.resolve_bundle"
-        | "kernel.v1.surface.contribution.list"
-        | "kernel.v1.surface.contribution.describe"
-        | "kernel.v1.proposal.get"
-        | "kernel.v1.proposal.list" => HostAccessScope::Observe,
+        | "context.branch.list"
+        | "context.get"
+        | "context.list"
+        | "journal.list"
+        | "journal.subscribe"
+        | "capability.discover"
+        | "capability.describe"
+        | "protocol.extension.list"
+        | "protocol.extension.describe"
+        | "protocol.hook.list"
+        | "object.get"
+        | "object.list" => HostAccessScope::Observe,
 
-        "host.project.start"
-        | "host.project.stop"
-        | "kernel.v1.project.start"
-        | "kernel.v1.project.stop"
-        | "kernel.v1.session.open"
-        | "kernel.v1.session.close"
-        | "kernel.v1.session.fork" => HostAccessScope::ProjectOperate,
+        "host.project.start" | "host.project.stop" | "context.open" | "context.close"
+        | "context.fork" => HostAccessScope::ProjectOperate,
 
         "host.target.register"
         | "host.target.unregister"
@@ -8305,22 +8027,11 @@ fn required_host_scope_for_protocol_method(method: &str) -> HostAccessScope {
         | "host.port.lease"
         | "host.port.release"
         | "host.proxy.register"
-        | "host.proxy.unregister"
-        | "kernel.v1.target.register"
-        | "kernel.v1.target.unregister"
-        | "kernel.v1.exec.start"
-        | "kernel.v1.exec.stop"
-        | "kernel.v1.port.lease"
-        | "kernel.v1.port.release"
-        | "kernel.v1.proxy.register"
-        | "kernel.v1.proxy.unregister" => HostAccessScope::Deploy,
+        | "host.proxy.unregister" => HostAccessScope::Deploy,
 
-        "change.proposal.create" | "kernel.v1.proposal.create" => HostAccessScope::DevelopPropose,
-        "change.proposal.approve"
-        | "change.proposal.reject"
-        | "kernel.v1.proposal.approve"
-        | "kernel.v1.proposal.reject" => HostAccessScope::DevelopApprove,
-        "change.proposal.apply" | "kernel.v1.proposal.apply" => HostAccessScope::DevelopExecute,
+        "change.proposal.create" => HostAccessScope::DevelopPropose,
+        "change.proposal.approve" | "change.proposal.reject" => HostAccessScope::DevelopApprove,
+        "change.proposal.apply" => HostAccessScope::DevelopExecute,
 
         // Unknown and broad administrative methods fail closed for scoped devices.
         _ => HostAccessScope::AccessManage,
@@ -8331,18 +8042,10 @@ fn host_operation_resources_for_protocol_method(
     method: &str,
     params: &Value,
 ) -> Vec<ProtocolResourceSelector> {
-    let project_method = matches!(
+    if matches!(
         method,
-        "host.project.get"
-            | "host.project.start"
-            | "host.project.stop"
-            | "host.project.status"
-            | "kernel.v1.project.get"
-            | "kernel.v1.project.start"
-            | "kernel.v1.project.stop"
-            | "kernel.v1.project.status"
-    );
-    if project_method {
+        "host.project.get" | "host.project.start" | "host.project.stop" | "host.project.status"
+    ) {
         return params
             .get("project_id")
             .and_then(Value::as_str)
@@ -8356,20 +8059,14 @@ fn host_operation_resources_for_protocol_method(
             .unwrap_or_default();
     }
 
-    let target_method = matches!(
+    if matches!(
         method,
         "host.target.status"
             | "host.target.register"
             | "host.target.unregister"
             | "host.exec.start"
             | "host.port.lease"
-            | "kernel.v1.target.status"
-            | "kernel.v1.target.register"
-            | "kernel.v1.target.unregister"
-            | "kernel.v1.exec.start"
-            | "kernel.v1.port.lease"
-    );
-    if target_method {
+    ) {
         return params
             .get("target_id")
             .and_then(Value::as_str)
@@ -8393,12 +8090,12 @@ pub struct ServiceError {
 impl ServiceError {
     fn with_status(status: StatusCode, message: impl Into<String>) -> Self {
         let code = match status {
-            StatusCode::UNAUTHORIZED => "kernel/v1/error/unauthorized",
-            StatusCode::FORBIDDEN => "kernel/v1/error/permission_denied",
-            StatusCode::NOT_FOUND => "kernel/v1/error/not_found",
-            StatusCode::TOO_MANY_REQUESTS => "kernel/v1/error/package_state",
-            StatusCode::BAD_REQUEST => "kernel/v1/error/invalid_request",
-            _ => "kernel/v1/error/internal",
+            StatusCode::UNAUTHORIZED => "runtime/error/unauthorized",
+            StatusCode::FORBIDDEN => "runtime/error/permission_denied",
+            StatusCode::NOT_FOUND => "runtime/error/not_found",
+            StatusCode::TOO_MANY_REQUESTS => "runtime/error/package_state",
+            StatusCode::BAD_REQUEST => "runtime/error/invalid_request",
+            _ => "runtime/error/internal",
         };
         Self {
             error: anyhow::anyhow!("{}: {}", code, message.into()),
@@ -8423,14 +8120,12 @@ impl axum::response::IntoResponse for ServiceError {
     fn into_response(self) -> axum::response::Response {
         let error = ProtocolError::from_anyhow(self.error);
         let status = self.status.unwrap_or_else(|| match error.code.as_str() {
-            "kernel/v1/error/permission_denied" => StatusCode::FORBIDDEN,
-            "kernel/v1/error/not_found" => StatusCode::NOT_FOUND,
-            "kernel/v1/error/schema_invalid" | "kernel/v1/error/invalid_request" => {
+            "runtime/error/permission_denied" => StatusCode::FORBIDDEN,
+            "runtime/error/not_found" => StatusCode::NOT_FOUND,
+            "runtime/error/schema_invalid" | "runtime/error/invalid_request" => {
                 StatusCode::BAD_REQUEST
             }
-            "kernel/v1/error/ambiguous_route" | "kernel/v1/error/package_state" => {
-                StatusCode::CONFLICT
-            }
+            "runtime/error/ambiguous_route" | "runtime/error/package_state" => StatusCode::CONFLICT,
             _ => StatusCode::INTERNAL_SERVER_ERROR,
         });
         (status, Json(serde_json::json!({ "error": error }))).into_response()
@@ -8469,7 +8164,7 @@ mod tests {
     fn query_credentials_are_limited_to_get_event_streams() -> anyhow::Result<()> {
         let event_request = Request::builder()
             .method(Method::GET)
-            .uri("/kernel/v1/event.subscribe/session-1?access_token=event-token")
+            .uri("/journal/subscribe/session-1?access_token=event-token")
             .body(Body::empty())?;
         assert_eq!(
             presented_host_credentials(&event_request)
@@ -8586,7 +8281,7 @@ mod tests {
             Some(HostAccessScope::AccessManage)
         );
         assert_eq!(
-            required_host_scope_for_protocol_method("kernel.v1.project.start"),
+            required_host_scope_for_protocol_method("host.project.start"),
             HostAccessScope::ProjectOperate
         );
         assert_eq!(
@@ -9393,13 +9088,8 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn rpc_legacy_adapters_preserve_results_and_emit_envelope_diagnostics(
-    ) -> anyhow::Result<()> {
-        async fn call_rpc(
-            id: &str,
-            method: &str,
-            params: serde_json::Value,
-        ) -> anyhow::Result<serde_json::Value> {
+    async fn rpc_accepts_only_current_method_ids() -> anyhow::Result<()> {
+        async fn call_rpc(method: &str) -> anyhow::Result<serde_json::Value> {
             let response = app()
                 .oneshot(
                     Request::builder()
@@ -9407,7 +9097,8 @@ mod tests {
                         .uri("/rpc")
                         .header("content-type", "application/json")
                         .body(Body::from(
-                            json!({"id": id, "method": method, "params": params}).to_string(),
+                            json!({"id": "method-test", "method": method, "params": {}})
+                                .to_string(),
                         ))?,
                 )
                 .await?;
@@ -9416,89 +9107,32 @@ mod tests {
             Ok(serde_json::from_slice(&bytes)?)
         }
 
-        for (canonical_id, legacy_id) in [
-            ("host.info", "kernel.v1.host.info"),
-            ("host.target.list", "kernel.v1.target.list"),
-        ] {
-            let canonical = call_rpc("canonical", canonical_id, json!({})).await?;
-            let legacy = call_rpc("legacy", legacy_id, json!({})).await?;
+        let current = call_rpc("host.info").await?;
+        assert!(current["result"]["supported_transports"].is_array());
+        assert!(current.get("diagnostics").is_none());
+        assert!(current["result"].get("aliases").is_none());
 
-            assert_eq!(canonical["result"], legacy["result"]);
-            assert!(canonical.get("diagnostics").is_none());
-            assert!(legacy["result"].get("diagnostics").is_none());
-            assert_eq!(
-                legacy["diagnostics"][0]["code"],
-                "plurora.contract.alias.legacy_adapter"
-            );
-            assert_eq!(legacy["diagnostics"][0]["requested_id"], legacy_id);
-            assert_eq!(legacy["diagnostics"][0]["canonical_id"], canonical_id);
-            assert_eq!(legacy["diagnostics"][0]["replacement"], canonical_id);
-            assert_eq!(legacy["diagnostics"][0]["maturity"], "legacy_adapter");
-            assert!(legacy["diagnostics"][0]["message"]
-                .as_str()
-                .is_some_and(|message| message.contains("no new field semantics")));
-
-            if canonical_id == "host.info" {
-                assert!(legacy["result"]["supported_transports"].is_array());
-                assert_eq!(
-                    legacy["result"]["default_profile"],
-                    plurora_runtime::DEFAULT_CONTRACT_PROFILE
-                );
-                assert!(legacy["result"]["aliases"]
-                    .as_array()
-                    .is_some_and(|aliases| {
-                        aliases.iter().any(|alias| {
-                            alias["id"] == legacy_id && alias["canonical_id"] == canonical_id
-                        })
-                    }));
-            }
-        }
+        let removed = call_rpc("platform.host.info").await?;
+        assert_eq!(removed["error"]["code"], "runtime/error/invalid_request");
+        assert!(removed.get("diagnostics").is_none());
         Ok(())
     }
 
     #[tokio::test]
-    async fn legacy_host_info_route_advertises_the_migration_headers() -> anyhow::Result<()> {
+    async fn removed_ad_hoc_contract_routes_are_not_exposed() -> anyhow::Result<()> {
         let response = app()
             .oneshot(
                 Request::builder()
-                    .uri("/kernel/v1/host.info")
+                    .uri("/unknown-contract-route")
                     .body(Body::empty())?,
             )
             .await?;
-        assert_eq!(response.status(), StatusCode::OK);
-        assert_eq!(
-            response
-                .headers()
-                .get("x-plurora-contract-diagnostic")
-                .and_then(|value| value.to_str().ok()),
-            Some("plurora.contract.alias.legacy_adapter")
-        );
-        assert_eq!(
-            response
-                .headers()
-                .get("x-plurora-contract-replacement")
-                .and_then(|value| value.to_str().ok()),
-            Some("host.info")
-        );
-        assert_eq!(
-            response
-                .headers()
-                .get("x-plurora-contract-support-until")
-                .and_then(|value| value.to_str().ok()),
-            Some("plurora.contract.registry@0.5.0")
-        );
-        assert_eq!(
-            response
-                .headers()
-                .get(header::LINK)
-                .and_then(|value| value.to_str().ok()),
-            Some("</rpc>; rel=\"alternate\"; type=\"application/json\"")
-        );
+        assert_eq!(response.status(), StatusCode::NOT_FOUND);
         Ok(())
     }
 
     #[tokio::test]
-    async fn malformed_contract_retains_legacy_diagnostic() -> anyhow::Result<()> {
+    async fn malformed_contract_has_no_compatibility_diagnostic() -> anyhow::Result<()> {
         let response = app()
             .oneshot(
                 Request::builder()
@@ -9507,8 +9141,8 @@ mod tests {
                     .header("content-type", "application/json")
                     .body(Body::from(
                         json!({
-                            "id": "legacy-error",
-                            "method": "kernel.v1.host.info",
+                            "id": "contract-error",
+                            "method": "host.info",
                             "contract": "bad",
                             "params": {}
                         })
@@ -9519,12 +9153,9 @@ mod tests {
         assert_eq!(response.status(), StatusCode::OK);
         let bytes = to_bytes(response.into_body(), usize::MAX).await?;
         let value: serde_json::Value = serde_json::from_slice(&bytes)?;
-        assert_eq!(value["id"], "legacy-error");
-        assert_eq!(value["error"]["code"], "kernel/v1/error/invalid_request");
-        assert_eq!(
-            value["diagnostics"][0]["code"],
-            "plurora.contract.alias.legacy_adapter"
-        );
+        assert_eq!(value["id"], "contract-error");
+        assert_eq!(value["error"]["code"], "runtime/error/invalid_request");
+        assert!(value.get("diagnostics").is_none());
         Ok(())
     }
 
@@ -9556,7 +9187,7 @@ mod tests {
         assert!(value["result"].is_null());
         assert_eq!(
             value["error"]["code"],
-            "kernel/v1/error/unsupported_contract"
+            "protocol/error/unsupported_contract"
         );
         assert_eq!(value["error"]["details"]["reason"], "unsupported_version");
         Ok(())
@@ -9571,15 +9202,14 @@ mod tests {
                     .uri("/rpc")
                     .header("content-type", "application/json")
                     .body(Body::from(
-                        json!({"id": "1", "method": "kernel.v1.event.list", "params": {}})
-                            .to_string(),
+                        json!({"id": "1", "method": "journal.list", "params": {}}).to_string(),
                     ))?,
             )
             .await?;
         assert_eq!(response.status(), StatusCode::OK);
         let bytes = to_bytes(response.into_body(), usize::MAX).await?;
         let value: serde_json::Value = serde_json::from_slice(&bytes)?;
-        assert_eq!(value["error"]["code"], "kernel/v1/error/internal");
+        assert_eq!(value["error"]["code"], "runtime/error/internal");
         Ok(())
     }
 
@@ -9814,7 +9444,7 @@ mod tests {
                     .uri("/rpc")
                     .header("content-type", "application/json")
                     .body(Body::from(
-                        json!({"id":"1","method":"kernel.v1.host.info","params":{}}).to_string(),
+                        json!({"id":"1","method":"host.info","params":{}}).to_string(),
                     ))?,
             )
             .await?;
@@ -9855,7 +9485,7 @@ mod tests {
                     .header(header::ORIGIN, "https://client.example")
                     .header(header::AUTHORIZATION, "Bearer secret-token")
                     .body(Body::from(
-                        json!({"id":"1","method":"kernel.v1.host.info","params":{}}).to_string(),
+                        json!({"id":"1","method":"host.info","params":{}}).to_string(),
                     ))?,
             )
             .await?;
@@ -10157,8 +9787,6 @@ mod tests {
         for path in [
             format!("/surface-bundles/projects/{project_b}/bundle.mjs"),
             "/surface-bundles/ydltavern/bundle.mjs".to_string(),
-            "/kernel/v1/package.list".to_string(),
-            "/kernel/v1/capability.discover".to_string(),
         ] {
             let response = app
                 .clone()
@@ -10174,6 +9802,14 @@ mod tests {
                 response.status(),
                 StatusCode::FORBIDDEN,
                 "project-scoped device must not read another project or Host-global catalogue"
+            );
+        }
+
+        for method in ["host.package.list", "capability.discover"] {
+            let denied_global = rpc(app.clone(), &access_token, method, json!({})).await?;
+            assert_eq!(
+                denied_global["error"]["code"], "runtime/error/permission_denied",
+                "project-scoped device must not enumerate a Host-global catalogue"
             );
         }
 
@@ -10193,32 +9829,16 @@ mod tests {
         .await?;
         assert_eq!(
             denied_rpc["error"]["code"],
-            "kernel/v1/error/permission_denied"
-        );
-        let denied_legacy_rpc = rpc(
-            app.clone(),
-            &access_token,
-            "kernel.v1.project.get",
-            json!({"project_id": project_b}),
-        )
-        .await?;
-        assert_eq!(
-            denied_legacy_rpc["error"]["code"], "kernel/v1/error/permission_denied",
-            "legacy adapters must share the canonical resource policy"
+            "runtime/error/permission_denied"
         );
         let authority_events = store
             .list_session_range(&"host_control_authority".to_string(), None, None)
             .await?;
         assert!(authority_events.iter().any(|event| {
             event.kind == "host/control/v1/authority.decision"
-                && event.payload["canonical_method"] == "host.project.get"
+                && event.payload["method"] == "host.project.get"
                 && event.payload["decision"] == "deny"
                 && event.payload["operation_resources"][0]["id"] == project_b
-        }));
-        assert!(authority_events.iter().any(|event| {
-            event.payload["canonical_method"] == "host.project.get"
-                && event.payload["requested_method"] == "kernel.v1.project.get"
-                && event.payload["decision"] == "deny"
         }));
         assert!(!serde_json::to_string(&authority_events)?.contains(&access_token));
 
@@ -10335,12 +9955,20 @@ mod tests {
             .clone()
             .oneshot(
                 Request::builder()
-                    .uri("/kernel/v1/host.info")
+                    .method(Method::POST)
+                    .uri("/rpc")
+                    .header(header::CONTENT_TYPE, "application/json")
                     .header(header::COOKIE, cookie)
-                    .body(Body::empty())?,
+                    .body(Body::from(
+                        json!({"id": "desktop-cookie", "method": "host.info", "params": {}})
+                            .to_string(),
+                    ))?,
             )
             .await?;
         assert_eq!(authenticated.status(), StatusCode::OK);
+        let bytes = to_bytes(authenticated.into_body(), usize::MAX).await?;
+        let value: serde_json::Value = serde_json::from_slice(&bytes)?;
+        assert_eq!(value["result"]["protocol_version"], "0.1.0");
 
         let replay = app
             .oneshot(
@@ -10444,7 +10072,7 @@ mod tests {
 
         let context = ProtocolContext::host_dev("host_deploy_test");
         let leases = runtime
-            .call_protocol(&context, "kernel.v1.port.list", json!({}))
+            .call_protocol(&context, "host.port.list", json!({}))
             .await
             .map_err(protocol_error_to_anyhow)?;
         assert!(leases
@@ -10454,7 +10082,7 @@ mod tests {
             .all(|lease| lease["status"] != "active"));
 
         let routes = runtime
-            .call_protocol(&context, "kernel.v1.proxy.list", json!({}))
+            .call_protocol(&context, "host.proxy.list", json!({}))
             .await
             .map_err(protocol_error_to_anyhow)?;
         assert!(routes
@@ -10484,7 +10112,7 @@ mod tests {
             .clone()
             .oneshot(
                 Request::builder()
-                    .uri("/kernel/v1/event.subscribe/session-1")
+                    .uri("/journal/subscribe/session-1")
                     .body(Body::empty())?,
             )
             .await?;
@@ -10493,7 +10121,7 @@ mod tests {
         let allowed = app
             .oneshot(
                 Request::builder()
-                    .uri("/kernel/v1/event.subscribe/session-1?access_token=event-token")
+                    .uri("/journal/subscribe/session-1?access_token=event-token")
                     .body(Body::empty())?,
             )
             .await?;
@@ -11011,7 +10639,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn vhost_public_url_is_derived_without_kernel_schema_change() -> anyhow::Result<()> {
+    async fn vhost_public_url_is_derived_without_platform_schema_change() -> anyhow::Result<()> {
         let store = Arc::new(InMemoryEventStore::default());
         let runtime = Arc::new(Runtime::new(store, RuntimeConfig::default()));
         let state = AppState {
@@ -11670,7 +11298,6 @@ mod tests {
 
         for path in [
             "/rpc/anything",
-            "/kernel/anything",
             "/p/anything",
             "/surface-bundles/anything",
             "/surface-assets/anything",
@@ -11682,7 +11309,7 @@ mod tests {
                 .await?;
             assert_eq!(response.status(), StatusCode::NOT_FOUND, "path {path}");
         }
-        for path in ["/kernelx", "/project/bad/id", "/project/bad%2Fid"] {
+        for path in ["/project/bad/id", "/project/bad%2Fid"] {
             let response = app
                 .clone()
                 .oneshot(Request::builder().uri(path).body(Body::empty())?)

@@ -1,8 +1,8 @@
 # Plurora Model Provider Adapter SDK
 
-Pure TypeScript adapter for normalizing model provider API differences across OpenAI / Anthropic / Gemini / OpenAI-compatible / OpenRouter / DeepSeek / xAI / Fireworks — without importing private runtime, making real HTTP calls, doing billing/proxying, or adding `kernel.v1.model.*`.
+Pure TypeScript adapter for normalizing model provider API differences across OpenAI / Anthropic / Gemini / OpenAI-compatible / OpenRouter / DeepSeek / xAI / Fireworks — without importing private runtime, making real HTTP calls, doing billing/proxying, or adding `platform.model.*`.
 
-**This is an SDK adapter, not a provider package.** It does not go online, does not bill or proxy, and does not add kernel.v1.model semantics. It only handles provider profile description, request normalization, error classification, and stream event parsing.
+**This is an SDK adapter, not a provider package.** It does not go online, does not bill or proxy, and does not add platform.model semantics. It only handles provider profile description, request normalization, error classification, and stream event parsing.
 
 ## References
 
@@ -284,7 +284,7 @@ if (!result.ok) {
 - **No external dependencies**, pure TypeScript
 - **No network I/O**, no real HTTP calls
 - **No billing**, no proxying
-- **Does not add** `kernel.v1.model.*`, `kernel.v1.prompt.*`, `kernel.v1.chat.*`
+- **Does not add** `platform.model.*`, `platform.prompt.*`, `platform.chat.*`
 - **Does not use** `any` type; prefers `unknown` + type guards
 - **Does not hardcode** secrets; only accepts `secret_ref:*` or `host:*` references
 - Raw API keys are rejected by `validateProviderProfile`

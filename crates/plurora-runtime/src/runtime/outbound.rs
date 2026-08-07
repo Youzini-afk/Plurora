@@ -42,7 +42,7 @@ use crate::EventStore;
 // ---------------------------------------------------------------------------
 
 /// Specification for a secret-derived HTTP header to be injected by the host
-/// during outbound execution. Packages declare these in `kernel.v1.outbound.execute`
+/// during outbound execution. Packages declare these in `host.outbound.execute`
 /// params as `secret_headers`; the host resolves the `secret_ref` at execution
 /// time and injects the resulting header value into the live HTTP request.
 ///
@@ -304,7 +304,7 @@ pub struct OutboundExecutorResponse {
 // Y3: Outbound streaming types
 // ---------------------------------------------------------------------------
 
-/// The format of a streaming response for `kernel.v1.outbound.stream`.
+/// The format of a streaming response for `host.outbound.stream`.
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, JsonSchema, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum StreamFormat {
@@ -338,12 +338,12 @@ pub enum StreamStartStatus {
     Error,
 }
 
-/// Response returned by `kernel.v1.outbound.stream` on the initial call.
+/// Response returned by `host.outbound.stream` on the initial call.
 ///
 /// Contains the stream_id for subscribing to events, the start status,
 /// and metadata about the executor that will handle the stream.
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct KernelOutboundStreamResponse {
+pub struct OutboundStreamResponse {
     /// The stream_id to subscribe to for stream frames.
     pub stream_id: String,
     /// Whether the stream started successfully.
@@ -419,7 +419,7 @@ pub struct OutboundStreamSummary {
 // Y3: StreamEmitter and CancelSignal traits
 // ---------------------------------------------------------------------------
 
-/// Trait for emitting frames into the kernel stream lifecycle.
+/// Trait for emitting frames into the platform stream lifecycle.
 ///
 /// Implementations are wired into the existing `StreamRegistry` /
 /// `stream_capability_chunk` infrastructure. The executor calls
@@ -432,7 +432,7 @@ pub trait StreamEmitter: Send + Sync {
 
 /// Signal for cancelling an outbound stream.
 ///
-/// When the caller invokes `kernel.v1.capability.cancel`, the cancel signal
+/// When the caller invokes `capability.cancel`, the cancel signal
 /// is set, and the executor's stream loop checks it before each iteration.
 #[derive(Clone)]
 pub struct CancelSignal {
@@ -458,7 +458,7 @@ impl CancelSignal {
 
 /// Host policy for outbound HTTP execute (Y1).
 ///
-/// It governs host-level policy for `kernel.v1.outbound.execute` calls:
+/// It governs host-level policy for `host.outbound.execute` calls:
 /// whether execute is enabled at all, which destination hosts are
 /// allowed, whether HTTPS is required, timeouts, redirect policy, and
 /// a test-only loopback escape hatch.

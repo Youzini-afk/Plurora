@@ -1,6 +1,6 @@
-import type { ContractDiagnostic, ContractSelection, HostInfo, ProtocolResponse } from "./types";
+import type { ContractSelection, HostInfo, ProtocolResponse } from "./types";
 
-export interface KernelTransport {
+export interface PluroraTransport {
   invoke(method: string, params: unknown): Promise<unknown>;
   invokeWithContract?(
     method: string,
@@ -8,26 +8,25 @@ export interface KernelTransport {
     contract: ContractSelection,
   ): Promise<unknown>;
   invokeStream(method: string, params: unknown): AsyncIterable<unknown>;
-  drainContractDiagnostics?(): ContractDiagnostic[];
   close?(): Promise<void>;
 }
 
-export class KernelClient {
+export class PluroraClient {
   private selectedContract?: ContractSelection;
 
-  constructor(public transport: KernelTransport) {}
+  constructor(public transport: PluroraTransport) {}
 
   async invoke(method: string, params: unknown): Promise<unknown> {
     if (!this.selectedContract) return this.transport.invoke(method, params);
     if (!this.transport.invokeWithContract) {
-      throw new Error("Kernel transport does not support explicit contract selection");
+      throw new Error("Plurora transport does not support explicit contract selection");
     }
     return this.transport.invokeWithContract(method, params, this.selectedContract);
   }
 
   async negotiateHost(selection: ContractSelection): Promise<HostInfo> {
     if (!this.transport.invokeWithContract) {
-      throw new Error("Kernel transport does not support explicit contract selection");
+      throw new Error("Plurora transport does not support explicit contract selection");
     }
     const info = await this.transport.invokeWithContract("host.info", {}, selection) as HostInfo;
     this.selectedContract = selection;
@@ -38,15 +37,12 @@ export class KernelClient {
     this.selectedContract = undefined;
   }
 
-  drainContractDiagnostics(): ContractDiagnostic[] {
-    return this.transport.drainContractDiagnostics?.() ?? [];
-  }
+
 }
 
-export function fromHttpRpc(url: string): KernelClient {
+export function fromHttpRpc(url: string): PluroraClient {
   let nextId = 1;
-  let diagnostics: ContractDiagnostic[] = [];
-  const transport: KernelTransport = {
+  const transport: PluroraTransport = {
     async invoke(method: string, params: unknown): Promise<unknown> {
       const response = await fetch(url, {
         method: "POST",
@@ -57,7 +53,6 @@ export function fromHttpRpc(url: string): KernelClient {
         throw new Error(`Plurora RPC ${method} failed with HTTP ${response.status}`);
       }
       const envelope = (await response.json()) as ProtocolResponse;
-      diagnostics.push(...(envelope.diagnostics ?? []));
       if (envelope.error !== undefined) {
         throw new Error(`Plurora RPC ${method} failed: ${JSON.stringify(envelope.error)}`);
       }
@@ -77,7 +72,6 @@ export function fromHttpRpc(url: string): KernelClient {
         throw new Error(`Plurora RPC ${method} failed with HTTP ${response.status}`);
       }
       const envelope = (await response.json()) as ProtocolResponse;
-      diagnostics.push(...(envelope.diagnostics ?? []));
       if (envelope.error !== undefined) {
         throw new Error(`Plurora RPC ${method} failed: ${JSON.stringify(envelope.error)}`);
       }
@@ -86,19 +80,14 @@ export function fromHttpRpc(url: string): KernelClient {
     async *invokeStream(method: string, params: unknown): AsyncIterable<unknown> {
       yield await this.invoke(method, params);
     },
-    drainContractDiagnostics(): ContractDiagnostic[] {
-      const drained = diagnostics;
-      diagnostics = [];
-      return drained;
-    },
+
   };
-  return new KernelClient(transport);
+  return new PluroraClient(transport);
 }
 
-export function fromStdio(stream: NodeJS.ReadWriteStream): KernelClient {
+export function fromStdio(stream: NodeJS.ReadWriteStream): PluroraClient {
   let nextId = 1;
   let buffer = "";
-  let diagnostics: ContractDiagnostic[] = [];
   const pending = new Map<string, { resolve: (value: unknown) => void; reject: (error: Error) => void }>();
 
   stream.on("data", (chunk: Buffer | string) => {
@@ -115,7 +104,6 @@ export function fromStdio(stream: NodeJS.ReadWriteStream): KernelClient {
       const waiter = pending.get(responseId);
       if (!waiter) continue;
       pending.delete(responseId);
-      diagnostics.push(...(message.diagnostics ?? []));
       if (message.error !== undefined) {
         waiter.reject(new Error(JSON.stringify(message.error)));
       } else {
@@ -124,7 +112,7 @@ export function fromStdio(stream: NodeJS.ReadWriteStream): KernelClient {
     }
   });
 
-  const transport: KernelTransport = {
+  const transport: PluroraTransport = {
     invoke(method: string, params: unknown): Promise<unknown> {
       const id = String(nextId++);
       const request = { jsonrpc: "2.0", id, method, params };
@@ -148,14 +136,10 @@ export function fromStdio(stream: NodeJS.ReadWriteStream): KernelClient {
     async *invokeStream(method: string, params: unknown): AsyncIterable<unknown> {
       yield await this.invoke(method, params);
     },
-    drainContractDiagnostics(): ContractDiagnostic[] {
-      const drained = diagnostics;
-      diagnostics = [];
-      return drained;
-    },
+
     async close(): Promise<void> {
       stream.end();
     },
   };
-  return new KernelClient(transport);
+  return new PluroraClient(transport);
 }

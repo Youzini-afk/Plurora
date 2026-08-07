@@ -103,13 +103,13 @@ pub(crate) async fn stream_normal_lifecycle() -> anyhow::Result<()> {
         .filter(|e| e.kind == EVENT_STREAM_CHUNK)
         .collect();
     let ended = events.iter().find(|e| e.kind == EVENT_STREAM_ENDED);
-    assert!(started.is_some(), "missing kernel/v1/stream.started");
+    assert!(started.is_some(), "missing capability/stream.started");
     assert_eq!(
         chunk_events.len(),
         2,
-        "expected 2 kernel/v1/stream.chunk events"
+        "expected 2 capability/stream.chunk events"
     );
-    assert!(ended.is_some(), "missing kernel/v1/stream.ended");
+    assert!(ended.is_some(), "missing capability/stream.ended");
 
     Ok(())
 }
@@ -156,7 +156,7 @@ pub(crate) async fn stream_cancel_blocks_chunks() -> anyhow::Result<()> {
     // Verify event
     let events = store.list_session(&session.id).await?;
     let cancelled = events.iter().find(|e| e.kind == EVENT_STREAM_CANCELLED);
-    assert!(cancelled.is_some(), "missing kernel/v1/stream.cancelled");
+    assert!(cancelled.is_some(), "missing capability/stream.cancelled");
 
     Ok(())
 }
@@ -203,7 +203,7 @@ pub(crate) async fn stream_timeout_blocks_chunks() -> anyhow::Result<()> {
     // Verify event
     let events = store.list_session(&session.id).await?;
     let timeout_evt = events.iter().find(|e| e.kind == EVENT_STREAM_TIMEOUT);
-    assert!(timeout_evt.is_some(), "missing kernel/v1/stream.timeout");
+    assert!(timeout_evt.is_some(), "missing capability/stream.timeout");
 
     Ok(())
 }
@@ -250,7 +250,7 @@ pub(crate) async fn stream_error_terminal() -> anyhow::Result<()> {
     // Verify event
     let events = store.list_session(&session.id).await?;
     let error_evt = events.iter().find(|e| e.kind == EVENT_STREAM_ERROR);
-    assert!(error_evt.is_some(), "missing kernel/v1/stream.error");
+    assert!(error_evt.is_some(), "missing capability/stream.error");
 
     Ok(())
 }
@@ -294,7 +294,7 @@ pub(crate) async fn stream_no_model_agent_methods() -> anyhow::Result<()> {
     let value = runtime
         .call_protocol(
             &ProtocolContext::host_dev("conformance"),
-            "kernel.v1.host.info",
+            "host.info",
             json!({}),
         )
         .await
@@ -335,7 +335,7 @@ pub(crate) async fn stream_protocol_dispatch() -> anyhow::Result<()> {
     let value = runtime
         .call_protocol(
             &ProtocolContext::host_dev("conformance"),
-            "kernel.v1.capability.stream",
+            "capability.stream",
             json!({
                 "capability_id": "example/stream/echo",
                 "session_id": session.id,
@@ -360,7 +360,7 @@ pub(crate) async fn stream_protocol_dispatch() -> anyhow::Result<()> {
     let cancel_value = runtime
         .call_protocol(
             &ProtocolContext::host_dev("conformance"),
-            "kernel.v1.capability.cancel",
+            "capability.cancel",
             json!({
                 "invocation_id": invocation_id,
                 "session_id": session.id,

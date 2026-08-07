@@ -48,8 +48,8 @@ where
             .write()
             .await
             .insert(record.id.clone(), record.clone());
-        self.append_kernel_event(
-            &format!("kernel_permission_{}", record.id),
+        self.append_platform_event(
+            &format!("platform_permission_{}", record.id),
             EVENT_PERMISSION_GRANTED,
             serde_json::to_value(&record)?,
         )
@@ -65,8 +65,8 @@ where
         record.revoked_at = Some(Utc::now());
         let record = record.clone();
         drop(grants);
-        self.append_kernel_event(
-            &format!("kernel_permission_{}", record.id),
+        self.append_platform_event(
+            &format!("platform_permission_{}", record.id),
             EVENT_PERMISSION_REVOKED,
             serde_json::to_value(&record)?,
         )
@@ -129,7 +129,7 @@ where
         package_id: &PackageId,
         operation: &str,
     ) -> anyhow::Result<EventEnvelope> {
-        self.append_kernel_event(
+        self.append_platform_event(
             session_id,
             EVENT_PERMISSION_DENIED,
             json!({

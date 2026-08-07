@@ -29,7 +29,7 @@ pub(crate) async fn permission_grant_rehydrate() -> anyhow::Result<()> {
     let grant = runtime
         .call_protocol(
             &ProtocolContext::host_dev("conformance"),
-            "kernel.v1.permission.grant",
+            "authority.grant.create",
             json!({"principal": human, "permission": "events.read", "scope": "test-scope", "reason": "rehydrate conformance"}),
         )
         .await
@@ -69,7 +69,7 @@ pub(crate) async fn permission_grant_rehydrate() -> anyhow::Result<()> {
     hydrated
         .call_protocol(
             &ProtocolContext::host_dev("conformance"),
-            "kernel.v1.permission.revoke",
+            "authority.grant.revoke",
             json!({"grant_id": grant_id}),
         )
         .await
@@ -120,7 +120,7 @@ pub(crate) async fn raw_secret_blocked_in_proposal() -> anyhow::Result<()> {
     let denied = runtime
         .call_protocol(
             &ProtocolContext::host_dev("conformance"),
-            "kernel.v1.proposal.create",
+            "change.proposal.create",
             json!({
                 "operations": [
                     {"op": "asset.put", "payload": {"api_key": "sk-abc123def456ghi789jkl012mno345"}}
@@ -141,7 +141,7 @@ pub(crate) async fn raw_secret_blocked_in_proposal() -> anyhow::Result<()> {
     let accepted = runtime
         .call_protocol(
             &ProtocolContext::host_dev("conformance"),
-            "kernel.v1.proposal.create",
+            "change.proposal.create",
             json!({
                 "operations": [
                     {"op": "asset.put", "payload": {"secret": "secret_ref:env:MY_KEY"}}

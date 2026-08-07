@@ -4,14 +4,14 @@ use serde_json::{json, Value};
 
 use super::defs;
 use super::defs::*;
-use super::{BASE, SCHEMA};
+use super::SCHEMA;
 
-pub(crate) fn method_schema(method: KernelMethod, params: Value, result: Value) -> Value {
+pub(crate) fn method_schema(method: PlatformMethod, params: Value, result: Value) -> Value {
     json!({
         "$schema": SCHEMA,
-        "$id": format!("{BASE}/methods/{}.schema.json", method.id()),
+        "$id": format!("urn:plurora:schema:method:{}:v1", method.id()),
         "title": method.id(),
-        "description": format!("Plurora public kernel method {}.", method.id()),
+        "description": format!("Plurora public platform method {}.", method.id()),
         "x-plurora-contract": method.contract(),
         "type": "object",
         "additionalProperties": false,
@@ -26,278 +26,278 @@ pub(crate) fn method_schema(method: KernelMethod, params: Value, result: Value) 
     })
 }
 
-pub(crate) fn method_schemas() -> Vec<(KernelMethod, Value, Value)> {
-    KernelMethod::all()
+pub(crate) fn method_schemas() -> Vec<(PlatformMethod, Value, Value)> {
+    PlatformMethod::all()
         .iter()
         .map(|method| {
             let method = *method;
             let (params, result) = match method {
-                KernelMethod::SessionOpen => (
+                PlatformMethod::SessionOpen => (
                     schema_value::<OpenSessionRequest>(),
-                    schema_value::<KernelSession>(),
+                    schema_value::<SessionRecord>(),
                 ),
-            KernelMethod::SessionClose => (
+            PlatformMethod::SessionClose => (
                 schema_value::<SessionCloseParams>(),
                 schema_value::<EventEnvelope>(),
             ),
-            KernelMethod::SessionGet => (
+            PlatformMethod::SessionGet => (
                 schema_value::<SessionGetParams>(),
-                schema_value::<KernelSession>(),
+                schema_value::<SessionRecord>(),
             ),
-            KernelMethod::SessionFork => (
+            PlatformMethod::SessionFork => (
                 schema_value::<SessionForkParams>(),
                 schema_value::<BranchRecord>(),
             ),
-            KernelMethod::SessionBranchList => (
+            PlatformMethod::SessionBranchList => (
                 schema_value::<SessionBranchListParams>(),
                 json!({"type":"array","items":schema_value::<BranchRecord>()}),
             ),
-            KernelMethod::SessionList
-            | KernelMethod::EventSubscribe
-            | KernelMethod::PackageDescribe
-            | KernelMethod::CapabilityDescribe
-            | KernelMethod::ExtensionPointDescribe
-            | KernelMethod::HostPrincipal => {
+            PlatformMethod::SessionList
+            | PlatformMethod::EventSubscribe
+            | PlatformMethod::PackageDescribe
+            | PlatformMethod::CapabilityDescribe
+            | PlatformMethod::ExtensionPointDescribe
+            | PlatformMethod::HostPrincipal => {
                 (schema_value::<EmptyParams>(), json!({"type":"null"}))
             }
-            KernelMethod::EventAppend => (
+            PlatformMethod::EventAppend => (
                 schema_value::<AppendEventRequest>(),
                 schema_value::<EventEnvelope>(),
             ),
-            KernelMethod::EventList => (
+            PlatformMethod::EventList => (
                 schema_value::<EventListRequest>(),
                 json!({"type":"array","items":schema_value::<EventEnvelope>()}),
             ),
-            KernelMethod::PackageLoad => (
+            PlatformMethod::PackageLoad => (
                 schema_value::<PackageManifest>(),
                 schema_value::<PackageRecord>(),
             ),
-            KernelMethod::PackageUnload
-            | KernelMethod::PackageRestart
-            | KernelMethod::PackageLogs
-            | KernelMethod::PackageStatus => {
-                let result = if method == KernelMethod::PackageLogs {
+            PlatformMethod::PackageUnload
+            | PlatformMethod::PackageRestart
+            | PlatformMethod::PackageLogs
+            | PlatformMethod::PackageStatus => {
+                let result = if method == PlatformMethod::PackageLogs {
                     json!({"type":"array","items":schema_value::<SubprocessLogLine>()})
                 } else {
                     schema_value::<PackageRecord>()
                 };
                 (schema_value::<PackageIdParams>(), result)
             }
-            KernelMethod::PackageList => (
+            PlatformMethod::PackageList => (
                 schema_value::<EmptyParams>(),
                 json!({"type":"array","items":schema_value::<PackageRecord>()}),
             ),
-            KernelMethod::ProjectList => (
+            PlatformMethod::ProjectList => (
                 schema_value::<ProjectListParams>(),
                 schema_value::<ProjectListResultSchema>(),
             ),
-            KernelMethod::ProjectGet => (
+            PlatformMethod::ProjectGet => (
                 schema_value::<ProjectIdParams>(),
                 json!({"allOf":[schema_value::<plurora_core::project::ProjectDescriptor>()],"properties":{"state":schema_value::<plurora_core::project::ProjectState>(),"storage_summary":schema_value::<ProjectStorageSummarySchema>(),"running_session_id":{"type":"string","description":"Session id when project state is running; absent otherwise"}}}),
             ),
-            KernelMethod::ProjectStart => (
+            PlatformMethod::ProjectStart => (
                 schema_value::<ProjectIdParams>(),
                 schema_value::<ProjectStartResult>(),
             ),
-            KernelMethod::ProjectStop => (
+            PlatformMethod::ProjectStop => (
                 schema_value::<ProjectIdParams>(),
                 schema_value::<ProjectStopResult>(),
             ),
-            KernelMethod::ProjectStatus => (
+            PlatformMethod::ProjectStatus => (
                 schema_value::<ProjectIdParams>(),
                 schema_value::<ProjectStatusResult>(),
             ),
-            KernelMethod::TargetList => (
+            PlatformMethod::TargetList => (
                 schema_value::<EmptyParams>(),
                 json!({"type":"array","items":schema_value::<ExecutionTarget>()}),
             ),
-            KernelMethod::TargetStatus => (
+            PlatformMethod::TargetStatus => (
                 schema_value::<TargetIdParams>(),
                 schema_value::<ExecutionTarget>(),
             ),
-            KernelMethod::TargetRegister => (
+            PlatformMethod::TargetRegister => (
                 schema_value::<ExecutionTarget>(),
                 schema_value::<ExecutionTarget>(),
             ),
-            KernelMethod::TargetUnregister => (
+            PlatformMethod::TargetUnregister => (
                 schema_value::<TargetIdParams>(),
                 schema_value::<ExecutionTarget>(),
             ),
-            KernelMethod::ExecStart => (
+            PlatformMethod::ExecStart => (
                 schema_value::<LocalExecStartRequest>(),
                 schema_value::<LocalExecStartResponse>(),
             ),
-            KernelMethod::ExecStop => (
+            PlatformMethod::ExecStop => (
                 schema_value::<LocalExecStopRequest>(),
                 schema_value::<LocalExecStopResponse>(),
             ),
-            KernelMethod::ExecStatus => (
+            PlatformMethod::ExecStatus => (
                 schema_value::<ExecIdParams>(),
                 schema_value::<LocalExecStatusResponse>(),
             ),
-            KernelMethod::ExecLogs => (
+            PlatformMethod::ExecLogs => (
                 schema_value::<LocalExecLogsRequest>(),
                 schema_value::<LocalExecLogsResponse>(),
             ),
-            KernelMethod::ExecList => (
+            PlatformMethod::ExecList => (
                 schema_value::<EmptyParams>(),
                 schema_value::<LocalExecListResponse>(),
             ),
-            KernelMethod::PortLease => (
+            PlatformMethod::PortLease => (
                 schema_value::<PortLeaseRequest>(),
                 schema_value::<PortLeaseResponse>(),
             ),
-            KernelMethod::PortRelease | KernelMethod::PortStatus => (
+            PlatformMethod::PortRelease | PlatformMethod::PortStatus => (
                 schema_value::<PortLeaseIdParams>(),
                 schema_value::<PortLeaseRecord>(),
             ),
-            KernelMethod::PortList => (
+            PlatformMethod::PortList => (
                 schema_value::<EmptyParams>(),
                 json!({"type":"array","items":schema_value::<PortLeaseRecord>()}),
             ),
-            KernelMethod::ProxyRegister => (
+            PlatformMethod::ProxyRegister => (
                 schema_value::<ProxyRouteRegisterRequest>(),
                 schema_value::<ProxyRouteRegisterResponse>(),
             ),
-            KernelMethod::ProxyUnregister | KernelMethod::ProxyStatus => (
+            PlatformMethod::ProxyUnregister | PlatformMethod::ProxyStatus => (
                 schema_value::<ProxyRouteIdParams>(),
                 schema_value::<ProxyRouteRecord>(),
             ),
-            KernelMethod::ProxyList => (
+            PlatformMethod::ProxyList => (
                 schema_value::<EmptyParams>(),
                 json!({"type":"array","items":schema_value::<ProxyRouteRecord>()}),
             ),
-            KernelMethod::CapabilityDiscover => (
+            PlatformMethod::CapabilityDiscover => (
                 schema_value::<EmptyParams>(),
                 json!({"type":"array","items":schema_value::<RegisteredCapability>()}),
             ),
-            KernelMethod::CapabilityInvoke => (
+            PlatformMethod::CapabilityInvoke => (
                 schema_value::<CapabilityInvocationRequest>(),
                 schema_value::<CapabilityInvocationResult>(),
             ),
-            KernelMethod::CapabilityHandleAttenuate => (
+            PlatformMethod::CapabilityHandleAttenuate => (
                 schema_value::<CapAttenuateParams>(),
                 schema_value::<CapHandleResult>(),
             ),
-            KernelMethod::CapabilityHandleRevoke => {
+            PlatformMethod::CapabilityHandleRevoke => {
                 (schema_value::<CapRevokeParams>(), json!({"type":"object"}))
             }
-            KernelMethod::CapabilityHandleListFor => (
+            PlatformMethod::CapabilityHandleListFor => (
                 schema_value::<CapListForParams>(),
                 schema_value::<CapHandlesResult>(),
             ),
-            KernelMethod::CapabilityStream => (
+            PlatformMethod::CapabilityStream => (
                 schema_value::<CapabilityStreamParams>(),
                 json!({"type":"object"}),
             ),
-            KernelMethod::CapabilityCancel => (
+            PlatformMethod::CapabilityCancel => (
                 schema_value::<CapabilityCancelParams>(),
                 schema_value::<StreamFrameEnvelope>(),
             ),
-            KernelMethod::ExtensionPointList => (
+            PlatformMethod::ExtensionPointList => (
                 schema_value::<EmptyParams>(),
                 json!({"type":"array","items":{"type":"string"}}),
             ),
-            KernelMethod::HookList => (
+            PlatformMethod::HookList => (
                 schema_value::<EmptyParams>(),
                 json!({"type":"array","items":schema_value::<RegisteredHook>()}),
             ),
-            KernelMethod::AssetPut => (
+            PlatformMethod::AssetPut => (
                 schema_value::<AssetPutRequest>(),
                 schema_value::<AssetRecord>(),
             ),
-            KernelMethod::AssetGet => (
+            PlatformMethod::AssetGet => (
                 schema_value::<AssetGetParams>(),
                 schema_value::<AssetGetResponse>(),
             ),
-            KernelMethod::AssetList => (
+            PlatformMethod::AssetList => (
                 schema_value::<EmptyParams>(),
                 json!({"type":"array","items":schema_value::<AssetRecord>()}),
             ),
-            KernelMethod::ProjectionRegister => (
+            PlatformMethod::ProjectionRegister => (
                 schema_value::<ProjectionDefinition>(),
                 schema_value::<ProjectionDefinition>(),
             ),
-            KernelMethod::ProjectionRebuild | KernelMethod::ProjectionGet => (
+            PlatformMethod::ProjectionRebuild | PlatformMethod::ProjectionGet => (
                 schema_value::<ProjectionIdParams>(),
                 schema_value::<ProjectionDefinition>(),
             ),
-            KernelMethod::ProjectionList => (
+            PlatformMethod::ProjectionList => (
                 schema_value::<EmptyParams>(),
                 json!({"type":"array","items":schema_value::<ProjectionDefinition>()}),
             ),
-            KernelMethod::HostInfo => (schema_value::<EmptyParams>(), schema_value::<HostInfo>()),
-            KernelMethod::HostPing => (
+            PlatformMethod::HostInfo => (schema_value::<EmptyParams>(), schema_value::<HostInfo>()),
+            PlatformMethod::HostPing => (
                 schema_value::<EmptyParams>(),
                 json!({"type":"object","required":["ok"],"properties":{"ok":{"const":true}}}),
             ),
-            KernelMethod::HostDiagnostics => {
+            PlatformMethod::HostDiagnostics => {
                 (schema_value::<EmptyParams>(), json!({"type":"object"}))
             }
-            KernelMethod::PermissionGrant => (
+            PlatformMethod::PermissionGrant => (
                 schema_value::<PermissionGrantParams>(),
                 schema_value::<PermissionGrantRecord>(),
             ),
-            KernelMethod::PermissionRevoke => (
+            PlatformMethod::PermissionRevoke => (
                 schema_value::<PermissionRevokeParams>(),
                 schema_value::<PermissionGrantRecord>(),
             ),
-            KernelMethod::PermissionList => (
+            PlatformMethod::PermissionList => (
                 schema_value::<PermissionListParams>(),
                 json!({"type":"array","items":schema_value::<PermissionGrantRecord>()}),
             ),
-            KernelMethod::PermissionAudit => (
+            PlatformMethod::PermissionAudit => (
                 schema_value::<EmptyParams>(),
                 json!({"type":"array","items":schema_value::<EventEnvelope>()}),
             ),
-            KernelMethod::AuditPackage => (
+            PlatformMethod::AuditPackage => (
                 schema_value::<defs::AuditPackageParams>(),
                 schema_value::<PackageAuditReport>(),
             ),
-            KernelMethod::ProposalCreate => (
+            PlatformMethod::ProposalCreate => (
                 schema_value::<ProposalRecord>(),
                 schema_value::<ProposalRecord>(),
             ),
-            KernelMethod::ProposalGet | KernelMethod::ProposalApply => (
+            PlatformMethod::ProposalGet | PlatformMethod::ProposalApply => (
                 schema_value::<ProposalIdParams>(),
                 schema_value::<ProposalRecord>(),
             ),
-            KernelMethod::ProposalList => (
+            PlatformMethod::ProposalList => (
                 schema_value::<EmptyParams>(),
                 json!({"type":"array","items":schema_value::<ProposalRecord>()}),
             ),
-            KernelMethod::ProposalApprove | KernelMethod::ProposalReject => (
+            PlatformMethod::ProposalApprove | PlatformMethod::ProposalReject => (
                 schema_value::<ProposalDecisionParams>(),
                 schema_value::<ProposalRecord>(),
             ),
-            KernelMethod::SurfaceContributionList => {
+            PlatformMethod::SurfaceContributionList => {
                 (schema_value::<SurfaceListParams>(), json!({"type":"array"}))
             }
-            KernelMethod::SurfaceResolveBundle => (
+            PlatformMethod::SurfaceResolveBundle => (
                 schema_value::<SurfaceResolveBundleParams>(),
                 schema_value::<SurfaceResolveBundleResult>(),
             ),
-            KernelMethod::SurfaceContributionDescribe => (
+            PlatformMethod::SurfaceContributionDescribe => (
                 schema_value::<SurfaceDescribeParams>(),
                 json!({"type":"object"}),
             ),
-            KernelMethod::OutboundAudit => (
+            PlatformMethod::OutboundAudit => (
                 schema_value::<OutboundAuditParams>(),
                 json!({"type":"array","items":schema_value::<OutboundAuditRecord>()}),
             ),
-            KernelMethod::OutboundExecute => (
+            PlatformMethod::OutboundExecute => (
                 schema_value::<OutboundExecuteParams>(),
                 schema_value::<OutboundExecutorResponse>(),
             ),
-            KernelMethod::OutboundStream => (
+            PlatformMethod::OutboundStream => (
                 schema_value::<OutboundStreamParams>(),
-                schema_value::<KernelOutboundStreamResponse>(),
+                schema_value::<OutboundStreamResponse>(),
             ),
-            KernelMethod::OutboundWebSocketOpen => (
+            PlatformMethod::OutboundWebSocketOpen => (
                 schema_value::<OutboundWebSocketOpenRequest>(),
                 json!({"type":"object"}),
             ),
-            KernelMethod::OutboundWebSocketSend | KernelMethod::OutboundWebSocketClose => (
+            PlatformMethod::OutboundWebSocketSend | PlatformMethod::OutboundWebSocketClose => (
                 schema_value::<OutboundWebSocketSendParams>(),
                 json!({"type":"object"}),
             ),

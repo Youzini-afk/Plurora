@@ -67,7 +67,7 @@ Host journal 只保存 public identity、credential digest/serial、状态和审
 | Host 客户端 | `GET /host/v1/targets/{target_id}/observe` | `observe` scope + target selector；读取声明、有效能力、epoch 与观测摘要 |
 | Host 客户端 | `POST /host/v1/targets/{target_id}/revoke` | `deploy` scope + target selector；撤销身份并同时推进 lease/policy epoch |
 
-Enrollment token 和 agent credential 只以带 domain separation 的 SHA-256 digest 进入 `host_control_target_agents` journal；challenge 单次消费，重启后非 revoked target 先回到 `Offline`，旧凭据与旧 epoch 不能恢复为可用状态。`kernel.v1.target.register/unregister` 保留兼容方法名但 fail closed，调用方 JSON 不能绕过该流程制造 `Available` target。
+Enrollment token 和 agent credential 只以带 domain separation 的 SHA-256 digest 进入 `host_control_target_agents` journal；challenge 单次消费，重启后非 revoked target 先回到 `Offline`，旧凭据与旧 epoch 不能恢复为可用状态。`host.target.register/unregister` 保留兼容方法名但 fail closed，调用方 JSON 不能绕过该流程制造 `Available` target。
 
 Typed-worker 控制面暴露以下路由；它们不提供通用命令：
 

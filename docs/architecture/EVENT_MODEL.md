@@ -17,7 +17,7 @@ EventEnvelope
 - sequence            monotonic per session
 - timestamp           kernel-assigned
 - writer_package_id   the package that produced the event (or "kernel")
-- kind                namespaced string, e.g. "kernel/v1/session.opened" or "org/name/event/foo"
+- kind                namespaced string, e.g. "context/opened" or "org/name/event/foo"
 - schema_version      payload schema version, owned by the writer
 - payload             opaque JSON, validated only against the writer's declared schema
 - metadata            opaque JSON; causation_id, correlation_id, trace ids, etc.
@@ -41,62 +41,62 @@ EventEnvelope
 Session：
 
 ```text
-kernel/v1/session.opened
-kernel/v1/session.closed
-kernel/v1/session.forked
+context/opened
+context/closed
+context/forked
 ```
 
 能力包生命周期：
 
 ```text
-kernel/v1/package.loading
-kernel/v1/package.starting
-kernel/v1/package.ready
-kernel/v1/package.stopping
-kernel/v1/package.stopped
-kernel/v1/package.loaded
-kernel/v1/package.unloaded
-kernel/v1/package.degraded
-kernel/v1/package.log
+host/package.loading
+host/package.starting
+host/package.ready
+host/package.stopping
+host/package.stopped
+host/package.loaded
+host/package.unloaded
+host/package.degraded
+host/package.log
 ```
 
 能力调用（计划中的审计形式）：
 
 ```text
-kernel/v1/capability.invoked
-kernel/v1/capability.completed
-kernel/v1/capability.failed
+capability/invoked
+capability/completed
+capability/failed
 ```
 
 权限审计：
 
 ```text
-kernel/v1/permission.granted
-kernel/v1/permission.revoked
-kernel/v1/permission.denied
+authority/grant.created
+authority/grant.revoked
+authority/denied
 ```
 
 通用底座：
 
 ```text
-kernel/v1/asset.put
-kernel/v1/projection.updated
+object/put
+projection/updated
 ```
 
 提案生命周期：
 
 ```text
-kernel/v1/proposal.created
-kernel/v1/proposal.approved
-kernel/v1/proposal.rejected
-kernel/v1/proposal.applied
-kernel/v1/proposal.failed
+change/proposal.created
+change/proposal.approved
+change/proposal.rejected
+change/proposal.applied
+change/proposal.failed
 ```
 
 传输层 / runtime 错误（计划中）：
 
 ```text
-kernel/v1/error
+runtime/error
 ```
 
 这些是内核按名称识别的全部事件 kind。它们的 payload 描述内核操作，不描述内容。
@@ -125,7 +125,7 @@ runtime 持久化并排序这些不透明事件，但不解释其领域语义。
 
 - 只追加。日志从不被编辑。
 - 会话内排序是单调的。内核不承诺跨会话排序。
-- 持久化。`kernel/v1/event.after_append` 触发后，事件即已提交。
+- 持久化。`journal/after_append` 触发后，事件即已提交。
 - 可 replay。内核可以从 `sequence` 0 开始向前流式输出事件。
 
 ## Replay

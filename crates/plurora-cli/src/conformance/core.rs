@@ -62,7 +62,7 @@ pub(crate) async fn event_append_without_permission_denied() -> anyhow::Result<(
     Ok(())
 }
 
-pub(crate) async fn kernel_namespace_denied() -> anyhow::Result<()> {
+pub(crate) async fn platform_event_namespace_denied() -> anyhow::Result<()> {
     let (_store, runtime) = runtime();
     let session = runtime.open_session(OpenSessionRequest::default()).await?;
     runtime
@@ -72,12 +72,12 @@ pub(crate) async fn kernel_namespace_denied() -> anyhow::Result<()> {
         .append_event(AppendEventRequest {
             session_id: session.id,
             writer_package_id: "example/writer".to_string(),
-            kind: "kernel/v1/forged".to_string(),
+            kind: plurora_core::EVENT_SESSION_OPENED.to_string(),
             payload: json!({}),
             metadata: json!({}),
         })
         .await;
-    anyhow::ensure!(denied.is_err(), "package wrote kernel namespace");
+    anyhow::ensure!(denied.is_err(), "package wrote a platform-owned event");
     Ok(())
 }
 
@@ -140,7 +140,7 @@ pub(crate) async fn event_range_replay() -> anyhow::Result<()> {
     let value = runtime
         .call_protocol(
             &ProtocolContext::host_dev("conformance"),
-            "kernel.v1.event.list",
+            "journal.list",
             json!({"session_id": session.id, "after_sequence": 1, "limit": 2, "kind_prefix": "example/range"}),
         )
         .await
@@ -222,7 +222,7 @@ pub(crate) async fn capability_handle_attenuate_invoke() -> anyhow::Result<()> {
     let response = runtime
         .call_protocol(
             &ProtocolContext::host_dev("conformance"),
-            "kernel.v1.cap.attenuate",
+            "authority.handle.attenuate",
             json!({"parent_handle": parent, "constraints": {"max_bytes": 1024}}),
         )
         .await
@@ -255,7 +255,7 @@ pub(crate) async fn capability_handle_revoke_blocks_invoke() -> anyhow::Result<(
     runtime
         .call_protocol(
             &ProtocolContext::host_dev("conformance"),
-            "kernel.v1.cap.revoke",
+            "authority.handle.revoke",
             json!({"handle": handle}),
         )
         .await
@@ -414,7 +414,7 @@ async fn mint_test_handle(
         },
         provenance: HandleProvenance {
             granted_at: chrono::Utc::now(),
-            granted_by_package_id: "kernel".to_string(),
+            granted_by_package_id: plurora_core::PLATFORM_RUNTIME_ID.to_string(),
             via_method: "package_load".to_string(),
         },
         parent: None,
@@ -578,7 +578,7 @@ pub(crate) async fn host_diagnostics() -> anyhow::Result<()> {
     let diagnostics = runtime
         .call_protocol(
             &ProtocolContext::host_dev("conformance"),
-            "kernel.v1.host.diagnostics",
+            "host.diagnostics",
             json!({}),
         )
         .await
@@ -621,7 +621,7 @@ pub(crate) async fn asset_put_get_list() -> anyhow::Result<()> {
     let record_value = runtime
         .call_protocol(
             &ProtocolContext::host_dev("conformance"),
-            "kernel.v1.asset.put",
+            "object.put",
             json!({"mime": "text/plain", "content": sentinel.clone(), "metadata": {"purpose": "conformance"}}),
         )
         .await
@@ -644,7 +644,7 @@ pub(crate) async fn asset_put_get_list() -> anyhow::Result<()> {
     let get_value = runtime
         .call_protocol(
             &ProtocolContext::host_dev("conformance"),
-            "kernel.v1.asset.get",
+            "object.get",
             json!({"asset_id": asset_id}),
         )
         .await
@@ -656,7 +656,7 @@ pub(crate) async fn asset_put_get_list() -> anyhow::Result<()> {
     let list_value = runtime
         .call_protocol(
             &ProtocolContext::host_dev("conformance"),
-            "kernel.v1.asset.list",
+            "object.list",
             json!({}),
         )
         .await
@@ -689,7 +689,7 @@ pub(crate) async fn session_fork_branch() -> anyhow::Result<()> {
     let branch_value = runtime
         .call_protocol(
             &ProtocolContext::host_dev("conformance"),
-            "kernel.v1.session.fork",
+            "context.fork",
             json!({"parent_session_id": session.id, "forked_from_sequence": 0, "metadata": {"why": "try"}}),
         )
         .await
@@ -701,7 +701,7 @@ pub(crate) async fn session_fork_branch() -> anyhow::Result<()> {
     let branches = runtime
         .call_protocol(
             &ProtocolContext::host_dev("conformance"),
-            "kernel.v1.session.branch.list",
+            "context.branch.list",
             json!({"session_id": session.id}),
         )
         .await
@@ -731,7 +731,7 @@ pub(crate) async fn projection_rebuild() -> anyhow::Result<()> {
     runtime
         .call_protocol(
             &ProtocolContext::host_dev("conformance"),
-            "kernel.v1.projection.register",
+            "projection.register",
             json!({"id": "example/projection/state", "session_id": session.id, "source_kind_prefix": "example/projection", "state": {}}),
         )
         .await
@@ -739,7 +739,7 @@ pub(crate) async fn projection_rebuild() -> anyhow::Result<()> {
     let rebuilt = runtime
         .call_protocol(
             &ProtocolContext::host_dev("conformance"),
-            "kernel.v1.projection.rebuild",
+            "projection.rebuild",
             json!({"projection_id": "example/projection/state"}),
         )
         .await

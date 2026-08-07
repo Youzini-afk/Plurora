@@ -20,5 +20,5 @@ replacement_candidates:
   - official/pi-agent-runtime-lab
 compatibility_notes:
   - "Third-party replacement exposes equivalent surface slots to official/pi-agent-runtime-lab"
-  - "No kernel privilege or official namespace required"
+  - "No platform privilege or official namespace required"
   - "Official agent runtime is a replacement candidate only — no routing priority"

@@ -10,13 +10,13 @@
 //! Deterministic, no-network, no marketplace, no signing network, no billing.
 //! All outputs are local/file-level proofs.
 //!
-//! No `kernel.v1.sharing.*`, `kernel.v1.marketplace.*`, `kernel.v1.billing.*`,
-//! `kernel.v1.distribution.*` namespace references.
+//! No `platform.sharing.*`, `platform.marketplace.*`, `platform.billing.*`,
+//! `platform.distribution.*` namespace references.
 //!
 //! Red lines:
 //! - No marketplace, package signing network, dependency resolver economy,
 //!   hosted billing.
-//! - No `kernel.v1.sharing.*` / `kernel.v1.marketplace.*`.
+//! - No `platform.sharing.*` / `platform.marketplace.*`.
 //! - No raw secrets; `secret_ref` is reference-only, never resolved.
 //! - No public network or remote service required.
 
@@ -211,8 +211,8 @@ fn describe_sharing_contract(request: &InprocInvocation) -> anyhow::Result<Value
             "no_marketplace": true,
             "no_signing_network": true,
             "no_billing": true,
-            "no_kernel_sharing": true,
-            "no_kernel_marketplace": true,
+            "no_platform_sharing": true,
+            "no_platform_marketplace": true,
             "no_raw_secrets": true,
             "no_remote_service_required": true,
         },
@@ -908,7 +908,7 @@ mod tests {
         assert_eq!(result["red_lines"]["no_marketplace"], json!(true));
         assert_eq!(result["red_lines"]["no_billing"], json!(true));
         assert_eq!(result["red_lines"]["no_signing_network"], json!(true));
-        assert_eq!(result["red_lines"]["no_kernel_sharing"], json!(true));
+        assert_eq!(result["red_lines"]["no_platform_sharing"], json!(true));
         assert_eq!(result["red_lines"]["no_raw_secrets"], json!(true));
     }
 
@@ -1099,14 +1099,14 @@ mod tests {
         ];
 
         let forbidden = [
-            "kernel.v1.sharing.",
-            "kernel.v1.marketplace.",
-            "kernel.v1.billing.",
-            "kernel.v1.distribution.",
-            "kernel.v1.experience.",
-            "kernel.v1.world.",
-            "kernel.v1.agent.",
-            "kernel.v1.model.",
+            "platform.sharing.",
+            "platform.marketplace.",
+            "platform.billing.",
+            "platform.distribution.",
+            "platform.experience.",
+            "platform.world.",
+            "platform.agent.",
+            "platform.model.",
         ];
 
         for cap in &caps {

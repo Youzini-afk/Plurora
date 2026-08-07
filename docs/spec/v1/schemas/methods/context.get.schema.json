@@ -1,0 +1,130 @@
+{
+  "$defs": {
+    "Errors": {
+      "items": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "details": true,
+          "message": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "details",
+          "message"
+        ],
+        "title": "ErrorShape",
+        "type": "object"
+      },
+      "type": "array"
+    },
+    "Params": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "properties": {
+        "session_id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "session_id"
+      ],
+      "title": "SessionGetParams",
+      "type": "object"
+    },
+    "Result": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "properties": {
+        "active_package_set": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "created_at": {
+          "format": "date-time",
+          "type": "string"
+        },
+        "id": {
+          "type": "string"
+        },
+        "labels": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "metadata": {
+          "default": null
+        },
+        "principal_scope": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "status": {
+          "$ref": "#/$defs/SessionStatus"
+        },
+        "updated_at": {
+          "format": "date-time",
+          "type": "string"
+        }
+      },
+      "required": [
+        "active_package_set",
+        "created_at",
+        "id",
+        "labels",
+        "status",
+        "updated_at"
+      ],
+      "title": "SessionRecord",
+      "type": "object"
+    },
+    "SessionStatus": {
+      "enum": [
+        "open",
+        "closed"
+      ],
+      "type": "string"
+    }
+  },
+  "$id": "urn:plurora:schema:method:context.get:v1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Plurora public platform method context.get.",
+  "properties": {
+    "errors": {
+      "$ref": "#/$defs/Errors"
+    },
+    "method": {
+      "const": "context.get"
+    },
+    "params": {
+      "$ref": "#/$defs/Params"
+    },
+    "result": {
+      "$ref": "#/$defs/Result"
+    }
+  },
+  "required": [
+    "method",
+    "params"
+  ],
+  "title": "context.get",
+  "type": "object",
+  "x-plurora-contract": {
+    "id": "context.get",
+    "implementation_status": "partial",
+    "introduced_in": "plurora.contract.default/v1@0.1.0",
+    "maturity": "experimental",
+    "owner_layer": "substrate",
+    "request_schema": "urn:plurora:schema:method:context.get:v1#/$defs/Params",
+    "response_schema": "urn:plurora:schema:method:context.get:v1#/$defs/Result",
+    "streaming": false
+  }
+}

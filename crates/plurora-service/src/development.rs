@@ -1995,7 +1995,7 @@ where
         let route = call_host_protocol(
             &state,
             &activation_context,
-            "kernel.v1.proxy.register",
+            "host.proxy.register",
             json!({
                 "route_id": deployment.route_id,
                 "protocol": "http",
@@ -2007,7 +2007,7 @@ where
             }),
         )
         .await
-        .and_then(|value| value_field(value, "route", "kernel.v1.proxy.register"))?;
+        .and_then(|value| value_field(value, "route", "host.proxy.register"))?;
         let route_id = required_string(&route, "id", "deployment activation route")?;
         anyhow::ensure!(
             route_id == deployment.route_id,
@@ -2806,7 +2806,7 @@ where
     if call_host_protocol(
         state,
         &context,
-        "kernel.v1.proxy.unregister",
+        "host.proxy.unregister",
         json!({ "route_id": route_id }),
     )
     .await
@@ -3041,7 +3041,7 @@ where
     let lease = call_host_protocol(
         state,
         &replay_context,
-        "kernel.v1.port.lease",
+        "host.port.lease",
         json!({
             "target_id": target.target_id,
             "port_name": target.port_name,
@@ -3049,7 +3049,7 @@ where
         }),
     )
     .await
-    .and_then(|value| value_field(value, "lease", "kernel.v1.port.lease"))?;
+    .and_then(|value| value_field(value, "lease", "host.port.lease"))?;
     let port_lease_id = required_string(&lease, "id", "verified replay port lease")?;
     let management_route_id = format!("replay-{replay_suffix}");
     let target_deployment = TargetDeploymentRef {
@@ -3060,7 +3060,7 @@ where
     let management_route = call_host_protocol(
         state,
         &replay_context,
-        "kernel.v1.proxy.register",
+        "host.proxy.register",
         json!({
             "route_id": management_route_id,
             "protocol": "http",
@@ -3072,7 +3072,7 @@ where
         }),
     )
     .await
-    .and_then(|value| value_field(value, "route", "kernel.v1.proxy.register"))
+    .and_then(|value| value_field(value, "route", "host.proxy.register"))
     .and_then(|route| {
         anyhow::ensure!(
             required_string(&route, "id", "verified replay management route")?
@@ -3210,7 +3210,7 @@ where
         let route = call_host_protocol(
             state,
             &replay_context,
-            "kernel.v1.proxy.register",
+            "host.proxy.register",
             json!({
                 "route_id": target.route_id,
                 "protocol": "http",
@@ -3222,7 +3222,7 @@ where
             }),
         )
         .await
-        .and_then(|value| value_field(value, "route", "kernel.v1.proxy.register"))?;
+        .and_then(|value| value_field(value, "route", "host.proxy.register"))?;
         let route_id = required_string(&route, "id", "verified replay route")?;
         anyhow::ensure!(
             route_id == target.route_id,
@@ -3452,7 +3452,7 @@ where
                 && call_host_protocol(
                     state,
                     &context,
-                    "kernel.v1.proxy.unregister",
+                    "host.proxy.unregister",
                     json!({ "route_id": deployment.route_id }),
                 )
                 .await
@@ -3486,7 +3486,7 @@ where
         && call_host_protocol(
             state,
             &context,
-            "kernel.v1.port.release",
+            "host.port.release",
             json!({ "lease_id": deployment.port_lease_id }),
         )
         .await
@@ -4089,7 +4089,7 @@ where
     let lease = call_host_protocol(
         state,
         &port_context,
-        "kernel.v1.port.lease",
+        "host.port.lease",
         json!({
             "target_id": deployment.target_id,
             "port_name": deployment.port_name,
@@ -4097,7 +4097,7 @@ where
         }),
     )
     .await
-    .and_then(|value| value_field(value, "lease", "kernel.v1.port.lease"))?;
+    .and_then(|value| value_field(value, "lease", "host.port.lease"))?;
     let port_lease_id = required_string(&lease, "id", "deployment preview port lease")?;
     let target_deployment_id = format!("preview-{}", deployment.deployment_id);
     let previewing = update_deployment_record(state, change_set_id, |current| {
@@ -4127,7 +4127,7 @@ where
     let route = call_host_protocol(
         state,
         &route_context,
-        "kernel.v1.proxy.register",
+        "host.proxy.register",
         json!({
             "route_id": deployment.preview_route_id,
             "protocol": "http",
@@ -4139,7 +4139,7 @@ where
         }),
     )
     .await
-    .and_then(|value| value_field(value, "route", "kernel.v1.proxy.register"))?;
+    .and_then(|value| value_field(value, "route", "host.proxy.register"))?;
     let registered_route_id = required_string(&route, "id", "deployment preview route")?;
     anyhow::ensure!(
         registered_route_id == deployment.preview_route_id,
@@ -4554,7 +4554,7 @@ where
             if let Err(error) = call_host_protocol(
                 state,
                 &context,
-                "kernel.v1.proxy.unregister",
+                "host.proxy.unregister",
                 json!({ "route_id": deployment.preview_route_id }),
             )
             .await
@@ -4589,7 +4589,7 @@ where
         if let Err(error) = call_host_protocol(
             state,
             &context,
-            "kernel.v1.port.release",
+            "host.port.release",
             json!({ "lease_id": port_lease_id }),
         )
         .await

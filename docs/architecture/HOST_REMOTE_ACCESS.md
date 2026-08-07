@@ -82,7 +82,7 @@ sandbox surface frame 是 opaque origin，不能安全携带 Host Cookie 或 Bea
 - pairing claim、cancel、grant revoke 使用 expected-tail compare-and-append；并发领取只有一个能成功。批量撤销会先校验全部 grant，再以一条有界、已排序的 journal transition 提交，并支持幂等重试。
 - grant 的撤销和过期在每次认证时检查，不依赖浏览器主动刷新状态。
 - 委派 grant 保存 `parent_grant_id` 与 `delegation_depth`；每次认证沿祖先链 fail closed，父 grant 撤销会级联失效。
-- Bearer / Cookie 有明确优先级。查询参数凭据仅允许在 `GET /kernel/v1/event.subscribe/:session_id` 和 `GET /host/v1/build-deploy/:job_id/events` 这两个浏览器 SSE 入口使用；其他路径不会把 URL token 当作凭据。
+- Bearer / Cookie 有明确优先级。查询参数凭据仅允许在 `GET /journal/subscribe/:session_id` 和 `GET /host/v1/build-deploy/:job_id/events` 这两个浏览器 SSE 入口使用；其他路径不会把 URL token 当作凭据。
 
 ## CLI 管理
 
@@ -127,7 +127,7 @@ PLURORA_HTTP_ACCESS_TOKEN='<high-entropy-root-token>' \
 
 ## 应用 route 暴露
 
-`kernel.v1.proxy.register` 和部署描述符使用：
+`host.proxy.register` 和部署描述符使用：
 
 ```yaml
 route_access: host_authenticated # 默认；旧描述符也按此解释

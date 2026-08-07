@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use chrono::Utc;
-use plurora_core::{new_id, AssetRecord, EventEnvelope, EVENT_ASSET_PUT, KERNEL_PACKAGE_ID};
+use plurora_core::{new_id, AssetRecord, EventEnvelope, EVENT_ASSET_PUT, PLATFORM_RUNTIME_ID};
 use plurora_runtime::{
     legacy_content_address, ArtifactCommitRequest, EventStore, FilesystemObjectStore,
     InMemoryEventStore, ObjectStore, ObjectStoreError, Runtime, RuntimeConfig,
@@ -97,7 +97,7 @@ pub(crate) async fn asset_legacy_fnv_migration() -> anyhow::Result<()> {
             id: event_id.clone(),
             session_id: "legacy-session".to_string(),
             sequence: 0,
-            writer_package_id: KERNEL_PACKAGE_ID.to_string(),
+            writer_package_id: PLATFORM_RUNTIME_ID.to_string(),
             kind: EVENT_ASSET_PUT.to_string(),
             schema_version: 1,
             timestamp: Utc::now(),

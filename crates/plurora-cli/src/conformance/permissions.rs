@@ -11,7 +11,7 @@ pub(crate) async fn structured_permission_error() -> anyhow::Result<()> {
         "package 'example/nope' is not allowed to read events"
     ));
     anyhow::ensure!(
-        error.code == "kernel/v1/error/permission_denied",
+        error.code == "runtime/error/permission_denied",
         "wrong error code: {}",
         error.code
     );
@@ -46,7 +46,7 @@ pub(crate) async fn permission_grant_revoke_audit() -> anyhow::Result<()> {
     let denied = runtime
         .call_protocol(
             &human_context,
-            "kernel.v1.event.list",
+            "journal.list",
             json!({"session_id": session.id}),
         )
         .await;
@@ -54,7 +54,7 @@ pub(crate) async fn permission_grant_revoke_audit() -> anyhow::Result<()> {
     let grant = runtime
         .call_protocol(
             &ProtocolContext::host_dev("conformance"),
-            "kernel.v1.permission.grant",
+            "authority.grant.create",
             json!({"principal": human, "permission": "events.read", "scope": session.id, "reason": "conformance"}),
         )
         .await
@@ -66,7 +66,7 @@ pub(crate) async fn permission_grant_revoke_audit() -> anyhow::Result<()> {
     let allowed = runtime
         .call_protocol(
             &human_context,
-            "kernel.v1.event.list",
+            "journal.list",
             json!({"session_id": session.id}),
         )
         .await
@@ -81,7 +81,7 @@ pub(crate) async fn permission_grant_revoke_audit() -> anyhow::Result<()> {
     runtime
         .call_protocol(
             &ProtocolContext::host_dev("conformance"),
-            "kernel.v1.permission.revoke",
+            "authority.grant.revoke",
             json!({"grant_id": grant_id}),
         )
         .await
@@ -89,7 +89,7 @@ pub(crate) async fn permission_grant_revoke_audit() -> anyhow::Result<()> {
     let audit = runtime
         .call_protocol(
             &ProtocolContext::host_dev("conformance"),
-            "kernel.v1.permission.audit",
+            "authority.decision.list",
             json!({}),
         )
         .await
@@ -122,7 +122,7 @@ pub(crate) async fn assistant_capability_grant() -> anyhow::Result<()> {
     let denied = runtime
         .call_protocol(
             &assistant_context,
-            "kernel.v1.capability.invoke",
+            "capability.invoke",
             json!({"capability_id": "example/assistant-target/echo", "input": {"ok": true}}),
         )
         .await;
@@ -130,7 +130,7 @@ pub(crate) async fn assistant_capability_grant() -> anyhow::Result<()> {
     runtime
         .call_protocol(
             &ProtocolContext::host_dev("conformance"),
-            "kernel.v1.permission.grant",
+            "authority.grant.create",
             json!({"principal": assistant, "permission": "capabilities.invoke", "scope": "example/assistant-target"}),
         )
         .await
@@ -138,7 +138,7 @@ pub(crate) async fn assistant_capability_grant() -> anyhow::Result<()> {
     let result = runtime
         .call_protocol(
             &assistant_context,
-            "kernel.v1.capability.invoke",
+            "capability.invoke",
             json!({"capability_id": "example/assistant-target/echo", "input": {"ok": true}}),
         )
         .await

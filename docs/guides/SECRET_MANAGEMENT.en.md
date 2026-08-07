@@ -169,7 +169,7 @@ Any capability package can invoke:
 
 ```json
 {
-  "method": "kernel.v1.capability.invoke",
+  "method": "capability.invoke",
   "params": {
     "capability_id": "official/secret-store-lab/put_secret",
     "input": { "name": "OPENAI_API_KEY", "value": "sk-..." }
@@ -274,7 +274,7 @@ The provider adapter constructs the request shape; the host outbound executor re
 
 The scope for `secret_ref:project:*` comes from the project session, not from a `projectId` string the surface claims:
 
-1. Home Play or `plurora project start` calls `kernel.v1.project.start`.
+1. Home Play or `plurora project start` calls `host.project.start`.
 2. The host creates or reuses a project session and writes `session.metadata.project_id`.
 3. `clients/web` injects `session_id` into the surface as `initialProps.sessionId`.
 4. Later surface RPCs automatically carry `session_id`.

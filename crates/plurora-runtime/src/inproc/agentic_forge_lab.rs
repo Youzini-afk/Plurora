@@ -622,7 +622,7 @@ fn draft_promote_proposal(request: &InprocInvocation) -> anyhow::Result<Value> {
         }));
     }
 
-    // Produce a proposal draft — package-owned ops, not kernel.v1.proposal.create call
+    // Produce a proposal draft — package-owned ops, not change.proposal.create call
     let changed_assets = request
         .input
         .get("changed_asset_refs")
@@ -1178,18 +1178,18 @@ mod tests {
     }
 
     #[test]
-    fn no_kernel_agent_namespace_in_output() {
+    fn no_platform_agent_namespace_in_output() {
         let req = make_request(
             "official/agentic-forge-lab/start_run",
             json!({"objective": "test"}),
         );
         let result = try_handle(&req).unwrap().unwrap();
         let output_str = serde_json::to_string(&result).unwrap();
-        assert!(!output_str.contains("kernel.v1.agent"));
-        assert!(!output_str.contains("kernel.v1.model"));
-        assert!(!output_str.contains("kernel.v1.prompt"));
-        assert!(!output_str.contains("kernel.v1.memory"));
-        assert!(!output_str.contains("kernel.v1.turn"));
+        assert!(!output_str.contains("platform.agent"));
+        assert!(!output_str.contains("platform.model"));
+        assert!(!output_str.contains("platform.prompt"));
+        assert!(!output_str.contains("platform.memory"));
+        assert!(!output_str.contains("platform.turn"));
     }
 
     #[test]
@@ -1413,7 +1413,7 @@ mod tests {
     }
 
     #[test]
-    fn no_kernel_namespace_in_phase_b_outputs() {
+    fn no_platform_namespace_in_phase_b_outputs() {
         for cap in &[
             "official/agentic-forge-lab/create_candidate",
             "official/agentic-forge-lab/compare_candidate",
@@ -1428,24 +1428,24 @@ mod tests {
             let result = try_handle(&req).unwrap().unwrap();
             let output_str = serde_json::to_string(&result).unwrap();
             assert!(
-                !output_str.contains("kernel.v1.agent"),
-                "{cap} must not contain kernel.v1.agent"
+                !output_str.contains("platform.agent"),
+                "{cap} must not contain platform.agent"
             );
             assert!(
-                !output_str.contains("kernel.v1.model"),
-                "{cap} must not contain kernel.v1.model"
+                !output_str.contains("platform.model"),
+                "{cap} must not contain platform.model"
             );
             assert!(
-                !output_str.contains("kernel.v1.prompt"),
-                "{cap} must not contain kernel.v1.prompt"
+                !output_str.contains("platform.prompt"),
+                "{cap} must not contain platform.prompt"
             );
             assert!(
-                !output_str.contains("kernel.v1.memory"),
-                "{cap} must not contain kernel.v1.memory"
+                !output_str.contains("platform.memory"),
+                "{cap} must not contain platform.memory"
             );
             assert!(
-                !output_str.contains("kernel.v1.turn"),
-                "{cap} must not contain kernel.v1.turn"
+                !output_str.contains("platform.turn"),
+                "{cap} must not contain platform.turn"
             );
         }
     }
@@ -1669,7 +1669,7 @@ mod tests {
     }
 
     #[test]
-    fn no_kernel_namespace_in_phase_c_outputs() {
+    fn no_platform_namespace_in_phase_c_outputs() {
         for cap in &[
             "official/agentic-forge-lab/run_inference_node",
             "official/agentic-forge-lab/replay_inference_node",
@@ -1683,24 +1683,24 @@ mod tests {
             let result = try_handle(&req).unwrap().unwrap();
             let output_str = serde_json::to_string(&result).unwrap();
             assert!(
-                !output_str.contains("kernel.v1.agent"),
-                "{cap} must not contain kernel.v1.agent"
+                !output_str.contains("platform.agent"),
+                "{cap} must not contain platform.agent"
             );
             assert!(
-                !output_str.contains("kernel.v1.model"),
-                "{cap} must not contain kernel.v1.model"
+                !output_str.contains("platform.model"),
+                "{cap} must not contain platform.model"
             );
             assert!(
-                !output_str.contains("kernel.v1.prompt"),
-                "{cap} must not contain kernel.v1.prompt"
+                !output_str.contains("platform.prompt"),
+                "{cap} must not contain platform.prompt"
             );
             assert!(
-                !output_str.contains("kernel.v1.memory"),
-                "{cap} must not contain kernel.v1.memory"
+                !output_str.contains("platform.memory"),
+                "{cap} must not contain platform.memory"
             );
             assert!(
-                !output_str.contains("kernel.v1.turn"),
-                "{cap} must not contain kernel.v1.turn"
+                !output_str.contains("platform.turn"),
+                "{cap} must not contain platform.turn"
             );
         }
     }

@@ -169,7 +169,7 @@ plurora conformance --case secret_store
 
 ```json
 {
-  "method": "kernel.v1.capability.invoke",
+  "method": "capability.invoke",
   "params": {
     "capability_id": "official/secret-store-lab/put_secret",
     "input": { "name": "OPENAI_API_KEY", "value": "sk-..." }
@@ -274,7 +274,7 @@ provider adapter 构造请求 shape；宿主 outbound executor 在最后一刻�
 
 `secret_ref:project:*` 的范围来自项目 session，而不是 surface 自己传的 `projectId` 字符串：
 
-1. Home Play 或 `plurora project start` 调 `kernel.v1.project.start`。
+1. Home Play 或 `plurora project start` 调 `host.project.start`。
 2. host 创建或复用项目 session，并写入 `session.metadata.project_id`。
 3. `clients/web` 把 `session_id` 注入 surface 的 `initialProps.sessionId`。
 4. surface 后续 RPC 自动带 `session_id`。

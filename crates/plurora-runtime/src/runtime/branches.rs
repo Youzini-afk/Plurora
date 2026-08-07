@@ -65,7 +65,7 @@ where
             .write()
             .await
             .insert(branch.id.clone(), branch.clone());
-        self.append_kernel_event(
+        self.append_platform_event(
             &parent_session_id,
             EVENT_SESSION_FORKED,
             serde_json::to_value(&branch)?,

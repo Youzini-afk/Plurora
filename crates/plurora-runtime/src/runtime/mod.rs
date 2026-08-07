@@ -4,12 +4,12 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use plurora_core::{
-    project::ProjectId, ArtifactDescriptor, AssetRecord, EventEnvelope, KernelSession, PackageId,
-    SessionId, SessionStatus, EVENT_ASSET_PUT, EVENT_DEPLOYMENT_RECONCILED, EVENT_EXEC_COMPLETED,
-    EVENT_EXEC_DENIED, EVENT_EXEC_FAILED, EVENT_EXEC_STARTED, EVENT_EXEC_STOPPED,
-    EVENT_PERMISSION_GRANTED, EVENT_PERMISSION_REVOKED, EVENT_PORT_LEASED, EVENT_PORT_RELEASED,
-    EVENT_PROJECTION_UPDATED, EVENT_PROXY_REGISTERED, EVENT_PROXY_UNREGISTERED,
-    EVENT_SESSION_FORKED,
+    project::ProjectId, ArtifactDescriptor, AssetRecord, EventEnvelope, PackageId, SessionId,
+    SessionRecord, SessionStatus, EVENT_ASSET_PUT, EVENT_DEPLOYMENT_RECONCILED,
+    EVENT_EXEC_COMPLETED, EVENT_EXEC_DENIED, EVENT_EXEC_FAILED, EVENT_EXEC_STARTED,
+    EVENT_EXEC_STOPPED, EVENT_PERMISSION_GRANTED, EVENT_PERMISSION_REVOKED, EVENT_PORT_LEASED,
+    EVENT_PORT_RELEASED, EVENT_PROJECTION_UPDATED, EVENT_PROXY_REGISTERED,
+    EVENT_PROXY_UNREGISTERED, EVENT_SESSION_FORKED,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
@@ -82,12 +82,12 @@ pub use self::network::{
 };
 pub use self::outbound::{
     is_secret_header_name, is_static_header_allowed, CancelSignal, DenyAllOutboundExecutor,
-    ExecutorKind, FakeOutboundExecutor, KernelOutboundStreamResponse, LiveHttpOutboundExecutor,
-    LiveHttpOutboundExecutorConfig, OutboundExecutePolicyConfig, OutboundExecutor,
-    OutboundExecutorConfig, OutboundExecutorRequest, OutboundExecutorResponse, OutboundFrameKind,
-    OutboundSecretHeaderSpec, OutboundStaticHeader, OutboundStreamFrame, OutboundStreamSummary,
-    RedactedHeaderValue, ResolvedSecretHeader, SecretHeaderSpec, StaticHeader, StreamEmitter,
-    StreamFormat, StreamStartStatus, STATIC_HEADER_ALLOWLIST,
+    ExecutorKind, FakeOutboundExecutor, LiveHttpOutboundExecutor, LiveHttpOutboundExecutorConfig,
+    OutboundExecutePolicyConfig, OutboundExecutor, OutboundExecutorConfig, OutboundExecutorRequest,
+    OutboundExecutorResponse, OutboundFrameKind, OutboundSecretHeaderSpec, OutboundStaticHeader,
+    OutboundStreamFrame, OutboundStreamResponse, OutboundStreamSummary, RedactedHeaderValue,
+    ResolvedSecretHeader, SecretHeaderSpec, StaticHeader, StreamEmitter, StreamFormat,
+    StreamStartStatus, STATIC_HEADER_ALLOWLIST,
 };
 pub use self::outbound_sse::{SseEvent, SseParser};
 pub use self::outbound_websocket::{
@@ -156,7 +156,7 @@ pub struct RuntimeConfig {
 impl Default for RuntimeConfig {
     fn default() -> Self {
         Self {
-            default_labels: vec!["kernel".to_string()],
+            default_labels: vec!["platform_runtime".to_string()],
             host_policy: HostPolicy::default(),
             inproc_packages: InprocPackageCatalog::with_default_examples(),
             secret_resolver: SecretResolverConfig::default(),
@@ -232,7 +232,7 @@ where
     pub(crate) handles: Arc<HandleTable>,
     pub(crate) extensions: Arc<crate::ExtensionRegistry>,
     pub(crate) subprocesses: Arc<crate::SubprocessSupervisor>,
-    pub(crate) sessions: Arc<RwLock<HashMap<SessionId, KernelSession>>>,
+    pub(crate) sessions: Arc<RwLock<HashMap<SessionId, SessionRecord>>>,
     pub(crate) assets: Arc<RwLock<HashMap<String, StoredAsset>>>,
     pub(crate) projections: Arc<RwLock<HashMap<String, ProjectionDefinition>>>,
     pub(crate) branches: Arc<RwLock<HashMap<String, BranchRecord>>>,
@@ -477,7 +477,7 @@ where
             .map(|session| session.id.clone())
     }
 
-    pub async fn get_session(&self, session_id: &str) -> Option<KernelSession> {
+    pub async fn get_session(&self, session_id: &str) -> Option<SessionRecord> {
         self.sessions.read().await.get(session_id).cloned()
     }
 
@@ -795,8 +795,8 @@ where
             }
         }
 
-        self.append_kernel_event(
-            &"kernel_deployment_reconcile".to_string(),
+        self.append_platform_event(
+            &"host_deployment_reconcile".to_string(),
             EVENT_DEPLOYMENT_RECONCILED,
             serde_json::to_value(&summary)?,
         )
@@ -806,17 +806,17 @@ where
     }
 
     // Private helper used across submodules — event-appending via kernel identity.
-    pub(crate) async fn append_kernel_event(
+    pub(crate) async fn append_platform_event(
         &self,
         session_id: &SessionId,
         kind: &'static str,
         payload: Value,
     ) -> anyhow::Result<EventEnvelope> {
-        self.append_kernel_event_with_metadata(session_id, kind, payload, json!({}))
+        self.append_platform_event_with_metadata(session_id, kind, payload, json!({}))
             .await
     }
 
-    pub(crate) async fn append_kernel_event_with_metadata(
+    pub(crate) async fn append_platform_event_with_metadata(
         &self,
         session_id: &SessionId,
         kind: &'static str,
@@ -825,7 +825,7 @@ where
     ) -> anyhow::Result<EventEnvelope> {
         self.append_event_unchecked(AppendEventRequest {
             session_id: session_id.clone(),
-            writer_package_id: plurora_core::KERNEL_PACKAGE_ID.to_string(),
+            writer_package_id: plurora_core::PLATFORM_RUNTIME_ID.to_string(),
             kind: kind.to_string(),
             payload,
             metadata,

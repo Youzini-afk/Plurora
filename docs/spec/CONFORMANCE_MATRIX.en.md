@@ -57,9 +57,9 @@ The current matrix includes the following project-model cases. Verify the actual
 | project registry | `project.list_returns_registered` | registry/list returns registered projects | implemented |
 | project runtime | `project.state_transitions` | start/stop state transitions | implemented |
 | project uninstall | `project.archive_keeps_data` | uninstall keep-data archives project directory | implemented |
-| project protocol | `protocol.project_list_returns_registered_projects` | `kernel.v1.project.list` returns projects | implemented |
-| project protocol | `protocol.project_get_returns_full_descriptor` | `kernel.v1.project.get` returns full descriptor | implemented |
-| project protocol | `protocol.project_start_transitions_state` | `kernel.v1.project.start` transitions state | implemented |
+| project protocol | `protocol.project_list_returns_registered_projects` | `host.project.list` returns projects | implemented |
+| project protocol | `protocol.project_get_returns_full_descriptor` | `host.project.get` returns full descriptor | implemented |
+| project protocol | `protocol.project_start_transitions_state` | `host.project.start` transitions state | implemented |
 | project protocol | `protocol.project_methods_require_admin_principal` | project methods restricted to HostAdmin/HostDev | implemented |
 | project protocol | `protocol.project_lifecycle_event_emitted_on_start` | start emits project lifecycle event | implemented |
 
@@ -198,7 +198,7 @@ Surface/static bundle and bridge coverage also includes these stable assertions:
 | official packages | inference-playtest-lab inspect_proposal returns risk/operations/permissions/provenance summary without applying | implemented |
 | official packages | inference-playtest-lab rejected proposal cannot apply | implemented |
 | official packages | inference-playtest-lab approve/apply succeeds, asset written, branch_plan + fork creates branch with proposal/source inference provenance | implemented |
-| official packages | inference-playtest-lab output contains no messages/prompt/chat/kernel.v1.model terms | implemented |
+| official packages | inference-playtest-lab output contains no messages/prompt/chat/platform.model terms | implemented |
 | in-process packages | non-official `/preview` suffix does not receive official asset-lab fallback behavior | implemented |
 | in-process packages | unknown registered in-process capability fails loudly instead of returning generic fallback success | implemented |
 | official packages | assistant-lab returns approval-gated proposals through grants | implemented |
@@ -212,11 +212,11 @@ Surface/static bundle and bridge coverage also includes these stable assertions:
 | composition | local composition descriptor validates package-provided surfaces | implemented |
 | composition | composition descriptor v2: required capabilities pass, optional missing warns, required missing fails | implemented |
 | official packages | composition-lab v2 diagnostics return surface/capability/permission/replacement fields and compat-report | implemented |
-| replacement | third-party playable-seed surfaces discoverable through kernel.v1.surface.contribution.list | implemented |
+| replacement | third-party playable-seed surfaces discoverable through shell.contribution.list | implemented |
 | replacement | third-party playable-seed capability invocation works through normal routing | implemented |
 | replacement | ambiguous official+thirdparty equivalent capability rejects route without official priority | implemented |
 | replacement | composition descriptor passes with third-party playable-seed replacement | implemented |
-| replacement | third-party agent-runtime surfaces (assistant_action/forge_panel/home_card) discoverable through kernel.v1.surface.contribution.list | implemented |
+| replacement | third-party agent-runtime surfaces (assistant_action/forge_panel/home_card) discoverable through shell.contribution.list | implemented |
 | replacement | third-party agent-runtime capability invocation produces no-inference/no-network, approval-gated proposal, provenance match | implemented |
 | replacement | composition descriptor passes with third-party agent-runtime replacement, official is replacement_candidate only | implemented |
 | network | package without network permission denied outbound, produces outbound.denied audit | implemented |
@@ -245,19 +245,19 @@ Surface/static bundle and bridge coverage also includes these stable assertions:
 | outbound | live HTTP executor disabled by default; RuntimeConfig::default remains DenyAll | implemented |
 | outbound | live HTTP executor rejects non-HTTPS URLs; no network attempted | implemented |
 | outbound | live HTTP executor response shape contains no raw body/header/secret | implemented |
-| outbound | kernel.v1.outbound.execute public protocol: package principal determined from context (no spoofing), FakeOutboundExecutor + allowed network declaration succeeds with audit | implemented |
-| outbound | kernel.v1.outbound.execute spoofed package_id rejected, cannot act as another package | implemented |
-| outbound | kernel.v1.outbound.execute no network permission denied, executor not called | implemented |
-| outbound | kernel.v1.outbound.execute response contains no raw secret (secret_refs as references only) | implemented |
-| outbound | kernel.v1.outbound.execute `secret_headers` params parsed correctly, raw secret never in response | implemented |
+| outbound | host.outbound.execute public protocol: package principal determined from context (no spoofing), FakeOutboundExecutor + allowed network declaration succeeds with audit | implemented |
+| outbound | host.outbound.execute spoofed package_id rejected, cannot act as another package | implemented |
+| outbound | host.outbound.execute no network permission denied, executor not called | implemented |
+| outbound | host.outbound.execute response contains no raw secret (secret_refs as references only) | implemented |
+| outbound | host.outbound.execute `secret_headers` params parsed correctly, raw secret never in response | implemented |
 | outbound_execute | profile default deny-all, fake/live executor config, package permission, capability namespace, no-permission denial, secret_ref declarations, response redaction | implemented |
-| outbound_stream | `kernel.v1.outbound.stream` profile default denial, fake stream frames, secret_ref declarations, capability namespace, HTTPS-only policy | implemented |
-| outbound_websocket | `kernel.v1.outbound.websocket.*` profile default deny-all, fake executor open/send/close, live executor denial when disabled | implemented |
+| outbound_stream | `host.outbound.stream` profile default denial, fake stream frames, secret_ref declarations, capability namespace, HTTPS-only policy | implemented |
+| outbound_websocket | `platform.outbound.websocket.*` profile default deny-all, fake executor open/send/close, live executor denial when disabled | implemented |
 | outbound_websocket | undeclared secret_ref fails closed, capability namespace enforcement, default WSS-only | implemented |
-| outbound_websocket | idle timeout emits error + completed, inbound max_total_bytes terminates, max_concurrent_connections enforced, cancel via `kernel.v1.capability.cancel` | implemented |
-| outbound | `kernel/v1/outbound.execute.completed` completion audit event emitted | implemented |
-| outbound | `kernel/v1/outbound.stream.completed` completion audit event emitted | implemented |
-| outbound | `kernel/v1/outbound.websocket.completed` completion audit event emitted | implemented |
+| outbound_websocket | idle timeout emits error + completed, inbound max_total_bytes terminates, max_concurrent_connections enforced, cancel via `capability.cancel` | implemented |
+| outbound | `host/outbound.execute.completed` completion audit event emitted | implemented |
+| outbound | `host/outbound.stream.completed` completion audit event emitted | implemented |
+| outbound | `host/outbound.websocket.completed` completion audit event emitted | implemented |
 | outbound | HTTP/stream/WebSocket completion attaches terminal receipts; invalid policy/executor pairings emit failed receipts; timeout/cancel do not produce duplicate stream terminals; historical replay works with every executor disabled | implemented |
 | deployment exec | deny-all start and fake stop produce denied/cancelled receipts; live terminal state is actively observed; natural exit/timeout, repeated denial, stop/status races, and restart hydration preserve one terminal receipt | implemented |
 | secret_ref | manifest `permissions.secret_refs` declaration: undeclared refs fail closed, declared refs resolve via host resolver | implemented |
@@ -292,7 +292,7 @@ Surface/static bundle and bridge coverage also includes these stable assertions:
 | official packages | experience-observability-lab summarize_cost_latency returns cost/latency summary from outbound audit refs, no raw secrets | implemented |
 | official packages | experience-observability-lab list_failure_breadcrumbs returns breadcrumbs from protocol-visible event refs | implemented |
 | official packages | experience-observability-lab summarize_guardrails returns guardrail/audit summary from protocol-visible audit refs | implemented |
-| official packages | experience-observability-lab no kernel.v1.observability.* / kernel.v1.experience.* namespace in any output | implemented |
+| official packages | experience-observability-lab no platform.observability.* / platform.experience.* namespace in any output | implemented |
 | official packages | experience-observability-lab raw secret blocked in all capability inputs | implemented |
 | official packages | memory-lab describe_memory_contract returns 9 capabilities, 3 surfaces, output shapes, no forbidden namespace | implemented |
 | official packages | memory-lab record_memory produces memory_record with content_address / branch_ref / knowledge_refs | implemented |
@@ -302,7 +302,7 @@ Surface/static bundle and bridge coverage also includes these stable assertions:
 | official packages | memory-lab apply_memory_correction produces correction shape, proposal-gated | implemented |
 | official packages | memory-lab draft_forget_redaction produces redaction plan, not deletion | implemented |
 | official packages | memory-lab branch_memory_view filters memory records by branch | implemented |
-| official packages | memory-lab no output contains kernel.v1.memory.* / kernel.v1.experience.* namespace | implemented |
+| official packages | memory-lab no output contains platform.memory.* / platform.experience.* namespace | implemented |
 | official packages | memory-lab raw secret blocked in all capability inputs | implemented |
 | official packages | sharing-lab describe_sharing_contract returns 9 capabilities, 3 surfaces, output shapes, red lines, no forbidden namespace | implemented |
 | official packages | sharing-lab export_composition_bundle produces self-contained bundle with manifest/lockfile/disclosure, no marketplace/billing fields | implemented |
@@ -313,14 +313,14 @@ Surface/static bundle and bridge coverage also includes these stable assertions:
 | official packages | sharing-lab ai_disclosure_bundle produces AI disclosure metadata marking content provenance | implemented |
 | official packages | sharing-lab read_only_share_manifest read-only shared session manifest, local_file proof, no remote service | implemented |
 | official packages | sharing-lab async_fork_share_plan async fork sharing plan, draft/plan-only/requires_user_approval | implemented |
-| official packages | sharing-lab no marketplace/billing/signing fields, no raw secrets, no kernel.v1.sharing/marketplace/billing namespace | implemented |
+| official packages | sharing-lab no marketplace/billing/signing fields, no raw secrets, no platform.sharing/marketplace/billing namespace | implemented |
 | storage backend | in-memory EventStore satisfies append/list/range/next_sequence basic contract | implemented |
 | storage backend | SQLite EventStore satisfies append/list/range/next_sequence basic contract | implemented |
 | storage backend | in-memory and SQLite kind-prefix query results are semantically identical | implemented |
 | storage backend | in-memory and SQLite concurrent append produces no duplicate sequences | implemented |
 | storage backend | in-memory and SQLite subscription broadcast behavior matches after append | implemented |
 | storage backend | in-memory and SQLite rehydrate event replay semantics are identical | implemented |
-| storage lab | storage-lab contract shape contains no kernel database terms (kernel.v1.sqlite/postgres/tdb/vector/embedding/collection/sql/database) | implemented |
+| storage lab | storage-lab contract shape contains no kernel database terms (platform.sqlite/postgres/tdb/vector/embedding/collection/sql/database) | implemented |
 | storage lab | storage-lab backend class candidates contain capability flags only, no secret-bearing backend config | implemented |
 | storage lab | package state plan namespace belongs to owning package, no official priority | implemented |
 | storage lab | put document preview does not perform real write (write_performed=false) | implemented |
@@ -359,16 +359,16 @@ Surface/static bundle and bridge coverage also includes these stable assertions:
 | creator loop | playable-creation-board package check output is verifiable with expected diagnostic fields | implemented |
 | creator loop | third-party playable-seed replaces official playable-seed without privilege | implemented |
 | capability handles | package load auto-mints capability handles from manifest declarations | implemented |
-| capability handles | `kernel.v1.cap.attenuate` creates a narrower child handle and cannot expand authority | implemented |
-| capability handles | `kernel.v1.cap.revoke` immediately invalidates handles and related calls | implemented |
-| capability handles | `kernel.v1.cap.list_for` returns current live handles for a package | implemented |
-| invoke instrumentation | capability invoke emits `kernel/v1/capability.invoked` | implemented |
-| invoke instrumentation | successful capability invoke emits `kernel/v1/capability.completed` | implemented |
-| invoke instrumentation | failed capability invoke emits `kernel/v1/capability.failed` | implemented |
+| capability handles | `authority.handle.attenuate` creates a narrower child handle and cannot expand authority | implemented |
+| capability handles | `authority.handle.revoke` immediately invalidates handles and related calls | implemented |
+| capability handles | `authority.handle.list` returns current live handles for a package | implemented |
+| invoke instrumentation | capability invoke emits `capability/invoked` | implemented |
+| invoke instrumentation | successful capability invoke emits `capability/completed` | implemented |
+| invoke instrumentation | failed capability invoke emits `capability/failed` | implemented |
 | invoke instrumentation | completed/failed events and successful results attach the same EffectReceipt descriptor | implemented |
 | bindings | subprocess handshake injects the v1 bindings dictionary | implemented |
-| bindings | rust_inproc `KernelEnv` injects bindings | implemented |
-| package | `package.audit_report` / `kernel.v1.audit.package` reports declared vs used authority | implemented |
+| bindings | rust_inproc `ComponentEnv` injects bindings | implemented |
+| package | `package.audit_report` / `host.package.audit` reports declared vs used authority | implemented |
 | package | `package.path_b_self_contained` validates the `entry.contract: none` self-contained path | implemented |
 | git tools | 5 git-tools cases: URL/path validation and signed-tag fixture | implemented |
 | integrity | 7 integrity cases: tree hash, manifest hash, GPG verify, fingerprint | implemented |
@@ -499,7 +499,7 @@ official.inference_playtest_lab_draft         PASS
 official.inference_playtest_lab_inspect       PASS
 official.inference_playtest_lab_reject_apply_denied PASS
 official.inference_playtest_lab_apply_and_branch PASS
-official.inference_playtest_lab_no_chat_kernel_terms PASS
+plurora.inference_playtest_lab_no_chat_platform_terms PASS
 inproc.non_official_preview_rejected       PASS
 inproc.unknown_capability_errors           PASS
 replacement.thirdparty_seed_surfaces         PASS

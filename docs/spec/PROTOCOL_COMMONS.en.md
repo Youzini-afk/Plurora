@@ -37,10 +37,10 @@ Projection stays an Experimental canonical namespace, but is not admitted as an 
 
 - An exact supported version/profile produces a `NegotiatedProtocol` record.
 - A declared legacy protocol/version uses the named adapter and reports that adapter in the negotiation result.
-- An unsupported major produces `kernel/v1/error/unsupported_protocol` with `reason=protocol_major_mismatch`, supported/requested majors, and the available adapters.
+- An unsupported major produces `runtime/error/unsupported_protocol` with `reason=protocol_major_mismatch`, supported/requested majors, and the available adapters.
 - Unknown protocols and profiles fail explicitly. They never fall back to shape compatibility or a weaker profile.
 
-The initial explicit adapter is `kernel.v1.proposal@1.0.0 → plurora.change@1.0.0` through `change.proposal.v1`.
+The initial explicit adapter is `platform.proposal@1.0.0 → plurora.change@1.0.0` through `change.proposal.v1`.
 
 ## Conformance ownership
 

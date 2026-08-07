@@ -9,7 +9,7 @@ where
     pub(crate) async fn dispatch_cap_attenuate(&self, params: &Value) -> anyhow::Result<Value> {
         let parent_handle: CapHandleId =
             serde_json::from_value(params.get("parent_handle").cloned().ok_or_else(|| {
-                anyhow::anyhow!("kernel.v1.cap.attenuate requires parent_handle")
+                anyhow::anyhow!("authority.handle.attenuate requires parent_handle")
             })?)?;
         let constraints = params.get("constraints").cloned().unwrap_or(Value::Null);
         let handle_id = self.handles.attenuate(parent_handle, constraints).await?;
@@ -26,7 +26,7 @@ where
             params
                 .get("handle")
                 .cloned()
-                .ok_or_else(|| anyhow::anyhow!("kernel.v1.cap.revoke requires handle"))?,
+                .ok_or_else(|| anyhow::anyhow!("authority.handle.revoke requires handle"))?,
         )?;
         self.handles.revoke(handle).await?;
         Ok(json!({}))
@@ -36,7 +36,7 @@ where
         let package_id: PackageId = params
             .get("package_id")
             .and_then(Value::as_str)
-            .ok_or_else(|| anyhow::anyhow!("kernel.v1.cap.list_for requires package_id"))?
+            .ok_or_else(|| anyhow::anyhow!("authority.handle.list requires package_id"))?
             .to_string();
         Ok(json!({ "handles": self.handles.list_for(&package_id).await }))
     }
@@ -74,9 +74,7 @@ where
                     .get("capability_id")
                     .and_then(Value::as_str)
                     .ok_or_else(|| {
-                        anyhow::anyhow!(
-                            "kernel.v1.capability.stream requires capability_id or handle"
-                        )
+                        anyhow::anyhow!("capability.stream requires capability_id or handle")
                     })?
                     .to_string(),
                 None,
@@ -85,7 +83,7 @@ where
         let session_id = params
             .get("session_id")
             .and_then(Value::as_str)
-            .ok_or_else(|| anyhow::anyhow!("kernel.v1.capability.stream requires session_id"))?
+            .ok_or_else(|| anyhow::anyhow!("capability.stream requires session_id"))?
             .to_string();
         let provider_package_id: Option<String> = params
             .get("provider_package_id")
@@ -125,18 +123,13 @@ where
                         .get("stream_id")
                         .and_then(Value::as_str)
                         .ok_or_else(|| {
-                            anyhow::anyhow!(
-                                "kernel.v1.capability.cancel requires invocation_id or stream_id"
-                            )
+                            anyhow::anyhow!("capability.cancel requires invocation_id or stream_id")
                         })?;
                 self.streams
                     .get_invocation_by_stream_id(stream_id)
                     .await
                     .ok_or_else(|| {
-                        anyhow::anyhow!(
-                            "kernel.v1.capability.cancel stream_id '{}' not found",
-                            stream_id
-                        )
+                        anyhow::anyhow!("capability.cancel stream_id '{}' not found", stream_id)
                     })?
                     .invocation_id
             }
@@ -144,12 +137,12 @@ where
         let session_id = params
             .get("session_id")
             .and_then(Value::as_str)
-            .ok_or_else(|| anyhow::anyhow!("kernel.v1.capability.cancel requires session_id"))?
+            .ok_or_else(|| anyhow::anyhow!("capability.cancel requires session_id"))?
             .to_string();
         let frame = self
             .stream_capability_cancel(&session_id, &invocation_id)
             .await?;
-        if session_id.starts_with("kernel_outbound_websocket_") {
+        if session_id.starts_with("platform_outbound_websocket_") {
             self.outbound_websocket_executor()
                 .close(&frame.stream_id, 1001, Some("cancelled".to_string()))
                 .await?;

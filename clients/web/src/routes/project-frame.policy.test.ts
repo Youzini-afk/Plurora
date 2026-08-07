@@ -122,7 +122,7 @@ assertDeepEqual(summarizeConsoleDiagnostics({
     session_id: "sess-1",
     sequence: 1,
     writer_package_id: "pkg/ready",
-    kind: "kernel/v1/package.ready",
+    kind: "host/package.ready",
     payload: {},
     metadata: {},
     created_at: "now",

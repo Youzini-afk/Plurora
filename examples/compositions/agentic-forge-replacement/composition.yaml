@@ -23,7 +23,7 @@ replacement_candidates:
   - official/agentic-forge-lab
 compatibility_notes:
   - "Third-party replacement exposes equivalent surface slots to official/agentic-forge-lab"
-  - "No kernel privilege or official namespace required"
+  - "No platform privilege or official namespace required"
   - "Official agentic-forge-lab is a replacement candidate only — no routing priority"
   - "Both packages produce package-owned shapes: candidates, proposals, plan graphs, working state"
   - "Neither package may directly mutate target branches or perform network"

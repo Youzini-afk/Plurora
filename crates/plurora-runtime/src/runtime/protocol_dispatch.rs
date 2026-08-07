@@ -2,7 +2,7 @@ use serde_json::{json, Value};
 
 use super::Runtime;
 use crate::{
-    negotiate_contract, resolve_contract_method, ContractSelection, EventStore, KernelMethod,
+    negotiate_contract, resolve_contract_method, ContractSelection, EventStore, PlatformMethod,
     ProtocolContext, ProtocolPrincipal,
 };
 
@@ -38,17 +38,14 @@ where
                 method
             ))
         })?;
-        let params = resolved.adapt_request(params)?;
         let result = self
             .dispatch_protocol_method(context, resolved.method, params)
             .await
-            .map_err(crate::ProtocolError::from_anyhow)
-            .and_then(|value| resolved.adapt_response(value));
+            .map_err(crate::ProtocolError::from_anyhow);
         self.audit_host_authority_decision(
             context,
             resolved.method,
-            resolved.contract.canonical_id.as_str(),
-            resolved.requested_id(),
+            resolved.contract.id.as_str(),
             &result,
         )
         .await;
@@ -79,11 +76,10 @@ where
                 method
             ))
         })?;
-        let kernel_method = resolved.method;
-        let params = resolved.adapt_request(params)?;
-        let gate = ensure_global_host_catalog_access(context, kernel_method).and_then(|()| {
-            if is_deployment_hub_method(kernel_method) {
-                ensure_deployment_hub_control_allowed(context, kernel_method)
+        let platform_method = resolved.method;
+        let gate = ensure_global_host_catalog_access(context, platform_method).and_then(|()| {
+            if is_deployment_hub_method(platform_method) {
+                ensure_deployment_hub_control_allowed(context, platform_method)
             } else {
                 Ok(())
             }
@@ -91,58 +87,60 @@ where
         let result: anyhow::Result<Value> = if let Err(error) = gate {
             Err(error)
         } else {
-            match kernel_method {
-                KernelMethod::OutboundExecute => {
+            match platform_method {
+                PlatformMethod::OutboundExecute => {
                     self.dispatch_outbound_execute(context, params).await
                 }
-                KernelMethod::OutboundStream => {
+                PlatformMethod::OutboundStream => {
                     self.dispatch_outbound_stream(context, params).await
                 }
-                KernelMethod::OutboundWebSocketOpen => {
+                PlatformMethod::OutboundWebSocketOpen => {
                     self.dispatch_outbound_websocket_open(context, params).await
                 }
-                KernelMethod::OutboundWebSocketSend => {
+                PlatformMethod::OutboundWebSocketSend => {
                     self.dispatch_outbound_websocket_send(context, &params)
                         .await
                 }
-                KernelMethod::OutboundWebSocketClose => {
+                PlatformMethod::OutboundWebSocketClose => {
                     self.dispatch_outbound_websocket_close(context, &params)
                         .await
                 }
-                KernelMethod::TargetList => self.dispatch_target_list(context).await,
-                KernelMethod::TargetStatus => self.dispatch_target_status(context, &params).await,
-                KernelMethod::TargetRegister => {
+                PlatformMethod::TargetList => self.dispatch_target_list(context).await,
+                PlatformMethod::TargetStatus => self.dispatch_target_status(context, &params).await,
+                PlatformMethod::TargetRegister => {
                     self.dispatch_target_register(context, params).await
                 }
-                KernelMethod::TargetUnregister => {
+                PlatformMethod::TargetUnregister => {
                     self.dispatch_target_unregister(context, &params).await
                 }
-                KernelMethod::ExecStart => self.dispatch_exec_start(context, params).await,
-                KernelMethod::ExecStop => self.dispatch_exec_stop(context, params).await,
-                KernelMethod::ExecStatus => self.dispatch_exec_status(context, params).await,
-                KernelMethod::ExecLogs => self.dispatch_exec_logs(context, params).await,
-                KernelMethod::ExecList => self.dispatch_exec_list(context).await,
-                KernelMethod::PortLease => self.dispatch_port_lease(context, params).await,
-                KernelMethod::PortRelease => self.dispatch_port_release(context, &params).await,
-                KernelMethod::PortStatus => self.dispatch_port_status(context, &params).await,
-                KernelMethod::PortList => self.dispatch_port_list(context).await,
-                KernelMethod::ProxyRegister => self.dispatch_proxy_register(context, params).await,
-                KernelMethod::ProxyUnregister => {
+                PlatformMethod::ExecStart => self.dispatch_exec_start(context, params).await,
+                PlatformMethod::ExecStop => self.dispatch_exec_stop(context, params).await,
+                PlatformMethod::ExecStatus => self.dispatch_exec_status(context, params).await,
+                PlatformMethod::ExecLogs => self.dispatch_exec_logs(context, params).await,
+                PlatformMethod::ExecList => self.dispatch_exec_list(context).await,
+                PlatformMethod::PortLease => self.dispatch_port_lease(context, params).await,
+                PlatformMethod::PortRelease => self.dispatch_port_release(context, &params).await,
+                PlatformMethod::PortStatus => self.dispatch_port_status(context, &params).await,
+                PlatformMethod::PortList => self.dispatch_port_list(context).await,
+                PlatformMethod::ProxyRegister => {
+                    self.dispatch_proxy_register(context, params).await
+                }
+                PlatformMethod::ProxyUnregister => {
                     self.dispatch_proxy_unregister(context, &params).await
                 }
-                KernelMethod::ProxyStatus => self.dispatch_proxy_status(context, &params).await,
-                KernelMethod::ProxyList => self.dispatch_proxy_list(context).await,
-                KernelMethod::CapabilityCancel => self.dispatch_capability_cancel(&params).await,
-                KernelMethod::HostInfo => {
+                PlatformMethod::ProxyStatus => self.dispatch_proxy_status(context, &params).await,
+                PlatformMethod::ProxyList => self.dispatch_proxy_list(context).await,
+                PlatformMethod::CapabilityCancel => self.dispatch_capability_cancel(&params).await,
+                PlatformMethod::HostInfo => {
                     serde_json::to_value(crate::host_info()).map_err(anyhow::Error::from)
                 }
-                KernelMethod::HostPing => Ok(json!({"ok": true})),
-                KernelMethod::HostDiagnostics => Ok(self.host_diagnostics().await),
-                KernelMethod::CapabilityDiscover => {
+                PlatformMethod::HostPing => Ok(json!({"ok": true})),
+                PlatformMethod::HostDiagnostics => Ok(self.host_diagnostics().await),
+                PlatformMethod::CapabilityDiscover => {
                     serde_json::to_value(self.discover_capabilities().await)
                         .map_err(anyhow::Error::from)
                 }
-                KernelMethod::CapabilityInvoke => match serde_json::from_value(params) {
+                PlatformMethod::CapabilityInvoke => match serde_json::from_value(params) {
                     Ok(request) => self
                         .invoke_capability_with_context(context, request)
                         .await
@@ -157,14 +155,11 @@ where
                 )),
             }
         };
-        let result = result
-            .map_err(crate::ProtocolError::from_anyhow)
-            .and_then(|value| resolved.adapt_response(value));
+        let result = result.map_err(crate::ProtocolError::from_anyhow);
         self.audit_host_authority_decision(
             context,
-            kernel_method,
-            resolved.contract.canonical_id.as_str(),
-            resolved.requested_id(),
+            platform_method,
+            resolved.contract.id.as_str(),
             &result,
         )
         .await;
@@ -174,9 +169,8 @@ where
     async fn audit_host_authority_decision(
         &self,
         context: &ProtocolContext,
-        method: KernelMethod,
-        canonical_method: &str,
-        requested_method: &str,
+        method: PlatformMethod,
+        method_id: &str,
         result: &Result<Value, crate::ProtocolError>,
     ) {
         let Some(grant_id) = context.host_device_grant_id() else {
@@ -194,8 +188,7 @@ where
             "delegation_chain": authority
                 .map(|value| value.delegation_chain.clone())
                 .unwrap_or_default(),
-            "canonical_method": canonical_method,
-            "requested_method": requested_method,
+            "method": method_id,
             "action": context
                 .host_operation
                 .as_ref()
@@ -230,222 +223,233 @@ where
     pub(crate) async fn dispatch_protocol_method(
         &self,
         context: &ProtocolContext,
-        kernel_method: KernelMethod,
+        platform_method: PlatformMethod,
         params: Value,
     ) -> anyhow::Result<Value> {
-        ensure_global_host_catalog_access(context, kernel_method)?;
-        if is_deployment_hub_method(kernel_method) {
-            ensure_deployment_hub_control_allowed(context, kernel_method)?;
+        ensure_global_host_catalog_access(context, platform_method)?;
+        if is_deployment_hub_method(platform_method) {
+            ensure_deployment_hub_control_allowed(context, platform_method)?;
         }
-        match kernel_method {
+        match platform_method {
             // Host domain
-            KernelMethod::HostInfo => Ok(serde_json::to_value(crate::host_info())?),
-            KernelMethod::HostPing => Ok(json!({"ok": true})),
-            KernelMethod::HostDiagnostics => Ok(self.host_diagnostics().await),
+            PlatformMethod::HostInfo => Ok(serde_json::to_value(crate::host_info())?),
+            PlatformMethod::HostPing => Ok(json!({"ok": true})),
+            PlatformMethod::HostDiagnostics => Ok(self.host_diagnostics().await),
 
             // Surface domain
-            KernelMethod::SurfaceResolveBundle => {
+            PlatformMethod::SurfaceResolveBundle => {
                 self.dispatch_surface_resolve_bundle(context, &params).await
             }
-            KernelMethod::SurfaceContributionList => {
+            PlatformMethod::SurfaceContributionList => {
                 self.dispatch_surface_list(context, &params).await
             }
-            KernelMethod::SurfaceContributionDescribe => {
+            PlatformMethod::SurfaceContributionDescribe => {
                 self.dispatch_surface_describe(context, &params).await
             }
 
             // Outbound domain
-            KernelMethod::OutboundAudit => self.dispatch_outbound_audit(&params).await,
-            KernelMethod::OutboundExecute => self.dispatch_outbound_execute(context, params).await,
-            KernelMethod::OutboundStream => self.dispatch_outbound_stream(context, params).await,
-            KernelMethod::OutboundWebSocketOpen => {
+            PlatformMethod::OutboundAudit => self.dispatch_outbound_audit(&params).await,
+            PlatformMethod::OutboundExecute => {
+                self.dispatch_outbound_execute(context, params).await
+            }
+            PlatformMethod::OutboundStream => self.dispatch_outbound_stream(context, params).await,
+            PlatformMethod::OutboundWebSocketOpen => {
                 self.dispatch_outbound_websocket_open(context, params).await
             }
-            KernelMethod::OutboundWebSocketSend => {
+            PlatformMethod::OutboundWebSocketSend => {
                 self.dispatch_outbound_websocket_send(context, &params)
                     .await
             }
-            KernelMethod::OutboundWebSocketClose => {
+            PlatformMethod::OutboundWebSocketClose => {
                 self.dispatch_outbound_websocket_close(context, &params)
                     .await
             }
 
             // Permission domain
-            KernelMethod::PermissionGrant => self.dispatch_permission_grant(&params).await,
-            KernelMethod::PermissionRevoke => self.dispatch_permission_revoke(&params).await,
-            KernelMethod::PermissionList => self.dispatch_permission_list(&params).await,
-            KernelMethod::PermissionAudit => self.dispatch_permission_audit().await,
+            PlatformMethod::PermissionGrant => self.dispatch_permission_grant(&params).await,
+            PlatformMethod::PermissionRevoke => self.dispatch_permission_revoke(&params).await,
+            PlatformMethod::PermissionList => self.dispatch_permission_list(&params).await,
+            PlatformMethod::PermissionAudit => self.dispatch_permission_audit().await,
 
             // Audit domain
-            KernelMethod::AuditPackage => self.dispatch_audit_package(&params).await,
+            PlatformMethod::AuditPackage => self.dispatch_audit_package(&params).await,
 
             // Proposal domain
-            KernelMethod::ProposalCreate => self.dispatch_proposal_create(context, &params).await,
-            KernelMethod::ProposalGet => self.dispatch_proposal_get(context, &params).await,
-            KernelMethod::ProposalList => self.dispatch_proposal_list(context).await,
-            KernelMethod::ProposalApprove => self.dispatch_proposal_approve(context, &params).await,
-            KernelMethod::ProposalReject => self.dispatch_proposal_reject(context, &params).await,
-            KernelMethod::ProposalApply => self.dispatch_proposal_apply(context, &params).await,
+            PlatformMethod::ProposalCreate => self.dispatch_proposal_create(context, &params).await,
+            PlatformMethod::ProposalGet => self.dispatch_proposal_get(context, &params).await,
+            PlatformMethod::ProposalList => self.dispatch_proposal_list(context).await,
+            PlatformMethod::ProposalApprove => {
+                self.dispatch_proposal_approve(context, &params).await
+            }
+            PlatformMethod::ProposalReject => self.dispatch_proposal_reject(context, &params).await,
+            PlatformMethod::ProposalApply => self.dispatch_proposal_apply(context, &params).await,
 
             // Session domain
-            KernelMethod::SessionOpen => self.dispatch_session_open(context, params).await,
-            KernelMethod::SessionClose => self.dispatch_session_close(context, &params).await,
-            KernelMethod::SessionFork => self.dispatch_session_fork(context, &params).await,
-            KernelMethod::SessionBranchList => {
+            PlatformMethod::SessionOpen => self.dispatch_session_open(context, params).await,
+            PlatformMethod::SessionClose => self.dispatch_session_close(context, &params).await,
+            PlatformMethod::SessionFork => self.dispatch_session_fork(context, &params).await,
+            PlatformMethod::SessionBranchList => {
                 self.dispatch_session_branch_list(context, &params).await
             }
-            KernelMethod::SessionGet => self.dispatch_session_get(context, &params).await,
+            PlatformMethod::SessionGet => self.dispatch_session_get(context, &params).await,
 
             // Event domain
-            KernelMethod::EventAppend => Ok(serde_json::to_value(
+            PlatformMethod::EventAppend => Ok(serde_json::to_value(
                 self.append_event_with_context(context, serde_json::from_value(params)?)
                     .await?,
             )?),
-            KernelMethod::EventList => self.dispatch_event_list(context, &params).await,
+            PlatformMethod::EventList => self.dispatch_event_list(context, &params).await,
 
             // Package domain
-            KernelMethod::PackageLoad => Ok(serde_json::to_value(
+            PlatformMethod::PackageLoad => Ok(serde_json::to_value(
                 self.load_package(serde_json::from_value(params)?).await?,
             )?),
-            KernelMethod::PackageList => Ok(serde_json::to_value(self.list_packages().await)?),
-            KernelMethod::PackageStatus => self.dispatch_package_status(&params).await,
-            KernelMethod::PackageUnload => self.dispatch_package_unload(&params).await,
-            KernelMethod::PackageRestart => self.dispatch_package_restart(&params).await,
-            KernelMethod::PackageLogs => self.dispatch_package_logs(&params).await,
+            PlatformMethod::PackageList => Ok(serde_json::to_value(self.list_packages().await)?),
+            PlatformMethod::PackageStatus => self.dispatch_package_status(&params).await,
+            PlatformMethod::PackageUnload => self.dispatch_package_unload(&params).await,
+            PlatformMethod::PackageRestart => self.dispatch_package_restart(&params).await,
+            PlatformMethod::PackageLogs => self.dispatch_package_logs(&params).await,
 
             // Project domain
-            KernelMethod::ProjectList => self.dispatch_project_list(context, &params).await,
-            KernelMethod::ProjectGet => self.dispatch_project_get(context, &params).await,
-            KernelMethod::ProjectStart => self.dispatch_project_start(context, &params).await,
-            KernelMethod::ProjectStop => self.dispatch_project_stop(context, &params).await,
-            KernelMethod::ProjectStatus => self.dispatch_project_status(context, &params).await,
+            PlatformMethod::ProjectList => self.dispatch_project_list(context, &params).await,
+            PlatformMethod::ProjectGet => self.dispatch_project_get(context, &params).await,
+            PlatformMethod::ProjectStart => self.dispatch_project_start(context, &params).await,
+            PlatformMethod::ProjectStop => self.dispatch_project_stop(context, &params).await,
+            PlatformMethod::ProjectStatus => self.dispatch_project_status(context, &params).await,
 
             // Deployment Hub Phase 1 primitives
-            KernelMethod::TargetList => self.dispatch_target_list(context).await,
-            KernelMethod::TargetStatus => self.dispatch_target_status(context, &params).await,
-            KernelMethod::TargetRegister => self.dispatch_target_register(context, params).await,
-            KernelMethod::TargetUnregister => {
+            PlatformMethod::TargetList => self.dispatch_target_list(context).await,
+            PlatformMethod::TargetStatus => self.dispatch_target_status(context, &params).await,
+            PlatformMethod::TargetRegister => self.dispatch_target_register(context, params).await,
+            PlatformMethod::TargetUnregister => {
                 self.dispatch_target_unregister(context, &params).await
             }
-            KernelMethod::ExecStart => self.dispatch_exec_start(context, params).await,
-            KernelMethod::ExecStop => self.dispatch_exec_stop(context, params).await,
-            KernelMethod::ExecStatus => self.dispatch_exec_status(context, params).await,
-            KernelMethod::ExecLogs => self.dispatch_exec_logs(context, params).await,
-            KernelMethod::ExecList => self.dispatch_exec_list(context).await,
-            KernelMethod::PortLease => self.dispatch_port_lease(context, params).await,
-            KernelMethod::PortRelease => self.dispatch_port_release(context, &params).await,
-            KernelMethod::PortStatus => self.dispatch_port_status(context, &params).await,
-            KernelMethod::PortList => self.dispatch_port_list(context).await,
-            KernelMethod::ProxyRegister => self.dispatch_proxy_register(context, params).await,
-            KernelMethod::ProxyUnregister => self.dispatch_proxy_unregister(context, &params).await,
-            KernelMethod::ProxyStatus => self.dispatch_proxy_status(context, &params).await,
-            KernelMethod::ProxyList => self.dispatch_proxy_list(context).await,
+            PlatformMethod::ExecStart => self.dispatch_exec_start(context, params).await,
+            PlatformMethod::ExecStop => self.dispatch_exec_stop(context, params).await,
+            PlatformMethod::ExecStatus => self.dispatch_exec_status(context, params).await,
+            PlatformMethod::ExecLogs => self.dispatch_exec_logs(context, params).await,
+            PlatformMethod::ExecList => self.dispatch_exec_list(context).await,
+            PlatformMethod::PortLease => self.dispatch_port_lease(context, params).await,
+            PlatformMethod::PortRelease => self.dispatch_port_release(context, &params).await,
+            PlatformMethod::PortStatus => self.dispatch_port_status(context, &params).await,
+            PlatformMethod::PortList => self.dispatch_port_list(context).await,
+            PlatformMethod::ProxyRegister => self.dispatch_proxy_register(context, params).await,
+            PlatformMethod::ProxyUnregister => {
+                self.dispatch_proxy_unregister(context, &params).await
+            }
+            PlatformMethod::ProxyStatus => self.dispatch_proxy_status(context, &params).await,
+            PlatformMethod::ProxyList => self.dispatch_proxy_list(context).await,
 
             // Capability domain
-            KernelMethod::CapabilityDiscover => {
+            PlatformMethod::CapabilityDiscover => {
                 Ok(serde_json::to_value(self.discover_capabilities().await)?)
             }
-            KernelMethod::CapabilityInvoke => Ok(serde_json::to_value(
+            PlatformMethod::CapabilityInvoke => Ok(serde_json::to_value(
                 self.invoke_capability_with_context(context, serde_json::from_value(params)?)
                     .await?,
             )?),
-            KernelMethod::CapabilityHandleAttenuate => self.dispatch_cap_attenuate(&params).await,
-            KernelMethod::CapabilityHandleRevoke => self.dispatch_cap_revoke(&params).await,
-            KernelMethod::CapabilityHandleListFor => self.dispatch_cap_list_for(&params).await,
-            KernelMethod::CapabilityStream => self.dispatch_capability_stream(&params).await,
-            KernelMethod::CapabilityCancel => self.dispatch_capability_cancel(&params).await,
+            PlatformMethod::CapabilityHandleAttenuate => self.dispatch_cap_attenuate(&params).await,
+            PlatformMethod::CapabilityHandleRevoke => self.dispatch_cap_revoke(&params).await,
+            PlatformMethod::CapabilityHandleListFor => self.dispatch_cap_list_for(&params).await,
+            PlatformMethod::CapabilityStream => self.dispatch_capability_stream(&params).await,
+            PlatformMethod::CapabilityCancel => self.dispatch_capability_cancel(&params).await,
 
             // Extension / hook domain
-            KernelMethod::ExtensionPointList => Ok(json!([
-                "kernel/v1/event.before_append",
-                "kernel/v1/event.after_append",
-                "kernel/v1/capability.before_invoke",
-                "kernel/v1/capability.after_invoke",
-                "kernel/v1/package.loaded",
-                "kernel/v1/package.unloaded"
+            PlatformMethod::ExtensionPointList => Ok(json!([
+                "journal/before_append",
+                "journal/after_append",
+                "capability/before_invoke",
+                "capability/after_invoke",
+                "host/package.loaded",
+                "host/package.unloaded"
             ])),
-            KernelMethod::HookList => Ok(serde_json::to_value(
+            PlatformMethod::HookList => Ok(serde_json::to_value(
                 self.extensions.list_all_hooks().await,
             )?),
 
             // Asset domain
-            KernelMethod::AssetPut => Ok(serde_json::to_value(
+            PlatformMethod::AssetPut => Ok(serde_json::to_value(
                 self.put_asset(serde_json::from_value(params)?).await?,
             )?),
-            KernelMethod::AssetGet => self.dispatch_asset_get(&params).await,
-            KernelMethod::AssetList => Ok(serde_json::to_value(self.list_assets().await)?),
+            PlatformMethod::AssetGet => self.dispatch_asset_get(&params).await,
+            PlatformMethod::AssetList => Ok(serde_json::to_value(self.list_assets().await)?),
 
             // Projection domain
-            KernelMethod::ProjectionRegister => Ok(serde_json::to_value(
+            PlatformMethod::ProjectionRegister => Ok(serde_json::to_value(
                 self.projection_register(serde_json::from_value(params)?)
                     .await?,
             )?),
-            KernelMethod::ProjectionRebuild => self.dispatch_projection_rebuild(&params).await,
-            KernelMethod::ProjectionGet => self.dispatch_projection_get(&params).await,
-            KernelMethod::ProjectionList => Ok(serde_json::to_value(self.projection_list().await)?),
+            PlatformMethod::ProjectionRebuild => self.dispatch_projection_rebuild(&params).await,
+            PlatformMethod::ProjectionGet => self.dispatch_projection_get(&params).await,
+            PlatformMethod::ProjectionList => {
+                Ok(serde_json::to_value(self.projection_list().await)?)
+            }
 
             // Planned methods — no dispatch yet
-            KernelMethod::SessionList
-            | KernelMethod::EventSubscribe
-            | KernelMethod::PackageDescribe
-            | KernelMethod::CapabilityDescribe
-            | KernelMethod::ExtensionPointDescribe
-            | KernelMethod::HostPrincipal => {
-                anyhow::bail!("protocol method '{}' is not yet implemented", kernel_method)
+            PlatformMethod::SessionList
+            | PlatformMethod::EventSubscribe
+            | PlatformMethod::PackageDescribe
+            | PlatformMethod::CapabilityDescribe
+            | PlatformMethod::ExtensionPointDescribe
+            | PlatformMethod::HostPrincipal => {
+                anyhow::bail!(
+                    "protocol method '{}' is not yet implemented",
+                    platform_method
+                )
             }
         }
     }
 }
 
-fn is_deployment_hub_method(method: KernelMethod) -> bool {
+fn is_deployment_hub_method(method: PlatformMethod) -> bool {
     matches!(
         method,
-        KernelMethod::TargetList
-            | KernelMethod::TargetStatus
-            | KernelMethod::TargetRegister
-            | KernelMethod::TargetUnregister
-            | KernelMethod::ExecStart
-            | KernelMethod::ExecStop
-            | KernelMethod::ExecStatus
-            | KernelMethod::ExecLogs
-            | KernelMethod::ExecList
-            | KernelMethod::PortLease
-            | KernelMethod::PortRelease
-            | KernelMethod::PortStatus
-            | KernelMethod::PortList
-            | KernelMethod::ProxyRegister
-            | KernelMethod::ProxyUnregister
-            | KernelMethod::ProxyStatus
-            | KernelMethod::ProxyList
+        PlatformMethod::TargetList
+            | PlatformMethod::TargetStatus
+            | PlatformMethod::TargetRegister
+            | PlatformMethod::TargetUnregister
+            | PlatformMethod::ExecStart
+            | PlatformMethod::ExecStop
+            | PlatformMethod::ExecStatus
+            | PlatformMethod::ExecLogs
+            | PlatformMethod::ExecList
+            | PlatformMethod::PortLease
+            | PlatformMethod::PortRelease
+            | PlatformMethod::PortStatus
+            | PlatformMethod::PortList
+            | PlatformMethod::ProxyRegister
+            | PlatformMethod::ProxyUnregister
+            | PlatformMethod::ProxyStatus
+            | PlatformMethod::ProxyList
     )
 }
 
 fn ensure_global_host_catalog_access(
     context: &ProtocolContext,
-    method: KernelMethod,
+    method: PlatformMethod,
 ) -> anyhow::Result<()> {
     let global = matches!(
         method,
-        KernelMethod::HostDiagnostics
-            | KernelMethod::PackageLoad
-            | KernelMethod::PackageList
-            | KernelMethod::PackageStatus
-            | KernelMethod::PackageUnload
-            | KernelMethod::PackageRestart
-            | KernelMethod::PackageLogs
-            | KernelMethod::PackageDescribe
-            | KernelMethod::CapabilityDiscover
-            | KernelMethod::CapabilityDescribe
-            | KernelMethod::ExtensionPointList
-            | KernelMethod::ExtensionPointDescribe
-            | KernelMethod::HookList
-            | KernelMethod::AssetPut
-            | KernelMethod::AssetGet
-            | KernelMethod::AssetList
-            | KernelMethod::ProjectionRegister
-            | KernelMethod::ProjectionRebuild
-            | KernelMethod::ProjectionGet
-            | KernelMethod::ProjectionList
+        PlatformMethod::HostDiagnostics
+            | PlatformMethod::PackageLoad
+            | PlatformMethod::PackageList
+            | PlatformMethod::PackageStatus
+            | PlatformMethod::PackageUnload
+            | PlatformMethod::PackageRestart
+            | PlatformMethod::PackageLogs
+            | PlatformMethod::PackageDescribe
+            | PlatformMethod::CapabilityDiscover
+            | PlatformMethod::CapabilityDescribe
+            | PlatformMethod::ExtensionPointList
+            | PlatformMethod::ExtensionPointDescribe
+            | PlatformMethod::HookList
+            | PlatformMethod::AssetPut
+            | PlatformMethod::AssetGet
+            | PlatformMethod::AssetList
+            | PlatformMethod::ProjectionRegister
+            | PlatformMethod::ProjectionRebuild
+            | PlatformMethod::ProjectionGet
+            | PlatformMethod::ProjectionList
     );
     if !global {
         return Ok(());
@@ -464,81 +468,81 @@ fn ensure_global_host_catalog_access(
     Ok(())
 }
 
-fn host_action_for_method(method: KernelMethod) -> &'static str {
+fn host_action_for_method(method: PlatformMethod) -> &'static str {
     match method {
-        KernelMethod::ProjectStart
-        | KernelMethod::ProjectStop
-        | KernelMethod::SessionOpen
-        | KernelMethod::SessionClose
-        | KernelMethod::SessionFork => "project_operate",
-        KernelMethod::ProposalCreate => "develop_propose",
-        KernelMethod::ProposalApprove | KernelMethod::ProposalReject => "develop_approve",
-        KernelMethod::ProposalApply => "develop_execute",
-        KernelMethod::TargetRegister
-        | KernelMethod::TargetUnregister
-        | KernelMethod::ExecStart
-        | KernelMethod::ExecStop
-        | KernelMethod::PortLease
-        | KernelMethod::PortRelease
-        | KernelMethod::ProxyRegister
-        | KernelMethod::ProxyUnregister => "deploy",
-        KernelMethod::HostInfo
-        | KernelMethod::HostPing
-        | KernelMethod::HostDiagnostics
-        | KernelMethod::ProjectList
-        | KernelMethod::ProjectGet
-        | KernelMethod::ProjectStatus
-        | KernelMethod::TargetList
-        | KernelMethod::TargetStatus
-        | KernelMethod::ExecStatus
-        | KernelMethod::ExecLogs
-        | KernelMethod::ExecList
-        | KernelMethod::PortStatus
-        | KernelMethod::PortList
-        | KernelMethod::ProxyStatus
-        | KernelMethod::ProxyList
-        | KernelMethod::SessionBranchList
-        | KernelMethod::SessionGet
-        | KernelMethod::SessionList
-        | KernelMethod::EventList
-        | KernelMethod::EventSubscribe
-        | KernelMethod::PackageLogs
-        | KernelMethod::PackageList
-        | KernelMethod::PackageStatus
-        | KernelMethod::PackageDescribe
-        | KernelMethod::CapabilityDiscover
-        | KernelMethod::CapabilityDescribe
-        | KernelMethod::ExtensionPointList
-        | KernelMethod::ExtensionPointDescribe
-        | KernelMethod::HookList
-        | KernelMethod::AssetGet
-        | KernelMethod::AssetList
-        | KernelMethod::ProjectionGet
-        | KernelMethod::ProjectionList
-        | KernelMethod::ProposalGet
-        | KernelMethod::ProposalList
-        | KernelMethod::SurfaceResolveBundle
-        | KernelMethod::SurfaceContributionList
-        | KernelMethod::SurfaceContributionDescribe => "observe",
+        PlatformMethod::ProjectStart
+        | PlatformMethod::ProjectStop
+        | PlatformMethod::SessionOpen
+        | PlatformMethod::SessionClose
+        | PlatformMethod::SessionFork => "project_operate",
+        PlatformMethod::ProposalCreate => "develop_propose",
+        PlatformMethod::ProposalApprove | PlatformMethod::ProposalReject => "develop_approve",
+        PlatformMethod::ProposalApply => "develop_execute",
+        PlatformMethod::TargetRegister
+        | PlatformMethod::TargetUnregister
+        | PlatformMethod::ExecStart
+        | PlatformMethod::ExecStop
+        | PlatformMethod::PortLease
+        | PlatformMethod::PortRelease
+        | PlatformMethod::ProxyRegister
+        | PlatformMethod::ProxyUnregister => "deploy",
+        PlatformMethod::HostInfo
+        | PlatformMethod::HostPing
+        | PlatformMethod::HostDiagnostics
+        | PlatformMethod::ProjectList
+        | PlatformMethod::ProjectGet
+        | PlatformMethod::ProjectStatus
+        | PlatformMethod::TargetList
+        | PlatformMethod::TargetStatus
+        | PlatformMethod::ExecStatus
+        | PlatformMethod::ExecLogs
+        | PlatformMethod::ExecList
+        | PlatformMethod::PortStatus
+        | PlatformMethod::PortList
+        | PlatformMethod::ProxyStatus
+        | PlatformMethod::ProxyList
+        | PlatformMethod::SessionBranchList
+        | PlatformMethod::SessionGet
+        | PlatformMethod::SessionList
+        | PlatformMethod::EventList
+        | PlatformMethod::EventSubscribe
+        | PlatformMethod::PackageLogs
+        | PlatformMethod::PackageList
+        | PlatformMethod::PackageStatus
+        | PlatformMethod::PackageDescribe
+        | PlatformMethod::CapabilityDiscover
+        | PlatformMethod::CapabilityDescribe
+        | PlatformMethod::ExtensionPointList
+        | PlatformMethod::ExtensionPointDescribe
+        | PlatformMethod::HookList
+        | PlatformMethod::AssetGet
+        | PlatformMethod::AssetList
+        | PlatformMethod::ProjectionGet
+        | PlatformMethod::ProjectionList
+        | PlatformMethod::ProposalGet
+        | PlatformMethod::ProposalList
+        | PlatformMethod::SurfaceResolveBundle
+        | PlatformMethod::SurfaceContributionList
+        | PlatformMethod::SurfaceContributionDescribe => "observe",
         _ => "access_manage",
     }
 }
 
 fn ensure_deployment_hub_control_allowed(
     context: &ProtocolContext,
-    method: KernelMethod,
+    method: PlatformMethod,
 ) -> anyhow::Result<()> {
     let action = if matches!(
         method,
-        KernelMethod::TargetList
-            | KernelMethod::TargetStatus
-            | KernelMethod::ExecStatus
-            | KernelMethod::ExecLogs
-            | KernelMethod::ExecList
-            | KernelMethod::PortStatus
-            | KernelMethod::PortList
-            | KernelMethod::ProxyStatus
-            | KernelMethod::ProxyList
+        PlatformMethod::TargetList
+            | PlatformMethod::TargetStatus
+            | PlatformMethod::ExecStatus
+            | PlatformMethod::ExecLogs
+            | PlatformMethod::ExecList
+            | PlatformMethod::PortStatus
+            | PlatformMethod::PortList
+            | PlatformMethod::ProxyStatus
+            | PlatformMethod::ProxyList
     ) {
         "observe"
     } else {

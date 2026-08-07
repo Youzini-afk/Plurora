@@ -5,7 +5,7 @@ use crate::DEFAULT_CONTRACT_PROFILE;
 use chrono::Utc;
 use plurora_core::{ArtifactDescriptor, EffectScope, EffectTerminalStatus};
 
-const DEPLOYMENT_HUB_SESSION_ID: &str = "kernel_deployment_hub";
+const DEPLOYMENT_HUB_SESSION_ID: &str = "host_deployment_hub";
 
 impl<S> Runtime<S>
 where
@@ -44,7 +44,7 @@ where
         context: &ProtocolContext,
         params: &Value,
     ) -> anyhow::Result<Value> {
-        let target_id = required_str(params, "target_id", "kernel.v1.target.status")?;
+        let target_id = required_str(params, "target_id", "host.target.status")?;
         Self::ensure_target_authority(context, &target_id)?;
         Ok(serde_json::to_value(
             self.config
@@ -70,7 +70,7 @@ where
         context: &ProtocolContext,
         params: &Value,
     ) -> anyhow::Result<Value> {
-        let target_id = required_str(params, "target_id", "kernel.v1.target.unregister")?;
+        let target_id = required_str(params, "target_id", "host.target.unregister")?;
         Self::ensure_target_authority(context, &target_id)?;
         anyhow::bail!("direct target mutation is disabled; use the Host target revoke API")
     }
@@ -213,7 +213,7 @@ where
     ) -> anyhow::Result<Value> {
         let request: crate::runtime::LocalExecStopRequest = serde_json::from_value(params)?;
         if request.exec_id.trim().is_empty() {
-            anyhow::bail!("kernel.v1.exec.stop requires exec_id");
+            anyhow::bail!("host.exec.stop requires exec_id");
         }
         let exec_id = request.exec_id.clone();
         if let Some(status) = self.config.exec_registry.status(&exec_id).await {
@@ -346,7 +346,7 @@ where
     ) -> anyhow::Result<Value> {
         let request: crate::runtime::LocalExecStatusRequest = serde_json::from_value(params)?;
         if request.exec_id.trim().is_empty() {
-            anyhow::bail!("kernel.v1.exec.status requires exec_id");
+            anyhow::bail!("host.exec.status requires exec_id");
         }
         let exec_id = request.exec_id.clone();
         if let Some(status) = self.config.exec_registry.status(&exec_id).await {
@@ -483,7 +483,7 @@ where
     ) -> anyhow::Result<Value> {
         let request: crate::runtime::LocalExecLogsRequest = serde_json::from_value(params)?;
         if request.exec_id.trim().is_empty() {
-            anyhow::bail!("kernel.v1.exec.logs requires exec_id");
+            anyhow::bail!("host.exec.logs requires exec_id");
         }
         let target_id = if let Some(target_id) = self
             .config
@@ -766,7 +766,7 @@ where
         context: &ProtocolContext,
         params: &Value,
     ) -> anyhow::Result<Value> {
-        let lease_id = required_str(params, "lease_id", "kernel.v1.port.release")?;
+        let lease_id = required_str(params, "lease_id", "host.port.release")?;
         let existing = self
             .config
             .port_lease_registry
@@ -801,7 +801,7 @@ where
         context: &ProtocolContext,
         params: &Value,
     ) -> anyhow::Result<Value> {
-        let lease_id = required_str(params, "lease_id", "kernel.v1.port.status")?;
+        let lease_id = required_str(params, "lease_id", "host.port.status")?;
         let lease = self
             .config
             .port_lease_registry
@@ -850,9 +850,7 @@ where
                 }),
             )
             .await?;
-            anyhow::bail!(
-                "kernel.v1.proxy.register requires an existing active port lease upstream"
-            );
+            anyhow::bail!("host.proxy.register requires an existing active port lease upstream");
         }
         let lease = lease.expect("active lease checked above");
         Self::ensure_target_authority(context, &lease.target_id)?;
@@ -869,7 +867,7 @@ where
             )
             .await?;
             anyhow::bail!(
-                "kernel.v1.proxy.register upstream port_name must match the referenced port lease"
+                "host.proxy.register upstream port_name must match the referenced port lease"
             );
         }
 
@@ -898,7 +896,7 @@ where
         context: &ProtocolContext,
         params: &Value,
     ) -> anyhow::Result<Value> {
-        let route_id = required_str(params, "route_id", "kernel.v1.proxy.unregister")?;
+        let route_id = required_str(params, "route_id", "host.proxy.unregister")?;
         let existing = self
             .config
             .proxy_route_registry
@@ -936,7 +934,7 @@ where
         context: &ProtocolContext,
         params: &Value,
     ) -> anyhow::Result<Value> {
-        let route_id = required_str(params, "route_id", "kernel.v1.proxy.status")?;
+        let route_id = required_str(params, "route_id", "host.proxy.status")?;
         let route = self
             .config
             .proxy_route_registry
@@ -985,7 +983,8 @@ where
         } else {
             self.ensure_deployment_hub_session().await?
         };
-        self.append_kernel_event(&session_id, kind, payload).await?;
+        self.append_platform_event(&session_id, kind, payload)
+            .await?;
         Ok(())
     }
 
@@ -1006,9 +1005,9 @@ where
         let mut sessions = self.sessions.write().await;
         sessions.insert(
             DEPLOYMENT_HUB_SESSION_ID.to_string(),
-            plurora_core::KernelSession {
+            plurora_core::SessionRecord {
                 id: DEPLOYMENT_HUB_SESSION_ID.to_string(),
-                labels: vec!["kernel".to_string(), "deployment_hub".to_string()],
+                labels: vec!["platform_runtime".to_string(), "deployment_hub".to_string()],
                 active_package_set: Vec::new(),
                 principal_scope: None,
                 status: plurora_core::SessionStatus::Open,

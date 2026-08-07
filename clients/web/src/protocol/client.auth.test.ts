@@ -4,7 +4,7 @@ import {
   ProtocolHttpError,
   resolveBrowserAccessToken,
   storeBrowserAccessToken,
-  YggProtocolClient,
+  PluroraProtocolClient,
 } from "./client";
 import { resolveSurfaceBundle } from "../surfaces/bundle-resolver";
 
@@ -115,8 +115,8 @@ globalThis.fetch = (async () =>
     statusText: "Unauthorized",
   })) as typeof fetch;
 
-await rejectsWithHttpStatus(new YggProtocolClient("http://host.test", "bad-token").diagnostics(), 401);
-await rejectsWithHttpStatus(new YggProtocolClient("http://host.test", "bad-token").listTargetOperations("remote"), 401);
+await rejectsWithHttpStatus(new PluroraProtocolClient("http://host.test", "bad-token").diagnostics(), 401);
+await rejectsWithHttpStatus(new PluroraProtocolClient("http://host.test", "bad-token").listTargetOperations("remote"), 401);
 
 const capturedRequests: unknown[] = [];
 const capturedFetches: Array<{ input: string; method?: string; body: unknown; headers?: HeadersInit }> = [];
@@ -190,11 +190,11 @@ globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
     });
   }
 
-  if (body?.method === "kernel.v1.session.open") {
+  if (body?.method === "context.open") {
     return Response.json({ id: body.id, result: { id: "install-session" } });
   }
 
-  if (body?.method === "kernel.v1.capability.invoke") {
+  if (body?.method === "capability.invoke") {
     const capabilityId = body.params.capability_id;
     const output = capabilityId.endsWith("/check_for_updates")
       ? { results: [] }
@@ -232,24 +232,6 @@ globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
         provider_package_id: body.params.provider_package_id,
         output,
       },
-    });
-  }
-
-  if (body?.method === "kernel.v1.target.list") {
-    return Response.json({
-      id: body.id,
-      result: [],
-      diagnostics: [{
-        code: "plurora.contract.alias.legacy_adapter",
-        severity: "warning",
-        requested_id: "kernel.v1.target.list",
-        canonical_id: "host.target.list",
-        maturity: "legacy_adapter",
-        message: "use host.target.list; no new field semantics will be added",
-        deprecated_in: "plurora.contract.registry@0.4.0",
-        replacement: "host.target.list",
-        support_until: "plurora.contract.registry@0.5.0",
-      }],
     });
   }
 
@@ -328,19 +310,19 @@ globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
   throw new Error(`unexpected method ${body?.method}`);
 }) as typeof fetch;
 
-await new YggProtocolClient("http://host.test", "valid-token").resolveInstallPlan({
+await new PluroraProtocolClient("http://host.test", "valid-token").resolveInstallPlan({
   root_url: "https://github.com/Youzini-afk/Plurora-Tavern",
 });
 
 const sessionOpenRequest = capturedRequests[0] as { method?: string; params?: Record<string, unknown> };
-assertEqual(sessionOpenRequest.method, "kernel.v1.session.open");
+assertEqual(sessionOpenRequest.method, "context.open");
 assertDeepEqual(sessionOpenRequest.params?.active_package_set, ["official/install-lab"]);
 assertDeepEqual(sessionOpenRequest.params?.labels, ["install", "official/install-lab"]);
 
 capturedRequests.length = 0;
-await new YggProtocolClient("http://host.test", "valid-token").uninstallProject("youzini-afk__YdlTavern__d2a47e5c");
+await new PluroraProtocolClient("http://host.test", "valid-token").uninstallProject("youzini-afk__YdlTavern__d2a47e5c");
 const uninstallInvoke = capturedRequests.find(
-  (request) => (request as { method?: string }).method === "kernel.v1.capability.invoke",
+  (request) => (request as { method?: string }).method === "capability.invoke",
 ) as { params?: Record<string, unknown> };
 assertEqual(uninstallInvoke.params?.capability_id, "official/install-lab/uninstall");
 assertDeepEqual(uninstallInvoke.params?.input, {
@@ -350,9 +332,9 @@ assertDeepEqual(uninstallInvoke.params?.input, {
 });
 
 capturedRequests.length = 0;
-await new YggProtocolClient("http://host.test", "valid-token").checkProjectUpdates("youzini-afk__YdlTavern__d2a47e5c");
+await new PluroraProtocolClient("http://host.test", "valid-token").checkProjectUpdates("youzini-afk__YdlTavern__d2a47e5c");
 const updateCheckInvoke = capturedRequests.find(
-  (request) => (request as { method?: string }).method === "kernel.v1.capability.invoke",
+  (request) => (request as { method?: string }).method === "capability.invoke",
 ) as { params?: Record<string, unknown> };
 assertEqual(updateCheckInvoke.params?.capability_id, "official/install-lab/check_for_updates");
 assertDeepEqual(updateCheckInvoke.params?.input, {
@@ -361,9 +343,9 @@ assertDeepEqual(updateCheckInvoke.params?.input, {
 });
 
 capturedRequests.length = 0;
-await new YggProtocolClient("http://host.test", "valid-token").updateProject("youzini-afk__YdlTavern__d2a47e5c");
+await new PluroraProtocolClient("http://host.test", "valid-token").updateProject("youzini-afk__YdlTavern__d2a47e5c");
 const updateInvoke = capturedRequests.find(
-  (request) => (request as { method?: string }).method === "kernel.v1.capability.invoke",
+  (request) => (request as { method?: string }).method === "capability.invoke",
 ) as { params?: Record<string, unknown> };
 assertEqual(updateInvoke.params?.capability_id, "official/install-lab/update_project");
 assertDeepEqual(updateInvoke.params?.input, {
@@ -373,7 +355,7 @@ assertDeepEqual(updateInvoke.params?.input, {
 });
 
 capturedRequests.length = 0;
-const protocolClient = new YggProtocolClient("http://host.test", "valid-token");
+const protocolClient = new PluroraProtocolClient("http://host.test", "valid-token");
 await protocolClient.listTargets();
 await protocolClient.targetStatus("local");
 await protocolClient.listExecs();
@@ -405,13 +387,12 @@ assertDeepEqual(capturedRequests.map((request) => (request as { method?: string 
 assertDeepEqual((capturedRequests[4] as { params?: Record<string, unknown> }).params, { exec_id: "exec-1", limit: 80 });
 
 capturedRequests.length = 0;
-await protocolClient.call("kernel.v1.target.list");
+await protocolClient.call("host.target.list");
 await protocolClient.listTargets();
-const legacyAdapterDiagnostic = protocolClient.drainContractDiagnostics()[0];
-assertEqual(legacyAdapterDiagnostic?.code, "plurora.contract.alias.legacy_adapter");
-assertEqual(legacyAdapterDiagnostic?.maturity, "legacy_adapter");
-assertEqual(legacyAdapterDiagnostic?.replacement, "host.target.list");
-assertDeepEqual(protocolClient.drainContractDiagnostics(), []);
+assertDeepEqual(capturedRequests.map((request) => (request as { method?: string }).method), [
+  "host.target.list",
+  "host.target.list",
+]);
 
 capturedRequests.length = 0;
 await protocolClient.startDockerContainer({
@@ -429,8 +410,8 @@ await protocolClient.stopDockerContainer({
   port_lease_id: "lease-1",
   timeout_secs: 5,
 });
-const dockerSessionOpen = capturedRequests.filter((request) => (request as { method?: string }).method === "kernel.v1.session.open") as Array<{ params?: Record<string, unknown> }>;
-const dockerInvokes = capturedRequests.filter((request) => (request as { method?: string }).method === "kernel.v1.capability.invoke") as Array<{ params?: Record<string, unknown> }>;
+const dockerSessionOpen = capturedRequests.filter((request) => (request as { method?: string }).method === "context.open") as Array<{ params?: Record<string, unknown> }>;
+const dockerInvokes = capturedRequests.filter((request) => (request as { method?: string }).method === "capability.invoke") as Array<{ params?: Record<string, unknown> }>;
 assertDeepEqual(dockerSessionOpen[0].params?.active_package_set, ["official/docker-runtime-lab"]);
 assertDeepEqual(dockerSessionOpen[0].params?.labels, ["deploy", "official/docker-runtime-lab"]);
 assertEqual(dockerInvokes[0].params?.provider_package_id, "official/docker-runtime-lab");
@@ -571,7 +552,7 @@ assertDeepEqual(capturedRequests.map((request) => (request as { method?: string 
 ]);
 
 capturedRequests.length = 0;
-const negotiatedClient = new YggProtocolClient("http://host.test", "valid-token");
+const negotiatedClient = new PluroraProtocolClient("http://host.test", "valid-token");
 const contract = {
   profile: "plurora.contract.default/v1",
   versions: [{ layer: "host" as const, version: "0.1.0" }],

@@ -154,7 +154,7 @@ pub(crate) async fn backup(
             staging.display()
         )
     })?;
-    println!("kernel/v1/host.backup.created: {}", output.display());
+    println!("host/backup.created: {}", output.display());
     Ok(())
 }
 
@@ -273,7 +273,7 @@ pub(crate) async fn restore(backup: PathBuf, data_dir: PathBuf) -> Result<()> {
             data_dir.display()
         )
     })?;
-    println!("kernel/v1/host.backup.restored: {}", data_dir.display());
+    println!("host/backup.restored: {}", data_dir.display());
     Ok(())
 }
 

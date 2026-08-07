@@ -4,7 +4,7 @@ use bytes::Bytes;
 use chrono::Utc;
 use plurora_core::{
     new_id, ArtifactDescriptor, AssetRecord, EventEnvelope, PackageId, EVENT_ASSET_PUT,
-    KERNEL_PACKAGE_ID,
+    PLATFORM_RUNTIME_ID,
 };
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -101,7 +101,7 @@ where
         let origin_package_id = request
             .origin_package_id
             .take()
-            .unwrap_or_else(|| KERNEL_PACKAGE_ID.to_string());
+            .unwrap_or_else(|| PLATFORM_RUNTIME_ID.to_string());
         let asset_id = new_id("ast");
         let references = artifact_references(&request.metadata);
         let annotations =
@@ -126,8 +126,8 @@ where
             descriptor: Some(descriptor.clone()),
         };
         let mut assets = self.assets.write().await;
-        self.append_kernel_event_with_metadata(
-            &format!("kernel_asset_{}", record.id),
+        self.append_platform_event_with_metadata(
+            &format!("platform_asset_{}", record.id),
             EVENT_ASSET_PUT,
             serde_json::to_value(&record)?,
             json!({

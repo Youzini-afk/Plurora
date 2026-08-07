@@ -13,7 +13,7 @@ pub enum SessionStatus {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct KernelSession {
+pub struct SessionRecord {
     pub id: SessionId,
     pub labels: Vec<String>,
     pub active_package_set: Vec<PackageId>,

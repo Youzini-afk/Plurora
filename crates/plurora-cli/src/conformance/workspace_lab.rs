@@ -7,7 +7,7 @@
 //! 3. Policy mismatch fail-closed (policy "allow" for approval-required action → denied)
 //! 4. Raw secret blocked (raw API key / Bearer token in input → rejected)
 //! 5. Audit redacted (no raw env/logs/commands/secrets in audit summary)
-//! 6. No forbidden namespace (no kernel.v1.project/workspace/git/npm/deploy/ide in any output)
+//! 6. No forbidden namespace (no platform.project/workspace/git/npm/deploy/ide in any output)
 //! 7. No execution performed (executor_invoked=false, execution_performed=false always)
 //!
 //! E3 covers:
@@ -145,12 +145,12 @@ pub(crate) async fn workspace_lab_contract() -> anyhow::Result<()> {
     // No forbidden namespace
     let output_str = serde_json::to_string(&contract.output).unwrap();
     for token in &[
-        "kernel.v1.project.",
-        "kernel.v1.workspace.",
-        "kernel.v1.git.",
-        "kernel.v1.npm.",
-        "kernel.v1.deploy.",
-        "kernel.v1.ide.",
+        "platform.project.",
+        "platform.workspace.",
+        "platform.git.",
+        "platform.npm.",
+        "platform.deploy.",
+        "platform.ide.",
     ] {
         anyhow::ensure!(
             !output_str.contains(token),
@@ -435,12 +435,12 @@ pub(crate) async fn workspace_lab_no_forbidden_namespace() -> anyhow::Result<()>
     ];
 
     let forbidden = [
-        "kernel.v1.project.",
-        "kernel.v1.workspace.",
-        "kernel.v1.git.",
-        "kernel.v1.npm.",
-        "kernel.v1.deploy.",
-        "kernel.v1.ide.",
+        "platform.project.",
+        "platform.workspace.",
+        "platform.git.",
+        "platform.npm.",
+        "platform.deploy.",
+        "platform.ide.",
     ];
 
     for cap in &caps {
@@ -946,12 +946,12 @@ pub(crate) async fn workspace_lab_e3_raw_secret_no_forbidden_namespace() -> anyh
     ];
 
     let forbidden = [
-        "kernel.v1.project.",
-        "kernel.v1.workspace.",
-        "kernel.v1.git.",
-        "kernel.v1.npm.",
-        "kernel.v1.deploy.",
-        "kernel.v1.ide.",
+        "platform.project.",
+        "platform.workspace.",
+        "platform.git.",
+        "platform.npm.",
+        "platform.deploy.",
+        "platform.ide.",
     ];
 
     // No forbidden namespace in any E3 output

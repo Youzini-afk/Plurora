@@ -8,7 +8,7 @@ This document describes shareable, reproducible, and importable composition and 
 
 - Share first, marketplace later: the current implementation is local/file-level sharing. It covers composition bundles, branch/session bundle manifests, package-set lockfiles, compatibility/migration reports, AI disclosure metadata, read-only shared session manifests, and async fork sharing plans.
 - No marketplace: no package signing network, dependency resolver economy, or hosted billing. Distribution is local file exchange, not a commercial marketplace.
-- No `kernel.v1.sharing.*`: shared Sharing meaning belongs to an optional Protocol, while concrete import/export behavior is implemented by ordinary Components and Products rather than the constitutional substrate.
+- No `platform.sharing.*`: shared Sharing meaning belongs to an optional Protocol, while concrete import/export behavior is implemented by ordinary Components and Products rather than the constitutional substrate.
 - No raw secrets: only `secret_ref` references are allowed in bundles; raw secrets are never stored.
 - No public network required: the current sharing fixtures use local files and need no remote service or public network access.
 
@@ -128,7 +128,7 @@ The following are explicitly forbidden in the sharing contract:
 - Billing fields (`billing_token`, `payment_method`, `subscription`)
 - Signing network fields (`signing_network`, `license_key`)
 - Raw secrets (`api_key`, `token`, `password` raw values; only `secret_ref` references allowed)
-- Kernel sharing namespaces (`kernel.v1.sharing.*`, `kernel.v1.marketplace.*`, `kernel.v1.billing.*`)
+- Kernel sharing namespaces (`platform.sharing.*`, `platform.marketplace.*`, `platform.billing.*`)
 - Public network or remote service dependency
 
 ## Examples

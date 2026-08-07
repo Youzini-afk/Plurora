@@ -9,7 +9,7 @@ This is the long-term guide for performance and code health. It replaces the tem
 1. Measure before optimizing. Use `cargo run -p plurora-cli -- perf baseline`, conformance timing, Web TypeScript diagnostics, and focused tests before changing architecture.
 2. Optimization must not change the platform contract. Official and third-party packages must keep sharing the same manifest, capability, permission, hook, schema, redaction, and audit path.
 3. UI stays on the public protocol. The web shell must not read SQLite, runtime internals, or special-case official packages.
-4. Do not introduce content ontology in the name of performance. Do not add `kernel.v1.agent.*`, `kernel.v1.model.*`, `kernel.v1.memory.*`, `kernel.v1.experience.*`, `kernel.v1.sharing.*`, or similar product/content namespaces.
+4. Do not introduce content ontology in the name of performance. Do not add `platform.agent.*`, `platform.model.*`, `platform.memory.*`, `platform.experience.*`, `platform.sharing.*`, or similar product/content namespaces.
 5. Advanced optimization needs evidence. Capability or surface caches, RawValue, registry helpers/codegen, per-domain crates, and similar changes require baseline or profiling evidence.
 
 ## Common commands
@@ -75,7 +75,7 @@ New conformance cases must declare tags so the suite does not become an unfilter
 
 Completed low-risk structural improvements:
 
-- Protocol dispatch split into domain helpers while preserving `KernelMethod` as the source of truth.
+- Protocol dispatch split into domain helpers while preserving `PlatformMethod` as the source of truth.
 - Official in-process dispatch moved from a linear chain to a provider-indexed table. It still preserves package-aware routing and avoids official fast paths.
 - Shared in-process safety helper for raw-secret and rejection logic.
 - Composition/package diagnostics use sets/indexes to avoid obvious O(n²) scans.

@@ -1,0 +1,20 @@
+{
+  "$defs": {
+    "Payload": {
+      "type": "object"
+    }
+  },
+  "$id": "urn:plurora:schema:event:context/opened:v1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "Payload schema for event kind context/opened.",
+  "properties": {
+    "kind": {
+      "const": "context/opened"
+    },
+    "payload": {
+      "$ref": "#/$defs/Payload"
+    }
+  },
+  "title": "context/opened",
+  "type": "object"
+}

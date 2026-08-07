@@ -3,7 +3,7 @@
 //! Covers:
 //! - describe_contract shape (surfaces, capabilities, lifecycle states)
 //! - checkpoint/recovery shape (create, inspect, draft recovery)
-//! - No kernel.v1.experience.* / kernel.v1.world.* / kernel.v1.turn.* namespace
+//! - No platform.experience.* / platform.world.* / platform.turn.* namespace
 //! - Template generation (experience-runtime template produces 4 surfaces)
 //! - Third-party shape parity / ordinary routing
 
@@ -128,16 +128,16 @@ pub(crate) async fn experience_runtime_describe_contract() -> anyhow::Result<()>
     // No kernel experience namespace
     let output_str = serde_json::to_string(&contract.output).unwrap();
     anyhow::ensure!(
-        !output_str.contains("kernel.v1.experience."),
-        "must not contain kernel.v1.experience."
+        !output_str.contains("platform.experience."),
+        "must not contain platform.experience."
     );
     anyhow::ensure!(
-        !output_str.contains("kernel.v1.world."),
-        "must not contain kernel.v1.world."
+        !output_str.contains("platform.world."),
+        "must not contain platform.world."
     );
     anyhow::ensure!(
-        !output_str.contains("kernel.v1.turn."),
-        "must not contain kernel.v1.turn."
+        !output_str.contains("platform.turn."),
+        "must not contain platform.turn."
     );
 
     Ok(())
@@ -223,7 +223,7 @@ pub(crate) async fn experience_runtime_checkpoint_shape() -> anyhow::Result<()> 
 }
 
 /// Case 3: draft_recovery produces correct recovery plan with strategy,
-/// steps, and checkpoint_available flag. No kernel namespace.
+/// steps, and checkpoint_available flag. No platform-reserved namespace.
 pub(crate) async fn experience_runtime_recovery_shape() -> anyhow::Result<()> {
     let runtime = load_experience_runtime_lab().await?;
 
@@ -294,23 +294,23 @@ pub(crate) async fn experience_runtime_recovery_shape() -> anyhow::Result<()> {
         "plan must reflect checkpoint_available=false"
     );
 
-    // No kernel namespace
+    // No platform-reserved namespace
     let output_str = serde_json::to_string(&recovery_with_cp.output).unwrap();
     anyhow::ensure!(
-        !output_str.contains("kernel.v1.experience."),
-        "recovery must not contain kernel.v1.experience."
+        !output_str.contains("platform.experience."),
+        "recovery must not contain platform.experience."
     );
     anyhow::ensure!(
-        !output_str.contains("kernel.v1.turn."),
-        "recovery must not contain kernel.v1.turn."
+        !output_str.contains("platform.turn."),
+        "recovery must not contain platform.turn."
     );
 
     Ok(())
 }
 
-/// Case 4: no kernel.v1.experience.* / kernel.v1.world.* / kernel.v1.turn.* namespace
+/// Case 4: no platform.experience.* / platform.world.* / platform.turn.* namespace
 /// in any output from the package.
-pub(crate) async fn experience_runtime_no_kernel_namespace() -> anyhow::Result<()> {
+pub(crate) async fn experience_runtime_no_platform_namespace() -> anyhow::Result<()> {
     let runtime = load_experience_runtime_lab().await?;
 
     let caps = [
@@ -336,24 +336,24 @@ pub(crate) async fn experience_runtime_no_kernel_namespace() -> anyhow::Result<(
 
         let output_str = serde_json::to_string(&result.output).unwrap();
         anyhow::ensure!(
-            !output_str.contains("kernel.v1.experience."),
-            "{cap} must not contain kernel.v1.experience."
+            !output_str.contains("platform.experience."),
+            "{cap} must not contain platform.experience."
         );
         anyhow::ensure!(
-            !output_str.contains("kernel.v1.world."),
-            "{cap} must not contain kernel.v1.world."
+            !output_str.contains("platform.world."),
+            "{cap} must not contain platform.world."
         );
         anyhow::ensure!(
-            !output_str.contains("kernel.v1.turn."),
-            "{cap} must not contain kernel.v1.turn."
+            !output_str.contains("platform.turn."),
+            "{cap} must not contain platform.turn."
         );
         anyhow::ensure!(
-            !output_str.contains("kernel.v1.chat."),
-            "{cap} must not contain kernel.v1.chat."
+            !output_str.contains("platform.chat."),
+            "{cap} must not contain platform.chat."
         );
         anyhow::ensure!(
-            !output_str.contains("kernel.v1.memory."),
-            "{cap} must not contain kernel.v1.memory."
+            !output_str.contains("platform.memory."),
+            "{cap} must not contain platform.memory."
         );
     }
 
@@ -438,15 +438,15 @@ pub(crate) async fn experience_runtime_template_generation() -> anyhow::Result<(
         "experience-runtime should have no network declarations"
     );
 
-    // No kernel namespace in manifest or package.ts
+    // No platform-reserved namespace in manifest or package.ts
     let manifest_json = serde_json::to_value(&manifest)?;
     let manifest_str = serde_json::to_string(&manifest_json)?;
     for token in &[
-        "kernel.v1.experience.",
-        "kernel.v1.world.",
-        "kernel.v1.turn.",
-        "kernel.v1.chat.",
-        "kernel.v1.memory.",
+        "platform.experience.",
+        "platform.world.",
+        "platform.turn.",
+        "platform.chat.",
+        "platform.memory.",
     ] {
         anyhow::ensure!(
             !manifest_str.contains(token),
@@ -457,11 +457,11 @@ pub(crate) async fn experience_runtime_template_generation() -> anyhow::Result<(
 
     let package_ts = std::fs::read_to_string(path.join("package.ts"))?;
     for token in &[
-        "kernel.v1.experience.",
-        "kernel.v1.world.",
-        "kernel.v1.turn.",
-        "kernel.v1.chat.",
-        "kernel.v1.memory.",
+        "platform.experience.",
+        "platform.world.",
+        "platform.turn.",
+        "platform.chat.",
+        "platform.memory.",
     ] {
         anyhow::ensure!(
             !package_ts.contains(token),
@@ -521,11 +521,11 @@ pub(crate) async fn experience_runtime_bind_agent_run() -> anyhow::Result<()> {
         "bind_agent_run must have network_performed=false"
     );
 
-    // No kernel namespace
+    // No platform-reserved namespace
     let output_str = serde_json::to_string(&binding.output).unwrap();
     anyhow::ensure!(
-        !output_str.contains("kernel.v1.experience."),
-        "binding must not contain kernel.v1.experience."
+        !output_str.contains("platform.experience."),
+        "binding must not contain platform.experience."
     );
 
     Ok(())

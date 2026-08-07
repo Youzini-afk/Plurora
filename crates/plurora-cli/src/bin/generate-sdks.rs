@@ -19,18 +19,10 @@ const SCHEMA_DIR: &str = "docs/spec/v1/schemas";
 const TS_DIR: &str = "sdk/typescript/contract-sdk/src";
 const RUST_DIR: &str = "sdk/rust/plurora-contract-sdk/src";
 const OPENAPI: &str = "sdk/openapi.yaml";
-const COMPAT_TYPE_ALIASES: &[(&str, &str)] = &[
-    ("PackageManifest2", "PackageManifest"),
-    ("PermissionSet2", "PermissionSet"),
-    ("PortLeaseRecord2", "PortLeaseRecord"),
-    ("ProxyRouteRecord2", "ProxyRouteRecord"),
-];
-
 #[derive(Clone)]
 struct MethodSpec {
     schema_id: String,
     id: String,
-    aliases: Vec<MethodAliasSpec>,
     function_ts: String,
     function_rs: String,
     params_ts: String,
@@ -40,15 +32,6 @@ struct MethodSpec {
     params_schema: Value,
     result_schema: Value,
     openapi_aliases: BTreeMap<String, String>,
-}
-
-#[derive(Clone)]
-struct MethodAliasSpec {
-    id: String,
-    canonical_id: String,
-    replacement: Option<String>,
-    function_ts: String,
-    function_rs: String,
 }
 
 #[derive(Clone)]
@@ -169,45 +152,13 @@ fn collect_methods(
         if !path.components().any(|c| c.as_os_str() == "methods") {
             continue;
         }
-        let schema_id = schema
+        let id = schema
             .pointer("/properties/method/const")
             .and_then(Value::as_str)
             .or_else(|| schema.get("title").and_then(Value::as_str))
             .ok_or_else(|| anyhow!("method schema {} has no method const", path.display()))?
             .to_string();
-        let id = schema
-            .pointer("/x-plurora-contract/canonical_id")
-            .and_then(Value::as_str)
-            .unwrap_or(&schema_id)
-            .to_string();
-        let aliases = schema
-            .pointer("/x-plurora-contract/aliases")
-            .and_then(Value::as_array)
-            .into_iter()
-            .flatten()
-            .map(|alias| {
-                let alias_id = alias
-                    .get("id")
-                    .and_then(Value::as_str)
-                    .ok_or_else(|| anyhow!("method schema {schema_id} has an alias without id"))?;
-                let canonical_id = alias
-                    .get("canonical_id")
-                    .and_then(Value::as_str)
-                    .ok_or_else(|| {
-                        anyhow!("method schema {schema_id} alias {alias_id} has no canonical_id")
-                    })?;
-                Ok(MethodAliasSpec {
-                    id: alias_id.to_string(),
-                    canonical_id: canonical_id.to_string(),
-                    replacement: alias
-                        .get("replacement")
-                        .and_then(Value::as_str)
-                        .map(str::to_string),
-                    function_ts: legacy_method_function_ts(alias_id),
-                    function_rs: legacy_method_function_rs(alias_id),
-                })
-            })
-            .collect::<Result<Vec<_>>>()?;
+        let schema_id = id.clone();
         let defs = schema.get("$defs").or_else(|| schema.get("definitions"));
         let params_schema = defs
             .and_then(|d| d.get("Params"))
@@ -234,7 +185,6 @@ fn collect_methods(
         methods.push(MethodSpec {
             schema_id,
             id: id.clone(),
-            aliases,
             function_ts,
             function_rs,
             params_rs: params_ts.clone(),
@@ -256,6 +206,13 @@ fn validate_method_specs(methods: &[MethodSpec]) -> Result<()> {
     let mut rust_functions = BTreeMap::new();
 
     for method in methods {
+        if method.id != method.schema_id {
+            return Err(anyhow!(
+                "method schema {} exposes a different wire id {}",
+                method.schema_id,
+                method.id
+            ));
+        }
         reserve_unique(
             &mut exposed_ids,
             &method.id,
@@ -274,67 +231,6 @@ fn validate_method_specs(methods: &[MethodSpec]) -> Result<()> {
             &method.schema_id,
             "Rust method name",
         )?;
-
-        if method.id != method.schema_id
-            && !method
-                .aliases
-                .iter()
-                .any(|alias| alias.id == method.schema_id)
-        {
-            return Err(anyhow!(
-                "method schema {} changed canonical id to {} without retaining its v1 id as an alias",
-                method.schema_id,
-                method.id
-            ));
-        }
-
-        for alias in &method.aliases {
-            if alias.id == method.id {
-                return Err(anyhow!(
-                    "method schema {} repeats canonical id {} as an alias",
-                    method.schema_id,
-                    method.id
-                ));
-            }
-            if alias.canonical_id != method.id {
-                return Err(anyhow!(
-                    "method schema {} alias {} points to {}, expected {}",
-                    method.schema_id,
-                    alias.id,
-                    alias.canonical_id,
-                    method.id
-                ));
-            }
-            if let Some(replacement) = &alias.replacement {
-                if replacement != &method.id {
-                    return Err(anyhow!(
-                        "method schema {} alias {} replacement is {}, expected {}",
-                        method.schema_id,
-                        alias.id,
-                        replacement,
-                        method.id
-                    ));
-                }
-            }
-            reserve_unique(
-                &mut exposed_ids,
-                &alias.id,
-                &method.schema_id,
-                "RPC method id",
-            )?;
-            reserve_unique(
-                &mut typescript_functions,
-                &alias.function_ts,
-                &method.schema_id,
-                "TypeScript method name / OpenAPI operationId",
-            )?;
-            reserve_unique(
-                &mut rust_functions,
-                &alias.function_rs,
-                &method.schema_id,
-                "Rust method name",
-            )?;
-        }
     }
     Ok(())
 }
@@ -541,18 +437,13 @@ fn emit_ts_types(registry: &TypeRegistry) -> String {
             ));
         }
     }
-    for (legacy, canonical) in COMPAT_TYPE_ALIASES {
-        if !registry.schemas.contains_key(*legacy) && registry.schemas.contains_key(*canonical) {
-            out.push_str(&format!("\nexport type {legacy} = {canonical};\n"));
-        }
-    }
     out
 }
 
 fn emit_ts_methods(methods: &[MethodSpec]) -> String {
     let mut out =
         generated_header("TypeScript client methods generated from docs/spec/v1/schemas/methods/.");
-    out.push_str("import type { KernelClient } from \"./client\";\n");
+    out.push_str("import type { PluroraClient } from \"./client\";\n");
     out.push_str("import type { ");
     let imports = methods
         .iter()
@@ -564,58 +455,36 @@ fn emit_ts_methods(methods: &[MethodSpec]) -> String {
     out.push_str(&imports);
     out.push_str(" } from \"./types\";\n\n");
 
-    out.push_str("export interface KernelMethods {\n");
+    out.push_str("export interface PlatformMethods {\n");
     for method in methods {
         out.push_str(&format!(
             "  {}(params: {}): Promise<{}>;\n",
             method.function_ts, method.params_ts, method.result_ts
         ));
-        for alias in &method.aliases {
-            out.push_str(&format!(
-                "  {}(params: {}): Promise<{}>;\n",
-                alias.function_ts, method.params_ts, method.result_ts
-            ));
-        }
     }
     out.push_str("}\n\n");
 
     out.push_str(
-        "declare module \"./client\" {\n  interface KernelClient extends KernelMethods {}\n}\n\n",
+        "declare module \"./client\" {\n  interface PluroraClient extends PlatformMethods {}\n}\n\n",
     );
 
     for method in methods {
         out.push_str(&format!(
-            "export async function {}(\n  this: KernelClient,\n  params: {},\n): Promise<{}> {{\n  return this.invoke(\"{}\", params) as Promise<{}>;\n}}\n\n",
+            "export async function {}(\n  this: PluroraClient,\n  params: {},\n): Promise<{}> {{\n  return this.invoke(\"{}\", params) as Promise<{}>;\n}}\n\n",
             method.function_ts, method.params_ts, method.result_ts, method.id, method.result_ts
         ));
-        for alias in &method.aliases {
-            out.push_str(&format!(
-                "export async function {}(\n  this: KernelClient,\n  params: {},\n): Promise<{}> {{\n  return this.invoke(\"{}\", params) as Promise<{}>;\n}}\n\n",
-                alias.function_ts,
-                method.params_ts,
-                method.result_ts,
-                alias.id,
-                method.result_ts
-            ));
-        }
     }
 
     out.push_str(
-        "export function attach<T extends KernelClient>(client: T): T & KernelMethods {\n",
+        "export function attach<T extends PluroraClient>(client: T): T & PlatformMethods {\n",
     );
     for method in methods {
         out.push_str(&format!(
-            "  (client as T & KernelMethods).{} = {}.bind(client);\n",
+            "  (client as T & PlatformMethods).{} = {}.bind(client);\n",
             method.function_ts, method.function_ts
         ));
-        for alias in &method.aliases {
-            out.push_str(&format!(
-                "  (client as T & KernelMethods).{} = {}.bind(client);\n",
-                alias.function_ts, alias.function_ts
-            ));
-        }
     }
-    out.push_str("  return client as T & KernelMethods;\n}\n");
+    out.push_str("  return client as T & PlatformMethods;\n}\n");
     out
 }
 
@@ -641,7 +510,7 @@ fn emit_ts_events(events: &[EventSpec]) -> String {
             event.payload_ts
         ));
     }
-    out.push_str("export interface KernelEventPayloadMap {\n");
+    out.push_str("export interface PlatformEventPayloadMap {\n");
     for event in events {
         out.push_str(&format!(
             "  {}: {};\n",
@@ -649,7 +518,7 @@ fn emit_ts_events(events: &[EventSpec]) -> String {
             event.payload_ts
         ));
     }
-    out.push_str("}\n\nexport type KernelEvent =\n");
+    out.push_str("}\n\nexport type PlatformEvent =\n");
     for event in events {
         out.push_str(&format!("  | {}\n", event.event_name));
     }
@@ -838,11 +707,6 @@ fn write_rust(registry: &TypeRegistry, methods: &[MethodSpec], events: &[EventSp
     let mut types = generated_rust_header("Rust types generated from docs/spec/v1/schemas/.");
     types.push_str("#![allow(clippy::large_enum_variant)]\n#![allow(clippy::derive_partial_eq_without_eq)]\n#![allow(clippy::module_name_repetitions)]\n\n");
     types.push_str(&format_rust_tokens(type_space.to_stream().to_string())?);
-    for (legacy, canonical) in COMPAT_TYPE_ALIASES {
-        if !registry.schemas.contains_key(*legacy) && registry.schemas.contains_key(*canonical) {
-            types.push_str(&format!("\npub type {legacy} = {canonical};\n"));
-        }
-    }
     fs::write(Path::new(RUST_DIR).join("types.rs"), types)?;
     fs::write(
         Path::new(RUST_DIR).join("methods.rs"),
@@ -854,7 +718,7 @@ fn write_rust(registry: &TypeRegistry, methods: &[MethodSpec], events: &[EventSp
     )?;
     fs::write(
         Path::new(RUST_DIR).join("lib.rs"),
-        "pub mod client;\npub mod events;\npub mod methods;\npub mod types;\n\npub use client::{KernelClient, KernelTransport};\npub use events::*;\npub use types::*;\n",
+        "pub mod client;\npub mod events;\npub mod methods;\npub mod types;\n\npub use client::{PluroraClient, PluroraTransport};\npub use events::*;\npub use types::*;\n",
     )?;
     Ok(())
 }
@@ -1061,23 +925,14 @@ fn emit_rust_methods(methods: &[MethodSpec]) -> Result<String> {
         generated_rust_header("Rust client methods generated from docs/spec/v1/schemas/methods/.");
     let mut out = String::new();
     out.push_str(
-        "use anyhow::Result;\n\nuse crate::client::KernelClient;\nuse crate::types::*;\n\n",
+        "use anyhow::Result;\n\nuse crate::client::PluroraClient;\nuse crate::types::*;\n\n",
     );
-    out.push_str("impl KernelClient {\n");
+    out.push_str("impl PluroraClient {\n");
     for method in methods {
         out.push_str(&format!(
             "    pub async fn {}(&self, params: {}) -> Result<{}> {{\n        let raw = self.invoke(\"{}\", serde_json::to_value(params)?).await?;\n        Ok(serde_json::from_value(raw)?)\n    }}\n\n",
             method.function_rs, method.params_rs, method.result_rs, method.id
         ));
-        for alias in &method.aliases {
-            out.push_str(&format!(
-                "    pub async fn {}(&self, params: {}) -> Result<{}> {{\n        let raw = self.invoke(\"{}\", serde_json::to_value(params)?).await?;\n        Ok(serde_json::from_value(raw)?)\n    }}\n\n",
-                alias.function_rs,
-                method.params_rs,
-                method.result_rs,
-                alias.id
-            ));
-        }
     }
     out.push_str("}\n");
     Ok(format!("{}{}", header, format_rust(out)?))
@@ -1145,37 +1000,6 @@ fn write_openapi(methods: &[MethodSpec], registry: &TypeRegistry) -> Result<()> 
                 }
             }),
         );
-        for alias in &method.aliases {
-            let mut request_schema = json_rpc_request_schema(&alias.id, &method.params_schema);
-            let mut response_schema = json_rpc_response_schema(&method.result_schema);
-            rewrite_local_definition_refs(&mut request_schema, &method.openapi_aliases, registry)?;
-            rewrite_local_definition_refs(&mut response_schema, &method.openapi_aliases, registry)?;
-            strip_definition_blocks(&mut request_schema);
-            strip_definition_blocks(&mut response_schema);
-            normalize_openapi_refs(&mut request_schema);
-            normalize_openapi_refs(&mut response_schema);
-            paths.insert(
-                format!("/rpc/{}", alias.id),
-                json!({
-                    "post": {
-                        "operationId": alias.function_ts,
-                        "summary": format!("Invoke legacy alias {} for {}", alias.id, method.id),
-                        "deprecated": true,
-                        "x-plurora-canonical-method": method.id,
-                        "requestBody": {
-                            "required": true,
-                            "content": { "application/json": { "schema": request_schema } }
-                        },
-                        "responses": {
-                            "200": {
-                                "description": "JSON-RPC response envelope",
-                                "content": { "application/json": { "schema": response_schema } }
-                            }
-                        }
-                    }
-                }),
-            );
-        }
     }
 
     let mut components = Map::new();
@@ -1187,19 +1011,11 @@ fn write_openapi(methods: &[MethodSpec], registry: &TypeRegistry) -> Result<()> 
         normalize_openapi_refs(&mut component);
         components.insert(name.clone(), component);
     }
-    for (legacy, canonical) in COMPAT_TYPE_ALIASES {
-        if !registry.schemas.contains_key(*legacy) && registry.schemas.contains_key(*canonical) {
-            components.insert(
-                (*legacy).to_string(),
-                json!({ "$ref": format!("#/components/schemas/{canonical}") }),
-            );
-        }
-    }
 
     let openapi = json!({
         "openapi": "3.1.0",
         "info": {
-            "title": "Plurora Kernel RPC API",
+            "title": "Plurora Public Contract API",
             "version": "1.0.0",
             "description": "Generated from docs/spec/v1/schemas/. JSON-RPC methods are exposed as typed /rpc/{method} operations for code generators."
         },
@@ -1314,11 +1130,7 @@ fn file_stem_type_name(path: &Path) -> String {
 }
 
 fn sanitize_type_name(name: &str) -> String {
-    let pascal = name
-        .replace("kernel.v1.", "")
-        .replace("kernel/v1/", "")
-        .replace(['.', '/', '-'], "_")
-        .to_pascal_case();
+    let pascal = name.replace(['.', '/', '-'], "_").to_pascal_case();
     if pascal.chars().next().is_some_and(|c| c.is_ascii_digit()) {
         format!("T{pascal}")
     } else {
@@ -1327,37 +1139,19 @@ fn sanitize_type_name(name: &str) -> String {
 }
 
 fn method_base_name(id: &str) -> String {
-    sanitize_type_name(id.trim_start_matches("kernel.v1."))
+    sanitize_type_name(id)
 }
 
 fn event_base_name(kind: &str) -> String {
-    sanitize_type_name(kind.trim_start_matches("kernel/v1/"))
+    sanitize_type_name(kind)
 }
 
 fn method_function_ts(id: &str) -> String {
-    id.trim_start_matches("kernel.v1.")
-        .replace(['.', '-', '/'], "_")
-        .to_lower_camel_case()
+    id.replace(['.', '-', '/'], "_").to_lower_camel_case()
 }
 
 fn method_function_rs(id: &str) -> String {
-    id.trim_start_matches("kernel.v1.")
-        .replace(['.', '-', '/'], "_")
-        .to_snake_case()
-}
-
-fn legacy_method_function_ts(id: &str) -> String {
-    format!(
-        "legacy{}",
-        id.replace(['.', '-', '/'], "_").to_pascal_case()
-    )
-}
-
-fn legacy_method_function_rs(id: &str) -> String {
-    format!(
-        "legacy_{}",
-        id.replace(['.', '-', '/'], "_").to_snake_case()
-    )
+    id.replace(['.', '-', '/'], "_").to_snake_case()
 }
 
 fn schemas_equivalent(a: &Value, b: &Value) -> bool {

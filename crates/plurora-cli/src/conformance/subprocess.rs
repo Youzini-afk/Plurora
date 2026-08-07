@@ -65,13 +65,13 @@ pub(crate) async fn package_lifecycle_timeline() -> anyhow::Result<()> {
             .await?,
         )
         .await?;
-    let session_id = "kernel_package_example_echo-subprocess-python".to_string();
+    let session_id = "platform_package_example_echo-subprocess-python".to_string();
     let events = store.list_session(&session_id).await?;
     for expected in [
-        "kernel/v1/package.loading",
-        "kernel/v1/package.starting",
-        "kernel/v1/package.ready",
-        "kernel/v1/package.loaded",
+        "host/package.loading",
+        "host/package.starting",
+        "host/package.ready",
+        "host/package.loaded",
     ] {
         anyhow::ensure!(
             events.iter().any(|event| event.kind == expected),
@@ -93,13 +93,13 @@ pub(crate) async fn path_b_self_contained_contract_none() -> anyhow::Result<()> 
         "wrong Path B package loaded"
     );
 
-    let session_id = "kernel_package_examples_path-b-app".to_string();
+    let session_id = "platform_package_examples_path-b-app".to_string();
     let events = store.list_session(&session_id).await?;
     for expected in [
-        "kernel/v1/package.loading",
-        "kernel/v1/package.starting",
-        "kernel/v1/package.ready",
-        "kernel/v1/package.loaded",
+        "host/package.loading",
+        "host/package.starting",
+        "host/package.ready",
+        "host/package.loaded",
     ] {
         anyhow::ensure!(
             events.iter().any(|event| event.kind == expected),
@@ -108,7 +108,7 @@ pub(crate) async fn path_b_self_contained_contract_none() -> anyhow::Result<()> 
     }
     let loaded = events
         .iter()
-        .find(|event| event.kind == "kernel/v1/package.loaded")
+        .find(|event| event.kind == "host/package.loaded")
         .ok_or_else(|| anyhow::anyhow!("missing Path B package.loaded event"))?;
     anyhow::ensure!(
         loaded.payload["contract_mode"] == json!("none"),
@@ -136,7 +136,7 @@ pub(crate) async fn path_b_self_contained_contract_none() -> anyhow::Result<()> 
             input: json!({"path_b": true}),
         })
         .await
-        .expect_err("Foreign Capsule must not receive kernel capability authority");
+        .expect_err("Foreign Capsule must not receive platform capability authority");
     anyhow::ensure!(
         denied.to_string().contains("Foreign Capsule"),
         "Path B denial should identify the Foreign Capsule boundary: {denied}"

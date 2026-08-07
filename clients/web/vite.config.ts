@@ -75,7 +75,7 @@ export default defineConfig({
         target: 'http://127.0.0.1:8787',
         changeOrigin: false,
       },
-      '/kernel': {
+      '/journal': {
         target: 'http://127.0.0.1:8787',
         changeOrigin: false,
       },
@@ -135,7 +135,7 @@ export default defineConfig({
         navigateFallbackAllowlist: [/^\/$/, /^\/project\/[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/],
         navigateFallbackDenylist: [
           /^\/rpc(?:\/|$)/,
-          /^\/kernel(?:\/|$)/,
+          /^\/journal(?:\/|$)/,
           /^\/host(?:\/|$)/,
           /^\/p(?:\/|$)/,
           /^\/surface-bundles(?:\/|$)/,

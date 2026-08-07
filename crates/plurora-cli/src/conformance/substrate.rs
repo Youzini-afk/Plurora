@@ -29,7 +29,7 @@ pub(crate) async fn sqlite_rehydrate() -> anyhow::Result<()> {
         .projection_register(plurora_runtime::runtime::ProjectionDefinition {
             id: "example/durable/projection".to_string(),
             session_id: session.id.clone(),
-            source_kind_prefix: Some("kernel/v1/session".to_string()),
+            source_kind_prefix: Some("context/".to_string()),
             state: json!({}),
         })
         .await?;

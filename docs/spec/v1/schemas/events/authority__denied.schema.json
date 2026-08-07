@@ -1,0 +1,28 @@
+{
+  "$defs": {
+    "Payload": {
+      "properties": {
+        "operation": {
+          "type": "string"
+        },
+        "package_id": {
+          "type": "string"
+        }
+      },
+      "type": "object"
+    }
+  },
+  "$id": "urn:plurora:schema:event:authority/denied:v1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "Payload schema for event kind authority/denied.",
+  "properties": {
+    "kind": {
+      "const": "authority/denied"
+    },
+    "payload": {
+      "$ref": "#/$defs/Payload"
+    }
+  },
+  "title": "authority/denied",
+  "type": "object"
+}

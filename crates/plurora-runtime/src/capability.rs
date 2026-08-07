@@ -391,16 +391,14 @@ mod tests {
             .register_package(
                 &"example/veto".to_string(),
                 &[HookSubscription {
-                    extension_point: "kernel/v1/session.before_open".to_string(),
+                    extension_point: "context/before_open".to_string(),
                     handler: "veto".to_string(),
                     timing: HookTiming::Sync,
                     precedence: 0,
                 }],
             )
             .await;
-        let result = registry
-            .dispatch("kernel/v1/session.before_open", json!({}))
-            .await;
+        let result = registry.dispatch("context/before_open", json!({})).await;
         assert_eq!(result.vetoed_by, Some("example/veto".to_string()));
     }
 }

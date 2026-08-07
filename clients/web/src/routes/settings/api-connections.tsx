@@ -18,7 +18,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
 import { useToast } from "@/components/ui/toast";
-import { useAsync, useKernel } from "@/lib/kernel-client";
+import { useAsync, usePlurora } from "@/lib/plurora-client";
 import { useT } from "@/lib/locale";
 import { cn } from "@/lib/cn";
 
@@ -56,7 +56,7 @@ const PROVIDER_HINTS: Record<string, string> = {
 };
 
 export function ApiConnectionsPanel() {
-  const client = useKernel();
+  const client = usePlurora();
   const toast = useToast();
   const t = useT();
 

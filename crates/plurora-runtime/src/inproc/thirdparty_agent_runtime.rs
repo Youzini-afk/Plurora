@@ -2,7 +2,7 @@
 //!
 //! Demonstrates that third-party packages can produce the same
 //! deterministic, no-network, no-inference, proposal-gated output shapes
-//! as the official labs without any kernel privilege or special routing.
+//! as the official labs without any platform privilege or special routing.
 
 use serde_json::Value;
 
@@ -87,7 +87,7 @@ fn run(request: &InprocInvocation) -> anyhow::Result<Value> {
         "proposal_draft": {
             "kind": "thirdparty_agent_proposal_draft",
             "requires_user_approval": true,
-            "recommended_operation": "kernel.v1.session.fork",
+            "recommended_operation": "context.fork",
             "plan_summary": "deterministic no-inference agent run plan from community runtime"
         },
         "provenance": {
@@ -115,7 +115,7 @@ fn draft_proposal(request: &InprocInvocation) -> anyhow::Result<Value> {
     Ok(serde_json::json!({
         "kind": "thirdparty_agent_proposal",
         "requires_user_approval": true,
-        "recommended_operation": "kernel.v1.session.fork",
+        "recommended_operation": "context.fork",
         "proposal": request.input,
         "provenance": {
             "package_id": request.provider_package_id,

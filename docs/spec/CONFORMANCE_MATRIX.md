@@ -57,9 +57,9 @@ The current matrix includes the following project-model cases. 实际 case id �
 | project registry | `project.list_returns_registered` | registry/list 返回已注册项目 | implemented |
 | project runtime | `project.state_transitions` | start/stop 状态转换 | implemented |
 | project uninstall | `project.archive_keeps_data` | uninstall keep-data 归档项目目录 | implemented |
-| project protocol | `protocol.project_list_returns_registered_projects` | `kernel.v1.project.list` 返回项目列表 | implemented |
-| project protocol | `protocol.project_get_returns_full_descriptor` | `kernel.v1.project.get` 返回完整 descriptor | implemented |
-| project protocol | `protocol.project_start_transitions_state` | `kernel.v1.project.start` 转换状态 | implemented |
+| project protocol | `protocol.project_list_returns_registered_projects` | `host.project.list` 返回项目列表 | implemented |
+| project protocol | `protocol.project_get_returns_full_descriptor` | `host.project.get` 返回完整 descriptor | implemented |
+| project protocol | `protocol.project_start_transitions_state` | `host.project.start` 转换状态 | implemented |
 | project protocol | `protocol.project_methods_require_admin_principal` | project methods 限 HostAdmin/HostDev | implemented |
 | project protocol | `protocol.project_lifecycle_event_emitted_on_start` | start 发出项目 lifecycle event | implemented |
 
@@ -198,7 +198,7 @@ Surface/static bundle 与 bridge 还覆盖以下稳定断言：
 | official packages | inference-playtest-lab inspect_proposal 返回 risk/operations/permissions/provenance summary，不 apply | implemented |
 | official packages | inference-playtest-lab 被拒绝的 proposal 不能 apply | implemented |
 | official packages | inference-playtest-lab approve/apply 成功，asset 被写入，branch_plan + fork 创建 branch，branch metadata 包含 proposal/source inference provenance | implemented |
-| official packages | inference-playtest-lab 输出不含 messages/prompt/chat/kernel.v1.model 等术语 | implemented |
+| official packages | inference-playtest-lab 输出不含 messages/prompt/chat/platform.model 等术语 | implemented |
 | in-process packages | non-official `/preview` suffix 不会获得 official asset-lab fallback 行为 | implemented |
 | in-process packages | unknown registered in-process capability loud fail，而不是返回 generic fallback success | implemented |
 | official packages | assistant-lab 通过授权返回需要审批的 proposal | implemented |
@@ -212,11 +212,11 @@ Surface/static bundle 与 bridge 还覆盖以下稳定断言：
 | composition | 本地 composition 描述符验证包提供的 surface | implemented |
 | composition | composition 描述符 v2：required capabilities 通过、optional 缺失仅警告、required 缺失失败 | implemented |
 | official packages | composition-lab v2 诊断返回 surface/capability/permission/replacement 字段与 compat-report | implemented |
-| replacement | 第三方 playable-seed surface 通过 kernel.v1.surface.contribution.list 可发现 | implemented |
+| replacement | 第三方 playable-seed surface 通过 shell.contribution.list 可发现 | implemented |
 | replacement | 第三方 playable-seed 能力调用通过正常路由工作 | implemented |
 | replacement | 歧义的 official+thirdparty 等效能力拒绝路由，无官方优先 | implemented |
 | replacement | composition 描述符通过第三方 playable-seed 替换 | implemented |
-| replacement | 第三方 agent-runtime surfaces（assistant_action/forge_panel/home_card）通过 kernel.v1.surface.contribution.list 可发现 | implemented |
+| replacement | 第三方 agent-runtime surfaces（assistant_action/forge_panel/home_card）通过 shell.contribution.list 可发现 | implemented |
 | replacement | 第三方 agent-runtime 能力调用产生 no-inference/no-network、approval-gated proposal、provenance 匹配 | implemented |
 | replacement | composition 描述符通过第三方 agent-runtime 替换，official 仅 replacement_candidate | implemented |
 | network | 无 network permission 的包被拒绝出站，产生 outbound.denied 审计 | implemented |
@@ -245,19 +245,19 @@ Surface/static bundle 与 bridge 还覆盖以下稳定断言：
 | outbound | live HTTP executor 默认关闭；RuntimeConfig::default 仍 DenyAll | implemented |
 | outbound | live HTTP executor 拒绝非 HTTPS URL；无网络尝试 | implemented |
 | outbound | live HTTP executor response shape 不含 raw body/header/secret | implemented |
-| outbound | kernel.v1.outbound.execute 公开协议：package principal 通过 context 确定 package_id 不能 spoof，FakeOutboundExecutor + allowed network declaration 成功且 audit 产生 | implemented |
-| outbound | kernel.v1.outbound.execute spoofed package_id 被拒绝，不能代替其他 package | implemented |
-| outbound | kernel.v1.outbound.execute 无 network permission denied，executor 不调用 | implemented |
-| outbound | kernel.v1.outbound.execute response 不含 raw secret（secret_refs 仅引用） | implemented |
-| outbound | kernel.v1.outbound.execute `secret_headers` params 解析正确，raw secret 不出现在 response | implemented |
+| outbound | host.outbound.execute 公开协议：package principal 通过 context 确定 package_id 不能 spoof，FakeOutboundExecutor + allowed network declaration 成功且 audit 产生 | implemented |
+| outbound | host.outbound.execute spoofed package_id 被拒绝，不能代替其他 package | implemented |
+| outbound | host.outbound.execute 无 network permission denied，executor 不调用 | implemented |
+| outbound | host.outbound.execute response 不含 raw secret（secret_refs 仅引用） | implemented |
+| outbound | host.outbound.execute `secret_headers` params 解析正确，raw secret 不出现在 response | implemented |
 | outbound_execute | profile 默认 deny-all、fake/live executor 配置、包权限、capability namespace、无权限拒绝、secret_ref 声明、response 脱敏 | implemented |
-| outbound_stream | `kernel.v1.outbound.stream` profile 默认拒绝、fake stream frame、secret_ref 声明、capability namespace、HTTPS-only 策略 | implemented |
-| outbound_websocket | `kernel.v1.outbound.websocket.*` profile 默认 deny-all、fake executor open/send/close、live executor 未启用时拒绝 | implemented |
+| outbound_stream | `host.outbound.stream` profile 默认拒绝、fake stream frame、secret_ref 声明、capability namespace、HTTPS-only 策略 | implemented |
+| outbound_websocket | `platform.outbound.websocket.*` profile 默认 deny-all、fake executor open/send/close、live executor 未启用时拒绝 | implemented |
 | outbound_websocket | secret_ref 未声明 fail-closed、capability namespace 校验、默认 WSS-only | implemented |
-| outbound_websocket | idle timeout 产生 error + completed、inbound max_total_bytes 终止、max_concurrent_connections 生效、可通过 `kernel.v1.capability.cancel` 取消 | implemented |
-| outbound | `kernel/v1/outbound.execute.completed` 完成审计事件发出 | implemented |
-| outbound | `kernel/v1/outbound.stream.completed` 完成审计事件发出 | implemented |
-| outbound | `kernel/v1/outbound.websocket.completed` 完成审计事件发出 | implemented |
+| outbound_websocket | idle timeout 产生 error + completed、inbound max_total_bytes 终止、max_concurrent_connections 生效、可通过 `capability.cancel` 取消 | implemented |
+| outbound | `host/outbound.execute.completed` 完成审计事件发出 | implemented |
+| outbound | `host/outbound.stream.completed` 完成审计事件发出 | implemented |
+| outbound | `host/outbound.websocket.completed` 完成审计事件发出 | implemented |
 | outbound | HTTP/stream/WebSocket completion 挂接 terminal receipt；policy/executor 不一致会产生 failed receipt；timeout/cancel 不产生重复 stream terminal；所有 executor 禁用后仍可 historical replay | implemented |
 | deployment exec | deny-all start 与 fake stop 产生 denied/cancelled receipt；runtime 主动观察 live terminal；自然退出/超时、重复 denial、stop/status 竞态和重启 hydration 均保持唯一终态 receipt | implemented |
 | secret_ref | manifest `permissions.secret_refs` 声明：未声明 fail-closed，已声明经 host resolver 解析 | implemented |
@@ -292,7 +292,7 @@ Surface/static bundle 与 bridge 还覆盖以下稳定断言：
 | official packages | experience-observability-lab summarize_cost_latency 从 outbound audit 引用返回 cost/latency summary，无 raw secret | implemented |
 | official packages | experience-observability-lab list_failure_breadcrumbs 从协议可见 event 引用返回 failure breadcrumbs | implemented |
 | official packages | experience-observability-lab summarize_guardrails 从协议可见 audit 引用返回 guardrail/audit summary | implemented |
-| official packages | experience-observability-lab 任何输出不含 kernel.v1.observability.* / kernel.v1.experience.* namespace | implemented |
+| official packages | experience-observability-lab 任何输出不含 platform.observability.* / platform.experience.* namespace | implemented |
 | official packages | experience-observability-lab 所有能力输入阻断 raw secret | implemented |
 | official packages | memory-lab describe_memory_contract 返回 9 项能力、3 个 surface、output shapes，无 forbidden namespace | implemented |
 | official packages | memory-lab record_memory 产出 memory_record 含 content_address / branch_ref / knowledge_refs | implemented |
@@ -302,7 +302,7 @@ Surface/static bundle 与 bridge 还覆盖以下稳定断言：
 | official packages | memory-lab apply_memory_correction 产出 correction shape，proposal-gated | implemented |
 | official packages | memory-lab draft_forget_redaction 产出 redaction plan，不直接删除 | implemented |
 | official packages | memory-lab branch_memory_view 按 branch 过滤记忆记录 | implemented |
-| official packages | memory-lab 任何输出不含 kernel.v1.memory.* / kernel.v1.experience.* namespace | implemented |
+| official packages | memory-lab 任何输出不含 platform.memory.* / platform.experience.* namespace | implemented |
 | official packages | memory-lab 所有能力输入阻断 raw secret | implemented |
 | official packages | sharing-lab describe_sharing_contract 返回 9 项能力、3 个 surface、output shapes、red lines，无 forbidden namespace | implemented |
 | official packages | sharing-lab export_composition_bundle 产出含 manifest/lockfile/disclosure 的自包含 bundle，no marketplace/billing fields | implemented |
@@ -313,14 +313,14 @@ Surface/static bundle 与 bridge 还覆盖以下稳定断言：
 | official packages | sharing-lab ai_disclosure_bundle 产出 AI disclosure metadata，标记内容来源 | implemented |
 | official packages | sharing-lab read_only_share_manifest 只读共享 session manifest，local_file proof，no remote service | implemented |
 | official packages | sharing-lab async_fork_share_plan 异步 fork 分享计划，draft/plan-only/requires_user_approval | implemented |
-| official packages | sharing-lab 无 marketplace/billing/signing 字段，无 raw secrets，无 kernel.v1.sharing/marketplace/billing namespace | implemented |
+| official packages | sharing-lab 无 marketplace/billing/signing 字段，无 raw secrets，无 platform.sharing/marketplace/billing namespace | implemented |
 | storage backend | in-memory EventStore 满足 append/list/range/next_sequence 基础契约 | implemented |
 | storage backend | SQLite EventStore 满足 append/list/range/next_sequence 基础契约 | implemented |
 | storage backend | in-memory 与 SQLite kind-prefix 查询结果语义一致 | implemented |
 | storage backend | in-memory 与 SQLite 并发 append 无重复序号 | implemented |
 | storage backend | in-memory 与 SQLite append 后订阅广播行为一致 | implemented |
 | storage backend | in-memory 与 SQLite rehydrate 事件重放语义一致 | implemented |
-| storage lab | storage-lab 合约形状不含 kernel database 术语（kernel.v1.sqlite/postgres/tdb/vector/embedding/collection/sql/database） | implemented |
+| storage lab | storage-lab 合约形状不含 kernel database 术语（platform.sqlite/postgres/tdb/vector/embedding/collection/sql/database） | implemented |
 | storage lab | storage-lab backend class 候选只含 capability flags，不含 secret-bearing backend config | implemented |
 | storage lab | package state plan namespace 属于 owning package，无 official 优先级 | implemented |
 | storage lab | put document preview 不执行真实写入（write_performed=false） | implemented |
@@ -350,16 +350,16 @@ Surface/static bundle 与 bridge 还覆盖以下稳定断言：
 | storage lab | retrieval 所有能力输入阻断 raw secret | implemented |
 | storage lab | retrieval 所有能力输出无 kernel vector/embedding namespace 或 credentials | implemented |
 | capability handles | package load 自动 mint manifest 声明对应的 capability handles | implemented |
-| capability handles | `kernel.v1.cap.attenuate` 生成更窄子句柄且不能扩权 | implemented |
-| capability handles | `kernel.v1.cap.revoke` 使句柄及相关调用立刻失效 | implemented |
-| capability handles | `kernel.v1.cap.list_for` 返回 package 当前 live handles | implemented |
-| invoke instrumentation | capability invoke 发出 `kernel/v1/capability.invoked` | implemented |
-| invoke instrumentation | capability invoke 成功发出 `kernel/v1/capability.completed` | implemented |
-| invoke instrumentation | capability invoke 失败发出 `kernel/v1/capability.failed` | implemented |
+| capability handles | `authority.handle.attenuate` 生成更窄子句柄且不能扩权 | implemented |
+| capability handles | `authority.handle.revoke` 使句柄及相关调用立刻失效 | implemented |
+| capability handles | `authority.handle.list` 返回 package 当前 live handles | implemented |
+| invoke instrumentation | capability invoke 发出 `capability/invoked` | implemented |
+| invoke instrumentation | capability invoke 成功发出 `capability/completed` | implemented |
+| invoke instrumentation | capability invoke 失败发出 `capability/failed` | implemented |
 | invoke instrumentation | completed/failed event 与 result 挂接同一 EffectReceipt descriptor | implemented |
 | bindings | subprocess handshake 注入 v1 bindings 字典 | implemented |
-| bindings | rust_inproc `KernelEnv` 注入 bindings | implemented |
-| package | `package.audit_report` / `kernel.v1.audit.package` 报告 declared vs used authority | implemented |
+| bindings | rust_inproc `ComponentEnv` 注入 bindings | implemented |
+| package | `package.audit_report` / `host.package.audit` 报告 declared vs used authority | implemented |
 | package | `package.path_b_self_contained` 验证 `entry.contract: none` 自包含路径 | implemented |
 | git tools | 5 个 git-tools 用例：URL/path validation 与 signed tag fixture | implemented |
 | integrity | 7 个 integrity 用例：tree hash、manifest hash、GPG verify、fingerprint | implemented |
@@ -490,7 +490,7 @@ official.inference_playtest_lab_draft         PASS
 official.inference_playtest_lab_inspect       PASS
 official.inference_playtest_lab_reject_apply_denied PASS
 official.inference_playtest_lab_apply_and_branch PASS
-official.inference_playtest_lab_no_chat_kernel_terms PASS
+plurora.inference_playtest_lab_no_chat_platform_terms PASS
 inproc.non_official_preview_rejected       PASS
 inproc.unknown_capability_errors           PASS
 replacement.thirdparty_seed_surfaces         PASS

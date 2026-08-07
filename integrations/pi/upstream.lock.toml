@@ -10,7 +10,7 @@ agent_core = "@earendil-works/pi-agent-core"
 coding_agent = "@earendil-works/pi-coding-agent"
 
 [policy]
-kernel_dependency = false
+platform_dependency = false
 service_dependency = false
 web_shell_dependency = false
 coding_agent_embedding = "rejected"

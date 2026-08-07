@@ -112,7 +112,7 @@ pub(crate) async fn no_network_permission_denied() -> anyhow::Result<()> {
     );
 
     // Check that an outbound denied event was recorded
-    let session_id = "kernel_outbound_example_no-net".to_string();
+    let session_id = "platform_outbound_example_no-net".to_string();
     let events = store.list_session(&session_id).await?;
     let denied_events: Vec<_> = events
         .iter()
@@ -120,7 +120,7 @@ pub(crate) async fn no_network_permission_denied() -> anyhow::Result<()> {
         .collect();
     anyhow::ensure!(
         !denied_events.is_empty(),
-        "expected kernel/v1/outbound.denied audit event"
+        "expected host/outbound.denied audit event"
     );
 
     // Verify audit record does not contain raw body/secret
@@ -186,7 +186,7 @@ pub(crate) async fn allowlisted_host_method_allowed() -> anyhow::Result<()> {
     );
 
     // Verify no raw secret/body in the audit event
-    let session_id = "kernel_outbound_example_allowlisted".to_string();
+    let session_id = "platform_outbound_example_allowlisted".to_string();
     let events = store.list_session(&session_id).await?;
     let request_events: Vec<_> = events
         .iter()
@@ -194,7 +194,7 @@ pub(crate) async fn allowlisted_host_method_allowed() -> anyhow::Result<()> {
         .collect();
     anyhow::ensure!(
         !request_events.is_empty(),
-        "expected kernel/v1/outbound.request audit event"
+        "expected host/outbound.request audit event"
     );
     let payload_str = serde_json::to_string(&request_events[0].payload)?;
     anyhow::ensure!(
@@ -254,7 +254,7 @@ pub(crate) async fn host_method_mismatch_denied() -> anyhow::Result<()> {
     anyhow::ensure!(result2.is_err(), "wrong host should be denied");
 
     // Verify denied events
-    let session_id = "kernel_outbound_example_method-mismatch".to_string();
+    let session_id = "platform_outbound_example_method-mismatch".to_string();
     let events = store.list_session(&session_id).await?;
     let denied_events: Vec<_> = events
         .iter()
@@ -653,7 +653,7 @@ pub(crate) async fn outbound_allowlisted_fake_executor() -> anyhow::Result<()> {
     );
 
     // Verify audit event is redacted
-    let session_id = "kernel_outbound_example_m3-allowlisted".to_string();
+    let session_id = "platform_outbound_example_m3-allowlisted".to_string();
     let events = store.list_session(&session_id).await?;
     let request_events: Vec<_> = events
         .iter()
@@ -661,7 +661,7 @@ pub(crate) async fn outbound_allowlisted_fake_executor() -> anyhow::Result<()> {
         .collect();
     anyhow::ensure!(
         !request_events.is_empty(),
-        "expected kernel/v1/outbound.request audit event"
+        "expected host/outbound.request audit event"
     );
 
     let payload = &request_events[0].payload;
@@ -726,7 +726,7 @@ pub(crate) async fn outbound_raw_body_not_audited() -> anyhow::Result<()> {
         .await?;
 
     // Check audit event — raw body content must not appear
-    let session_id = "kernel_outbound_example_m3-raw-body".to_string();
+    let session_id = "platform_outbound_example_m3-raw-body".to_string();
     let events = store.list_session(&session_id).await?;
     let request_events: Vec<_> = events
         .iter()
@@ -734,7 +734,7 @@ pub(crate) async fn outbound_raw_body_not_audited() -> anyhow::Result<()> {
         .collect();
     anyhow::ensure!(
         !request_events.is_empty(),
-        "expected kernel/v1/outbound.request audit event"
+        "expected host/outbound.request audit event"
     );
 
     let payload_str = serde_json::to_string(&request_events[0].payload)?;
@@ -1293,10 +1293,10 @@ pub(crate) async fn outbound_live_http_redacted_shape() -> anyhow::Result<()> {
 }
 
 // ---------------------------------------------------------------------------
-// L3: kernel.v1.outbound.execute public protocol conformance cases
+// L3: host.outbound.execute public protocol conformance cases
 // ---------------------------------------------------------------------------
 
-/// L3: Package principal calls kernel.v1.outbound.execute with FakeOutboundExecutor
+/// L3: Package principal calls host.outbound.execute with FakeOutboundExecutor
 /// and allowed network declaration. Response has executor_kind Fake,
 /// network_performed false, and a host audit event is produced.
 pub(crate) async fn outbound_execute_package_allowed() -> anyhow::Result<()> {
@@ -1319,7 +1319,7 @@ pub(crate) async fn outbound_execute_package_allowed() -> anyhow::Result<()> {
     let response_value = runtime
         .call_protocol(
             &context,
-            "kernel.v1.outbound.execute",
+            "host.outbound.execute",
             serde_json::json!({
                 "capability_id": "example/l3-allowed/fetch",
                 "destination_host": "api.openai.com",
@@ -1359,7 +1359,7 @@ pub(crate) async fn outbound_execute_package_allowed() -> anyhow::Result<()> {
     );
 
     // Verify audit event was produced
-    let session_id = "kernel_outbound_example_l3-allowed".to_string();
+    let session_id = "platform_outbound_example_l3-allowed".to_string();
     let events = store.list_session(&session_id).await?;
     let request_events: Vec<_> = events
         .iter()
@@ -1367,7 +1367,7 @@ pub(crate) async fn outbound_execute_package_allowed() -> anyhow::Result<()> {
         .collect();
     anyhow::ensure!(
         !request_events.is_empty(),
-        "expected kernel/v1/outbound.request audit event"
+        "expected host/outbound.request audit event"
     );
 
     Ok(())
@@ -1376,7 +1376,7 @@ pub(crate) async fn outbound_execute_package_allowed() -> anyhow::Result<()> {
 /// L3: Params that spoof a different package_id are overridden by the
 /// context principal. The package_id in the outbound request comes from
 /// the context, not from params — a package cannot call
-/// kernel.v1.outbound.execute on behalf of another package.
+/// host.outbound.execute on behalf of another package.
 pub(crate) async fn outbound_execute_spoofed_package_id_rejected() -> anyhow::Result<()> {
     let (_store, runtime, fake) = runtime_with_fake_executor();
     // Load the "real" package with network permission
@@ -1406,7 +1406,7 @@ pub(crate) async fn outbound_execute_spoofed_package_id_rejected() -> anyhow::Re
     let result = runtime
         .call_protocol(
             &context,
-            "kernel.v1.outbound.execute",
+            "host.outbound.execute",
             serde_json::json!({
                 "package_id": "example/l3-real",  // spoofed — should be ignored
                 "capability_id": "example/l3-real/fetch",
@@ -1441,7 +1441,7 @@ pub(crate) async fn outbound_execute_no_permission_denied() -> anyhow::Result<()
     let result = runtime
         .call_protocol(
             &context,
-            "kernel.v1.outbound.execute",
+            "host.outbound.execute",
             serde_json::json!({
                 "capability_id": "example/l3-no-net/fetch",
                 "destination_host": "api.example.com",
@@ -1473,7 +1473,7 @@ pub(crate) async fn outbound_execute_no_permission_denied() -> anyhow::Result<()
     Ok(())
 }
 
-/// L3: Response from kernel.v1.outbound.execute never contains raw secrets.
+/// L3: Response from host.outbound.execute never contains raw secrets.
 /// secret_refs in params are passed to the executor request, but the
 /// response JSON must not contain any raw secret patterns.
 pub(crate) async fn outbound_execute_no_raw_secret_in_response() -> anyhow::Result<()> {
@@ -1497,7 +1497,7 @@ pub(crate) async fn outbound_execute_no_raw_secret_in_response() -> anyhow::Resu
     let response_value = runtime
         .call_protocol(
             &context,
-            "kernel.v1.outbound.execute",
+            "host.outbound.execute",
             serde_json::json!({
                 "capability_id": "example/l3-secret-check/fetch",
                 "destination_host": "api.example.com",
@@ -1702,7 +1702,7 @@ pub(crate) async fn outbound_websocket_profile_default_deny_all() -> anyhow::Res
     let result = runtime
         .call_protocol(
             &context,
-            "kernel.v1.outbound.websocket.open",
+            "host.outbound.websocket.open",
             serde_json::json!({
                 "capability_id": "example/z4-ws-default/fetch",
                 "destination_host": "api.openai.com",
@@ -1743,7 +1743,7 @@ pub(crate) async fn outbound_websocket_profile_fake_executor_works() -> anyhow::
     let response = runtime
         .call_protocol(
             &context,
-            "kernel.v1.outbound.websocket.open",
+            "host.outbound.websocket.open",
             serde_json::json!({
                 "capability_id": "example/z4-ws-fake/fetch",
                 "destination_host": "api.openai.com",
@@ -1822,7 +1822,7 @@ pub(crate) async fn outbound_websocket_secret_ref_undeclared_fails() -> anyhow::
     let result = runtime
         .call_protocol(
             &context,
-            "kernel.v1.outbound.websocket.open",
+            "host.outbound.websocket.open",
             serde_json::json!({
                 "capability_id": "example/z7-ws-secret/fetch",
                 "destination_host": "api.openai.com",
@@ -1856,7 +1856,7 @@ pub(crate) async fn outbound_websocket_capability_namespace_enforced() -> anyhow
     let result = runtime
         .call_protocol(
             &context,
-            "kernel.v1.outbound.websocket.open",
+            "host.outbound.websocket.open",
             serde_json::json!({
                 "capability_id": "other/pkg/fetch",
                 "destination_host": "api.openai.com"
@@ -1919,7 +1919,7 @@ pub(crate) async fn outbound_websocket_idle_timeout_emits_error_and_completed() 
         ))
         .await?;
     let context = plurora_runtime::ProtocolContext::package("example/z7-ws-idle", "in_process");
-    runtime.call_protocol(&context, "kernel.v1.outbound.websocket.open", serde_json::json!({"capability_id":"example/z7-ws-idle/fetch","destination_host":"api.openai.com"})).await.map_err(|e| anyhow::anyhow!("{:?}", e))?;
+    runtime.call_protocol(&context, "host.outbound.websocket.open", serde_json::json!({"capability_id":"example/z7-ws-idle/fetch","destination_host":"api.openai.com"})).await.map_err(|e| anyhow::anyhow!("{:?}", e))?;
     let completed = wait_for_kind(&store, EVENT_OUTBOUND_WEBSOCKET_COMPLETED).await?;
     anyhow::ensure!(
         completed[0].payload.get("reason").and_then(|v| v.as_str()) == Some("idle_timeout"),
@@ -1958,7 +1958,7 @@ pub(crate) async fn outbound_websocket_max_total_bytes_inbound_terminates() -> a
         ))
         .await?;
     let context = plurora_runtime::ProtocolContext::package("example/z7-ws-bytes", "in_process");
-    runtime.call_protocol(&context, "kernel.v1.outbound.websocket.open", serde_json::json!({"capability_id":"example/z7-ws-bytes/fetch","destination_host":"api.openai.com"})).await.map_err(|e| anyhow::anyhow!("{:?}", e))?;
+    runtime.call_protocol(&context, "host.outbound.websocket.open", serde_json::json!({"capability_id":"example/z7-ws-bytes/fetch","destination_host":"api.openai.com"})).await.map_err(|e| anyhow::anyhow!("{:?}", e))?;
     let completed = wait_for_kind(&store, EVENT_OUTBOUND_WEBSOCKET_COMPLETED).await?;
     anyhow::ensure!(
         completed[0].payload.get("reason").and_then(|v| v.as_str()) == Some("inbound_limit"),
@@ -1991,8 +1991,8 @@ pub(crate) async fn outbound_websocket_max_concurrent_connections_enforced() -> 
         ))
         .await?;
     let context = plurora_runtime::ProtocolContext::package("example/z7-ws-cap", "in_process");
-    runtime.call_protocol(&context, "kernel.v1.outbound.websocket.open", serde_json::json!({"capability_id":"example/z7-ws-cap/fetch","destination_host":"api.openai.com"})).await.map_err(|e| anyhow::anyhow!("{:?}", e))?;
-    let result = runtime.call_protocol(&context, "kernel.v1.outbound.websocket.open", serde_json::json!({"capability_id":"example/z7-ws-cap/fetch","destination_host":"api.openai.com"})).await;
+    runtime.call_protocol(&context, "host.outbound.websocket.open", serde_json::json!({"capability_id":"example/z7-ws-cap/fetch","destination_host":"api.openai.com"})).await.map_err(|e| anyhow::anyhow!("{:?}", e))?;
+    let result = runtime.call_protocol(&context, "host.outbound.websocket.open", serde_json::json!({"capability_id":"example/z7-ws-cap/fetch","destination_host":"api.openai.com"})).await;
     anyhow::ensure!(
         result.is_err(),
         "second websocket open should exceed concurrent cap"
@@ -2015,7 +2015,7 @@ pub(crate) async fn outbound_websocket_cancel_via_capability_cancel() -> anyhow:
         ))
         .await?;
     let context = plurora_runtime::ProtocolContext::package("example/z7-ws-cancel", "in_process");
-    let response = runtime.call_protocol(&context, "kernel.v1.outbound.websocket.open", serde_json::json!({"capability_id":"example/z7-ws-cancel/fetch","destination_host":"api.openai.com"})).await.map_err(|e| anyhow::anyhow!("{:?}", e))?;
+    let response = runtime.call_protocol(&context, "host.outbound.websocket.open", serde_json::json!({"capability_id":"example/z7-ws-cancel/fetch","destination_host":"api.openai.com"})).await.map_err(|e| anyhow::anyhow!("{:?}", e))?;
     let connection_id = response
         .get("connection_id")
         .and_then(|v| v.as_str())
@@ -2023,10 +2023,10 @@ pub(crate) async fn outbound_websocket_cancel_via_capability_cancel() -> anyhow:
     runtime
         .call_protocol(
             &context,
-            "kernel.v1.capability.cancel",
+            "capability.cancel",
             serde_json::json!({
                 "stream_id": connection_id,
-                "session_id": "kernel_outbound_websocket_example_z7-ws-cancel"
+                "session_id": "platform_outbound_websocket_example_z7-ws-cancel"
             }),
         )
         .await
@@ -2068,7 +2068,7 @@ pub(crate) async fn outbound_execute_completed_audit_emitted() -> anyhow::Result
         ))
         .await?;
     let context = plurora_runtime::ProtocolContext::package("example/z7-exec-audit", "in_process");
-    runtime.call_protocol(&context, "kernel.v1.outbound.execute", serde_json::json!({"capability_id":"example/z7-exec-audit/fetch","destination_host":"api.openai.com","method":"POST"})).await.map_err(|e| anyhow::anyhow!("{:?}", e))?;
+    runtime.call_protocol(&context, "host.outbound.execute", serde_json::json!({"capability_id":"example/z7-exec-audit/fetch","destination_host":"api.openai.com","method":"POST"})).await.map_err(|e| anyhow::anyhow!("{:?}", e))?;
     let events = wait_for_kind(&store, EVENT_OUTBOUND_EXECUTE_COMPLETED).await?;
     anyhow::ensure!(
         events[0].payload.get("status").and_then(|v| v.as_str()) == Some("ok"),
@@ -2173,7 +2173,7 @@ pub(crate) async fn outbound_receipt_replays_without_executor() -> anyhow::Resul
     runtime
         .call_protocol(
             &context,
-            "kernel.v1.outbound.execute",
+            "host.outbound.execute",
             serde_json::json!({
                 "capability_id": "example/receipt-replay/fetch",
                 "destination_host": "api.openai.com",
@@ -2224,7 +2224,7 @@ pub(crate) async fn outbound_execute_correlation_id_propagates() -> anyhow::Resu
         .await?;
     let context =
         plurora_runtime::ProtocolContext::package("example/z7-exec-correlation", "in_process");
-    runtime.call_protocol(&context, "kernel.v1.outbound.execute", serde_json::json!({"capability_id":"example/z7-exec-correlation/fetch","destination_host":"api.openai.com","method":"POST"})).await.map_err(|e| anyhow::anyhow!("{:?}", e))?;
+    runtime.call_protocol(&context, "host.outbound.execute", serde_json::json!({"capability_id":"example/z7-exec-correlation/fetch","destination_host":"api.openai.com","method":"POST"})).await.map_err(|e| anyhow::anyhow!("{:?}", e))?;
     let events = wait_for_kind(&store, EVENT_OUTBOUND_EXECUTE_COMPLETED).await?;
     anyhow::ensure!(
         events[0]
@@ -2256,7 +2256,7 @@ pub(crate) async fn outbound_stream_completed_audit_emitted() -> anyhow::Result<
         .await?;
     let context =
         plurora_runtime::ProtocolContext::package("example/z7-stream-audit", "in_process");
-    runtime.call_protocol(&context, "kernel.v1.outbound.stream", serde_json::json!({"capability_id":"example/z7-stream-audit/fetch","destination_host":"api.openai.com","method":"POST","stream_format":"sse"})).await.map_err(|e| anyhow::anyhow!("{:?}", e))?;
+    runtime.call_protocol(&context, "host.outbound.stream", serde_json::json!({"capability_id":"example/z7-stream-audit/fetch","destination_host":"api.openai.com","method":"POST","stream_format":"sse"})).await.map_err(|e| anyhow::anyhow!("{:?}", e))?;
     let events = wait_for_kind(&store, EVENT_OUTBOUND_STREAM_COMPLETED).await?;
     anyhow::ensure!(
         events[0]
@@ -2295,7 +2295,7 @@ pub(crate) async fn outbound_websocket_completed_audit_emitted() -> anyhow::Resu
         ))
         .await?;
     let context = plurora_runtime::ProtocolContext::package("example/z7-ws-audit", "in_process");
-    runtime.call_protocol(&context, "kernel.v1.outbound.websocket.open", serde_json::json!({"capability_id":"example/z7-ws-audit/fetch","destination_host":"api.openai.com"})).await.map_err(|e| anyhow::anyhow!("{:?}", e))?;
+    runtime.call_protocol(&context, "host.outbound.websocket.open", serde_json::json!({"capability_id":"example/z7-ws-audit/fetch","destination_host":"api.openai.com"})).await.map_err(|e| anyhow::anyhow!("{:?}", e))?;
     let events = wait_for_kind(&store, EVENT_OUTBOUND_WEBSOCKET_COMPLETED).await?;
     anyhow::ensure!(
         events[0].payload.get("package_id").and_then(|v| v.as_str()) == Some("example/z7-ws-audit"),
@@ -2367,7 +2367,7 @@ fn package_with_secret_refs(id: &str, secret_refs: Vec<String>) -> PackageManife
     }
 }
 
-/// Y2: kernel.v1.outbound.execute with an undeclared secret_ref is denied.
+/// Y2: host.outbound.execute with an undeclared secret_ref is denied.
 ///
 /// A package that does not declare `secret_ref:env:UNDECLARED_KEY` in
 /// its `permissions.secret_refs` must be denied when it tries to use
@@ -2389,7 +2389,7 @@ pub(crate) async fn outbound_execute_secret_ref_undeclared_fails() -> anyhow::Re
     let result = runtime
         .call_protocol(
             &context,
-            "kernel.v1.outbound.execute",
+            "host.outbound.execute",
             serde_json::json!({
                 "capability_id": "example/y2-conf-undeclared/fetch",
                 "destination_host": "api.openai.com",
@@ -2417,7 +2417,7 @@ pub(crate) async fn outbound_execute_secret_ref_undeclared_fails() -> anyhow::Re
     Ok(())
 }
 
-/// Y2: kernel.v1.outbound.execute with a declared secret_ref is allowed
+/// Y2: host.outbound.execute with a declared secret_ref is allowed
 /// to proceed past the Y2 check.
 ///
 /// The package declares `secret_ref:env:MY_API_KEY` in
@@ -2439,7 +2439,7 @@ pub(crate) async fn outbound_execute_secret_ref_declared_resolves() -> anyhow::R
     let result = runtime
         .call_protocol(
             &context,
-            "kernel.v1.outbound.execute",
+            "host.outbound.execute",
             serde_json::json!({
                 "capability_id": "example/y2-conf-declared/fetch",
                 "destination_host": "api.openai.com",
@@ -2471,10 +2471,10 @@ pub(crate) async fn outbound_execute_secret_ref_declared_resolves() -> anyhow::R
 }
 
 // ---------------------------------------------------------------------------
-// Y3: kernel.v1.outbound.stream conformance cases
+// Y3: host.outbound.stream conformance cases
 // ---------------------------------------------------------------------------
 
-/// Y3: Default profile/runtime denies kernel.v1.outbound.stream requests.
+/// Y3: Default profile/runtime denies host.outbound.stream requests.
 pub(crate) async fn outbound_stream_profile_default_deny_all() -> anyhow::Result<()> {
     let (_store, runtime) = runtime();
     runtime
@@ -2494,7 +2494,7 @@ pub(crate) async fn outbound_stream_profile_default_deny_all() -> anyhow::Result
     let result = runtime
         .call_protocol(
             &context,
-            "kernel.v1.outbound.stream",
+            "host.outbound.stream",
             serde_json::json!({
                 "capability_id": "example/y3-default-deny/fetch",
                 "destination_host": "api.openai.com",
@@ -2530,7 +2530,7 @@ pub(crate) async fn outbound_stream_fake_executor_emits_canned_frames() -> anyho
     let response = runtime
         .call_protocol(
             &context,
-            "kernel.v1.outbound.stream",
+            "host.outbound.stream",
             serde_json::json!({
                 "capability_id": "example/y3-fake-stream/fetch",
                 "destination_host": "api.openai.com",
@@ -2558,7 +2558,7 @@ pub(crate) async fn outbound_stream_fake_executor_emits_canned_frames() -> anyho
         "fake stream executor should be called once"
     );
 
-    let session_id = "kernel_outbound_stream_example_y3-fake-stream".to_string();
+    let session_id = "platform_outbound_stream_example_y3-fake-stream".to_string();
     let mut chunk_count = 0usize;
     for _ in 0..20 {
         let events = store.list_session(&session_id).await?;
@@ -2579,7 +2579,7 @@ pub(crate) async fn outbound_stream_fake_executor_emits_canned_frames() -> anyho
 }
 
 /// Y4: subprocess reverse kernel call dispatches through the public outbound path.
-pub(crate) async fn subprocess_reverse_kernel_call_dispatched() -> anyhow::Result<()> {
+pub(crate) async fn subprocess_reverse_platform_call_dispatched() -> anyhow::Result<()> {
     let (_store, runtime, fake) = runtime_with_fake_executor();
     runtime
         .load_package(network_package(
@@ -2593,14 +2593,14 @@ pub(crate) async fn subprocess_reverse_kernel_call_dispatched() -> anyhow::Resul
         ))
         .await?;
 
-    let response = plurora_runtime::dispatch_reverse_kernel_frame(
+    let response = plurora_runtime::dispatch_reverse_platform_frame(
         &runtime,
         "example/y4-reverse",
         None,
         serde_json::json!({
             "jsonrpc": "2.0",
             "id": "kreq-1",
-            "method": "kernel.v1.outbound.execute",
+            "method": "host.outbound.execute",
             "params": {
                 "capability_id": "example/y4-reverse/fetch",
                 "destination_host": "api.openai.com",
@@ -2622,7 +2622,7 @@ pub(crate) async fn subprocess_reverse_kernel_call_dispatched() -> anyhow::Resul
 }
 
 /// Y4: subprocess reverse calls cannot spoof another package principal.
-pub(crate) async fn subprocess_reverse_kernel_call_principal_locked() -> anyhow::Result<()> {
+pub(crate) async fn subprocess_reverse_platform_call_principal_locked() -> anyhow::Result<()> {
     let (_store, runtime, fake) = runtime_with_fake_executor();
     runtime
         .load_package(network_package(
@@ -2639,14 +2639,14 @@ pub(crate) async fn subprocess_reverse_kernel_call_principal_locked() -> anyhow:
         .load_package(network_package("example/y4-victim", vec![], vec![]))
         .await?;
 
-    let response = plurora_runtime::dispatch_reverse_kernel_frame(
+    let response = plurora_runtime::dispatch_reverse_platform_frame(
         &runtime,
         "example/y4-victim",
         None,
         serde_json::json!({
             "jsonrpc": "2.0",
             "id": "kreq-2",
-            "method": "kernel.v1.outbound.execute",
+            "method": "host.outbound.execute",
             "params": {
                 "package_id": "example/y4-real",
                 "capability_id": "example/y4-real/fetch",
@@ -2668,7 +2668,7 @@ pub(crate) async fn subprocess_reverse_kernel_call_principal_locked() -> anyhow:
     Ok(())
 }
 
-/// Y4: reverse outbound stream starts and emits kernel stream chunks.
+/// Y4: reverse outbound stream starts and emits platform stream chunks.
 pub(crate) async fn subprocess_reverse_stream_chunks_piped() -> anyhow::Result<()> {
     let (store, runtime, fake) = runtime_with_fake_stream_executor();
     runtime
@@ -2683,14 +2683,14 @@ pub(crate) async fn subprocess_reverse_stream_chunks_piped() -> anyhow::Result<(
         ))
         .await?;
 
-    let response = plurora_runtime::dispatch_reverse_kernel_frame(
+    let response = plurora_runtime::dispatch_reverse_platform_frame(
         &runtime,
         "example/y4-stream",
         None,
         serde_json::json!({
             "jsonrpc": "2.0",
             "id": "kreq-3",
-            "method": "kernel.v1.outbound.stream",
+            "method": "host.outbound.stream",
             "params": {
                 "capability_id": "example/y4-stream/fetch",
                 "destination_host": "api.openai.com",
@@ -2714,7 +2714,7 @@ pub(crate) async fn subprocess_reverse_stream_chunks_piped() -> anyhow::Result<(
         tokio::time::sleep(std::time::Duration::from_millis(10)).await;
     }
 
-    let session_id = "kernel_outbound_stream_example_y4-stream".to_string();
+    let session_id = "platform_outbound_stream_example_y4-stream".to_string();
     for _ in 0..20 {
         let events = store.list_session(&session_id).await?;
         if events.iter().any(|event| {
@@ -2753,7 +2753,7 @@ pub(crate) async fn outbound_stream_secret_ref_undeclared_fails() -> anyhow::Res
     let result = runtime
         .call_protocol(
             &context,
-            "kernel.v1.outbound.stream",
+            "host.outbound.stream",
             serde_json::json!({
                 "capability_id": "example/y3-secret-undeclared/fetch",
                 "destination_host": "api.openai.com",
@@ -2827,7 +2827,7 @@ pub(crate) async fn outbound_stream_secret_ref_declared_resolves() -> anyhow::Re
     let response = runtime
         .call_protocol(
             &context,
-            "kernel.v1.outbound.stream",
+            "host.outbound.stream",
             serde_json::json!({
                 "capability_id": "example/y3-secret-declared/fetch",
                 "destination_host": "api.openai.com",
@@ -2876,7 +2876,7 @@ pub(crate) async fn outbound_stream_capability_namespace_enforced() -> anyhow::R
     let result = runtime
         .call_protocol(
             &context,
-            "kernel.v1.outbound.stream",
+            "host.outbound.stream",
             serde_json::json!({
                 "capability_id": "other/package/fetch",
                 "destination_host": "api.openai.com",
@@ -2915,7 +2915,7 @@ pub(crate) async fn outbound_stream_https_only() -> anyhow::Result<()> {
     let result = runtime
         .call_protocol(
             &context,
-            "kernel.v1.outbound.stream",
+            "host.outbound.stream",
             serde_json::json!({
                 "capability_id": "example/y3-https-only/fetch",
                 "destination_host": "api.openai.com",

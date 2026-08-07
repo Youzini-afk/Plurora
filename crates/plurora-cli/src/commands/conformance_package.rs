@@ -441,7 +441,10 @@ async fn check_permission_denial_paths(
         })
         .await;
     let denied = result.is_err() && result.err().unwrap().to_string().contains("not allowed");
-    let session_id = format!("kernel_capability_{}", denied_capability.replace('/', "_"));
+    let session_id = format!(
+        "platform_capability_{}",
+        denied_capability.replace('/', "_")
+    );
     let emitted = rt
         .store
         .list_session(&session_id)
@@ -493,7 +496,7 @@ async fn check_handle_lifecycle(
             },
             provenance: HandleProvenance {
                 granted_at: chrono::Utc::now(),
-                granted_by_package_id: plurora_core::KERNEL_PACKAGE_ID.to_string(),
+                granted_by_package_id: plurora_core::PLATFORM_RUNTIME_ID.to_string(),
                 via_method: "conformance".to_string(),
             },
             parent: None,
@@ -503,7 +506,7 @@ async fn check_handle_lifecycle(
     let child = match runtime
         .call_protocol(
             &ProtocolContext::host_dev("conformance"),
-            "kernel.v1.cap.attenuate",
+            "authority.handle.attenuate",
             json!({"parent_handle": parent, "constraints": {}}),
         )
         .await
@@ -539,7 +542,7 @@ async fn check_handle_lifecycle(
     if let Err(error) = runtime
         .call_protocol(
             &ProtocolContext::host_dev("conformance"),
-            "kernel.v1.cap.revoke",
+            "authority.handle.revoke",
             json!({"handle": child}),
         )
         .await
@@ -579,8 +582,10 @@ async fn check_events_and_errors(
     let mut failures = Vec::new();
     let mut warnings = Vec::new();
     for event in events {
-        if event.kind.starts_with("kernel/v1/") && !registry.contains(event.kind.as_str()) {
-            failures.push(format!("off-registry kernel event '{}'", event.kind));
+        if event.writer_package_id == plurora_core::PLATFORM_RUNTIME_ID
+            && !registry.contains(event.kind.as_str())
+        {
+            failures.push(format!("off-registry platform event '{}'", event.kind));
         } else if event.kind.starts_with(&format!("{}/", manifest.id)) {
             warnings.push(format!(
                 "package namespace event '{}' is allowed but not registry-standard",
@@ -632,51 +637,7 @@ async fn check_events_and_errors(
 }
 
 fn event_registry() -> BTreeSet<&'static str> {
-    [
-        plurora_core::EVENT_SESSION_OPENED,
-        plurora_core::EVENT_SESSION_CLOSED,
-        plurora_core::EVENT_SESSION_FORKED,
-        plurora_core::EVENT_PACKAGE_LOADED,
-        plurora_core::EVENT_PACKAGE_LOADING,
-        plurora_core::EVENT_PACKAGE_STARTING,
-        plurora_core::EVENT_PACKAGE_READY,
-        plurora_core::EVENT_PACKAGE_STOPPING,
-        plurora_core::EVENT_PACKAGE_STOPPED,
-        plurora_core::EVENT_PACKAGE_UNLOADED,
-        plurora_core::EVENT_PACKAGE_DEGRADED,
-        plurora_core::EVENT_PACKAGE_LOG,
-        plurora_core::EVENT_ASSET_PUT,
-        plurora_core::EVENT_PROJECTION_UPDATED,
-        plurora_core::EVENT_PROPOSAL_CREATED,
-        plurora_core::EVENT_PROPOSAL_APPROVED,
-        plurora_core::EVENT_PROPOSAL_REJECTED,
-        plurora_core::EVENT_PROPOSAL_APPLIED,
-        plurora_core::EVENT_PROPOSAL_FAILED,
-        plurora_core::EVENT_CAPABILITY_INVOKED,
-        plurora_core::EVENT_CAPABILITY_COMPLETED,
-        plurora_core::EVENT_CAPABILITY_FAILED,
-        plurora_core::EVENT_PERMISSION_DENIED,
-        plurora_core::EVENT_PERMISSION_GRANTED,
-        plurora_core::EVENT_PERMISSION_REVOKED,
-        plurora_core::EVENT_ERROR,
-        plurora_core::EVENT_OUTBOUND_REQUEST,
-        plurora_core::EVENT_OUTBOUND_DENIED,
-        plurora_core::EVENT_OUTBOUND_EXECUTE_COMPLETED,
-        plurora_core::EVENT_OUTBOUND_STREAM_COMPLETED,
-        plurora_core::EVENT_STREAM_STARTED,
-        plurora_core::EVENT_STREAM_CHUNK,
-        plurora_core::EVENT_STREAM_PROGRESS,
-        plurora_core::EVENT_STREAM_ENDED,
-        plurora_core::EVENT_STREAM_ERROR,
-        plurora_core::EVENT_STREAM_CANCELLED,
-        plurora_core::EVENT_STREAM_TIMEOUT,
-        plurora_core::EVENT_OUTBOUND_WEBSOCKET_OPENED,
-        plurora_core::EVENT_OUTBOUND_WEBSOCKET_FRAME,
-        plurora_core::EVENT_OUTBOUND_WEBSOCKET_ERROR,
-        plurora_core::EVENT_OUTBOUND_WEBSOCKET_COMPLETED,
-    ]
-    .into_iter()
-    .collect()
+    plurora_core::PLATFORM_EVENT_KINDS.iter().copied().collect()
 }
 
 fn pass(id: &str, details: Option<String>) -> CheckResult {

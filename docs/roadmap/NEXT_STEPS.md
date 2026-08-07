@@ -51,7 +51,7 @@ Plurora 的下一步不是围绕某个单一产品、示例或工作流扩张，
 
 ### 收敛 Contract V1 的长期所有权
 
-Contract V1 继续作为支持中的公开合同，但不再无差别扩大 `kernel.v1.*`。建设重点是：
+Contract V1 继续作为支持中的公开合同，但不再无差别扩大 `platform.*`。建设重点是：
 
 - 让 substrate、Host、Protocol Commons 和 Shell Profile 的 owner 清楚可见；
 - 为新能力选择明确 namespace、version 和 maturity；

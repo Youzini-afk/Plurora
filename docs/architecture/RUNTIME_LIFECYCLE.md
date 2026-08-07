@@ -27,14 +27,14 @@ unloaded    在 host 中不再活跃
 
 ```text
 requested   open() 已收到，principal 和 labels 已提供
-opening     kernel/v1/session.before_open 已 dispatch（sync，可 veto）
-open        kernel/v1/session.opened 已发出
+opening     context/before_open 已 dispatch（sync，可 veto）
+open        context/opened 已发出
             event 日志接受已授权写入者的 append
             capability invocation 正在针对活跃 package set 进行 dispatch
 forking     fork() 已收到，携带 parent session 和 forked-from 序号
-forked      kernel/v1/session.forked 已发出；子 session 继承 parent 直至所选序号
-closing     kernel/v1/session.before_close 已 dispatch（sync，可 veto）
-closed      kernel/v1/session.closed 已发出；日志已冻结，不再接受 append
+forked      context/forked 已发出；子 session 继承 parent 直至所选序号
+closing     context/before_close 已 dispatch（sync，可 veto）
+closed      context/closed 已发出；日志已冻结，不再接受 append
 ```
 
 runtime 不拥有“当前 turn”、“活跃 actor”或 Session 的任何内容级状态。需要这些概念的协议或组件从事件、对象和自己的 projection 中推导。
@@ -44,11 +44,11 @@ runtime 不拥有“当前 turn”、“活跃 actor”或 Session 的任何内�
 内核负责协调通用的、需要审批的变更提案。该生命周期与内容无关。它只知道可以执行的操作，例如 `asset.put` 和 `projection.rebuild`。
 
 ```text
-created     proposal 在发起 principal 下记录；kernel/v1/proposal.created 已发出
-approved    审批者决定已记录；kernel/v1/proposal.approved 已发出
-rejected    审批者决定已记录；kernel/v1/proposal.rejected 已发出
-applied     已批准的 proposal 已对内核执行；kernel/v1/proposal.applied 已发出
-failed     执行或验证失败；kernel/v1/proposal.failed 已发出
+created     proposal 在发起 principal 下记录；change/proposal.created 已发出
+approved    审批者决定已记录；change/proposal.approved 已发出
+rejected    审批者决定已记录；change/proposal.rejected 已发出
+applied     已批准的 proposal 已对内核执行；change/proposal.applied 已发出
+failed     执行或验证失败；change/proposal.failed 已发出
 ```
 
 能力包或 assistant 身份不能直接应用提案。提案必须先到达 `approved` 状态。内核不会发明特定领域的提案语义；多步事务和能力包侧补偿等更丰富的操作属于上层能力包。
@@ -57,11 +57,11 @@ failed     执行或验证失败；kernel/v1/proposal.failed 已发出
 
 ```text
 requested        invoke(id, version, input) 已收到
-authorizing      kernel/v1/capability.before_invoke 已 dispatch（sync，可 veto）
+authorizing      capability/before_invoke 已 dispatch（sync，可 veto）
 routed           按 id+version+session package set 选择 provider
 running          provider 正在执行；streaming chunk 可能正在流动
-completed        kernel/v1/capability.completed 已发出，附带 output（或 stream 结束）
-failed           kernel/v1/capability.failed 已发出，附带结构化 error
+completed        capability/completed 已发出，附带 output（或 stream 结束）
+failed           capability/failed 已发出，附带结构化 error
 cancelled        取消已被 provider 确认；failed/completed 事件记录结果
 ```
 
@@ -86,7 +86,7 @@ cancelled        取消已被 provider 确认；failed/completed 事件记录结
 
 ## 错误
 
-内核只在自己的边界上对错误分类：transport、manifest、schema、permission、capacity、lifecycle、ambiguous-route。能力包错误作为不透明的结构化失败，通过能力调用传递，并记录在 `kernel/v1/capability.failed` 下。
+内核只在自己的边界上对错误分类：transport、manifest、schema、permission、capacity、lifecycle、ambiguous-route。能力包错误作为不透明的结构化失败，通过能力调用传递，并记录在 `capability/failed` 下。
 
 ## 本生命周期未描述的内容
 

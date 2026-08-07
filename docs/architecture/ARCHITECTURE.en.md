@@ -150,12 +150,12 @@ The default answer is not “everything becomes a package.” It stays in the hi
 
 Contract V1 is the current operational public contract, used for generated SDKs and guarded by conformance. It currently carries responsibilities from several layers:
 
-- `kernel.v1.session.*`, events, capability, and authority are close to substrate;
+- `platform.session.*`, events, capability, and authority are close to substrate;
 - Project, target, exec, port, proxy, and diagnostics belong to the Host;
 - projection, proposal/change, and extension point belong to evolvable protocols;
 - surface slots and shell contributions belong to a Shell Profile.
 
-Current clients and third-party integrations may continue using v1. New meaning should not expand `kernel.v1.*` indiscriminately; prefer namespaces with explicit owners, Contract Registry, profile negotiation, and legacy adapters. See [`../spec/CONTRACT_LAYERING_MATRIX.md`](../spec/CONTRACT_LAYERING_MATRIX.en.md) for itemized ownership.
+Current clients and third-party integrations may continue using v1. New meaning should not expand `platform.*` indiscriminately; prefer namespaces with explicit owners, Contract Registry, profile negotiation, and legacy adapters. See [`../spec/CONTRACT_LAYERING_MATRIX.md`](../spec/CONTRACT_LAYERING_MATRIX.en.md) for itemized ownership.
 
 ## Current official distribution
 

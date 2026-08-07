@@ -82,7 +82,7 @@ Routes:
 - Pairing claim/cancel and grant revoke use expected-tail compare-and-append. Only one concurrent claim can commit; bulk revoke validates every grant before committing one sorted, bounded journal transition and is idempotent on retry.
 - Grant revocation and expiry are checked on every authentication, rather than relying on the browser to refresh state.
 - Delegated grants retain `parent_grant_id` and `delegation_depth`; authentication walks ancestors fail-closed, and parent revocation cascades.
-- Bearer and cookie credentials have explicit precedence. Query credentials are accepted only by `GET /kernel/v1/event.subscribe/:session_id` and `GET /host/v1/build-deploy/:job_id/events`, the two browser SSE entry points; no other route treats a URL token as a credential.
+- Bearer and cookie credentials have explicit precedence. Query credentials are accepted only by `GET /journal/subscribe/:session_id` and `GET /host/v1/build-deploy/:job_id/events`, the two browser SSE entry points; no other route treats a URL token as a credential.
 
 ## CLI management
 
@@ -127,7 +127,7 @@ Firewall the plaintext port so only the proxy/overlay can reach it; expose an or
 
 ## Application route exposure
 
-`kernel.v1.proxy.register` and deployment descriptors use:
+`host.proxy.register` and deployment descriptors use:
 
 ```yaml
 route_access: host_authenticated # default; old descriptors resolve this way

@@ -44,10 +44,10 @@ pub(super) fn build_cases() -> Vec<ConformanceCase> {
     cases.extend(outbound_model_streaming::network_cases());
     cases.extend(outbound_model_streaming::outbound_cases());
     cases.extend(outbound_model_streaming::live_http_outbound_cases());
-    cases.extend(outbound_model_streaming::kernel_v1_outbound_execute_cases());
+    cases.extend(outbound_model_streaming::public_outbound_execute_cases());
     cases.extend(outbound_model_streaming::y1_outbound_execute_profile_conformance_cases());
     cases.extend(outbound_model_streaming::y2_manifest_permissions_secret_refs_conformance_cases());
-    cases.extend(outbound_model_streaming::y3_kernel_v1_outbound_stream_conformance_cases());
+    cases.extend(outbound_model_streaming::outbound_stream_conformance_cases());
     cases.extend(outbound_model_streaming::streaming_cases());
     cases.extend(outbound_model_streaming::live_model_cases());
     cases.extend(outbound_model_streaming::live_model_providers_cases());

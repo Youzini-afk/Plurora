@@ -1,0 +1,20 @@
+{
+  "$defs": {
+    "Payload": {
+      "type": "object"
+    }
+  },
+  "$id": "urn:plurora:schema:event:host/port.leased:v1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "Payload schema for event kind host/port.leased.",
+  "properties": {
+    "kind": {
+      "const": "host/port.leased"
+    },
+    "payload": {
+      "$ref": "#/$defs/Payload"
+    }
+  },
+  "title": "host/port.leased",
+  "type": "object"
+}

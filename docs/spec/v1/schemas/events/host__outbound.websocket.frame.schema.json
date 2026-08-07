@@ -1,0 +1,20 @@
+{
+  "$defs": {
+    "Payload": {
+      "type": "object"
+    }
+  },
+  "$id": "urn:plurora:schema:event:host/outbound.websocket.frame:v1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "Payload schema for event kind host/outbound.websocket.frame.",
+  "properties": {
+    "kind": {
+      "const": "host/outbound.websocket.frame"
+    },
+    "payload": {
+      "$ref": "#/$defs/Payload"
+    }
+  },
+  "title": "host/outbound.websocket.frame",
+  "type": "object"
+}

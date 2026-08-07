@@ -93,7 +93,7 @@ where
     ) -> anyhow::Result<Value> {
         if !context.allows_host_action("observe") {
             anyhow::bail!(
-                "kernel.v1.surface.resolve_bundle permission denied: authenticated authority lacks observe"
+                "host.surface.bundle.resolve permission denied: authenticated authority lacks observe"
             );
         }
 
@@ -190,7 +190,7 @@ where
         context: &ProtocolContext,
         params: &Value,
     ) -> anyhow::Result<Value> {
-        self.ensure_surface_catalog_access(context, "kernel.v1.surface.contribution.list")?;
+        self.ensure_surface_catalog_access(context, "shell.contribution.list")?;
         let slot = params
             .get("slot")
             .and_then(Value::as_str)
@@ -203,13 +203,11 @@ where
         context: &ProtocolContext,
         params: &Value,
     ) -> anyhow::Result<Value> {
-        self.ensure_surface_catalog_access(context, "kernel.v1.surface.contribution.describe")?;
+        self.ensure_surface_catalog_access(context, "shell.contribution.describe")?;
         let surface_id = params
             .get("surface_id")
             .and_then(Value::as_str)
-            .ok_or_else(|| {
-                anyhow::anyhow!("kernel.v1.surface.contribution.describe requires surface_id")
-            })?;
+            .ok_or_else(|| anyhow::anyhow!("shell.contribution.describe requires surface_id"))?;
         self.describe_surface_contribution(surface_id).await
     }
 

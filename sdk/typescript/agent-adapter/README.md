@@ -168,7 +168,7 @@ if (failed.length > 0) {
 - **不 import** `clients/web`、`clients/web/private` 或任何 runtime private 模块
 - **不依赖** `pi-coding-agent` 或外部 agent framework
 - **无外部依赖**，纯 TypeScript
-- **不引入** `kernel.v1.agent.*`、`kernel.v1.model.*`、`kernel.v1.prompt.*`、`kernel.v1.memory.*` 方法
+- **不引入** `platform.agent.*`、`platform.model.*`、`platform.prompt.*`、`platform.memory.*` 方法
 - **不使用** `any` 类型，尽量 `unknown` 安全
 - Provider 多义时**拒绝调用**，除非显式指定 `provider_package_id`
 - 原始秘密**阻断**：复用 `secret_ref` 思路但不 import private runtime

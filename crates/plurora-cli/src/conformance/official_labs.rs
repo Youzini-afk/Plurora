@@ -29,7 +29,7 @@ pub(crate) async fn assistant_lab_proposal() -> anyhow::Result<()> {
     let denied = runtime
         .call_protocol(
             &assistant_context,
-            "kernel.v1.capability.invoke",
+            "capability.invoke",
             json!({"capability_id": "official/assistant-lab/draft_branch_change", "input": {"change": "try branch"}}),
         )
         .await;
@@ -40,7 +40,7 @@ pub(crate) async fn assistant_lab_proposal() -> anyhow::Result<()> {
     runtime
         .call_protocol(
             &ProtocolContext::host_dev("conformance"),
-            "kernel.v1.permission.grant",
+            "authority.grant.create",
             json!({"principal": assistant, "permission": "capabilities.invoke", "scope": "official/assistant-lab"}),
         )
         .await
@@ -48,7 +48,7 @@ pub(crate) async fn assistant_lab_proposal() -> anyhow::Result<()> {
     let proposal = runtime
         .call_protocol(
             &assistant_context,
-            "kernel.v1.capability.invoke",
+            "capability.invoke",
             json!({"capability_id": "official/assistant-lab/draft_branch_change", "input": {"change": "try branch"}}),
         )
         .await
@@ -60,7 +60,7 @@ pub(crate) async fn assistant_lab_proposal() -> anyhow::Result<()> {
     let surfaces = runtime
         .call_protocol(
             &ProtocolContext::host_dev("conformance"),
-            "kernel.v1.surface.contribution.list",
+            "shell.contribution.list",
             json!({"slot": "assistant_action"}),
         )
         .await
@@ -285,7 +285,7 @@ pub(crate) async fn deployment_hub_local_exec_default_deny_all() -> anyhow::Resu
     let response = runtime
         .call_protocol(
             &ProtocolContext::host_dev("conformance"),
-            "kernel.v1.exec.start",
+            "host.exec.start",
             json!({
                 "target_id": "local",
                 "command": {"program": "echo", "args": ["should-not-run"]},
@@ -1132,8 +1132,8 @@ pub(crate) async fn capability_tool_bridge_lab() -> anyhow::Result<()> {
         "explicit third-party invoke should be plan_ready"
     );
     anyhow::ensure!(
-        invoke_explicit.output["method"] == json!("kernel.v1.capability.invoke"),
-        "invoke_tool method should be kernel.v1.capability.invoke"
+        invoke_explicit.output["method"] == json!("capability.invoke"),
+        "invoke_tool method should be capability.invoke"
     );
     anyhow::ensure!(
         invoke_explicit.output["requires_user_approval"] == json!(true),
@@ -1267,8 +1267,8 @@ pub(crate) async fn capability_tool_bridge_lab() -> anyhow::Result<()> {
         "missing provider stream should be rejected"
     );
     anyhow::ensure!(
-        stream_missing.output["method"] == json!("kernel.v1.capability.stream"),
-        "stream method should be kernel.v1.capability.stream"
+        stream_missing.output["method"] == json!("capability.stream"),
+        "stream method should be capability.stream"
     );
 
     // stream_tool: explicit provider must match supplied candidates
@@ -1310,7 +1310,7 @@ pub(crate) async fn capability_tool_bridge_lab() -> anyhow::Result<()> {
             input: json!({
                 "capability_id": "example/echo",
                 "provider_package_id": "thirdparty/my-tool",
-                "method": "kernel.v1.capability.invoke"
+                "method": "capability.invoke"
             }),
         })
         .await?;

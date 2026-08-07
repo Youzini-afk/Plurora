@@ -1,0 +1,94 @@
+{
+  "$defs": {
+    "ContractMode": {
+      "oneOf": [
+        {
+          "description": "Path A: full v1 contract enforcement (default).",
+          "enum": [
+            "v1"
+          ],
+          "type": "string"
+        },
+        {
+          "description": "Path B: self-contained app — kernel hosts process, no contract enforcement.",
+          "enum": [
+            "none"
+          ],
+          "type": "string"
+        }
+      ]
+    },
+    "Payload": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "properties": {
+        "capability_count": {
+          "format": "uint",
+          "minimum": 0.0,
+          "type": "integer"
+        },
+        "contract_mode": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/ContractMode"
+            }
+          ],
+          "description": "Contract mode selected by the package entry. `none` marks Path B: a self-contained app hosted without contract enforcement."
+        },
+        "entry_kind": {
+          "type": "string"
+        },
+        "extension_point_count": {
+          "format": "uint",
+          "minimum": 0.0,
+          "type": "integer"
+        },
+        "hook_count": {
+          "format": "uint",
+          "minimum": 0.0,
+          "type": "integer"
+        },
+        "package_id": {
+          "type": "string"
+        },
+        "reason": {
+          "default": null,
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "state": {
+          "type": "string"
+        },
+        "version": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "capability_count",
+        "contract_mode",
+        "entry_kind",
+        "extension_point_count",
+        "hook_count",
+        "package_id",
+        "state",
+        "version"
+      ],
+      "title": "PackageLifecyclePayload",
+      "type": "object"
+    }
+  },
+  "$id": "urn:plurora:schema:event:host/package.stopping:v1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "Payload schema for event kind host/package.stopping.",
+  "properties": {
+    "kind": {
+      "const": "host/package.stopping"
+    },
+    "payload": {
+      "$ref": "#/$defs/Payload"
+    }
+  },
+  "title": "host/package.stopping",
+  "type": "object"
+}

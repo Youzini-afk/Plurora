@@ -15,7 +15,7 @@ Plurora 目前有 SQLite-backed append-only event log，但平台契约不能绑
 
 ## 红线
 
-- 不新增 `kernel.v1.sqlite.*`、`kernel.v1.postgres.*`、`kernel.v1.tdb.*`、`kernel.v1.vector.*`、`kernel.v1.embedding.*`、`kernel.v1.collection.*`、`kernel.v1.sql.*`、`kernel.v1.database.*`。
+- 不新增 `platform.sqlite.*`、`platform.postgres.*`、`platform.tdb.*`、`platform.vector.*`、`platform.embedding.*`、`platform.collection.*`、`platform.sql.*`、`platform.database.*`。
 - 不把 `EventStore` 扩成万能 `DatabaseBackend`。
 - 不向 package 暴露 SQL、DSN、connection string、table、transaction isolation、ANN index、vector dimension、backend topology 或 raw credential。
 - SQLite 是 early/default/local backend，不是平台契约。

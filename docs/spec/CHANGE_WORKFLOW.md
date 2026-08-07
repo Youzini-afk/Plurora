@@ -19,7 +19,7 @@
 
 ## v1 Proposal adapter
 
-现有 `kernel.v1.proposal.*` 方法和事件保持不变。创建 Proposal 时 adapter 添加：
+现有 `platform.proposal.*` 方法和事件保持不变。创建 Proposal 时 adapter 添加：
 
 - `intent`：创建者、目标 session/branch 与 goal；
 - `change_set`：映射旧 `operations`、`required_permissions`、`expected_effects`；

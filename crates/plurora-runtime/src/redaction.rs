@@ -6,7 +6,7 @@
 //!
 //! - Proposal payloads (operations and expected_effects)
 //! - Asset metadata
-//! - Audit-like payloads (permission events, kernel events)
+//! - Audit-like payloads (permission events, platform events)
 //!
 //! The general scanner is intentionally conservative: it targets obvious
 //! API-key field names and high-entropy value patterns, while excluding

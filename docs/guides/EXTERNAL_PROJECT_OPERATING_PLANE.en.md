@@ -113,7 +113,7 @@ Development execute/recover carries the authenticated identity, but never its cr
 
 ## Security red lines
 
-- Do not add `kernel.v1.project.*`, `kernel.v1.workspace.*`, `kernel.v1.git.*`, `kernel.v1.npm.*`, `kernel.v1.deploy.*`, or `kernel.v1.ide.*`.
+- Do not add `platform.project.*`, `platform.workspace.*`, `platform.git.*`, `platform.npm.*`, `platform.deploy.*`, or `platform.ide.*`.
 - External Project is not a package; Managed Workspace is not a kernel object; Adapter/Wrapper is the package path.
 - Unadapted projects do not directly register as capability providers.
 - Dangerous actions must be plan-first, policy-checked, proposal/approval-gated, audited, and redacted.

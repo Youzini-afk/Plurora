@@ -9,7 +9,7 @@ This guide explains how to create, inspect, checkpoint, recover, and replace exp
 This guide uses ordinary Packages and Components under the current Contract V1 to implement an Experience Runtime Product Profile: continuous execution, pause, recovery, checkpoint, and fork. Shared lifecycle meaning may be defined by an optional Protocol or Profile, while concrete experience state belongs to Products and Components rather than the constitutional substrate.
 
 Key constraints:
-- No `kernel.v1.experience.*`, `kernel.v1.world.*`, `kernel.v1.turn.*`, `kernel.v1.chat.*`, or `kernel.v1.memory.*`.
+- No `platform.experience.*`, `platform.world.*`, `platform.turn.*`, `platform.chat.*`, or `platform.memory.*`.
 - Experience packages are ordinary packages with no kernel privilege.
 - Current Experience descriptors, state projections, checkpoints, and recovery plans are distributed by the corresponding Component or Product Package; they are product artifacts rather than substrate primitives.
 - All behavior goes through the public protocol.
@@ -195,7 +195,7 @@ Experience-runtime packages are ordinary packages. Any third-party package that 
 
 The following are strictly prohibited:
 
-1. Kernel experience namespace: events, proposals, checkpoints, or any output must never contain `kernel.v1.experience.*`, `kernel.v1.world.*`, `kernel.v1.turn.*`, `kernel.v1.chat.*`, or `kernel.v1.memory.*`.
+1. Kernel experience namespace: events, proposals, checkpoints, or any output must never contain `platform.experience.*`, `platform.world.*`, `platform.turn.*`, `platform.chat.*`, or `platform.memory.*`.
 2. Raw secrets: all secrets must use `secret_ref` references. Checkpoints, recovery plans, and state projections must not contain raw secrets.
 3. Direct target branch mutation: agent changes to experiences must go through the proposal lifecycle. They must not directly modify the target branch.
 4. Network access: experience-runtime packages do not use the network by default. If network is needed, `permissions.network.declarations` must be declared.

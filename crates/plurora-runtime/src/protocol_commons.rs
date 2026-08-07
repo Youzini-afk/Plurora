@@ -4,8 +4,8 @@ use std::sync::OnceLock;
 use plurora_core::{
     NegotiatedProtocol, ProtocolAuthorityRequirement, ProtocolCompatibilityProfile,
     ProtocolConformanceVector, ProtocolDescriptor, ProtocolDocumentReference,
-    ProtocolImplementationClaim, ProtocolMaturity, ProtocolMigration, ProtocolMigrationKind,
-    ProtocolSchemaKind, ProtocolSchemaReference, ProtocolSelection, PROTOCOL_DESCRIPTOR_TYPE_URI,
+    ProtocolImplementationClaim, ProtocolMaturity, ProtocolSchemaKind, ProtocolSchemaReference,
+    ProtocolSelection, PROTOCOL_DESCRIPTOR_TYPE_URI,
 };
 use serde_json::json;
 
@@ -313,7 +313,7 @@ fn protocol_negotiation_error(
     details: serde_json::Value,
 ) -> ProtocolError {
     ProtocolError::new(
-        "kernel/v1/error/unsupported_protocol",
+        "runtime/error/unsupported_protocol",
         format!("requested protocol cannot be satisfied: {reason}"),
         json!({
             "reason": reason,
@@ -391,15 +391,7 @@ fn change_protocol_descriptor() -> ProtocolDescriptor {
             CHANGE_PROTOCOL_VERSION,
             "Proposal-compatible Intent/ChangeSet/PolicyDecision/Commit workflow.",
         )],
-        migrations: vec![ProtocolMigration {
-            from_protocol_id: "kernel.v1.proposal".to_string(),
-            from_version: "1.0.0".to_string(),
-            to_version: CHANGE_PROTOCOL_VERSION.to_string(),
-            kind: ProtocolMigrationKind::SemanticAdapter,
-            adapter_id: "change.proposal.v1".to_string(),
-            lossless: true,
-            instructions: spec("CHANGE_WORKFLOW.en.md#v1-proposal-adapter"),
-        }],
+        migrations: Vec::new(),
         conforming_implementations: vec![
             ProtocolImplementationClaim {
                 implementation_id: "plurora.runtime.change-proposal".to_string(),
@@ -459,15 +451,7 @@ fn shell_protocol_descriptor() -> ProtocolDescriptor {
             SHELL_PROTOCOL_VERSION,
             "Default structured contributions and sandboxed surface bridge vocabulary.",
         )],
-        migrations: vec![ProtocolMigration {
-            from_protocol_id: "kernel.v1.surface-slot".to_string(),
-            from_version: "1.0.0".to_string(),
-            to_version: SHELL_PROTOCOL_VERSION.to_string(),
-            kind: ProtocolMigrationKind::SemanticAdapter,
-            adapter_id: "shell.surface-slot.v1".to_string(),
-            lossless: true,
-            instructions: protocol_commons_spec("shell-default-profile"),
-        }],
+        migrations: Vec::new(),
         conforming_implementations: vec![ProtocolImplementationClaim {
             implementation_id: "plurora.runtime.shell-default".to_string(),
             provider: "plurora-runtime".to_string(),
@@ -656,40 +640,19 @@ mod tests {
             profile: None,
         }])
         .unwrap_err();
-        assert_eq!(error.code, "kernel/v1/error/unsupported_protocol");
+        assert_eq!(error.code, "runtime/error/unsupported_protocol");
         assert_eq!(error.details["reason"], "protocol_major_mismatch");
     }
 
     #[test]
-    fn declared_legacy_protocol_adapter_is_explicit() {
-        let negotiation = negotiate_protocols(&[ProtocolSelection {
-            protocol_id: "kernel.v1.proposal".to_string(),
+    fn removed_protocol_ids_do_not_resolve() {
+        let error = negotiate_protocols(&[ProtocolSelection {
+            protocol_id: "platform.proposal".to_string(),
             version: "1.0.0".to_string(),
             profile: Some(CHANGE_DEFAULT_PROFILE.to_string()),
         }])
-        .unwrap();
-        assert_eq!(negotiation[0].protocol_id, CHANGE_PROTOCOL_ID);
-        assert_eq!(
-            negotiation[0].adapter_id.as_deref(),
-            Some("change.proposal.v1")
-        );
-    }
-
-    #[test]
-    fn canonical_and_legacy_selection_cannot_duplicate_one_protocol() {
-        let error = negotiate_protocols(&[
-            ProtocolSelection {
-                protocol_id: CHANGE_PROTOCOL_ID.to_string(),
-                version: CHANGE_PROTOCOL_VERSION.to_string(),
-                profile: None,
-            },
-            ProtocolSelection {
-                protocol_id: "kernel.v1.proposal".to_string(),
-                version: "1.0.0".to_string(),
-                profile: None,
-            },
-        ])
         .unwrap_err();
-        assert_eq!(error.code, "kernel/v1/error/invalid_request");
+        assert_eq!(error.code, "runtime/error/unsupported_protocol");
+        assert_eq!(error.details["reason"], "unknown_protocol");
     }
 }

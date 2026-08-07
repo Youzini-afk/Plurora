@@ -1,0 +1,38 @@
+{
+  "$defs": {
+    "Payload": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "properties": {
+        "line": {
+          "type": "string"
+        },
+        "package_id": {
+          "type": "string"
+        },
+        "stream": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "line",
+        "package_id",
+        "stream"
+      ],
+      "title": "SubprocessLogLine",
+      "type": "object"
+    }
+  },
+  "$id": "urn:plurora:schema:event:host/package.log:v1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "Payload schema for event kind host/package.log.",
+  "properties": {
+    "kind": {
+      "const": "host/package.log"
+    },
+    "payload": {
+      "$ref": "#/$defs/Payload"
+    }
+  },
+  "title": "host/package.log",
+  "type": "object"
+}

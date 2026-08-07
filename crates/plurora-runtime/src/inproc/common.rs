@@ -362,7 +362,7 @@ fn draft_branch_change(request: &mut InprocInvocation) -> anyhow::Result<Value> 
         ("requires_user_approval".to_string(), Value::Bool(true)),
         (
             "recommended_operation".to_string(),
-            Value::String("kernel.v1.session.fork".to_string()),
+            Value::String("context.fork".to_string()),
         ),
         ("proposal".to_string(), std::mem::take(&mut request.input)),
     ])))

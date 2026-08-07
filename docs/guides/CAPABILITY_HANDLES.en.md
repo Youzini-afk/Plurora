@@ -63,11 +63,11 @@ When a Path A package loads, the kernel reads manifest, host policy, and profile
 Handles are injected through bindings:
 
 - subprocess: the `package.handshake` `bindings` dictionary;
-- rust_inproc: `KernelEnv`;
+- rust_inproc: `ComponentEnv`;
 - wasm: future WIT resource imports;
 - remote: future SPIFFE + Biscuit token exchange.
 
-SDKs wrap these handles as `kernelClient` methods, so package authors usually do not write protocol fields by hand.
+SDKs wrap these handles as `pluroraClient` methods, so package authors usually do not write protocol fields by hand.
 
 ### 3. Attenuate
 
@@ -75,11 +75,11 @@ A package or host can derive a narrower child handle: shorter lease, smaller ses
 
 ### 4. Use
 
-When a package calls `kernel.v1.capability.invoke`, outbound methods, or event methods, the runtime checks handle id, caller, scope, constraints, lease, and revoke state. Failures fail closed and write audit.
+When a package calls `capability.invoke`, outbound methods, or event methods, the runtime checks handle id, caller, scope, constraints, lease, and revoke state. Failures fail closed and write audit.
 
 ### 5. Revoke
 
-`kernel.v1.cap.revoke(handle)` makes a handle invalid immediately. Revocation can affect just one handle or a subtree. Package unload revokes live handles held by that package.
+`authority.handle.revoke(handle)` makes a handle invalid immediately. Revocation can affect just one handle or a subtree. Package unload revokes live handles held by that package.
 
 ### 6. Expire
 
@@ -90,7 +90,7 @@ When a leased handle expires, it can no longer be used. The package needs a new 
 Package authors normally use an SDK:
 
 ```ts
-const result = await kernelClient.invoke("provider/capability", input)
+const result = await pluroraClient.invoke("provider/capability", input)
 ```
 
 The SDK selects an appropriate handle from bindings and places it in protocol context. If no handle exists, the call fails instead of falling back to anonymous host authority.
@@ -116,7 +116,7 @@ stdout remains reserved for JSON-RPC frames; stderr can be captured as package l
 
 ## Rust in-process bindings
 
-Rust in-process packages receive handles through `KernelEnv`. The host catalog binds manifest entries to in-process provider traits. In-process providers missing from the catalog are rejected at load time.
+Rust in-process packages receive handles through `ComponentEnv`. The host catalog binds manifest entries to in-process provider traits. In-process providers missing from the catalog are rejected at load time.
 
 ## Outbound and secrets
 
@@ -130,7 +130,7 @@ Network and secrets use the same model:
 
 ## How effect audit consumes handles
 
-`kernel.v1.audit.package` and `plurora audit --package <id>` merge three data sets:
+`host.package.audit` and `plurora audit --package <id>` merge three data sets:
 
 1. declared: manifest capabilities, permissions, network, and secret_refs;
 2. granted: handles minted, attenuated, revoked, and expired by the kernel;

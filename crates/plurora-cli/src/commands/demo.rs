@@ -2,7 +2,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use anyhow::Result;
-use plurora_core::KERNEL_PACKAGE_ID;
+use plurora_core::PLATFORM_RUNTIME_ID;
 use plurora_runtime::{
     AppendEventRequest, CapabilityInvocationRequest, EventStore, InMemoryEventStore,
     OpenSessionRequest, ProtocolContext, Runtime, RuntimeConfig, SqliteEventStore,
@@ -22,7 +22,7 @@ pub(crate) async fn demo() -> Result<()> {
             session_id: session.id.clone(),
             writer_package_id: "example/echo".to_string(),
             kind: "example/echo/event.demo".to_string(),
-            payload: json!({"message": "content-free kernel event"}),
+            payload: json!({"message": "content-free platform event"}),
             metadata: json!({"created_by": "plurora-cli demo"}),
         })
         .await?;
@@ -30,7 +30,7 @@ pub(crate) async fn demo() -> Result<()> {
     let events = store.list_session(&session.id).await?;
 
     println!("session_id: {}", session.id);
-    println!("kernel_package_id: {KERNEL_PACKAGE_ID}");
+    println!("platform_runtime_id: {PLATFORM_RUNTIME_ID}");
     println!("\nevents:");
     for event in events {
         println!(
@@ -164,7 +164,7 @@ pub(crate) async fn run_blank_play_creation_loop<S: EventStore>(
     runtime
         .call_protocol(
             &ProtocolContext::host_dev("demo"),
-            "kernel.v1.permission.grant",
+            "authority.grant.create",
             json!({"principal": assistant, "permission": "capabilities.invoke", "scope": "official/assistant-lab"}),
         )
         .await
@@ -181,7 +181,7 @@ pub(crate) async fn run_blank_play_creation_loop<S: EventStore>(
     let proposal = runtime
         .call_protocol(
             &assistant_context,
-            "kernel.v1.capability.invoke",
+            "capability.invoke",
             json!({"capability_id": "official/assistant-lab/draft_branch_change", "input": {"seed": seed.output, "change": "try a first branch"}}),
         )
         .await
@@ -210,7 +210,7 @@ pub(crate) async fn run_blank_play_creation_loop<S: EventStore>(
         .projection_register(plurora_runtime::runtime::ProjectionDefinition {
             id: projection_id.clone(),
             session_id: session.id.clone(),
-            source_kind_prefix: Some("kernel/v1/session".to_string()),
+            source_kind_prefix: Some("context/".to_string()),
             state: json!({}),
         })
         .await?;

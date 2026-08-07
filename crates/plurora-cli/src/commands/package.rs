@@ -1027,7 +1027,7 @@ sandbox_policy:
 id: {id}
 version: 0.1.0
 display_name: Generated Playable Board
-description: "Deterministic/no-network playable board package skeleton. Board/module/constraint/marker state with play, Forge inspection, assistant proposals. No real model inference, no network, no kernel privilege."
+description: "Deterministic/no-network playable board package skeleton. Board/module/constraint/marker state with play, Forge inspection, assistant proposals. No real model inference, no network, no platform privilege."
 entry:
   kind: subprocess
   command:
@@ -1093,7 +1093,7 @@ sandbox_policy:
 id: {id}
 version: 0.1.0
 display_name: Generated Playable Experience
-description: "Deterministic/no-network playable experience package skeleton. Full checkpoint/recovery lifecycle with play, Forge inspection, assistant proposals. No real model inference, no network, no kernel privilege."
+description: "Deterministic/no-network playable experience package skeleton. Full checkpoint/recovery lifecycle with play, Forge inspection, assistant proposals. No real model inference, no network, no platform privilege."
 entry:
   kind: subprocess
   command:

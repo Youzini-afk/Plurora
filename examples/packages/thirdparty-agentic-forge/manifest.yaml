@@ -2,7 +2,7 @@ schema_version: 1
 id: thirdparty/agentic-forge
 version: 0.1.0
 display_name: Community Agentic Forge
-description: "Third-party agentic forge package proving official/agentic-forge-lab is replaceable: package-owned run lifecycle, plan graph, scratch branch candidates, promote proposals, inference fallback, and tool bridge scoped grants — all deterministic, no network, no kernel privilege."
+description: "Third-party agentic forge package proving official/agentic-forge-lab is replaceable: package-owned run lifecycle, plan graph, scratch branch candidates, promote proposals, inference fallback, and tool bridge scoped grants — all deterministic, no network, no platform privilege."
 entry:
   kind: rust_inproc
   crate_ref: example-thirdparty-agent-runtime
@@ -71,7 +71,7 @@ contributes:
     - id: thirdparty/agentic-forge/home-card
       slot: home_card
       title: Community Agentic Forge
-      description: Launch deterministic agent run plans from a third-party forge without real inference, network, or kernel privilege.
+      description: Launch deterministic agent run plans from a third-party forge without real inference, network, or platform privilege.
       capability_id: thirdparty/agentic-forge/start_run
 permissions:
   capabilities:

@@ -117,7 +117,7 @@ pub struct HandleLease {
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
 pub struct HandleProvenance {
     pub granted_at: DateTime<Utc>,
-    /// "kernel" if minted by kernel itself.
+    /// "plurora/runtime" if minted by the platform runtime.
     pub granted_by_package_id: PackageId,
     /// e.g. "auto_mint", "package_load", "attenuate", "delegate".
     pub via_method: String,

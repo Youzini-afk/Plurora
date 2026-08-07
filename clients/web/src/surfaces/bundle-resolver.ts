@@ -1,4 +1,4 @@
-import type { YggProtocolClient } from "../protocol/client";
+import type { PluroraProtocolClient } from "../protocol/client";
 
 export interface ResolvedSurfaceBundle {
   surfaceId: string;
@@ -12,7 +12,7 @@ export interface ResolvedSurfaceBundle {
 }
 
 export async function resolveSurfaceBundle(
-  client: YggProtocolClient,
+  client: PluroraProtocolClient,
   surfaceId: string,
 ): Promise<ResolvedSurfaceBundle> {
   const result = await client.invoke("host.surface.bundle.resolve", { surface_id: surfaceId });

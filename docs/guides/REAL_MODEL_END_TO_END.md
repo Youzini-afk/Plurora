@@ -31,7 +31,7 @@ inproc dispatcher 找到 ydltavern-engine 包 (subprocess)
 ydltavern-engine 包执行 capability handler
   ↓ (构造 OpenAI/Anthropic/Gemini-shaped 请求)
   ↓
-反向调用 kernel.v1.outbound.execute, 带 secret_headers: {Authorization: secret_ref}
+反向调用 host.outbound.execute, 带 secret_headers: {Authorization: secret_ref}
   ↓
 host dispatch_outbound_execute 处理:
   ✓ 检查包的 permissions.network.declarations 中是否允许这个 host
@@ -67,21 +67,21 @@ SendForm onSend(text)
 TavernProvider.sendMessage(text) (settings.streaming === true)
   ↓
 streamCapability("ydltavern/engine/model.live_call.stream", { ... })
-  ├─ 第一步: callHostRpc("kernel.v1.capability.stream", { capability_id, input })
+  ├─ 第一步: callHostRpc("capability.stream", { capability_id, input })
   │           → 返回 stream_id
   ├─ 第二步: postMessage 到 host: { type: "stream.subscribe", id, stream_id, session_id }
   └─ 返回 StreamHandle { streamId, frames: AsyncIterable<StreamFrame>, cancel() }
   ↓
 host (surface-host.ts) 收到 stream.subscribe:
   ✓ 通过 hostBridge.subscribeEvents(session_id, callback) 订阅 SSE
-  ✓ 过滤 kernel/v1/stream.* 事件, 匹配 stream_id 的 payload
+  ✓ 过滤 capability/stream.* 事件, 匹配 stream_id 的 payload
   ✓ 转发为 postMessage { type: "stream.frame" / "stream.ended" / "stream.error" }
   ↓
 engine 在 subprocess 内部:
-  ✓ 反向调用 kernel.v1.outbound.stream (而非 .execute)
+  ✓ 反向调用 host.outbound.stream (而非 .execute)
   ✓ 解析 SSE / chunked JSON
   ✓ 归一化为 { delta_text, kind: "chunk" } 等帧
-  ✓ 通过 kernel 把帧写入 session 事件流 (kernel/v1/stream.chunk)
+  ✓ 通过 kernel 把帧写入 session 事件流 (capability/stream.chunk)
   ↓
 host SSE 把这些事件推到 surface-host 的 subscribeEvents callback
   ↓
@@ -106,13 +106,13 @@ SendForm "Stop" 按钮 onClick
 tavern.cancelGeneration()
   ↓
 activeStreamRef.current.cancel()
-  ├─ callHostRpc("kernel.v1.capability.cancel", { stream_id })
+  ├─ callHostRpc("capability.cancel", { stream_id })
   ├─ postMessage { type: "stream.unsubscribe", subscription_id }
   └─ 关闭 AsyncQueue, 移除事件监听器
   ↓
 host:
-  ✓ kernel.v1.capability.cancel 取消 engine 反向调用 (engine 收到 abort 信号)
-  ✓ kernel/v1/stream.cancelled 事件落入 session
+  ✓ capability.cancel 取消 engine 反向调用 (engine 收到 abort 信号)
+  ✓ capability/stream.cancelled 事件落入 session
   ✓ surface-host 看到 cancelled, 转发为 stream.error 给 iframe
   ↓
 TavernProvider 循环退出, 保留已累积内容, isGenerating: false
@@ -188,7 +188,7 @@ surface_dev_paths:
   ydltavern: ../YdlTavern/packages/ydltavern-surface/dist
 ```
 
-`surface_dev_paths` 只用于开发期直接挂载本地构建产物。安装后的项目路径不需要该设置；host 会从 project dist 提供 `/surface-bundles/projects/<project_id>/...`。Web dev server 的端口是 `localhost:1420`。CLI 的 `plurora project start/status/stop` 是项目状态命令；Home 的 Play/session flow 通过 Web public protocol 调用 `kernel.v1.project.start`、接收 `session_id`，再解析并挂载 surface，二者不要当作等价入口。
+`surface_dev_paths` 只用于开发期直接挂载本地构建产物。安装后的项目路径不需要该设置；host 会从 project dist 提供 `/surface-bundles/projects/<project_id>/...`。Web dev server 的端口是 `localhost:1420`。CLI 的 `plurora project start/status/stop` 是项目状态命令；Home 的 Play/session flow 通过 Web public protocol 调用 `host.project.start`、接收 `session_id`，再解析并挂载 surface，二者不要当作等价入口。
 
 三道门必须同时通过：
 
@@ -218,7 +218,7 @@ session.metadata.project_id = "youzini-afk__YdlTavern__d2a47e5c"
 session.labels = ["project:youzini-afk__YdlTavern__d2a47e5c"]
 ```
 
-`clients/web` 主线程从 `kernel.v1.project.start` 响应拿到 `session_id`。随后它调用 `kernel.v1.surface.resolve_bundle` 拿到 surface bundle URL，并通过 `mountSurface` 把 iframe 挂起来。
+`clients/web` 主线程从 `host.project.start` 响应拿到 `session_id`。随后它调用 `host.surface.bundle.resolve` 拿到 surface bundle URL，并通过 `mountSurface` 把 iframe 挂起来。
 
 iframe 的 `initialProps` 包含：
 
@@ -252,7 +252,7 @@ surface 内的 `callHostRpc` / `invokeCapability` 会自动带这个 `session_id
 
 真实模型调用必须同时通过这些边界：
 
-- `kernel.v1.capability.invoke` 检查调用者上下文和 capability handle。
+- `capability.invoke` 检查调用者上下文和 capability handle。
 - engine 包 manifest 声明 `ydltavern/engine/model.live_call`。
 - engine 包 manifest 声明 `permissions.network.declarations`。
 - engine 包 manifest 声明 `permissions.secret_refs`。

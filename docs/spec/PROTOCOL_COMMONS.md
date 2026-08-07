@@ -37,10 +37,10 @@ Projection 仍保留 Experimental canonical namespace，但不进入首批 Proto
 
 - 精确支持的版本/Profile 会产生 `NegotiatedProtocol`；
 - 已声明的旧协议/版本使用具名适配器，并在协商结果中报告该适配器；
-- 不支持的 major 返回 `kernel/v1/error/unsupported_protocol`，`reason=protocol_major_mismatch`，并给出请求/支持 major 与可用适配器；
+- 不支持的 major 返回 `runtime/error/unsupported_protocol`，`reason=protocol_major_mismatch`，并给出请求/支持 major 与可用适配器；
 - 未知协议和 Profile 显式失败，不会因为 Schema 能解析就降级到更弱语义。
 
-首个显式适配器是 `kernel.v1.proposal@1.0.0 → plurora.change@1.0.0`，适配器 ID 为 `change.proposal.v1`。
+首个显式适配器是 `platform.proposal@1.0.0 → plurora.change@1.0.0`，适配器 ID 为 `change.proposal.v1`。
 
 ## 一致性职责
 

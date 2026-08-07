@@ -51,7 +51,7 @@
           "properties": {
             "kind": {
               "enum": [
-                "kernel"
+                "platform_runtime"
               ],
               "type": "string"
             }

@@ -51,7 +51,7 @@ Play-creation is only an optional Profile. Document tools, services, IDEs, and h
 
 ### Converge long-term ownership of Contract V1
 
-Contract V1 remains a supported public contract, but `kernel.v1.*` no longer expands indiscriminately. Current work should:
+Contract V1 remains a supported public contract, but `platform.*` no longer expands indiscriminately. Current work should:
 
 - make owners across substrate, Host, Protocol Commons, and Shell Profile visible;
 - give new capability an explicit namespace, version, and maturity;

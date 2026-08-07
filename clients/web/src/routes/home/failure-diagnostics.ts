@@ -1,6 +1,6 @@
 import type { FailureDetail } from "@/components/install/failure-modal";
 import { formatRelativeAge, type RelativeAgeLabels } from "@/lib/format";
-import type { YggProtocolClient, PackageRecord, SubprocessLogLine } from "@/protocol/client";
+import type { PluroraProtocolClient, PackageRecord, SubprocessLogLine } from "@/protocol/client";
 
 export interface FailureDiagnosticLabels {
   noDiagnosticAvailable: string;
@@ -47,7 +47,7 @@ export function failureDetailFromPackage(
 }
 
 export async function resolvePackageStatus(
-  client: YggProtocolClient,
+  client: PluroraProtocolClient,
   packageRef: string,
   packageLookup: Map<string, PackageRecord>,
 ): Promise<PackageRecord | null> {

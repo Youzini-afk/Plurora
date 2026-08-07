@@ -7,9 +7,9 @@
 ## 你应该使用什么
 
 - 用普通清单声明类 agent 能力。
-- 用 `kernel.v1.capability.invoke` 或 `kernel.v1.capability.stream` 启动运行。
-- 用 `kernel.v1.capability.cancel` 取消流式调用。
-- 用 `kernel.v1.proposal.*` 产出、审批和应用变更。
+- 用 `capability.invoke` 或 `capability.stream` 启动运行。
+- 用 `capability.cancel` 取消流式调用。
+- 用 `platform.proposal.*` 产出、审批和应用变更。
 - 用当前 Package writer namespace 的事件、Artifact 或流式帧记录追踪。
 - 用 surface contribution 暴露 `assistant_action`、`forge_panel` 或 `home_card`。
 - 用 `secret_ref` 而不是 raw secrets。
@@ -17,7 +17,7 @@
 
 ## 你不应该使用什么
 
-- 不新增或依赖 `kernel.v1.agent.*`、`kernel.v1.model.*`、`kernel.v1.prompt.*`、`kernel.v1.memory.*`、`kernel.v1.turn.*`。
+- 不新增或依赖 `platform.agent.*`、`platform.model.*`、`platform.prompt.*`、`platform.memory.*`、`platform.turn.*`。
 - 不把 agent 直接写入内核状态。
 - 不让 agent 直接修改可信资产、projection 或会话状态；先生成提案。
 - 不通过工具桥借用其他包的权限。
@@ -58,7 +58,7 @@ cargo run -p plurora-cli -- package conformance /tmp/plurora-agent/manifest.yaml
 `sdk/typescript/agent-adapter` 是一层薄适配器，不是完整 agent 框架。它用于：
 
 - 把 Ygg 能力描述符映射为 pi 风格工具描述符。
-- 构造 `kernel.v1.capability.invoke` / `kernel.v1.capability.stream` 请求载荷。
+- 构造 `capability.invoke` / `capability.stream` 请求载荷。
 - 生成包拥有的追踪事件载荷。
 - 生成需审批的提案草案载荷。
 - 诊断 provider 歧义、权限预览和 raw secret 阻断。

@@ -15,7 +15,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
 import { useToast } from "@/components/ui/toast";
-import { useAsync, useKernel } from "@/lib/kernel-client";
+import { useAsync, usePlurora } from "@/lib/plurora-client";
 import { classifyPackageKind } from "@/lib/format";
 import { useT } from "@/lib/locale";
 import { cn } from "@/lib/cn";
@@ -46,7 +46,7 @@ function pillTone(state: string): StatusTone {
 }
 
 export function InstalledPackagesPanel() {
-  const client = useKernel();
+  const client = usePlurora();
   const toast = useToast();
   const t = useT();
   const [filter, setFilter] = useState<FilterId>("all");

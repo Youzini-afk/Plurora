@@ -113,7 +113,7 @@ development execute/recover 会在内存操作中携带认证身份，但绝不�
 
 ## 安全红线
 
-- 不新增 `kernel.v1.project.*`、`kernel.v1.workspace.*`、`kernel.v1.git.*`、`kernel.v1.npm.*`、`kernel.v1.deploy.*`、`kernel.v1.ide.*`。
+- 不新增 `platform.project.*`、`platform.workspace.*`、`platform.git.*`、`platform.npm.*`、`platform.deploy.*`、`platform.ide.*`。
 - External Project 不是包；Managed Workspace 不是内核对象；Adapter/Wrapper 才是包。
 - 未适配项目不得直接注册为 capability provider。
 - 危险动作必须先计划，再通过策略、提案、审批、审计和脱敏边界。

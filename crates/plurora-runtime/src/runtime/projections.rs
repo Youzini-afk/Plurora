@@ -51,8 +51,8 @@ where
         projection.state = json!({"event_count": events.len(), "last_sequence": events.last().map(|event| event.sequence)});
         let projection = projection.clone();
         drop(projections);
-        self.append_kernel_event(
-            &format!("kernel_projection_{}", projection.id.replace('/', "_")),
+        self.append_platform_event(
+            &format!("platform_projection_{}", projection.id.replace('/', "_")),
             EVENT_PROJECTION_UPDATED,
             serde_json::to_value(&projection)?,
         )

@@ -28,7 +28,7 @@ created → prepared → running → paused → waiting_for_approval
                   ↘ archived
 ```
 
-The package controls the run. The kernel does not have `kernel.v1.agent.run` or similar methods.
+The package controls the run. The kernel does not have `platform.agent.run` or similar methods.
 
 ## Plan Graph
 

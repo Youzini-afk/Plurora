@@ -8,7 +8,7 @@
 //! This module provides the contract and a host-owned `EnvSecretResolver`
 //! that resolves environment-variable-backed secrets via an explicit
 //! allowlist. Production vault integrations belong in host-level packages,
-//! not the kernel.v1.
+//! not the platform.
 
 use std::collections::HashSet;
 use std::path::PathBuf;

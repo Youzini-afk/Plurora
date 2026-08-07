@@ -9,17 +9,16 @@ use plurora_core::{
     ProtocolConformanceReport,
 };
 use plurora_runtime::{
-    contract_diagnostics, contract_method, negotiate_contract, protocol_descriptor,
-    resolve_contract_method, ContractAdapter, ContractMaturity, ContractOwnerLayer,
-    ContractSelection, ContractVersionRequirement, DeploymentReconcileSource, EventStore,
-    ExecStatus, ExecStatusKind, InMemoryEventStore, KernelMethod, LocalExecExecutor,
-    LocalExecExecutorConfig, LocalExecLogsRequest, LocalExecLogsResponse, LocalExecStartRequest,
-    LocalExecStartResponse, LocalExecStatusRequest, LocalExecStatusResponse, LocalExecStopRequest,
-    LocalExecStopResponse, ManagedContainerReport, PortLeaseStatusKind, ProtocolContext,
-    ProtocolPrincipal, ProtocolSelection, ProxyRouteStatusKind, Runtime, RuntimeConfig,
-    SqliteEventStore, CHANGE_DEFAULT_PROFILE, CHANGE_PROTOCOL_ID, CHANGE_PROTOCOL_VERSION,
-    CONTRACT_LAYER_VERSION, DEFAULT_CONTRACT_PROFILE, PROTOCOL_COMMONS_REGISTRY_VERSION,
-    SHELL_DEFAULT_PROFILE,
+    contract_method, negotiate_contract, protocol_descriptor, resolve_contract_method,
+    ContractMaturity, ContractOwnerLayer, ContractSelection, ContractVersionRequirement,
+    DeploymentReconcileSource, EventStore, ExecStatus, ExecStatusKind, InMemoryEventStore,
+    LocalExecExecutor, LocalExecExecutorConfig, LocalExecLogsRequest, LocalExecLogsResponse,
+    LocalExecStartRequest, LocalExecStartResponse, LocalExecStatusRequest, LocalExecStatusResponse,
+    LocalExecStopRequest, LocalExecStopResponse, ManagedContainerReport, PlatformMethod,
+    PortLeaseStatusKind, ProtocolContext, ProtocolPrincipal, ProtocolSelection,
+    ProxyRouteStatusKind, Runtime, RuntimeConfig, SqliteEventStore, CHANGE_DEFAULT_PROFILE,
+    CHANGE_PROTOCOL_ID, CHANGE_PROTOCOL_VERSION, CONTRACT_LAYER_VERSION, DEFAULT_CONTRACT_PROFILE,
+    PROTOCOL_COMMONS_REGISTRY_VERSION, SHELL_DEFAULT_PROFILE,
 };
 
 use super::fixtures::*;
@@ -29,7 +28,7 @@ pub(crate) async fn call_host_info() -> anyhow::Result<()> {
     let value = runtime
         .call_protocol(
             &ProtocolContext::host_dev("conformance"),
-            "kernel.v1.host.info",
+            "host.info",
             json!({}),
         )
         .await
@@ -151,7 +150,7 @@ pub(crate) async fn protocol_major_mismatch_rejected() -> anyhow::Result<()> {
         )
         .await
         .expect_err("unsupported protocol major must be rejected");
-    anyhow::ensure!(error.code == "kernel/v1/error/unsupported_protocol");
+    anyhow::ensure!(error.code == "runtime/error/unsupported_protocol");
     anyhow::ensure!(error.details["reason"] == "protocol_major_mismatch");
     anyhow::ensure!(
         store.list_all().await?.is_empty(),
@@ -160,22 +159,20 @@ pub(crate) async fn protocol_major_mismatch_rejected() -> anyhow::Result<()> {
     Ok(())
 }
 
-pub(crate) async fn protocol_legacy_adapter_is_explicit() -> anyhow::Result<()> {
+pub(crate) async fn unknown_protocol_id_is_rejected() -> anyhow::Result<()> {
     let selection = ContractSelection {
         profile: DEFAULT_CONTRACT_PROFILE.to_string(),
         versions: Vec::new(),
         protocols: vec![ProtocolSelection {
-            protocol_id: "kernel.v1.proposal".to_string(),
+            protocol_id: "platform.proposal".to_string(),
             version: "1.0.0".to_string(),
             profile: Some(CHANGE_DEFAULT_PROFILE.to_string()),
         }],
     };
-    let negotiation = negotiate_contract(Some(&selection))
-        .map_err(|error| anyhow::anyhow!("{}: {}", error.code, error.message))?;
-    anyhow::ensure!(negotiation.protocols.len() == 1);
-    anyhow::ensure!(negotiation.protocols[0].protocol_id == CHANGE_PROTOCOL_ID);
-    anyhow::ensure!(negotiation.protocols[0].negotiated_version == CHANGE_PROTOCOL_VERSION);
-    anyhow::ensure!(negotiation.protocols[0].adapter_id.as_deref() == Some("change.proposal.v1"));
+    let error = negotiate_contract(Some(&selection))
+        .expect_err("removed protocol id must not resolve through an adapter");
+    anyhow::ensure!(error.code == "runtime/error/unsupported_protocol");
+    anyhow::ensure!(error.details["reason"] == "unknown_protocol");
     Ok(())
 }
 
@@ -219,139 +216,31 @@ pub(crate) async fn protocol_and_implementation_reports_are_separate() -> anyhow
     Ok(())
 }
 
-pub(crate) async fn alias_equivalent() -> anyhow::Result<()> {
+pub(crate) async fn single_method_identity() -> anyhow::Result<()> {
     let store = Arc::new(InMemoryEventStore::default());
-    let mut config = RuntimeConfig::default();
-    config
-        .surface_dev_paths
-        .insert("smoke".to_string(), ".".to_string());
-    let runtime = Runtime::new(store.clone(), config);
-    let context = ProtocolContext::host_dev("conformance");
-    let canonical = runtime
+    let runtime = Runtime::new(store.clone(), RuntimeConfig::default());
+    let context = ProtocolContext::host_dev("single_method_identity");
+
+    let current = runtime
         .call_protocol(&context, "host.info", json!({}))
         .await
         .map_err(|error| anyhow::anyhow!(error.message))?;
-    let legacy = runtime
-        .call_protocol(&context, "kernel.v1.host.info", json!({}))
+    anyhow::ensure!(current["supported_transports"].is_array());
+    anyhow::ensure!(current.get("aliases").is_none());
+
+    let descriptor = contract_method(PlatformMethod::HostInfo);
+    anyhow::ensure!(descriptor.id == "host.info");
+    anyhow::ensure!(descriptor.maturity == ContractMaturity::Candidate);
+    anyhow::ensure!(resolve_contract_method("host.info")?.method == PlatformMethod::HostInfo);
+    anyhow::ensure!(resolve_contract_method("platform.host.info").is_err());
+    anyhow::ensure!(resolve_contract_method("plurora.host.info").is_err());
+
+    let removed = runtime
+        .call_protocol(&context, "platform.host.info", json!({}))
         .await
-        .map_err(|error| anyhow::anyhow!(error.message))?;
-    anyhow::ensure!(canonical == legacy, "canonical and legacy host.info differ");
-    anyhow::ensure!(
-        canonical["aliases"].as_array().is_some_and(|aliases| {
-            aliases.iter().any(|alias| {
-                alias["id"] == "kernel.v1.host.info" && alias["canonical_id"] == "host.info"
-            })
-        }),
-        "host.info did not advertise its legacy alias"
-    );
-
-    for (canonical_id, legacy_id, params) in [
-        ("host.project.list", "kernel.v1.project.list", json!({})),
-        ("host.target.list", "kernel.v1.target.list", json!({})),
-        ("host.exec.list", "kernel.v1.exec.list", json!({})),
-        ("host.port.list", "kernel.v1.port.list", json!({})),
-        ("host.proxy.list", "kernel.v1.proxy.list", json!({})),
-        (
-            "host.surface.bundle.resolve",
-            "kernel.v1.surface.resolve_bundle",
-            json!({"surface_id": "smoke/entry"}),
-        ),
-        (
-            "shell.contribution.list",
-            "kernel.v1.surface.contribution.list",
-            json!({}),
-        ),
-        ("change.proposal.list", "kernel.v1.proposal.list", json!({})),
-        ("projection.list", "kernel.v1.projection.list", json!({})),
-    ] {
-        let canonical = runtime
-            .call_protocol(&context, canonical_id, params.clone())
-            .await
-            .map_err(|error| anyhow::anyhow!(error.message))?;
-        let legacy = runtime
-            .call_protocol(&context, legacy_id, params)
-            .await
-            .map_err(|error| anyhow::anyhow!(error.message))?;
-        anyhow::ensure!(
-            canonical == legacy,
-            "canonical {canonical_id} and legacy {legacy_id} differ"
-        );
-    }
-
-    let denied_context = ProtocolContext {
-        principal: ProtocolPrincipal::Anonymous,
-        transport: "conformance".to_string(),
-        authority: None,
-        host_operation: None,
-        session_id: None,
-        correlation_id: None,
-        parent_invocation_id: None,
-    };
-    let canonical_error = runtime
-        .call_protocol(&denied_context, "host.target.list", json!({}))
-        .await
-        .expect_err("canonical target.list must preserve the permission gate");
-    let legacy_error = runtime
-        .call_protocol(&denied_context, "kernel.v1.target.list", json!({}))
-        .await
-        .expect_err("legacy target.list must preserve the permission gate");
-    anyhow::ensure!(
-        canonical_error == legacy_error,
-        "canonical and legacy permission/error mapping differ"
-    );
-    anyhow::ensure!(
-        store.list_all().await?.is_empty(),
-        "identity aliases must not create a distinct audit/event path"
-    );
-    Ok(())
-}
-
-pub(crate) async fn legacy_adapter_lifecycle() -> anyhow::Result<()> {
-    let request = json!({"future_unknown_field": {"must": "remain lossless"}});
-    let response = json!({"future_unknown_field": [1, 2, 3]});
-
-    for (method, legacy_id, canonical_id) in [
-        (KernelMethod::HostInfo, "kernel.v1.host.info", "host.info"),
-        (
-            KernelMethod::TargetList,
-            "kernel.v1.target.list",
-            "host.target.list",
-        ),
-    ] {
-        let contract = contract_method(method);
-        anyhow::ensure!(contract.maturity == ContractMaturity::Candidate);
-        let alias = contract
-            .aliases
-            .first()
-            .ok_or_else(|| anyhow::anyhow!("{legacy_id} alias missing"))?;
-        anyhow::ensure!(alias.maturity == ContractMaturity::LegacyAdapter);
-        anyhow::ensure!(alias.request_adapter == ContractAdapter::Identity);
-        anyhow::ensure!(alias.response_adapter == ContractAdapter::Identity);
-        anyhow::ensure!(alias.replacement.as_deref() == Some(canonical_id));
-        anyhow::ensure!(alias.support_until.as_deref() == Some("plurora.contract.registry@0.5.0"));
-
-        let canonical = resolve_contract_method(canonical_id)?;
-        let legacy = resolve_contract_method(legacy_id)?;
-        anyhow::ensure!(legacy.method == canonical.method);
-        anyhow::ensure!(legacy.contract.request_schema == canonical.contract.request_schema);
-        anyhow::ensure!(legacy.contract.response_schema == canonical.contract.response_schema);
-        let adapted_request = legacy
-            .adapt_request(request.clone())
-            .map_err(|error| anyhow::anyhow!("{}: {}", error.code, error.message))?;
-        let adapted_response = legacy
-            .adapt_response(response.clone())
-            .map_err(|error| anyhow::anyhow!("{}: {}", error.code, error.message))?;
-        anyhow::ensure!(adapted_request == request);
-        anyhow::ensure!(adapted_response == response);
-
-        let diagnostics = contract_diagnostics(legacy_id);
-        anyhow::ensure!(diagnostics.len() == 1);
-        anyhow::ensure!(diagnostics[0].code == "plurora.contract.alias.legacy_adapter");
-        anyhow::ensure!(diagnostics[0].maturity == ContractMaturity::LegacyAdapter);
-        anyhow::ensure!(diagnostics[0].message.contains("no new field semantics"));
-        anyhow::ensure!(diagnostics[0].replacement.as_deref() == Some(canonical_id));
-        anyhow::ensure!(contract_diagnostics(canonical_id).is_empty());
-    }
+        .expect_err("removed method id must fail");
+    anyhow::ensure!(removed.code == "runtime/error/invalid_request");
+    anyhow::ensure!(store.list_all().await?.is_empty());
     Ok(())
 }
 
@@ -430,7 +319,7 @@ pub(crate) async fn unsupported_version_rejected() -> anyhow::Result<()> {
         )
         .await
         .expect_err("unsupported contract version must fail");
-    anyhow::ensure!(error.code == "kernel/v1/error/unsupported_contract");
+    anyhow::ensure!(error.code == "protocol/error/unsupported_contract");
     anyhow::ensure!(error.details["reason"] == "unsupported_version");
     anyhow::ensure!(
         error.details["details"]["supported_version"] == CONTRACT_LAYER_VERSION,
@@ -452,13 +341,13 @@ pub(crate) async fn no_silent_downgrade() -> anyhow::Result<()> {
     let error = runtime
         .call_protocol_negotiated(
             &ProtocolContext::host_dev("conformance"),
-            "kernel.v1.session.open",
+            "context.open",
             json!({"labels": [], "metadata": {}, "active_package_set": []}),
             Some(&selection),
         )
         .await
-        .expect_err("unsupported selection must not fall back to kernel.v1");
-    anyhow::ensure!(error.code == "kernel/v1/error/unsupported_contract");
+        .expect_err("unsupported selection must not fall back to platform contract");
+    anyhow::ensure!(error.code == "protocol/error/unsupported_contract");
     anyhow::ensure!(
         store.list_all().await?.is_empty(),
         "rejected negotiation still reached the session handler"
@@ -474,7 +363,7 @@ pub(crate) async fn call_capability_in_process() -> anyhow::Result<()> {
     let value = runtime
         .call_protocol(
             &ProtocolContext::host_dev("conformance"),
-            "kernel.v1.capability.invoke",
+            "capability.invoke",
             json!({"capability_id": "example/protocol/echo", "input": {"via": "protocol"}}),
         )
         .await
@@ -501,13 +390,13 @@ pub(crate) async fn deployment_hub_requires_host_principal() -> anyhow::Result<(
     let result = runtime
         .call_protocol(
             &context,
-            "kernel.v1.port.lease",
+            "host.port.lease",
             json!({"target_id":"local","port_name":"web"}),
         )
         .await;
     let error = result.expect_err("anonymous deployment hub call must fail");
     anyhow::ensure!(
-        error.code == "kernel/v1/error/permission_denied",
+        error.code == "runtime/error/permission_denied",
         "unexpected error code: {}",
         error.code
     );
@@ -519,7 +408,7 @@ pub(crate) async fn deployment_hub_port_lease_loopback() -> anyhow::Result<()> {
     let value = runtime
         .call_protocol(
             &ProtocolContext::host_dev("conformance"),
-            "kernel.v1.port.lease",
+            "host.port.lease",
             json!({"target_id":"local","port_name":"web","requested_port":39123}),
         )
         .await
@@ -535,7 +424,7 @@ pub(crate) async fn deployment_hub_proxy_requires_matching_lease_port() -> anyho
     let lease = runtime
         .call_protocol(
             &context,
-            "kernel.v1.port.lease",
+            "host.port.lease",
             json!({"target_id":"local","port_name":"web"}),
         )
         .await
@@ -547,7 +436,7 @@ pub(crate) async fn deployment_hub_proxy_requires_matching_lease_port() -> anyho
     let mismatch = runtime
         .call_protocol(
             &context,
-            "kernel.v1.proxy.register",
+            "host.proxy.register",
             json!({
                 "upstream": {"port_lease_id": lease_id, "port_name": "admin"},
                 "protocol": "http"
@@ -576,7 +465,7 @@ pub(crate) async fn deployment_sqlite_rehydrate() -> anyhow::Result<()> {
     let lease = runtime
         .call_protocol(
             &context,
-            "kernel.v1.port.lease",
+            "host.port.lease",
             json!({"target_id":"local","port_name":"web","requested_port":39201}),
         )
         .await
@@ -589,7 +478,7 @@ pub(crate) async fn deployment_sqlite_rehydrate() -> anyhow::Result<()> {
     let route = runtime
         .call_protocol(
             &context,
-            "kernel.v1.proxy.register",
+            "host.proxy.register",
             json!({
                 "upstream": {"port_lease_id": lease_id, "port_name": "web"},
                 "protocol": "http"
@@ -605,7 +494,7 @@ pub(crate) async fn deployment_sqlite_rehydrate() -> anyhow::Result<()> {
     let exec = runtime
         .call_protocol(
             &context,
-            "kernel.v1.exec.start",
+            "host.exec.start",
             json!({"target_id":"local","command":{"program":"demo","args":[]}}),
         )
         .await
@@ -662,7 +551,7 @@ pub(crate) async fn deployment_sqlite_rehydrate() -> anyhow::Result<()> {
     let fresh = hydrated
         .call_protocol(
             &context,
-            "kernel.v1.port.lease",
+            "host.port.lease",
             json!({"target_id":"local","port_name":"admin"}),
         )
         .await
@@ -688,7 +577,7 @@ pub(crate) async fn deployment_hub_exec_stop_receipt() -> anyhow::Result<()> {
     let started = runtime
         .call_protocol(
             &context,
-            "kernel.v1.exec.start",
+            "host.exec.start",
             json!({"target_id":"local","command":{"program":"demo","args":[]}}),
         )
         .await
@@ -699,7 +588,7 @@ pub(crate) async fn deployment_hub_exec_stop_receipt() -> anyhow::Result<()> {
     let stopped = runtime
         .call_protocol(
             &context,
-            "kernel.v1.exec.stop",
+            "host.exec.stop",
             json!({"exec_id": exec_id, "reason": "conformance"}),
         )
         .await
@@ -811,7 +700,7 @@ pub(crate) async fn deployment_hub_exec_terminal_is_observed_once() -> anyhow::R
     runtime
         .call_protocol(
             &context,
-            "kernel.v1.exec.start",
+            "host.exec.start",
             json!({"target_id":"local","command":{"program":"demo","args":[]}}),
         )
         .await
@@ -864,7 +753,7 @@ pub(crate) async fn deployment_hub_exec_terminal_is_observed_once() -> anyhow::R
     let status = hydrated
         .call_protocol(
             &context,
-            "kernel.v1.exec.status",
+            "host.exec.status",
             json!({"exec_id": "auto-terminal-exec"}),
         )
         .await
@@ -894,7 +783,7 @@ pub(crate) async fn deployment_hub_exec_denial_is_deduplicated() -> anyhow::Resu
         let response = runtime
             .call_protocol(
                 &context,
-                "kernel.v1.exec.status",
+                "host.exec.status",
                 json!({"exec_id": "denied-exec"}),
             )
             .await
@@ -921,7 +810,7 @@ pub(crate) async fn deployment_hub_exec_denial_is_deduplicated() -> anyhow::Resu
     hydrated
         .call_protocol(
             &context,
-            "kernel.v1.exec.status",
+            "host.exec.status",
             json!({"exec_id": "denied-exec"}),
         )
         .await
@@ -1061,7 +950,7 @@ async fn hydrated_deployment_runtime(
     let lease = runtime
         .call_protocol(
             &context,
-            "kernel.v1.port.lease",
+            "host.port.lease",
             json!({"target_id":"local","port_name":"web","requested_port":39201}),
         )
         .await
@@ -1074,7 +963,7 @@ async fn hydrated_deployment_runtime(
     let route = runtime
         .call_protocol(
             &context,
-            "kernel.v1.proxy.register",
+            "host.proxy.register",
             json!({"upstream":{"port_lease_id": lease_id, "port_name":"web"}, "protocol":"http"}),
         )
         .await
@@ -1087,7 +976,7 @@ async fn hydrated_deployment_runtime(
     let exec = runtime
         .call_protocol(
             &context,
-            "kernel.v1.exec.start",
+            "host.exec.start",
             json!({"target_id":"local","command":{"program":"demo","args":[]}}),
         )
         .await

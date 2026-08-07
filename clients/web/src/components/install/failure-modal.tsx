@@ -10,7 +10,7 @@ export interface FailureDetail {
   title?: string;
   summary?: string;
   log?: string[];
-  /** Real failure metadata from kernel events, when available. */
+  /** Real failure metadata from platform events, when available. */
   exitCode?: string;
   cause?: string;
   uptime?: string;

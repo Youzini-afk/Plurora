@@ -63,7 +63,7 @@ pub struct InprocInvocation {
 }
 
 #[derive(Clone)]
-pub struct KernelEnv {
+pub struct ComponentEnv {
     pub package_id: PackageId,
     pub component_id: String,
     pub component_digest: String,
@@ -73,7 +73,7 @@ pub struct KernelEnv {
 
 #[async_trait]
 pub trait InprocPackage: Send + Sync {
-    fn init(&self, _env: &KernelEnv) {}
+    fn init(&self, _env: &ComponentEnv) {}
 
     async fn invoke(&self, request: InprocInvocation) -> anyhow::Result<Value>;
 }
@@ -88,7 +88,7 @@ pub trait InprocCapabilityInvoker: Send + Sync {
         None
     }
 
-    fn append_kernel_event(
+    fn append_platform_event(
         &self,
         _session_id: &str,
         _kind: &'static str,
@@ -125,7 +125,7 @@ where
         Some(self.runtime.config().project_registry.clone())
     }
 
-    fn append_kernel_event(
+    fn append_platform_event(
         &self,
         session_id: &str,
         kind: &'static str,
@@ -135,7 +135,7 @@ where
         let session_id = session_id.to_string();
         Box::pin(async move {
             runtime
-                .append_kernel_event(&session_id, kind, payload)
+                .append_platform_event(&session_id, kind, payload)
                 .await
                 .map(|_| ())
         })
@@ -184,7 +184,7 @@ pub(crate) fn project_registry_from_inproc() -> anyhow::Result<Arc<ProjectRegist
         .ok_or_else(|| anyhow::anyhow!("inproc project registry context is unavailable"))
 }
 
-pub(crate) async fn append_kernel_event_from_inproc(
+pub(crate) async fn append_platform_event_from_inproc(
     session_id: &str,
     kind: &'static str,
     payload: Value,
@@ -192,7 +192,9 @@ pub(crate) async fn append_kernel_event_from_inproc(
     let invoker = INPROC_INVOKER
         .try_with(Clone::clone)
         .map_err(|_| anyhow::anyhow!("inproc runtime invocation context is unavailable"))?;
-    invoker.append_kernel_event(session_id, kind, payload).await
+    invoker
+        .append_platform_event(session_id, kind, payload)
+        .await
 }
 
 pub use install_lab::StoreSchemaMigration;
@@ -271,7 +273,7 @@ struct BindingsInprocPackage {
 
 #[async_trait]
 impl InprocPackage for BindingsInprocPackage {
-    fn init(&self, env: &KernelEnv) {
+    fn init(&self, env: &ComponentEnv) {
         *self.bindings.lock().expect("bindings mutex poisoned") = env.bindings.clone();
     }
 

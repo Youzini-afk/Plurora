@@ -34,11 +34,11 @@ absorption:
     - private_runtime_access
     - official_agent_priority
 plurora_mappings:
-  agent_run: kernel.v1.capability.invoke_or_stream
-  cancel: kernel.v1.capability.cancel
-  tool_discovery: kernel.v1.capability.discover_describe
-  tool_execution: kernel.v1.capability.invoke_or_stream
-  proposal: kernel.v1.proposal_lifecycle
+  agent_run: capability.invoke_or_stream
+  cancel: capability.cancel
+  tool_discovery: capability.discover_describe
+  tool_execution: capability.invoke_or_stream
+  proposal: platform.proposal_lifecycle
   trace: package_owned_events_or_stream_frames
   state: package_owned_assets_projections_or_capabilities
   ui: surface_contributions_public_protocol

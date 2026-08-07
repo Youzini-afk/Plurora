@@ -9,7 +9,7 @@
 //! 6. Apply memory correction is proposal-gated, requires approval
 //! 7. Draft forget/redaction produces redaction plan, not deletion
 //! 8. Branch-aware memory view filters by branch
-//! 9. No forbidden namespace (kernel.v1.memory.* etc.)
+//! 9. No forbidden namespace (platform.memory.* etc.)
 //! 10. No raw secrets in any capability
 
 use std::path::PathBuf;
@@ -312,7 +312,7 @@ pub(crate) async fn memory_lab_branch_view() -> anyhow::Result<()> {
 }
 
 /// Case 9: No forbidden namespace in any output.
-/// kernel.v1.memory.* is forbidden — memory is package-owned.
+/// platform.memory.* is forbidden — memory is package-owned.
 pub(crate) async fn memory_lab_no_forbidden_namespace() -> anyhow::Result<()> {
     let rt = load_memory_lab().await?;
 
@@ -329,16 +329,16 @@ pub(crate) async fn memory_lab_no_forbidden_namespace() -> anyhow::Result<()> {
     ];
 
     let forbidden = [
-        "kernel.v1.memory.",
-        "kernel.v1.experience.",
-        "kernel.v1.world.",
-        "kernel.v1.scene.",
-        "kernel.v1.turn.",
-        "kernel.v1.chat.",
-        "kernel.v1.agent.",
-        "kernel.v1.model.",
-        "kernel.v1.prompt.",
-        "kernel.v1.director.",
+        "platform.memory.",
+        "platform.experience.",
+        "platform.world.",
+        "platform.scene.",
+        "platform.turn.",
+        "platform.chat.",
+        "platform.agent.",
+        "platform.model.",
+        "platform.prompt.",
+        "platform.director.",
     ];
 
     for cap in &caps {

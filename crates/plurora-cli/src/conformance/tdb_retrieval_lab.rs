@@ -13,7 +13,7 @@ use crate::commands::manifest;
 
 const PACKAGE_ID: &str = "official/tdb-retrieval-lab";
 
-fn forbidden_kernel_namespace_tokens() -> Vec<String> {
+fn forbidden_platform_namespace_tokens() -> Vec<String> {
     [
         "tdb",
         "vector",
@@ -23,7 +23,7 @@ fn forbidden_kernel_namespace_tokens() -> Vec<String> {
         "database",
     ]
     .into_iter()
-    .map(|segment| format!("kernel.v1.{segment}."))
+    .map(|segment| format!("platform.{segment}."))
     .collect()
 }
 
@@ -67,11 +67,11 @@ pub(crate) async fn contract_shape() -> anyhow::Result<()> {
         .output;
     anyhow::ensure!(out["kind"] == json!("tdb_retrieval_contract"));
     anyhow::ensure!(out["package_kind"] == json!("ordinary_retrieval_provider_adapter"));
-    anyhow::ensure!(out["red_lines"]["not_kernel_database"] == json!(true));
+    anyhow::ensure!(out["red_lines"]["not_platform_database"] == json!(true));
     anyhow::ensure!(out["red_lines"]["no_real_tdb_crate_linkage_in_alpha"] == json!(true));
     anyhow::ensure!(out["capabilities"].as_array().map(|a| a.len()).unwrap_or(0) == 6);
     let serialized = serde_json::to_string(&out)?;
-    for token in forbidden_kernel_namespace_tokens() {
+    for token in forbidden_platform_namespace_tokens() {
         anyhow::ensure!(
             !serialized.contains(&token),
             "forbidden namespace token leaked: {token}"

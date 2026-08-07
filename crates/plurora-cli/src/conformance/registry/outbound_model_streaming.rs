@@ -104,9 +104,9 @@ pub(super) fn live_http_outbound_cases() -> Vec<ConformanceCase> {
     ]
 }
 
-pub(super) fn kernel_v1_outbound_execute_cases() -> Vec<ConformanceCase> {
+pub(super) fn public_outbound_execute_cases() -> Vec<ConformanceCase> {
     vec![
-        // --- kernel.v1.outbound.execute ---
+        // --- host.outbound.execute ---
         c!(
             "outbound.execute_package_allowed",
             ["outbound", "network"],
@@ -247,9 +247,9 @@ pub(super) fn y2_manifest_permissions_secret_refs_conformance_cases() -> Vec<Con
     ]
 }
 
-pub(super) fn y3_kernel_v1_outbound_stream_conformance_cases() -> Vec<ConformanceCase> {
+pub(super) fn outbound_stream_conformance_cases() -> Vec<ConformanceCase> {
     vec![
-        // --- Y3: kernel.v1.outbound.stream conformance ---
+        // --- Y3: host.outbound.stream conformance ---
         c!(
             "outbound_stream.profile_default_deny_all",
             ["outbound", "network", "stream", "profile"],
@@ -281,14 +281,14 @@ pub(super) fn y3_kernel_v1_outbound_stream_conformance_cases() -> Vec<Conformanc
             crate::conformance::network::outbound_stream_https_only
         ),
         c!(
-            "subprocess.reverse_kernel_call_dispatched",
+            "subprocess.reverse_platform_call_dispatched",
             ["subprocess", "outbound", "network"],
-            crate::conformance::network::subprocess_reverse_kernel_call_dispatched
+            crate::conformance::network::subprocess_reverse_platform_call_dispatched
         ),
         c!(
-            "subprocess.reverse_kernel_call_principal_locked",
+            "subprocess.reverse_platform_call_principal_locked",
             ["subprocess", "outbound", "network"],
-            crate::conformance::network::subprocess_reverse_kernel_call_principal_locked
+            crate::conformance::network::subprocess_reverse_platform_call_principal_locked
         ),
         c!(
             "subprocess.reverse_stream_chunks_piped",

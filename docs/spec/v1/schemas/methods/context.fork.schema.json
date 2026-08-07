@@ -1,0 +1,116 @@
+{
+  "$defs": {
+    "Errors": {
+      "items": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "details": true,
+          "message": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "details",
+          "message"
+        ],
+        "title": "ErrorShape",
+        "type": "object"
+      },
+      "type": "array"
+    },
+    "Params": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "properties": {
+        "forked_from_sequence": {
+          "format": "uint64",
+          "minimum": 0.0,
+          "type": "integer"
+        },
+        "metadata": true,
+        "parent_session_id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "forked_from_sequence",
+        "metadata",
+        "parent_session_id"
+      ],
+      "title": "SessionForkParams",
+      "type": "object"
+    },
+    "Result": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "properties": {
+        "child_session_id": {
+          "type": "string"
+        },
+        "created_at": {
+          "format": "date-time",
+          "type": "string"
+        },
+        "forked_from_sequence": {
+          "format": "uint64",
+          "minimum": 0.0,
+          "type": "integer"
+        },
+        "id": {
+          "type": "string"
+        },
+        "metadata": {
+          "default": null
+        },
+        "parent_session_id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "child_session_id",
+        "created_at",
+        "forked_from_sequence",
+        "id",
+        "parent_session_id"
+      ],
+      "title": "BranchRecord",
+      "type": "object"
+    }
+  },
+  "$id": "urn:plurora:schema:method:context.fork:v1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Plurora public platform method context.fork.",
+  "properties": {
+    "errors": {
+      "$ref": "#/$defs/Errors"
+    },
+    "method": {
+      "const": "context.fork"
+    },
+    "params": {
+      "$ref": "#/$defs/Params"
+    },
+    "result": {
+      "$ref": "#/$defs/Result"
+    }
+  },
+  "required": [
+    "method",
+    "params"
+  ],
+  "title": "context.fork",
+  "type": "object",
+  "x-plurora-contract": {
+    "id": "context.fork",
+    "implementation_status": "partial",
+    "introduced_in": "plurora.contract.default/v1@0.1.0",
+    "maturity": "experimental",
+    "owner_layer": "substrate",
+    "request_schema": "urn:plurora:schema:method:context.fork:v1#/$defs/Params",
+    "response_schema": "urn:plurora:schema:method:context.fork:v1#/$defs/Result",
+    "streaming": false
+  }
+}

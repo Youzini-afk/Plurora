@@ -1,5 +1,5 @@
 //! Conformance cases for Phase H5: proving official seed is replaceable
-//! with a third-party package, no kernel privilege or hardcoding required.
+//! with a third-party package, no platform privilege or hardcoding required.
 //!
 //! Also covers Phase J6: proving third-party agent runtime is replaceable
 //! with the official pi-agent-runtime-lab.
@@ -13,7 +13,7 @@ use super::fixtures::*;
 use crate::commands::{composition, manifest};
 
 /// Proves that the third-party playable-seed replacement package loads and its
-/// surfaces are discoverable through `kernel.v1.surface.contribution.list`.
+/// surfaces are discoverable through `shell.contribution.list`.
 pub(crate) async fn thirdparty_seed_surfaces() -> anyhow::Result<()> {
     let (_store, runtime) = runtime();
     runtime
@@ -29,7 +29,7 @@ pub(crate) async fn thirdparty_seed_surfaces() -> anyhow::Result<()> {
     let all = runtime
         .call_protocol(
             &ProtocolContext::host_dev("conformance"),
-            "kernel.v1.surface.contribution.list",
+            "shell.contribution.list",
             json!({}),
         )
         .await
@@ -43,7 +43,7 @@ pub(crate) async fn thirdparty_seed_surfaces() -> anyhow::Result<()> {
     let entries = runtime
         .call_protocol(
             &ProtocolContext::host_dev("conformance"),
-            "kernel.v1.surface.contribution.list",
+            "shell.contribution.list",
             json!({"slot": "experience_entry"}),
         )
         .await
@@ -62,7 +62,7 @@ pub(crate) async fn thirdparty_seed_surfaces() -> anyhow::Result<()> {
     let renderers = runtime
         .call_protocol(
             &ProtocolContext::host_dev("conformance"),
-            "kernel.v1.surface.contribution.list",
+            "shell.contribution.list",
             json!({"slot": "play_renderer"}),
         )
         .await
@@ -81,7 +81,7 @@ pub(crate) async fn thirdparty_seed_surfaces() -> anyhow::Result<()> {
     let forge_panels = runtime
         .call_protocol(
             &ProtocolContext::host_dev("conformance"),
-            "kernel.v1.surface.contribution.list",
+            "shell.contribution.list",
             json!({"slot": "forge_panel"}),
         )
         .await
@@ -100,7 +100,7 @@ pub(crate) async fn thirdparty_seed_surfaces() -> anyhow::Result<()> {
     let assistants = runtime
         .call_protocol(
             &ProtocolContext::host_dev("conformance"),
-            "kernel.v1.surface.contribution.list",
+            "shell.contribution.list",
             json!({"slot": "assistant_action"}),
         )
         .await
@@ -119,7 +119,7 @@ pub(crate) async fn thirdparty_seed_surfaces() -> anyhow::Result<()> {
     let editors = runtime
         .call_protocol(
             &ProtocolContext::host_dev("conformance"),
-            "kernel.v1.surface.contribution.list",
+            "shell.contribution.list",
             json!({"slot": "asset_editor"}),
         )
         .await
@@ -263,7 +263,7 @@ pub(crate) async fn composition_thirdparty() -> anyhow::Result<()> {
 
 /// Proves that the third-party agent-runtime replacement package loads and its
 /// surfaces (assistant_action, forge_panel, home_card) are discoverable through
-/// `kernel.v1.surface.contribution.list`.
+/// `shell.contribution.list`.
 pub(crate) async fn thirdparty_agent_runtime_surfaces() -> anyhow::Result<()> {
     let (_store, runtime) = runtime();
     runtime
@@ -279,7 +279,7 @@ pub(crate) async fn thirdparty_agent_runtime_surfaces() -> anyhow::Result<()> {
     let assistants = runtime
         .call_protocol(
             &ProtocolContext::host_dev("conformance"),
-            "kernel.v1.surface.contribution.list",
+            "shell.contribution.list",
             json!({"slot": "assistant_action"}),
         )
         .await
@@ -301,7 +301,7 @@ pub(crate) async fn thirdparty_agent_runtime_surfaces() -> anyhow::Result<()> {
     let forge_panels = runtime
         .call_protocol(
             &ProtocolContext::host_dev("conformance"),
-            "kernel.v1.surface.contribution.list",
+            "shell.contribution.list",
             json!({"slot": "forge_panel"}),
         )
         .await
@@ -323,7 +323,7 @@ pub(crate) async fn thirdparty_agent_runtime_surfaces() -> anyhow::Result<()> {
     let home_cards = runtime
         .call_protocol(
             &ProtocolContext::host_dev("conformance"),
-            "kernel.v1.surface.contribution.list",
+            "shell.contribution.list",
             json!({"slot": "home_card"}),
         )
         .await

@@ -19,7 +19,7 @@ The generic `Intent → ChangeSet → PolicyDecision → Commit` chain describes
 
 ## v1 Proposal adapter
 
-Existing `kernel.v1.proposal.*` methods and events remain unchanged. Proposal creation now adds:
+Existing `platform.proposal.*` methods and events remain unchanged. Proposal creation now adds:
 
 - `intent`: creator, target session/branch, and goal;
 - `change_set`: mapped legacy `operations`, `required_permissions`, and `expected_effects`;

@@ -263,7 +263,7 @@ where
                 status: "denied".to_string(),
                 error: decision.denial_reason.clone(),
             };
-            let session_id = format!("kernel_outbound_{}", request.package_id.replace('/', "_"));
+            let session_id = format!("platform_outbound_{}", request.package_id.replace('/', "_"));
             let receipt = self
                 .record_outbound_policy_denial(&request, &record)
                 .await?;
@@ -272,7 +272,7 @@ where
                 .as_object_mut()
                 .expect("outbound audit record serializes as an object")
                 .insert("receipt".to_string(), serde_json::to_value(receipt)?);
-            self.append_kernel_event(&session_id, EVENT_OUTBOUND_DENIED, payload)
+            self.append_platform_event(&session_id, EVENT_OUTBOUND_DENIED, payload)
                 .await?;
             anyhow::bail!(
                 "outbound request denied: {}",
@@ -302,8 +302,8 @@ where
             status: "allowed".to_string(),
             error: None,
         };
-        let session_id = format!("kernel_outbound_{}", request.package_id.replace('/', "_"));
-        self.append_kernel_event(
+        let session_id = format!("platform_outbound_{}", request.package_id.replace('/', "_"));
+        self.append_platform_event(
             &session_id,
             EVENT_OUTBOUND_REQUEST,
             serde_json::to_value(&record)?,
@@ -318,7 +318,7 @@ where
         completion: OutboundExecuteCompletion<'_>,
     ) -> anyhow::Result<ArtifactDescriptor> {
         let session_id = format!(
-            "kernel_outbound_{}",
+            "platform_outbound_{}",
             completion.package_id.replace('/', "_")
         );
         let payload = json!({
@@ -346,7 +346,7 @@ where
             .as_object_mut()
             .expect("outbound completion payload is an object")
             .insert("receipt".to_string(), serde_json::to_value(&receipt)?);
-        self.append_kernel_event(&session_id, EVENT_OUTBOUND_EXECUTE_COMPLETED, payload)
+        self.append_platform_event(&session_id, EVENT_OUTBOUND_EXECUTE_COMPLETED, payload)
             .await?;
         Ok(receipt)
     }
@@ -421,11 +421,11 @@ where
         &self,
         package_id: &PackageId,
     ) -> anyhow::Result<Vec<plurora_core::EventEnvelope>> {
-        let session_id = format!("kernel_outbound_{}", package_id.replace('/', "_"));
+        let session_id = format!("platform_outbound_{}", package_id.replace('/', "_"));
         // Use session+kind-prefix pushdown instead of list_session + full filter.
         let request_events = self
             .store
-            .list_session_kind_prefix(&session_id, "kernel/v1/outbound")
+            .list_session_kind_prefix(&session_id, "host/outbound")
             .await?;
         Ok(request_events)
     }
@@ -734,7 +734,7 @@ pub(crate) async fn append_outbound_completion_event<S: EventStore>(
     kind: &'static str,
     payload: Value,
 ) -> anyhow::Result<()> {
-    use plurora_core::{EventEnvelope, KERNEL_PACKAGE_ID};
+    use plurora_core::{EventEnvelope, PLATFORM_RUNTIME_ID};
 
     let seq = store.next_sequence(&session_id).await?;
     store
@@ -743,7 +743,7 @@ pub(crate) async fn append_outbound_completion_event<S: EventStore>(
             session_id,
             sequence: seq,
             timestamp: chrono::Utc::now(),
-            writer_package_id: KERNEL_PACKAGE_ID.to_string(),
+            writer_package_id: PLATFORM_RUNTIME_ID.to_string(),
             kind: kind.to_string(),
             schema_version: 1,
             payload,

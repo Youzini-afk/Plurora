@@ -10,10 +10,10 @@ The kernel exposes four generic primitive families:
 
 | Primitive | Protocol family | Role |
 |---|---|---|
-| target | `kernel.v1.target.*` | Describe an execution target. Built-in `local` and enrolled remote Agents enter the same registry/driver contract. |
-| exec | `kernel.v1.exec.*` | Start, stop, and inspect controlled local execution. Deny-all by default. |
-| port | `kernel.v1.port.*` | Lease a loopback port from the host. |
-| proxy | `kernel.v1.proxy.*` | Bind a managed HTTP / WebSocket route to a port lease and explicitly record Host-authenticated or public access. |
+| target | `platform.target.*` | Describe an execution target. Built-in `local` and enrolled remote Agents enter the same registry/driver contract. |
+| exec | `platform.exec.*` | Start, stop, and inspect controlled local execution. Deny-all by default. |
+| port | `platform.port.*` | Lease a loopback port from the host. |
+| proxy | `platform.proxy.*` | Bind a managed HTTP / WebSocket route to a port lease and explicitly record Host-authenticated or public access. |
 
 Docker, git, installation, secret storage, workspaces, and adapters are not kernel concepts. Ordinary capability packages implement them.
 
@@ -94,9 +94,9 @@ Volumes may point to arbitrary host paths, but every mount needs explicit approv
 The Deploy button in the project console never runs automatically. After user confirmation, the request is sent to the host-plane `POST /host/v1/deploy`, where the host broker drives the whole chain server-side (the browser is a thin client and no longer orchestrates):
 
 1. The host re-validates the request (client fields are not trusted).
-2. `kernel.v1.port.lease`: lease a loopback port.
-3. `kernel.v1.capability.invoke` → `official/docker-runtime-lab/start_container`: start the Docker container with `approved: true`, `host_port`, and `port_lease_id`.
-4. `kernel.v1.proxy.register`: bind the route and explicit `route_access` to that port lease (registered with `ready=false`).
+2. `host.port.lease`: lease a loopback port.
+3. `capability.invoke` → `official/docker-runtime-lab/start_container`: start the Docker container with `approved: true`, `host_port`, and `port_lease_id`.
+4. `host.proxy.register`: bind the route and explicit `route_access` to that port lease (registered with `ready=false`).
 5. Readiness probe: TCP-connect to the loopback port (with an optional health_path HTTP probe). The route is flipped to `ready=true` and success returned only if the probe passes within a bounded timeout.
 
 If any step fails, the broker rolls back in reverse: unregister proxy, stop the just-started container, release the port lease. Because orchestration is host-side, closing the browser tab does not leave orphan containers or port leases.
@@ -161,7 +161,7 @@ Recover and rollback are explicit user actions. Ordinary revisions must be repla
 
 ## `project.start` does not deploy
 
-`kernel.v1.project.start` remains a project state machine: open or reuse a project session, mark Running, and return `session_id`. It does not start a process, allocate a port, or register a proxy.
+`host.project.start` remains a project state machine: open or reuse a project session, mark Running, and return `session_id`. It does not start a process, allocate a port, or register a proxy.
 
 Deployment is a separate, explicit host-broker action. This keeps “open project UI” and “run an external service” visibly separate.
 

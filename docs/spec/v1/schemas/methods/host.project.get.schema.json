@@ -1,0 +1,456 @@
+{
+  "$defs": {
+    "Errors": {
+      "items": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "details": true,
+          "message": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "details",
+          "message"
+        ],
+        "title": "ErrorShape",
+        "type": "object"
+      },
+      "type": "array"
+    },
+    "ExternalProjectData": {
+      "properties": {
+        "adapter_manifest": {
+          "description": "For external_wrapped: the path to the adapter package's manifest.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "source": {
+          "description": "Source URL or path the external project was installed from.",
+          "type": "string"
+        },
+        "source_digest": {
+          "description": "Content digest of the materialized workspace tree.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "source_kind": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ExternalSourceKind"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Kind of source that produced the managed workspace."
+        },
+        "source_ref": {
+          "description": "Resolved commit SHA or version (for git sources).",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "workspace_ownership": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ExternalWorkspaceOwnership"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Ownership boundary for the workspace path. Managed workspaces may be archived or deleted with the project; linked local sources never may."
+        },
+        "workspace_root": {
+          "description": "For external_workspace: path to the fetched project tree under the workspace.",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "source"
+      ],
+      "type": "object"
+    },
+    "ExternalSourceKind": {
+      "enum": [
+        "local",
+        "git"
+      ],
+      "type": "string"
+    },
+    "ExternalWorkspaceOwnership": {
+      "enum": [
+        "managed",
+        "linked_local"
+      ],
+      "type": "string"
+    },
+    "Params": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "properties": {
+        "project_id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "project_id"
+      ],
+      "title": "ProjectIdParams",
+      "type": "object"
+    },
+    "ProjectInner": {
+      "properties": {
+        "description": {
+          "default": "",
+          "description": "Description for tooltip / detail view.",
+          "type": "string"
+        },
+        "entry_surface_id": {
+          "description": "Entry surface id for click-to-play. Required for native; optional for external. For external_workspace, may point to a workspace-lab provided surface.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "external": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ExternalProjectData"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Project type-specific data."
+        },
+        "icon": {
+          "description": "Optional icon path (relative to project root for native, optional for external).",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "id": {
+          "description": "Project id. Format: <safe_slug>__<short_hash>. Filesystem-safe (no /, no .., no shell special chars). Stable across upgrades.",
+          "type": "string"
+        },
+        "metadata": {
+          "additionalProperties": true,
+          "default": {},
+          "description": "Free-form metadata for forward compat.",
+          "type": "object"
+        },
+        "optional_packages": {
+          "default": [],
+          "description": "Optional packages that may be loaded if available.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "packages": {
+          "default": [],
+          "description": "Package manifest paths used by this project. For plurora_native: typically packages/* paths For external_wrapped: the adapter package For external_workspace: empty or workspace tooling",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "required_capabilities": {
+          "default": [],
+          "description": "Required capabilities (composition-style validation).",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "required_surfaces": {
+          "default": [],
+          "description": "Required surface ids (composition-style validation).",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "secret_policy": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/SecretPolicy"
+            }
+          ],
+          "default": {
+            "fallback_to_platform": true,
+            "require_per_project": []
+          },
+          "description": "Secret policy for this project."
+        },
+        "title": {
+          "description": "Display title for Home card.",
+          "type": "string"
+        },
+        "type": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/ProjectType"
+            }
+          ],
+          "description": "Project type discriminator."
+        }
+      },
+      "required": [
+        "id",
+        "title",
+        "type"
+      ],
+      "type": "object"
+    },
+    "ProjectType": {
+      "oneOf": [
+        {
+          "description": "Native Plurora project: has project.yaml at repo root, manifest references Plurora packages.",
+          "enum": [
+            "plurora_native"
+          ],
+          "type": "string"
+        },
+        {
+          "description": "External project wrapped by an adapter package.",
+          "enum": [
+            "external_wrapped"
+          ],
+          "type": "string"
+        },
+        {
+          "description": "External project running in an agent workspace (no wrapping).",
+          "enum": [
+            "external_workspace"
+          ],
+          "type": "string"
+        }
+      ]
+    },
+    "Result": {
+      "allOf": [
+        {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "properties": {
+            "project": {
+              "allOf": [
+                {
+                  "$ref": "#/$defs/ProjectInner"
+                }
+              ],
+              "description": "The actual project content."
+            },
+            "schema_version": {
+              "description": "Schema version. Currently always 1.",
+              "format": "uint32",
+              "minimum": 0.0,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "project",
+            "schema_version"
+          ],
+          "title": "ProjectDescriptor",
+          "type": "object"
+        }
+      ],
+      "properties": {
+        "running_session_id": {
+          "description": "Session id when project state is running; absent otherwise",
+          "type": "string"
+        },
+        "state": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "description": "Runtime project state. Not serialized to project.yaml; tracked by registry.",
+          "oneOf": [
+            {
+              "description": "Installed but not running.",
+              "enum": [
+                "installed"
+              ],
+              "type": "string"
+            },
+            {
+              "description": "Stopped after running.",
+              "enum": [
+                "stopped"
+              ],
+              "type": "string"
+            },
+            {
+              "description": "Currently transitioning to running.",
+              "enum": [
+                "starting"
+              ],
+              "type": "string"
+            },
+            {
+              "description": "Currently running and serving.",
+              "enum": [
+                "running"
+              ],
+              "type": "string"
+            },
+            {
+              "description": "Currently transitioning to stopped.",
+              "enum": [
+                "stopping"
+              ],
+              "type": "string"
+            },
+            {
+              "description": "Failed to start or crashed.",
+              "enum": [
+                "failed"
+              ],
+              "type": "string"
+            },
+            {
+              "description": "Soft-deleted, awaiting cleanup.",
+              "enum": [
+                "archived"
+              ],
+              "type": "string"
+            }
+          ],
+          "title": "ProjectState"
+        },
+        "storage_summary": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "properties": {
+            "bundle_bytes": {
+              "format": "uint64",
+              "minimum": 0.0,
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "cache_bytes": {
+              "format": "uint64",
+              "minimum": 0.0,
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "data_bytes": {
+              "format": "uint64",
+              "minimum": 0.0,
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "log_bytes": {
+              "format": "uint64",
+              "minimum": 0.0,
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "measured_at": {
+              "format": "date-time",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "measurement_state": {
+              "$ref": "#/$defs/StorageMeasurementStateSchema"
+            },
+            "total_bytes": {
+              "format": "uint64",
+              "minimum": 0.0,
+              "type": [
+                "integer",
+                "null"
+              ]
+            }
+          },
+          "required": [
+            "measurement_state"
+          ],
+          "title": "ProjectStorageSummarySchema",
+          "type": "object"
+        }
+      }
+    },
+    "SecretPolicy": {
+      "properties": {
+        "fallback_to_platform": {
+          "default": true,
+          "description": "If true, secret_ref:project:NAME falls back to platform store when not found in project. If false, fail-closed. Default: true (convenience).",
+          "type": "boolean"
+        },
+        "require_per_project": {
+          "default": [],
+          "description": "Names that MUST be configured at project scope (no platform fallback for these specifically). Useful for sensitive secrets that should never accidentally use a shared platform key.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "type": "object"
+    },
+    "StorageMeasurementStateSchema": {
+      "enum": [
+        "measured",
+        "unknown"
+      ],
+      "type": "string"
+    }
+  },
+  "$id": "urn:plurora:schema:method:host.project.get:v1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Plurora public platform method host.project.get.",
+  "properties": {
+    "errors": {
+      "$ref": "#/$defs/Errors"
+    },
+    "method": {
+      "const": "host.project.get"
+    },
+    "params": {
+      "$ref": "#/$defs/Params"
+    },
+    "result": {
+      "$ref": "#/$defs/Result"
+    }
+  },
+  "required": [
+    "method",
+    "params"
+  ],
+  "title": "host.project.get",
+  "type": "object",
+  "x-plurora-contract": {
+    "id": "host.project.get",
+    "implementation_status": "implemented",
+    "introduced_in": "plurora.contract.default/v1@0.1.0",
+    "maturity": "candidate",
+    "owner_layer": "host",
+    "request_schema": "urn:plurora:schema:method:host.project.get:v1#/$defs/Params",
+    "response_schema": "urn:plurora:schema:method:host.project.get:v1#/$defs/Result",
+    "streaming": false
+  }
+}

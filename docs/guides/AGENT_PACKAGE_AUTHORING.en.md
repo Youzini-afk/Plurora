@@ -7,9 +7,9 @@ This guide explains how to implement agent-like capability with ordinary Package
 ## What to use
 
 - Declare agent-like capabilities in ordinary manifests.
-- Start runs through `kernel.v1.capability.invoke` or `kernel.v1.capability.stream`.
-- Cancel streaming invocations through `kernel.v1.capability.cancel`.
-- Produce, approve, and apply changes through `kernel.v1.proposal.*`.
+- Start runs through `capability.invoke` or `capability.stream`.
+- Cancel streaming invocations through `capability.cancel`.
+- Produce, approve, and apply changes through `platform.proposal.*`.
 - Record traces through the current Package-writer namespace, Artifacts, or stream frames.
 - Expose `assistant_action`, `forge_panel`, or `home_card` through surface contributions.
 - Use `secret_ref` instead of raw secrets.
@@ -17,7 +17,7 @@ This guide explains how to implement agent-like capability with ordinary Package
 
 ## What not to use
 
-- Do not add or depend on `kernel.v1.agent.*`, `kernel.v1.model.*`, `kernel.v1.prompt.*`, `kernel.v1.memory.*`, or `kernel.v1.turn.*`.
+- Do not add or depend on `platform.agent.*`, `platform.model.*`, `platform.prompt.*`, `platform.memory.*`, or `platform.turn.*`.
 - Do not store agents directly in kernel state.
 - Do not let agents mutate trusted asset/projection/session state directly; create proposals first.
 - Do not borrow another package's permissions through a tool bridge.
@@ -58,7 +58,7 @@ cargo run -p plurora-cli -- package conformance /tmp/plurora-agent/manifest.yaml
 `sdk/typescript/agent-adapter` is a thin adapter, not a full agent framework. It helps you:
 
 - map Ygg capability descriptors to pi-style tool descriptors;
-- build `kernel.v1.capability.invoke` / `kernel.v1.capability.stream` request payloads;
+- build `capability.invoke` / `capability.stream` request payloads;
 - build package-owned trace event payloads;
 - build approval-gated proposal draft payloads;
 - diagnose provider ambiguity, permission previews, and raw-secret blocking.

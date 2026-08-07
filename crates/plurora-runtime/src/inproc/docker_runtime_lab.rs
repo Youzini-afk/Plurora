@@ -2,7 +2,7 @@
 //!
 //! Docker Runtime Lab is an ordinary package. It performs Docker container
 //! lifecycle actions only after host-provided approval and metadata are present.
-//! The host/kernel owns port leases and proxy routes; this package never invokes
+//! The Host/runtime owns port leases and proxy routes; this package never invokes
 //! HostAdmin-only kernel port/proxy capabilities.
 
 use std::collections::HashMap;

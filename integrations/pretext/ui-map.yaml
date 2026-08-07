@@ -98,7 +98,7 @@ stream_adapter:
 text_preview:
   - helper: "extractEventPreview"
     path: "clients/web/src/text-layout/text-preview.ts"
-    note: "Extracts safe plain-text preview from event payloads. Supports kernel/v1/stream.* events and common payload fields (text, message, summary, reason, content). Uses active text engine for line/height estimation."
+    note: "Extracts safe plain-text preview from event payloads. Supports capability/stream.* events and common payload fields (text, message, summary, reason, content). Uses active text engine for line/height estimation."
     supported_kinds:
       - "stream-chunk"
       - "stream-progress"

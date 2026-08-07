@@ -49,7 +49,7 @@ where
         let proposal_id = params
             .get("proposal_id")
             .and_then(Value::as_str)
-            .ok_or_else(|| anyhow::anyhow!("kernel.v1.proposal.get requires proposal_id"))?;
+            .ok_or_else(|| anyhow::anyhow!("change.proposal.get requires proposal_id"))?;
         let proposal = self.get_proposal(proposal_id).await?;
         self.ensure_host_device_proposal_access(context, "observe", &proposal)
             .await?;
@@ -81,7 +81,7 @@ where
         let proposal_id = params
             .get("proposal_id")
             .and_then(Value::as_str)
-            .ok_or_else(|| anyhow::anyhow!("kernel.v1.proposal.approve requires proposal_id"))?;
+            .ok_or_else(|| anyhow::anyhow!("change.proposal.approve requires proposal_id"))?;
         let reason = params
             .get("reason")
             .and_then(Value::as_str)
@@ -102,7 +102,7 @@ where
         let proposal_id = params
             .get("proposal_id")
             .and_then(Value::as_str)
-            .ok_or_else(|| anyhow::anyhow!("kernel.v1.proposal.reject requires proposal_id"))?;
+            .ok_or_else(|| anyhow::anyhow!("change.proposal.reject requires proposal_id"))?;
         let reason = params
             .get("reason")
             .and_then(Value::as_str)
@@ -123,7 +123,7 @@ where
         let proposal_id = params
             .get("proposal_id")
             .and_then(Value::as_str)
-            .ok_or_else(|| anyhow::anyhow!("kernel.v1.proposal.apply requires proposal_id"))?;
+            .ok_or_else(|| anyhow::anyhow!("change.proposal.apply requires proposal_id"))?;
         let proposal = self.get_proposal(proposal_id).await?;
         self.ensure_host_device_proposal_access(context, "develop_execute", &proposal)
             .await?;

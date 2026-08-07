@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useMemo, useRef, useState, useCallback, type ReactNode } from "react";
 import {
   ProtocolHttpError,
-  YggProtocolClient,
+  PluroraProtocolClient,
 } from "@/protocol/client";
 import {
   clearBrowserAccessToken,
@@ -31,7 +31,7 @@ interface AuthContextValue {
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
-async function probeServer(client: YggProtocolClient): Promise<{ authError: boolean }> {
+async function probeServer(client: PluroraProtocolClient): Promise<{ authError: boolean }> {
   try {
     await client.diagnostics();
     return { authError: false };
@@ -57,7 +57,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const validateToken = useCallback(async (candidateToken: string): Promise<ProbeResult> => {
     const baseUrl = resolveHostBaseUrl();
-    const client = new YggProtocolClient(baseUrl, candidateToken);
+    const client = new PluroraProtocolClient(baseUrl, candidateToken);
     const { authError } = await probeServer(client);
     return authError ? "auth-error" : "ok";
   }, []);
@@ -104,7 +104,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // even when this Host later reports that authentication is optional.
     const candidateToken = pendingCredentialRef.current?.resolve() ?? readBrowserAccessToken() ?? null;
     const baseUrl = resolveHostBaseUrl();
-    const client = new YggProtocolClient(baseUrl, null);
+    const client = new PluroraProtocolClient(baseUrl, null);
     try {
       const { authError } = await probeServer(client);
       if (probeIdRef.current !== probeId) return;

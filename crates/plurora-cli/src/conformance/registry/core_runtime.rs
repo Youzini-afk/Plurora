@@ -25,9 +25,9 @@ pub(super) fn core_cases() -> Vec<ConformanceCase> {
             crate::conformance::core::event_append_without_permission_denied
         ),
         c!(
-            "event.kernel_namespace_denied",
+            "event.platform_namespace_denied",
             ["runtime", "event"],
-            crate::conformance::core::kernel_namespace_denied
+            crate::conformance::core::platform_event_namespace_denied
         ),
         c!(
             "event.read_without_permission_denied",
@@ -340,15 +340,15 @@ pub(super) fn protocol_cases() -> Vec<ConformanceCase> {
             crate::conformance::protocol::protocol_major_mismatch_rejected
         ),
         c!(
-            "protocol.legacy_adapter_is_explicit",
+            "protocol.unknown_id_rejected",
             [
                 "protocol",
                 "commons",
-                "legacy",
-                "adapter",
+                "identity",
+                "negative",
                 "protocol:plurora.change"
             ],
-            crate::conformance::protocol::protocol_legacy_adapter_is_explicit
+            crate::conformance::protocol::unknown_protocol_id_is_rejected
         ),
         c!(
             "protocol.reports_are_separate",
@@ -361,14 +361,9 @@ pub(super) fn protocol_cases() -> Vec<ConformanceCase> {
             crate::conformance::protocol::protocol_and_implementation_reports_are_separate
         ),
         c!(
-            "protocol.alias_equivalent",
-            ["protocol", "legacy", "alias", "protocol:plurora.contract"],
-            crate::conformance::protocol::alias_equivalent
-        ),
-        c!(
-            "protocol.legacy_adapter_lifecycle",
-            ["protocol", "legacy", "adapter", "protocol:plurora.contract"],
-            crate::conformance::protocol::legacy_adapter_lifecycle
+            "protocol.single_method_identity",
+            ["protocol", "identity", "protocol:plurora.contract"],
+            crate::conformance::protocol::single_method_identity
         ),
         c!(
             "protocol.layered_namespace_smoke",

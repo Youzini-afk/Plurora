@@ -216,7 +216,7 @@ RestartPolicy
 - `host.deployment.revision.list/activate`；
 - `host.deployment.observe` 和 operation event stream。
 
-现有 build-deploy/recover/rollback 与 verified ChangeSet 路由作为 facade 映射到该模型；`kernel.v1.port/proxy/exec` 保持 adapter，不承担长期 orchestration。
+现有 build-deploy/recover/rollback 与 verified ChangeSet 路由作为 facade 映射到该模型；`platform.port/proxy/exec` 保持 adapter，不承担长期 orchestration。
 
 ## 当前边界
 

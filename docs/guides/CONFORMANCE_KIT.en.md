@@ -52,7 +52,7 @@ Confirm the entry kind is supported by the current host. `subprocess` and `rust_
 
 ### 4. Bindings / handshake
 
-Path A subprocess packages must complete JSON-RPC stdio handshake and declare received bindings. Rust in-process packages must initialize through `KernelEnv`. Path B skips v1 binding checks, but still has to prove it can start without requiring kernel capabilities.
+Path A subprocess packages must complete JSON-RPC stdio handshake and declare received bindings. Rust in-process packages must initialize through `ComponentEnv`. Path B skips v1 binding checks, but still has to prove it can start without requiring kernel capabilities.
 
 ### 5. Capability declarations
 

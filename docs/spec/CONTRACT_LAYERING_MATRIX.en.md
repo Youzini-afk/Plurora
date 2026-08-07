@@ -3,7 +3,7 @@
 > [English](./CONTRACT_LAYERING_MATRIX.en.md) · [中文](./CONTRACT_LAYERING_MATRIX.md)
 
 > Status: candidate classification. This document does not change current
-> `kernel.v1.*` runtime behavior. The operative specification remains
+> `platform.*` runtime behavior. The operative specification remains
 > [`KERNEL_V1_CONTRACT.md`](KERNEL_V1_CONTRACT.en.md); target principles are in
 > [`CONSTITUTION_V2.md`](../architecture/CONSTITUTION_V2.en.md).
 
@@ -14,7 +14,7 @@ Contract V1 currently carries constitutional mechanisms, host control, deploymen
 1. who owns the contract today;
 2. which layer should own it long term;
 3. whether it is retained, moved, split, or replaced;
-4. how `kernel.v1.*` clients continue working through compatibility adapters.
+4. how `platform.*` clients continue working through compatibility adapters.
 
 Target names in this document identify owners and concepts, not frozen final wire method IDs. Final namespaces are selected when the compatibility router is implemented.
 
@@ -40,10 +40,10 @@ Dispositions:
 
 ## Current factual baseline
 
-- Code contains 80 `KernelMethod` variants and 80 method schemas.
-- Code, schemas, and `EVENT_KIND_REGISTRY.md` all contain 59 kernel events, including `kernel/v1/deployment.health`.
+- Code contains 80 `PlatformMethod` variants and 80 method schemas.
+- Code, schemas, and `EVENT_KIND_REGISTRY.md` all contain 59 kernel events, including `host/deployment.health`.
 - There are 22 top-level schemas covering contract selection, artifact descriptors, EffectReceipt, Change primitives, protocol descriptors, component/package envelopes/composition locks, World Bundle/World Head/journal ranges, and `protocol-response.schema.json` for additive transport diagnostics.
-- Known drift among `KernelMethod::status()`, Contract documentation, and actual dispatch is aligned and test-enforced.
+- Known drift among `PlatformMethod::status()`, Contract documentation, and actual dispatch is aligned and test-enforced.
 - The Experimental method contract registry, centralized alias resolution, explicit profile/version negotiation, and identity adapters are implemented. The Host Control Plane, host bundle resolver, Shell contributions, Change/Proposal, and Projection currently publish 36 canonical/legacy dual-stack routes.
 - The Experimental Protocol Commons registry publishes Change, Shell Default, and World Bundle descriptors, negotiates explicit protocol/profile selections before dispatch, and separates protocol, implementation, and package reports. The concrete World Bundle archive and all five portability vectors now back the `plurora.runtime.world-bundle` implementation claim.
 - The Web client now uses canonical IDs in production; generated SDKs derive canonical clients and explicit legacy wrappers from schema metadata, queue transport diagnostics, and reject duplicate wire IDs, function names, or operation IDs before generation.
@@ -56,136 +56,136 @@ The first migration requirement is therefore a testable compatibility router, no
 
 | Current method | Code status | Target | Disposition | Target concept and compatibility behavior |
 |---|---:|---:|---|---|
-| `kernel.v1.session.open` | implemented | `S` | Reshape | Open a generic execution/journal scope; old name maps to `context.open` |
-| `kernel.v1.session.close` | implemented | `S` | Reshape | Close the scope and freeze writes while retaining historical reads |
-| `kernel.v1.session.fork` | partial | `S` | Reshape | Create a causal branch from a head/sequence |
-| `kernel.v1.session.branch.list` | partial | `S` | Reshape | Query lineage/heads without binding them to product World semantics |
-| `kernel.v1.session.get` | partial | `S` | Retain | Query generic scope metadata; align Contract status with code |
-| `kernel.v1.session.list` | planned | `S` | Retain | Substrate scope query; remains Experimental until implemented |
-| `kernel.v1.event.append` | implemented | `S` | Reshape | `journal.append`; payloads may reference content-addressed objects |
-| `kernel.v1.event.list` | partial | `S` | Retain | `journal.list`; retain stable sequence pagination |
-| `kernel.v1.event.subscribe` | planned | `S` | Retain | `journal.subscribe`; unify SSE route and method semantics |
+| `context.open` | implemented | `S` | Reshape | Open a generic execution/journal scope; old name maps to `context.open` |
+| `context.close` | implemented | `S` | Reshape | Close the scope and freeze writes while retaining historical reads |
+| `context.fork` | partial | `S` | Reshape | Create a causal branch from a head/sequence |
+| `context.branch.list` | partial | `S` | Reshape | Query lineage/heads without binding them to product World semantics |
+| `context.get` | partial | `S` | Retain | Query generic scope metadata; align Contract status with code |
+| `context.list` | planned | `S` | Retain | Substrate scope query; remains Experimental until implemented |
+| `journal.append` | implemented | `S` | Reshape | `journal.append`; payloads may reference content-addressed objects |
+| `journal.list` | partial | `S` | Retain | `journal.list`; retain stable sequence pagination |
+| `journal.subscribe` | planned | `S` | Retain | `journal.subscribe`; unify SSE route and method semantics |
 
 ### Package and component lifecycle (7)
 
 | Current method | Code status | Target | Disposition | Target concept and compatibility behavior |
 |---|---:|---:|---|---|
-| `kernel.v1.package.load` | partial | `X` | Split | `H` resolves package/artifact; `S` activates a component instance |
-| `kernel.v1.package.unload` | partial | `S` | Reshape | Stop a component instance; package envelope is no longer runtime ontology |
-| `kernel.v1.package.restart` | partial | `S` | Reshape | Restart a component instance with explicit trust-class support |
-| `kernel.v1.package.logs` | partial | `H` | Move | Host observability; logs are not substrate truth |
-| `kernel.v1.package.list` | implemented | `X` | Split | `H` package/artifact inventory + `S` active component list |
-| `kernel.v1.package.status` | implemented | `X` | Split | Query envelope installation and component runtime state separately |
-| `kernel.v1.package.describe` | planned | `X` | Split | Separate artifact descriptor, component descriptor, and protocol claims |
+| `host.package.load` | partial | `X` | Split | `H` resolves package/artifact; `S` activates a component instance |
+| `host.package.unload` | partial | `S` | Reshape | Stop a component instance; package envelope is no longer runtime ontology |
+| `host.package.restart` | partial | `S` | Reshape | Restart a component instance with explicit trust-class support |
+| `host.package.logs` | partial | `H` | Move | Host observability; logs are not substrate truth |
+| `host.package.list` | implemented | `X` | Split | `H` package/artifact inventory + `S` active component list |
+| `host.package.status` | implemented | `X` | Split | Query envelope installation and component runtime state separately |
+| `host.package.describe` | planned | `X` | Split | Separate artifact descriptor, component descriptor, and protocol claims |
 
 ### Project (5)
 
 | Current method | Code status | Target | Disposition | Target concept and compatibility behavior |
 |---|---:|---:|---|---|
-| `kernel.v1.project.list` | implemented | `H` | Move | Host project/installation registry; not substrate |
-| `kernel.v1.project.get` | implemented | `H` | Move | Host-owned project descriptor |
-| `kernel.v1.project.start` | implemented | `H` | Move | Host orchestrates components, scope, and shell entry; old name uses adapter |
-| `kernel.v1.project.stop` | implemented | `H` | Move | Host lifecycle control |
-| `kernel.v1.project.status` | implemented | `H` | Move | Host state and failure diagnostics |
+| `host.project.list` | implemented | `H` | Move | Host project/installation registry; not substrate |
+| `host.project.get` | implemented | `H` | Move | Host-owned project descriptor |
+| `host.project.start` | implemented | `H` | Move | Host orchestrates components, scope, and shell entry; old name uses adapter |
+| `host.project.stop` | implemented | `H` | Move | Host lifecycle control |
+| `host.project.status` | implemented | `H` | Move | Host state and failure diagnostics |
 
 ### Target / exec / port / proxy (17)
 
 | Current method | Code status | Target | Disposition | Target concept and compatibility behavior |
 |---|---:|---:|---|---|
-| `kernel.v1.target.list` | partial | `H` | Move | `host.target.list` |
-| `kernel.v1.target.status` | partial | `H` | Move | `host.target.status` |
-| `kernel.v1.target.register` | partial | `H` | Move | `host.target.register` |
-| `kernel.v1.target.unregister` | partial | `H` | Move | `host.target.unregister` |
-| `kernel.v1.exec.start` | partial | `H` | Move | `host.exec.start`; `S` still enforces authority and receipts |
-| `kernel.v1.exec.stop` | partial | `H` | Move | `host.exec.stop` |
-| `kernel.v1.exec.status` | partial | `H` | Move | `host.exec.status` |
-| `kernel.v1.exec.logs` | partial | `H` | Move | `host.exec.logs`, preserving redaction |
-| `kernel.v1.exec.list` | partial | `H` | Move | `host.exec.list` |
-| `kernel.v1.port.lease` | partial | `H` | Move | `host.port.lease`; authority handle supplied by `S` |
-| `kernel.v1.port.release` | partial | `H` | Move | `host.port.release` |
-| `kernel.v1.port.status` | partial | `H` | Move | `host.port.status` |
-| `kernel.v1.port.list` | partial | `H` | Move | `host.port.list` |
-| `kernel.v1.proxy.register` | partial | `H` | Move | `host.proxy.register` |
-| `kernel.v1.proxy.unregister` | partial | `H` | Move | `host.proxy.unregister` |
-| `kernel.v1.proxy.status` | partial | `H` | Move | `host.proxy.status` |
-| `kernel.v1.proxy.list` | partial | `H` | Move | `host.proxy.list` |
+| `host.target.list` | partial | `H` | Move | `host.target.list` |
+| `host.target.status` | partial | `H` | Move | `host.target.status` |
+| `host.target.register` | partial | `H` | Move | `host.target.register` |
+| `host.target.unregister` | partial | `H` | Move | `host.target.unregister` |
+| `host.exec.start` | partial | `H` | Move | `host.exec.start`; `S` still enforces authority and receipts |
+| `host.exec.stop` | partial | `H` | Move | `host.exec.stop` |
+| `host.exec.status` | partial | `H` | Move | `host.exec.status` |
+| `host.exec.logs` | partial | `H` | Move | `host.exec.logs`, preserving redaction |
+| `host.exec.list` | partial | `H` | Move | `host.exec.list` |
+| `host.port.lease` | partial | `H` | Move | `host.port.lease`; authority handle supplied by `S` |
+| `host.port.release` | partial | `H` | Move | `host.port.release` |
+| `host.port.status` | partial | `H` | Move | `host.port.status` |
+| `host.port.list` | partial | `H` | Move | `host.port.list` |
+| `host.proxy.register` | partial | `H` | Move | `host.proxy.register` |
+| `host.proxy.unregister` | partial | `H` | Move | `host.proxy.unregister` |
+| `host.proxy.status` | partial | `H` | Move | `host.proxy.status` |
+| `host.proxy.list` | partial | `H` | Move | `host.proxy.list` |
 
 ### Capability and authority handles (8)
 
 | Current method | Code status | Target | Disposition | Target concept and compatibility behavior |
 |---|---:|---:|---|---|
-| `kernel.v1.capability.discover` | implemented | `S` | Reshape | Discover component exports and protocol claims, not only package providers |
-| `kernel.v1.capability.describe` | planned | `S` | Reshape | Describe export, protocol, schema, trust, and conformance claims |
-| `kernel.v1.capability.invoke` | partial | `S` | Retain | Substrate invocation; correct Contract/code status drift |
-| `kernel.v1.capability.stream` | partial | `S` | Retain | Substrate streaming invocation |
-| `kernel.v1.capability.cancel` | partial | `S` | Retain | Uniform cancellation, deadline, and terminal receipt |
-| `kernel.v1.cap.attenuate` | partial | `S` | Strengthen | Verify attenuation is a constraint subset and cannot expand authority |
-| `kernel.v1.cap.revoke` | partial | `S` | Strengthen | Add subtree revocation and revocation receipts |
-| `kernel.v1.cap.list_for` | partial | `S` | Strengthen | Principal-gated authority introspection; add delegation and lease refresh |
+| `capability.discover` | implemented | `S` | Reshape | Discover component exports and protocol claims, not only package providers |
+| `capability.describe` | planned | `S` | Reshape | Describe export, protocol, schema, trust, and conformance claims |
+| `capability.invoke` | partial | `S` | Retain | Substrate invocation; correct Contract/code status drift |
+| `capability.stream` | partial | `S` | Retain | Substrate streaming invocation |
+| `capability.cancel` | partial | `S` | Retain | Uniform cancellation, deadline, and terminal receipt |
+| `authority.handle.attenuate` | partial | `S` | Strengthen | Verify attenuation is a constraint subset and cannot expand authority |
+| `authority.handle.revoke` | partial | `S` | Strengthen | Add subtree revocation and revocation receipts |
+| `authority.handle.list` | partial | `S` | Strengthen | Principal-gated authority introspection; add delegation and lease refresh |
 
 ### Extension points and hooks (3)
 
 | Current method | Code status | Target | Disposition | Target concept and compatibility behavior |
 |---|---:|---:|---|---|
-| `kernel.v1.extension_point.list` | implemented | `C` | Move | Protocol-registry query; protocol owns extension semantics |
-| `kernel.v1.extension_point.describe` | planned | `C` | Move | Protocol descriptor / extension contract |
-| `kernel.v1.hook.list` | partial | `C` | Move | Protocol subscription registry; host may expose a runtime diagnostic view |
+| `protocol.extension.list` | implemented | `C` | Move | Protocol-registry query; protocol owns extension semantics |
+| `protocol.extension.describe` | planned | `C` | Move | Protocol descriptor / extension contract |
+| `protocol.hook.list` | partial | `C` | Move | Protocol subscription registry; host may expose a runtime diagnostic view |
 
 ### Asset and projection (7)
 
 | Current method | Code status | Target | Disposition | Target concept and compatibility behavior |
 |---|---:|---:|---|---|
-| `kernel.v1.asset.put` | partial | `S` | Replace | `object.put` / `artifact.commit`, with digest as identity |
-| `kernel.v1.asset.get` | partial | `S` | Replace | Retrieve and verify content through descriptor/digest |
-| `kernel.v1.asset.list` | partial | `H` | Move | Host object index; substrate does not promise global enumeration |
-| `kernel.v1.projection.register` | partial | `C` | Move | Projection protocol registers a derived view |
-| `kernel.v1.projection.rebuild` | partial | `C` | Move | Projection-protocol rebuild behavior |
-| `kernel.v1.projection.get` | partial | `C` | Move | Projection-profile query |
-| `kernel.v1.projection.list` | partial | `C` | Move | Projection-registry query |
+| `object.put` | partial | `S` | Replace | `object.put` / `artifact.commit`, with digest as identity |
+| `object.get` | partial | `S` | Replace | Retrieve and verify content through descriptor/digest |
+| `object.list` | partial | `H` | Move | Host object index; substrate does not promise global enumeration |
+| `projection.register` | partial | `C` | Move | Projection protocol registers a derived view |
+| `projection.rebuild` | partial | `C` | Move | Projection-protocol rebuild behavior |
+| `projection.get` | partial | `C` | Move | Projection-profile query |
+| `projection.list` | partial | `C` | Move | Projection-registry query |
 
 ### Host (4)
 
 | Current method | Code status | Target | Disposition | Target concept and compatibility behavior |
 |---|---:|---:|---|---|
-| `kernel.v1.host.info` | implemented | `H` | Strengthen | Return contract layers, versions, profiles, aliases, and maturity |
-| `kernel.v1.host.ping` | partial | `H` | Move | Lightweight host health; not substrate |
-| `kernel.v1.host.diagnostics` | partial | `H` | Move | Host diagnostics with path and secret redaction |
-| `kernel.v1.host.principal` | planned | `S` | Reshape | Authenticated principal/context introspection |
+| `host.info` | implemented | `H` | Strengthen | Return contract layers, versions, profiles, aliases, and maturity |
+| `host.ping` | partial | `H` | Move | Lightweight host health; not substrate |
+| `host.diagnostics` | partial | `H` | Move | Host diagnostics with path and secret redaction |
+| `identity.current` | planned | `S` | Reshape | Authenticated principal/context introspection |
 
 ### Permission, audit, and change workflow (11)
 
 | Current method | Code status | Target | Disposition | Target concept and compatibility behavior |
 |---|---:|---:|---|---|
-| `kernel.v1.permission.grant` | partial | `S` | Reshape | Authority mint/delegate + PolicyDecision |
-| `kernel.v1.permission.revoke` | partial | `S` | Reshape | Authority revocation with receipt |
-| `kernel.v1.permission.list` | partial | `S` | Reshape | Query effective principal authority rather than string grants |
-| `kernel.v1.permission.audit` | partial | `S` | Replace | Authority decision/receipt query |
-| `kernel.v1.audit.package` | partial | `X` | Replace | `S` authority/effect audit + `H` artifact declared-versus-used report |
-| `kernel.v1.proposal.create` | partial | `C` | Replace | Change protocol: create Intent / ChangeSet |
-| `kernel.v1.proposal.get` | partial | `C` | Replace | Change-protocol query |
-| `kernel.v1.proposal.list` | partial | `C` | Replace | Change-protocol index |
-| `kernel.v1.proposal.approve` | partial | `C` | Replace | PolicyDecision / approval profile |
-| `kernel.v1.proposal.reject` | partial | `C` | Replace | PolicyDecision / rejection profile |
-| `kernel.v1.proposal.apply` | partial | `C` | Replace | Commit + EffectReceipt; old asset/projection operations use adapters |
+| `authority.grant.create` | partial | `S` | Reshape | Authority mint/delegate + PolicyDecision |
+| `authority.grant.revoke` | partial | `S` | Reshape | Authority revocation with receipt |
+| `authority.grant.list` | partial | `S` | Reshape | Query effective principal authority rather than string grants |
+| `authority.decision.list` | partial | `S` | Replace | Authority decision/receipt query |
+| `host.package.audit` | partial | `X` | Replace | `S` authority/effect audit + `H` artifact declared-versus-used report |
+| `change.proposal.create` | partial | `C` | Replace | Change protocol: create Intent / ChangeSet |
+| `change.proposal.get` | partial | `C` | Replace | Change-protocol query |
+| `change.proposal.list` | partial | `C` | Replace | Change-protocol index |
+| `change.proposal.approve` | partial | `C` | Replace | PolicyDecision / approval profile |
+| `change.proposal.reject` | partial | `C` | Replace | PolicyDecision / rejection profile |
+| `change.proposal.apply` | partial | `C` | Replace | Commit + EffectReceipt; old asset/projection operations use adapters |
 
 ### Surface (3)
 
 | Current method | Code status | Target | Disposition | Target concept and compatibility behavior |
 |---|---:|---:|---|---|
-| `kernel.v1.surface.resolve_bundle` | partial | `X` | Split | `H` resolves/serves bundle; `P` interprets profile and bridge policy |
-| `kernel.v1.surface.contribution.list` | partial | `P` | Move | `plurora.shell.default/v1` contribution registry |
-| `kernel.v1.surface.contribution.describe` | partial | `P` | Move | Shell-profile descriptor; slot is no longer a substrate enum |
+| `host.surface.bundle.resolve` | partial | `X` | Split | `H` resolves/serves bundle; `P` interprets profile and bridge policy |
+| `shell.contribution.list` | partial | `P` | Move | `plurora.shell.default/v1` contribution registry |
+| `shell.contribution.describe` | partial | `P` | Move | Shell-profile descriptor; slot is no longer a substrate enum |
 
 ### Outbound (6)
 
 | Current method | Code status | Target | Disposition | Target concept and compatibility behavior |
 |---|---:|---:|---|---|
-| `kernel.v1.outbound.audit` | partial | `S` | Replace | Query generic EffectReceipts while retaining a network-specific host view |
-| `kernel.v1.outbound.execute` | partial | `X` | Split | `H` HTTPS adapter + `S` authority, policy, and receipt |
-| `kernel.v1.outbound.stream` | partial | `X` | Split | `H` streaming-network adapter + `S` stream/effect lifecycle |
-| `kernel.v1.outbound.websocket.open` | partial | `X` | Split | `H` WebSocket adapter + `S` connection authority/receipt |
-| `kernel.v1.outbound.websocket.send` | partial | `X` | Split | Host transport operation that writes an effect receipt |
-| `kernel.v1.outbound.websocket.close` | partial | `X` | Split | Host transport operation that produces a terminal receipt |
+| `host.outbound.audit` | partial | `S` | Replace | Query generic EffectReceipts while retaining a network-specific host view |
+| `host.outbound.execute` | partial | `X` | Split | `H` HTTPS adapter + `S` authority, policy, and receipt |
+| `host.outbound.stream` | partial | `X` | Split | `H` streaming-network adapter + `S` stream/effect lifecycle |
+| `host.outbound.websocket.open` | partial | `X` | Split | `H` WebSocket adapter + `S` connection authority/receipt |
+| `host.outbound.websocket.send` | partial | `X` | Split | Host transport operation that writes an effect receipt |
+| `host.outbound.websocket.close` | partial | `X` | Split | Host transport operation that produces a terminal receipt |
 
 ## 59 events
 
@@ -195,85 +195,85 @@ The first migration requirement is therefore a testable compatibility router, no
 
 | Current event | Emitted | Target | Disposition and target concept |
 |---|---:|---:|---|
-| `kernel/v1/session.opened` | ✓ | `S` | Reshape as context/journal scope opened |
-| `kernel/v1/session.closed` | ✓ | `S` | Context closed; history remains readable |
-| `kernel/v1/session.forked` | ✓ | `S` | Causal head/branch created |
-| `kernel/v1/package.loaded` | ✓ | `S` | Component activated; package retained only as source reference |
-| `kernel/v1/package.loading` | ✓ | `S` | Component activation requested |
-| `kernel/v1/package.starting` | ✓ | `S` | Component starting |
-| `kernel/v1/package.ready` | ✓ | `S` | Component ready |
-| `kernel/v1/package.stopping` | ✓ | `S` | Component stopping |
-| `kernel/v1/package.stopped` | ✓ | `S` | Component stopped |
-| `kernel/v1/package.unloaded` | ✓ | `S` | Component deactivated |
-| `kernel/v1/package.degraded` | ✓ | `S` | Component health degraded |
-| `kernel/v1/package.log` | ✓ | `H` | Host observability event; not canonical history |
-| `kernel/v1/project.installed` | — | `H` | Host project lifecycle |
-| `kernel/v1/project.started` | — | `H` | Host project lifecycle |
-| `kernel/v1/project.stopped` | — | `H` | Host project lifecycle |
-| `kernel/v1/project.uninstalled` | — | `H` | Host project lifecycle |
+| `context/opened` | ✓ | `S` | Reshape as context/journal scope opened |
+| `context/closed` | ✓ | `S` | Context closed; history remains readable |
+| `context/forked` | ✓ | `S` | Causal head/branch created |
+| `host/package.loaded` | ✓ | `S` | Component activated; package retained only as source reference |
+| `host/package.loading` | ✓ | `S` | Component activation requested |
+| `host/package.starting` | ✓ | `S` | Component starting |
+| `host/package.ready` | ✓ | `S` | Component ready |
+| `host/package.stopping` | ✓ | `S` | Component stopping |
+| `host/package.stopped` | ✓ | `S` | Component stopped |
+| `host/package.unloaded` | ✓ | `S` | Component deactivated |
+| `host/package.degraded` | ✓ | `S` | Component health degraded |
+| `host/package.log` | ✓ | `H` | Host observability event; not canonical history |
+| `host/project.installed` | — | `H` | Host project lifecycle |
+| `host/project.started` | — | `H` | Host project lifecycle |
+| `host/project.stopped` | — | `H` | Host project lifecycle |
+| `host/project.uninstalled` | — | `H` | Host project lifecycle |
 
 ### Object, projection, and change (7)
 
 | Current event | Emitted | Target | Disposition and target concept |
 |---|---:|---:|---|
-| `kernel/v1/asset.put` | ✓ | `S` | Replace with object/artifact committed receipt |
-| `kernel/v1/projection.updated` | ✓ | `C` | Projection-protocol event |
-| `kernel/v1/proposal.created` | ✓ | `C` | ChangeSet created |
-| `kernel/v1/proposal.approved` | ✓ | `C` | PolicyDecision approved |
-| `kernel/v1/proposal.rejected` | ✓ | `C` | PolicyDecision rejected |
-| `kernel/v1/proposal.applied` | ✓ | `C` | Commit completed + receipt reference |
-| `kernel/v1/proposal.failed` | ✓ | `C` | Change workflow failed |
+| `object/put` | ✓ | `S` | Replace with object/artifact committed receipt |
+| `projection/updated` | ✓ | `C` | Projection-protocol event |
+| `change/proposal.created` | ✓ | `C` | ChangeSet created |
+| `change/proposal.approved` | ✓ | `C` | PolicyDecision approved |
+| `change/proposal.rejected` | ✓ | `C` | PolicyDecision rejected |
+| `change/proposal.applied` | ✓ | `C` | Commit completed + receipt reference |
+| `change/proposal.failed` | ✓ | `C` | Change workflow failed |
 
 ### Capability, authority, and general error (7)
 
 | Current event | Emitted | Target | Disposition and target concept |
 |---|---:|---:|---|
-| `kernel/v1/capability.invoked` | ✓ | `S` | Invocation-started receipt/event |
-| `kernel/v1/capability.completed` | ✓ | `S` | Terminal EffectReceipt; large output retained by reference |
-| `kernel/v1/capability.failed` | ✓ | `S` | Terminal failed receipt |
-| `kernel/v1/permission.denied` | ✓ | `S` | Authority decision denied |
-| `kernel/v1/permission.granted` | ✓ | `S` | Authority minted/delegated |
-| `kernel/v1/permission.revoked` | ✓ | `S` | Authority revoked |
-| `kernel/v1/error` | — | `S` | Retain generic protocol/transport error envelope without copying domain errors |
+| `capability/invoked` | ✓ | `S` | Invocation-started receipt/event |
+| `capability/completed` | ✓ | `S` | Terminal EffectReceipt; large output retained by reference |
+| `capability/failed` | ✓ | `S` | Terminal failed receipt |
+| `authority/denied` | ✓ | `S` | Authority decision denied |
+| `authority/grant.created` | ✓ | `S` | Authority minted/delegated |
+| `authority/grant.revoked` | ✓ | `S` | Authority revoked |
+| `runtime/error` | — | `S` | Retain generic protocol/transport error envelope without copying domain errors |
 
 ### Outbound and stream (15)
 
 | Current event | Emitted | Target | Disposition and target concept |
 |---|---:|---:|---|
-| `kernel/v1/outbound.request` | ✓ | `X` | Host network request + substrate EffectReceipt start |
-| `kernel/v1/outbound.denied` | ✓ | `X` | PolicyDecision denied + host destination summary |
-| `kernel/v1/outbound.execute.completed` | ✓ | `X` | Terminal EffectReceipt |
-| `kernel/v1/outbound.stream.completed` | ✓ | `X` | Terminal EffectReceipt |
-| `kernel/v1/stream.started` | ✓ | `S` | Retain generic stream lifecycle |
-| `kernel/v1/stream.chunk` | ✓ | `S` | Chunk may inline small data or reference an object |
-| `kernel/v1/stream.progress` | ✓ | `S` | Generic progress without domain interpretation |
-| `kernel/v1/stream.ended` | ✓ | `S` | Terminal success |
-| `kernel/v1/stream.error` | ✓ | `S` | Terminal failure |
-| `kernel/v1/stream.cancelled` | ✓ | `S` | Terminal cancellation |
-| `kernel/v1/stream.timeout` | ✓ | `S` | Terminal timeout |
-| `kernel/v1/outbound.websocket.opened` | — | `X` | Host connection event + receipt link |
-| `kernel/v1/outbound.websocket.frame` | — | `X` | Host transport telemetry; not canonical world history by default |
-| `kernel/v1/outbound.websocket.error` | — | `X` | Host transport error + terminal/partial receipt |
-| `kernel/v1/outbound.websocket.completed` | ✓ | `X` | Terminal EffectReceipt |
+| `host/outbound.request` | ✓ | `X` | Host network request + substrate EffectReceipt start |
+| `host/outbound.denied` | ✓ | `X` | PolicyDecision denied + host destination summary |
+| `host/outbound.execute.completed` | ✓ | `X` | Terminal EffectReceipt |
+| `host/outbound.stream.completed` | ✓ | `X` | Terminal EffectReceipt |
+| `capability/stream.started` | ✓ | `S` | Retain generic stream lifecycle |
+| `capability/stream.chunk` | ✓ | `S` | Chunk may inline small data or reference an object |
+| `capability/stream.progress` | ✓ | `S` | Generic progress without domain interpretation |
+| `capability/stream.ended` | ✓ | `S` | Terminal success |
+| `capability/stream.error` | ✓ | `S` | Terminal failure |
+| `capability/stream.cancelled` | ✓ | `S` | Terminal cancellation |
+| `capability/stream.timeout` | ✓ | `S` | Terminal timeout |
+| `host/outbound.websocket.opened` | — | `X` | Host connection event + receipt link |
+| `host/outbound.websocket.frame` | — | `X` | Host transport telemetry; not canonical world history by default |
+| `host/outbound.websocket.error` | — | `X` | Host transport error + terminal/partial receipt |
+| `host/outbound.websocket.completed` | ✓ | `X` | Terminal EffectReceipt |
 
 ### Host execution and deployment (14)
 
 | Current event | Emitted | Target | Disposition and target concept |
 |---|---:|---:|---|
-| `kernel/v1/exec.request` | — | `H` | Host exec lifecycle; references substrate PolicyDecision |
-| `kernel/v1/exec.denied` | — | `H` | Host exec denial + receipt reference |
-| `kernel/v1/exec.started` | — | `H` | Host exec started |
-| `kernel/v1/exec.stopped` | — | `H` | Host exec stopped |
-| `kernel/v1/exec.completed` | — | `H` | Host exec completed + EffectReceipt |
-| `kernel/v1/exec.failed` | — | `H` | Host exec failed + EffectReceipt |
-| `kernel/v1/port.leased` | — | `H` | Host port lifecycle |
-| `kernel/v1/port.released` | — | `H` | Host port lifecycle |
-| `kernel/v1/port.denied` | — | `H` | Host port denial |
-| `kernel/v1/proxy.registered` | — | `H` | Host proxy lifecycle |
-| `kernel/v1/proxy.unregistered` | — | `H` | Host proxy lifecycle |
-| `kernel/v1/proxy.denied` | — | `H` | Host proxy denial |
-| `kernel/v1/deployment.reconciled` | ✓ | `H` | Host deployment reconciliation |
-| `kernel/v1/deployment.health` | — | `H` | Host deployment health; add to v1 registry |
+| `host/exec.request` | — | `H` | Host exec lifecycle; references substrate PolicyDecision |
+| `host/exec.denied` | — | `H` | Host exec denial + receipt reference |
+| `host/exec.started` | — | `H` | Host exec started |
+| `host/exec.stopped` | — | `H` | Host exec stopped |
+| `host/exec.completed` | — | `H` | Host exec completed + EffectReceipt |
+| `host/exec.failed` | — | `H` | Host exec failed + EffectReceipt |
+| `host/port.leased` | — | `H` | Host port lifecycle |
+| `host/port.released` | — | `H` | Host port lifecycle |
+| `host/port.denied` | — | `H` | Host port denial |
+| `host/proxy.registered` | — | `H` | Host proxy lifecycle |
+| `host/proxy.unregistered` | — | `H` | Host proxy lifecycle |
+| `host/proxy.denied` | — | `H` | Host proxy denial |
+| `host/deployment.reconciled` | ✓ | `H` | Host deployment reconciliation |
+| `host/deployment.health` | — | `H` | Host deployment health; add to v1 registry |
 
 ## 22 top-level schemas
 

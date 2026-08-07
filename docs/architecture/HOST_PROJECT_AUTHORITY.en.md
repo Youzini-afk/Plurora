@@ -170,7 +170,7 @@ Sensitive calls record principal, credential kind, grant, delegation-chain diges
 
 - New fields begin optional under Experimental/Candidate schemas; omission preserves legacy global scope.
 - New-grant UI/API must submit selectors after migration.
-- Canonical ownership remains under `host.access`, `host.project`, and related Host methods; `kernel.v1.*` remains an adapter.
+- Canonical ownership remains under `host.access`, `host.project`, and related Host methods; `platform.*` remains an adapter.
 - Run one authorization conformance table across canonical, legacy, HTTP, and direct transports.
 - Do not remove old fields or response shapes before grant and client migration completes.
 

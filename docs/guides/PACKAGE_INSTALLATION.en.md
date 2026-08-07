@@ -17,7 +17,7 @@ This guide covers the install flow, native/external project detection, manifest 
 ## Design principles
 
 - The kernel does not know git.
-- Git is handled by `official/git-tools-lab` as a capability package over the `kernel.v1.outbound.execute` boundary.
+- Git is handled by `official/git-tools-lab` as a capability package over the `host.outbound.execute` boundary.
 - Install orchestration lives in `official/install-lab`, not in the kernel.
 - Default deny: HTTPS-only; reject `ssh://`, `git://`, and `file://`.
 - Default deny: URLs must not contain username/password.

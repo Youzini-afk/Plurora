@@ -27,7 +27,7 @@
 - `official/model-provider-lab` 能力包括：`list_supported_families`、`validate_profile`、`normalize_request`、`invoke`、`normalize_stream`、`explain_error`、`echo`。
 - `invoke` 保留 fake/local provider adapter path。它产出 provider 形状的 response 和可审计 `outbound_request_shape`，用于默认检查和 adapter 形状验证。
 - Host 侧已有 content-free `OutboundExecutor` boundary，默认拒绝。它包含 fake executor、loopback live HTTP executor 和 hostile 检查。这证明 request shape 可以走 host policy/audit 边界，但不声称 OS 级拦截子进程任意联网。
-- `kernel.v1.outbound.execute` 是公开出站协议，ordinary packages 和 official packages 必须走同一路径；package principal 来自 protocol context，不能 spoof 其他 package。
+- `host.outbound.execute` 是公开出站协议，ordinary packages 和 official packages 必须走同一路径；package principal 来自 protocol context，不能 spoof 其他 package。
 - `EnvSecretResolver` 支持 host-owned `secret_ref:env:NAME` allowlist；raw secret 只在 host 内部短暂存在，不进入 event、log、audit 或 response。
 - `LiveHttpOutboundExecutor` 使用 `reqwest + rustls`，默认关闭。它只允许 HTTPS，redirect fail-closed，timeout 必须配置。response/audit 只保留脱敏形状。Loopback 检查用 `allow_insecure_loopback_for_tests=true`，不依赖公网。
 - `secret_headers` 支持 host-side header 注入（例如 Authorization bearer、x-api-key、x-goog-api-key）；缺失/无效 secret fail-closed。`static_headers` 只允许少量非 secret provider/version/format headers（anthropic-version、content-type、accept、http-referer、x-title），并阻止 Authorization/x-api-key/Cookie 等 secret-bearing 或 host-owned headers。
@@ -106,7 +106,7 @@ OpenAI-compatible 是 adapter family，不是 Plurora 的唯一模型世界观�
 
 ### `invoke`
 
-`official/model-provider-lab/invoke` 本身仍然是 fake/local adapter path。真实网络调用不通过官方包私有 runtime access；它必须由 ordinary package 使用公开 `kernel.v1.outbound.execute`，由 host policy、secret resolver 和 outbound executor 控制。
+`official/model-provider-lab/invoke` 本身仍然是 fake/local adapter path。真实网络调用不通过官方包私有 runtime access；它必须由 ordinary package 使用公开 `host.outbound.execute`，由 host policy、secret resolver 和 outbound executor 控制。
 
 输出必须保持：
 
@@ -121,7 +121,7 @@ OpenAI-compatible 是 adapter family，不是 Plurora 的唯一模型世界观�
 
 这保留了 adapter 自测与默认检查的可重放性。同时，它避免官方 provider 包获得第三方包没有的私有出站特权。
 
-### `kernel.v1.outbound.execute`
+### `host.outbound.execute`
 
 普通能力包的 live HTTP path：
 
@@ -173,7 +173,7 @@ OpenAI-compatible 是 adapter family，不是 Plurora 的唯一模型世界观�
 - `upstream_malformed`
 - `unknown`
 
-这是 package-level 归一化，不是 `kernel.v1.model.error`。
+这是 package-level 归一化，不是 `platform.model.error`。
 
 ## Manual live call boundary
 
@@ -182,7 +182,7 @@ OpenAI-compatible 是 adapter family，不是 Plurora 的唯一模型世界观�
 1. provider package 声明最小网络权限；
 2. caller 或 host 显式授权；
 3. secret 通过 host resolver 解析，raw secret 不进入 event/log/audit；
-4. request 走公开 `kernel.v1.outbound.execute` 与 host outbound boundary；
+4. request 走公开 `host.outbound.execute` 与 host outbound boundary；
 5. audit 只记录 host、method、purpose、secret_refs、usage/cost/error metadata 和 redaction state；
 6. 流式输出统一落到 content-free frame lifecycle；
 7. cancel/timeout 不被 provider adapter 私自吞掉；
@@ -208,7 +208,7 @@ PLURORA_LIVE_MODEL_TESTS=1 DEEPSEEK_API_KEY=... cargo run -p plurora-cli -- conf
 
 - 用户余额、充值、计费后台、倍率、渠道管理系统。
 - 托管平台代理 key。
-- `kernel.v1.model.*`、`kernel.v1.prompt.*`、`kernel.v1.chat.*`、`kernel.v1.embedding.*`。
+- `platform.model.*`、`platform.prompt.*`、`platform.chat.*`、`platform.embedding.*`。
 - 把 OpenAI-compatible 当作唯一模型协议。
 - 把 `normalize_request` 当作平台 canonical request。
 - 让官方包绕过 manifest、permission、secret、network 或 audit 边界。
@@ -222,4 +222,4 @@ cargo run -p plurora-cli -- package check packages/official/model-provider-lab/m
 tsc -p clients/web/tsconfig.json --noEmit
 ```
 
-验证可覆盖 model-provider-lab、inference-local-lab、public `kernel.v1.outbound.execute`、secret header injection、live loopback provider shapes、provider quirk fixtures、非 HTTP 推理 seam proof 和 outbound policy checks。
+验证可覆盖 model-provider-lab、inference-local-lab、public `host.outbound.execute`、secret header injection、live loopback provider shapes、provider quirk fixtures、非 HTTP 推理 seam proof 和 outbound policy checks。

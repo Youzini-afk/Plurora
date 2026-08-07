@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Modal, ModalFooter, ModalHeader } from "@/components/ui/modal";
 import { StatusPill, projectStateTone, type StatusTone } from "@/components/ui/status-pill";
 import { Tooltip } from "@/components/ui/tooltip";
-import { useKernel } from "@/lib/kernel-client";
+import { usePlurora } from "@/lib/plurora-client";
 import { useRoute } from "@/lib/router";
 import { useToast } from "@/components/ui/toast";
 import { useT } from "@/lib/locale";
@@ -23,7 +23,7 @@ import type {
   DeploymentRevision,
   ExecStatus,
   ExecutionTarget,
-  KernelEvent,
+  PlatformEvent,
   LocalExecLogLine,
   PackageRecord,
   PortLeaseRecord,
@@ -43,7 +43,7 @@ interface ProjectDiagnostics {
   projectId: string;
   bundle?: ResolvedSurfaceBundle;
   packages: PackageRecord[];
-  events: KernelEvent[];
+  events: PlatformEvent[];
   targets: ExecutionTarget[];
   executions: ExecStatus[];
   portLeases: PortLeaseRecord[];
@@ -72,7 +72,7 @@ interface ConsoleSummary {
 }
 
 export function ProjectFrame({ projectId, chrome = "shell" }: { projectId: string; chrome?: "shell" | "none" }) {
-  const client = useKernel();
+  const client = usePlurora();
   const toast = useToast();
   const t = useT();
   const [, navigate] = useRoute();
@@ -1446,7 +1446,7 @@ function TargetOperationDiagnostics({
   operations: TargetOperationRecord[];
 }) {
   const t = useT();
-  const client = useKernel();
+  const client = usePlurora();
   const [expanded, setExpanded] = useState<string | null>(null);
   const [details, setDetails] = useState<Record<string, {
     loading: boolean;
@@ -1562,7 +1562,7 @@ function targetOperationTone(status: TargetOperationStatus): StatusTone {
 
 function ExecutionDiagnostics({ executions }: { executions: ExecStatus[] }) {
   const t = useT();
-  const client = useKernel();
+  const client = usePlurora();
   const [expanded, setExpanded] = useState<string | null>(null);
   const [logs, setLogs] = useState<Record<string, { loading: boolean; lines: LocalExecLogLine[]; error?: string }>>({});
 

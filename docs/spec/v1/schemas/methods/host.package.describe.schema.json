@@ -1,0 +1,68 @@
+{
+  "$defs": {
+    "Errors": {
+      "items": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "details": true,
+          "message": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "details",
+          "message"
+        ],
+        "title": "ErrorShape",
+        "type": "object"
+      },
+      "type": "array"
+    },
+    "Params": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "title": "EmptyParams",
+      "type": "object"
+    },
+    "Result": {
+      "type": "null"
+    }
+  },
+  "$id": "urn:plurora:schema:method:host.package.describe:v1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Plurora public platform method host.package.describe.",
+  "properties": {
+    "errors": {
+      "$ref": "#/$defs/Errors"
+    },
+    "method": {
+      "const": "host.package.describe"
+    },
+    "params": {
+      "$ref": "#/$defs/Params"
+    },
+    "result": {
+      "$ref": "#/$defs/Result"
+    }
+  },
+  "required": [
+    "method",
+    "params"
+  ],
+  "title": "host.package.describe",
+  "type": "object",
+  "x-plurora-contract": {
+    "id": "host.package.describe",
+    "implementation_status": "planned",
+    "introduced_in": "plurora.contract.default/v1@0.1.0",
+    "maturity": "experimental",
+    "owner_layer": "host",
+    "request_schema": "urn:plurora:schema:method:host.package.describe:v1#/$defs/Params",
+    "response_schema": "urn:plurora:schema:method:host.package.describe:v1#/$defs/Result",
+    "streaming": false
+  }
+}

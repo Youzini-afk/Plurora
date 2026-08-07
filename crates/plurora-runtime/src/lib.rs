@@ -24,21 +24,20 @@ pub use capability::{
     ExtensionDispatchResult, ExtensionRegistry, RegisteredCapability, RegisteredHook,
 };
 pub use contract::{
-    contract_aliases, contract_diagnostics, contract_layers, contract_method, contract_methods,
-    contract_profiles, contract_versions, negotiate_contract, resolve_contract_method,
-    ContractAdapter, ContractAlias, ContractDiagnostic, ContractLayerInfo, ContractMaturity,
+    contract_layers, contract_method, contract_methods, contract_profiles, contract_versions,
+    negotiate_contract, resolve_contract_method, ContractLayerInfo, ContractMaturity,
     ContractMethod, ContractNegotiation, ContractOwnerLayer, ContractProfileInfo,
     ContractSelection, ContractVersionInfo, ContractVersionRequirement, ResolvedContractMethod,
     UnknownContractMethod, CONTRACT_LAYER_VERSION, CONTRACT_REGISTRY_VERSION,
-    DEFAULT_CONTRACT_PROFILE, LEGACY_CONTRACT_PROFILE, SHELL_DEFAULT_PROFILE,
+    DEFAULT_CONTRACT_PROFILE, SHELL_DEFAULT_PROFILE,
 };
 #[cfg(feature = "postgres")]
 pub use event_store::PostgresEventStore;
 pub use event_store::{EventStore, InMemoryEventStore, SqliteEventStore};
 pub use inproc::{
-    compute_external_workspace_tree_hash, prepare_docker_build_context,
+    compute_external_workspace_tree_hash, prepare_docker_build_context, ComponentEnv,
     DockerDeploymentReconcileSource, InprocInvocation, InprocPackage, InprocPackageCatalog,
-    KernelEnv, PreparedDockerBuildContext, WorkspaceTreeHash,
+    PreparedDockerBuildContext, WorkspaceTreeHash,
 };
 pub use object_store::{
     sha256_digest, FilesystemObjectStore, InMemoryObjectStore, ObjectInfo, ObjectStore,
@@ -58,10 +57,10 @@ pub use plurora_core::{
 pub use project_registry::{ProjectEntry, ProjectRegistry};
 pub use project_secret::{ProjectScopeContext, ProjectStoreSecretResolver};
 pub use protocol::{
-    host_info, method_ids, HostInfo, KernelMethod, MethodStatus, ProtocolAuthorityContext,
+    host_info, method_ids, HostInfo, MethodStatus, PlatformMethod, ProtocolAuthorityContext,
     ProtocolContext, ProtocolError, ProtocolHostOperationContext, ProtocolMethod,
-    ProtocolPrincipal, ProtocolRequest, ProtocolResourceSelector, ProtocolResponse, KERNEL_METHODS,
-    KERNEL_PROTOCOL_VERSION,
+    ProtocolPrincipal, ProtocolRequest, ProtocolResourceSelector, ProtocolResponse,
+    PLATFORM_METHODS, PLATFORM_PROTOCOL_VERSION,
 };
 pub use protocol_commons::{
     negotiate_protocols, protocol_descriptor, protocol_descriptors, validate_protocol_registry,
@@ -87,15 +86,15 @@ pub use runtime::{
     ExecutionTarget, ExecutionTargetCapability, ExecutionTargetId, ExecutionTargetObservedSummary,
     ExecutionTargetReachability, ExecutionTargetRegistry, ExecutionTargetStatusKind, ExecutorKind,
     FakeLocalExecExecutor, FakeOutboundExecutor, FakeWebSocketExecutor, FrameDirection, FrameKind,
-    KernelOutboundStreamResponse, LiveHttpOutboundExecutor, LiveHttpOutboundExecutorConfig,
-    LiveLocalExecExecutor, LiveLocalExecExecutorConfig, LiveWebSocketExecutor,
-    LiveWebSocketExecutorConfig, LiveWebSocketProfile, LocalExecExecutor, LocalExecExecutorConfig,
-    LocalExecListResponse, LocalExecLogLine, LocalExecLogStream, LocalExecLogsRequest,
-    LocalExecLogsResponse, LocalExecStartRequest, LocalExecStartResponse, LocalExecStatusRequest,
-    LocalExecStatusResponse, LocalExecStopRequest, LocalExecStopResponse, ManagedContainerReport,
-    NetworkPolicyDecision, OpenSessionRequest, OutboundExecutePolicyConfig, OutboundExecutor,
-    OutboundExecutorConfig, OutboundExecutorRequest, OutboundExecutorResponse, OutboundFrameKind,
-    OutboundRequest, OutboundSecretHeaderSpec, OutboundStaticHeader, OutboundStreamFrame,
+    LiveHttpOutboundExecutor, LiveHttpOutboundExecutorConfig, LiveLocalExecExecutor,
+    LiveLocalExecExecutorConfig, LiveWebSocketExecutor, LiveWebSocketExecutorConfig,
+    LiveWebSocketProfile, LocalExecExecutor, LocalExecExecutorConfig, LocalExecListResponse,
+    LocalExecLogLine, LocalExecLogStream, LocalExecLogsRequest, LocalExecLogsResponse,
+    LocalExecStartRequest, LocalExecStartResponse, LocalExecStatusRequest, LocalExecStatusResponse,
+    LocalExecStopRequest, LocalExecStopResponse, ManagedContainerReport, NetworkPolicyDecision,
+    OpenSessionRequest, OutboundExecutePolicyConfig, OutboundExecutor, OutboundExecutorConfig,
+    OutboundExecutorRequest, OutboundExecutorResponse, OutboundFrameKind, OutboundRequest,
+    OutboundSecretHeaderSpec, OutboundStaticHeader, OutboundStreamFrame, OutboundStreamResponse,
     OutboundStreamSummary, OutboundWebSocketFrame, OutboundWebSocketOpenRequest,
     OutboundWebSocketSession, PackageAuditReport, PermissionGrantRecord, PortBindScope,
     PortLeaseId, PortLeaseRecord, PortLeaseRegistry, PortLeaseRequest, PortLeaseResponse,
@@ -116,7 +115,7 @@ pub use secret::{
     extract_env_name, CompositeSecretResolver, DenyAllSecretResolver, EnvSecretResolver,
     HostSecretResolver, SecretResolverConfig, StoreSecretResolver,
 };
-pub use subprocess::{dispatch_reverse_kernel_frame, SubprocessLogLine, SubprocessSupervisor};
+pub use subprocess::{dispatch_reverse_platform_frame, SubprocessLogLine, SubprocessSupervisor};
 pub use target_deployment::{
     apply_managed_target_deployment, build_managed_target_image, count_managed_target_deployments,
     drain_managed_target_deployment, is_managed_target_deployment_outcome_unknown,

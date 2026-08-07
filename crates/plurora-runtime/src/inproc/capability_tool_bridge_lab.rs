@@ -351,7 +351,7 @@ fn preview_tool_permissions(request: &InprocInvocation) -> anyhow::Result<Value>
     }))
 }
 
-/// invoke_tool: returns invocation_plan with method kernel.v1.capability.invoke.
+/// invoke_tool: returns invocation_plan with method capability.invoke.
 ///
 /// If ambiguous or missing provider, returns rejected. Does not actually invoke.
 fn invoke_tool(request: &InprocInvocation) -> anyhow::Result<Value> {
@@ -359,7 +359,7 @@ fn invoke_tool(request: &InprocInvocation) -> anyhow::Result<Value> {
     if !secret_findings.is_empty() {
         return Ok(serde_json::json!({
             "kind": "tool_bridge_invocation_plan",
-            "method": "kernel.v1.capability.invoke",
+            "method": "capability.invoke",
             "capability_id": request.input.get("capability_id").cloned().unwrap_or(Value::Null),
             "provider_package_id": null,
             "status": "rejected",
@@ -393,7 +393,7 @@ fn invoke_tool(request: &InprocInvocation) -> anyhow::Result<Value> {
     if provider_package_id.is_empty() {
         return Ok(serde_json::json!({
             "kind": "tool_bridge_invocation_plan",
-            "method": "kernel.v1.capability.invoke",
+            "method": "capability.invoke",
             "capability_id": capability_id,
             "provider_package_id": null,
             "status": "rejected",
@@ -409,7 +409,7 @@ fn invoke_tool(request: &InprocInvocation) -> anyhow::Result<Value> {
     if ambiguous {
         return Ok(serde_json::json!({
             "kind": "tool_bridge_invocation_plan",
-            "method": "kernel.v1.capability.invoke",
+            "method": "capability.invoke",
             "capability_id": capability_id,
             "provider_package_id": provider_package_id,
             "status": "rejected",
@@ -425,7 +425,7 @@ fn invoke_tool(request: &InprocInvocation) -> anyhow::Result<Value> {
     if !provider_matches_candidates(provider_package_id, &candidates) {
         return Ok(serde_json::json!({
             "kind": "tool_bridge_invocation_plan",
-            "method": "kernel.v1.capability.invoke",
+            "method": "capability.invoke",
             "capability_id": capability_id,
             "provider_package_id": provider_package_id,
             "status": "rejected",
@@ -441,7 +441,7 @@ fn invoke_tool(request: &InprocInvocation) -> anyhow::Result<Value> {
 
     Ok(serde_json::json!({
         "kind": "tool_bridge_invocation_plan",
-        "method": "kernel.v1.capability.invoke",
+        "method": "capability.invoke",
         "capability_id": capability_id,
         "provider_package_id": provider_package_id,
         "status": "plan_ready",
@@ -454,14 +454,14 @@ fn invoke_tool(request: &InprocInvocation) -> anyhow::Result<Value> {
     }))
 }
 
-/// stream_tool: returns method kernel.v1.capability.stream plan.
+/// stream_tool: returns method capability.stream plan.
 /// Provider must be explicit; ambiguous or missing provider is rejected.
 fn stream_tool(request: &InprocInvocation) -> anyhow::Result<Value> {
     let (secret_findings, redaction_state) = scan_for_raw_secrets(&request.input);
     if !secret_findings.is_empty() {
         return Ok(serde_json::json!({
             "kind": "tool_bridge_stream_plan",
-            "method": "kernel.v1.capability.stream",
+            "method": "capability.stream",
             "capability_id": request.input.get("capability_id").cloned().unwrap_or(Value::Null),
             "provider_package_id": null,
             "status": "rejected",
@@ -490,7 +490,7 @@ fn stream_tool(request: &InprocInvocation) -> anyhow::Result<Value> {
     if provider_package_id.is_empty() {
         return Ok(serde_json::json!({
             "kind": "tool_bridge_stream_plan",
-            "method": "kernel.v1.capability.stream",
+            "method": "capability.stream",
             "capability_id": capability_id,
             "provider_package_id": null,
             "status": "rejected",
@@ -511,7 +511,7 @@ fn stream_tool(request: &InprocInvocation) -> anyhow::Result<Value> {
     if ambiguous {
         return Ok(serde_json::json!({
             "kind": "tool_bridge_stream_plan",
-            "method": "kernel.v1.capability.stream",
+            "method": "capability.stream",
             "capability_id": capability_id,
             "provider_package_id": provider_package_id,
             "status": "rejected",
@@ -527,7 +527,7 @@ fn stream_tool(request: &InprocInvocation) -> anyhow::Result<Value> {
     if !provider_matches_candidates(provider_package_id, &candidates) {
         return Ok(serde_json::json!({
             "kind": "tool_bridge_stream_plan",
-            "method": "kernel.v1.capability.stream",
+            "method": "capability.stream",
             "capability_id": capability_id,
             "provider_package_id": provider_package_id,
             "status": "rejected",
@@ -543,7 +543,7 @@ fn stream_tool(request: &InprocInvocation) -> anyhow::Result<Value> {
 
     Ok(serde_json::json!({
         "kind": "tool_bridge_stream_plan",
-        "method": "kernel.v1.capability.stream",
+        "method": "capability.stream",
         "capability_id": capability_id,
         "provider_package_id": provider_package_id,
         "status": "plan_ready",
@@ -576,7 +576,7 @@ fn explain_tool_call(request: &InprocInvocation) -> anyhow::Result<Value> {
         .input
         .get("method")
         .and_then(Value::as_str)
-        .unwrap_or("kernel.v1.capability.invoke");
+        .unwrap_or("capability.invoke");
 
     // Phase D: tool call context
     let requesting_package = request

@@ -28,7 +28,7 @@ use super::types::{
 };
 use super::PACKAGE_ID;
 
-const STORE_GC_EVENT_KIND: &str = "kernel/v1/install-lab.store.gc";
+const STORE_GC_EVENT_KIND: &str = "plurora/install-lab/store.gc";
 
 pub(super) async fn execute_plan(input: Value, _session_id: Option<&str>) -> Result<Value> {
     if input.as_object().is_some_and(|object| object.is_empty()) {
@@ -276,7 +276,7 @@ fn store_gc_json(report: super::gc::StoreGcReport) -> Value {
 
 async fn emit_store_gc_event(session_id: Option<&str>, store_gc: &Value) -> Result<()> {
     if let Some(session_id) = session_id {
-        crate::inproc::append_kernel_event_from_inproc(
+        crate::inproc::append_platform_event_from_inproc(
             session_id,
             STORE_GC_EVENT_KIND,
             store_gc.clone(),

@@ -1,7 +1,7 @@
 //! Live Model Calls Alpha L4 + L5 + L6 conformance tests.
 //!
 //! L4 tests cover:
-//! - Secret header injection through `kernel.v1.outbound.execute` `secret_headers` param
+//! - Secret header injection through `host.outbound.execute` `secret_headers` param
 //! - Local fake HTTP server conformance: loopback-only server verifies
 //!   Authorization header arrives but raw secret never appears in
 //!   protocol response, audit, or error output
@@ -30,7 +30,7 @@
 //! - Static headers OpenRouter safe (http-referer + x-title accepted)
 //!
 //! Security hard constraints enforced:
-//! - No kernel.v1.model/prompt/chat
+//! - No platform.model/prompt/chat
 //! - No raw secret resolve API
 //! - Provider packages cannot read env directly
 //! - Raw Authorization/secret never written to audit/response
@@ -145,10 +145,10 @@ fn runtime_with_live_http_and_env_resolver(
 }
 
 // ---------------------------------------------------------------------------
-// L4-1: Secret header injection through kernel.v1.outbound.execute
+// L4-1: Secret header injection through host.outbound.execute
 // ---------------------------------------------------------------------------
 
-/// L4: `secret_headers` param in `kernel.v1.outbound.execute` is parsed correctly
+/// L4: `secret_headers` param in `host.outbound.execute` is parsed correctly
 /// and secret_refs are resolved through the host. Raw secret values never appear
 /// in the response.
 pub(crate) async fn outbound_secret_headers_parsed() -> anyhow::Result<()> {
@@ -168,7 +168,7 @@ pub(crate) async fn outbound_secret_headers_parsed() -> anyhow::Result<()> {
     let response_value = runtime
         .call_protocol(
             &context,
-            "kernel.v1.outbound.execute",
+            "host.outbound.execute",
             json!({
                 "capability_id": "example/l4-headers/fetch",
                 "destination_host": "127.0.0.1",
@@ -214,7 +214,7 @@ pub(crate) async fn outbound_secret_headers_parsed() -> anyhow::Result<()> {
 // at server but raw secret not in protocol response/audit/log
 // ---------------------------------------------------------------------------
 
-/// L4: Start a local loopback HTTP server, call `kernel.v1.outbound.execute`
+/// L4: Start a local loopback HTTP server, call `host.outbound.execute`
 /// with `secret_headers` injecting Authorization from env, verify the
 /// server received the correct header value, but the protocol response
 /// and audit events do NOT contain the raw secret.
@@ -303,7 +303,7 @@ pub(crate) async fn outbound_live_loopback_secret_injection() -> anyhow::Result<
     let result = runtime
         .call_protocol(
             &context,
-            "kernel.v1.outbound.execute",
+            "host.outbound.execute",
             json!({
                 "capability_id": "example/l4-loopback/fetch",
                 "destination_host": "127.0.0.1",
@@ -354,7 +354,7 @@ pub(crate) async fn outbound_live_loopback_secret_injection() -> anyhow::Result<
     }
 
     // 3. Audit events do not contain the raw secret
-    let session_id = "kernel_outbound_example_l4-loopback".to_string();
+    let session_id = "platform_outbound_example_l4-loopback".to_string();
     let events = store.list_session(&session_id).await?;
     for event in &events {
         let payload_str = serde_json::to_string(&event.payload)?;
@@ -615,7 +615,7 @@ pub(crate) async fn outbound_live_deepseek_opt_in() -> anyhow::Result<()> {
     let result = runtime
         .call_protocol(
             &context,
-            "kernel.v1.outbound.execute",
+            "host.outbound.execute",
             json!({
                 "capability_id": "example/l4-live/fetch",
                 "destination_host": "api.deepseek.com",
@@ -650,7 +650,7 @@ pub(crate) async fn outbound_live_deepseek_opt_in() -> anyhow::Result<()> {
                 "live response must not contain Bearer token pattern"
             );
             // Verify audit is redacted
-            let session_id = "kernel_outbound_example_l4-live".to_string();
+            let session_id = "platform_outbound_example_l4-live".to_string();
             let events = store.list_session(&session_id).await?;
             for event in &events {
                 let payload_str = serde_json::to_string(&event.payload)?;
@@ -755,7 +755,7 @@ pub(crate) async fn canary_deepseek_profile_shape() -> anyhow::Result<()> {
 // L5: OpenAI / Anthropic / Gemini live adapter conformance
 // ===========================================================================
 //
-// L5 extends the `kernel.v1.outbound.execute` boundary to cover three
+// L5 extends the `host.outbound.execute` boundary to cover three
 // representative non-isomorphic provider APIs:
 // - OpenAI Chat Completions and Responses (Authorization bearer)
 // - Anthropic Messages (x-api-key secret + anthropic-version static)
@@ -944,7 +944,7 @@ async fn start_loopback_server(
 // L5-1: OpenAI Chat Completions loopback conformance
 // ---------------------------------------------------------------------------
 
-/// L5: OpenAI Chat Completions shape through `kernel.v1.outbound.execute`
+/// L5: OpenAI Chat Completions shape through `host.outbound.execute`
 /// loopback. Verifies:
 /// - Authorization: Bearer header arrives at the server
 /// - POST method to /v1/chat/completions
@@ -970,7 +970,7 @@ pub(crate) async fn openai_chat_loopback() -> anyhow::Result<()> {
     let result = runtime
         .call_protocol(
             &context,
-            "kernel.v1.outbound.execute",
+            "host.outbound.execute",
             json!({
                 "capability_id": "example/l5-openai-chat/fetch",
                 "destination_host": "127.0.0.1",
@@ -1026,7 +1026,7 @@ pub(crate) async fn openai_chat_loopback() -> anyhow::Result<()> {
     }
 
     // Verify no raw secret in audit
-    let session_id = "kernel_outbound_example_l5-openai-chat".to_string();
+    let session_id = "platform_outbound_example_l5-openai-chat".to_string();
     let events = store.list_session(&session_id).await?;
     for event in &events {
         let payload_str = serde_json::to_string(&event.payload)?;
@@ -1044,7 +1044,7 @@ pub(crate) async fn openai_chat_loopback() -> anyhow::Result<()> {
 // L5-2: OpenAI Responses loopback conformance
 // ---------------------------------------------------------------------------
 
-/// L5: OpenAI Responses API shape through `kernel.v1.outbound.execute`
+/// L5: OpenAI Responses API shape through `host.outbound.execute`
 /// loopback. Verifies:
 /// - Authorization: Bearer header arrives
 /// - POST to /v1/responses (different endpoint from chat)
@@ -1070,7 +1070,7 @@ pub(crate) async fn openai_responses_loopback() -> anyhow::Result<()> {
     let result = runtime
         .call_protocol(
             &context,
-            "kernel.v1.outbound.execute",
+            "host.outbound.execute",
             json!({
                 "capability_id": "example/l5-openai-resp/fetch",
                 "destination_host": "127.0.0.1",
@@ -1111,7 +1111,7 @@ pub(crate) async fn openai_responses_loopback() -> anyhow::Result<()> {
         );
     }
 
-    let session_id = "kernel_outbound_example_l5-openai-resp".to_string();
+    let session_id = "platform_outbound_example_l5-openai-resp".to_string();
     let events = store.list_session(&session_id).await?;
     for event in &events {
         let payload_str = serde_json::to_string(&event.payload)?;
@@ -1129,7 +1129,7 @@ pub(crate) async fn openai_responses_loopback() -> anyhow::Result<()> {
 // L5-3: Anthropic Messages loopback conformance
 // ---------------------------------------------------------------------------
 
-/// L5: Anthropic Messages shape through `kernel.v1.outbound.execute`
+/// L5: Anthropic Messages shape through `host.outbound.execute`
 /// loopback. Verifies:
 /// - x-api-key header with raw secret value arrives at server
 /// - anthropic-version static header arrives at server
@@ -1234,7 +1234,7 @@ pub(crate) async fn anthropic_messages_loopback() -> anyhow::Result<()> {
     let result = runtime
         .call_protocol(
             &context,
-            "kernel.v1.outbound.execute",
+            "host.outbound.execute",
             json!({
                 "capability_id": "example/l5-anthropic/fetch",
                 "destination_host": "127.0.0.1",
@@ -1293,7 +1293,7 @@ pub(crate) async fn anthropic_messages_loopback() -> anyhow::Result<()> {
     }
 
     // Verify no raw secret in audit
-    let session_id = "kernel_outbound_example_l5-anthropic".to_string();
+    let session_id = "platform_outbound_example_l5-anthropic".to_string();
     let events = store.list_session(&session_id).await?;
     for event in &events {
         let payload_str = serde_json::to_string(&event.payload)?;
@@ -1311,7 +1311,7 @@ pub(crate) async fn anthropic_messages_loopback() -> anyhow::Result<()> {
 // L5-4: Gemini generateContent loopback conformance
 // ---------------------------------------------------------------------------
 
-/// L5: Gemini generateContent shape through `kernel.v1.outbound.execute`
+/// L5: Gemini generateContent shape through `host.outbound.execute`
 /// loopback. Verifies:
 /// - x-goog-api-key header with raw secret arrives at server
 /// - POST to /v1beta/models/{model}:generateContent
@@ -1406,7 +1406,7 @@ pub(crate) async fn gemini_generate_content_loopback() -> anyhow::Result<()> {
     let result = runtime
         .call_protocol(
             &context,
-            "kernel.v1.outbound.execute",
+            "host.outbound.execute",
             json!({
                 "capability_id": "example/l5-gemini/fetch",
                 "destination_host": "127.0.0.1",
@@ -1455,7 +1455,7 @@ pub(crate) async fn gemini_generate_content_loopback() -> anyhow::Result<()> {
         );
     }
 
-    let session_id = "kernel_outbound_example_l5-gemini".to_string();
+    let session_id = "platform_outbound_example_l5-gemini".to_string();
     let events = store.list_session(&session_id).await?;
     for event in &events {
         let payload_str = serde_json::to_string(&event.payload)?;
@@ -1474,7 +1474,7 @@ pub(crate) async fn gemini_generate_content_loopback() -> anyhow::Result<()> {
 // ---------------------------------------------------------------------------
 
 /// L5: When a secret_headers reference cannot be resolved (missing env var
-/// or denied by allowlist), `kernel.v1.outbound.execute` must fail closed:
+/// or denied by allowlist), `host.outbound.execute` must fail closed:
 /// no outbound request is made, and no raw secret leaks in the error.
 pub(crate) async fn missing_secret_fails_closed() -> anyhow::Result<()> {
     // Don't set the env var — it will be missing
@@ -1490,7 +1490,7 @@ pub(crate) async fn missing_secret_fails_closed() -> anyhow::Result<()> {
     let result = runtime
         .call_protocol(
             &context,
-            "kernel.v1.outbound.execute",
+            "host.outbound.execute",
             json!({
                 "capability_id": "example/l5-missing/fetch",
                 "destination_host": "127.0.0.1",
@@ -1506,7 +1506,7 @@ pub(crate) async fn missing_secret_fails_closed() -> anyhow::Result<()> {
     // The request should fail because the secret is unavailable
     anyhow::ensure!(
         result.is_err(),
-        "kernel.v1.outbound.execute must fail when secret is unavailable"
+        "host.outbound.execute must fail when secret is unavailable"
     );
 
     // Error message must not contain raw secret patterns
@@ -1522,11 +1522,11 @@ pub(crate) async fn missing_secret_fails_closed() -> anyhow::Result<()> {
 
     // No audit events should be produced (policy check may or may not
     // have run, but no outbound.request should exist)
-    let session_id = "kernel_outbound_example_l5-missing".to_string();
+    let session_id = "platform_outbound_example_l5-missing".to_string();
     let events = store.list_session(&session_id).await?;
     let outbound_requests: Vec<_> = events
         .iter()
-        .filter(|e| e.kind == "kernel/v1/outbound.request")
+        .filter(|e| e.kind == "host/outbound.request")
         .collect();
     anyhow::ensure!(
         outbound_requests.is_empty(),
@@ -1542,7 +1542,7 @@ pub(crate) async fn missing_secret_fails_closed() -> anyhow::Result<()> {
 
 /// L5: Verify that model-provider-lab's normalize_request output for
 /// OpenAI, Anthropic, and Gemini aligns with the expected
-/// `kernel.v1.outbound.execute` params (host, method, path, secret header name).
+/// `host.outbound.execute` params (host, method, path, secret header name).
 /// This ensures the provider package's shape and the host boundary
 /// are consistent — no private runtime calls needed.
 pub(crate) async fn provider_normalize_request_alignment() -> anyhow::Result<()> {
@@ -1777,7 +1777,7 @@ pub(crate) async fn provider_normalize_request_alignment() -> anyhow::Result<()>
 // ---------------------------------------------------------------------------
 
 /// L5: Comprehensive check that raw secrets never leak across all three
-/// provider shapes through `kernel.v1.outbound.execute`. Tests OpenAI,
+/// provider shapes through `host.outbound.execute`. Tests OpenAI,
 /// Anthropic, and Gemini shapes with FakeOutboundExecutor, ensuring
 /// response/audit never contain raw secret values.
 pub(crate) async fn no_raw_secret_leak_all_providers() -> anyhow::Result<()> {
@@ -1963,7 +1963,7 @@ pub(crate) async fn no_raw_secret_leak_all_providers() -> anyhow::Result<()> {
     );
 
     // Verify audit has no raw secrets
-    let session_id = "kernel_outbound_example_l5-no-leak".to_string();
+    let session_id = "platform_outbound_example_l5-no-leak".to_string();
     let events = store.list_session(&session_id).await?;
     for event in &events {
         let payload_str = serde_json::to_string(&event.payload)?;
@@ -1997,7 +1997,7 @@ pub(crate) async fn static_headers_safe_allowlist() -> anyhow::Result<()> {
     let result = runtime
         .call_protocol(
             &context,
-            "kernel.v1.outbound.execute",
+            "host.outbound.execute",
             json!({
                 "capability_id": "example/l5-static-ok/fetch",
                 "destination_host": "127.0.0.1",
@@ -2045,7 +2045,7 @@ pub(crate) async fn static_headers_block_secrets() -> anyhow::Result<()> {
     let result = runtime
         .call_protocol(
             &context,
-            "kernel.v1.outbound.execute",
+            "host.outbound.execute",
             json!({
                 "capability_id": "example/l5-static-block/fetch",
                 "destination_host": "127.0.0.1",
@@ -2072,7 +2072,7 @@ pub(crate) async fn static_headers_block_secrets() -> anyhow::Result<()> {
     let result2 = runtime
         .call_protocol(
             &context,
-            "kernel.v1.outbound.execute",
+            "host.outbound.execute",
             json!({
                 "capability_id": "example/l5-static-block/fetch",
                 "destination_host": "127.0.0.1",
@@ -2094,7 +2094,7 @@ pub(crate) async fn static_headers_block_secrets() -> anyhow::Result<()> {
     let result3 = runtime
         .call_protocol(
             &context,
-            "kernel.v1.outbound.execute",
+            "host.outbound.execute",
             json!({
                 "capability_id": "example/l5-static-block/fetch",
                 "destination_host": "127.0.0.1",
@@ -2119,7 +2119,7 @@ pub(crate) async fn static_headers_block_secrets() -> anyhow::Result<()> {
 // L6: OpenRouter / xAI / Fireworks / DeepSeek provider quirks conformance
 // ===========================================================================
 //
-// L6 extends the `kernel.v1.outbound.execute` boundary to cover four additional
+// L6 extends the `host.outbound.execute` boundary to cover four additional
 // provider families with their specific quirks:
 // - OpenRouter: Authorization bearer + safe static headers (HTTP-Referer, X-Title)
 // - xAI: Authorization bearer, /v1/chat/completions
@@ -2133,7 +2133,7 @@ pub(crate) async fn static_headers_block_secrets() -> anyhow::Result<()> {
 // L6-1: OpenRouter loopback conformance with safe static headers
 // ---------------------------------------------------------------------------
 
-/// L6: OpenRouter chat completions shape through `kernel.v1.outbound.execute`
+/// L6: OpenRouter chat completions shape through `host.outbound.execute`
 /// loopback. Verifies:
 /// - Authorization: Bearer header arrives at server
 /// - HTTP-Referer and X-Title safe static headers arrive at server
@@ -2239,7 +2239,7 @@ pub(crate) async fn openrouter_loopback_headers() -> anyhow::Result<()> {
     let result = runtime
         .call_protocol(
             &context,
-            "kernel.v1.outbound.execute",
+            "host.outbound.execute",
             json!({
                 "capability_id": "example/l6-openrouter/fetch",
                 "destination_host": "127.0.0.1",
@@ -2302,7 +2302,7 @@ pub(crate) async fn openrouter_loopback_headers() -> anyhow::Result<()> {
     }
 
     // Verify no raw secret in audit
-    let session_id = "kernel_outbound_example_l6-openrouter".to_string();
+    let session_id = "platform_outbound_example_l6-openrouter".to_string();
     let events = store.list_session(&session_id).await?;
     for event in &events {
         let payload_str = serde_json::to_string(&event.payload)?;
@@ -2320,7 +2320,7 @@ pub(crate) async fn openrouter_loopback_headers() -> anyhow::Result<()> {
 // L6-2: xAI loopback conformance
 // ---------------------------------------------------------------------------
 
-/// L6: xAI chat completions shape through `kernel.v1.outbound.execute`
+/// L6: xAI chat completions shape through `host.outbound.execute`
 /// loopback. Verifies:
 /// - Authorization: Bearer header arrives at server
 /// - POST to /v1/chat/completions
@@ -2346,7 +2346,7 @@ pub(crate) async fn xai_loopback() -> anyhow::Result<()> {
     let result = runtime
         .call_protocol(
             &context,
-            "kernel.v1.outbound.execute",
+            "host.outbound.execute",
             json!({
                 "capability_id": "example/l6-xai/fetch",
                 "destination_host": "127.0.0.1",
@@ -2401,7 +2401,7 @@ pub(crate) async fn xai_loopback() -> anyhow::Result<()> {
     }
 
     // Verify no raw secret in audit
-    let session_id = "kernel_outbound_example_l6-xai".to_string();
+    let session_id = "platform_outbound_example_l6-xai".to_string();
     let events = store.list_session(&session_id).await?;
     for event in &events {
         let payload_str = serde_json::to_string(&event.payload)?;
@@ -2419,7 +2419,7 @@ pub(crate) async fn xai_loopback() -> anyhow::Result<()> {
 // L6-3: Fireworks loopback conformance
 // ---------------------------------------------------------------------------
 
-/// L6: Fireworks chat completions shape through `kernel.v1.outbound.execute`
+/// L6: Fireworks chat completions shape through `host.outbound.execute`
 /// loopback. Verifies:
 /// - Authorization: Bearer header arrives at server
 /// - POST to /inference/v1/chat/completions
@@ -2450,7 +2450,7 @@ pub(crate) async fn fireworks_loopback() -> anyhow::Result<()> {
     let result = runtime
         .call_protocol(
             &context,
-            "kernel.v1.outbound.execute",
+            "host.outbound.execute",
             json!({
                 "capability_id": "example/l6-fireworks/fetch",
                 "destination_host": "127.0.0.1",
@@ -2501,7 +2501,7 @@ pub(crate) async fn fireworks_loopback() -> anyhow::Result<()> {
     }
 
     // Verify no raw secret in audit
-    let session_id = "kernel_outbound_example_l6-fireworks".to_string();
+    let session_id = "platform_outbound_example_l6-fireworks".to_string();
     let events = store.list_session(&session_id).await?;
     for event in &events {
         let payload_str = serde_json::to_string(&event.payload)?;

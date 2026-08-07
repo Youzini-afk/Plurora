@@ -15,8 +15,8 @@
  * - **No canonical chat schema**: No `system`/`user`/`assistant` role fields.
  *   Input is opaque payload refs, not message arrays.
  * - **Secret-safe**: Uses `secret_ref` identifiers; rejects raw secrets.
- * - **Content-free kernel alignment**: No `kernel.v1.model.*`, `kernel.v1.prompt.*`,
- *   `kernel.v1.chat.*`, or `kernel.v1.embedding.*` coupling.
+ * - **Content-free kernel alignment**: No `platform.model.*`, `platform.prompt.*`,
+ *   `platform.chat.*`, or `platform.embedding.*` coupling.
  *
  * ## API surface
  *

@@ -1,64 +1,5 @@
 {
   "$defs": {
-    "ContractDiagnostic": {
-      "properties": {
-        "canonical_id": {
-          "type": "string"
-        },
-        "code": {
-          "type": "string"
-        },
-        "deprecated_in": {
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "maturity": {
-          "$ref": "#/$defs/ContractMaturity"
-        },
-        "message": {
-          "type": "string"
-        },
-        "replacement": {
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "requested_id": {
-          "type": "string"
-        },
-        "severity": {
-          "type": "string"
-        },
-        "support_until": {
-          "type": [
-            "string",
-            "null"
-          ]
-        }
-      },
-      "required": [
-        "canonical_id",
-        "code",
-        "maturity",
-        "message",
-        "requested_id",
-        "severity"
-      ],
-      "type": "object"
-    },
-    "ContractMaturity": {
-      "enum": [
-        "experimental",
-        "candidate",
-        "stable",
-        "deprecated",
-        "legacy_adapter"
-      ],
-      "type": "string"
-    },
     "ProtocolError": {
       "properties": {
         "code": {
@@ -80,12 +21,6 @@
   },
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "properties": {
-    "diagnostics": {
-      "items": {
-        "$ref": "#/$defs/ContractDiagnostic"
-      },
-      "type": "array"
-    },
     "error": {
       "anyOf": [
         {

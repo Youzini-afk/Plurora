@@ -9,7 +9,7 @@
 //! 6. Cost/latency summary shape (no raw secrets, refs only)
 //! 7. Failure breadcrumbs shape
 //! 8. Guardrail/audit summary shape
-//! 9. No forbidden namespace (kernel.v1.observability.* / kernel.v1.experience.* etc.)
+//! 9. No forbidden namespace (platform.observability.* / platform.experience.* etc.)
 //! 10. No raw secrets in any capability output/input processing
 
 use std::path::PathBuf;
@@ -357,7 +357,7 @@ pub(crate) async fn experience_observability_guardrail_summary() -> anyhow::Resu
 }
 
 /// Case 9: No forbidden namespace in any output.
-/// kernel.v1.observability.* is forbidden — observability is package-owned.
+/// platform.observability.* is forbidden — observability is package-owned.
 pub(crate) async fn experience_observability_no_forbidden_namespace() -> anyhow::Result<()> {
     let runtime = load_experience_observability_lab().await?;
 
@@ -373,17 +373,17 @@ pub(crate) async fn experience_observability_no_forbidden_namespace() -> anyhow:
     ];
 
     let forbidden = [
-        "kernel.v1.observability.",
-        "kernel.v1.experience.",
-        "kernel.v1.world.",
-        "kernel.v1.scene.",
-        "kernel.v1.turn.",
-        "kernel.v1.chat.",
-        "kernel.v1.memory.",
-        "kernel.v1.agent.",
-        "kernel.v1.model.",
-        "kernel.v1.prompt.",
-        "kernel.v1.director.",
+        "platform.observability.",
+        "platform.experience.",
+        "platform.world.",
+        "platform.scene.",
+        "platform.turn.",
+        "platform.chat.",
+        "platform.memory.",
+        "platform.agent.",
+        "platform.model.",
+        "platform.prompt.",
+        "platform.director.",
     ];
 
     for cap in &caps {

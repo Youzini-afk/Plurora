@@ -21,7 +21,7 @@
 //! Safety:
 //! - Raw secret blocking (delegated to shared safety module)
 //! - Unsafe local path rejection (path traversal, home path, absolute sensitive paths)
-//! - No reserved external-project kernel namespace references
+//! - No reserved external-project platform-reserved namespace references
 //! - No filesystem reads, no shell, no outbound, no execution
 
 use serde_json::Value;
@@ -789,12 +789,12 @@ fn draft_adapter_plan(request: &InprocInvocation) -> anyhow::Result<Value> {
 // ---------------------------------------------------------------------------
 
 const FORBIDDEN_NAMESPACE_TOKENS: &[&str] = &[
-    "kernel.v1.project.",
-    "kernel.v1.workspace.",
-    "kernel.v1.git.",
-    "kernel.v1.npm.",
-    "kernel.v1.deploy.",
-    "kernel.v1.ide.",
+    "platform.project.",
+    "platform.workspace.",
+    "platform.git.",
+    "platform.npm.",
+    "platform.deploy.",
+    "platform.ide.",
 ];
 
 fn contains_forbidden_namespace(value: &Value) -> bool {
@@ -958,7 +958,7 @@ fn generate_adapter_manifest_preview(request: &InprocInvocation) -> anyhow::Resu
         return Ok(serde_json::json!({
             "kind": "project_intake_rejected",
             "redaction_state": "unsafe_blocked",
-            "reason": "adapter manifest preview contains forbidden kernel namespace references",
+            "reason": "adapter manifest preview contains forbidden platform-reserved namespace references",
             "inference_performed": false,
             "network_performed": false,
             "execution_performed": false,
@@ -1301,7 +1301,7 @@ fn check_adapter_readiness(request: &InprocInvocation) -> anyhow::Result<Value> 
     checklist.push(serde_json::json!({
         "item": "no_forbidden_namespace",
         "status": no_forbidden_namespace,
-        "detail": if no_forbidden_namespace { "no forbidden kernel namespace references in output" } else { "output must not contain reserved external-project kernel namespace references" }
+        "detail": if no_forbidden_namespace { "no forbidden platform-reserved namespace references in output" } else { "output must not contain reserved external-project platform-reserved namespace references" }
     }));
 
     // needs approval for execution
@@ -1618,12 +1618,12 @@ mod tests {
         let result = try_handle(&req).unwrap().unwrap();
         let output_str = serde_json::to_string(&result).unwrap();
         for token in &[
-            "kernel.v1.project.",
-            "kernel.v1.workspace.",
-            "kernel.v1.git.",
-            "kernel.v1.npm.",
-            "kernel.v1.deploy.",
-            "kernel.v1.ide.",
+            "platform.project.",
+            "platform.workspace.",
+            "platform.git.",
+            "platform.npm.",
+            "platform.deploy.",
+            "platform.ide.",
         ] {
             assert!(!output_str.contains(token), "must not contain {}", token);
         }

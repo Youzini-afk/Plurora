@@ -3,8 +3,8 @@ import type { TimelineRow } from "@/components/home/activity-timeline";
 import type { DiskSegment } from "@/components/home/workshop-utilities";
 import { projectStateTone, type StatusTone } from "@/components/ui/status-pill";
 import { formatRelativeAge } from "@/lib/format";
-import { useAsync } from "@/lib/kernel-client";
-import type { KernelEvent, ProjectRecord, YggProtocolClient } from "@/protocol/client";
+import { useAsync } from "@/lib/plurora-client";
+import type { PlatformEvent, ProjectRecord, PluroraProtocolClient } from "@/protocol/client";
 import { TIMELINE_SESSION, TONE_TO_DISK_CLASS } from "./home-constants";
 import { countsForProjects, filterProjects, filtersWithCounts } from "./home-filtering";
 import { iconKindFor } from "./timeline";
@@ -16,7 +16,7 @@ export function useHomeProjects({
   activeFilter,
   labels,
 }: {
-  client: YggProtocolClient;
+  client: PluroraProtocolClient;
   search: string;
   activeFilter: string;
   labels: {
@@ -29,7 +29,7 @@ export function useHomeProjects({
 }) {
   const projects = useAsync(() => client.listProjects(), [client]);
   const lifecycleEvents = useAsync(
-    () => client.listEvents(TIMELINE_SESSION).catch<KernelEvent[]>(() => []),
+    () => client.listEvents(TIMELINE_SESSION).catch<PlatformEvent[]>(() => []),
     [client],
   );
   // Deployment runtime records currently expose target/exec/port/proxy state
@@ -87,10 +87,10 @@ export function useHomeProjects({
         const project = projectList.find((p) => p.id === (event.metadata as { project_id?: string })?.project_id);
         return {
           id: event.id,
-          projectName: project?.title ?? event.writer_package_id ?? "kernel",
+          projectName: project?.title ?? event.writer_package_id ?? "plurora/runtime",
           toneDot: project ? projectStateTone(project.state) : ("neutral" as StatusTone),
           age: formatRelativeAge(event.created_at, labels.relativeAge),
-          message: event.kind.replace(/^kernel\/v1\//, ""),
+          message: event.kind,
           iconKind: iconKindFor(event),
         } satisfies TimelineRow;
       });

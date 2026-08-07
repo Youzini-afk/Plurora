@@ -50,7 +50,7 @@ Plurora 不只是内核，也不等于官方 Web/Desktop。当前官方发行版
 
 仓库处于 Foundation Alpha：公开 Contract V1、Rust Host/runtime、HTTP/RPC/SSE、Package 与 Component 生命周期、Web/PWA、Tauri Desktop、CLI、安装更新、项目管理、权限、对象与工件、模型接入、受控开发、target 与部署等基础已经形成较大可运行面。
 
-当前实现仍带有 Contract V1 的历史聚合：`kernel.v1.*` 同时包含部分基底、Host、协议和 Shell 语义。新的架构方向不是推倒重写，而是在保持兼容和数据可读的前提下逐步明确所有权。
+当前实现仍带有 Contract V1 的历史聚合：`platform.*` 同时包含部分基底、Host、协议和 Shell 语义。新的架构方向不是推倒重写，而是在保持兼容和数据可读的前提下逐步明确所有权。
 
 具体已实现、partial 和 deferred 状态见 [`docs/ALPHA_STATUS.md`](docs/ALPHA_STATUS.md)。当前建设方向见 [`docs/roadmap/NEXT_STEPS.md`](docs/roadmap/NEXT_STEPS.md)。
 

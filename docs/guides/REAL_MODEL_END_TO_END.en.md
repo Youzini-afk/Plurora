@@ -31,7 +31,7 @@ inproc dispatcher finds the ydltavern-engine package (subprocess)
 ydltavern-engine runs the capability handler
   ↓ (builds an OpenAI/Anthropic/Gemini-shaped request)
   ↓
-reverse-calls kernel.v1.outbound.execute with secret_headers: {Authorization: secret_ref}
+reverse-calls host.outbound.execute with secret_headers: {Authorization: secret_ref}
   ↓
 host dispatch_outbound_execute handles:
   ✓ checks the package permissions.network.declarations allow this host
@@ -67,21 +67,21 @@ SendForm onSend(text)
 TavernProvider.sendMessage(text) (settings.streaming === true)
   ↓
 streamCapability("ydltavern/engine/model.live_call.stream", { ... })
-  ├─ Step 1: callHostRpc("kernel.v1.capability.stream", { capability_id, input })
+  ├─ Step 1: callHostRpc("capability.stream", { capability_id, input })
   │          → returns stream_id
   ├─ Step 2: postMessage to host: { type: "stream.subscribe", id, stream_id, session_id }
   └─ returns StreamHandle { streamId, frames: AsyncIterable<StreamFrame>, cancel() }
   ↓
 host (surface-host.ts) receives stream.subscribe:
   ✓ subscribes to SSE through hostBridge.subscribeEvents(session_id, callback)
-  ✓ filters kernel/v1/stream.* events and matches payload.stream_id
+  ✓ filters capability/stream.* events and matches payload.stream_id
   ✓ forwards postMessage { type: "stream.frame" / "stream.ended" / "stream.error" }
   ↓
 engine inside the subprocess:
-  ✓ reverse-calls kernel.v1.outbound.stream, not .execute
+  ✓ reverse-calls host.outbound.stream, not .execute
   ✓ parses SSE / chunked JSON
   ✓ normalizes frames such as { delta_text, kind: "chunk" }
-  ✓ writes frames through the kernel into the session event stream (kernel/v1/stream.chunk)
+  ✓ writes frames through the kernel into the session event stream (capability/stream.chunk)
   ↓
 host SSE pushes those events into the surface-host subscribeEvents callback
   ↓
@@ -106,13 +106,13 @@ SendForm "Stop" button onClick
 tavern.cancelGeneration()
   ↓
 activeStreamRef.current.cancel()
-  ├─ callHostRpc("kernel.v1.capability.cancel", { stream_id })
+  ├─ callHostRpc("capability.cancel", { stream_id })
   ├─ postMessage { type: "stream.unsubscribe", subscription_id }
   └─ closes AsyncQueue and removes event listeners
   ↓
 host:
-  ✓ kernel.v1.capability.cancel cancels the engine reverse call (engine receives abort signal)
-  ✓ kernel/v1/stream.cancelled is written into the session
+  ✓ capability.cancel cancels the engine reverse call (engine receives abort signal)
+  ✓ capability/stream.cancelled is written into the session
   ✓ surface-host sees cancelled and forwards stream.error to the iframe
   ↓
 TavernProvider exits the loop, keeps accumulated content, and sets isGenerating: false
@@ -188,7 +188,7 @@ surface_dev_paths:
   ydltavern: ../YdlTavern/packages/ydltavern-surface/dist
 ```
 
-`surface_dev_paths` is only for development-time mounting of local build output. Installed projects do not need it; the host serves project dist files under `/surface-bundles/projects/<project_id>/...`. The web dev server port is `localhost:1420`. CLI `plurora project start/status/stop` commands are project-state commands; Home's Play/session flow uses the Web public protocol to call `kernel.v1.project.start`, receive a `session_id`, resolve the surface, and mount it. Do not treat the CLI command path and the Web Play/session flow as equivalent entrypoints.
+`surface_dev_paths` is only for development-time mounting of local build output. Installed projects do not need it; the host serves project dist files under `/surface-bundles/projects/<project_id>/...`. The web dev server port is `localhost:1420`. CLI `plurora project start/status/stop` commands are project-state commands; Home's Play/session flow uses the Web public protocol to call `host.project.start`, receive a `session_id`, resolve the surface, and mount it. Do not treat the CLI command path and the Web Play/session flow as equivalent entrypoints.
 
 Three gates must all pass:
 
@@ -218,7 +218,7 @@ session.metadata.project_id = "youzini-afk__YdlTavern__d2a47e5c"
 session.labels = ["project:youzini-afk__YdlTavern__d2a47e5c"]
 ```
 
-The `clients/web` main thread receives `session_id` from `kernel.v1.project.start`. It then calls `kernel.v1.surface.resolve_bundle` to get the surface bundle URL and uses `mountSurface` to create the iframe.
+The `clients/web` main thread receives `session_id` from `host.project.start`. It then calls `host.surface.bundle.resolve` to get the surface bundle URL and uses `mountSurface` to create the iframe.
 
 The iframe `initialProps` include:
 
@@ -252,7 +252,7 @@ This prevents a surface from reading another project's secrets by forging `proje
 
 A real model call must pass all of these boundaries:
 
-- `kernel.v1.capability.invoke` checks caller context and capability handles.
+- `capability.invoke` checks caller context and capability handles.
 - The engine package manifest declares `ydltavern/engine/model.live_call`.
 - The engine package manifest declares `permissions.network.declarations`.
 - The engine package manifest declares `permissions.secret_refs`.

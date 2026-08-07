@@ -9,7 +9,7 @@
 本指南使用当前 Contract V1 的普通 Package / Component 实现一种 Experience Runtime Product Profile：连续运行、暂停、恢复、checkpoint 和 fork。共享的体验生命周期可以由可选 Protocol / Profile 定义，具体体验状态由 Product 与 Component 拥有；它不进入宪法基底。
 
 关键约束：
-- 不新增 `kernel.v1.experience.*`、`kernel.v1.world.*`、`kernel.v1.turn.*`、`kernel.v1.chat.*` 或 `kernel.v1.memory.*`。
+- 不新增 `platform.experience.*`、`platform.world.*`、`platform.turn.*`、`platform.chat.*` 或 `platform.memory.*`。
 - Experience 包是普通包，没有内核特权。
 - 当前 Experience 描述符、状态 projection、checkpoint 和恢复计划由对应 Component / Product 的 Package 分发，是产品工件而不是基底原语。
 - 所有行为通过公开协议完成。
@@ -195,7 +195,7 @@ Experience-runtime 包是普通包。任何满足相同 surface 和能力契约�
 
 以下行为被严格禁止：
 
-1. 内核体验命名空间：不得在事件、提案、checkpoint 或任何输出中包含 `kernel.v1.experience.*`、`kernel.v1.world.*`、`kernel.v1.turn.*`、`kernel.v1.chat.*` 或 `kernel.v1.memory.*`。
+1. 内核体验命名空间：不得在事件、提案、checkpoint 或任何输出中包含 `platform.experience.*`、`platform.world.*`、`platform.turn.*`、`platform.chat.*` 或 `platform.memory.*`。
 2. Raw secrets：所有 secret 必须通过 `secret_ref` 引用。不得在 checkpoint、恢复计划或状态 projection 中包含 raw secret。
 3. 直接修改目标分支：Agent 对 experience 的修改必须通过提案生命周期，不得直接修改目标分支。
 4. 网络访问：Experience-runtime 包默认不出网。如需网络，必须声明 `permissions.network.declarations`。

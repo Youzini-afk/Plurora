@@ -18,7 +18,7 @@ This ledger records what the TriviumDB source review means for Plurora integrati
 
 TDB fits Plurora as a **retrieval/multimodal provider adapter**, not as:
 
-- kernel event store;
+- platform event store;
 - canonical asset store;
 - projection authority;
 - raw package database;

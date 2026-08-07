@@ -15,7 +15,7 @@ Plurora currently has a SQLite-backed append-only event log, but the platform co
 
 ## Red lines
 
-- Do not add `kernel.v1.sqlite.*`, `kernel.v1.postgres.*`, `kernel.v1.tdb.*`, `kernel.v1.vector.*`, `kernel.v1.embedding.*`, `kernel.v1.collection.*`, `kernel.v1.sql.*`, or `kernel.v1.database.*`.
+- Do not add `platform.sqlite.*`, `platform.postgres.*`, `platform.tdb.*`, `platform.vector.*`, `platform.embedding.*`, `platform.collection.*`, `platform.sql.*`, or `platform.database.*`.
 - Do not turn `EventStore` into a generic `DatabaseBackend`.
 - Do not expose SQL, DSNs, connection strings, tables, transaction isolation, ANN indexes, vector dimensions, backend topology, or raw credentials to packages.
 - SQLite is an early/default/local backend, not the platform contract.
@@ -80,4 +80,4 @@ PostgreSQL + TDB integration has completed the first opt-in backend/provider pro
 - projection rebuild scheduling
 - retrieval provider permission/audit/redaction
 
-These should continue to use package/provider + host policy seams instead of putting database-product semantics into the kernel.v1.
+These should continue to use package/provider + host policy seams instead of putting database-product semantics into the platform.

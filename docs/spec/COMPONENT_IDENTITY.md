@@ -87,7 +87,7 @@ Package record 与 lifecycle event 会公开 package-envelope digest 和 compone
 - behavior digest；
 - component trust class。
 
-Conforming in-process package 通过 `KernelEnv` 收到 component ID 与 digest；subprocess handshake 收到 package-envelope digest 与 component descriptor，Foreign Capsule handshake 的 v1 capability/permission/binding 集合为空。这样 audit 与 replay 可以在 installer envelope 之外独立识别具体实现。
+Conforming in-process package 通过 `ComponentEnv` 收到 component ID 与 digest；subprocess handshake 收到 package-envelope digest 与 component descriptor，Foreign Capsule handshake 的 v1 capability/permission/binding 集合为空。这样 audit 与 replay 可以在 installer envelope 之外独立识别具体实现。
 
 ## Composition lock
 

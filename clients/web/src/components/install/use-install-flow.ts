@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useToast } from "@/components/ui/toast";
-import { useKernel } from "@/lib/kernel-client";
+import { usePlurora } from "@/lib/plurora-client";
 import { useT } from "@/lib/locale";
 import type { InstallConsent, InstallDetectedKind, InstallExecuteResult, InstallPlan, InstallSource } from "@/protocol/client";
 import { detectKindFromInstallPlan, errorMessage } from "./install-format";
@@ -52,7 +52,7 @@ export function useInstallFlow({
   onClose: () => void;
   onInstalled?: () => void;
 }) {
-  const client = useKernel();
+  const client = usePlurora();
   const toast = useToast();
   const t = useT();
   const [step, setStep] = useState<InstallStep>("url");

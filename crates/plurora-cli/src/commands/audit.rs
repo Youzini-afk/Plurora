@@ -33,7 +33,7 @@ pub async fn run(args: AuditArgs) -> Result<()> {
     // v1 CLI is intentionally in-process/read-only: it loads the default
     // forge-alpha profile into an in-memory runtime, optionally loads the
     // requested package path, and audits that runtime's event store. For a
-    // long-running host, call kernel.v1.audit.package over RPC instead.
+    // long-running host, call host.package.audit over RPC instead.
     let store = Arc::new(InMemoryEventStore::default());
     let runtime = Arc::new(Runtime::new(store, RuntimeConfig::default()));
     let profile_path = PathBuf::from("profiles/forge-alpha.yaml");

@@ -1,0 +1,36 @@
+{
+  "$defs": {
+    "Payload": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "properties": {
+        "code": {
+          "type": "string"
+        },
+        "details": true,
+        "message": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "code",
+        "details",
+        "message"
+      ],
+      "title": "ErrorShape",
+      "type": "object"
+    }
+  },
+  "$id": "urn:plurora:schema:event:runtime/error:v1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "Payload schema for event kind runtime/error.",
+  "properties": {
+    "kind": {
+      "const": "runtime/error"
+    },
+    "payload": {
+      "$ref": "#/$defs/Payload"
+    }
+  },
+  "title": "runtime/error",
+  "type": "object"
+}

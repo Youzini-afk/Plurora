@@ -1,0 +1,208 @@
+{
+  "$defs": {
+    "ExecutorKind": {
+      "description": "The kind of outbound executor that produced a response.",
+      "oneOf": [
+        {
+          "description": "All outbound is denied; no network performed.",
+          "enum": [
+            "deny_all"
+          ],
+          "type": "string"
+        },
+        {
+          "description": "Fake/deterministic fixture executor; no real network.",
+          "enum": [
+            "fake"
+          ],
+          "type": "string"
+        },
+        {
+          "description": "Real network executor (future M4+).",
+          "enum": [
+            "real"
+          ],
+          "type": "string"
+        }
+      ]
+    },
+    "Payload": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "description": "Summary of a completed outbound stream, returned by the executor.",
+      "properties": {
+        "body_shape": {
+          "default": null,
+          "description": "JSON shape of the response body (redacted preview)."
+        },
+        "bytes_received": {
+          "description": "Total bytes received.",
+          "format": "uint64",
+          "minimum": 0.0,
+          "type": "integer"
+        },
+        "executor_kind": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/ExecutorKind"
+            }
+          ],
+          "description": "What kind of executor produced this summary."
+        },
+        "frame_count": {
+          "description": "Total number of frames emitted.",
+          "format": "uint64",
+          "minimum": 0.0,
+          "type": "integer"
+        },
+        "headers_shape": {
+          "default": null,
+          "description": "JSON shape of response headers (redacted)."
+        },
+        "network_performed": {
+          "description": "Whether real network I/O was performed.",
+          "type": "boolean"
+        },
+        "provider_request_id": {
+          "default": null,
+          "description": "Provider-assigned request id if available.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "receipt": {
+          "anyOf": [
+            {
+              "$schema": "https://json-schema.org/draft/2020-12/schema",
+              "properties": {
+                "annotations": {
+                  "additionalProperties": true,
+                  "default": {},
+                  "type": "object"
+                },
+                "artifact_type_uri": {
+                  "type": "string"
+                },
+                "digest": {
+                  "type": "string"
+                },
+                "media_type": {
+                  "type": "string"
+                },
+                "references": {
+                  "default": [],
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                "size_bytes": {
+                  "format": "uint64",
+                  "minimum": 0.0,
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "artifact_type_uri",
+                "digest",
+                "media_type",
+                "size_bytes"
+              ],
+              "title": "ArtifactDescriptor",
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "redaction_state": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/RedactionState"
+            }
+          ],
+          "default": "not_captured",
+          "description": "Redaction state applied to the stream."
+        },
+        "status": {
+          "description": "Final status: \"ok\", \"error\", \"timeout\", \"cancelled\".",
+          "type": "string"
+        },
+        "status_code": {
+          "default": null,
+          "description": "HTTP status code if available.",
+          "format": "uint16",
+          "minimum": 0.0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "bytes_received",
+        "executor_kind",
+        "frame_count",
+        "network_performed",
+        "status"
+      ],
+      "title": "OutboundStreamSummary",
+      "type": "object"
+    },
+    "RedactionState": {
+      "description": "Redaction state for an outbound audit record.\n\nEvery outbound request carries one of these states to indicate whether raw body/header/prompt/response data was preserved. The default is `NotCaptured` — raw data is never saved unless explicitly approved.",
+      "oneOf": [
+        {
+          "description": "Raw data was not captured (default).",
+          "enum": [
+            "not_captured"
+          ],
+          "type": "string"
+        },
+        {
+          "description": "Raw data was redacted before recording.",
+          "enum": [
+            "redacted"
+          ],
+          "type": "string"
+        },
+        {
+          "description": "Only a policy reference is stored; no data captured.",
+          "enum": [
+            "policy_ref"
+          ],
+          "type": "string"
+        },
+        {
+          "description": "Request was blocked as unsafe; no data recorded.",
+          "enum": [
+            "unsafe_blocked"
+          ],
+          "type": "string"
+        },
+        {
+          "description": "Explicit user/host approval to capture raw data (rare).",
+          "enum": [
+            "explicitly_approved"
+          ],
+          "type": "string"
+        }
+      ]
+    }
+  },
+  "$id": "urn:plurora:schema:event:host/outbound.stream.completed:v1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "Payload schema for event kind host/outbound.stream.completed.",
+  "properties": {
+    "kind": {
+      "const": "host/outbound.stream.completed"
+    },
+    "payload": {
+      "$ref": "#/$defs/Payload"
+    }
+  },
+  "title": "host/outbound.stream.completed",
+  "type": "object"
+}

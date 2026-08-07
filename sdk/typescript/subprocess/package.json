@@ -8,8 +8,9 @@
   "main": "index.ts",
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "test": "tsc -p tsconfig.json && node --test dist/test/*.test.js",
-    "typecheck": "tsc -p tsconfig.json --noEmit"
+    "test": "npm run clean && tsc -p tsconfig.json && node --test dist/test/*.test.js",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "clean": "node -e \"require('fs').rmSync('dist',{recursive:true,force:true})\""
   },
   "devDependencies": {
     "@types/node": "^20.0.0",

@@ -66,4 +66,4 @@ Request normalization 应留在 package/SDK 层：generation params、history no
 
 ## Boundaries
 
-模型接入是普通能力包能力，例如 `official/model-provider-lab`、`model-connector-lab` 与 `model-routing-lab`，不是 kernel ontology。Plurora 不新增 `kernel.v1.model.*`、`kernel.v1.prompt.*`、`kernel.v1.chat.*`、`kernel.v1.embedding.*`，不托管用户金额或平台代理 API key，不做中转站，不提供 channel admin，也不给官方 provider 包任何隐式 network、secret、routing 或 UI 特权。
+模型接入是普通能力包能力，例如 `official/model-provider-lab`、`model-connector-lab` 与 `model-routing-lab`，不是 kernel ontology。Plurora 不新增 `platform.model.*`、`platform.prompt.*`、`platform.chat.*`、`platform.embedding.*`，不托管用户金额或平台代理 API key，不做中转站，不提供 channel admin，也不给官方 provider 包任何隐式 network、secret、routing 或 UI 特权。

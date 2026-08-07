@@ -359,7 +359,7 @@ pub struct PermissionSet {
     #[serde(default)]
     pub proxy: ProxyPermissions,
     /// Declared secret references this package may use in
-    /// `kernel.v1.outbound.execute` calls. Each entry must be a valid
+    /// `host.outbound.execute` calls. Each entry must be a valid
     /// env-backed secret reference (e.g. `secret_ref:env:OPENAI_API_KEY`,
     /// `secretRef:env:MY_KEY`, `secret-ref:env:NAME`, `host:env:NAME`).
     ///

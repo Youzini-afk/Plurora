@@ -10,14 +10,14 @@ Plurora 要能托管、约束、观察和替换 agent 类 Component 与 Product�
 
 Agent 基础设施必须复用现有公开原语：
 
-- `kernel.v1.capability.discover/describe` 发现可映射为 tool 的能力；
-- `kernel.v1.capability.invoke/stream/cancel` 执行、流式推进和取消；
-- `kernel.v1.proposal.*` 或通用 Change workflow 承载受审查变更；
-- `kernel.v1.event.*` 以当前 Package writer namespace 承载 trace、tool-call 和 run event；
-- `kernel.v1.surface.contribution.*` 让 shell 发现 agent action、trace 或 review panel；
+- `capability.discover/describe` 发现可映射为 tool 的能力；
+- `capability.invoke/stream/cancel` 执行、流式推进和取消；
+- `platform.proposal.*` 或通用 Change workflow 承载受审查变更；
+- `journal.event.*` 以当前 Package writer namespace 承载 trace、tool-call 和 run event；
+- `platform.surface.contribution.*` 让 shell 发现 agent action、trace 或 review panel；
 - capability handle、permission、`secret_ref`、network declaration、outbound audit 和 stream ownership 约束副作用。
 
-没有 `kernel.v1.agent.*` 私有旁路，也没有因为某个 agent 包是官方维护就获得的额外权威。
+没有 `platform.agent.*` 私有旁路，也没有因为某个 agent 包是官方维护就获得的额外权威。
 
 ## pi 分层吸收
 
@@ -34,11 +34,11 @@ Agent 基础设施必须复用现有公开原语：
 | Agent 概念 | Plurora 公开原语 | 规则 |
 |---|---|---|
 | run / turn / step | Component capability call、stream 或协议拥有的状态 | 基底不新增 agent 生命周期。 |
-| cancellation | `kernel.v1.capability.cancel` | 只能取消调用者拥有的 invocation/stream。 |
-| tool discovery | `kernel.v1.capability.discover/describe` | Tool 是 capability 的 adapter view。 |
-| tool execution | `kernel.v1.capability.invoke/stream` | 保留 caller、provider、session、权限和 receipt。 |
+| cancellation | `capability.cancel` | 只能取消调用者拥有的 invocation/stream。 |
+| tool discovery | `capability.discover/describe` | Tool 是 capability 的 adapter view。 |
+| tool execution | `capability.invoke/stream` | 保留 caller、provider、session、权限和 receipt。 |
 | provider ambiguity | 显式 `provider_package_id` | 不自动偏向官方 provider。 |
-| proposed mutation | `kernel.v1.proposal.*` / Change workflow | Agent 不直接修改受信状态。 |
+| proposed mutation | `platform.proposal.*` / Change workflow | Agent 不直接修改受信状态。 |
 | trace | writer-scoped event、stream frame 或 artifact | runtime 不解释 trace payload。 |
 | working state | Component / Product event、object、projection 或 capability | 不新增 substrate agent state。 |
 | model / prompt / memory | 可选 Protocol 与普通 Component | 可以组合和替换，不进入宪法基底。 |
@@ -73,11 +73,11 @@ Agent adapter、参考包和 shell integration 不能：
 
 内核不会新增或标准化：
 
-- `kernel.v1.agent.*`
-- `kernel.v1.model.*`
-- `kernel.v1.prompt.*`
-- `kernel.v1.memory.*`
-- `kernel.v1.turn.*`
+- `platform.agent.*`
+- `platform.model.*`
+- `platform.prompt.*`
+- `platform.memory.*`
+- `platform.turn.*`
 - agent state、chat transcript、prompt template、provider registry、thinking/reasoning 或 memory taxonomy。
 
 这些概念可以由可选 Protocol 定义、由 Component 实现并由 Product 组合。具体完成状态和建设方向分别见 [`../ALPHA_STATUS.md`](../ALPHA_STATUS.md) 与 [`../roadmap/NEXT_STEPS.md`](../roadmap/NEXT_STEPS.md)。

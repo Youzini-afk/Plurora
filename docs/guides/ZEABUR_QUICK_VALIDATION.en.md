@@ -21,7 +21,7 @@ The same HTTP service exposes:
 
 - `GET /` and web assets from `/app/public`
 - `POST /rpc` (requires token when configured)
-- `GET /kernel/v1/event.subscribe/:session_id` (requires token when configured)
+- `GET /journal/subscribe/:session_id` (requires token when configured)
 - `GET /surface-bundles/...` (Host identity required) and short-lived `/surface-assets/<lease>/...` reads after authorized resolution
 - `GET /healthz`
 

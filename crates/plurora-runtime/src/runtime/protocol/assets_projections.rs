@@ -10,7 +10,7 @@ where
         let asset_id = params
             .get("asset_id")
             .and_then(Value::as_str)
-            .ok_or_else(|| anyhow::anyhow!("kernel.v1.asset.get requires asset_id"))?;
+            .ok_or_else(|| anyhow::anyhow!("object.get requires asset_id"))?;
         Ok(serde_json::to_value(self.get_asset(asset_id).await?)?)
     }
 
@@ -23,9 +23,7 @@ where
         let projection_id = params
             .get("projection_id")
             .and_then(Value::as_str)
-            .ok_or_else(|| {
-                anyhow::anyhow!("kernel.v1.projection.rebuild requires projection_id")
-            })?;
+            .ok_or_else(|| anyhow::anyhow!("projection.rebuild requires projection_id"))?;
         Ok(serde_json::to_value(
             self.projection_rebuild(projection_id).await?,
         )?)
@@ -35,7 +33,7 @@ where
         let projection_id = params
             .get("projection_id")
             .and_then(Value::as_str)
-            .ok_or_else(|| anyhow::anyhow!("kernel.v1.projection.get requires projection_id"))?;
+            .ok_or_else(|| anyhow::anyhow!("projection.get requires projection_id"))?;
         Ok(serde_json::to_value(
             self.projection_get(projection_id).await?,
         )?)

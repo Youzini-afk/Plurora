@@ -6,13 +6,13 @@ This guide explains how to author, replace, and consume long-term memory and kno
 
 ## Core Principles
 
-1. Memory stays above the substrate. Adopted Protocols, Components, and Products manage records, retrieval, updates, corrections, and redaction plans; Contract V1 distributes implementations through ordinary Packages rather than `kernel.v1.memory.*`.
+1. Memory stays above the substrate. Adopted Protocols, Components, and Products manage records, retrieval, updates, corrections, and redaction plans; Contract V1 distributes implementations through ordinary Packages rather than `platform.memory.*`.
 2. No official priority. `official/memory-lab` is one implementation. Third-party packages like `thirdparty/memory-lab` are fully interchangeable.
 3. Mutations go through proposals. Memory updates, corrections, and forget/redaction produce proposal drafts or plans. They never directly mutate trusted state or delete records. Consumers must approve before application.
 4. The reference implementation is locally replayable. It does not require network, embedding APIs, or model inference. Third-party packages may add such capabilities through their own outbound/network permissions.
 5. Branch-aware. Memory records are scoped to branches. Retrieval and views can filter by branch reference.
 6. Raw-secret blocking. All capability inputs are scanned for raw secrets. Raw API keys, tokens, and passwords are rejected with `redaction_state: unsafe_blocked`. Use `secret_ref` references instead.
-7. No forbidden namespaces. Memory packages must not reference `kernel.v1.memory.*`, `kernel.v1.experience.*`, `kernel.v1.world.*`, `kernel.v1.scene.*`, `kernel.v1.turn.*`, `kernel.v1.chat.*`, `kernel.v1.agent.*`, `kernel.v1.model.*`, `kernel.v1.prompt.*`, or `kernel.v1.director.*`.
+7. No forbidden namespaces. Memory packages must not reference `platform.memory.*`, `platform.experience.*`, `platform.world.*`, `platform.scene.*`, `platform.turn.*`, `platform.chat.*`, `platform.agent.*`, `platform.model.*`, `platform.prompt.*`, or `platform.director.*`.
 
 ## Memory Lab Capability Contract
 
@@ -129,5 +129,5 @@ This is an optional cross-reference. The board does not depend on memory-lab to 
 
 - Not a RAG product. The reference implementation uses replayable keyword matching, not vector search or embedding APIs.
 - Not a chat memory system. There are no conversation turns, messages, or prompt semantics.
-- Not kernel memory. No `kernel.v1.memory.*` methods or namespaces exist.
+- Not kernel memory. No `platform.memory.*` methods or namespaces exist.
 - Not the only way. Third-party packages can provide different retrieval algorithms, storage backends, or embedding-based matching through ordinary package capabilities.

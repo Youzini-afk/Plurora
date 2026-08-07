@@ -69,7 +69,7 @@ fn describe_adapter() -> Value {
             "backend_opened": false,
             "filesystem_performed": false,
             "network_performed": false,
-            "kernel_storage": false,
+            "platform_storage": false,
             "event_store_backend": false
         },
         "real_feature": "real-tdb",
@@ -78,7 +78,7 @@ fn describe_adapter() -> Value {
             "official/tdb-rust-adapter/run_real_tdb_smoke"
         ],
         "red_lines": [
-            "not_kernel_database",
+            "not_platform_database",
             "not_event_store",
             "no_raw_backend_path_in_public_output",
             "bounded_vectors_only"

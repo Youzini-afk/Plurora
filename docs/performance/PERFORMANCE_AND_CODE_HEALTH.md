@@ -9,7 +9,7 @@
 1. 先测量，再优化。使用 `cargo run -p plurora-cli -- perf baseline`、conformance timing、Web TypeScript diagnostics 和针对性单元测试定位热点。不要凭感觉替换架构。
 2. 优化不得改变平台契约。官方包与第三方包必须继续走同一清单、能力、权限、钩子、schema、脱敏和审计路径。
 3. UI 仍走公开协议。Web shell 不得读取 SQLite、runtime internals，也不得 special-case official packages。
-4. 不要用性能名义引入内容本体。不要新增 `kernel.v1.agent.*`、`kernel.v1.model.*`、`kernel.v1.memory.*`、`kernel.v1.experience.*`、`kernel.v1.sharing.*` 等内容或产品命名空间。
+4. 不要用性能名义引入内容本体。不要新增 `platform.agent.*`、`platform.model.*`、`platform.memory.*`、`platform.experience.*`、`platform.sharing.*` 等内容或产品命名空间。
 5. 高级优化必须有测量依据。能力或 surface cache、RawValue、registry helper/codegen、per-domain crates 等，都要由基线或 profiling 显示出实际收益空间。
 
 ## 常用命令
@@ -75,7 +75,7 @@ Conformance 支持：
 
 已完成的低风险结构优化包括：
 
-- protocol dispatch 按 domain helper 拆分，同时保持 `KernelMethod` 为单一事实源。
+- protocol dispatch 按 domain helper 拆分，同时保持 `PlatformMethod` 为单一事实源。
 - official in-process dispatch 从线性链改为 provider-indexed table。它仍使用 package-aware routing，不给 official fast path。
 - shared inproc safety helper 收敛 raw-secret 和拒绝逻辑。
 - composition/package diagnostics 使用 set/index，避免明显的 O(n²) 扫描。

@@ -5,7 +5,7 @@ use bytes::Bytes;
 use chrono::Utc;
 use plurora_core::{
     canonical_json_bytes, ArtifactDescriptor, CompositionLock, EffectReceipt, EventEnvelope,
-    KernelSession, ProtocolProfilePin, SessionStatus, WorldBundleArchive, WorldBundleManifest,
+    ProtocolProfilePin, SessionRecord, SessionStatus, WorldBundleArchive, WorldBundleManifest,
     WorldBundleObject, WorldHead, WorldJournalRange, WorldLineageEntry, EFFECT_RECEIPT_TYPE_URI,
     EVENT_SESSION_CLOSED, EVENT_SESSION_OPENED, WORLD_BUNDLE_ARCHIVE_FORMAT,
     WORLD_BUNDLE_EXPERIMENTAL_PROFILE, WORLD_BUNDLE_PROTOCOL_ID, WORLD_BUNDLE_PROTOCOL_VERSION,
@@ -1097,7 +1097,7 @@ fn ensure_world_bundle_profile(profiles: &[ProtocolProfilePin]) -> anyhow::Resul
 fn imported_sessions(
     events: &[EventEnvelope],
     bundle_digest: &str,
-) -> anyhow::Result<BTreeMap<String, KernelSession>> {
+) -> anyhow::Result<BTreeMap<String, SessionRecord>> {
     let mut grouped = BTreeMap::<String, Vec<&EventEnvelope>>::new();
     for event in events {
         grouped
@@ -1142,7 +1142,7 @@ fn imported_sessions(
         };
         sessions.insert(
             session_id.clone(),
-            KernelSession {
+            SessionRecord {
                 id: session_id,
                 labels,
                 active_package_set,
@@ -1289,7 +1289,7 @@ mod tests {
                 id: new_id("evt"),
                 session_id: session_id.clone(),
                 sequence: 0,
-                writer_package_id: "kernel".to_string(),
+                writer_package_id: plurora_core::PLATFORM_RUNTIME_ID.to_string(),
                 kind: EVENT_SESSION_OPENED.to_string(),
                 schema_version: 1,
                 timestamp: now,
@@ -1300,7 +1300,7 @@ mod tests {
                 id: new_id("evt"),
                 session_id: session_id.clone(),
                 sequence: 1,
-                writer_package_id: "kernel".to_string(),
+                writer_package_id: plurora_core::PLATFORM_RUNTIME_ID.to_string(),
                 kind: EVENT_SESSION_CLOSED.to_string(),
                 schema_version: 1,
                 timestamp: now,
@@ -1320,7 +1320,7 @@ mod tests {
             id: new_id("evt"),
             session_id: "session-invalid".to_string(),
             sequence: 0,
-            writer_package_id: "kernel".to_string(),
+            writer_package_id: plurora_core::PLATFORM_RUNTIME_ID.to_string(),
             kind: EVENT_SESSION_OPENED.to_string(),
             schema_version: 1,
             timestamp: Utc::now(),
@@ -1339,7 +1339,7 @@ mod tests {
             id: new_id("evt"),
             session_id: "existing-session".to_string(),
             sequence: 0,
-            writer_package_id: "kernel".to_string(),
+            writer_package_id: plurora_core::PLATFORM_RUNTIME_ID.to_string(),
             kind: EVENT_SESSION_OPENED.to_string(),
             schema_version: 1,
             timestamp: Utc::now(),
@@ -1352,7 +1352,7 @@ mod tests {
                 id: new_id("evt"),
                 session_id: "new-session".to_string(),
                 sequence: 0,
-                writer_package_id: "kernel".to_string(),
+                writer_package_id: plurora_core::PLATFORM_RUNTIME_ID.to_string(),
                 kind: EVENT_SESSION_OPENED.to_string(),
                 schema_version: 1,
                 timestamp: Utc::now(),
@@ -1363,7 +1363,7 @@ mod tests {
                 id: new_id("evt"),
                 session_id: existing.session_id.clone(),
                 sequence: existing.sequence,
-                writer_package_id: "kernel".to_string(),
+                writer_package_id: plurora_core::PLATFORM_RUNTIME_ID.to_string(),
                 kind: EVENT_SESSION_CLOSED.to_string(),
                 schema_version: 1,
                 timestamp: Utc::now(),
@@ -1391,7 +1391,7 @@ mod tests {
             id: new_id("evt"),
             session_id: "occupied-session".to_string(),
             sequence: 0,
-            writer_package_id: "kernel".to_string(),
+            writer_package_id: plurora_core::PLATFORM_RUNTIME_ID.to_string(),
             kind: EVENT_SESSION_OPENED.to_string(),
             schema_version: 1,
             timestamp: Utc::now(),
@@ -1404,7 +1404,7 @@ mod tests {
                 id: new_id("evt"),
                 session_id: "new-session".to_string(),
                 sequence: 0,
-                writer_package_id: "kernel".to_string(),
+                writer_package_id: plurora_core::PLATFORM_RUNTIME_ID.to_string(),
                 kind: EVENT_SESSION_OPENED.to_string(),
                 schema_version: 1,
                 timestamp: Utc::now(),
@@ -1415,7 +1415,7 @@ mod tests {
                 id: new_id("evt"),
                 session_id: existing.session_id.clone(),
                 sequence: 1,
-                writer_package_id: "kernel".to_string(),
+                writer_package_id: plurora_core::PLATFORM_RUNTIME_ID.to_string(),
                 kind: EVENT_SESSION_CLOSED.to_string(),
                 schema_version: 1,
                 timestamp: Utc::now(),
@@ -1442,7 +1442,7 @@ mod tests {
             id: new_id("evt"),
             session_id: "occupied-session".to_string(),
             sequence: 0,
-            writer_package_id: "kernel".to_string(),
+            writer_package_id: plurora_core::PLATFORM_RUNTIME_ID.to_string(),
             kind: EVENT_SESSION_OPENED.to_string(),
             schema_version: 1,
             timestamp: Utc::now(),
@@ -1454,7 +1454,7 @@ mod tests {
             id: new_id("evt"),
             session_id: "new-session".to_string(),
             sequence: 0,
-            writer_package_id: "kernel".to_string(),
+            writer_package_id: plurora_core::PLATFORM_RUNTIME_ID.to_string(),
             kind: EVENT_SESSION_OPENED.to_string(),
             schema_version: 1,
             timestamp: Utc::now(),
@@ -1500,7 +1500,7 @@ mod tests {
             id: new_id("evt"),
             session_id: imported.session_id.clone(),
             sequence: 0,
-            writer_package_id: "kernel".to_string(),
+            writer_package_id: plurora_core::PLATFORM_RUNTIME_ID.to_string(),
             kind: plurora_core::EVENT_PROJECTION_UPDATED.to_string(),
             schema_version: 1,
             timestamp: Utc::now(),

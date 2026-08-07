@@ -1,0 +1,20 @@
+{
+  "$defs": {
+    "Payload": {
+      "type": "object"
+    }
+  },
+  "$id": "urn:plurora:schema:event:host/outbound.websocket.error:v1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "Payload schema for event kind host/outbound.websocket.error.",
+  "properties": {
+    "kind": {
+      "const": "host/outbound.websocket.error"
+    },
+    "payload": {
+      "$ref": "#/$defs/Payload"
+    }
+  },
+  "title": "host/outbound.websocket.error",
+  "type": "object"
+}

@@ -27,7 +27,7 @@ pub(crate) async fn package_audit_report() -> anyhow::Result<()> {
     let report_value = runtime
         .call_protocol(
             &ProtocolContext::host_dev("conformance"),
-            "kernel.v1.audit.package",
+            "host.package.audit",
             json!({"package_id": "example/audit-caller"}),
         )
         .await

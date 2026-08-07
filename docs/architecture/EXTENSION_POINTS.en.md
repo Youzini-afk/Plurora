@@ -26,7 +26,7 @@ A subscriber is declared in a manifest:
 ```yaml
 contributes:
   hooks:
-    - extension_point: kernel/v1/event.before_append
+    - extension_point: journal/before_append
       handler: my_handler
       timing: sync
       precedence: 100
@@ -42,7 +42,7 @@ Synchronous handlers run within the operation's deadline. Asynchronous handlers 
 
 ## Implementation status
 
-The current `kernel/v1/*` extension-point set remains compatibility-stable. The implementation covers event append and capability invocation: stable ordering, Component handlers, payload metadata mutation, veto, and unload cleanup. Session and Package lifecycle hooks are reserved in the contract. Today they are delivered through `kernel/v1/session.*` and `kernel/v1/package.*` events; synchronous and asynchronous handling may be completed later. New shared extension meaning belongs in a Protocol namespace with an explicit owner; ordinary Component Packages may provide implementations without continuing to grow monolithic `kernel.v1`.
+The current `kernel/v1/*` extension-point set remains compatibility-stable. The implementation covers event append and capability invocation: stable ordering, Component handlers, payload metadata mutation, veto, and unload cleanup. Session and Package lifecycle hooks are reserved in the contract. Today they are delivered through `context/.*` and `kernel/v1/package.*` events; synchronous and asynchronous handling may be completed later. New shared extension meaning belongs in a Protocol namespace with an explicit owner; ordinary Component Packages may provide implementations without continuing to grow monolithic `platform contract`.
 
 ## Kernel-emitted points
 
@@ -50,28 +50,28 @@ The current runtime emits only this small compatibility set. New non-core extens
 
 ### Session lifecycle
 
-- `kernel/v1/session.before_open` — sync, modifiable false, short_circuit true.
+- `context/before_open` — sync, modifiable false, short_circuit true.
   Permission to open is enforced here. Subscribers may veto.
-- `kernel/v1/session.after_open` — async.
-- `kernel/v1/session.before_close` — sync, modifiable false, short_circuit true.
-- `kernel/v1/session.after_close` — async.
+- `context/after_open` — async.
+- `context/before_close` — sync, modifiable false, short_circuit true.
+- `context/after_close` — async.
 
 Payload: session id, requested labels, package set, requesting principal.
 
 ### Event log
 
-- `kernel/v1/event.before_append` — sync, modifiable true, short_circuit true.
+- `journal/before_append` — sync, modifiable true, short_circuit true.
   Permission and schema enforcement happen here. Subscribers may amend metadata or veto.
-- `kernel/v1/event.after_append` — async.
+- `journal/after_append` — async.
   Subscribers receive the persisted envelope.
 
 Payload: event envelope. The kernel does not interpret the payload field. It only checks declared schemas when the writer's manifest references a payload schema for that event kind.
 
 ### Capability invocation
 
-- `kernel/v1/capability.before_invoke` — sync, modifiable true, short_circuit true.
+- `capability/before_invoke` — sync, modifiable true, short_circuit true.
   Permission, route resolution, and quota enforcement happen here.
-- `kernel/v1/capability.after_invoke` — async.
+- `capability/after_invoke` — async.
   Subscribers receive input, output (or error), latency, and provider id.
 - `kernel/v1/capability.error` — async.
   Subscribers receive the structured failure.
@@ -80,9 +80,9 @@ Payload: invocation envelope.
 
 ### Package lifecycle
 
-- `kernel/v1/package.loaded` — async.
-- `kernel/v1/package.unloaded` — async.
-- `kernel/v1/package.degraded` — async.
+- `host/package.loaded` — async.
+- `host/package.unloaded` — async.
+- `host/package.degraded` — async.
 - `kernel/v1/package.heartbeat_lost` — async.
 
 ### Hook registry

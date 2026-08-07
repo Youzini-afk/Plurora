@@ -1,5 +1,5 @@
 use plurora_core::{
-    EventEnvelope, EventKind, EventSequence, PackageId, SessionId, KERNEL_PACKAGE_ID,
+    EventEnvelope, EventKind, EventSequence, PackageId, SessionId, PLATFORM_RUNTIME_ID,
 };
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -42,7 +42,7 @@ where
             None => anyhow::bail!("session '{}' is not open", request.session_id),
         }
 
-        if request.writer_package_id != KERNEL_PACKAGE_ID {
+        if request.writer_package_id != PLATFORM_RUNTIME_ID {
             match (
                 self.is_contract_none_package(&request.writer_package_id)
                     .await,
@@ -67,7 +67,7 @@ where
         let mut request = request;
         let before = self
             .dispatch_extension_handlers(
-                "kernel/v1/event.before_append",
+                "journal/before_append",
                 json!({
                     "session_id": request.session_id,
                     "writer_package_id": request.writer_package_id,
@@ -88,7 +88,7 @@ where
         let event = self.append_event_unchecked(request).await?;
         let _ = self
             .dispatch_extension_handlers(
-                "kernel/v1/event.after_append",
+                "journal/after_append",
                 serde_json::to_value(&event).unwrap_or_else(|_| json!({})),
             )
             .await;
@@ -148,7 +148,7 @@ where
             );
         }
 
-        if prelim.writer_package_id != KERNEL_PACKAGE_ID {
+        if prelim.writer_package_id != PLATFORM_RUNTIME_ID {
             if let Some(manifest) = self.packages.manifest(&prelim.writer_package_id).await {
                 if let Some(schema) = manifest
                     .contributes

@@ -11,14 +11,14 @@ pub(crate) async fn lifecycle_apply() -> anyhow::Result<()> {
         .projection_register(plurora_runtime::runtime::ProjectionDefinition {
             id: "proposal/test-projection".to_string(),
             session_id: session.id.clone(),
-            source_kind_prefix: Some("kernel/v1/session".to_string()),
+            source_kind_prefix: Some("context/".to_string()),
             state: json!({}),
         })
         .await?;
     let created = runtime
         .call_protocol(
             &ProtocolContext::host_dev("conformance"),
-            "kernel.v1.proposal.create",
+            "change.proposal.create",
             json!({
                 "target_session_id": session.id,
                 "required_permissions": ["assets.write", "projections.rebuild"],
@@ -45,7 +45,7 @@ pub(crate) async fn lifecycle_apply() -> anyhow::Result<()> {
     let denied = runtime
         .call_protocol(
             &ProtocolContext::host_dev("conformance"),
-            "kernel.v1.proposal.apply",
+            "change.proposal.apply",
             json!({"proposal_id": proposal_id}),
         )
         .await;
@@ -53,7 +53,7 @@ pub(crate) async fn lifecycle_apply() -> anyhow::Result<()> {
     runtime
         .call_protocol(
             &ProtocolContext::host_dev("conformance"),
-            "kernel.v1.proposal.approve",
+            "change.proposal.approve",
             json!({"proposal_id": proposal_id, "reason": "conformance"}),
         )
         .await
@@ -61,7 +61,7 @@ pub(crate) async fn lifecycle_apply() -> anyhow::Result<()> {
     let applied = runtime
         .call_protocol(
             &ProtocolContext::host_dev("conformance"),
-            "kernel.v1.proposal.apply",
+            "change.proposal.apply",
             json!({"proposal_id": proposal_id}),
         )
         .await
@@ -116,7 +116,7 @@ pub(crate) async fn reject_and_apply_denied() -> anyhow::Result<()> {
     let created = runtime
         .call_protocol(
             &ProtocolContext::host_dev("conformance"),
-            "kernel.v1.proposal.create",
+            "change.proposal.create",
             json!({"operations": [{"op": "asset.put", "payload": {"content": "{}"}}]}),
         )
         .await
@@ -128,7 +128,7 @@ pub(crate) async fn reject_and_apply_denied() -> anyhow::Result<()> {
     let rejected = runtime
         .call_protocol(
             &ProtocolContext::host_dev("conformance"),
-            "kernel.v1.proposal.reject",
+            "change.proposal.reject",
             json!({"proposal_id": proposal_id, "reason": "conformance"}),
         )
         .await
@@ -149,7 +149,7 @@ pub(crate) async fn reject_and_apply_denied() -> anyhow::Result<()> {
     let denied = runtime
         .call_protocol(
             &ProtocolContext::host_dev("conformance"),
-            "kernel.v1.proposal.apply",
+            "change.proposal.apply",
             json!({"proposal_id": proposal_id}),
         )
         .await;
@@ -167,7 +167,7 @@ pub(crate) async fn authority_is_enforced() -> anyhow::Result<()> {
     let created = runtime
         .call_protocol(
             &host,
-            "kernel.v1.proposal.create",
+            "change.proposal.create",
             json!({
                 "required_permissions": ["assets.write"],
                 "operations": [{"op": "asset.put", "payload": {"content": "{}"}}]
@@ -184,7 +184,7 @@ pub(crate) async fn authority_is_enforced() -> anyhow::Result<()> {
         runtime
             .call_protocol(
                 &package,
-                "kernel.v1.proposal.approve",
+                "change.proposal.approve",
                 json!({"proposal_id": proposal_id}),
             )
             .await
@@ -202,7 +202,7 @@ pub(crate) async fn authority_is_enforced() -> anyhow::Result<()> {
     runtime
         .call_protocol(
             &package,
-            "kernel.v1.proposal.approve",
+            "change.proposal.approve",
             json!({"proposal_id": proposal_id}),
         )
         .await
@@ -212,7 +212,7 @@ pub(crate) async fn authority_is_enforced() -> anyhow::Result<()> {
         runtime
             .call_protocol(
                 &package,
-                "kernel.v1.proposal.apply",
+                "change.proposal.apply",
                 json!({"proposal_id": proposal_id}),
             )
             .await
@@ -238,7 +238,7 @@ pub(crate) async fn authority_is_enforced() -> anyhow::Result<()> {
     let applied = runtime
         .call_protocol(
             &package,
-            "kernel.v1.proposal.apply",
+            "change.proposal.apply",
             json!({"proposal_id": proposal_id}),
         )
         .await
@@ -256,7 +256,7 @@ pub(crate) async fn preflight_failure_is_structured() -> anyhow::Result<()> {
     let created = runtime
         .call_protocol(
             &context,
-            "kernel.v1.proposal.create",
+            "change.proposal.create",
             json!({"operations": [{"op": "unsupported.operation", "payload": {}}]}),
         )
         .await
@@ -268,7 +268,7 @@ pub(crate) async fn preflight_failure_is_structured() -> anyhow::Result<()> {
     runtime
         .call_protocol(
             &context,
-            "kernel.v1.proposal.approve",
+            "change.proposal.approve",
             json!({"proposal_id": proposal_id}),
         )
         .await
@@ -277,7 +277,7 @@ pub(crate) async fn preflight_failure_is_structured() -> anyhow::Result<()> {
         runtime
             .call_protocol(
                 &context,
-                "kernel.v1.proposal.apply",
+                "change.proposal.apply",
                 json!({"proposal_id": proposal_id}),
             )
             .await

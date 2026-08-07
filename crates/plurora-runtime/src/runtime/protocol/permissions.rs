@@ -10,12 +10,12 @@ where
         let principal = params
             .get("principal")
             .cloned()
-            .ok_or_else(|| anyhow::anyhow!("kernel.v1.permission.grant requires principal"))?;
+            .ok_or_else(|| anyhow::anyhow!("authority.grant.create requires principal"))?;
         let principal: crate::ProtocolPrincipal = serde_json::from_value(principal)?;
         let permission = params
             .get("permission")
             .and_then(Value::as_str)
-            .ok_or_else(|| anyhow::anyhow!("kernel.v1.permission.grant requires permission"))?
+            .ok_or_else(|| anyhow::anyhow!("authority.grant.create requires permission"))?
             .to_string();
         let scope = params
             .get("scope")
@@ -35,7 +35,7 @@ where
         let grant_id = params
             .get("grant_id")
             .and_then(Value::as_str)
-            .ok_or_else(|| anyhow::anyhow!("kernel.v1.permission.revoke requires grant_id"))?;
+            .ok_or_else(|| anyhow::anyhow!("authority.grant.revoke requires grant_id"))?;
         Ok(serde_json::to_value(
             self.revoke_permission(grant_id).await?,
         )?)
@@ -52,7 +52,7 @@ where
     }
 
     pub(crate) async fn dispatch_permission_audit(&self) -> anyhow::Result<Value> {
-        let events = self.store.list_kind_prefix("kernel/v1/permission").await?;
+        let events = self.store.list_kind_prefix("authority/").await?;
         Ok(serde_json::to_value(events)?)
     }
 }

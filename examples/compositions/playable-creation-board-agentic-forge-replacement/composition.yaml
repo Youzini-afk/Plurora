@@ -31,6 +31,6 @@ replacement_candidates:
 compatibility_notes:
   - "Third-party agentic-forge provides equivalent forge_panel/assistant_action surface slots to official/agentic-forge-lab"
   - "official/playable-creation-board binds_agent_run accepts any agentic-forge provider; no official priority"
-  - "No kernel privilege or official namespace required for forge binding"
+  - "No platform privilege or official namespace required for forge binding"
   - "Both forge packages produce package-owned shapes: candidates, proposals, plan graphs, working state"
   - "Neither forge package may directly mutate target branches or perform network"

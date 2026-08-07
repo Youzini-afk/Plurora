@@ -1,0 +1,367 @@
+{
+  "$defs": {
+    "Errors": {
+      "items": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "details": true,
+          "message": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "details",
+          "message"
+        ],
+        "title": "ErrorShape",
+        "type": "object"
+      },
+      "type": "array"
+    },
+    "ExecutorKind": {
+      "description": "The kind of outbound executor that produced a response.",
+      "oneOf": [
+        {
+          "description": "All outbound is denied; no network performed.",
+          "enum": [
+            "deny_all"
+          ],
+          "type": "string"
+        },
+        {
+          "description": "Fake/deterministic fixture executor; no real network.",
+          "enum": [
+            "fake"
+          ],
+          "type": "string"
+        },
+        {
+          "description": "Real network executor (future M4+).",
+          "enum": [
+            "real"
+          ],
+          "type": "string"
+        }
+      ]
+    },
+    "OutboundSecretHeaderSpec": {
+      "description": "Specification for a secret-derived HTTP header to be injected by the host during outbound execution. Packages declare these in `host.outbound.execute` params as `secret_headers`; the host resolves the `secret_ref` at execution time and injects the resulting header value into the live HTTP request.\n\nRaw secret values never appear in audit, response, or Debug output.",
+      "properties": {
+        "header_name": {
+          "type": "string"
+        },
+        "scheme": {
+          "type": "string"
+        },
+        "secret_ref": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "header_name",
+        "scheme",
+        "secret_ref"
+      ],
+      "type": "object"
+    },
+    "OutboundStaticHeader": {
+      "description": "A safe non-secret static header for outbound requests (L5).\n\nOnly header names on the `STATIC_HEADER_ALLOWLIST` are permitted. Secret-bearing header names (Authorization, x-api-key, Cookie, etc.) are rejected at parse time. Values must be plain strings that do not look like raw secrets.",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "value": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "value"
+      ],
+      "type": "object"
+    },
+    "Params": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "properties": {
+        "body_shape": true,
+        "capability_id": {
+          "type": "string"
+        },
+        "destination_host": {
+          "type": "string"
+        },
+        "max_duration_ms": {
+          "format": "uint64",
+          "minimum": 0.0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "max_frame_bytes": {
+          "format": "uint64",
+          "minimum": 0.0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "max_total_bytes": {
+          "format": "uint64",
+          "minimum": 0.0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "metadata": true,
+        "method": {
+          "type": "string"
+        },
+        "package_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "path": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "purpose": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "secret_headers": {
+          "items": {
+            "$ref": "#/$defs/OutboundSecretHeaderSpec"
+          },
+          "type": "array"
+        },
+        "secret_refs": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "static_headers": {
+          "items": {
+            "$ref": "#/$defs/OutboundStaticHeader"
+          },
+          "type": "array"
+        },
+        "stream_format": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/StreamFormat"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "timeout_ms": {
+          "format": "uint64",
+          "minimum": 0.0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "body_shape",
+        "capability_id",
+        "destination_host",
+        "metadata",
+        "method",
+        "secret_headers",
+        "secret_refs",
+        "static_headers"
+      ],
+      "title": "OutboundStreamParams",
+      "type": "object"
+    },
+    "RedactionState": {
+      "description": "Redaction state for an outbound audit record.\n\nEvery outbound request carries one of these states to indicate whether raw body/header/prompt/response data was preserved. The default is `NotCaptured` — raw data is never saved unless explicitly approved.",
+      "oneOf": [
+        {
+          "description": "Raw data was not captured (default).",
+          "enum": [
+            "not_captured"
+          ],
+          "type": "string"
+        },
+        {
+          "description": "Raw data was redacted before recording.",
+          "enum": [
+            "redacted"
+          ],
+          "type": "string"
+        },
+        {
+          "description": "Only a policy reference is stored; no data captured.",
+          "enum": [
+            "policy_ref"
+          ],
+          "type": "string"
+        },
+        {
+          "description": "Request was blocked as unsafe; no data recorded.",
+          "enum": [
+            "unsafe_blocked"
+          ],
+          "type": "string"
+        },
+        {
+          "description": "Explicit user/host approval to capture raw data (rare).",
+          "enum": [
+            "explicitly_approved"
+          ],
+          "type": "string"
+        }
+      ]
+    },
+    "Result": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "description": "Response returned by `host.outbound.stream` on the initial call.\n\nContains the stream_id for subscribing to events, the start status, and metadata about the executor that will handle the stream.",
+      "properties": {
+        "executor_kind": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/ExecutorKind"
+            }
+          ],
+          "description": "What kind of executor is handling the stream."
+        },
+        "network_performed": {
+          "description": "Whether real network I/O will be performed.",
+          "type": "boolean"
+        },
+        "redaction_state": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/RedactionState"
+            }
+          ],
+          "default": "not_captured",
+          "description": "Redaction state applied to stream frames."
+        },
+        "status": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/StreamStartStatus"
+            }
+          ],
+          "description": "Whether the stream started successfully."
+        },
+        "stream_id": {
+          "description": "The stream_id to subscribe to for stream frames.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "executor_kind",
+        "network_performed",
+        "status",
+        "stream_id"
+      ],
+      "title": "OutboundStreamResponse",
+      "type": "object"
+    },
+    "StreamFormat": {
+      "description": "The format of a streaming response for `host.outbound.stream`.",
+      "oneOf": [
+        {
+          "description": "Server-Sent Events (`text/event-stream`). Parses `data: ...\\n\\n` events.",
+          "enum": [
+            "sse"
+          ],
+          "type": "string"
+        },
+        {
+          "description": "Newline-delimited JSON. Splits on `\\n` and emits each line as a frame.",
+          "enum": [
+            "ndjson"
+          ],
+          "type": "string"
+        },
+        {
+          "description": "Raw binary stream. Emits chunks as they arrive.",
+          "enum": [
+            "raw"
+          ],
+          "type": "string"
+        }
+      ]
+    },
+    "StreamStartStatus": {
+      "description": "Status returned when a streaming outbound request starts.",
+      "oneOf": [
+        {
+          "description": "Stream started successfully.",
+          "enum": [
+            "ok"
+          ],
+          "type": "string"
+        },
+        {
+          "description": "Stream request was denied by policy.",
+          "enum": [
+            "denied"
+          ],
+          "type": "string"
+        },
+        {
+          "description": "Stream request encountered an error before starting.",
+          "enum": [
+            "error"
+          ],
+          "type": "string"
+        }
+      ]
+    }
+  },
+  "$id": "urn:plurora:schema:method:host.outbound.stream:v1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Plurora public platform method host.outbound.stream.",
+  "properties": {
+    "errors": {
+      "$ref": "#/$defs/Errors"
+    },
+    "method": {
+      "const": "host.outbound.stream"
+    },
+    "params": {
+      "$ref": "#/$defs/Params"
+    },
+    "result": {
+      "$ref": "#/$defs/Result"
+    }
+  },
+  "required": [
+    "method",
+    "params"
+  ],
+  "title": "host.outbound.stream",
+  "type": "object",
+  "x-plurora-contract": {
+    "id": "host.outbound.stream",
+    "implementation_status": "partial",
+    "introduced_in": "plurora.contract.default/v1@0.1.0",
+    "maturity": "experimental",
+    "owner_layer": "host",
+    "request_schema": "urn:plurora:schema:method:host.outbound.stream:v1#/$defs/Params",
+    "response_schema": "urn:plurora:schema:method:host.outbound.stream:v1#/$defs/Result",
+    "streaming": true
+  }
+}

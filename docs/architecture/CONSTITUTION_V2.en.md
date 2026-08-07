@@ -311,7 +311,7 @@ This document does not require deleting existing implementation. Current methods
 
 Until the candidate layering is explicitly adopted as a stable constitution:
 
-- `kernel.v1.*` is a legacy operational contract, not automatically a permanent constitution;
+- `platform.*` is a legacy operational contract, not automatically a permanent constitution;
 - its stable surface does not expand except for security fixes, correctness fixes, and compatibility fields;
 - new mechanisms enter an Experimental namespace with an explicit owner;
 - old clients continue through aliases and adapters;

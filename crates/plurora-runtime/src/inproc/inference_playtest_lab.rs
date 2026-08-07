@@ -4,7 +4,7 @@
 //! "prompt -> text response", but ordinary package participation in
 //! session / branch / proposal / inspection / fork creative runtime.
 //!
-//! This package does NOT call kernel.v1.proposal.create directly.
+//! This package does NOT call change.proposal.create directly.
 //! It produces proposal drafts that must go through the existing
 //! proposal lifecycle (create → approve/reject → apply).
 
@@ -89,8 +89,8 @@ fn draft_proposal(request: &InprocInvocation) -> anyhow::Result<Value> {
             "output_payload": inference_result.get("output_payload").cloned().unwrap_or(Value::Null),
         }));
 
-    // Build proposal draft — NOT calling kernel.v1.proposal.create
-    // The caller (conformance/host) must feed this into kernel.v1.proposal.create
+    // Build proposal draft — NOT calling change.proposal.create
+    // The caller (conformance/host) must feed this into change.proposal.create
     let operations = vec![serde_json::json!({
         "op": "asset.put",
         "payload": {
@@ -296,16 +296,16 @@ fn explain_flow(request: &InprocInvocation) -> anyhow::Result<Value> {
             {"step": 2, "name": "inference", "description": "Invoke an inference capability (e.g. inference-local-lab/invoke) to produce an inference_result"},
             {"step": 3, "name": "proposal", "description": "Call inference-playtest-lab/draft_proposal with the inference_result to produce a proposal_draft"},
             {"step": 4, "name": "inspect", "description": "Call inference-playtest-lab/inspect_proposal to review risk, operations, permissions, and provenance"},
-            {"step": 5, "name": "approve_or_reject", "description": "Use kernel.v1.proposal.approve or kernel.v1.proposal.reject on the created proposal"},
-            {"step": 6, "name": "apply", "description": "If approved, use kernel.v1.proposal.apply to execute the operations (e.g. asset.put)"},
-            {"step": 7, "name": "fork", "description": "Use kernel.v1.session.fork or inference-playtest-lab/branch_plan to create a branch preserving pre-inference state"},
+            {"step": 5, "name": "approve_or_reject", "description": "Use change.proposal.approve or change.proposal.reject on the created proposal"},
+            {"step": 6, "name": "apply", "description": "If approved, use change.proposal.apply to execute the operations (e.g. asset.put)"},
+            {"step": 7, "name": "fork", "description": "Use context.fork or inference-playtest-lab/branch_plan to create a branch preserving pre-inference state"},
         ],
         "key_properties": [
             "Inference result flows into a proposal draft, not directly into assets",
             "Proposal requires user approval before apply",
             "Rejected proposals cannot be applied",
             "Branch metadata records proposal and inference provenance",
-            "No content-shape methods are added to the kernel protocol",
+            "No content-shape methods are added to the public contract",
             "Proposal apply uses existing asset.put/projection.rebuild operations",
         ],
         "provenance": {"package_id": request.provider_package_id, "capability_id": request.capability_id}

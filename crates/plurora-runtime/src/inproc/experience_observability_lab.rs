@@ -10,10 +10,10 @@
 //! protocol-visible observability shapes from package/protocol refs,
 //! not from SQLite or runtime internals.
 //!
-//! No `kernel.v1.observability.*`, `kernel.v1.experience.*`,
-//! `kernel.v1.world.*`, `kernel.v1.scene.*`, `kernel.v1.turn.*`,
-//! `kernel.v1.chat.*`, `kernel.v1.memory.*`, `kernel.v1.agent.*`,
-//! `kernel.v1.model.*`, `kernel.v1.prompt.*`, or `kernel.v1.director.*`
+//! No `platform.observability.*`, `platform.experience.*`,
+//! `platform.world.*`, `platform.scene.*`, `platform.turn.*`,
+//! `platform.chat.*`, `platform.memory.*`, `platform.agent.*`,
+//! `platform.model.*`, `platform.prompt.*`, or `platform.director.*`
 //! namespace references.
 //!
 //! State terminology: session_health, package_health, agent_run_health,
@@ -82,7 +82,7 @@ const GUARDRAIL_KINDS: &[&str] = &[
     "outbound_denied",
     "permission_denied",
     "schema_validation_failed",
-    "kernel_namespace_blocked",
+    "platform_namespace_blocked",
     "proposal_rejected_by_policy",
     "budget_exceeded",
     "deadline_exceeded",
@@ -827,17 +827,17 @@ mod tests {
         let result = try_handle(&req).unwrap().unwrap();
         let output_str = serde_json::to_string(&result).unwrap();
         for token in &[
-            "kernel.v1.observability.",
-            "kernel.v1.experience.",
-            "kernel.v1.world.",
-            "kernel.v1.scene.",
-            "kernel.v1.turn.",
-            "kernel.v1.chat.",
-            "kernel.v1.memory.",
-            "kernel.v1.agent.",
-            "kernel.v1.model.",
-            "kernel.v1.prompt.",
-            "kernel.v1.director.",
+            "platform.observability.",
+            "platform.experience.",
+            "platform.world.",
+            "platform.scene.",
+            "platform.turn.",
+            "platform.chat.",
+            "platform.memory.",
+            "platform.agent.",
+            "platform.model.",
+            "platform.prompt.",
+            "platform.director.",
         ] {
             assert!(!output_str.contains(token), "must not contain {}", token);
         }

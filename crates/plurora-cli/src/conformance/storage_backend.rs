@@ -9,7 +9,7 @@ use std::collections::HashSet;
 use std::fs;
 use std::sync::Arc;
 
-use plurora_core::{EventEnvelope, SessionId, KERNEL_PACKAGE_ID};
+use plurora_core::{EventEnvelope, SessionId, PLATFORM_RUNTIME_ID};
 use plurora_runtime::{EventStore, InMemoryEventStore, SqliteEventStore};
 use serde_json::json;
 
@@ -34,7 +34,7 @@ fn make_event(session_id: &str, sequence: u64, kind: &str) -> EventEnvelope {
         new_id("evt"),
         session_id.to_string(),
         sequence,
-        KERNEL_PACKAGE_ID.to_string(),
+        PLATFORM_RUNTIME_ID.to_string(),
         kind,
         json!({}),
     )
@@ -198,9 +198,9 @@ pub(crate) async fn backend_parity_kind_prefix() -> anyhow::Result<()> {
     let sid: SessionId = "ses_prefix_parity".to_string();
 
     let kinds = [
-        "kernel/v1/permission.granted",
-        "kernel/v1/permission.denied",
-        "kernel/v1/session.opened",
+        "authority/grant.created",
+        "authority/denied",
+        "context/opened",
         "test/custom.event",
     ];
 
@@ -208,7 +208,7 @@ pub(crate) async fn backend_parity_kind_prefix() -> anyhow::Result<()> {
     for kind in &kinds {
         mem.append_with_sequence(
             sid.clone(),
-            KERNEL_PACKAGE_ID.to_string(),
+            PLATFORM_RUNTIME_ID.to_string(),
             kind.to_string(),
             1,
             json!({}),
@@ -218,7 +218,7 @@ pub(crate) async fn backend_parity_kind_prefix() -> anyhow::Result<()> {
         sqlite
             .append_with_sequence(
                 sid.clone(),
-                KERNEL_PACKAGE_ID.to_string(),
+                PLATFORM_RUNTIME_ID.to_string(),
                 kind.to_string(),
                 1,
                 json!({}),
@@ -228,8 +228,8 @@ pub(crate) async fn backend_parity_kind_prefix() -> anyhow::Result<()> {
     }
 
     // Cross-session kind-prefix query
-    let mem_perm = mem.list_kind_prefix("kernel/v1/permission").await?;
-    let sqlite_perm = sqlite.list_kind_prefix("kernel/v1/permission").await?;
+    let mem_perm = mem.list_kind_prefix("authority/").await?;
+    let sqlite_perm = sqlite.list_kind_prefix("authority/").await?;
     anyhow::ensure!(
         events_match_by_semantic_key(&mem_perm, &sqlite_perm),
         "kind_prefix mismatch: in-memory has {} events, sqlite has {}",
@@ -243,12 +243,8 @@ pub(crate) async fn backend_parity_kind_prefix() -> anyhow::Result<()> {
     );
 
     // Session-scoped kind-prefix query
-    let mem_session_perm = mem
-        .list_session_kind_prefix(&sid, "kernel/v1/permission")
-        .await?;
-    let sqlite_session_perm = sqlite
-        .list_session_kind_prefix(&sid, "kernel/v1/permission")
-        .await?;
+    let mem_session_perm = mem.list_session_kind_prefix(&sid, "authority/").await?;
+    let sqlite_session_perm = sqlite.list_session_kind_prefix(&sid, "authority/").await?;
     anyhow::ensure!(
         events_match_by_semantic_key(&mem_session_perm, &sqlite_session_perm),
         "session kind_prefix mismatch"
@@ -281,8 +277,8 @@ pub(crate) async fn backend_parity_concurrent_append() -> anyhow::Result<()> {
         store
             .append_with_sequence(
                 sid.clone(),
-                KERNEL_PACKAGE_ID.to_string(),
-                "kernel/v1/session.opened".to_string(),
+                PLATFORM_RUNTIME_ID.to_string(),
+                "context/opened".to_string(),
                 1,
                 json!({}),
                 json!({}),
@@ -297,7 +293,7 @@ pub(crate) async fn backend_parity_concurrent_append() -> anyhow::Result<()> {
             handles.push(tokio::spawn(async move {
                 s.append_with_sequence(
                     session_id,
-                    KERNEL_PACKAGE_ID.to_string(),
+                    PLATFORM_RUNTIME_ID.to_string(),
                     format!("test/concurrent.{}", i),
                     1,
                     json!({"i": i}),
@@ -339,8 +335,8 @@ pub(crate) async fn backend_parity_concurrent_append() -> anyhow::Result<()> {
         store
             .append_with_sequence(
                 sid.clone(),
-                KERNEL_PACKAGE_ID.to_string(),
-                "kernel/v1/session.opened".to_string(),
+                PLATFORM_RUNTIME_ID.to_string(),
+                "context/opened".to_string(),
                 1,
                 json!({}),
                 json!({}),
@@ -355,7 +351,7 @@ pub(crate) async fn backend_parity_concurrent_append() -> anyhow::Result<()> {
             handles.push(tokio::spawn(async move {
                 s.append_with_sequence(
                     session_id,
-                    KERNEL_PACKAGE_ID.to_string(),
+                    PLATFORM_RUNTIME_ID.to_string(),
                     format!("test/concurrent.{}", i),
                     1,
                     json!({"i": i}),
@@ -405,7 +401,7 @@ pub(crate) async fn backend_parity_subscription() -> anyhow::Result<()> {
         store
             .append_with_sequence(
                 sid,
-                KERNEL_PACKAGE_ID.to_string(),
+                PLATFORM_RUNTIME_ID.to_string(),
                 "test/sub.alpha".to_string(),
                 1,
                 json!({}),
@@ -431,7 +427,7 @@ pub(crate) async fn backend_parity_subscription() -> anyhow::Result<()> {
         store
             .append_with_sequence(
                 sid,
-                KERNEL_PACKAGE_ID.to_string(),
+                PLATFORM_RUNTIME_ID.to_string(),
                 "test/sub.beta".to_string(),
                 1,
                 json!({}),
@@ -471,7 +467,7 @@ pub(crate) async fn storage_backend_rehydrate_parity() -> anyhow::Result<()> {
     for i in 0..5 {
         mem.append_with_sequence(
             sid.clone(),
-            KERNEL_PACKAGE_ID.to_string(),
+            PLATFORM_RUNTIME_ID.to_string(),
             format!("test/rehydrate.{}", i),
             1,
             json!({"idx": i}),
@@ -490,7 +486,7 @@ pub(crate) async fn storage_backend_rehydrate_parity() -> anyhow::Result<()> {
         sqlite
             .append_with_sequence(
                 sid.clone(),
-                KERNEL_PACKAGE_ID.to_string(),
+                PLATFORM_RUNTIME_ID.to_string(),
                 format!("test/rehydrate.{}", i),
                 1,
                 json!({"idx": i}),
@@ -604,16 +600,16 @@ pub(crate) async fn postgres_backend_parity_kind_prefix() -> anyhow::Result<()> 
     let sid: SessionId = format!("ses_pg_prefix_{}", plurora_core::new_id("pg"));
 
     let kinds = [
-        "kernel/v1/permission.granted",
-        "kernel/v1/permission.denied",
-        "kernel/v1/session.opened",
+        "authority/grant.created",
+        "authority/denied",
+        "context/opened",
         "test/custom.event",
     ];
 
     for kind in &kinds {
         mem.append_with_sequence(
             sid.clone(),
-            KERNEL_PACKAGE_ID.to_string(),
+            PLATFORM_RUNTIME_ID.to_string(),
             kind.to_string(),
             1,
             json!({}),
@@ -622,7 +618,7 @@ pub(crate) async fn postgres_backend_parity_kind_prefix() -> anyhow::Result<()> 
         .await?;
         pg.append_with_sequence(
             sid.clone(),
-            KERNEL_PACKAGE_ID.to_string(),
+            PLATFORM_RUNTIME_ID.to_string(),
             kind.to_string(),
             1,
             json!({}),
@@ -631,8 +627,8 @@ pub(crate) async fn postgres_backend_parity_kind_prefix() -> anyhow::Result<()> 
         .await?;
     }
 
-    let mem_perm = mem.list_kind_prefix("kernel/v1/permission").await?;
-    let pg_perm = pg.list_kind_prefix("kernel/v1/permission").await?;
+    let mem_perm = mem.list_kind_prefix("authority/").await?;
+    let pg_perm = pg.list_kind_prefix("authority/").await?;
     anyhow::ensure!(
         events_match_by_semantic_key(&mem_perm, &pg_perm),
         "kind_prefix mismatch: in-memory has {} events, postgres has {}",
@@ -645,12 +641,8 @@ pub(crate) async fn postgres_backend_parity_kind_prefix() -> anyhow::Result<()> 
         pg_perm.len()
     );
 
-    let mem_session_perm = mem
-        .list_session_kind_prefix(&sid, "kernel/v1/permission")
-        .await?;
-    let pg_session_perm = pg
-        .list_session_kind_prefix(&sid, "kernel/v1/permission")
-        .await?;
+    let mem_session_perm = mem.list_session_kind_prefix(&sid, "authority/").await?;
+    let pg_session_perm = pg.list_session_kind_prefix(&sid, "authority/").await?;
     anyhow::ensure!(
         events_match_by_semantic_key(&mem_session_perm, &pg_session_perm),
         "session kind_prefix mismatch"
@@ -670,8 +662,8 @@ pub(crate) async fn postgres_backend_parity_concurrent_append() -> anyhow::Resul
 
     pg.append_with_sequence(
         sid.clone(),
-        KERNEL_PACKAGE_ID.to_string(),
-        "kernel/v1/session.opened".to_string(),
+        PLATFORM_RUNTIME_ID.to_string(),
+        "context/opened".to_string(),
         1,
         json!({}),
         json!({}),
@@ -686,7 +678,7 @@ pub(crate) async fn postgres_backend_parity_concurrent_append() -> anyhow::Resul
         handles.push(tokio::spawn(async move {
             s.append_with_sequence(
                 session_id,
-                KERNEL_PACKAGE_ID.to_string(),
+                PLATFORM_RUNTIME_ID.to_string(),
                 format!("test/concurrent.{}", i),
                 1,
                 json!({"i": i}),
@@ -731,7 +723,7 @@ pub(crate) async fn postgres_backend_parity_subscription() -> anyhow::Result<()>
     store
         .append_with_sequence(
             sid,
-            KERNEL_PACKAGE_ID.to_string(),
+            PLATFORM_RUNTIME_ID.to_string(),
             "test/sub.pg".to_string(),
             1,
             json!({}),
@@ -760,7 +752,7 @@ pub(crate) async fn postgres_rehydrate_parity() -> anyhow::Result<()> {
     for i in 0..5 {
         mem.append_with_sequence(
             sid.clone(),
-            KERNEL_PACKAGE_ID.to_string(),
+            PLATFORM_RUNTIME_ID.to_string(),
             format!("test/rehydrate.{}", i),
             1,
             json!({"idx": i}),
@@ -769,7 +761,7 @@ pub(crate) async fn postgres_rehydrate_parity() -> anyhow::Result<()> {
         .await?;
         pg.append_with_sequence(
             sid.clone(),
-            KERNEL_PACKAGE_ID.to_string(),
+            PLATFORM_RUNTIME_ID.to_string(),
             format!("test/rehydrate.{}", i),
             1,
             json!({"idx": i}),

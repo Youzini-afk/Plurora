@@ -12,7 +12,6 @@ mod methods;
 mod write;
 
 pub(crate) const SCHEMA: &str = "https://json-schema.org/draft/2020-12/schema";
-pub(crate) const BASE: &str = "https://plurora.dev/spec/v1";
 
 use defs::schema_value;
 use events::{event_schema, event_schemas};
@@ -21,6 +20,12 @@ use write::{filename, write_json, write_method};
 
 pub fn export_all() -> anyhow::Result<()> {
     let out = PathBuf::from("docs/spec/v1/schemas");
+    if out.join("methods").exists() {
+        fs::remove_dir_all(out.join("methods"))?;
+    }
+    if out.join("events").exists() {
+        fs::remove_dir_all(out.join("events"))?;
+    }
     fs::create_dir_all(out.join("methods"))?;
     fs::create_dir_all(out.join("events"))?;
 

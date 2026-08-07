@@ -21,7 +21,7 @@ plurora host serve --http 0.0.0.0:$PORT --data-dir /data --profile /data/profile
 
 - `GET /` 以及 `/app/public` 下的 Web 资源
 - `POST /rpc`（配置 token 时需要 token）
-- `GET /kernel/v1/event.subscribe/:session_id`（配置 token 时需要 token）
+- `GET /journal/subscribe/:session_id`（配置 token 时需要 token）
 - `GET /surface-bundles/...`（需 Host 身份）与授权解析后短期可读的 `/surface-assets/<lease>/...`
 - `GET /healthz`
 

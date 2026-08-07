@@ -32,13 +32,13 @@
 //!
 //! Safety:
 //! - Raw secret blocking (delegated to shared safety module)
-//! - No kernel.v1.project/workspace/git/npm/deploy namespace references in outputs
+//! - No platform.project/workspace/git/npm/deploy namespace references in outputs
 //! - No filesystem reads, no shell, no outbound, no execution
 //! - Deny-by-default: executor_invoked=false, execution_performed=false
 //! - Approval tokens are not honored in Alpha; proposal_required=true always
 //! - Patch target_files validated/redacted; raw secret blocking in patch content
 //! - Unsafe local paths still rejected
-//! - No forbidden kernel namespace outputs
+//! - No forbidden platform-reserved namespace outputs
 //! - No new kernel workspace/project protocol
 
 use serde_json::Value;
@@ -83,18 +83,18 @@ const VALID_ACTIONS: &[&str] = &[
 // Forbidden namespace tokens (must not appear in outputs)
 // ---------------------------------------------------------------------------
 
-/// Kernel namespace tokens that must not appear in outputs.
+/// Platform-reserved namespace tokens that must not appear in outputs.
 const FORBIDDEN_NAMESPACE_TOKENS: &[&str] = &[
-    "kernel.v1.project.",
-    "kernel.v1.workspace.",
-    "kernel.v1.git.",
-    "kernel.v1.npm.",
-    "kernel.v1.deploy.",
-    "kernel.v1.ide.",
+    "platform.project.",
+    "platform.workspace.",
+    "platform.git.",
+    "platform.npm.",
+    "platform.deploy.",
+    "platform.ide.",
 ];
 
-/// Check whether a string contains forbidden kernel namespace tokens.
-/// Used in tests to verify outputs do not leak kernel namespaces.
+/// Check whether a string contains forbidden platform-reserved namespace tokens.
+/// Used in tests to verify outputs do not leak platform-reserved namespaces.
 #[allow(dead_code)]
 fn contains_forbidden_namespace(s: &str) -> bool {
     FORBIDDEN_NAMESPACE_TOKENS.iter().any(|t| s.contains(t))

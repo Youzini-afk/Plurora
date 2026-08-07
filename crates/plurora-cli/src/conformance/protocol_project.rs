@@ -77,7 +77,7 @@ pub(crate) async fn project_list_returns_registered_projects() -> anyhow::Result
     let value = runtime
         .call_protocol(
             &ProtocolContext::host_dev("conformance"),
-            "kernel.v1.project.list",
+            "host.project.list",
             json!({}),
         )
         .await
@@ -103,7 +103,7 @@ pub(crate) async fn project_get_returns_full_descriptor() -> anyhow::Result<()> 
     let value = runtime
         .call_protocol(
             &ProtocolContext::host_dev("conformance"),
-            "kernel.v1.project.get",
+            "host.project.get",
             json!({"project_id":"proto-get__abc12345"}),
         )
         .await
@@ -126,7 +126,7 @@ pub(crate) async fn project_start_transitions_state() -> anyhow::Result<()> {
     let value = runtime
         .call_protocol(
             &ProtocolContext::host_dev("conformance"),
-            "kernel.v1.project.start",
+            "host.project.start",
             json!({"project_id":"proto-start__abc12345"}),
         )
         .await
@@ -138,7 +138,7 @@ pub(crate) async fn project_start_transitions_state() -> anyhow::Result<()> {
     let list = runtime
         .call_protocol(
             &ProtocolContext::host_dev("conformance"),
-            "kernel.v1.project.list",
+            "host.project.list",
             json!({}),
         )
         .await
@@ -162,7 +162,7 @@ pub(crate) async fn project_start_returns_session_id() -> anyhow::Result<()> {
     let value = runtime
         .call_protocol(
             &ProtocolContext::host_dev("conformance"),
-            "kernel.v1.project.start",
+            "host.project.start",
             json!({"project_id":"proto-start-session__abc12345"}),
         )
         .await
@@ -190,7 +190,7 @@ pub(crate) async fn project_start_idempotent_returns_existing_session() -> anyho
     let first = runtime
         .call_protocol(
             &ProtocolContext::host_dev("conformance"),
-            "kernel.v1.project.start",
+            "host.project.start",
             json!({"project_id":"proto-start-idempotent__abc12345"}),
         )
         .await
@@ -198,7 +198,7 @@ pub(crate) async fn project_start_idempotent_returns_existing_session() -> anyho
     let second = runtime
         .call_protocol(
             &ProtocolContext::host_dev("conformance"),
-            "kernel.v1.project.start",
+            "host.project.start",
             json!({"project_id":"proto-start-idempotent__abc12345"}),
         )
         .await
@@ -217,7 +217,7 @@ pub(crate) async fn project_session_metadata_carries_project_id() -> anyhow::Res
     let started = runtime
         .call_protocol(
             &ProtocolContext::host_dev("conformance"),
-            "kernel.v1.project.start",
+            "host.project.start",
             json!({"project_id":"proto-session-meta__abc12345"}),
         )
         .await
@@ -226,7 +226,7 @@ pub(crate) async fn project_session_metadata_carries_project_id() -> anyhow::Res
     let fetched = runtime
         .call_protocol(
             &ProtocolContext::host_dev("conformance"),
-            "kernel.v1.session.get",
+            "context.get",
             json!({"session_id": session_id}),
         )
         .await
@@ -245,7 +245,7 @@ pub(crate) async fn project_stop_closes_session() -> anyhow::Result<()> {
     let started = runtime
         .call_protocol(
             &ProtocolContext::host_dev("conformance"),
-            "kernel.v1.project.start",
+            "host.project.start",
             json!({"project_id":"proto-stop-session__abc12345"}),
         )
         .await
@@ -254,7 +254,7 @@ pub(crate) async fn project_stop_closes_session() -> anyhow::Result<()> {
     let stopped = runtime
         .call_protocol(
             &ProtocolContext::host_dev("conformance"),
-            "kernel.v1.project.stop",
+            "host.project.stop",
             json!({"project_id":"proto-stop-session__abc12345"}),
         )
         .await
@@ -282,7 +282,7 @@ pub(crate) async fn project_get_returns_running_session_id() -> anyhow::Result<(
     let started = runtime
         .call_protocol(
             &ProtocolContext::host_dev("conformance"),
-            "kernel.v1.project.start",
+            "host.project.start",
             json!({"project_id":"proto-get-session__abc12345"}),
         )
         .await
@@ -290,7 +290,7 @@ pub(crate) async fn project_get_returns_running_session_id() -> anyhow::Result<(
     let got = runtime
         .call_protocol(
             &ProtocolContext::host_dev("conformance"),
-            "kernel.v1.project.get",
+            "host.project.get",
             json!({"project_id":"proto-get-session__abc12345"}),
         )
         .await
@@ -299,7 +299,7 @@ pub(crate) async fn project_get_returns_running_session_id() -> anyhow::Result<(
     let status = runtime
         .call_protocol(
             &ProtocolContext::host_dev("conformance"),
-            "kernel.v1.project.status",
+            "host.project.status",
             json!({"project_id":"proto-get-session__abc12345"}),
         )
         .await
@@ -313,12 +313,12 @@ pub(crate) async fn project_methods_require_admin_principal() -> anyhow::Result<
     let err = runtime
         .call_protocol(
             &ProtocolContext::package("example/not-admin", "conformance"),
-            "kernel.v1.project.list",
+            "host.project.list",
             json!({}),
         )
         .await
         .expect_err("package principal should be denied");
-    anyhow::ensure!(err.code == "kernel/v1/error/permission_denied");
+    anyhow::ensure!(err.code == "runtime/error/permission_denied");
     Ok(())
 }
 
@@ -331,7 +331,7 @@ pub(crate) async fn project_lifecycle_event_emitted_on_start() -> anyhow::Result
     let started = runtime
         .call_protocol(
             &ProtocolContext::host_dev("conformance"),
-            "kernel.v1.project.start",
+            "host.project.start",
             json!({"project_id":"proto-event__abc12345"}),
         )
         .await
@@ -356,7 +356,7 @@ pub(crate) async fn surface_resolve_via_dev_path() -> anyhow::Result<()> {
     let value = runtime
         .call_protocol(
             &ProtocolContext::host_dev("conformance"),
-            "kernel.v1.surface.resolve_bundle",
+            "host.surface.bundle.resolve",
             json!({"surface_id":"ydltavern/play"}),
         )
         .await
@@ -396,7 +396,7 @@ pub(crate) async fn surface_resolve_via_installed_project() -> anyhow::Result<()
     let value = runtime
         .call_protocol(
             &ProtocolContext::host_dev("conformance"),
-            "kernel.v1.surface.resolve_bundle",
+            "host.surface.bundle.resolve",
             json!({"surface_id":"official/workspace-lab/workspace_view"}),
         )
         .await
@@ -457,7 +457,7 @@ pub(crate) async fn surface_resolve_unknown_fails() -> anyhow::Result<()> {
     let err = runtime
         .call_protocol(
             &ProtocolContext::host_dev("conformance"),
-            "kernel.v1.surface.resolve_bundle",
+            "host.surface.bundle.resolve",
             json!({"surface_id":"unknown/surface"}),
         )
         .await
@@ -471,11 +471,11 @@ pub(crate) async fn surface_resolve_admin_principal_required() -> anyhow::Result
     let err = runtime
         .call_protocol(
             &ProtocolContext::package("example/not-admin", "conformance"),
-            "kernel.v1.surface.resolve_bundle",
+            "host.surface.bundle.resolve",
             json!({"surface_id":"ydltavern/play"}),
         )
         .await
         .expect_err("package principal should be denied");
-    anyhow::ensure!(err.code == "kernel/v1/error/permission_denied");
+    anyhow::ensure!(err.code == "runtime/error/permission_denied");
     Ok(())
 }

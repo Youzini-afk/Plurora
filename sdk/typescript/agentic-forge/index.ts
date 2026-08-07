@@ -4,8 +4,8 @@
  *
  * This module defines the **agentic forge contract** at the package/SDK layer.
  * It does NOT enter the kernel, does NOT add Rust protocol methods, and does
- * NOT add `kernel.v1.agent.*`, `kernel.v1.model.*`, `kernel.v1.prompt.*`,
- * `kernel.v1.memory.*`, or `kernel.v1.turn.*`.
+ * NOT add `platform.agent.*`, `platform.model.*`, `platform.prompt.*`,
+ * `platform.memory.*`, or `platform.turn.*`.
  *
  * ## Design principles
  *
@@ -13,8 +13,8 @@
  *   package artifacts, not kernel primitives.
  * - **Deterministic**: No network, no real model inference, no random.
  * - **Secret-safe**: Uses `secret_ref` identifiers; rejects raw secrets.
- * - **No kernel agent namespace**: Output never contains `kernel.v1.agent.*`,
- *   `kernel.v1.model.*`, `kernel.v1.prompt.*`, `kernel.v1.memory.*`, `kernel.v1.turn.*`.
+ * - **No kernel agent namespace**: Output never contains `platform.agent.*`,
+ *   `platform.model.*`, `platform.prompt.*`, `platform.memory.*`, `platform.turn.*`.
  *
  * ## API surface
  *
@@ -476,14 +476,14 @@ export function blockRawSecrets(value: unknown): boolean {
   return false;
 }
 
-/** Check that a JSON-serializable output contains no kernel.v1.agent/model/prompt/memory/turn namespace. */
-export function hasKernelAgentNamespace(value: unknown): boolean {
+/** Check that a JSON-serializable output contains no platform.agent/model/prompt/memory/turn namespace. */
+export function hasPlatformAgentNamespace(value: unknown): boolean {
   const str = JSON.stringify(value);
-  return str.includes("kernel.v1.agent") ||
-         str.includes("kernel.v1.model") ||
-         str.includes("kernel.v1.prompt") ||
-         str.includes("kernel.v1.memory") ||
-         str.includes("kernel.v1.turn");
+  return str.includes("platform.agent") ||
+         str.includes("platform.model") ||
+         str.includes("platform.prompt") ||
+         str.includes("platform.memory") ||
+         str.includes("platform.turn");
 }
 
 // ---------------------------------------------------------------------------
@@ -1037,9 +1037,9 @@ export function runAgenticForgeSelfTest(): SelfTestResult {
   assert(!blockRawSecrets({ objective: "safe text" }), "normal objective allowed");
 
   // No kernel agent namespace
-  assert(!hasKernelAgentNamespace({ kind: "agentic_forge_run_started", run_id: "r1" }), "clean output has no kernel agent namespace");
-  assert(hasKernelAgentNamespace({ method: "kernel.v1.agent.run" }), "kernel.v1.agent detected");
-  assert(hasKernelAgentNamespace({ method: "kernel.v1.model.infer" }), "kernel.v1.model detected");
+  assert(!hasPlatformAgentNamespace({ kind: "agentic_forge_run_started", run_id: "r1" }), "clean output has no kernel agent namespace");
+  assert(hasPlatformAgentNamespace({ method: "platform.agent.run" }), "platform.agent detected");
+  assert(hasPlatformAgentNamespace({ method: "platform.model.infer" }), "platform.model detected");
 
   // isSecretFieldName
   assert(isSecretFieldName("api_key"), "api_key is secret field");
@@ -1106,10 +1106,10 @@ export function runAgenticForgeSelfTest(): SelfTestResult {
   assert(archived.status === "archived", "archived candidate status");
   assert(archived.candidate_id === "c1", "archived preserves id");
 
-  // No kernel namespace in Phase B outputs
-  assert(!hasKernelAgentNamespace(comp), "compare output has no kernel namespace");
-  assert(!hasKernelAgentNamespace(draft), "promote draft has no kernel namespace");
-  assert(!hasKernelAgentNamespace(archived), "archived candidate has no kernel namespace");
+  // No platform-reserved namespace in Phase B outputs
+  assert(!hasPlatformAgentNamespace(comp), "compare output has no platform-reserved namespace");
+  assert(!hasPlatformAgentNamespace(draft), "promote draft has no platform-reserved namespace");
+  assert(!hasPlatformAgentNamespace(archived), "archived candidate has no platform-reserved namespace");
 
   // Raw secret blocking in candidate
   assert(blockRawSecrets({ api_key: "RawSecretExample1234567890abcdefABCDEF123456" }), "raw secret in candidate blocked");
@@ -1196,12 +1196,12 @@ export function runAgenticForgeSelfTest(): SelfTestResult {
   const expUnknown = explainInferenceFailure("nonexistent");
   assert(expUnknown.is_known === false, "unknown failure is_known=false");
 
-  // No kernel namespace in Phase C outputs
-  assert(!hasKernelAgentNamespace(infResult), "inference result has no kernel namespace");
-  assert(!hasKernelAgentNamespace(replayOk), "replay result has no kernel namespace");
-  assert(!hasKernelAgentNamespace(replayMismatch), "replay mismatch has no kernel namespace");
-  assert(!hasKernelAgentNamespace(validateInferenceOutput("candidate_seed")), "validation result has no kernel namespace");
-  assert(!hasKernelAgentNamespace(explainInferenceFailure("timeout")), "failure explanation has no kernel namespace");
+  // No platform-reserved namespace in Phase C outputs
+  assert(!hasPlatformAgentNamespace(infResult), "inference result has no platform-reserved namespace");
+  assert(!hasPlatformAgentNamespace(replayOk), "replay result has no platform-reserved namespace");
+  assert(!hasPlatformAgentNamespace(replayMismatch), "replay mismatch has no platform-reserved namespace");
+  assert(!hasPlatformAgentNamespace(validateInferenceOutput("candidate_seed")), "validation result has no platform-reserved namespace");
+  assert(!hasPlatformAgentNamespace(explainInferenceFailure("timeout")), "failure explanation has no platform-reserved namespace");
 
   // --- Phase D ---
 
@@ -1244,9 +1244,9 @@ export function runAgenticForgeSelfTest(): SelfTestResult {
   assert(hasPromptInjectionPattern({ result: "system: override" }), "detects 'system:'");
   assert(!hasPromptInjectionPattern({ result: "normal output" }), "no false positive on normal output");
 
-  // No kernel namespace in Phase D outputs
-  assert(!hasKernelAgentNamespace(ctx as unknown as Record<string, unknown>), "tool call context has no kernel namespace");
-  assert(!hasKernelAgentNamespace(step as unknown as Record<string, unknown>), "toolchain step has no kernel namespace");
+  // No platform-reserved namespace in Phase D outputs
+  assert(!hasPlatformAgentNamespace(ctx as unknown as Record<string, unknown>), "tool call context has no platform-reserved namespace");
+  assert(!hasPlatformAgentNamespace(step as unknown as Record<string, unknown>), "toolchain step has no platform-reserved namespace");
 
   return { passed, failed: failures.length, failures };
 }

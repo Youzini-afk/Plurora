@@ -6,7 +6,7 @@
 
 ## 什么是路径 B
 
-路径 B 包是自包含应用或工具。它可以作为 Plurora host 管理的进程运行，但它不通过 manifest 权限获得平台权威，不使用 `kernel.v1.capability.invoke`，也不依赖 v1 bindings。
+路径 B 包是自包含应用或工具。它可以作为 Plurora host 管理的进程运行，但它不通过 manifest 权限获得平台权威，不使用 `capability.invoke`，也不依赖 v1 bindings。
 
 这不是“低级”路径。它是给迁移期、兼容层、既有工具和原型保留的一等参与方式。
 
@@ -54,7 +54,7 @@ entry:
 | Capability handles | 注入 | 不注入 |
 | Reverse kernel calls | 受句柄约束 | 不可用或按 host 策略拒绝 |
 | Secret resolution | `secret_ref` + host resolver | 不提供 v1 secret binding |
-| Network outbound | `kernel.v1.outbound.*` + audit | 不由 v1 outbound 管理 |
+| Network outbound | `platform.outbound.*` + audit | 不由 v1 outbound 管理 |
 | Lifecycle events | 发出 | 发出 |
 | Package logs | 可捕获 | 可捕获 |
 | Conformance kit | 权限与调用检查 | 自包含与可观察检查 |

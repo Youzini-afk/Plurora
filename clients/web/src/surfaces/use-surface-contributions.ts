@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { useKernel } from "@/lib/kernel-client";
+import { usePlurora } from "@/lib/plurora-client";
 import {
   parseShellContributions,
   type ShellContribution,
@@ -17,7 +17,7 @@ export function useSurfaceContributions<TContribution extends ShellContribution 
   slot: ShellContributionSlot,
   locale: string,
 ): SurfaceContributionsResource<TContribution> {
-  const client = useKernel();
+  const client = usePlurora();
   const [items, setItems] = useState<TContribution[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | undefined>();

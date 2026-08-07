@@ -1,0 +1,801 @@
+{
+  "$defs": {
+    "ArtifactDescriptor": {
+      "properties": {
+        "annotations": {
+          "additionalProperties": true,
+          "default": {},
+          "type": "object"
+        },
+        "artifact_type_uri": {
+          "type": "string"
+        },
+        "digest": {
+          "type": "string"
+        },
+        "media_type": {
+          "type": "string"
+        },
+        "references": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "size_bytes": {
+          "format": "uint64",
+          "minimum": 0.0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "artifact_type_uri",
+        "digest",
+        "media_type",
+        "size_bytes"
+      ],
+      "type": "object"
+    },
+    "ChangeCommit": {
+      "properties": {
+        "branch_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "change_set_id": {
+          "type": "string"
+        },
+        "commit_type_uri": {
+          "default": "urn:plurora:change-commit:v1",
+          "type": "string"
+        },
+        "completed_at": {
+          "format": "date-time",
+          "type": "string"
+        },
+        "error": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "id": {
+          "type": "string"
+        },
+        "idempotency_key": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "operation_receipts": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/ArtifactDescriptor"
+          },
+          "type": "array"
+        },
+        "result_refs": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/ArtifactDescriptor"
+          },
+          "type": "array"
+        },
+        "started_at": {
+          "format": "date-time",
+          "type": "string"
+        },
+        "status": {
+          "$ref": "#/$defs/ChangeCommitStatus"
+        }
+      },
+      "required": [
+        "change_set_id",
+        "completed_at",
+        "id",
+        "started_at",
+        "status"
+      ],
+      "type": "object"
+    },
+    "ChangeCommitStatus": {
+      "enum": [
+        "committed",
+        "failed",
+        "partial"
+      ],
+      "type": "string"
+    },
+    "ChangeOperation": {
+      "properties": {
+        "input_refs": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/ArtifactDescriptor"
+          },
+          "type": "array"
+        },
+        "op": {
+          "type": "string"
+        },
+        "payload": {
+          "default": null
+        },
+        "target": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "op"
+      ],
+      "type": "object"
+    },
+    "ChangePrecondition": {
+      "properties": {
+        "expected": {
+          "default": null
+        },
+        "kind": {
+          "type": "string"
+        },
+        "target": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "kind"
+      ],
+      "type": "object"
+    },
+    "ChangeSet": {
+      "properties": {
+        "change_set_type_uri": {
+          "default": "urn:plurora:change-set:v1",
+          "type": "string"
+        },
+        "created_at": {
+          "format": "date-time",
+          "type": "string"
+        },
+        "expected_effects": {
+          "default": null
+        },
+        "id": {
+          "type": "string"
+        },
+        "idempotency_key": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "intent_id": {
+          "type": "string"
+        },
+        "operations": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/ChangeOperation"
+          },
+          "type": "array"
+        },
+        "preconditions": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/ChangePrecondition"
+          },
+          "type": "array"
+        },
+        "required_authority": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "created_at",
+        "id",
+        "intent_id"
+      ],
+      "type": "object"
+    },
+    "Errors": {
+      "items": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "details": true,
+          "message": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "details",
+          "message"
+        ],
+        "title": "ErrorShape",
+        "type": "object"
+      },
+      "type": "array"
+    },
+    "Intent": {
+      "properties": {
+        "annotations": {
+          "additionalProperties": true,
+          "default": {},
+          "type": "object"
+        },
+        "created_at": {
+          "format": "date-time",
+          "type": "string"
+        },
+        "goal": {
+          "default": null
+        },
+        "id": {
+          "type": "string"
+        },
+        "intent_type_uri": {
+          "default": "urn:plurora:intent:v1",
+          "type": "string"
+        },
+        "principal": {
+          "$ref": "#/$defs/PrincipalIdentity"
+        },
+        "target_branch_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "target_session_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "created_at",
+        "id",
+        "principal"
+      ],
+      "type": "object"
+    },
+    "Params": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "properties": {
+        "proposal_id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "proposal_id"
+      ],
+      "title": "ProposalIdParams",
+      "type": "object"
+    },
+    "PolicyDecision": {
+      "properties": {
+        "change_set_id": {
+          "type": "string"
+        },
+        "decided_at": {
+          "format": "date-time",
+          "type": "string"
+        },
+        "decision_type_uri": {
+          "default": "urn:plurora:policy-decision:v1",
+          "type": "string"
+        },
+        "evaluated_authority": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "id": {
+          "type": "string"
+        },
+        "outcome": {
+          "$ref": "#/$defs/PolicyDecisionOutcome"
+        },
+        "policy_ref": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ArtifactDescriptor"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "principal": {
+          "$ref": "#/$defs/PrincipalIdentity"
+        },
+        "reason": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "change_set_id",
+        "decided_at",
+        "id",
+        "outcome",
+        "principal"
+      ],
+      "type": "object"
+    },
+    "PolicyDecisionOutcome": {
+      "enum": [
+        "allowed",
+        "denied",
+        "requires_approval"
+      ],
+      "type": "string"
+    },
+    "PrincipalIdentity": {
+      "oneOf": [
+        {
+          "properties": {
+            "kind": {
+              "enum": [
+                "platform_runtime"
+              ],
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "properties": {
+            "kind": {
+              "enum": [
+                "host_admin"
+              ],
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "properties": {
+            "kind": {
+              "enum": [
+                "host_dev"
+              ],
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "properties": {
+            "kind": {
+              "enum": [
+                "package"
+              ],
+              "type": "string"
+            },
+            "package_id": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "package_id"
+          ],
+          "type": "object"
+        },
+        {
+          "properties": {
+            "kind": {
+              "enum": [
+                "human"
+              ],
+              "type": "string"
+            },
+            "user_id": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "user_id"
+          ],
+          "type": "object"
+        },
+        {
+          "properties": {
+            "assistant_id": {
+              "type": "string"
+            },
+            "delegated_user_id": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "kind": {
+              "enum": [
+                "assistant"
+              ],
+              "type": "string"
+            }
+          },
+          "required": [
+            "assistant_id",
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "properties": {
+            "kind": {
+              "enum": [
+                "anonymous"
+              ],
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "ProposalApproval": {
+      "properties": {
+        "decided_at": {
+          "format": "date-time",
+          "type": "string"
+        },
+        "principal": {
+          "$ref": "#/$defs/ProtocolPrincipal"
+        },
+        "reason": {
+          "default": null,
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "decided_at",
+        "principal"
+      ],
+      "type": "object"
+    },
+    "ProposalOperation": {
+      "properties": {
+        "op": {
+          "type": "string"
+        },
+        "payload": {
+          "default": null
+        },
+        "target": {
+          "default": null,
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "op"
+      ],
+      "type": "object"
+    },
+    "ProposalStatus": {
+      "enum": [
+        "created",
+        "approved",
+        "applying",
+        "rejected",
+        "applied",
+        "partial",
+        "failed"
+      ],
+      "type": "string"
+    },
+    "ProtocolPrincipal": {
+      "oneOf": [
+        {
+          "properties": {
+            "kind": {
+              "enum": [
+                "host_admin"
+              ],
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "properties": {
+            "kind": {
+              "enum": [
+                "host_dev"
+              ],
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "properties": {
+            "kind": {
+              "enum": [
+                "package"
+              ],
+              "type": "string"
+            },
+            "package_id": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "package_id"
+          ],
+          "type": "object"
+        },
+        {
+          "properties": {
+            "kind": {
+              "enum": [
+                "human"
+              ],
+              "type": "string"
+            },
+            "user_id": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "user_id"
+          ],
+          "type": "object"
+        },
+        {
+          "properties": {
+            "assistant_id": {
+              "type": "string"
+            },
+            "delegated_user_id": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "kind": {
+              "enum": [
+                "assistant"
+              ],
+              "type": "string"
+            }
+          },
+          "required": [
+            "assistant_id",
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "properties": {
+            "kind": {
+              "enum": [
+                "anonymous"
+              ],
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "Result": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "properties": {
+        "approval": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ProposalApproval"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "change_set": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ChangeSet"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "commit": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ChangeCommit"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "created_at": {
+          "format": "date-time",
+          "type": "string"
+        },
+        "created_by": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/ProtocolPrincipal"
+            }
+          ],
+          "default": {
+            "kind": "anonymous"
+          }
+        },
+        "expected_effects": {
+          "default": null
+        },
+        "id": {
+          "default": "",
+          "type": "string"
+        },
+        "intent": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Intent"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "operations": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/ProposalOperation"
+          },
+          "type": "array"
+        },
+        "policy_decision": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolicyDecision"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "receipt": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ArtifactDescriptor"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "required_permissions": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "result": {
+          "default": null
+        },
+        "status": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/ProposalStatus"
+            }
+          ],
+          "default": "created"
+        },
+        "target_branch_id": {
+          "default": null,
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "target_session_id": {
+          "default": null,
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "title": "ProposalRecord",
+      "type": "object"
+    }
+  },
+  "$id": "urn:plurora:schema:method:change.proposal.apply:v1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Plurora public platform method change.proposal.apply.",
+  "properties": {
+    "errors": {
+      "$ref": "#/$defs/Errors"
+    },
+    "method": {
+      "const": "change.proposal.apply"
+    },
+    "params": {
+      "$ref": "#/$defs/Params"
+    },
+    "result": {
+      "$ref": "#/$defs/Result"
+    }
+  },
+  "required": [
+    "method",
+    "params"
+  ],
+  "title": "change.proposal.apply",
+  "type": "object",
+  "x-plurora-contract": {
+    "id": "change.proposal.apply",
+    "implementation_status": "partial",
+    "introduced_in": "plurora.contract.default/v1@0.1.0",
+    "maturity": "experimental",
+    "owner_layer": "protocol",
+    "request_schema": "urn:plurora:schema:method:change.proposal.apply:v1#/$defs/Params",
+    "response_schema": "urn:plurora:schema:method:change.proposal.apply:v1#/$defs/Result",
+    "streaming": false
+  }
+}

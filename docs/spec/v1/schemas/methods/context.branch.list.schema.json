@@ -1,0 +1,111 @@
+{
+  "$defs": {
+    "Errors": {
+      "items": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "details": true,
+          "message": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "details",
+          "message"
+        ],
+        "title": "ErrorShape",
+        "type": "object"
+      },
+      "type": "array"
+    },
+    "Params": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "properties": {
+        "session_id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "session_id"
+      ],
+      "title": "SessionBranchListParams",
+      "type": "object"
+    },
+    "Result": {
+      "items": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "properties": {
+          "child_session_id": {
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "forked_from_sequence": {
+            "format": "uint64",
+            "minimum": 0.0,
+            "type": "integer"
+          },
+          "id": {
+            "type": "string"
+          },
+          "metadata": {
+            "default": null
+          },
+          "parent_session_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "child_session_id",
+          "created_at",
+          "forked_from_sequence",
+          "id",
+          "parent_session_id"
+        ],
+        "title": "BranchRecord",
+        "type": "object"
+      },
+      "type": "array"
+    }
+  },
+  "$id": "urn:plurora:schema:method:context.branch.list:v1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Plurora public platform method context.branch.list.",
+  "properties": {
+    "errors": {
+      "$ref": "#/$defs/Errors"
+    },
+    "method": {
+      "const": "context.branch.list"
+    },
+    "params": {
+      "$ref": "#/$defs/Params"
+    },
+    "result": {
+      "$ref": "#/$defs/Result"
+    }
+  },
+  "required": [
+    "method",
+    "params"
+  ],
+  "title": "context.branch.list",
+  "type": "object",
+  "x-plurora-contract": {
+    "id": "context.branch.list",
+    "implementation_status": "partial",
+    "introduced_in": "plurora.contract.default/v1@0.1.0",
+    "maturity": "experimental",
+    "owner_layer": "substrate",
+    "request_schema": "urn:plurora:schema:method:context.branch.list:v1#/$defs/Params",
+    "response_schema": "urn:plurora:schema:method:context.branch.list:v1#/$defs/Result",
+    "streaming": false
+  }
+}

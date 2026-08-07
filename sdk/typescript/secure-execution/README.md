@@ -2,7 +2,7 @@
 
 Thin helpers for capability packages that need secret references, network
 declarations, outbound audit/redaction, and streaming frame client support.
-These wrap only the public kernel protocol and types — no private internals,
+These wrap only the public public contract and types — no private internals,
 no protocol bypass.
 
 ## Usage

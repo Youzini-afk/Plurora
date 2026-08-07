@@ -1,0 +1,137 @@
+{
+  "$defs": {
+    "Errors": {
+      "items": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "details": true,
+          "message": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "details",
+          "message"
+        ],
+        "title": "ErrorShape",
+        "type": "object"
+      },
+      "type": "array"
+    },
+    "Params": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "properties": {
+        "lease_id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "lease_id"
+      ],
+      "title": "PortLeaseIdParams",
+      "type": "object"
+    },
+    "PortBindScope": {
+      "enum": [
+        "loopback_only"
+      ],
+      "type": "string"
+    },
+    "PortLeaseStatusKind": {
+      "enum": [
+        "active",
+        "reserved",
+        "released"
+      ],
+      "type": "string"
+    },
+    "PortProtocol": {
+      "enum": [
+        "tcp",
+        "udp"
+      ],
+      "type": "string"
+    },
+    "Result": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "properties": {
+        "bind": {
+          "$ref": "#/$defs/PortBindScope"
+        },
+        "host": {
+          "type": "string"
+        },
+        "id": {
+          "type": "string"
+        },
+        "port": {
+          "format": "uint16",
+          "minimum": 0.0,
+          "type": "integer"
+        },
+        "port_name": {
+          "type": "string"
+        },
+        "protocol": {
+          "$ref": "#/$defs/PortProtocol"
+        },
+        "status": {
+          "$ref": "#/$defs/PortLeaseStatusKind"
+        },
+        "target_id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "bind",
+        "host",
+        "id",
+        "port",
+        "port_name",
+        "protocol",
+        "status",
+        "target_id"
+      ],
+      "title": "PortLeaseRecord",
+      "type": "object"
+    }
+  },
+  "$id": "urn:plurora:schema:method:host.port.release:v1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Plurora public platform method host.port.release.",
+  "properties": {
+    "errors": {
+      "$ref": "#/$defs/Errors"
+    },
+    "method": {
+      "const": "host.port.release"
+    },
+    "params": {
+      "$ref": "#/$defs/Params"
+    },
+    "result": {
+      "$ref": "#/$defs/Result"
+    }
+  },
+  "required": [
+    "method",
+    "params"
+  ],
+  "title": "host.port.release",
+  "type": "object",
+  "x-plurora-contract": {
+    "id": "host.port.release",
+    "implementation_status": "partial",
+    "introduced_in": "plurora.contract.default/v1@0.1.0",
+    "maturity": "experimental",
+    "owner_layer": "host",
+    "request_schema": "urn:plurora:schema:method:host.port.release:v1#/$defs/Params",
+    "response_schema": "urn:plurora:schema:method:host.port.release:v1#/$defs/Result",
+    "streaming": false
+  }
+}

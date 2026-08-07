@@ -1,6 +1,6 @@
 const assert = require("node:assert/strict");
 
-const { fromHttpRpc, KernelClient } = require("../dist/client.js");
+const { fromHttpRpc, PluroraClient } = require("../dist/client.js");
 
 async function main() {
   const originalFetch = global.fetch;
@@ -17,17 +17,6 @@ async function main() {
           result: body.method === "host.info"
             ? { protocol_version: "0.1.0", methods: [], supported_transports: ["http_rpc"] }
             : [],
-          diagnostics: body.method === "kernel.v1.host.info"
-            ? [{
-              code: "plurora.contract.alias.legacy_adapter",
-              severity: "warning",
-              requested_id: "kernel.v1.host.info",
-              canonical_id: "host.info",
-              maturity: "legacy_adapter",
-              message: "use host.info; no new field semantics will be added",
-              replacement: "host.info",
-            }]
-            : undefined,
         };
       },
     };
@@ -46,22 +35,16 @@ async function main() {
     const client = fromHttpRpc("http://host.test/rpc");
     await client.negotiateHost(selection);
     await client.invoke("host.target.list", {});
-    await client.invoke("kernel.v1.host.info", {});
+    await client.invoke("host.info", {});
     await client.invoke("host.target.list", {});
-    const diagnostic = client.drainContractDiagnostics()[0];
-    assert.equal(diagnostic.code, "plurora.contract.alias.legacy_adapter");
-    assert.equal(diagnostic.maturity, "legacy_adapter");
-    assert.equal(diagnostic.replacement, "host.info");
-    assert.deepEqual(client.drainContractDiagnostics(), []);
-
     assert.deepEqual(requests, [
       { jsonrpc: "2.0", id: "1", method: "host.info", params: {}, contract: selection },
       { jsonrpc: "2.0", id: "2", method: "host.target.list", params: {}, contract: selection },
-      { jsonrpc: "2.0", id: "3", method: "kernel.v1.host.info", params: {}, contract: selection },
+      { jsonrpc: "2.0", id: "3", method: "host.info", params: {}, contract: selection },
       { jsonrpc: "2.0", id: "4", method: "host.target.list", params: {}, contract: selection },
     ]);
 
-    const unsupportedTransport = new KernelClient({
+    const unsupportedTransport = new PluroraClient({
       async invoke() { return {}; },
       async *invokeStream() {},
     });

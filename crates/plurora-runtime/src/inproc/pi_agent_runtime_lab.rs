@@ -48,7 +48,7 @@ fn run(request: &InprocInvocation) -> anyhow::Result<Value> {
         "proposal_draft": {
             "kind": "pi_agent_proposal_draft",
             "requires_user_approval": true,
-            "recommended_operation": "kernel.v1.session.fork",
+            "recommended_operation": "context.fork",
             "plan_summary": "deterministic no-inference agent run plan"
         },
         "provenance": {
@@ -76,7 +76,7 @@ fn draft_proposal(request: &InprocInvocation) -> anyhow::Result<Value> {
     Ok(serde_json::json!({
         "kind": "pi_agent_proposal",
         "requires_user_approval": true,
-        "recommended_operation": "kernel.v1.session.fork",
+        "recommended_operation": "context.fork",
         "proposal": request.input,
         "provenance": {
             "package_id": request.provider_package_id,

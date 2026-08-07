@@ -58,7 +58,7 @@ fn describe_contract() -> Value {
         ],
         "modality_scope": ["text", "image", "audio", "video", "structured"],
         "red_lines": {
-            "not_kernel_database": true,
+            "not_platform_database": true,
             "not_event_store_replacement": true,
             "not_package_raw_backend_access": true,
             "no_real_tdb_crate_linkage_in_alpha": true,
@@ -174,7 +174,7 @@ fn explain_backend_fit() -> Value {
             "raw package database access"
         ],
         "integration_boundary": {
-            "kernel_owns": ["events", "sessions", "packages", "capabilities", "permissions", "assets", "proposals"],
+            "platform_owns": ["events", "sessions", "packages", "capabilities", "permissions", "assets", "proposals"],
             "tdb_adapter_owns": ["retrieval index plans", "provider-specific ranking", "result references", "retrieval provenance"],
             "host_owns": ["backend enablement", "secret-bearing backend config", "resource limits", "audit policy"]
         },
@@ -252,7 +252,7 @@ fn describe_real_tdb_opt_in_seam() -> Value {
             {
                 "mode": "subprocess_adapter_package",
                 "default_preference": true,
-                "why": "keeps TDB faults, file locks, and native dependencies outside the host kernel process"
+                "why": "keeps TDB faults, file locks, and native dependencies outside the host platform runtime process"
             },
             {
                 "mode": "feature_gated_inproc_adapter",

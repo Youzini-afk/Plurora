@@ -105,7 +105,7 @@ autoload:
 cargo run -p plurora-cli -- host serve --http 127.0.0.1:8787 --profile profiles/forge-alpha.yaml
 ```
 
-Home 通过 `kernel.v1.surface.contribution.list` 发现能力包。Forge 通过同一公开协议发现 panel。UI 不会获得私有 runtime handle。
+Home 通过 `shell.contribution.list` 发现能力包。Forge 通过同一公开协议发现 panel。UI 不会获得私有 runtime handle。
 
 Forge 现在包含基于 public protocol data 的轻量 authoring panels：
 
@@ -133,7 +133,7 @@ Forge 现在包含基于 public protocol data 的轻量 authoring panels：
 - Packages 只能写入授权 namespace。
 - assistant-like packages 必须返回提案或事件，不能直接修改可信状态。
 - UI 和 tooling 只能使用公开协议方法。
-- 如果能力需要 mutation，应通过权限检查；需要用户审批时走 `kernel.v1.proposal.*`。
+- 如果能力需要 mutation，应通过权限检查；需要用户审批时走 `platform.proposal.*`。
 
 ## 6. Secure execution helpers
 

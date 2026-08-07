@@ -10,10 +10,10 @@ Plurora 现在可以作为自托管 AI / agent 项目的部署宿主。这里的
 
 | 原语 | 协议族 | 作用 |
 |---|---|---|
-| target | `kernel.v1.target.*` | 描述一个可运行目标。内置 `local` 与 enrolled remote Agent 进入同一 registry/driver 合同。 |
-| exec | `kernel.v1.exec.*` | 启动、停止、查询一个受控本地执行。默认全拒。 |
-| port | `kernel.v1.port.*` | 向 host 租一个 loopback 端口。 |
-| proxy | `kernel.v1.proxy.*` | 把受管 HTTP / WebSocket route 绑定到某个 port lease，并显式记录 Host 认证或公开访问。 |
+| target | `platform.target.*` | 描述一个可运行目标。内置 `local` 与 enrolled remote Agent 进入同一 registry/driver 合同。 |
+| exec | `platform.exec.*` | 启动、停止、查询一个受控本地执行。默认全拒。 |
+| port | `platform.port.*` | 向 host 租一个 loopback 端口。 |
+| proxy | `platform.proxy.*` | 把受管 HTTP / WebSocket route 绑定到某个 port lease，并显式记录 Host 认证或公开访问。 |
 
 Docker、git、安装、secret store、workspace、adapter 都不是内核概念。它们由普通能力包实现。
 
@@ -94,9 +94,9 @@ volume 可以指向任意宿主路径，但必须逐条批准。默认建议只�
 项目控制台里的 Deploy 按钮不会自动触发。用户确认后，请求发到 host-plane 的 `POST /host/v1/deploy`，由 host broker 在服务端串起整条链路（浏览器只是瘦客户端，不再亲自编排）：
 
 1. host 侧重新校验请求（不信任客户端字段）。
-2. `kernel.v1.port.lease`：向 host 租 loopback 端口。
-3. `kernel.v1.capability.invoke` → `official/docker-runtime-lab/start_container`：启动 Docker 容器，传入 `approved: true`、`host_port` 与 `port_lease_id`。
-4. `kernel.v1.proxy.register`：把 route 与显式 `route_access` 绑定到刚租到的 port lease（此时 `ready=false`）。
+2. `host.port.lease`：向 host 租 loopback 端口。
+3. `capability.invoke` → `official/docker-runtime-lab/start_container`：启动 Docker 容器，传入 `approved: true`、`host_port` 与 `port_lease_id`。
+4. `host.proxy.register`：把 route 与显式 `route_access` 绑定到刚租到的 port lease（此时 `ready=false`）。
 5. readiness probe：对 loopback 端口做 TCP 连接（带可选 health_path 的 HTTP 探测），有界超时内成功才把 route 翻成 `ready=true` 并返回成功。
 
 任意一步失败后，broker 会反向回滚：注销 proxy、停止刚启动的 container、释放 port lease。因为编排在 host 侧，关闭浏览器标签页不会留下孤儿容器或端口租约。
@@ -161,7 +161,7 @@ recover / rollback 都是显式用户动作。普通修订要求 replay-safe、�
 
 ## `project.start` 不自动部署
 
-`kernel.v1.project.start` 仍是项目状态机：打开或复用项目 session，标记 Running，返回 `session_id`。它不启动进程、不分配端口、不注册 proxy。
+`host.project.start` 仍是项目状态机：打开或复用项目 session，标记 Running，返回 `session_id`。它不启动进程、不分配端口、不注册 proxy。
 
 部署是单独的、显式的 host-broker 行为。这样可以保留“打开项目 UI”和“运行外部服务”之间的可见边界。
 

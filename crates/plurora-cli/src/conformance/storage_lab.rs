@@ -40,7 +40,7 @@ use crate::commands::manifest;
 
 const PACKAGE_ID: &str = "official/storage-lab";
 
-fn forbidden_kernel_namespace_tokens() -> Vec<String> {
+fn forbidden_platform_namespace_tokens() -> Vec<String> {
     [
         "sqlite",
         "postgres",
@@ -52,7 +52,7 @@ fn forbidden_kernel_namespace_tokens() -> Vec<String> {
         "database",
     ]
     .into_iter()
-    .map(|segment| format!("kernel.v1.{segment}."))
+    .map(|segment| format!("platform.{segment}."))
     .collect()
 }
 
@@ -89,7 +89,7 @@ async fn invoke(
 
 /// Case 1: Contract shape — 8 capabilities, 3 surfaces, ordinary package,
 /// no reserved kernel database namespace terms.
-pub(crate) async fn contract_shape_no_kernel_database_terms() -> anyhow::Result<()> {
+pub(crate) async fn contract_shape_no_platform_database_terms() -> anyhow::Result<()> {
     let rt = load_storage_lab().await?;
 
     let contract = invoke(&rt, "describe_storage_contract", json!({})).await?;
@@ -127,7 +127,7 @@ pub(crate) async fn contract_shape_no_kernel_database_terms() -> anyhow::Result<
 
     // No kernel database terms
     let output_str = serde_json::to_string(&contract.output).unwrap();
-    let forbidden = forbidden_kernel_namespace_tokens();
+    let forbidden = forbidden_platform_namespace_tokens();
     for token in &forbidden {
         anyhow::ensure!(
             !output_str.contains(token),
@@ -188,7 +188,7 @@ pub(crate) async fn backend_classes_no_secret_config() -> anyhow::Result<()> {
     );
 
     // No kernel database namespace tokens
-    let forbidden = forbidden_kernel_namespace_tokens();
+    let forbidden = forbidden_platform_namespace_tokens();
     for token in &forbidden {
         anyhow::ensure!(
             !output_str.contains(token),
@@ -554,7 +554,7 @@ pub(crate) async fn blob_contract_shape() -> anyhow::Result<()> {
 
     // No forbidden namespace tokens
     let output_str = serde_json::to_string(&contract.output).unwrap();
-    let forbidden = forbidden_kernel_namespace_tokens();
+    let forbidden = forbidden_platform_namespace_tokens();
     for token in &forbidden {
         anyhow::ensure!(
             !output_str.contains(token),
@@ -913,8 +913,8 @@ pub(crate) async fn projection_contract_shape() -> anyhow::Result<()> {
         "must not contain database terminology"
     );
 
-    // No kernel namespace tokens
-    let forbidden = forbidden_kernel_namespace_tokens();
+    // No platform-reserved namespace tokens
+    let forbidden = forbidden_platform_namespace_tokens();
     for token in &forbidden {
         anyhow::ensure!(
             !output_str.contains(token),
@@ -1157,7 +1157,7 @@ pub(crate) async fn projection_no_db_table_leakage() -> anyhow::Result<()> {
     ];
 
     let forbidden_terms = ["table", "collection", "vector", "\"database\""];
-    let kernel_prefixes = forbidden_kernel_namespace_tokens();
+    let platform_prefixes = forbidden_platform_namespace_tokens();
 
     for (cap, input) in capabilities {
         let result = invoke(&rt, cap, input).await?;
@@ -1177,7 +1177,7 @@ pub(crate) async fn projection_no_db_table_leakage() -> anyhow::Result<()> {
                 term
             );
         }
-        for prefix in &kernel_prefixes {
+        for prefix in &platform_prefixes {
             anyhow::ensure!(
                 !output_str.contains(prefix),
                 "projection capability {} must not contain {}",
@@ -1229,11 +1229,11 @@ pub(crate) async fn retrieval_contract_shape() -> anyhow::Result<()> {
     anyhow::ensure!(red_lines.contains(&json!("no_vector_storage")));
     anyhow::ensure!(red_lines.contains(&json!("no_network")));
     anyhow::ensure!(red_lines.contains(&json!("no_secret_backend_config")));
-    anyhow::ensure!(red_lines.contains(&json!("no_kernel_vector_namespace")));
+    anyhow::ensure!(red_lines.contains(&json!("no_platform_vector_namespace")));
 
-    // No kernel namespace tokens
+    // No platform-reserved namespace tokens
     let output_str = serde_json::to_string(&contract.output).unwrap();
-    let forbidden = forbidden_kernel_namespace_tokens();
+    let forbidden = forbidden_platform_namespace_tokens();
     for token in &forbidden {
         anyhow::ensure!(
             !output_str.contains(token),
@@ -1422,9 +1422,9 @@ pub(crate) async fn backend_fit_mentions_tdb_future_only() -> anyhow::Result<()>
         "tdb_future must have status future"
     );
 
-    // No kernel namespace tokens
+    // No platform-reserved namespace tokens
     let output_str = serde_json::to_string(&fit.output).unwrap();
-    let forbidden = forbidden_kernel_namespace_tokens();
+    let forbidden = forbidden_platform_namespace_tokens();
     for token in &forbidden {
         anyhow::ensure!(
             !output_str.contains(token),
@@ -1502,7 +1502,8 @@ pub(crate) async fn retrieval_rejects_raw_secret() -> anyhow::Result<()> {
 }
 
 /// Case 28: Retrieval no kernel vector namespace or credentials.
-pub(crate) async fn retrieval_no_kernel_vector_namespace_or_secret_config() -> anyhow::Result<()> {
+pub(crate) async fn retrieval_no_platform_vector_namespace_or_secret_config() -> anyhow::Result<()>
+{
     let rt = load_storage_lab().await?;
 
     let capabilities = vec![
@@ -1532,13 +1533,13 @@ pub(crate) async fn retrieval_no_kernel_vector_namespace_or_secret_config() -> a
         ),
     ];
 
-    let kernel_prefixes = forbidden_kernel_namespace_tokens();
+    let platform_prefixes = forbidden_platform_namespace_tokens();
 
     for (cap, input) in capabilities {
         let result = invoke(&rt, cap, input).await?;
         let output_str = serde_json::to_string(&result.output).unwrap();
 
-        for prefix in &kernel_prefixes {
+        for prefix in &platform_prefixes {
             anyhow::ensure!(
                 !output_str.contains(prefix),
                 "retrieval capability {} must not contain {}",

@@ -5,9 +5,7 @@
         "substrate",
         "host",
         "protocol",
-        "shell",
-        "cross_layer",
-        "legacy_adapter"
+        "shell"
       ],
       "type": "string"
     },

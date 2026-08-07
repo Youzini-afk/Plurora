@@ -14,7 +14,7 @@
 //! package-owned storage/data shapes.
 //!
 //! No reserved storage/database/blob/projection/sql/vector/embedding/retrieval
-//! kernel namespace references.
+//! platform-reserved namespace references.
 //!
 //! State terminology: storage_contract, backend_class, package_state_plan,
 //! document_preview, tombstone_preview, snapshot_preview,
@@ -115,7 +115,7 @@ fn forbidden_namespace_tokens() -> Vec<String> {
         "database",
     ]
     .into_iter()
-    .map(|segment| format!("kernel.v1.{segment}."))
+    .map(|segment| format!("platform.{segment}."))
     .collect()
 }
 
@@ -1330,7 +1330,7 @@ fn describe_retrieval_provider_contract(request: &InprocInvocation) -> anyhow::R
             "no_vector_storage",
             "no_network",
             "no_secret_backend_config",
-            "no_kernel_vector_namespace",
+            "no_platform_vector_namespace",
             "no_raw_vectors_in_output",
             "no_distance_metric_leakage",
         ],
@@ -1582,7 +1582,7 @@ fn explain_retrieval_backend_fit(request: &InprocInvocation) -> anyhow::Result<V
                     } else {
                         "medium_fit"
                     },
-                    "Future TDB multimodal provider slot — graph, vector, and symbolic hybrid search; not a kernel namespace",
+                    "Future TDB multimodal provider slot — graph, vector, and symbolic hybrid search; not a platform-reserved namespace",
                 ),
                 "pgvector_future" => (
                     if workload_hint == "similarity" || workload_hint == "structured" {
@@ -2185,7 +2185,7 @@ mod tests {
             !lower_no_negation.contains("\"database\""),
             "must not contain database terminology"
         );
-        // No kernel namespace tokens
+        // No platform-reserved namespace tokens
         for token in forbidden_namespace_tokens() {
             assert!(
                 !output_str.contains(&token),
@@ -2319,7 +2319,7 @@ mod tests {
         assert!(red_lines.contains(&json!("no_vector_storage")));
         assert!(red_lines.contains(&json!("no_network")));
         assert!(red_lines.contains(&json!("no_secret_backend_config")));
-        assert!(red_lines.contains(&json!("no_kernel_vector_namespace")));
+        assert!(red_lines.contains(&json!("no_platform_vector_namespace")));
 
         assert_eq!(result["inference_performed"], json!(false));
         assert_eq!(result["network_performed"], json!(false));
@@ -2527,7 +2527,7 @@ mod tests {
     }
 
     #[test]
-    fn retrieval_no_kernel_vector_namespace_or_secret_config() {
+    fn retrieval_no_platform_vector_namespace_or_secret_config() {
         let req = make_request(
             "official/storage-lab/describe_retrieval_provider_contract",
             json!({}),
@@ -2535,7 +2535,7 @@ mod tests {
         let result = try_handle(&req).unwrap().unwrap();
         let output_str = serde_json::to_string(&result).unwrap();
 
-        // No kernel namespace tokens
+        // No platform-reserved namespace tokens
         for token in forbidden_namespace_tokens() {
             assert!(!output_str.contains(&token), "must not contain {}", token);
         }
@@ -2566,7 +2566,7 @@ mod tests {
             .replace("remote_vector_provider_future", "")
             .replace("opensearch_vector_future", "")
             .replace("redis_vector_future", "")
-            .replace("no_kernel_vector_namespace", "")
+            .replace("no_platform_vector_namespace", "")
             .replace("no_vector_storage", "")
             .replace("no_raw_vectors_in_output", "")
             .replace("similarity_search_provider_future", "")

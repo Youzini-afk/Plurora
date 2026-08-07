@@ -3,13 +3,12 @@ use plurora_runtime::*;
 use serde_json::{json, Value};
 
 use super::defs::*;
-use super::write::filename;
-use super::{BASE, SCHEMA};
+use super::SCHEMA;
 
 pub(crate) fn event_schema(kind: &str, payload: Value) -> Value {
     json!({
         "$schema": SCHEMA,
-        "$id": format!("{BASE}/events/{}.schema.json", filename(kind)),
+        "$id": format!("urn:plurora:schema:event:{kind}:v1"),
         "title": kind,
         "description": format!("Payload schema for event kind {kind}."),
         "type": "object",

@@ -1,6 +1,6 @@
 use chrono::Utc;
 use plurora_core::{
-    new_id, KernelSession, SessionId, SessionStatus, EVENT_SESSION_CLOSED, EVENT_SESSION_OPENED,
+    new_id, SessionId, SessionRecord, SessionStatus, EVENT_SESSION_CLOSED, EVENT_SESSION_OPENED,
 };
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -23,13 +23,13 @@ where
     pub async fn open_session(
         &self,
         mut request: OpenSessionRequest,
-    ) -> anyhow::Result<KernelSession> {
+    ) -> anyhow::Result<SessionRecord> {
         if request.labels.is_empty() {
             request.labels = self.config.default_labels.clone();
         }
 
         let now = Utc::now();
-        let session = KernelSession {
+        let session = SessionRecord {
             id: new_id("ses"),
             labels: request.labels,
             active_package_set: request.active_package_set,
@@ -45,7 +45,7 @@ where
             .await
             .insert(session.id.clone(), session.clone());
 
-        self.append_kernel_event(
+        self.append_platform_event(
             &session.id,
             EVENT_SESSION_OPENED,
             serde_json::json!({
@@ -73,7 +73,7 @@ where
             None => anyhow::bail!("session '{session_id}' is not open"),
         }
         drop(sessions);
-        self.append_kernel_event(&session_id, EVENT_SESSION_CLOSED, serde_json::json!({}))
+        self.append_platform_event(&session_id, EVENT_SESSION_CLOSED, serde_json::json!({}))
             .await
     }
 }
@@ -84,10 +84,10 @@ mod tests {
 
     use super::*;
     use crate::{InMemoryEventStore, RuntimeConfig};
-    use plurora_core::KERNEL_PACKAGE_ID;
+    use plurora_core::PLATFORM_RUNTIME_ID;
 
     #[tokio::test]
-    async fn session_open_records_kernel_event() -> anyhow::Result<()> {
+    async fn session_open_records_platform_event() -> anyhow::Result<()> {
         let store = Arc::new(InMemoryEventStore::default());
         let runtime = Runtime::new(store.clone(), RuntimeConfig::default());
 
@@ -96,9 +96,9 @@ mod tests {
 
         assert_eq!(events.len(), 1);
         assert_eq!(events[0].sequence, 0);
-        assert_eq!(events[0].writer_package_id, KERNEL_PACKAGE_ID);
+        assert_eq!(events[0].writer_package_id, PLATFORM_RUNTIME_ID);
         assert_eq!(events[0].kind, EVENT_SESSION_OPENED);
-        assert!(events[0].is_kernel_event());
+        assert!(events[0].is_platform_event());
 
         Ok(())
     }

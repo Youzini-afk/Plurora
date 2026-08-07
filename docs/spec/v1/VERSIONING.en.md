@@ -2,7 +2,7 @@
 
 ## Method namespace
 
-The historical v1 schema files retain their `kernel.v1.*` names. The Contract Registry may expose a layered canonical wire ID (for example `host.target.list`) while retaining the corresponding `kernel.v1.*` ID as an explicit compatibility alias. Both IDs resolve at one boundary to the same handler and v1 payload semantics. Future breaking wire contracts use a separately negotiated major version; they do not overwrite v1.
+The historical v1 schema files retain their `platform.*` names. The Contract Registry may expose a layered canonical wire ID (for example `host.target.list`) while retaining the corresponding `platform.*` ID as an explicit compatibility alias. Both IDs resolve at one boundary to the same handler and v1 payload semantics. Future breaking wire contracts use a separately negotiated major version; they do not overwrite v1.
 
 ## Schema rule
 
@@ -20,4 +20,4 @@ Use `kernel.v2.*` for breaking changes: required-field changes, existing field t
 
 ## Negotiation
 
-New clients call canonical `host.info` and inspect `contract_registry_version`, `contract_methods`, `aliases`, profiles, and protocol descriptors in addition to the historical method/status fields. Older clients may still call `kernel.v1.host.info`; registry `0.4.0` marked that alias Deprecated, and registry `0.5.0` transitions it to an identity Legacy Adapter while retaining the original support-window metadata and advisory migration diagnostic. That adapter accepts security fixes and data-reading compatibility but no new field semantics. A client needing a method should select a supported contract/profile, prefer the advertised canonical ID, and reject an unsupported version rather than guessing or silently downgrading.
+New clients call canonical `host.info` and inspect `contract_registry_version`, `contract_methods`, `aliases`, profiles, and protocol descriptors in addition to the historical method/status fields. Older clients may still call `host.info`; registry `0.4.0` marked that alias Deprecated, and registry `0.5.0` transitions it to an identity Legacy Adapter while retaining the original support-window metadata and advisory migration diagnostic. That adapter accepts security fixes and data-reading compatibility but no new field semantics. A client needing a method should select a supported contract/profile, prefer the advertised canonical ID, and reject an unsupported version rather than guessing or silently downgrading.

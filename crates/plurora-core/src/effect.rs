@@ -17,7 +17,7 @@ pub const APPROVAL_EVIDENCE_TYPE_URI: &str = "urn:plurora:approval-evidence:v1";
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, PartialEq, Eq)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum PrincipalIdentity {
-    Kernel,
+    PlatformRuntime,
     HostAdmin,
     HostDev,
     Package {

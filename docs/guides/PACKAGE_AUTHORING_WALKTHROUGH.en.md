@@ -105,7 +105,7 @@ Then run:
 cargo run -p plurora-cli -- host serve --http 127.0.0.1:8787 --profile profiles/forge-alpha.yaml
 ```
 
-Home discovers the package through `kernel.v1.surface.contribution.list`. Forge discovers panels through the same protocol. The UI does not receive private runtime handles.
+Home discovers the package through `shell.contribution.list`. Forge discovers panels through the same protocol. The UI does not receive private runtime handles.
 
 Forge now includes lightweight authoring panels over public protocol data:
 
@@ -133,7 +133,7 @@ The `examples/packages/thirdparty-playable-seed` package is the current proof. C
 - Packages must write only inside authorized namespaces.
 - Assistant-like packages must return proposals or events, not mutate trusted state directly.
 - UI and tooling must use public protocol methods only.
-- If a capability needs mutation, route it through permission checks and `kernel.v1.proposal.*` when user approval is required.
+- If a capability needs mutation, route it through permission checks and `platform.proposal.*` when user approval is required.
 
 ## 6. Secure execution helpers
 

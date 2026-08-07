@@ -91,7 +91,7 @@ mod y2_tests {
         let result = runtime
             .call_protocol(
                 &context,
-                "kernel.v1.outbound.execute",
+                "host.outbound.execute",
                 serde_json::json!({
                     "capability_id": "example/y2-undeclared/fetch",
                     "destination_host": "api.openai.com",
@@ -139,7 +139,7 @@ mod y2_tests {
         let result = runtime
             .call_protocol(
                 &context,
-                "kernel.v1.outbound.execute",
+                "host.outbound.execute",
                 serde_json::json!({
                     "capability_id": "example/y2-declared/fetch",
                     "destination_host": "api.openai.com",
@@ -182,7 +182,7 @@ mod y2_tests {
         let result = runtime
             .call_protocol(
                 &context,
-                "kernel.v1.outbound.execute",
+                "host.outbound.execute",
                 serde_json::json!({
                     "capability_id": "example/y2-no-secret/fetch",
                     "destination_host": "api.openai.com",
@@ -217,7 +217,7 @@ mod y2_tests {
         let result = runtime
             .call_protocol(
                 &context,
-                "kernel.v1.outbound.execute",
+                "host.outbound.execute",
                 serde_json::json!({
                     "capability_id": "example/y2-multi/fetch",
                     "destination_host": "api.openai.com",
@@ -256,7 +256,7 @@ mod y2_tests {
         let result = runtime
             .call_protocol(
                 &context,
-                "kernel.v1.outbound.execute",
+                "host.outbound.execute",
                 serde_json::json!({
                     "capability_id": "example/y2-toplevel/fetch",
                     "destination_host": "api.openai.com",
@@ -381,7 +381,7 @@ mod host_resource_authority_tests {
         let forked = runtime
             .call_protocol(
                 &context,
-                "kernel.v1.session.fork",
+                "context.fork",
                 serde_json::json!({
                     "parent_session_id": session_id,
                     "forked_from_sequence": 0,
@@ -401,7 +401,7 @@ mod host_resource_authority_tests {
         runtime
             .call_protocol(
                 &context,
-                "kernel.v1.session.get",
+                "context.get",
                 serde_json::json!({"session_id": child_session_id}),
             )
             .await
@@ -448,18 +448,14 @@ mod host_resource_authority_tests {
         );
         let exact = project_device("authority_project_a__abc12345");
         assert!(runtime
-            .call_protocol(
-                &exact,
-                "kernel.v1.surface.contribution.list",
-                serde_json::json!({}),
-            )
+            .call_protocol(&exact, "shell.contribution.list", serde_json::json!({}),)
             .await
             .is_err());
         for method in [
-            "kernel.v1.package.list",
-            "kernel.v1.capability.discover",
-            "kernel.v1.asset.list",
-            "kernel.v1.projection.list",
+            "host.package.list",
+            "capability.discover",
+            "object.list",
+            "projection.list",
         ] {
             assert!(
                 runtime
@@ -483,11 +479,7 @@ mod host_resource_authority_tests {
         );
         assert_eq!(
             runtime
-                .call_protocol(
-                    &global,
-                    "kernel.v1.surface.contribution.list",
-                    serde_json::json!({}),
-                )
+                .call_protocol(&global, "shell.contribution.list", serde_json::json!({}),)
                 .await
                 .expect("all-project device can enumerate the Host catalogue"),
             serde_json::json!([])
@@ -546,7 +538,7 @@ mod surface_tests {
         let value = runtime
             .call_protocol(
                 &ProtocolContext::host_dev("test"),
-                "kernel.v1.surface.resolve_bundle",
+                "host.surface.bundle.resolve",
                 serde_json::json!({ "surface_id": "pkg/surface/entry" }),
             )
             .await
@@ -573,7 +565,7 @@ mod surface_tests {
         let value = runtime
             .call_protocol(
                 &ProtocolContext::host_dev("test"),
-                "kernel.v1.surface.resolve_bundle",
+                "host.surface.bundle.resolve",
                 serde_json::json!({ "surface_id": "example/surface" }),
             )
             .await
@@ -612,7 +604,7 @@ mod deployment_hub_tests {
         let result = runtime
             .call_protocol(
                 &context,
-                "kernel.v1.exec.start",
+                "host.exec.start",
                 serde_json::json!({
                     "target_id": "local",
                     "command": {"program": "definitely-not-started", "args": []}
@@ -637,7 +629,7 @@ mod deployment_hub_tests {
         let result = runtime
             .call_protocol(
                 &context,
-                "kernel.v1.port.lease",
+                "host.port.lease",
                 serde_json::json!({
                     "target_id": "local",
                     "port_name": "web",
@@ -660,7 +652,7 @@ mod deployment_hub_tests {
         let missing = runtime
             .call_protocol(
                 &context,
-                "kernel.v1.proxy.register",
+                "host.proxy.register",
                 serde_json::json!({
                     "upstream": {"port_lease_id": "missing", "port_name": "web"},
                     "protocol": "http"
@@ -672,7 +664,7 @@ mod deployment_hub_tests {
         let lease = runtime
             .call_protocol(
                 &context,
-                "kernel.v1.port.lease",
+                "host.port.lease",
                 serde_json::json!({"target_id":"local","port_name":"web"}),
             )
             .await
@@ -682,7 +674,7 @@ mod deployment_hub_tests {
         let registered = runtime
             .call_protocol(
                 &context,
-                "kernel.v1.proxy.register",
+                "host.proxy.register",
                 serde_json::json!({
                     "upstream": {"port_lease_id": lease_id, "port_name": "web"},
                     "protocol": "http"
@@ -711,13 +703,13 @@ mod deployment_hub_tests {
         let result = runtime
             .call_protocol(
                 &context,
-                "kernel.v1.port.lease",
+                "host.port.lease",
                 serde_json::json!({"target_id":"local","port_name":"web"}),
             )
             .await;
 
         let error = result.expect_err("anonymous deployment hub call must be denied");
-        assert_eq!(error.code, "kernel/v1/error/permission_denied");
+        assert_eq!(error.code, "runtime/error/permission_denied");
     }
 
     #[tokio::test]
@@ -728,7 +720,7 @@ mod deployment_hub_tests {
         let lease = runtime
             .call_protocol(
                 &context,
-                "kernel.v1.port.lease",
+                "host.port.lease",
                 serde_json::json!({"target_id":"local","port_name":"web"}),
             )
             .await
@@ -738,7 +730,7 @@ mod deployment_hub_tests {
         let mismatch = runtime
             .call_protocol(
                 &context,
-                "kernel.v1.proxy.register",
+                "host.proxy.register",
                 serde_json::json!({
                     "upstream": {"port_lease_id": lease_id, "port_name": "admin"},
                     "protocol": "http"
@@ -832,7 +824,7 @@ mod z_websocket_tests {
         let result = runtime
             .call_protocol(
                 &context,
-                "kernel.v1.outbound.websocket.open",
+                "host.outbound.websocket.open",
                 serde_json::json!({
                     "capability_id": "other/pkg/ws",
                     "destination_host": "api.example.com"
@@ -854,7 +846,7 @@ mod z_websocket_tests {
         let result = runtime
             .call_protocol(
                 &context,
-                "kernel.v1.outbound.websocket.open",
+                "host.outbound.websocket.open",
                 serde_json::json!({
                     "capability_id": "example/ws-secret/ws",
                     "destination_host": "api.example.com",
@@ -877,7 +869,7 @@ mod z_websocket_tests {
         let result = runtime
             .call_protocol(
                 &context,
-                "kernel.v1.outbound.websocket.open",
+                "host.outbound.websocket.open",
                 serde_json::json!({
                     "capability_id": "example/ws-ok/ws",
                     "destination_host": "api.example.com",
@@ -944,7 +936,7 @@ mod z_websocket_tests {
         let _ = runtime
             .call_protocol(
                 &context,
-                "kernel.v1.outbound.execute",
+                "host.outbound.execute",
                 serde_json::json!({
                     "capability_id": "example/z6-exec-ok/ws",
                     "destination_host": "api.example.com",
@@ -986,7 +978,7 @@ mod z_websocket_tests {
         let _ = runtime
             .call_protocol(
                 &context,
-                "kernel.v1.outbound.execute",
+                "host.outbound.execute",
                 serde_json::json!({
                     "capability_id": "example/z6-exec-error/ws",
                     "destination_host": "api.example.com",
@@ -1011,7 +1003,7 @@ mod z_websocket_tests {
         let result = runtime
             .call_protocol(
                 &context,
-                "kernel.v1.outbound.execute",
+                "host.outbound.execute",
                 serde_json::json!({
                     "capability_id": "example/z6-exec-denied/ws",
                     "destination_host": "denied.example.com",
@@ -1036,7 +1028,7 @@ mod z_websocket_tests {
         let _ = runtime
             .call_protocol(
                 &context,
-                "kernel.v1.outbound.stream",
+                "host.outbound.stream",
                 serde_json::json!({
                     "capability_id": "example/z6-stream-ended/ws",
                     "destination_host": "api.example.com",
@@ -1063,7 +1055,7 @@ mod z_websocket_tests {
         let response = runtime
             .call_protocol(
                 &context,
-                "kernel.v1.outbound.stream",
+                "host.outbound.stream",
                 serde_json::json!({
                     "capability_id": "example/z6-stream-cancel/ws",
                     "destination_host": "api.example.com",
@@ -1077,10 +1069,10 @@ mod z_websocket_tests {
         runtime
             .call_protocol(
                 &context,
-                "kernel.v1.capability.cancel",
+                "capability.cancel",
                 serde_json::json!({
                     "stream_id": stream_id,
-                    "session_id": "kernel_outbound_stream_example_z6-stream-cancel"
+                    "session_id": "platform_outbound_stream_example_z6-stream-cancel"
                 }),
             )
             .await
@@ -1111,7 +1103,7 @@ mod z_websocket_tests {
         let _ = runtime
             .call_protocol(
                 &context,
-                "kernel.v1.outbound.websocket.open",
+                "host.outbound.websocket.open",
                 serde_json::json!({
                     "capability_id": "example/z6-ws-close/ws",
                     "destination_host": "api.example.com"
@@ -1162,7 +1154,7 @@ mod z_websocket_tests {
             .await
             .unwrap();
         let context = ProtocolContext::package("example/z6-secret", "in_process");
-        let _ = runtime.call_protocol(&context, "kernel.v1.outbound.execute", serde_json::json!({
+        let _ = runtime.call_protocol(&context, "host.outbound.execute", serde_json::json!({
             "capability_id": "example/z6-secret/ws",
             "destination_host": "api.example.com",
             "method": "WEBSOCKET",
@@ -1196,7 +1188,7 @@ mod z_websocket_tests {
         let _ = runtime
             .call_protocol(
                 &context,
-                "kernel.v1.outbound.websocket.open",
+                "host.outbound.websocket.open",
                 serde_json::json!({
                     "capability_id": "example/z6-ws-scrub/ws",
                     "destination_host": "api.example.com"

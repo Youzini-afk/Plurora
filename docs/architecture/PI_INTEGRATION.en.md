@@ -10,14 +10,14 @@ Plurora must be able to host, constrain, observe, and replace agent Components a
 
 Agent infrastructure reuses existing public primitives:
 
-- `kernel.v1.capability.discover/describe` finds capabilities that may be adapted as tools;
-- `kernel.v1.capability.invoke/stream/cancel` executes, advances, streams, and cancels work;
-- `kernel.v1.proposal.*` or the generic Change workflow carries reviewed mutations;
-- `kernel.v1.event.*` carries traces, tool calls, and run events under the current Package-writer namespace;
-- `kernel.v1.surface.contribution.*` lets shells discover agent actions, traces, and review panels;
+- `capability.discover/describe` finds capabilities that may be adapted as tools;
+- `capability.invoke/stream/cancel` executes, advances, streams, and cancels work;
+- `platform.proposal.*` or the generic Change workflow carries reviewed mutations;
+- `journal.event.*` carries traces, tool calls, and run events under the current Package-writer namespace;
+- `platform.surface.contribution.*` lets shells discover agent actions, traces, and review panels;
 - capability handles, permissions, `secret_ref`, network declarations, outbound audit, and stream ownership constrain effects.
 
-There is no private `kernel.v1.agent.*` path and no additional authority for an agent package merely because it is maintained by the project.
+There is no private `platform.agent.*` path and no additional authority for an agent package merely because it is maintained by the project.
 
 ## Layered use of pi
 
@@ -34,11 +34,11 @@ The detailed upstream ledger is in [`../../integrations/pi/README.md`](../../int
 | Agent concept | Plurora public primitive | Rule |
 |---|---|---|
 | run / turn / step | Component capability call, stream, or protocol-owned state | The substrate gains no agent lifecycle. |
-| cancellation | `kernel.v1.capability.cancel` | Only caller-owned invocations and streams may be cancelled. |
-| tool discovery | `kernel.v1.capability.discover/describe` | A tool is an adapter view of a capability. |
-| tool execution | `kernel.v1.capability.invoke/stream` | Preserve caller, provider, session, permission, and receipt. |
+| cancellation | `capability.cancel` | Only caller-owned invocations and streams may be cancelled. |
+| tool discovery | `capability.discover/describe` | A tool is an adapter view of a capability. |
+| tool execution | `capability.invoke/stream` | Preserve caller, provider, session, permission, and receipt. |
 | provider ambiguity | Explicit `provider_package_id` | Never prefer an official provider implicitly. |
-| proposed mutation | `kernel.v1.proposal.*` / Change workflow | An agent does not directly mutate trusted state. |
+| proposed mutation | `platform.proposal.*` / Change workflow | An agent does not directly mutate trusted state. |
 | trace | writer-scoped event, stream frame, or artifact | The runtime does not interpret trace payloads. |
 | working state | Component or Product event, object, projection, or capability | No substrate agent state is added. |
 | model / prompt / memory | Optional Protocols and ordinary Components | They remain composable and replaceable outside the constitutional substrate. |
@@ -73,11 +73,11 @@ Agent adapters, reference packages, and shell integrations must not:
 
 The kernel does not add or standardize:
 
-- `kernel.v1.agent.*`
-- `kernel.v1.model.*`
-- `kernel.v1.prompt.*`
-- `kernel.v1.memory.*`
-- `kernel.v1.turn.*`
+- `platform.agent.*`
+- `platform.model.*`
+- `platform.prompt.*`
+- `platform.memory.*`
+- `platform.turn.*`
 - agent state, chat transcripts, prompt templates, provider registries, thinking/reasoning, or memory taxonomies.
 
 Those concepts may be defined by optional Protocols, implemented by Components, and composed by Products. Concrete status and construction direction live in [`../ALPHA_STATUS.md`](../ALPHA_STATUS.en.md) and [`../roadmap/NEXT_STEPS.md`](../roadmap/NEXT_STEPS.en.md).

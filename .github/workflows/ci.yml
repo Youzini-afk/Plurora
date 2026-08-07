@@ -40,17 +40,8 @@ jobs:
       - name: Regenerate schemas and SDKs
         run: bash scripts/regen-sdks.sh
 
-      - name: Validate schema compatibility
-        run: |
-          base_sha="${{ github.event.pull_request.base.sha || github.event.before }}"
-          if [ -n "$base_sha" ] && git cat-file -e "$base_sha:docs/spec/v1/schemas" 2>/dev/null; then
-            rm -rf /tmp/plurora-base-schemas
-            mkdir -p /tmp/plurora-base-schemas
-            git archive "$base_sha" docs/spec/v1/schemas | tar -x -C /tmp/plurora-base-schemas
-            BASE_SCHEMA_DIR=/tmp/plurora-base-schemas/docs/spec/v1/schemas bash scripts/validate-schemas.sh
-          else
-            bash scripts/validate-schemas.sh
-          fi
+      - name: Validate canonical schemas
+        run: bash scripts/validate-schemas.sh
 
       - name: Verify generated files are committed
         run: test -z "$(git status --porcelain -- docs/spec/v1/schemas sdk)"

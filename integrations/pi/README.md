@@ -29,7 +29,7 @@
 
 ### Package-internal optional
 
-这些可以在普通能力包内部可选使用，不得进入 kernel/v1/service/web shell：
+这些可以在普通能力包内部可选使用，不得进入 constitutional substrate, Host service, or Web shell：
 
 - `pi-agent-core` agent loop。
 - `pi-ai` faux provider。
@@ -70,13 +70,13 @@
 
 | pi-inspired idea | Ygg landing point |
 |---|---|
-| Agent run | ordinary package capability via `kernel.v1.capability.invoke/stream` |
-| Abort/cancel | `kernel.v1.capability.cancel` |
+| Agent run | ordinary package capability via `capability.invoke/stream` |
+| Abort/cancel | `capability.cancel` |
 | Tool | adapter view of Ygg capability |
-| Tool execution | `kernel.v1.capability.invoke/stream` with explicit provider package |
+| Tool execution | `capability.invoke/stream` with explicit provider package |
 | Tool gate | permission preview + before/after helper in SDK/package |
 | Trace | package-owned events and stream frames |
-| Proposal | `kernel.v1.proposal.*` |
+| Proposal | `platform.proposal.*` |
 | State | package-owned assets/projections/capabilities |
 | UI | surface contributions consumed by Assist/Forge |
 
@@ -84,7 +84,7 @@
 
 每次 agent infrastructure 更新都要证明：
 
-- 没有新增 `kernel.v1.agent.*`、`kernel.v1.model.*`、`kernel.v1.prompt.*`、`kernel.v1.memory.*`、`kernel.v1.turn.*`。
+- 没有新增 `platform.agent.*`、`platform.model.*`、`platform.prompt.*`、`platform.memory.*`、`platform.turn.*`。
 - official agent/reference packages 没有优先级。
 - tool bridge 对 ambiguous provider 拒绝或要求显式 provider。
 - unauthorized tool calls 失败并审计。

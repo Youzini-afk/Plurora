@@ -1,0 +1,188 @@
+{
+  "$defs": {
+    "Errors": {
+      "items": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "details": true,
+          "message": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "details",
+          "message"
+        ],
+        "title": "ErrorShape",
+        "type": "object"
+      },
+      "type": "array"
+    },
+    "Params": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "properties": {
+        "access": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/ProxyRouteAccess"
+            }
+          ],
+          "default": "host_authenticated"
+        },
+        "protocol": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/ProxyProtocol"
+            }
+          ],
+          "default": "http"
+        },
+        "route_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "upstream": {
+          "$ref": "#/$defs/ProxyRouteUpstream"
+        }
+      },
+      "required": [
+        "upstream"
+      ],
+      "title": "ProxyRouteRegisterRequest",
+      "type": "object"
+    },
+    "ProxyProtocol": {
+      "enum": [
+        "http",
+        "websocket"
+      ],
+      "type": "string"
+    },
+    "ProxyRouteAccess": {
+      "enum": [
+        "host_authenticated",
+        "public"
+      ],
+      "type": "string"
+    },
+    "ProxyRouteRecord": {
+      "properties": {
+        "access": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/ProxyRouteAccess"
+            }
+          ],
+          "default": "host_authenticated"
+        },
+        "id": {
+          "type": "string"
+        },
+        "iframe_url": {
+          "type": "string"
+        },
+        "protocol": {
+          "$ref": "#/$defs/ProxyProtocol"
+        },
+        "public_url": {
+          "type": "string"
+        },
+        "ready": {
+          "type": "boolean"
+        },
+        "status": {
+          "$ref": "#/$defs/ProxyRouteStatusKind"
+        },
+        "upstream": {
+          "$ref": "#/$defs/ProxyRouteUpstream"
+        }
+      },
+      "required": [
+        "id",
+        "iframe_url",
+        "protocol",
+        "public_url",
+        "ready",
+        "status",
+        "upstream"
+      ],
+      "type": "object"
+    },
+    "ProxyRouteStatusKind": {
+      "enum": [
+        "active",
+        "stale",
+        "removed"
+      ],
+      "type": "string"
+    },
+    "ProxyRouteUpstream": {
+      "properties": {
+        "port_lease_id": {
+          "type": "string"
+        },
+        "port_name": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "port_lease_id",
+        "port_name"
+      ],
+      "type": "object"
+    },
+    "Result": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "properties": {
+        "route": {
+          "$ref": "#/$defs/ProxyRouteRecord"
+        }
+      },
+      "required": [
+        "route"
+      ],
+      "title": "ProxyRouteRegisterResponse",
+      "type": "object"
+    }
+  },
+  "$id": "urn:plurora:schema:method:host.proxy.register:v1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Plurora public platform method host.proxy.register.",
+  "properties": {
+    "errors": {
+      "$ref": "#/$defs/Errors"
+    },
+    "method": {
+      "const": "host.proxy.register"
+    },
+    "params": {
+      "$ref": "#/$defs/Params"
+    },
+    "result": {
+      "$ref": "#/$defs/Result"
+    }
+  },
+  "required": [
+    "method",
+    "params"
+  ],
+  "title": "host.proxy.register",
+  "type": "object",
+  "x-plurora-contract": {
+    "id": "host.proxy.register",
+    "implementation_status": "partial",
+    "introduced_in": "plurora.contract.default/v1@0.1.0",
+    "maturity": "experimental",
+    "owner_layer": "host",
+    "request_schema": "urn:plurora:schema:method:host.proxy.register:v1#/$defs/Params",
+    "response_schema": "urn:plurora:schema:method:host.proxy.register:v1#/$defs/Result",
+    "streaming": false
+  }
+}

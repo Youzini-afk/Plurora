@@ -97,15 +97,15 @@ pub(crate) async fn creator_loop_playable_board_template() -> anyhow::Result<()>
         "playable-board should have no network declarations"
     );
 
-    // No kernel namespace in manifest
+    // No platform-reserved namespace in manifest
     let manifest_json = serde_json::to_value(&manifest)?;
     let manifest_str = serde_json::to_string(&manifest_json)?;
     let forbidden = [
-        "kernel.v1.experience",
-        "kernel.v1.world",
-        "kernel.v1.turn",
-        "kernel.v1.chat",
-        "kernel.v1.memory",
+        "platform.experience",
+        "platform.world",
+        "platform.turn",
+        "platform.chat",
+        "platform.memory",
     ];
     for token in &forbidden {
         anyhow::ensure!(
@@ -503,12 +503,12 @@ pub(crate) async fn creator_loop_thirdparty_no_privilege() -> anyhow::Result<()>
         "thirdparty/playable-seed must have surfaces"
     );
 
-    // Verify no kernel namespace in manifest
+    // Verify no platform-reserved namespace in manifest
     let manifest_json = serde_json::to_value(&manifest)?;
     let manifest_str = serde_json::to_string(&manifest_json)?;
     anyhow::ensure!(
-        !manifest_str.contains("kernel.v1.experience."),
-        "thirdparty/playable-seed must not contain kernel.v1.experience."
+        !manifest_str.contains("platform.experience."),
+        "thirdparty/playable-seed must not contain platform.experience."
     );
 
     // Verify composition with third-party playable-seed passes

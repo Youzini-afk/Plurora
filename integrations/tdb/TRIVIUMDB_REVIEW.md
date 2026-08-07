@@ -18,7 +18,7 @@
 
 TDB 适合成为 Plurora 的 **retrieval/multimodal provider adapter**，而不是：
 
-- kernel event store；
+- platform event store；
 - canonical asset store；
 - projection authority；
 - package raw database；

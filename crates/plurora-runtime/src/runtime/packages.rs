@@ -4,7 +4,7 @@ use plurora_core::{
     CapHandle, CapHandleId, ContractMode, HandleLease, HandleProvenance, HandleScope, PackageEntry,
     PackageId, PackageManifest, RedactionState, EVENT_PACKAGE_DEGRADED, EVENT_PACKAGE_LOADED,
     EVENT_PACKAGE_LOADING, EVENT_PACKAGE_LOG, EVENT_PACKAGE_READY, EVENT_PACKAGE_STARTING,
-    EVENT_PACKAGE_STOPPED, EVENT_PACKAGE_STOPPING, EVENT_PACKAGE_UNLOADED, KERNEL_PACKAGE_ID,
+    EVENT_PACKAGE_STOPPED, EVENT_PACKAGE_STOPPING, EVENT_PACKAGE_UNLOADED, PLATFORM_RUNTIME_ID,
 };
 use serde_json::{json, Value};
 
@@ -116,7 +116,7 @@ where
                 crate_ref, symbol, ..
             } => {
                 if let Some(package) = self.config.inproc_packages.lookup(crate_ref, symbol) {
-                    let env = crate::KernelEnv {
+                    let env = crate::ComponentEnv {
                         package_id: record.id.clone(),
                         component_id: record.components[0].component_id.clone(),
                         component_digest: record.components[0].artifact.digest.clone(),
@@ -196,7 +196,7 @@ where
                 .handles
                 .mint(package_load_handle(
                     manifest.id.clone(),
-                    "kernel.outbound.execute".to_string(),
+                    "host.outbound.execute".to_string(),
                     "1".to_string(),
                     json!({
                         "host": declaration.host,
@@ -212,7 +212,7 @@ where
                 .handles
                 .mint(package_load_handle(
                     manifest.id.clone(),
-                    "kernel.secret.reveal".to_string(),
+                    "host.secret.reveal".to_string(),
                     "1".to_string(),
                     json!({ "secret_ref": secret_ref }),
                 ))
@@ -430,7 +430,7 @@ where
         kind: &'static str,
         reason: Option<&str>,
     ) -> anyhow::Result<plurora_core::EventEnvelope> {
-        let session_id = format!("kernel_package_{}", record.id.replace('/', "_"));
+        let session_id = format!("platform_package_{}", record.id.replace('/', "_"));
         let mut payload = json!({
             "package_id": record.id,
             "version": record.version,
@@ -462,7 +462,7 @@ where
             payload["log_tail_redacted"] = json!(last_failure.log_tail_redacted);
             payload["redaction_state"] = json!(last_failure.redaction_state);
         }
-        self.append_kernel_event(&session_id, kind, payload).await
+        self.append_platform_event(&session_id, kind, payload).await
     }
 
     pub(crate) async fn append_package_log_event(
@@ -471,8 +471,8 @@ where
         stream: &str,
         line: &str,
     ) -> anyhow::Result<plurora_core::EventEnvelope> {
-        let session_id = format!("kernel_package_{}", package_id.replace('/', "_"));
-        self.append_kernel_event(
+        let session_id = format!("platform_package_{}", package_id.replace('/', "_"));
+        self.append_platform_event(
             &session_id,
             EVENT_PACKAGE_LOG,
             json!({
@@ -534,7 +534,7 @@ mod tests {
     use crate::{InMemoryEventStore, RuntimeConfig};
 
     #[tokio::test]
-    async fn package_load_records_kernel_lifecycle_event() -> anyhow::Result<()> {
+    async fn package_load_records_platform_lifecycle_event() -> anyhow::Result<()> {
         let store = Arc::new(InMemoryEventStore::default());
         let runtime = Runtime::new(store.clone(), RuntimeConfig::default());
 
@@ -563,7 +563,7 @@ mod tests {
 
         assert_eq!(record.id, "org/pkg");
         let events = store
-            .list_session(&"kernel_package_org_pkg".to_string())
+            .list_session(&"platform_package_org_pkg".to_string())
             .await?;
         assert!(events
             .iter()
@@ -645,7 +645,7 @@ mod tests {
         assert_eq!(record.entry_kind, "surface_bundle");
         assert_eq!(record.trust_level, crate::TrustLevel::StaticSurface);
         let events = store
-            .list_session(&"kernel_package_example_surface".to_string())
+            .list_session(&"platform_package_example_surface".to_string())
             .await?;
         assert!(events.iter().any(|event| event.kind == EVENT_PACKAGE_READY));
         assert!(!events
@@ -768,7 +768,7 @@ for line in sys.stdin:
         );
 
         let events = store
-            .list_session(&"kernel_package_example_failing".to_string())
+            .list_session(&"platform_package_example_failing".to_string())
             .await?;
         let event = events
             .iter()
@@ -811,7 +811,7 @@ fn package_load_handle(
         lease: HandleLease::default(),
         provenance: HandleProvenance {
             granted_at: chrono::Utc::now(),
-            granted_by_package_id: KERNEL_PACKAGE_ID.to_string(),
+            granted_by_package_id: PLATFORM_RUNTIME_ID.to_string(),
             via_method: "package_load".to_string(),
         },
         parent: None,

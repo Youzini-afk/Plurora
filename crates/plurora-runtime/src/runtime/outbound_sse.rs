@@ -1,4 +1,4 @@
-//! SSE (Server-Sent Events) parser for `kernel.v1.outbound.stream`.
+//! SSE (Server-Sent Events) parser for `host.outbound.stream`.
 //!
 //! Parses `text/event-stream` responses per the WHATWG specification:
 //! <https://html.spec.whatwg.org/multipage/server-sent-events.html>

@@ -4,7 +4,7 @@ use plurora_core::{
     ArtifactDescriptor, CapHandle, CapHandleId, CapabilityId, EffectReplayMode, EffectScope,
     EffectTerminalStatus, HandleLease, HandleProvenance, HandleScope, PackageEntry,
     PrincipalIdentity, EVENT_CAPABILITY_COMPLETED, EVENT_CAPABILITY_FAILED,
-    EVENT_CAPABILITY_INVOKED, KERNEL_PACKAGE_ID,
+    EVENT_CAPABILITY_INVOKED, PLATFORM_RUNTIME_ID,
 };
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -133,7 +133,7 @@ where
             }
         };
 
-        self.append_kernel_event(
+        self.append_platform_event(
             &capability_event_session_id(&capability_id),
             EVENT_CAPABILITY_INVOKED,
             json!({
@@ -177,7 +177,7 @@ where
                     .await?;
                 result.receipt = Some(receipt.clone());
                 result.replay_mode = Some(effect_context.replay_mode);
-                self.append_kernel_event(
+                self.append_platform_event(
                     &capability_event_session_id(&capability_id),
                     EVENT_CAPABILITY_COMPLETED,
                     json!({
@@ -325,7 +325,7 @@ where
                 )
                 .await?;
                 anyhow::bail!(
-                    "Foreign Capsule package '{caller}' is self-contained and cannot invoke kernel capabilities"
+                    "Foreign Capsule package '{caller}' is self-contained and cannot invoke platform capabilities"
                 );
             }
         }
@@ -382,7 +382,7 @@ where
         let holder = request
             .caller_package_id
             .clone()
-            .unwrap_or_else(|| KERNEL_PACKAGE_ID.to_string());
+            .unwrap_or_else(|| PLATFORM_RUNTIME_ID.to_string());
         let provider = self
             .capabilities
             .resolve(
@@ -409,7 +409,7 @@ where
                 },
                 provenance: HandleProvenance {
                     granted_at: chrono::Utc::now(),
-                    granted_by_package_id: KERNEL_PACKAGE_ID.to_string(),
+                    granted_by_package_id: PLATFORM_RUNTIME_ID.to_string(),
                     via_method: "auto_mint".to_string(),
                 },
                 parent: None,
@@ -443,10 +443,7 @@ where
         );
         before_payload.insert("input".to_string(), std::mem::take(&mut request.input));
         let mut before = self
-            .dispatch_extension_handlers(
-                "kernel/v1/capability.before_invoke",
-                Value::Object(before_payload),
-            )
+            .dispatch_extension_handlers("capability/before_invoke", Value::Object(before_payload))
             .await;
         if let Some(vetoed_by) = before.vetoed_by.as_deref() {
             anyhow::bail!("capability invoke vetoed by hook package '{vetoed_by}'");
@@ -490,7 +487,7 @@ where
         };
         let _ = self
             .dispatch_extension_handlers(
-                "kernel/v1/capability.after_invoke",
+                "capability/after_invoke",
                 serde_json::to_value(&result).unwrap_or_else(|_| json!({})),
             )
             .await;
@@ -507,7 +504,7 @@ where
         error_message: &str,
         receipt: Option<&ArtifactDescriptor>,
     ) -> anyhow::Result<()> {
-        self.append_kernel_event(
+        self.append_platform_event(
             &capability_event_session_id(capability_id),
             EVENT_CAPABILITY_FAILED,
             json!({
@@ -915,7 +912,7 @@ fn safe_capability_error_message(error_kind: &str) -> &'static str {
 }
 
 fn capability_event_session_id(capability_id: &str) -> String {
-    format!("kernel_capability_{}", capability_id.replace('/', "_"))
+    format!("platform_capability_{}", capability_id.replace('/', "_"))
 }
 
 fn validate_handle_lease(handle: &CapHandle) -> anyhow::Result<()> {
@@ -1119,7 +1116,7 @@ mod tests {
         assert!(denied.is_err());
 
         let events = store
-            .list_session(&"kernel_capability_example_echo_echo".to_string())
+            .list_session(&"platform_capability_example_echo_echo".to_string())
             .await?;
         assert!(events
             .iter()

@@ -87,7 +87,7 @@ Package records and lifecycle events expose the package-envelope digest and comp
 - behavior digest;
 - component trust class.
 
-Conforming in-process packages receive the component ID and digest in `KernelEnv`. Subprocess handshakes receive the package-envelope digest and component descriptors; a Foreign Capsule handshake receives empty v1 capability/permission/binding sets. These fields allow audit and replay code to identify the implementation independently from the installer envelope.
+Conforming in-process packages receive the component ID and digest in `ComponentEnv`. Subprocess handshakes receive the package-envelope digest and component descriptors; a Foreign Capsule handshake receives empty v1 capability/permission/binding sets. These fields allow audit and replay code to identify the implementation independently from the installer envelope.
 
 ## Composition lock
 

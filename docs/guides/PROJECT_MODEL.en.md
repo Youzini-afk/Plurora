@@ -194,20 +194,20 @@ Status indicators:
 - ⏳ Starting / Stopping (yellow)
 - ❌ Failed (red)
 
-Clicking Play calls `kernel.v1.project.start`, then navigates to the project's `entry_surface`.
+Clicking Play calls `host.project.start`, then navigates to the project's `entry_surface`.
 
-The project page includes a platform-side console for bundle, package, recent-event, update, and deployment diagnostics, plus host-plane durable job / revision / recovery state. Update checks and execution use `official/install-lab/check_for_updates` / `update_project` through the public `kernel.v1.capability.invoke` path.
+The project page includes a platform-side console for bundle, package, recent-event, update, and deployment diagnostics, plus host-plane durable job / revision / recovery state. Update checks and execution use `official/install-lab/check_for_updates` / `update_project` through the public `capability.invoke` path.
 
 ## Play flow
 
 After a user clicks Play on a Home card, the web shell and host follow a fixed public-protocol sequence:
 
 1. The user clicks Play on a project card.
-2. `clients/web` calls `kernel.v1.project.start`.
+2. `clients/web` calls `host.project.start`.
 3. The host transitions the project to Running and creates or reuses a project session.
 4. The Host stores the verified `project_id` in session `metadata.project_id` and adds a `project:<id>` label.
 5. `project.start` returns `session_id` and `already_running`.
-6. `clients/web` calls `kernel.v1.surface.resolve_bundle` to resolve the project's `entry_surface_id` to a surface bundle URL.
+6. `clients/web` calls `host.surface.bundle.resolve` to resolve the project's `entry_surface_id` to a surface bundle URL.
 7. `mountSurface` mounts a sandboxed iframe.
 8. The iframe `initialProps` include `sessionId` and `projectId`.
 9. Inside the surface, `callHostRpc` / `invokeCapability` automatically carries `session_id`.
@@ -218,7 +218,7 @@ This chain lets project-level secret resolution find the project scope from sess
 Note: this `sessionId` is then used for:
 
 - All RPC calls, which carry it automatically (`callHostRpc` reads it through `setActiveSessionId`).
-- Streaming calls (`streamCapability`), which use it as the subscription scope for receiving `kernel/v1/stream.*` events.
+- Streaming calls (`streamCapability`), which use it as the subscription scope for receiving `capability/stream.*` events.
 
 ## Explicit deployment
 
@@ -226,9 +226,9 @@ Note: this `sessionId` is then used for:
 
 If a project needs a Docker HTTP service, it can declare a minimal descriptor under `project.metadata.deployment.docker`. The web project console then shows Deploy / Stop buttons. After user confirmation, the `plurora-service` host broker runs the chain while the browser remains a thin client:
 
-1. `kernel.v1.port.lease` leases a loopback port.
+1. `host.port.lease` leases a loopback port.
 2. `official/docker-runtime-lab/start_container` starts the container.
-3. `kernel.v1.proxy.register` registers the HTTP/WebSocket reverse-proxy route.
+3. `host.proxy.register` registers the HTTP/WebSocket reverse-proxy route.
 
 This path is explicit. It never runs automatically when opening a project. See [`DEPLOYMENT_RUNTIME.md`](DEPLOYMENT_RUNTIME.en.md).
 
@@ -237,29 +237,29 @@ This path is explicit. It never runs automatically when opening a project. See [
 Host project-management methods allow HostAdmin/HostDev, or a logical HostDevice with the corresponding action and exact project selector. Its Contract V1 context uses the `anonymous` sentinel plus an authority envelope; ordinary packages cannot call these methods:
 
 ```text
-kernel.v1.project.list      list installed projects
-kernel.v1.project.get       get project details
-kernel.v1.project.start     start a project
-kernel.v1.project.stop      stop a project
-kernel.v1.project.status    get project status
+host.project.list      list installed projects
+host.project.get       get project details
+host.project.start     start a project
+host.project.stop      stop a project
+host.project.status    get project status
 ```
 
 Deployment runtime protocols allow HostAdmin/HostDev, or a logical HostDevice with `deploy` / `observe` and a matching target selector; ordinary packages cannot call them:
 
 ```text
-kernel.v1.target.*   execution targets
-kernel.v1.exec.*     controlled local execution
-kernel.v1.port.*     loopback port leases
-kernel.v1.proxy.*    HTTP/WebSocket routes
+platform.target.*   execution targets
+platform.exec.*     controlled local execution
+platform.port.*     loopback port leases
+platform.proxy.*    HTTP/WebSocket routes
 ```
 
 Lifecycle events:
 
 ```text
-kernel/v1/project.installed
-kernel/v1/project.started
-kernel/v1/project.stopped
-kernel/v1/project.uninstalled
+host/project.installed
+host/project.started
+host/project.stopped
+host/project.uninstalled
 ```
 
 ## Difference from Composition

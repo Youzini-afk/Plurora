@@ -168,7 +168,7 @@ if (failed.length > 0) {
 - **No import** from `clients/web`, `clients/web/private`, or any runtime private module
 - **No dependency** on `pi-coding-agent` or external agent framework
 - **No external dependencies** — pure TypeScript
-- **No** `kernel.v1.agent.*`, `kernel.v1.model.*`, `kernel.v1.prompt.*`, `kernel.v1.memory.*` methods
+- **No** `platform.agent.*`, `platform.model.*`, `platform.prompt.*`, `platform.memory.*` methods
 - **No** `any` type — prefers `unknown`-safe patterns
 - **Rejects** ambiguous provider calls unless explicit `provider_package_id` is given
 - **Blocks** raw secrets: reuses `secret_ref` pattern but does not import private runtime

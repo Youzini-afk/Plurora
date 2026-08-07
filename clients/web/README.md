@@ -50,13 +50,13 @@ For desktop builds wrap `dist/` with [`../desktop`](../desktop) (Tauri 2.x).
 
 The shell talks to the Host exclusively through published boundaries:
 
-- `POST /rpc` for all `kernel.v1.*` methods.
-- `GET /kernel/v1/event.subscribe/:session_id` (SSE) for event tails.
+- `POST /rpc` for all `platform.*` methods.
+- `GET /journal/subscribe/:session_id` (SSE) for event tails.
 - `/host/v1/*` for Host-owned deployment, controlled development, and scoped device-access workflows that deliberately remain outside Contract V1.
 - `postMessage` bridge for surfaces mounted in sandboxed iframes.
 
 There is no SQLite access and no private runtime call. Shell-owned features that
-call platform utility packages still go through ordinary `kernel.v1.capability.invoke`
+call platform utility packages still go through ordinary `capability.invoke`
 paths; no official package receives a privileged side channel.
 
 ---
@@ -72,7 +72,7 @@ src/
 │   ├── theme.tsx               # Theme provider (system/light/dark, data-theme attr)
 │   ├── router.ts               # Hash router — home / settings / project
 │   ├── auth-gate.tsx           # root-token and same-origin device-cookie startup probe
-│   ├── kernel-client.tsx       # KernelProvider, useKernel, useAsync, useEventTail
+│   ├── plurora-client.tsx       # PluroraProvider, usePlurora, useAsync, useEventTail
 │   ├── format.ts               # Shared display helpers (relative time, bytes, etc)
 │   ├── home-data.ts            # Legacy sample data helpers; production screens read host protocol
 │   ├── project-deployment.ts   # Docker and Build & Deploy descriptor parsers for explicit deploy brokers
@@ -119,8 +119,8 @@ src/
 │   └── settings/
 │       ├── index.tsx           # Tab dispatcher
 │       ├── api-connections.tsx # secret-store-lab wired
-│       ├── installed-packages.tsx # kernel.v1.package.list wired
-│       ├── profiles.tsx        # kernel.v1.host.diagnostics wired
+│       ├── installed-packages.tsx # host.package.list wired
+│       ├── profiles.tsx        # host.diagnostics wired
 │       ├── storage.tsx         # storage areas + event store kind wired
 │       ├── host-access.tsx     # scoped pairing, grant expiry, and revoke
 │       └── about.tsx
@@ -128,7 +128,7 @@ src/
 │   ├── host-access.ts          # typed Host access REST boundary
 │   └── pairing-credential.ts   # immediate URL scrubbing + memory-only one-time token
 ├── protocol/
-│   └── client.ts               # YggProtocolClient — typed RPC + SSE wrappers
+│   └── client.ts               # PluroraProtocolClient — typed RPC + SSE wrappers
 └── surfaces/
     ├── surface-host.ts         # iframe SurfaceHost contract
     └── bundle-resolver.ts      # host.surface.bundle.resolve wrapper
@@ -189,14 +189,14 @@ mode for legibility on bark backgrounds.
 | Home — projects | `host.project.list` + per-project `storage_summary` |
 | Home — shell contributions | `shell.contribution.list` filtered to `quick_action`, `workshop_card`, and schema-versioned `home_card` |
 | Settings — API Connections | `official/secret-store-lab/{list,put,delete}_secret` + `health` |
-| Settings — Installed Packages | `kernel.v1.package.list` + `host.project.list` (project flag) |
-| Settings — Profiles | `kernel.v1.host.diagnostics` (active profile, packages_loaded, allowlist) |
+| Settings — Installed Packages | `host.package.list` + `host.project.list` (project flag) |
+| Settings — Profiles | `host.diagnostics` (active profile, packages_loaded, allowlist) |
 | Settings — Storage | storage-area summary + event store kind |
 | Settings — Host Access | `/host/v1/access*` identity, pairing, grant, and revoke APIs |
 | Project tab | `host.project.get/start/stop` + `host.surface.bundle.resolve` |
-| Project deployment | `kernel.v1.port.*` + `kernel.v1.proxy.*` + `official/docker-runtime-lab/{start_container,stop_container}` |
-| Install Modal | `official/install-lab/{resolve_plan,detect_kind,execute_plan}` through `kernel.v1.capability.invoke` |
-| Failure Modal | `kernel.v1.package.list/status/logs` redacted failure summaries |
+| Project deployment | `platform.port.*` + `platform.proxy.*` + `official/docker-runtime-lab/{start_container,stop_container}` |
+| Install Modal | `official/install-lab/{resolve_plan,detect_kind,execute_plan}` through `capability.invoke` |
+| Failure Modal | `host.package.list/status/logs` redacted failure summaries |
 
 All async views show a shimmer skeleton during load and an `EmptyState` with a
 retry action when the call fails. Mutating actions (delete secret, stop
@@ -264,7 +264,7 @@ for the full contract.
 
 Surface stream subscription is supported through additive postMessage messages
 (`stream.subscribe`, `stream.frame`, `stream.ended`, `stream.error`,
-`stream.unsubscribe`) bridged from host `kernel/v1/stream.*` events. YdlTavern
+`stream.unsubscribe`) bridged from host `capability/stream.*` events. YdlTavern
 uses this for live model token streaming.
 
 ### ST URL layout (for SillyTavern extension compatibility)

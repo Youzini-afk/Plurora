@@ -201,20 +201,20 @@ plurora uninstall <id> --delete-data  # 立即删除
 - ⏳ Starting / Stopping (黄)
 - ❌ Failed (红)
 
-点 Play 调用 `kernel.v1.project.start`，启动后导航到项目的 `entry_surface`。
+点 Play 调用 `host.project.start`，启动后导航到项目的 `entry_surface`。
 
-项目页带平台侧控制台：显示 bundle、包、最近事件、更新诊断、部署诊断，以及 host-plane 的 durable job / revision / recovery 状态；更新检查与执行通过 `official/install-lab/check_for_updates` / `update_project`，仍走公开协议 `kernel.v1.capability.invoke`。
+项目页带平台侧控制台：显示 bundle、包、最近事件、更新诊断、部署诊断，以及 host-plane 的 durable job / revision / recovery 状态；更新检查与执行通过 `official/install-lab/check_for_updates` / `update_project`，仍走公开协议 `capability.invoke`。
 
 ## Play 流程
 
 Home 点 Play 后，Web shell 与 host 走固定的公开协议序列：
 
 1. 用户点项目卡上的 Play。
-2. `clients/web` 调 `kernel.v1.project.start`。
+2. `clients/web` 调 `host.project.start`。
 3. host 把项目状态转为 Running，创建或复用项目 session。
 4. Host 把已验证的 `project_id` 写入 session `metadata.project_id`，并加上 `project:<id>` label。
 5. `project.start` 返回 `session_id` 与 `already_running`。
-6. `clients/web` 调 `kernel.v1.surface.resolve_bundle`，用项目的 `entry_surface_id` 拿 surface 包 URL。
+6. `clients/web` 调 `host.surface.bundle.resolve`，用项目的 `entry_surface_id` 拿 surface 包 URL。
 7. `mountSurface` 挂载 sandboxed iframe。
 8. iframe `initialProps` 注入 `sessionId` 与 `projectId`。
 9. surface 内的 `callHostRpc` / `invokeCapability` 自动带 `session_id`。
@@ -225,7 +225,7 @@ Home 点 Play 后，Web shell 与 host 走固定的公开协议序列：
 注：这个 `sessionId` 之后被用于：
 
 - 所有 RPC 调用自动附带（`callHostRpc` 通过 `setActiveSessionId` 读取）。
-- 流式调用（`streamCapability`）用它作为订阅范围，接收 `kernel/v1/stream.*` 事件。
+- 流式调用（`streamCapability`）用它作为订阅范围，接收 `capability/stream.*` 事件。
 
 ## 显式部署
 
@@ -233,9 +233,9 @@ Home 点 Play 后，Web shell 与 host 走固定的公开协议序列：
 
 若项目需要启动 Docker HTTP 服务，可以在 `project.metadata.deployment.docker` 声明最小部署描述符。Web 项目控制台会显示 Deploy / Stop 按钮，用户确认后由 `plurora-service` host broker 串联；浏览器只是瘦客户端：
 
-1. `kernel.v1.port.lease` 租 loopback 端口。
+1. `host.port.lease` 租 loopback 端口。
 2. `official/docker-runtime-lab/start_container` 启动容器。
-3. `kernel.v1.proxy.register` 注册 HTTP/WebSocket 反代 route。
+3. `host.proxy.register` 注册 HTTP/WebSocket 反代 route。
 
 这条路径是显式操作，不会在打开项目时自动执行。完整说明见 [`DEPLOYMENT_RUNTIME.md`](DEPLOYMENT_RUNTIME.md)。
 
@@ -244,29 +244,29 @@ Home 点 Play 后，Web shell 与 host 走固定的公开协议序列：
 宿主管理项目的协议（HostAdmin/HostDev，或同时拥有对应 action 与精确 project selector 的逻辑 HostDevice；其 Contract V1 context 使用 `anonymous` sentinel + authority envelope；普通包不能调）：
 
 ```text
-kernel.v1.project.list      列出已安装项目
-kernel.v1.project.get       项目详情
-kernel.v1.project.start     启动项目
-kernel.v1.project.stop      停止项目
-kernel.v1.project.status    项目状态
+host.project.list      列出已安装项目
+host.project.get       项目详情
+host.project.start     启动项目
+host.project.stop      停止项目
+host.project.status    项目状态
 ```
 
 部署运行时协议（HostAdmin/HostDev，或拥有 `deploy` / `observe` 与匹配 target selector 的逻辑 HostDevice；普通包不能调）：
 
 ```text
-kernel.v1.target.*   运行目标
-kernel.v1.exec.*     受控本地执行
-kernel.v1.port.*     loopback 端口租约
-kernel.v1.proxy.*    HTTP/WebSocket route
+platform.target.*   运行目标
+platform.exec.*     受控本地执行
+platform.port.*     loopback 端口租约
+platform.proxy.*    HTTP/WebSocket route
 ```
 
 生命周期事件：
 
 ```text
-kernel/v1/project.installed
-kernel/v1/project.started
-kernel/v1/project.stopped
-kernel/v1/project.uninstalled
+host/project.installed
+host/project.started
+host/project.stopped
+host/project.uninstalled
 ```
 
 ## 与 Composition 的区别

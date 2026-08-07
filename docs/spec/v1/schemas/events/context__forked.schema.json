@@ -1,0 +1,52 @@
+{
+  "$defs": {
+    "Payload": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "properties": {
+        "child_session_id": {
+          "type": "string"
+        },
+        "created_at": {
+          "format": "date-time",
+          "type": "string"
+        },
+        "forked_from_sequence": {
+          "format": "uint64",
+          "minimum": 0.0,
+          "type": "integer"
+        },
+        "id": {
+          "type": "string"
+        },
+        "metadata": {
+          "default": null
+        },
+        "parent_session_id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "child_session_id",
+        "created_at",
+        "forked_from_sequence",
+        "id",
+        "parent_session_id"
+      ],
+      "title": "BranchRecord",
+      "type": "object"
+    }
+  },
+  "$id": "urn:plurora:schema:event:context/forked:v1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "Payload schema for event kind context/forked.",
+  "properties": {
+    "kind": {
+      "const": "context/forked"
+    },
+    "payload": {
+      "$ref": "#/$defs/Payload"
+    }
+  },
+  "title": "context/forked",
+  "type": "object"
+}

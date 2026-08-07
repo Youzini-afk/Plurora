@@ -49,12 +49,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Pairing and access journals persist only domain-separated credential digests
 
 ### Outbound (prior to S-track)
-- `kernel.v1.outbound.execute` for unary HTTPS
-- `kernel.v1.outbound.stream` for SSE/NDJSON streaming
-- `kernel.v1.outbound.websocket.*` for bidirectional WebSocket
+- `host.outbound.execute` for unary HTTPS
+- `host.outbound.stream` for SSE/NDJSON streaming
+- `platform.outbound.websocket.*` for bidirectional WebSocket
 - Outbound completion audit events
 - Manifest `permissions.secret_refs` declarations
-- Subprocess SDK reverse `kernel.v1.*` dispatch + `kernelClient.openWebSocket`
+- Subprocess SDK reverse `platform.*` dispatch + `pluroraClient.openWebSocket`
 
 ## [0.1.0] — TBD (initial release)
 

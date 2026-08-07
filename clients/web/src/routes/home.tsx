@@ -9,7 +9,7 @@ import { Eyebrow } from "@/components/ui/typography";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Plus, Warning } from "@/components/icons";
-import { useKernel } from "@/lib/kernel-client";
+import { usePlurora } from "@/lib/plurora-client";
 import { useRoute, type Route } from "@/lib/router";
 import { useToast } from "@/components/ui/toast";
 import { formatGreetingTime } from "@/lib/format";
@@ -44,7 +44,7 @@ const FailureModal = lazy(() =>
 );
 
 export function HomePage() {
-  const client = useKernel();
+  const client = usePlurora();
   const toast = useToast();
   const [, navigate] = useRoute();
   const { locale, t } = useLocale();

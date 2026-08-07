@@ -29,7 +29,7 @@ These can be absorbed into Ygg SDKs, templates, or reference packages now, but m
 
 ### Package-internal optional
 
-These may be used inside ordinary capability packages, never in kernel/v1/service/web shell:
+These may be used inside ordinary capability packages, never in constitutional substrate, Host service, or Web shell:
 
 - `pi-agent-core` agent loop.
 - `pi-ai` faux provider.
@@ -70,13 +70,13 @@ These are explicitly out of Ygg agent infrastructure:
 
 | pi-inspired idea | Ygg landing point |
 |---|---|
-| Agent run | ordinary package capability via `kernel.v1.capability.invoke/stream` |
-| Abort/cancel | `kernel.v1.capability.cancel` |
+| Agent run | ordinary package capability via `capability.invoke/stream` |
+| Abort/cancel | `capability.cancel` |
 | Tool | adapter view of Ygg capability |
-| Tool execution | `kernel.v1.capability.invoke/stream` with explicit provider package |
+| Tool execution | `capability.invoke/stream` with explicit provider package |
 | Tool gate | permission preview + before/after helper in SDK/package |
 | Trace | package-owned events and stream frames |
-| Proposal | `kernel.v1.proposal.*` |
+| Proposal | `platform.proposal.*` |
 | State | package-owned assets/projections/capabilities |
 | UI | surface contributions consumed by Assist/Forge |
 
@@ -84,7 +84,7 @@ These are explicitly out of Ygg agent infrastructure:
 
 Every agent infrastructure update must prove:
 
-- no new `kernel.v1.agent.*`, `kernel.v1.model.*`, `kernel.v1.prompt.*`, `kernel.v1.memory.*`, or `kernel.v1.turn.*`;
+- no new `platform.agent.*`, `platform.model.*`, `platform.prompt.*`, `platform.memory.*`, or `platform.turn.*`;
 - official agent/reference packages have no priority;
 - tool bridge rejects ambiguous providers or requires explicit providers;
 - unauthorized tool calls fail and are audited;

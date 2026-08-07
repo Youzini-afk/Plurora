@@ -39,7 +39,7 @@ impl StreamRegistry {
     /// Start a new streaming invocation.
     ///
     /// Returns the invocation record with state `Active`.
-    /// Emits a `kernel/v1/stream.started` event.
+    /// Emits a `capability/stream.started` event.
     pub async fn start_invocation(
         &self,
         capability_id: CapabilityId,
@@ -363,7 +363,7 @@ where
     /// Start a streaming capability invocation.
     ///
     /// Validates that the capability has `streaming: true` in its descriptor,
-    /// creates a registry record, emits `kernel/v1/stream.started`, and
+    /// creates a registry record, emits `capability/stream.started`, and
     /// returns the start frame plus the invocation record.
     pub async fn stream_capability_start(
         &self,
@@ -399,7 +399,7 @@ where
             )
             .await;
 
-        // Emit kernel/v1/stream.started event
+        // Emit capability/stream.started event
         let event_payload = json!({
             "invocation_id": record.invocation_id,
             "stream_id": record.stream_id,
@@ -407,7 +407,7 @@ where
             "provider_package_id": provider.provider_package_id,
             "session_id": session_id,
         });
-        self.append_kernel_event(session_id, EVENT_STREAM_STARTED, event_payload)
+        self.append_platform_event(session_id, EVENT_STREAM_STARTED, event_payload)
             .await?;
 
         // Build the start frame
@@ -427,7 +427,7 @@ where
 
     /// Append a chunk frame to an active streaming invocation.
     ///
-    /// Emits `kernel/v1/stream.chunk` and returns the frame envelope.
+    /// Emits `capability/stream.chunk` and returns the frame envelope.
     pub async fn stream_capability_chunk(
         &self,
         session_id: &SessionId,
@@ -447,7 +447,7 @@ where
             "redaction_state": serde_json::to_value(redaction_state)?,
             "data": payload,
         });
-        self.append_kernel_event(session_id, EVENT_STREAM_CHUNK, event_payload)
+        self.append_platform_event(session_id, EVENT_STREAM_CHUNK, event_payload)
             .await?;
 
         Ok(frame)
@@ -455,7 +455,7 @@ where
 
     /// Append a progress frame to an active streaming invocation.
     ///
-    /// Emits `kernel/v1/stream.progress` and returns the frame envelope.
+    /// Emits `capability/stream.progress` and returns the frame envelope.
     pub async fn stream_capability_progress(
         &self,
         session_id: &SessionId,
@@ -472,7 +472,7 @@ where
             "stream_id": frame.stream_id,
             "sequence": frame.sequence,
         });
-        self.append_kernel_event(session_id, EVENT_STREAM_PROGRESS, event_payload)
+        self.append_platform_event(session_id, EVENT_STREAM_PROGRESS, event_payload)
             .await?;
 
         Ok(frame)
@@ -480,7 +480,7 @@ where
 
     /// End a streaming invocation normally.
     ///
-    /// Emits `kernel/v1/stream.ended` and returns the terminal frame.
+    /// Emits `capability/stream.ended` and returns the terminal frame.
     pub async fn stream_capability_end(
         &self,
         session_id: &SessionId,
@@ -504,7 +504,7 @@ where
                 "frame_count": frame.sequence,
                 "receipt": receipt,
             });
-            self.append_kernel_event(session_id, EVENT_STREAM_ENDED, event_payload)
+            self.append_platform_event(session_id, EVENT_STREAM_ENDED, event_payload)
                 .await?;
             Ok::<StreamFrameEnvelope, anyhow::Error>(frame)
         }
@@ -519,7 +519,7 @@ where
 
     /// Error-terminate a streaming invocation.
     ///
-    /// Emits `kernel/v1/stream.error` and returns the terminal frame.
+    /// Emits `capability/stream.error` and returns the terminal frame.
     pub async fn stream_capability_error(
         &self,
         session_id: &SessionId,
@@ -548,7 +548,7 @@ where
                 "error_fingerprint": sha256_digest(error_message.as_bytes()),
                 "receipt": receipt,
             });
-            self.append_kernel_event(session_id, EVENT_STREAM_ERROR, event_payload)
+            self.append_platform_event(session_id, EVENT_STREAM_ERROR, event_payload)
                 .await?;
             Ok::<StreamFrameEnvelope, anyhow::Error>(frame)
         }
@@ -563,7 +563,7 @@ where
 
     /// Cancel a streaming invocation.
     ///
-    /// Emits `kernel/v1/stream.cancelled` and returns the terminal frame.
+    /// Emits `capability/stream.cancelled` and returns the terminal frame.
     pub async fn stream_capability_cancel(
         &self,
         session_id: &SessionId,
@@ -586,7 +586,7 @@ where
                 "sequence": frame.sequence,
                 "receipt": receipt,
             });
-            self.append_kernel_event(session_id, EVENT_STREAM_CANCELLED, event_payload)
+            self.append_platform_event(session_id, EVENT_STREAM_CANCELLED, event_payload)
                 .await?;
             Ok::<StreamFrameEnvelope, anyhow::Error>(frame)
         }
@@ -601,7 +601,7 @@ where
 
     /// Timeout a streaming invocation.
     ///
-    /// Emits `kernel/v1/stream.timeout` and returns the terminal frame.
+    /// Emits `capability/stream.timeout` and returns the terminal frame.
     pub async fn stream_capability_timeout(
         &self,
         session_id: &SessionId,
@@ -624,7 +624,7 @@ where
                 "sequence": frame.sequence,
                 "receipt": receipt,
             });
-            self.append_kernel_event(session_id, EVENT_STREAM_TIMEOUT, event_payload)
+            self.append_platform_event(session_id, EVENT_STREAM_TIMEOUT, event_payload)
                 .await?;
             Ok::<StreamFrameEnvelope, anyhow::Error>(frame)
         }

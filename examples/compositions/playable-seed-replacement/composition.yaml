@@ -23,4 +23,4 @@ replacement_candidates:
   - official/playable-seed
 compatibility_notes:
   - "Third-party replacement exposes equivalent surface slots to official/playable-seed"
-  - "No kernel privilege or official namespace required"
+  - "No platform privilege or official namespace required"

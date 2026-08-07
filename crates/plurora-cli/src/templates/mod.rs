@@ -289,7 +289,7 @@ serveSubprocessPackage({{
   onHandshake: () => ({{ ready: true, package_protocol_version: "0.1.0" }}),
   onInvoke: ({{ capability_id, input }}) => {{
     // Deterministic / no-network: no real model, no real network, no raw secrets.
-    // No forbidden kernel namespaces (experience, world, turn, chat, memory)
+    // No forbidden platform-reserved namespaces (experience, world, turn, chat, memory)
 
     // Raw-secret check
     const secretCheck = blockRawSecrets(input);

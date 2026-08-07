@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type Dispatch, type 
 import { Button } from "@/components/ui/button";
 import { Checkbox, Field, Input, Textarea } from "@/components/ui/input";
 import { StatusPill, type StatusTone } from "@/components/ui/status-pill";
-import { useKernel } from "@/lib/kernel-client";
+import { usePlurora } from "@/lib/plurora-client";
 import { useT } from "@/lib/locale";
 import { useToast } from "@/components/ui/toast";
 import type { LabelKey } from "@/lib/labels";
@@ -68,7 +68,7 @@ export function DevelopmentWorkflowCard({
   activeRevision,
   onDeploymentChanged,
 }: DevelopmentWorkflowCardProps) {
-  const client = useKernel();
+  const client = usePlurora();
   const t = useT();
   const toast = useToast();
   const [changes, setChanges] = useState<DevelopmentChangeRecord[]>([]);

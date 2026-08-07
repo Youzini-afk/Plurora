@@ -62,7 +62,7 @@ The `target-agent.v1` identity and observation control plane exposes:
 | Host client | `GET /host/v1/targets/{target_id}/observe` | `observe` scope plus target selector; returns declarations, effective capabilities, epochs, and observed summary |
 | Host client | `POST /host/v1/targets/{target_id}/revoke` | `deploy` scope plus target selector; revokes identity and advances both lease and policy epochs |
 
-Enrollment tokens and agent credentials enter the `host_control_target_agents` journal only as domain-separated SHA-256 digests. Challenges are single-use; after restart every non-revoked remote target first returns to `Offline`; an old credential or epoch cannot restore availability. The compatibility names `kernel.v1.target.register/unregister` now fail closed, so caller JSON cannot bypass enrollment and create an `Available` target.
+Enrollment tokens and agent credentials enter the `host_control_target_agents` journal only as domain-separated SHA-256 digests. Challenges are single-use; after restart every non-revoked remote target first returns to `Offline`; an old credential or epoch cannot restore availability. The compatibility names `host.target.register/unregister` now fail closed, so caller JSON cannot bypass enrollment and create an `Available` target.
 
 The typed-worker control plane exposes these routes without adding a general command surface:
 

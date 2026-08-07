@@ -4,7 +4,7 @@ use plurora_core::{
     EffectReplayMode, EffectScope, EffectTerminalStatus, Intent, PolicyDecision,
     PolicyDecisionOutcome, SessionId, CHANGE_COMMIT_TYPE_URI, CHANGE_SET_TYPE_URI,
     EVENT_PROPOSAL_APPLIED, EVENT_PROPOSAL_APPROVED, EVENT_PROPOSAL_CREATED, EVENT_PROPOSAL_FAILED,
-    EVENT_PROPOSAL_REJECTED, INTENT_TYPE_URI, KERNEL_PACKAGE_ID, POLICY_DECISION_TYPE_URI,
+    EVENT_PROPOSAL_REJECTED, INTENT_TYPE_URI, PLATFORM_RUNTIME_ID, POLICY_DECISION_TYPE_URI,
 };
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -187,8 +187,8 @@ where
             .write()
             .await
             .insert(proposal.id.clone(), proposal.clone());
-        self.append_kernel_event(
-            &format!("kernel_proposal_{}", proposal.id),
+        self.append_platform_event(
+            &format!("platform_proposal_{}", proposal.id),
             EVENT_PROPOSAL_CREATED,
             serde_json::to_value(&proposal)?,
         )
@@ -248,8 +248,8 @@ where
         }
         let proposal = proposal.clone();
         drop(proposals);
-        self.append_kernel_event(
-            &format!("kernel_proposal_{}", proposal.id),
+        self.append_platform_event(
+            &format!("platform_proposal_{}", proposal.id),
             EVENT_PROPOSAL_APPROVED,
             serde_json::to_value(&proposal)?,
         )
@@ -316,8 +316,8 @@ where
             .write()
             .await
             .insert(proposal.id.clone(), proposal.clone());
-        self.append_kernel_event(
-            &format!("kernel_proposal_{}", proposal.id),
+        self.append_platform_event(
+            &format!("platform_proposal_{}", proposal.id),
             EVENT_PROPOSAL_REJECTED,
             serde_json::to_value(&proposal)?,
         )
@@ -459,8 +459,8 @@ where
         proposal.receipt = Some(receipt);
         self.replace_proposal_if_status(&proposal, ProposalStatus::Applying)
             .await?;
-        self.append_kernel_event(
-            &format!("kernel_proposal_{}", proposal.id),
+        self.append_platform_event(
+            &format!("platform_proposal_{}", proposal.id),
             EVENT_PROPOSAL_APPLIED,
             serde_json::to_value(&proposal)?,
         )
@@ -494,7 +494,7 @@ where
             .finish_failed_proposal(
                 proposal,
                 &ProtocolPrincipal::Package {
-                    package_id: KERNEL_PACKAGE_ID.to_string(),
+                    package_id: PLATFORM_RUNTIME_ID.to_string(),
                 },
                 Utc::now(),
                 1,
@@ -669,7 +669,7 @@ where
         request.authority = Some(json!({
             "required_permissions": proposal.required_permissions,
             "principal": principal,
-            "kernel_executor": KERNEL_PACKAGE_ID,
+            "platform_executor": PLATFORM_RUNTIME_ID,
         }));
         request.policy_decision = proposal
             .policy_decision
@@ -744,7 +744,7 @@ where
             "required_permissions": proposal.required_permissions,
             "created_by": proposal.created_by,
             "principal": principal,
-            "kernel_executor": KERNEL_PACKAGE_ID,
+            "platform_executor": PLATFORM_RUNTIME_ID,
         }));
         request.policy_decision = proposal
             .policy_decision
@@ -861,8 +861,8 @@ where
         proposal.receipt = Some(receipt);
         self.replace_proposal_if_status(&proposal, expected_status)
             .await?;
-        self.append_kernel_event(
-            &format!("kernel_proposal_{}", proposal.id),
+        self.append_platform_event(
+            &format!("platform_proposal_{}", proposal.id),
             EVENT_PROPOSAL_FAILED,
             serde_json::to_value(&proposal)?,
         )
@@ -885,6 +885,6 @@ fn proposal_failure_evidence(code: &str, error_message: &str) -> ProposalFailure
 fn proposal_origin_package_id(principal: &ProtocolPrincipal) -> String {
     match principal {
         ProtocolPrincipal::Package { package_id } => package_id.clone(),
-        _ => KERNEL_PACKAGE_ID.to_string(),
+        _ => PLATFORM_RUNTIME_ID.to_string(),
     }
 }

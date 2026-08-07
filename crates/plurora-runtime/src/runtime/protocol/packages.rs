@@ -10,7 +10,7 @@ where
         let package_id = params
             .get("package_id")
             .and_then(Value::as_str)
-            .ok_or_else(|| anyhow::anyhow!("kernel.v1.package.status requires package_id"))?
+            .ok_or_else(|| anyhow::anyhow!("host.package.status requires package_id"))?
             .to_string();
         Ok(serde_json::to_value(
             self.package_status(&package_id)
@@ -23,7 +23,7 @@ where
         let package_id = params
             .get("package_id")
             .and_then(Value::as_str)
-            .ok_or_else(|| anyhow::anyhow!("kernel.v1.package.unload requires package_id"))?
+            .ok_or_else(|| anyhow::anyhow!("host.package.unload requires package_id"))?
             .to_string();
         Ok(serde_json::to_value(
             self.unload_package(&package_id).await?,
@@ -34,7 +34,7 @@ where
         let package_id = params
             .get("package_id")
             .and_then(Value::as_str)
-            .ok_or_else(|| anyhow::anyhow!("kernel.v1.package.restart requires package_id"))?
+            .ok_or_else(|| anyhow::anyhow!("host.package.restart requires package_id"))?
             .to_string();
         Ok(serde_json::to_value(
             self.restart_package(&package_id).await?,
@@ -45,7 +45,7 @@ where
         let package_id = params
             .get("package_id")
             .and_then(Value::as_str)
-            .ok_or_else(|| anyhow::anyhow!("kernel.v1.package.logs requires package_id"))?
+            .ok_or_else(|| anyhow::anyhow!("host.package.logs requires package_id"))?
             .to_string();
         Ok(serde_json::to_value(self.package_logs(&package_id).await)?)
     }

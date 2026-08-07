@@ -6,7 +6,7 @@ description: >
   No-network readiness proof for agent-like capability packages.
   Does NOT connect to any pi runtime or perform real model inference.
   Produces proposals/traces/plans only, emphasizing public protocol,
-  capability, and proposal patterns. No agent/model semantics in kernel.v1.
+  capability, and proposal patterns. No agent/model semantics in platform.
 entry:
   kind: subprocess
   command:

@@ -1,0 +1,97 @@
+{
+  "$defs": {
+    "Errors": {
+      "items": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "details": true,
+          "message": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "details",
+          "message"
+        ],
+        "title": "ErrorShape",
+        "type": "object"
+      },
+      "type": "array"
+    },
+    "Params": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "properties": {
+        "package_id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "package_id"
+      ],
+      "title": "PackageIdParams",
+      "type": "object"
+    },
+    "Result": {
+      "items": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "properties": {
+          "line": {
+            "type": "string"
+          },
+          "package_id": {
+            "type": "string"
+          },
+          "stream": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "line",
+          "package_id",
+          "stream"
+        ],
+        "title": "SubprocessLogLine",
+        "type": "object"
+      },
+      "type": "array"
+    }
+  },
+  "$id": "urn:plurora:schema:method:host.package.logs:v1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Plurora public platform method host.package.logs.",
+  "properties": {
+    "errors": {
+      "$ref": "#/$defs/Errors"
+    },
+    "method": {
+      "const": "host.package.logs"
+    },
+    "params": {
+      "$ref": "#/$defs/Params"
+    },
+    "result": {
+      "$ref": "#/$defs/Result"
+    }
+  },
+  "required": [
+    "method",
+    "params"
+  ],
+  "title": "host.package.logs",
+  "type": "object",
+  "x-plurora-contract": {
+    "id": "host.package.logs",
+    "implementation_status": "partial",
+    "introduced_in": "plurora.contract.default/v1@0.1.0",
+    "maturity": "experimental",
+    "owner_layer": "host",
+    "request_schema": "urn:plurora:schema:method:host.package.logs:v1#/$defs/Params",
+    "response_schema": "urn:plurora:schema:method:host.package.logs:v1#/$defs/Result",
+    "streaming": false
+  }
+}

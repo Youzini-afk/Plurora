@@ -10,7 +10,6 @@ pub enum ProtocolMaturity {
     Candidate,
     Stable,
     Deprecated,
-    LegacyAdapter,
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, JsonSchema, PartialEq, Eq)]

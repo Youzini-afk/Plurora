@@ -180,7 +180,7 @@ MethodPolicy
 
 - 新字段先作为 optional 进入 Experimental/Candidate schema，旧客户端缺省表示原有全局范围。
 - 新建 grant 的 UI/API 在迁移完成后必须显式提交 resource selectors。
-- canonical owner 是 `host.access`、`host.project` 和相关 Host 方法；`kernel.v1.*` 仅保留 legacy adapter。
+- canonical owner 是 `host.access`、`host.project` 和相关 Host 方法；`platform.*` 仅保留 legacy adapter。
 - 对每个 canonical/legacy/direct transport 组合运行同一授权 conformance table。
 - 在全局 grant 迁移和客户端升级完成前，不移除旧字段或旧响应形状。
 

@@ -4,7 +4,7 @@ import { IconContext } from "@phosphor-icons/react";
 import { ThemeProvider } from "@/lib/theme";
 import { LocaleProvider } from "@/lib/locale";
 import { AuthProvider, useAuth } from "@/lib/auth-gate";
-import { KernelProvider } from "@/lib/kernel-client";
+import { PluroraProvider } from "@/lib/plurora-client";
 import { ToastProvider } from "@/components/ui/toast";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthGateScreen, AuthChecking, HostUnavailable } from "@/components/auth-gate";
@@ -67,7 +67,7 @@ function AppInner({ children }: { children?: ReactNode }) {
   }
 
   return (
-    <KernelProvider accessToken={token}>
+    <PluroraProvider accessToken={token}>
       <MotionConfig reducedMotion="user">
         <TooltipProvider>
           <ToastProvider>
@@ -81,7 +81,7 @@ function AppInner({ children }: { children?: ReactNode }) {
           </ToastProvider>
         </TooltipProvider>
       </MotionConfig>
-    </KernelProvider>
+    </PluroraProvider>
   );
 }
 

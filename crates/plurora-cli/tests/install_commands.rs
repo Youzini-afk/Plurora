@@ -126,7 +126,8 @@ async fn install_bare_external_project_into_isolated_managed_workspace() {
         Some(ExternalWorkspaceOwnership::Managed)
     );
     let workspace = std::path::PathBuf::from(external.workspace_root.as_ref().unwrap());
-    assert!(workspace.starts_with(data_dir.join("workspaces/external")));
+    let canonical_data_dir = std::fs::canonicalize(&data_dir).unwrap();
+    assert!(workspace.starts_with(canonical_data_dir.join("workspaces/external")));
     assert_ne!(workspace, source);
     assert_eq!(
         std::fs::read_to_string(workspace.join("src/main.txt")).unwrap(),

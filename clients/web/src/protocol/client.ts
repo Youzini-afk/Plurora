@@ -2,28 +2,13 @@ export interface ProtocolResponse<T = unknown> {
   id: string;
   result?: T;
   error?: { code: string; message: string; details?: unknown };
-  diagnostics?: ContractDiagnostic[];
-}
-
-export interface ContractDiagnostic {
-  code: string;
-  severity: string;
-  requested_id: string;
-  canonical_id: string;
-  maturity: "deprecated" | "legacy_adapter" | string;
-  message: string;
-  deprecated_in?: string;
-  replacement?: string;
-  support_until?: string;
 }
 
 export type ContractOwnerLayer =
   | "substrate"
   | "host"
   | "protocol"
-  | "shell"
-  | "cross_layer"
-  | "legacy_adapter";
+  | "shell";
 
 export interface ContractVersionRequirement {
   layer: ContractOwnerLayer;
@@ -50,14 +35,6 @@ export interface HostContractInfo {
   layers?: unknown[];
   versions?: unknown[];
   profiles?: unknown[];
-  aliases?: Array<{
-    id: string;
-    canonical_id: string;
-    maturity?: string;
-    deprecated_in?: string;
-    replacement?: string;
-    support_until?: string;
-  }>;
   contract_methods?: unknown[];
   protocol_commons_registry_version?: string;
   protocols?: unknown[];
@@ -286,7 +263,7 @@ export interface RegisteredCapability {
   streaming: boolean;
 }
 
-export interface KernelEvent {
+export interface PlatformEvent {
   id: string;
   session_id: string;
   sequence: number;
@@ -954,10 +931,9 @@ export interface ProxyRouteRecord {
   };
 }
 
-export class YggProtocolClient {
+export class PluroraProtocolClient {
   private readonly accessToken?: string;
   private contractSelection?: ContractSelection;
-  private contractDiagnostics: ContractDiagnostic[] = [];
 
   constructor(readonly baseUrl = "http://127.0.0.1:8787", accessToken?: string | null) {
     this.accessToken = accessToken === undefined ? resolveBrowserAccessToken() : accessToken || undefined;
@@ -977,7 +953,6 @@ export class YggProtocolClient {
     });
     await throwForHttpError(response);
     const envelope = (await response.json()) as ProtocolResponse<unknown>;
-    this.captureContractDiagnostics(envelope.diagnostics);
     if (envelope.error) {
       throw new Error(`${envelope.error.code}: ${envelope.error.message}`);
     }
@@ -993,7 +968,6 @@ export class YggProtocolClient {
     });
     await throwForHttpError(response);
     const envelope = (await response.json()) as ProtocolResponse<T>;
-    this.captureContractDiagnostics(envelope.diagnostics);
     if (envelope.error) {
       throw new Error(`${envelope.error.code}: ${envelope.error.message}`);
     }
@@ -1009,7 +983,6 @@ export class YggProtocolClient {
     });
     await throwForHttpError(response);
     const envelope = (await response.json()) as ProtocolResponse<HostContractInfo>;
-    this.captureContractDiagnostics(envelope.diagnostics);
     if (envelope.error) {
       throw new Error(`${envelope.error.code}: ${envelope.error.message}`);
     }
@@ -1021,34 +994,24 @@ export class YggProtocolClient {
     this.contractSelection = undefined;
   }
 
-  drainContractDiagnostics(): ContractDiagnostic[] {
-    const diagnostics = this.contractDiagnostics;
-    this.contractDiagnostics = [];
-    return diagnostics;
-  }
-
-  private captureContractDiagnostics(diagnostics: ContractDiagnostic[] | undefined): void {
-    if (diagnostics) this.contractDiagnostics.push(...diagnostics);
-  }
-
   packages() {
-    return this.call<PackageRecord[]>("kernel.v1.package.list");
+    return this.call<PackageRecord[]>("host.package.list");
   }
 
   packageStatus(packageId: string) {
-    return this.call<PackageRecord>("kernel.v1.package.status", { package_id: packageId });
+    return this.call<PackageRecord>("host.package.status", { package_id: packageId });
   }
 
   packageLogs(packageId: string) {
-    return this.call<SubprocessLogLine[]>("kernel.v1.package.logs", { package_id: packageId });
+    return this.call<SubprocessLogLine[]>("host.package.logs", { package_id: packageId });
   }
 
   capabilities() {
-    return this.call<RegisteredCapability[]>("kernel.v1.capability.discover");
+    return this.call<RegisteredCapability[]>("capability.discover");
   }
 
   diagnostics() {
-    return this.call<Record<string, unknown>>("kernel.v1.host.diagnostics");
+    return this.call<Record<string, unknown>>("host.diagnostics");
   }
 
   listTargets() {
@@ -1114,7 +1077,7 @@ export class YggProtocolClient {
   }
 
   assets() {
-    return this.call<AssetRecord[]>("kernel.v1.asset.list");
+    return this.call<AssetRecord[]>("object.list");
   }
 
   projections() {
@@ -1200,7 +1163,7 @@ export class YggProtocolClient {
   }
 
   openSession(labels: string[] = [], metadata: Record<string, unknown> = {}, activePackageSet: string[] = []) {
-    return this.call<{ id: string }>("kernel.v1.session.open", {
+    return this.call<{ id: string }>("context.open", {
       active_package_set: activePackageSet,
       labels,
       metadata,
@@ -1208,7 +1171,7 @@ export class YggProtocolClient {
   }
 
   forkSession(parentSessionId: string, forkedFromSequence: number, metadata: Record<string, unknown> = {}) {
-    return this.call<{ id: string }>("kernel.v1.session.fork", {
+    return this.call<{ id: string }>("context.fork", {
       parent_session_id: parentSessionId,
       forked_from_sequence: forkedFromSequence,
       metadata,
@@ -1221,7 +1184,7 @@ export class YggProtocolClient {
     providerPackageId?: string,
     sessionId?: string,
   ): Promise<CapabilityInvocationResult<TOutput>> {
-    return this.call("kernel.v1.capability.invoke", {
+    return this.call("capability.invoke", {
       capability_id: capabilityId,
       input,
       ...(providerPackageId ? { provider_package_id: providerPackageId } : {}),
@@ -1431,13 +1394,13 @@ export class YggProtocolClient {
   }
 
   listEvents(sessionId: string) {
-    return this.call<KernelEvent[]>("kernel.v1.event.list", { session_id: sessionId, limit: 50 });
+    return this.call<PlatformEvent[]>("journal.list", { session_id: sessionId, limit: 50 });
   }
 
-  subscribeEvents(sessionId: string | undefined, onEvent: (event: KernelEvent) => void) {
-    const targetSession = sessionId ?? "kernel_project_lifecycle";
+  subscribeEvents(sessionId: string | undefined, onEvent: (event: PlatformEvent) => void) {
+    const targetSession = sessionId ?? "host_project_lifecycle";
     const source = new EventSource(this.eventSubscribeUrl(targetSession));
-    source.addEventListener("kernel.v1.event", (message) => onEvent(JSON.parse((message as MessageEvent).data)));
+    source.addEventListener("journal.event", (message) => onEvent(JSON.parse((message as MessageEvent).data)));
     return () => source.close();
   }
 
@@ -1499,7 +1462,7 @@ export class YggProtocolClient {
   }
 
   private eventSubscribeUrl(sessionId: string): string {
-    const url = new URL(`${this.baseUrl}/kernel/v1/event.subscribe/${encodeURIComponent(sessionId)}`);
+    const url = new URL(`${this.baseUrl}/journal/subscribe/${encodeURIComponent(sessionId)}`);
     if (this.accessToken) {
       url.searchParams.set("access_token", this.accessToken);
     }

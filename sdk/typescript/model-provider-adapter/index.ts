@@ -10,7 +10,7 @@
  *
  * It is an **SDK adapter**, not a provider package. It does not ship a
  * model, does not proxy requests, does not do billing, does not add
- * `kernel.v1.model.*`, and does not perform network I/O.
+ * `platform.model.*`, and does not perform network I/O.
  *
  * ## API surface
  *

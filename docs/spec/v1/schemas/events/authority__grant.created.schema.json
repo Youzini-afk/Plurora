@@ -1,0 +1,171 @@
+{
+  "$defs": {
+    "Payload": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "properties": {
+        "granted_at": {
+          "format": "date-time",
+          "type": "string"
+        },
+        "id": {
+          "type": "string"
+        },
+        "permission": {
+          "type": "string"
+        },
+        "principal": {
+          "$ref": "#/$defs/ProtocolPrincipal"
+        },
+        "reason": {
+          "default": null,
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "revoked_at": {
+          "default": null,
+          "format": "date-time",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "scope": {
+          "default": null,
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "granted_at",
+        "id",
+        "permission",
+        "principal"
+      ],
+      "title": "PermissionGrantRecord",
+      "type": "object"
+    },
+    "ProtocolPrincipal": {
+      "oneOf": [
+        {
+          "properties": {
+            "kind": {
+              "enum": [
+                "host_admin"
+              ],
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "properties": {
+            "kind": {
+              "enum": [
+                "host_dev"
+              ],
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "properties": {
+            "kind": {
+              "enum": [
+                "package"
+              ],
+              "type": "string"
+            },
+            "package_id": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "package_id"
+          ],
+          "type": "object"
+        },
+        {
+          "properties": {
+            "kind": {
+              "enum": [
+                "human"
+              ],
+              "type": "string"
+            },
+            "user_id": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "user_id"
+          ],
+          "type": "object"
+        },
+        {
+          "properties": {
+            "assistant_id": {
+              "type": "string"
+            },
+            "delegated_user_id": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "kind": {
+              "enum": [
+                "assistant"
+              ],
+              "type": "string"
+            }
+          },
+          "required": [
+            "assistant_id",
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "properties": {
+            "kind": {
+              "enum": [
+                "anonymous"
+              ],
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "type": "object"
+        }
+      ]
+    }
+  },
+  "$id": "urn:plurora:schema:event:authority/grant.created:v1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "Payload schema for event kind authority/grant.created.",
+  "properties": {
+    "kind": {
+      "const": "authority/grant.created"
+    },
+    "payload": {
+      "$ref": "#/$defs/Payload"
+    }
+  },
+  "title": "authority/grant.created",
+  "type": "object"
+}

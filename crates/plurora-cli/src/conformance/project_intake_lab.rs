@@ -7,7 +7,7 @@
 //! 4. Workspace plan is plan-only
 //! 5. Local path rejection (path traversal, home path, absolute sensitive path)
 //! 6. Adapter plan is plan-only
-//! 7. No forbidden namespace (kernel.v1.project/workspace/git/npm/deploy/ide)
+//! 7. No forbidden namespace (platform.project/workspace/git/npm/deploy/ide)
 //! 8. No raw secrets in any capability
 //! 9. Adapter manifest preview no write (E5)
 //! 10. Rejects official adapter id (E5)
@@ -108,12 +108,12 @@ pub(crate) async fn project_intake_contract() -> anyhow::Result<()> {
     // No forbidden namespace
     let output_str = serde_json::to_string(&contract.output).unwrap();
     for token in &[
-        "kernel.v1.project.",
-        "kernel.v1.workspace.",
-        "kernel.v1.git.",
-        "kernel.v1.npm.",
-        "kernel.v1.deploy.",
-        "kernel.v1.ide.",
+        "platform.project.",
+        "platform.workspace.",
+        "platform.git.",
+        "platform.npm.",
+        "platform.deploy.",
+        "platform.ide.",
     ] {
         anyhow::ensure!(
             !output_str.contains(token),
@@ -376,12 +376,12 @@ pub(crate) async fn project_intake_no_forbidden_namespace() -> anyhow::Result<()
     ];
 
     let forbidden = [
-        "kernel.v1.project.",
-        "kernel.v1.workspace.",
-        "kernel.v1.git.",
-        "kernel.v1.npm.",
-        "kernel.v1.deploy.",
-        "kernel.v1.ide.",
+        "platform.project.",
+        "platform.workspace.",
+        "platform.git.",
+        "platform.npm.",
+        "platform.deploy.",
+        "platform.ide.",
     ];
 
     for cap in &caps {
@@ -701,12 +701,12 @@ pub(crate) async fn project_intake_e5_no_forbidden_namespace_no_raw_secret() -> 
     let rt = load_project_intake_lab().await?;
 
     let forbidden = [
-        "kernel.v1.project.",
-        "kernel.v1.workspace.",
-        "kernel.v1.git.",
-        "kernel.v1.npm.",
-        "kernel.v1.deploy.",
-        "kernel.v1.ide.",
+        "platform.project.",
+        "platform.workspace.",
+        "platform.git.",
+        "platform.npm.",
+        "platform.deploy.",
+        "platform.ide.",
     ];
 
     let e5_caps = [

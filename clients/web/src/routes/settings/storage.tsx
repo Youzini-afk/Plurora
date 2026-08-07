@@ -2,11 +2,11 @@ import { Folder } from "@/components/icons";
 import { Card, CardSection } from "@/components/ui/card";
 import { Eyebrow, EyebrowSm, PageTitle } from "@/components/ui/typography";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useAsync, useKernel } from "@/lib/kernel-client";
+import { useAsync, usePlurora } from "@/lib/plurora-client";
 import { useT } from "@/lib/locale";
 
 export function StoragePanel() {
-  const client = useKernel();
+  const client = usePlurora();
   const t = useT();
   const diagnostics = useAsync(() => client.diagnostics().catch(() => null), [client]);
 

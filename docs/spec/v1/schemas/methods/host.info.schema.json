@@ -1,0 +1,614 @@
+{
+  "$defs": {
+    "ContractLayerInfo": {
+      "properties": {
+        "description": {
+          "type": "string"
+        },
+        "id": {
+          "$ref": "#/$defs/ContractOwnerLayer"
+        },
+        "maturity": {
+          "$ref": "#/$defs/ContractMaturity"
+        }
+      },
+      "required": [
+        "description",
+        "id",
+        "maturity"
+      ],
+      "type": "object"
+    },
+    "ContractMaturity": {
+      "enum": [
+        "experimental",
+        "candidate",
+        "stable"
+      ],
+      "type": "string"
+    },
+    "ContractMethod": {
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "implementation_status": {
+          "$ref": "#/$defs/MethodStatus"
+        },
+        "introduced_in": {
+          "type": "string"
+        },
+        "maturity": {
+          "$ref": "#/$defs/ContractMaturity"
+        },
+        "owner_layer": {
+          "$ref": "#/$defs/ContractOwnerLayer"
+        },
+        "request_schema": {
+          "type": "string"
+        },
+        "response_schema": {
+          "type": "string"
+        },
+        "streaming": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "id",
+        "implementation_status",
+        "introduced_in",
+        "maturity",
+        "owner_layer",
+        "request_schema",
+        "response_schema",
+        "streaming"
+      ],
+      "type": "object"
+    },
+    "ContractOwnerLayer": {
+      "enum": [
+        "substrate",
+        "host",
+        "protocol",
+        "shell"
+      ],
+      "type": "string"
+    },
+    "ContractProfileInfo": {
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "maturity": {
+          "$ref": "#/$defs/ContractMaturity"
+        },
+        "versions": {
+          "items": {
+            "$ref": "#/$defs/ContractVersionRequirement"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "maturity",
+        "versions"
+      ],
+      "type": "object"
+    },
+    "ContractVersionInfo": {
+      "properties": {
+        "layer": {
+          "$ref": "#/$defs/ContractOwnerLayer"
+        },
+        "maturity": {
+          "$ref": "#/$defs/ContractMaturity"
+        },
+        "version": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "layer",
+        "maturity",
+        "version"
+      ],
+      "type": "object"
+    },
+    "ContractVersionRequirement": {
+      "properties": {
+        "layer": {
+          "$ref": "#/$defs/ContractOwnerLayer"
+        },
+        "version": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "layer",
+        "version"
+      ],
+      "type": "object"
+    },
+    "Errors": {
+      "items": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "details": true,
+          "message": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "details",
+          "message"
+        ],
+        "title": "ErrorShape",
+        "type": "object"
+      },
+      "type": "array"
+    },
+    "MethodStatus": {
+      "enum": [
+        "implemented",
+        "partial",
+        "planned"
+      ],
+      "type": "string"
+    },
+    "Params": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "title": "EmptyParams",
+      "type": "object"
+    },
+    "ProtocolAuthorityRequirement": {
+      "properties": {
+        "authority": {
+          "type": "string"
+        },
+        "operations": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "scope": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "authority",
+        "operations",
+        "scope"
+      ],
+      "type": "object"
+    },
+    "ProtocolCompatibilityProfile": {
+      "properties": {
+        "description": {
+          "type": "string"
+        },
+        "id": {
+          "type": "string"
+        },
+        "maturity": {
+          "$ref": "#/$defs/ProtocolMaturity"
+        },
+        "version": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "description",
+        "id",
+        "maturity",
+        "version"
+      ],
+      "type": "object"
+    },
+    "ProtocolConformanceVector": {
+      "properties": {
+        "description": {
+          "type": "string"
+        },
+        "id": {
+          "type": "string"
+        },
+        "profiles": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "required": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "description",
+        "id",
+        "required"
+      ],
+      "type": "object"
+    },
+    "ProtocolDescriptor": {
+      "properties": {
+        "authority_requirements": {
+          "items": {
+            "$ref": "#/$defs/ProtocolAuthorityRequirement"
+          },
+          "type": "array"
+        },
+        "compatibility_profiles": {
+          "items": {
+            "$ref": "#/$defs/ProtocolCompatibilityProfile"
+          },
+          "type": "array"
+        },
+        "conformance_vectors": {
+          "items": {
+            "$ref": "#/$defs/ProtocolConformanceVector"
+          },
+          "type": "array"
+        },
+        "conforming_implementations": {
+          "items": {
+            "$ref": "#/$defs/ProtocolImplementationClaim"
+          },
+          "type": "array"
+        },
+        "descriptor_type_uri": {
+          "type": "string"
+        },
+        "error_model": {
+          "$ref": "#/$defs/ProtocolDocumentReference"
+        },
+        "lifecycle": {
+          "$ref": "#/$defs/ProtocolDocumentReference"
+        },
+        "maturity": {
+          "$ref": "#/$defs/ProtocolMaturity"
+        },
+        "migrations": {
+          "items": {
+            "$ref": "#/$defs/ProtocolMigration"
+          },
+          "type": "array"
+        },
+        "protocol_id": {
+          "type": "string"
+        },
+        "schemas": {
+          "items": {
+            "$ref": "#/$defs/ProtocolSchemaReference"
+          },
+          "type": "array"
+        },
+        "semantic_specification": {
+          "$ref": "#/$defs/ProtocolDocumentReference"
+        },
+        "version": {
+          "type": "string"
+        },
+        "wit_worlds": {
+          "items": {
+            "$ref": "#/$defs/ProtocolSchemaReference"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "compatibility_profiles",
+        "conformance_vectors",
+        "descriptor_type_uri",
+        "error_model",
+        "lifecycle",
+        "maturity",
+        "protocol_id",
+        "schemas",
+        "semantic_specification",
+        "version"
+      ],
+      "type": "object"
+    },
+    "ProtocolDocumentReference": {
+      "properties": {
+        "digest": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "media_type": {
+          "type": "string"
+        },
+        "uri": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "media_type",
+        "uri"
+      ],
+      "type": "object"
+    },
+    "ProtocolImplementationClaim": {
+      "properties": {
+        "conformance_vectors": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "implementation_id": {
+          "type": "string"
+        },
+        "profiles": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "provider": {
+          "type": "string"
+        },
+        "test_only": {
+          "default": false,
+          "type": "boolean"
+        },
+        "version": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "conformance_vectors",
+        "implementation_id",
+        "profiles",
+        "provider",
+        "version"
+      ],
+      "type": "object"
+    },
+    "ProtocolMaturity": {
+      "enum": [
+        "experimental",
+        "candidate",
+        "stable",
+        "deprecated"
+      ],
+      "type": "string"
+    },
+    "ProtocolMethod": {
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "status": {
+          "$ref": "#/$defs/MethodStatus"
+        },
+        "streaming": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "id",
+        "status",
+        "streaming"
+      ],
+      "type": "object"
+    },
+    "ProtocolMigration": {
+      "properties": {
+        "adapter_id": {
+          "type": "string"
+        },
+        "from_protocol_id": {
+          "type": "string"
+        },
+        "from_version": {
+          "type": "string"
+        },
+        "instructions": {
+          "$ref": "#/$defs/ProtocolDocumentReference"
+        },
+        "kind": {
+          "$ref": "#/$defs/ProtocolMigrationKind"
+        },
+        "lossless": {
+          "type": "boolean"
+        },
+        "to_version": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "adapter_id",
+        "from_protocol_id",
+        "from_version",
+        "instructions",
+        "kind",
+        "lossless",
+        "to_version"
+      ],
+      "type": "object"
+    },
+    "ProtocolMigrationKind": {
+      "enum": [
+        "identity_adapter",
+        "semantic_adapter",
+        "data_migration"
+      ],
+      "type": "string"
+    },
+    "ProtocolSchemaKind": {
+      "enum": [
+        "json_schema",
+        "wit_world",
+        "other"
+      ],
+      "type": "string"
+    },
+    "ProtocolSchemaReference": {
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "kind": {
+          "$ref": "#/$defs/ProtocolSchemaKind"
+        },
+        "uri": {
+          "type": "string"
+        },
+        "version": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "kind",
+        "uri",
+        "version"
+      ],
+      "type": "object"
+    },
+    "Result": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "properties": {
+        "contract_methods": {
+          "items": {
+            "$ref": "#/$defs/ContractMethod"
+          },
+          "type": [
+            "array",
+            "null"
+          ]
+        },
+        "contract_registry_version": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "default_profile": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "layers": {
+          "items": {
+            "$ref": "#/$defs/ContractLayerInfo"
+          },
+          "type": [
+            "array",
+            "null"
+          ]
+        },
+        "maturity": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ContractMaturity"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "methods": {
+          "items": {
+            "$ref": "#/$defs/ProtocolMethod"
+          },
+          "type": "array"
+        },
+        "profiles": {
+          "items": {
+            "$ref": "#/$defs/ContractProfileInfo"
+          },
+          "type": [
+            "array",
+            "null"
+          ]
+        },
+        "protocol_commons_registry_version": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "protocol_version": {
+          "type": "string"
+        },
+        "protocols": {
+          "items": {
+            "$ref": "#/$defs/ProtocolDescriptor"
+          },
+          "type": [
+            "array",
+            "null"
+          ]
+        },
+        "supported_transports": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "versions": {
+          "items": {
+            "$ref": "#/$defs/ContractVersionInfo"
+          },
+          "type": [
+            "array",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "methods",
+        "protocol_version",
+        "supported_transports"
+      ],
+      "title": "HostInfo",
+      "type": "object"
+    }
+  },
+  "$id": "urn:plurora:schema:method:host.info:v1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Plurora public platform method host.info.",
+  "properties": {
+    "errors": {
+      "$ref": "#/$defs/Errors"
+    },
+    "method": {
+      "const": "host.info"
+    },
+    "params": {
+      "$ref": "#/$defs/Params"
+    },
+    "result": {
+      "$ref": "#/$defs/Result"
+    }
+  },
+  "required": [
+    "method",
+    "params"
+  ],
+  "title": "host.info",
+  "type": "object",
+  "x-plurora-contract": {
+    "id": "host.info",
+    "implementation_status": "implemented",
+    "introduced_in": "plurora.contract.default/v1@0.1.0",
+    "maturity": "candidate",
+    "owner_layer": "host",
+    "request_schema": "urn:plurora:schema:method:host.info:v1#/$defs/Params",
+    "response_schema": "urn:plurora:schema:method:host.info:v1#/$defs/Result",
+    "streaming": false
+  }
+}

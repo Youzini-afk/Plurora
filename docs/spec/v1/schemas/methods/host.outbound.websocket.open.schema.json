@@ -1,0 +1,158 @@
+{
+  "$defs": {
+    "Errors": {
+      "items": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "details": true,
+          "message": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "details",
+          "message"
+        ],
+        "title": "ErrorShape",
+        "type": "object"
+      },
+      "type": "array"
+    },
+    "Params": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "description": "Request to open a WebSocket connection.",
+      "properties": {
+        "capability_id": {
+          "type": "string"
+        },
+        "destination_host": {
+          "type": "string"
+        },
+        "max_duration_ms": {
+          "format": "uint64",
+          "minimum": 0.0,
+          "type": "integer"
+        },
+        "max_frame_bytes": {
+          "format": "uint",
+          "minimum": 0.0,
+          "type": "integer"
+        },
+        "max_idle_ms": {
+          "format": "uint64",
+          "minimum": 0.0,
+          "type": "integer"
+        },
+        "max_total_bytes_inbound": {
+          "format": "uint",
+          "minimum": 0.0,
+          "type": "integer"
+        },
+        "max_total_bytes_outbound": {
+          "format": "uint",
+          "minimum": 0.0,
+          "type": "integer"
+        },
+        "metadata": true,
+        "package_id": {
+          "type": "string"
+        },
+        "path": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "purpose": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "secret_headers": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "type": "object"
+        },
+        "secret_refs": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "static_headers": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "Pre-resolved headers (raw); secrets injected in handshake. Static-only.",
+          "type": "object"
+        },
+        "subprotocols": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "capability_id",
+        "destination_host",
+        "max_duration_ms",
+        "max_frame_bytes",
+        "max_idle_ms",
+        "max_total_bytes_inbound",
+        "max_total_bytes_outbound",
+        "metadata",
+        "package_id",
+        "secret_headers",
+        "secret_refs",
+        "static_headers",
+        "subprotocols"
+      ],
+      "title": "OutboundWebSocketOpenRequest",
+      "type": "object"
+    },
+    "Result": {
+      "type": "object"
+    }
+  },
+  "$id": "urn:plurora:schema:method:host.outbound.websocket.open:v1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Plurora public platform method host.outbound.websocket.open.",
+  "properties": {
+    "errors": {
+      "$ref": "#/$defs/Errors"
+    },
+    "method": {
+      "const": "host.outbound.websocket.open"
+    },
+    "params": {
+      "$ref": "#/$defs/Params"
+    },
+    "result": {
+      "$ref": "#/$defs/Result"
+    }
+  },
+  "required": [
+    "method",
+    "params"
+  ],
+  "title": "host.outbound.websocket.open",
+  "type": "object",
+  "x-plurora-contract": {
+    "id": "host.outbound.websocket.open",
+    "implementation_status": "partial",
+    "introduced_in": "plurora.contract.default/v1@0.1.0",
+    "maturity": "experimental",
+    "owner_layer": "host",
+    "request_schema": "urn:plurora:schema:method:host.outbound.websocket.open:v1#/$defs/Params",
+    "response_schema": "urn:plurora:schema:method:host.outbound.websocket.open:v1#/$defs/Result",
+    "streaming": true
+  }
+}

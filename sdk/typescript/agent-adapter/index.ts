@@ -64,14 +64,14 @@ export interface ProtocolResponse {
   capability_id: string;
   /** The provider package id that handled the call. */
   provider_package_id?: string;
-  /** Optional trace id assigned by the kernel.v1. */
+  /** Optional trace id assigned by the platform. */
   trace_id?: string;
 }
 
 /**
  * ProtocolClient — abstract interface expressing `call(request)`.
  *
- * Implementations may wrap a kernel protocol client, a subprocess
+ * Implementations may wrap a public contract client, a subprocess
  * transport, or a test double. The adapter never assumes a specific
  * transport.
  */
@@ -646,10 +646,10 @@ export function createProposalDraft(
 /**
  * Diagnose permission requirements for a capability tool.
  *
- * This is a client-side check — it does not query the kernel.v1. It
+ * This is a client-side check — it does not query the platform. It
  * reports which permissions a tool requires and marks them as
  * "missing" since the adapter has no access to the actual grant
- * state. Consumers should use `kernel.v1.capability.describe` for
+ * state. Consumers should use `capability.describe` for
  * authoritative permission checks.
  */
 export function diagnosePermissions(tool: CapabilityTool): PermissionDiagnostics {

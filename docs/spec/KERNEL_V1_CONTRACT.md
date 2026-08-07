@@ -2,7 +2,7 @@
 
 > [English](./KERNEL_V1_CONTRACT.en.md) · [中文](./KERNEL_V1_CONTRACT.md)
 
-本文档是 Plurora 当前平台契约的 v1 版本规范。它定义现行公开边界：方法、事件、错误码、能力句柄、清单声明、schema 与 conformance 期望。任何参与方都可以通过此契约调用平台；任何实现都必须满足相同的 schema 与行为 conformance。`kernel.v1.*` 是兼容名称，不自动等同于长期宪法基底。
+本文档是 Plurora 当前平台契约的 v1 版本规范。它定义现行公开边界：方法、事件、错误码、能力句柄、清单声明、schema 与 conformance 期望。任何参与方都可以通过此契约调用平台；任何实现都必须满足相同的 schema 与行为 conformance。`platform.*` 是兼容名称，不自动等同于长期宪法基底。
 
 v1 的设计目标不是把某种内容形态写进核心机制，而是让组件、安全执行、审计、SDK 与第三方客户端拥有稳定边界。角色、世界、提示词、模型、消息、记忆等内容语义属于相应协议、组件或产品，不属于宪法基底。
 
@@ -25,160 +25,160 @@ v1 契约支持两种参与方式：
 
 完整请求/响应 schema 位于 `docs/spec/v1/schemas/methods/`。方法名是稳定公开 API；v1 只允许 additive 变更。
 
-### `kernel.v1.session.*`（6）
+### `platform.session.*`（6）
 
 | 方法 | 状态 | 契约 |
 |---|---:|---|
-| `kernel.v1.session.open` | implemented | 开启内容无关 session，写入 `kernel/v1/session.opened`。 |
-| `kernel.v1.session.close` | implemented | 关闭 session，写入 `kernel/v1/session.closed`。 |
-| `kernel.v1.session.fork` | partial | 从父 session 与 sequence 创建 branch lineage，不解释内容。 |
-| `kernel.v1.session.branch.list` | partial | 列出与 session 相关的 branch 记录。 |
-| `kernel.v1.session.get` | partial | 查询单个 session；行为与错误契约仍在加固。 |
-| `kernel.v1.session.list` | planned | 预留 host 管理列表。 |
+| `context.open` | implemented | 开启内容无关 session，写入 `context/opened`。 |
+| `context.close` | implemented | 关闭 session，写入 `context/closed`。 |
+| `context.fork` | partial | 从父 session 与 sequence 创建 branch lineage，不解释内容。 |
+| `context.branch.list` | partial | 列出与 session 相关的 branch 记录。 |
+| `context.get` | partial | 查询单个 session；行为与错误契约仍在加固。 |
+| `context.list` | planned | 预留 host 管理列表。 |
 
-### `kernel.v1.event.*`（3）
-
-| 方法 | 状态 | 契约 |
-|---|---:|---|
-| `kernel.v1.event.append` | implemented | 对非内核 writer 强制 namespace 和 `events.append`。 |
-| `kernel.v1.event.list` | partial | 按 session 列出事件，支持 sequence、limit、kind、writer 过滤与权限门控；跨后端一致性仍在加固。 |
-| `kernel.v1.event.subscribe` | planned | SSE replay/tail 路由已存在；公开 method dispatch 与 package-principal subscribe 权限尚未落地。 |
-
-### `kernel.v1.package.*`（7）
+### `journal.event.*`（3）
 
 | 方法 | 状态 | 契约 |
 |---|---:|---|
-| `kernel.v1.package.load` | partial | 验证 manifest、host policy、路径 A/路径 B、入口约束，注册声明并发出生命周期事件；部分 entry form 仍是占位。 |
-| `kernel.v1.package.unload` | partial | 停止执行、移除注册、撤销运行时句柄、发出停止/卸载事件；不同 entry form 的完整对称性仍在加固。 |
-| `kernel.v1.package.list` | implemented | 列出内存 package record。 |
-| `kernel.v1.package.status` | implemented | 返回单个 package record。 |
-| `kernel.v1.package.restart` | partial | 已支持 subprocess restart；其他 entry 形式按策略拒绝。 |
-| `kernel.v1.package.logs` | partial | 捕获 subprocess stderr；stdout 保留给 JSON-RPC 帧。 |
-| `kernel.v1.package.describe` | planned | 可由 status manifest 派生，公开方法预留。 |
+| `journal.append` | implemented | 对非内核 writer 强制 namespace 和 `events.append`。 |
+| `journal.list` | partial | 按 session 列出事件，支持 sequence、limit、kind、writer 过滤与权限门控；跨后端一致性仍在加固。 |
+| `journal.subscribe` | planned | SSE replay/tail 路由已存在；公开 method dispatch 与 package-principal subscribe 权限尚未落地。 |
 
-### `kernel.v1.capability.*`（5）
+### `platform.package.*`（7）
 
 | 方法 | 状态 | 契约 |
 |---|---:|---|
-| `kernel.v1.capability.discover` | implemented | 列出注册的 capability descriptor。 |
-| `kernel.v1.capability.describe` | planned | 预留 descriptor 单项查询。 |
-| `kernel.v1.capability.invoke` | partial | 用调用者上下文与 capability handle 强制权限；验证 schema；completed/failed 终态挂接 EffectReceipt；支持 recorded replay 与 branch re-execute；跨 entry/transport 一致性仍在加固。 |
-| `kernel.v1.capability.stream` / `cancel` | partial | 流式生命周期、取消、超时与事件已存在，ended/error/cancelled/timeout 产生可区分 terminal receipt；跨传输一致性继续加固。 |
+| `host.package.load` | partial | 验证 manifest、host policy、路径 A/路径 B、入口约束，注册声明并发出生命周期事件；部分 entry form 仍是占位。 |
+| `host.package.unload` | partial | 停止执行、移除注册、撤销运行时句柄、发出停止/卸载事件；不同 entry form 的完整对称性仍在加固。 |
+| `host.package.list` | implemented | 列出内存 package record。 |
+| `host.package.status` | implemented | 返回单个 package record。 |
+| `host.package.restart` | partial | 已支持 subprocess restart；其他 entry 形式按策略拒绝。 |
+| `host.package.logs` | partial | 捕获 subprocess stderr；stdout 保留给 JSON-RPC 帧。 |
+| `host.package.describe` | planned | 可由 status manifest 派生，公开方法预留。 |
 
-### `kernel.v1.cap.*`（3）
-
-| 方法 | 状态 | 契约 |
-|---|---:|---|
-| `kernel.v1.cap.attenuate` | partial | 从父句柄派生子句柄；约束子集验证仍需加固。 |
-| `kernel.v1.cap.revoke` | partial | 立刻撤销句柄；完整子树传播仍需加固。 |
-| `kernel.v1.cap.list_for` | partial | 列出 package 当前持有的 live handles；delegate/lease refresh 尚未完成。 |
-
-### `kernel.v1.permission.*`（4）
+### `platform.capability.*`（5）
 
 | 方法 | 状态 | 契约 |
 |---|---:|---|
-| `kernel.v1.permission.grant` | partial | Host-dev 给 human / assistant principal 授予作用域权限，写审计事件。 |
-| `kernel.v1.permission.revoke` | partial | 撤销作用域权限，写审计事件。 |
-| `kernel.v1.permission.list` | partial | 列出当前 grants。 |
-| `kernel.v1.permission.audit` | partial | 查询 grant/revoke 审计。 |
+| `capability.discover` | implemented | 列出注册的 capability descriptor。 |
+| `capability.describe` | planned | 预留 descriptor 单项查询。 |
+| `capability.invoke` | partial | 用调用者上下文与 capability handle 强制权限；验证 schema；completed/failed 终态挂接 EffectReceipt；支持 recorded replay 与 branch re-execute；跨 entry/transport 一致性仍在加固。 |
+| `capability.stream` / `cancel` | partial | 流式生命周期、取消、超时与事件已存在，ended/error/cancelled/timeout 产生可区分 terminal receipt；跨传输一致性继续加固。 |
 
-### `kernel.v1.proposal.*`（6）
-
-| 方法 | 状态 | 契约 |
-|---|---:|---|
-| `kernel.v1.proposal.create` | partial | 创建需要审批的通用变更。 |
-| `kernel.v1.proposal.get` | partial | 查询 proposal。 |
-| `kernel.v1.proposal.list` | partial | 列出 proposal。 |
-| `kernel.v1.proposal.approve` | partial | 要求 proposal-scoped review authority，标记已审批并写事件。 |
-| `kernel.v1.proposal.reject` | partial | 要求 proposal-scoped review authority，标记已拒绝并写 denied receipt/event。 |
-| `kernel.v1.proposal.apply` | partial | 重新检查 apply 与 required authority；旧 Proposal 适配为 Intent/ChangeSet/PolicyDecision/Commit，preflight 后应用 asset/projection 操作，并以 CAS 记录 operation 与 committed/failed/partial receipt。 |
-
-### `kernel.v1.asset.*`（3）
+### `platform.cap.*`（3）
 
 | 方法 | 状态 | 契约 |
 |---|---:|---|
-| `kernel.v1.asset.put` | partial | 存储不透明 asset metadata，阻断 raw secret，写 `kernel/v1/asset.put`。 |
-| `kernel.v1.asset.get` | partial | 读取 asset record。 |
-| `kernel.v1.asset.list` | partial | 列出 asset records。 |
+| `authority.handle.attenuate` | partial | 从父句柄派生子句柄；约束子集验证仍需加固。 |
+| `authority.handle.revoke` | partial | 立刻撤销句柄；完整子树传播仍需加固。 |
+| `authority.handle.list` | partial | 列出 package 当前持有的 live handles；delegate/lease refresh 尚未完成。 |
 
-### `kernel.v1.projection.*`（4）
-
-| 方法 | 状态 | 契约 |
-|---|---:|---|
-| `kernel.v1.projection.register` | partial | 注册通用 projection descriptor。 |
-| `kernel.v1.projection.rebuild` | partial | 基于事件过滤 rebuild 并写 `kernel/v1/projection.updated`。 |
-| `kernel.v1.projection.get` | partial | 读取 projection state。 |
-| `kernel.v1.projection.list` | partial | 列出 projection。 |
-
-### `kernel.v1.outbound.*`（6）
+### `platform.permission.*`（4）
 
 | 方法 | 状态 | 契约 |
 |---|---:|---|
-| `kernel.v1.outbound.audit` | partial | 查询出站审计与 terminal receipt descriptor；跨执行器视图一致性仍在加固。 |
-| `kernel.v1.outbound.execute` | partial | 受 manifest network/secret_ref 约束的一元 HTTPS 出站；denied/error/success 均产生 receipt。 |
-| `kernel.v1.outbound.stream` | partial | 受约束 SSE/NDJSON/raw 流式出站；terminal completion 产生 receipt。 |
-| `kernel.v1.outbound.websocket.*` | partial | 受约束 WSS open/send/close；连接生命周期与事件覆盖仍在加固。 |
+| `authority.grant.create` | partial | Host-dev 给 human / assistant principal 授予作用域权限，写审计事件。 |
+| `authority.grant.revoke` | partial | 撤销作用域权限，写审计事件。 |
+| `authority.grant.list` | partial | 列出当前 grants。 |
+| `authority.decision.list` | partial | 查询 grant/revoke 审计。 |
 
-Git 安装不是内核传输；未来由普通官方能力包 `official/git-tools-lab` 通过 `kernel.v1.outbound.execute` 与 `permissions.filesystem.write` 实现。
-
-### `kernel.v1.target.*` / `exec.*` / `port.*` / `proxy.*`（17）
+### `platform.proposal.*`（6）
 
 | 方法 | 状态 | 契约 |
 |---|---:|---|
-| `kernel.v1.target.list` | partial | HostAdmin/HostDev only；列出可运行目标。 |
-| `kernel.v1.target.status` | partial | HostAdmin/HostDev only；查询单个目标。 |
-| `kernel.v1.target.register` | partial | HostAdmin/HostDev only；注册受控目标。 |
-| `kernel.v1.target.unregister` | partial | HostAdmin/HostDev only；注销目标。 |
-| `kernel.v1.exec.start` | partial | HostAdmin/HostDev only；通过 host `LocalExecExecutor` 启动受控执行；默认 deny-all，denied/failed terminal path 挂接 receipt。 |
-| `kernel.v1.exec.stop` | partial | HostAdmin/HostDev only；停止已知执行并产生 cancelled/failed/denied receipt。 |
-| `kernel.v1.exec.status` | partial | HostAdmin/HostDev only；返回 runtime 已观察到的状态。live executor 会被主动监测，status/stop/重启竞态复用唯一持久化终态 receipt。 |
-| `kernel.v1.exec.logs` | partial | HostAdmin/HostDev only；读取脱敏日志尾部。 |
-| `kernel.v1.exec.list` | partial | HostAdmin/HostDev only；列出执行记录。 |
-| `kernel.v1.port.lease` | partial | HostAdmin/HostDev only；租用 loopback 端口。 |
-| `kernel.v1.port.release` | partial | HostAdmin/HostDev only；释放端口租约。 |
-| `kernel.v1.port.status` | partial | HostAdmin/HostDev only；查询端口租约。 |
-| `kernel.v1.port.list` | partial | HostAdmin/HostDev only；列出端口租约。 |
-| `kernel.v1.proxy.register` | partial | HostAdmin/HostDev only；注册 HTTP/WebSocket route，upstream 必须引用 active port lease，且 `port_name` 匹配。 |
-| `kernel.v1.proxy.unregister` | partial | HostAdmin/HostDev only；注销 route。 |
-| `kernel.v1.proxy.status` | partial | HostAdmin/HostDev only；查询 route。 |
-| `kernel.v1.proxy.list` | partial | HostAdmin/HostDev only；列出 route。 |
+| `change.proposal.create` | partial | 创建需要审批的通用变更。 |
+| `change.proposal.get` | partial | 查询 proposal。 |
+| `change.proposal.list` | partial | 列出 proposal。 |
+| `change.proposal.approve` | partial | 要求 proposal-scoped review authority，标记已审批并写事件。 |
+| `change.proposal.reject` | partial | 要求 proposal-scoped review authority，标记已拒绝并写 denied receipt/event。 |
+| `change.proposal.apply` | partial | 重新检查 apply 与 required authority；旧 Proposal 适配为 Intent/ChangeSet/PolicyDecision/Commit，preflight 后应用 asset/projection 操作，并以 CAS 记录 operation 与 committed/failed/partial receipt。 |
 
-
-### `kernel.v1.project.*`（5）
+### `platform.asset.*`（3）
 
 | 方法 | 状态 | 契约 |
 |---|---:|---|
-| `kernel.v1.project.list` | implemented | HostAdmin/HostDev only；列出已安装项目与状态。 |
-| `kernel.v1.project.get` | implemented | HostAdmin/HostDev only；返回单个项目的完整 descriptor 与 registry 记录；Running 时包含 `running_session_id`。 |
-| `kernel.v1.project.start` | implemented | HostAdmin/HostDev only；把项目从 Installed/Stopped 切到 Running、打开项目 session、返回 `session_id` 与 `already_running`，并发出生命周期事件。 |
-| `kernel.v1.project.stop` | implemented | HostAdmin/HostDev only；停止 Running 项目并发出生命周期事件。 |
-| `kernel.v1.project.status` | implemented | HostAdmin/HostDev only；返回项目状态、最近错误；Running 时包含 `running_session_id`。 |
+| `object.put` | partial | 存储不透明 asset metadata，阻断 raw secret，写 `object/put`。 |
+| `object.get` | partial | 读取 asset record。 |
+| `object.list` | partial | 列出 asset records。 |
 
-### `kernel.v1.host.*`（4）
+### `platform.projection.*`（4）
 
 | 方法 | 状态 | 契约 |
 |---|---:|---|
-| `kernel.v1.host.info` | implemented | 返回协议版本、方法、状态和传输标签。 |
-| `kernel.v1.host.ping` | partial | 预留轻量健康检查。 |
-| `kernel.v1.host.diagnostics` | partial | 返回包/capability/hook 计数和本地诊断。 |
-| `kernel.v1.host.principal` | planned | Identity provider 集成预留。 |
+| `projection.register` | partial | 注册通用 projection descriptor。 |
+| `projection.rebuild` | partial | 基于事件过滤 rebuild 并写 `projection/updated`。 |
+| `projection.get` | partial | 读取 projection state。 |
+| `projection.list` | partial | 列出 projection。 |
 
-### `kernel.v1.audit.*`（1）
+### `platform.outbound.*`（6）
 
 | 方法 | 状态 | 契约 |
 |---|---:|---|
-| `kernel.v1.audit.package` | partial | 报告 package declared vs used authority，供 `plurora audit --package <id>` 使用；实际使用追踪仍在扩展。 |
+| `host.outbound.audit` | partial | 查询出站审计与 terminal receipt descriptor；跨执行器视图一致性仍在加固。 |
+| `host.outbound.execute` | partial | 受 manifest network/secret_ref 约束的一元 HTTPS 出站；denied/error/success 均产生 receipt。 |
+| `host.outbound.stream` | partial | 受约束 SSE/NDJSON/raw 流式出站；terminal completion 产生 receipt。 |
+| `platform.outbound.websocket.*` | partial | 受约束 WSS open/send/close；连接生命周期与事件覆盖仍在加固。 |
+
+Git 安装不是内核传输；未来由普通官方能力包 `official/git-tools-lab` 通过 `host.outbound.execute` 与 `permissions.filesystem.write` 实现。
+
+### `platform.target.*` / `exec.*` / `port.*` / `proxy.*`（17）
+
+| 方法 | 状态 | 契约 |
+|---|---:|---|
+| `host.target.list` | partial | HostAdmin/HostDev only；列出可运行目标。 |
+| `host.target.status` | partial | HostAdmin/HostDev only；查询单个目标。 |
+| `host.target.register` | partial | HostAdmin/HostDev only；注册受控目标。 |
+| `host.target.unregister` | partial | HostAdmin/HostDev only；注销目标。 |
+| `host.exec.start` | partial | HostAdmin/HostDev only；通过 host `LocalExecExecutor` 启动受控执行；默认 deny-all，denied/failed terminal path 挂接 receipt。 |
+| `host.exec.stop` | partial | HostAdmin/HostDev only；停止已知执行并产生 cancelled/failed/denied receipt。 |
+| `host.exec.status` | partial | HostAdmin/HostDev only；返回 runtime 已观察到的状态。live executor 会被主动监测，status/stop/重启竞态复用唯一持久化终态 receipt。 |
+| `host.exec.logs` | partial | HostAdmin/HostDev only；读取脱敏日志尾部。 |
+| `host.exec.list` | partial | HostAdmin/HostDev only；列出执行记录。 |
+| `host.port.lease` | partial | HostAdmin/HostDev only；租用 loopback 端口。 |
+| `host.port.release` | partial | HostAdmin/HostDev only；释放端口租约。 |
+| `host.port.status` | partial | HostAdmin/HostDev only；查询端口租约。 |
+| `host.port.list` | partial | HostAdmin/HostDev only；列出端口租约。 |
+| `host.proxy.register` | partial | HostAdmin/HostDev only；注册 HTTP/WebSocket route，upstream 必须引用 active port lease，且 `port_name` 匹配。 |
+| `host.proxy.unregister` | partial | HostAdmin/HostDev only；注销 route。 |
+| `host.proxy.status` | partial | HostAdmin/HostDev only；查询 route。 |
+| `host.proxy.list` | partial | HostAdmin/HostDev only；列出 route。 |
+
+
+### `platform.project.*`（5）
+
+| 方法 | 状态 | 契约 |
+|---|---:|---|
+| `host.project.list` | implemented | HostAdmin/HostDev only；列出已安装项目与状态。 |
+| `host.project.get` | implemented | HostAdmin/HostDev only；返回单个项目的完整 descriptor 与 registry 记录；Running 时包含 `running_session_id`。 |
+| `host.project.start` | implemented | HostAdmin/HostDev only；把项目从 Installed/Stopped 切到 Running、打开项目 session、返回 `session_id` 与 `already_running`，并发出生命周期事件。 |
+| `host.project.stop` | implemented | HostAdmin/HostDev only；停止 Running 项目并发出生命周期事件。 |
+| `host.project.status` | implemented | HostAdmin/HostDev only；返回项目状态、最近错误；Running 时包含 `running_session_id`。 |
+
+### `platform.host.*`（4）
+
+| 方法 | 状态 | 契约 |
+|---|---:|---|
+| `host.info` | implemented | 返回协议版本、方法、状态和传输标签。 |
+| `host.ping` | partial | 预留轻量健康检查。 |
+| `host.diagnostics` | partial | 返回包/capability/hook 计数和本地诊断。 |
+| `identity.current` | planned | Identity provider 集成预留。 |
+
+### `platform.audit.*`（1）
+
+| 方法 | 状态 | 契约 |
+|---|---:|---|
+| `host.package.audit` | partial | 报告 package declared vs used authority，供 `plurora audit --package <id>` 使用；实际使用追踪仍在扩展。 |
 
 ### Surface / extension point / hook（6）
 
 | 方法 | 状态 | 契约 |
 |---|---:|---|
-| `kernel.v1.surface.contribution.list` | partial | 列出 package 声明的 typed surface contributions。 |
-| `kernel.v1.surface.contribution.describe` | partial | 描述单个 contribution。 |
-| `kernel.v1.surface.resolve_bundle` | partial | HostAdmin/HostDev only；按 surface contribution / project dev path / installed project 解析可挂载 bundle URL；跨来源一致性仍在加固。 |
-| `kernel.v1.extension_point.list` | implemented | 列出 extension points。 |
-| `kernel.v1.extension_point.describe` | planned | 描述单个 extension point。 |
-| `kernel.v1.hook.list` | partial | 列出 hook subscriptions。 |
+| `shell.contribution.list` | partial | 列出 package 声明的 typed surface contributions。 |
+| `shell.contribution.describe` | partial | 描述单个 contribution。 |
+| `host.surface.bundle.resolve` | partial | HostAdmin/HostDev only；按 surface contribution / project dev path / installed project 解析可挂载 bundle URL；跨来源一致性仍在加固。 |
+| `protocol.extension.list` | implemented | 列出 extension points。 |
+| `protocol.extension.describe` | planned | 描述单个 extension point。 |
+| `protocol.hook.list` | partial | 列出 hook subscriptions。 |
 
 ## 事件类型矩阵（59）
 
@@ -186,7 +186,7 @@ Git 安装不是内核传输；未来由普通官方能力包 `official/git-tool
 
 | 分组 | 数量 | 示例 |
 |---|---:|---|
-| session | 3 | `kernel/v1/session.opened`、`.closed`、`.forked` |
+| session | 3 | `context/opened`、`.closed`、`.forked` |
 | package lifecycle | 9 | `loading`、`starting`、`ready`、`loaded`、`stopping`、`stopped`、`unloaded`、`degraded`、`log` |
 | project lifecycle | 4 | `project.installed`、`.started`、`.stopped`、`.uninstalled` |
 | capability lifecycle | 3 | `capability.invoked`、`.completed`、`.failed` |
@@ -199,7 +199,7 @@ Git 安装不是内核传输；未来由普通官方能力包 `official/git-tool
 | port | 3 | `port.leased`、`.released`、`.denied` |
 | proxy | 3 | `proxy.registered`、`.unregistered`、`.denied` |
 | deployment | 2 | `deployment.reconciled`、`deployment.health` |
-| error | 1 | `kernel/v1/error` |
+| error | 1 | `runtime/error` |
 
 非内核事件类型必须以 writer package id 加 `/` 开头。内核必须拒绝包写入 `kernel/v1/...` 或其他包 namespace。
 
@@ -207,9 +207,9 @@ Git 安装不是内核传输；未来由普通官方能力包 `official/git-tool
 
 Manifest 声明的字符串是**权限上限**；运行时句柄是**实际权威**。包不能通过伪造字符串获得权威，必须使用内核在 load/handshake/init 阶段注入的 handle。
 
-- `kernel.v1.cap.attenuate(parent, constraints)` → 子句柄。
-- `kernel.v1.cap.revoke(handle)` → 立刻失效。
-- `kernel.v1.cap.list_for(package_id)` → 当前持有的全部 live handles。
+- `authority.handle.attenuate(parent, constraints)` → 子句柄。
+- `authority.handle.revoke(handle)` → 立刻失效。
+- `authority.handle.list(package_id)` → 当前持有的全部 live handles。
 
 句柄字段：
 
@@ -230,8 +230,8 @@ Manifest 声明的字符串是**权限上限**；运行时句柄是**实际权�
 
 | Entry | 注入方式 | v1 状态 |
 |---|---|---:|
-| `subprocess` | `package.handshake` 返回/接收 `bindings` 字典，SDK 暴露 `kernelClient` 与句柄。 | implemented |
-| `rust_inproc` | `KernelEnv` 参数传给 `InprocPackage::init`，包含 runtime bindings。 | implemented |
+| `subprocess` | `package.handshake` 返回/接收 `bindings` 字典，SDK 暴露 `pluroraClient` 与句柄。 | implemented |
+| `rust_inproc` | `ComponentEnv` 参数传给 `InprocPackage::init`，包含 runtime bindings。 | implemented |
 | `wasm` | WIT resource imports。 | planned |
 | `remote` | SPIFFE + Biscuit token 兑换。 | planned |
 
@@ -239,7 +239,7 @@ Bindings 必须只包含调用方被授予的权威。路径 B 包不会收到 v
 
 ## 效应审计
 
-`plurora audit --package <id>` 和 `kernel.v1.audit.package` 报告 declared vs used authority 差异。审计输入来自：
+`plurora audit --package <id>` 和 `host.package.audit` 报告 declared vs used authority 差异。审计输入来自：
 
 1. manifest 声明的 permissions、capabilities、secret_refs、network hosts；
 2. 内核铸造与衰减的 capability handles；
@@ -293,9 +293,9 @@ v1 仅允许 additive 变更：新增可选字段、新增方法、新增事件�
 
 ## 对象契约
 
-### `KernelSession`
+### `SessionRecord`
 
-`KernelSession` 是内容无关的执行上下文。它可以持有身份、标签、活跃包集、principal 范围、状态、时间戳和 metadata。它不得持有消息、回合、提示词、角色、世界、记忆或模型调用。
+`SessionRecord` 是内容无关的执行上下文。它可以持有身份、标签、活跃包集、principal 范围、状态、时间戳和 metadata。它不得持有消息、回合、提示词、角色、世界、记忆或模型调用。
 
 Session id 只表示当前 runtime 的排序与权限范围，不表示某种产品体验。Protocol 或 Component 可以通过当前 Package writer 的事件 payload、object 或 projection 表达领域状态，但 runtime 只按不透明数据和公开 descriptor 处理。
 
@@ -356,18 +356,18 @@ Host-dev 操作必须在协议上下文中显式标记为 host/dev。匿名 host
 
 ## 命名空间规则
 
-协议方法使用 `kernel.v1.<namespace>.<name>`。内核事件使用 `kernel/v1/<kind>`。包事件必须以 package id 加 `/` 开头。
+协议方法使用 `platform.<namespace>.<name>`。内核事件使用 `kernel/v1/<kind>`。包事件必须以 package id 加 `/` 开头。
 
 保留规则：
 
-- `kernel.v1.*` 方法只属于内核。
+- `platform.*` 方法只属于内核。
 - `kernel/v1/*` 事件只由内核写入。
 - `kernel.v2.*` 与 `kernel/v2/*` 留给 breaking changes。
 - 包不得声明看似内核 namespace 的 capability id。
 
 分层迁移新增的 Experimental canonical ID 与 legacy alias 由
 [`CONTRACT_REGISTRY.md`](CONTRACT_REGISTRY.md) 集中管理；它们不删除或重命名任何
-`kernel.v1.*` v1 入口。
+`platform.*` v1 入口。
 
 ## Schema 规则
 
@@ -411,7 +411,7 @@ Handshake 必须声明 package id、protocol version、contract mode、可用 ca
 
 Rust in-process package 只能通过 host catalog 加载。Manifest 声明的 in-process entry 必须能映射到 host 提供的 trait 实现。找不到 catalog entry 时 fail closed。
 
-In-process 包不享受官方特权。它仍通过 `KernelEnv`、bindings、handles、schema 和 audit 参与 v1。
+In-process 包不享受官方特权。它仍通过 `ComponentEnv`、bindings、handles、schema 和 audit 参与 v1。
 
 ## WASM 与 remote 预留
 
@@ -488,26 +488,26 @@ Host operator 应能通过公开方法或 CLI 看见：
 
 | Namespace | Count |
 |---|---:|
-| `kernel.v1.session.*` | 6 |
-| `kernel.v1.event.*` | 3 |
-| `kernel.v1.package.*` | 7 |
-| `kernel.v1.capability.*` | 5 |
-| `kernel.v1.cap.*` | 3 |
-| `kernel.v1.permission.*` | 4 |
-| `kernel.v1.proposal.*` | 6 |
-| `kernel.v1.asset.*` | 3 |
-| `kernel.v1.projection.*` | 4 |
-| `kernel.v1.outbound.*` | 6 |
-| `kernel.v1.target.*` | 4 |
-| `kernel.v1.exec.*` | 5 |
-| `kernel.v1.port.*` | 4 |
-| `kernel.v1.proxy.*` | 4 |
-| `kernel.v1.project.*` | 5 |
-| `kernel.v1.host.*` | 4 |
-| `kernel.v1.audit.*` | 1 |
-| `kernel.v1.surface.*` | 3 |
-| `kernel.v1.extension_point.*` | 2 |
-| `kernel.v1.hook.*` | 1 |
+| `platform.session.*` | 6 |
+| `journal.event.*` | 3 |
+| `platform.package.*` | 7 |
+| `platform.capability.*` | 5 |
+| `platform.cap.*` | 3 |
+| `platform.permission.*` | 4 |
+| `platform.proposal.*` | 6 |
+| `platform.asset.*` | 3 |
+| `platform.projection.*` | 4 |
+| `platform.outbound.*` | 6 |
+| `platform.target.*` | 4 |
+| `platform.exec.*` | 5 |
+| `platform.port.*` | 4 |
+| `platform.proxy.*` | 4 |
+| `platform.project.*` | 5 |
+| `platform.host.*` | 4 |
+| `platform.audit.*` | 1 |
+| `platform.surface.*` | 3 |
+| `platform.extension_point.*` | 2 |
+| `platform.hook.*` | 1 |
 
 ## 附录 B：发布前检查
 

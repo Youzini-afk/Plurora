@@ -192,7 +192,7 @@ Health supervision only updates observation and audit. The controller creates a 
 
 ## Public contract
 
-The current public contract is the `/host/v1/build-deploy` route, project-scoped deployment recover/rollback, target operations, and ChangeSet deployment preview/approve/activate/reconcile. All are Host-owned; there is no kernel deployment-orchestration method. `host.deployment.intent.*`, `host.deployment.operation.*`, `host.deployment.revision.*`, observation, and operation streams are possible future canonical names if the facades converge, not current endpoints. Existing build-deploy/recover/rollback and verified-ChangeSet routes map to this semantic model. `kernel.v1.port/proxy/exec` remain adapters rather than orchestration ontology.
+The current public contract is the `/host/v1/build-deploy` route, project-scoped deployment recover/rollback, target operations, and ChangeSet deployment preview/approve/activate/reconcile. All are Host-owned; there is no kernel deployment-orchestration method. `host.deployment.intent.*`, `host.deployment.operation.*`, `host.deployment.revision.*`, observation, and operation streams are possible future canonical names if the facades converge, not current endpoints. Existing build-deploy/recover/rollback and verified-ChangeSet routes map to this semantic model. `platform.port/proxy/exec` remain adapters rather than orchestration ontology.
 
 ## Current boundary
 

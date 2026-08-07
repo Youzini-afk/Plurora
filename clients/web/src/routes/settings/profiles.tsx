@@ -13,7 +13,7 @@ import {
   CURRENT_HOST_CONNECTION_ID,
   type HostConnectionProfile,
 } from "@/client-core";
-import { useAsync, useKernel } from "@/lib/kernel-client";
+import { useAsync, usePlurora } from "@/lib/plurora-client";
 import { useT } from "@/lib/locale";
 import { cn } from "@/lib/cn";
 
@@ -30,7 +30,7 @@ function currentOrigin(): string {
 }
 
 export function ProfilesPanel() {
-  const client = useKernel();
+  const client = usePlurora();
   const t = useT();
   const store = useMemo(() => new BrowserHostConnectionStore(), []);
   const [saved, setSaved] = useState(() => store.list());

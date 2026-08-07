@@ -641,7 +641,7 @@ fn row_to_event(row: &rusqlite::Row<'_>) -> rusqlite::Result<EventEnvelope> {
 
 #[cfg(test)]
 mod sqlite_tests {
-    use plurora_core::{new_id, EventEnvelope, KERNEL_PACKAGE_ID};
+    use plurora_core::{new_id, EventEnvelope, PLATFORM_RUNTIME_ID};
     use serde_json::json;
 
     use super::*;
@@ -656,8 +656,8 @@ mod sqlite_tests {
                 new_id("evt"),
                 session_id.clone(),
                 0,
-                KERNEL_PACKAGE_ID.to_string(),
-                "kernel/v1/session.opened",
+                PLATFORM_RUNTIME_ID.to_string(),
+                "context/opened",
                 json!({"ok": true}),
             ))
             .await?;
@@ -683,8 +683,8 @@ mod sqlite_tests {
         store
             .append_with_sequence(
                 session_id.clone(),
-                KERNEL_PACKAGE_ID.to_string(),
-                "kernel/v1/session.opened".to_string(),
+                PLATFORM_RUNTIME_ID.to_string(),
+                "context/opened".to_string(),
                 1,
                 json!({}),
                 json!({}),
@@ -699,8 +699,8 @@ mod sqlite_tests {
             handles.push(tokio::spawn(async move {
                 s.append_with_sequence(
                     sid,
-                    KERNEL_PACKAGE_ID.to_string(),
-                    format!("kernel/v1/test.concurrent.{}", i),
+                    PLATFORM_RUNTIME_ID.to_string(),
+                    format!("test/runtime.concurrent.{}", i),
                     1,
                     json!({"i": i}),
                     json!({}),
@@ -755,8 +755,8 @@ mod sqlite_tests {
             .append_with_sequence_if_next(
                 session_id.clone(),
                 0,
-                KERNEL_PACKAGE_ID.to_string(),
-                "kernel/v1/test.compare".to_string(),
+                PLATFORM_RUNTIME_ID.to_string(),
+                "test/runtime.compare".to_string(),
                 1,
                 json!({"writer": 1}),
                 json!({}),
@@ -767,8 +767,8 @@ mod sqlite_tests {
             .append_with_sequence_if_next(
                 session_id.clone(),
                 0,
-                KERNEL_PACKAGE_ID.to_string(),
-                "kernel/v1/test.stale".to_string(),
+                PLATFORM_RUNTIME_ID.to_string(),
+                "test/runtime.stale".to_string(),
                 1,
                 json!({"writer": 2}),
                 json!({}),
@@ -791,8 +791,8 @@ mod sqlite_tests {
         store
             .append_with_sequence(
                 session_id.clone(),
-                KERNEL_PACKAGE_ID.to_string(),
-                "kernel/v1/permission.granted".to_string(),
+                PLATFORM_RUNTIME_ID.to_string(),
+                "authority/grant.created".to_string(),
                 1,
                 json!({}),
                 json!({}),
@@ -801,8 +801,8 @@ mod sqlite_tests {
         store
             .append_with_sequence(
                 session_id.clone(),
-                KERNEL_PACKAGE_ID.to_string(),
-                "kernel/v1/permission.denied".to_string(),
+                PLATFORM_RUNTIME_ID.to_string(),
+                "authority/denied".to_string(),
                 1,
                 json!({}),
                 json!({}),
@@ -811,19 +811,19 @@ mod sqlite_tests {
         store
             .append_with_sequence(
                 session_id.clone(),
-                KERNEL_PACKAGE_ID.to_string(),
-                "kernel/v1/session.opened".to_string(),
+                PLATFORM_RUNTIME_ID.to_string(),
+                "context/opened".to_string(),
                 1,
                 json!({}),
                 json!({}),
             )
             .await?;
 
-        let perm_events = store.list_kind_prefix("kernel/v1/permission").await?;
+        let perm_events = store.list_kind_prefix("authority/").await?;
         assert_eq!(perm_events.len(), 2);
 
         let session_perm = store
-            .list_session_kind_prefix(&session_id, "kernel/v1/permission")
+            .list_session_kind_prefix(&session_id, "authority/")
             .await?;
         assert_eq!(session_perm.len(), 2);
 
@@ -1092,7 +1092,7 @@ impl EventStore for InMemoryEventStore {
 
 #[cfg(test)]
 mod in_memory_compare_append_tests {
-    use plurora_core::KERNEL_PACKAGE_ID;
+    use plurora_core::PLATFORM_RUNTIME_ID;
     use serde_json::json;
 
     use super::*;
@@ -1105,8 +1105,8 @@ mod in_memory_compare_append_tests {
             .append_with_sequence_if_next(
                 session_id.clone(),
                 0,
-                KERNEL_PACKAGE_ID.to_string(),
-                "kernel/v1/test.compare".to_string(),
+                PLATFORM_RUNTIME_ID.to_string(),
+                "test/runtime.compare".to_string(),
                 1,
                 json!({}),
                 json!({}),
@@ -1116,8 +1116,8 @@ mod in_memory_compare_append_tests {
             .append_with_sequence_if_next(
                 session_id.clone(),
                 0,
-                KERNEL_PACKAGE_ID.to_string(),
-                "kernel/v1/test.stale".to_string(),
+                PLATFORM_RUNTIME_ID.to_string(),
+                "test/runtime.stale".to_string(),
                 1,
                 json!({}),
                 json!({}),
@@ -1142,7 +1142,7 @@ mod in_memory_compare_append_tests {
                     .append_with_sequence_if_next(
                         session_id,
                         0,
-                        KERNEL_PACKAGE_ID.to_string(),
+                        PLATFORM_RUNTIME_ID.to_string(),
                         kind.to_string(),
                         1,
                         json!({}),
@@ -1151,10 +1151,7 @@ mod in_memory_compare_append_tests {
                     .await
             }
         };
-        let (left, right) = tokio::join!(
-            append("kernel/v1/test.left"),
-            append("kernel/v1/test.right")
-        );
+        let (left, right) = tokio::join!(append("test/runtime.left"), append("test/runtime.right"));
         let winners = [left?, right?].into_iter().filter(Option::is_some).count();
         assert_eq!(winners, 1);
         assert_eq!(store.list_session(&session_id).await?.len(), 1);
@@ -1171,8 +1168,8 @@ mod in_memory_compare_append_tests {
                 session_id: session_id.clone(),
                 sequence: 10,
                 timestamp: chrono::Utc::now(),
-                writer_package_id: KERNEL_PACKAGE_ID.to_string(),
-                kind: "kernel/v1/test.sparse".to_string(),
+                writer_package_id: PLATFORM_RUNTIME_ID.to_string(),
+                kind: "test/runtime.sparse".to_string(),
                 schema_version: 1,
                 payload: json!({}),
                 metadata: json!({}),
@@ -1183,8 +1180,8 @@ mod in_memory_compare_append_tests {
             .append_with_sequence_if_next(
                 session_id,
                 1,
-                KERNEL_PACKAGE_ID.to_string(),
-                "kernel/v1/test.stale".to_string(),
+                PLATFORM_RUNTIME_ID.to_string(),
+                "test/runtime.stale".to_string(),
                 1,
                 json!({}),
                 json!({}),
@@ -1590,7 +1587,7 @@ mod postgres_backend {
     #[cfg(test)]
     mod postgres_tests {
         use super::*;
-        use plurora_core::KERNEL_PACKAGE_ID;
+        use plurora_core::PLATFORM_RUNTIME_ID;
         use serde_json::json;
 
         /// Helper: connect to PG if `PLURORA_POSTGRES_TEST_DATABASE_URL` is set,
@@ -1615,8 +1612,8 @@ mod postgres_backend {
             store
                 .append_with_sequence(
                     session_id.clone(),
-                    KERNEL_PACKAGE_ID.to_string(),
-                    "kernel/v1/session.opened".to_string(),
+                    PLATFORM_RUNTIME_ID.to_string(),
+                    "context/opened".to_string(),
                     1,
                     json!({}),
                     json!({}),
@@ -1643,8 +1640,8 @@ mod postgres_backend {
             store
                 .append_with_sequence(
                     session_id.clone(),
-                    KERNEL_PACKAGE_ID.to_string(),
-                    "kernel/v1/session.opened".to_string(),
+                    PLATFORM_RUNTIME_ID.to_string(),
+                    "context/opened".to_string(),
                     1,
                     json!({}),
                     json!({}),
@@ -1659,7 +1656,7 @@ mod postgres_backend {
                 handles.push(tokio::spawn(async move {
                     s.append_with_sequence(
                         sid,
-                        KERNEL_PACKAGE_ID.to_string(),
+                        PLATFORM_RUNTIME_ID.to_string(),
                         format!("test/concurrent.{}", i),
                         1,
                         json!({"i": i}),
@@ -1698,7 +1695,7 @@ mod postgres_backend {
                 .append_with_sequence_if_next(
                     session_id.clone(),
                     0,
-                    KERNEL_PACKAGE_ID.to_string(),
+                    PLATFORM_RUNTIME_ID.to_string(),
                     "test/compare.first".to_string(),
                     1,
                     json!({}),
@@ -1709,7 +1706,7 @@ mod postgres_backend {
                 .append_with_sequence_if_next(
                     session_id.clone(),
                     0,
-                    KERNEL_PACKAGE_ID.to_string(),
+                    PLATFORM_RUNTIME_ID.to_string(),
                     "test/compare.stale".to_string(),
                     1,
                     json!({}),

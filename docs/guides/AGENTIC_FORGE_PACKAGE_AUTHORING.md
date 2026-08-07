@@ -28,7 +28,7 @@ created → prepared → running → paused → waiting_for_approval
                   ↘ archived
 ```
 
-包控制运行。内核没有 `kernel.v1.agent.run` 或类似方法。
+包控制运行。内核没有 `platform.agent.run` 或类似方法。
 
 ## Plan Graph
 

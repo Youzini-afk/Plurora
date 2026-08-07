@@ -13,15 +13,15 @@
 
 const ALLOWED_BRIDGE_METHODS = new Set([
   'host.info',
-  'kernel.v1.host.ping',
-  'kernel.v1.capability.invoke',
-  'kernel.v1.capability.stream',
-  'kernel.v1.capability.cancel',
+  'host.ping',
+  'capability.invoke',
+  'capability.stream',
+  'capability.cancel',
 ]);
 
 const CAPABILITY_METHODS = new Set([
-  'kernel.v1.capability.invoke',
-  'kernel.v1.capability.stream',
+  'capability.invoke',
+  'capability.stream',
 ]);
 
 const MAX_ID_LENGTH = 128;
@@ -502,7 +502,7 @@ async function callBridgeRpc(
   if (!isBoundedString(hostBridge.currentSessionId, MAX_ID_LENGTH)) {
     throw new SurfaceBridgeError('invalid_request', 'invalid session');
   }
-  if (msg.method === 'kernel.v1.host.ping') {
+  if (msg.method === 'host.ping') {
     return { ok: true };
   }
   if (!hostBridge.callRpc) {
@@ -512,13 +512,13 @@ async function callBridgeRpc(
   if (CAPABILITY_METHODS.has(msg.method)) {
     const params = sanitizeCapabilityParams(msg.params, hostBridge);
     const result = await hostBridge.callRpc(msg.method, params);
-    if (msg.method === 'kernel.v1.capability.stream') {
+    if (msg.method === 'capability.stream') {
       recordOwnedStream(result, state.ownedStreams, state.ownedInvocations);
     }
     return result;
   }
 
-  if (msg.method === 'kernel.v1.capability.cancel') {
+  if (msg.method === 'capability.cancel') {
     const params = sanitizeCancelParams(msg.params, hostBridge, state.ownedStreams, state.ownedInvocations);
     const result = await hostBridge.callRpc(msg.method, params);
     removeOwnedStream(params, state.ownedStreams, state.ownedInvocations);
@@ -662,25 +662,25 @@ async function handleStreamSubscribe(
     close = hostBridge.subscribeEvents((event: unknown) => {
       const ev = event as { kind?: string; payload?: unknown };
       const kind = ev.kind ?? '';
-      if (!kind.startsWith('kernel/v1/stream.')) return;
+      if (!kind.startsWith('capability/stream.')) return;
       if (payloadStreamId(ev.payload) !== msg.stream_id) return;
 
-      if (kind === 'kernel/v1/stream.started') {
+      if (kind === 'capability/stream.started') {
         iframe.contentWindow?.postMessage(
           createStreamFrameMessage(msg.id, 'started', ev.payload, bridgeToken, sessionId),
           HOST_TO_SURFACE_TARGET_ORIGIN,
         );
-      } else if (kind === 'kernel/v1/stream.chunk') {
+      } else if (kind === 'capability/stream.chunk') {
         iframe.contentWindow?.postMessage(
           createStreamFrameMessage(msg.id, 'chunk', ev.payload, bridgeToken, sessionId),
           HOST_TO_SURFACE_TARGET_ORIGIN,
         );
-      } else if (kind === 'kernel/v1/stream.progress') {
+      } else if (kind === 'capability/stream.progress') {
         iframe.contentWindow?.postMessage(
           createStreamFrameMessage(msg.id, 'progress', ev.payload, bridgeToken, sessionId),
           HOST_TO_SURFACE_TARGET_ORIGIN,
         );
-      } else if (kind === 'kernel/v1/stream.ended') {
+      } else if (kind === 'capability/stream.ended') {
         iframe.contentWindow?.postMessage({
           type: 'stream.ended',
           bridge_token: bridgeToken,
@@ -693,9 +693,9 @@ async function handleStreamSubscribe(
           activeSubs.delete(msg.id);
         }
       } else if (
-        kind === 'kernel/v1/stream.error' ||
-        kind === 'kernel/v1/stream.cancelled' ||
-        kind === 'kernel/v1/stream.timeout'
+        kind === 'capability/stream.error' ||
+        kind === 'capability/stream.cancelled' ||
+        kind === 'capability/stream.timeout'
       ) {
         iframe.contentWindow?.postMessage({
           type: 'stream.error',

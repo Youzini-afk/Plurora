@@ -1,0 +1,227 @@
+{
+  "$defs": {
+    "Errors": {
+      "items": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "details": true,
+          "message": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "details",
+          "message"
+        ],
+        "title": "ErrorShape",
+        "type": "object"
+      },
+      "type": "array"
+    },
+    "Params": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "properties": {
+        "grant_id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "grant_id"
+      ],
+      "title": "PermissionRevokeParams",
+      "type": "object"
+    },
+    "ProtocolPrincipal": {
+      "oneOf": [
+        {
+          "properties": {
+            "kind": {
+              "enum": [
+                "host_admin"
+              ],
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "properties": {
+            "kind": {
+              "enum": [
+                "host_dev"
+              ],
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "properties": {
+            "kind": {
+              "enum": [
+                "package"
+              ],
+              "type": "string"
+            },
+            "package_id": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "package_id"
+          ],
+          "type": "object"
+        },
+        {
+          "properties": {
+            "kind": {
+              "enum": [
+                "human"
+              ],
+              "type": "string"
+            },
+            "user_id": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "user_id"
+          ],
+          "type": "object"
+        },
+        {
+          "properties": {
+            "assistant_id": {
+              "type": "string"
+            },
+            "delegated_user_id": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "kind": {
+              "enum": [
+                "assistant"
+              ],
+              "type": "string"
+            }
+          },
+          "required": [
+            "assistant_id",
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "properties": {
+            "kind": {
+              "enum": [
+                "anonymous"
+              ],
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "Result": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "properties": {
+        "granted_at": {
+          "format": "date-time",
+          "type": "string"
+        },
+        "id": {
+          "type": "string"
+        },
+        "permission": {
+          "type": "string"
+        },
+        "principal": {
+          "$ref": "#/$defs/ProtocolPrincipal"
+        },
+        "reason": {
+          "default": null,
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "revoked_at": {
+          "default": null,
+          "format": "date-time",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "scope": {
+          "default": null,
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "granted_at",
+        "id",
+        "permission",
+        "principal"
+      ],
+      "title": "PermissionGrantRecord",
+      "type": "object"
+    }
+  },
+  "$id": "urn:plurora:schema:method:authority.grant.revoke:v1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Plurora public platform method authority.grant.revoke.",
+  "properties": {
+    "errors": {
+      "$ref": "#/$defs/Errors"
+    },
+    "method": {
+      "const": "authority.grant.revoke"
+    },
+    "params": {
+      "$ref": "#/$defs/Params"
+    },
+    "result": {
+      "$ref": "#/$defs/Result"
+    }
+  },
+  "required": [
+    "method",
+    "params"
+  ],
+  "title": "authority.grant.revoke",
+  "type": "object",
+  "x-plurora-contract": {
+    "id": "authority.grant.revoke",
+    "implementation_status": "partial",
+    "introduced_in": "plurora.contract.default/v1@0.1.0",
+    "maturity": "experimental",
+    "owner_layer": "substrate",
+    "request_schema": "urn:plurora:schema:method:authority.grant.revoke:v1#/$defs/Params",
+    "response_schema": "urn:plurora:schema:method:authority.grant.revoke:v1#/$defs/Result",
+    "streaming": false
+  }
+}

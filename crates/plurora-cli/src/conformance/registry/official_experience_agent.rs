@@ -102,9 +102,9 @@ pub(super) fn inference_playtest_cases() -> Vec<ConformanceCase> {
             crate::conformance::inference_playtest::inference_playtest_apply_and_branch
         ),
         c!(
-            "official.inference_playtest_lab_no_chat_kernel_terms",
+            "plurora.inference_playtest_lab_no_chat_platform_terms",
             ["official", "slow"],
-            crate::conformance::inference_playtest::inference_playtest_no_chat_kernel_terms
+            crate::conformance::inference_playtest::inference_playtest_no_chat_platform_terms
         ),
     ]
 }
@@ -133,9 +133,9 @@ pub(super) fn agentic_forge_phase_a_cases() -> Vec<ConformanceCase> {
             crate::conformance::agentic_forge::agentic_forge_raw_secret_blocked
         ),
         c!(
-            "agentic_forge.no_kernel_agent_namespace",
+            "agentic_forge.no_platform_agent_namespace",
             ["agentic"],
-            crate::conformance::agentic_forge::agentic_forge_no_kernel_agent_namespace
+            crate::conformance::agentic_forge::agentic_forge_no_platform_agent_namespace
         ),
     ]
 }
@@ -283,9 +283,9 @@ pub(super) fn experience_runtime_cases() -> Vec<ConformanceCase> {
             crate::conformance::experience_runtime::experience_runtime_recovery_shape
         ),
         c!(
-            "experience_runtime.no_kernel_experience_namespace",
+            "experience_runtime.no_platform_experience_namespace",
             ["experience"],
-            crate::conformance::experience_runtime::experience_runtime_no_kernel_namespace
+            crate::conformance::experience_runtime::experience_runtime_no_platform_namespace
         ),
         c!(
             "experience_runtime.template_generation",

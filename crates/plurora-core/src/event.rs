@@ -10,66 +10,136 @@ pub type SchemaVersion = u16;
 pub type EventKind = String;
 pub type EventSequence = u64;
 
-pub const KERNEL_PACKAGE_ID: &str = "kernel";
-pub const EVENT_SESSION_OPENED: &str = "kernel/v1/session.opened";
-pub const EVENT_SESSION_CLOSED: &str = "kernel/v1/session.closed";
-pub const EVENT_SESSION_FORKED: &str = "kernel/v1/session.forked";
-pub const EVENT_PACKAGE_LOADED: &str = "kernel/v1/package.loaded";
-pub const EVENT_PACKAGE_LOADING: &str = "kernel/v1/package.loading";
-pub const EVENT_PACKAGE_STARTING: &str = "kernel/v1/package.starting";
-pub const EVENT_PACKAGE_READY: &str = "kernel/v1/package.ready";
-pub const EVENT_PACKAGE_STOPPING: &str = "kernel/v1/package.stopping";
-pub const EVENT_PACKAGE_STOPPED: &str = "kernel/v1/package.stopped";
-pub const EVENT_PACKAGE_UNLOADED: &str = "kernel/v1/package.unloaded";
-pub const EVENT_PACKAGE_DEGRADED: &str = "kernel/v1/package.degraded";
-pub const EVENT_PACKAGE_LOG: &str = "kernel/v1/package.log";
-pub const PROJECT_INSTALLED: &str = "kernel/v1/project.installed";
-pub const PROJECT_STARTED: &str = "kernel/v1/project.started";
-pub const PROJECT_STOPPED: &str = "kernel/v1/project.stopped";
-pub const PROJECT_UNINSTALLED: &str = "kernel/v1/project.uninstalled";
-pub const EVENT_ASSET_PUT: &str = "kernel/v1/asset.put";
-pub const EVENT_PROJECTION_UPDATED: &str = "kernel/v1/projection.updated";
-pub const EVENT_PROPOSAL_CREATED: &str = "kernel/v1/proposal.created";
-pub const EVENT_PROPOSAL_APPROVED: &str = "kernel/v1/proposal.approved";
-pub const EVENT_PROPOSAL_REJECTED: &str = "kernel/v1/proposal.rejected";
-pub const EVENT_PROPOSAL_APPLIED: &str = "kernel/v1/proposal.applied";
-pub const EVENT_PROPOSAL_FAILED: &str = "kernel/v1/proposal.failed";
-pub const EVENT_CAPABILITY_INVOKED: &str = "kernel/v1/capability.invoked";
-pub const EVENT_CAPABILITY_COMPLETED: &str = "kernel/v1/capability.completed";
-pub const EVENT_CAPABILITY_FAILED: &str = "kernel/v1/capability.failed";
-pub const EVENT_PERMISSION_DENIED: &str = "kernel/v1/permission.denied";
-pub const EVENT_PERMISSION_GRANTED: &str = "kernel/v1/permission.granted";
-pub const EVENT_PERMISSION_REVOKED: &str = "kernel/v1/permission.revoked";
-pub const EVENT_ERROR: &str = "kernel/v1/error";
-pub const EVENT_OUTBOUND_REQUEST: &str = "kernel/v1/outbound.request";
-pub const EVENT_OUTBOUND_DENIED: &str = "kernel/v1/outbound.denied";
-pub const EVENT_OUTBOUND_EXECUTE_COMPLETED: &str = "kernel/v1/outbound.execute.completed";
-pub const EVENT_OUTBOUND_STREAM_COMPLETED: &str = "kernel/v1/outbound.stream.completed";
-pub const EVENT_STREAM_STARTED: &str = "kernel/v1/stream.started";
-pub const EVENT_STREAM_CHUNK: &str = "kernel/v1/stream.chunk";
-pub const EVENT_STREAM_PROGRESS: &str = "kernel/v1/stream.progress";
-pub const EVENT_STREAM_ENDED: &str = "kernel/v1/stream.ended";
-pub const EVENT_STREAM_ERROR: &str = "kernel/v1/stream.error";
-pub const EVENT_STREAM_CANCELLED: &str = "kernel/v1/stream.cancelled";
-pub const EVENT_STREAM_TIMEOUT: &str = "kernel/v1/stream.timeout";
-pub const EVENT_OUTBOUND_WEBSOCKET_OPENED: &str = "kernel/v1/outbound.websocket.opened";
-pub const EVENT_OUTBOUND_WEBSOCKET_FRAME: &str = "kernel/v1/outbound.websocket.frame";
-pub const EVENT_OUTBOUND_WEBSOCKET_ERROR: &str = "kernel/v1/outbound.websocket.error";
-pub const EVENT_OUTBOUND_WEBSOCKET_COMPLETED: &str = "kernel/v1/outbound.websocket.completed";
-pub const EVENT_EXEC_REQUEST: &str = "kernel/v1/exec.request";
-pub const EVENT_EXEC_DENIED: &str = "kernel/v1/exec.denied";
-pub const EVENT_EXEC_STARTED: &str = "kernel/v1/exec.started";
-pub const EVENT_EXEC_STOPPED: &str = "kernel/v1/exec.stopped";
-pub const EVENT_EXEC_COMPLETED: &str = "kernel/v1/exec.completed";
-pub const EVENT_EXEC_FAILED: &str = "kernel/v1/exec.failed";
-pub const EVENT_PORT_LEASED: &str = "kernel/v1/port.leased";
-pub const EVENT_PORT_RELEASED: &str = "kernel/v1/port.released";
-pub const EVENT_PORT_DENIED: &str = "kernel/v1/port.denied";
-pub const EVENT_PROXY_REGISTERED: &str = "kernel/v1/proxy.registered";
-pub const EVENT_PROXY_UNREGISTERED: &str = "kernel/v1/proxy.unregistered";
-pub const EVENT_PROXY_DENIED: &str = "kernel/v1/proxy.denied";
-pub const EVENT_DEPLOYMENT_RECONCILED: &str = "kernel/v1/deployment.reconciled";
-pub const EVENT_DEPLOYMENT_HEALTH: &str = "kernel/v1/deployment.health";
+pub const PLATFORM_RUNTIME_ID: &str = "plurora/runtime";
+pub const EVENT_SESSION_OPENED: &str = "context/opened";
+pub const EVENT_SESSION_CLOSED: &str = "context/closed";
+pub const EVENT_SESSION_FORKED: &str = "context/forked";
+pub const EVENT_PACKAGE_LOADED: &str = "host/package.loaded";
+pub const EVENT_PACKAGE_LOADING: &str = "host/package.loading";
+pub const EVENT_PACKAGE_STARTING: &str = "host/package.starting";
+pub const EVENT_PACKAGE_READY: &str = "host/package.ready";
+pub const EVENT_PACKAGE_STOPPING: &str = "host/package.stopping";
+pub const EVENT_PACKAGE_STOPPED: &str = "host/package.stopped";
+pub const EVENT_PACKAGE_UNLOADED: &str = "host/package.unloaded";
+pub const EVENT_PACKAGE_DEGRADED: &str = "host/package.degraded";
+pub const EVENT_PACKAGE_LOG: &str = "host/package.log";
+pub const PROJECT_INSTALLED: &str = "host/project.installed";
+pub const PROJECT_STARTED: &str = "host/project.started";
+pub const PROJECT_STOPPED: &str = "host/project.stopped";
+pub const PROJECT_UNINSTALLED: &str = "host/project.uninstalled";
+pub const EVENT_ASSET_PUT: &str = "object/put";
+pub const EVENT_PROJECTION_UPDATED: &str = "projection/updated";
+pub const EVENT_PROPOSAL_CREATED: &str = "change/proposal.created";
+pub const EVENT_PROPOSAL_APPROVED: &str = "change/proposal.approved";
+pub const EVENT_PROPOSAL_REJECTED: &str = "change/proposal.rejected";
+pub const EVENT_PROPOSAL_APPLIED: &str = "change/proposal.applied";
+pub const EVENT_PROPOSAL_FAILED: &str = "change/proposal.failed";
+pub const EVENT_CAPABILITY_INVOKED: &str = "capability/invoked";
+pub const EVENT_CAPABILITY_COMPLETED: &str = "capability/completed";
+pub const EVENT_CAPABILITY_FAILED: &str = "capability/failed";
+pub const EVENT_PERMISSION_DENIED: &str = "authority/denied";
+pub const EVENT_PERMISSION_GRANTED: &str = "authority/grant.created";
+pub const EVENT_PERMISSION_REVOKED: &str = "authority/grant.revoked";
+pub const EVENT_ERROR: &str = "runtime/error";
+pub const EVENT_OUTBOUND_REQUEST: &str = "host/outbound.request";
+pub const EVENT_OUTBOUND_DENIED: &str = "host/outbound.denied";
+pub const EVENT_OUTBOUND_EXECUTE_COMPLETED: &str = "host/outbound.execute.completed";
+pub const EVENT_OUTBOUND_STREAM_COMPLETED: &str = "host/outbound.stream.completed";
+pub const EVENT_STREAM_STARTED: &str = "capability/stream.started";
+pub const EVENT_STREAM_CHUNK: &str = "capability/stream.chunk";
+pub const EVENT_STREAM_PROGRESS: &str = "capability/stream.progress";
+pub const EVENT_STREAM_ENDED: &str = "capability/stream.ended";
+pub const EVENT_STREAM_ERROR: &str = "capability/stream.error";
+pub const EVENT_STREAM_CANCELLED: &str = "capability/stream.cancelled";
+pub const EVENT_STREAM_TIMEOUT: &str = "capability/stream.timeout";
+pub const EVENT_OUTBOUND_WEBSOCKET_OPENED: &str = "host/outbound.websocket.opened";
+pub const EVENT_OUTBOUND_WEBSOCKET_FRAME: &str = "host/outbound.websocket.frame";
+pub const EVENT_OUTBOUND_WEBSOCKET_ERROR: &str = "host/outbound.websocket.error";
+pub const EVENT_OUTBOUND_WEBSOCKET_COMPLETED: &str = "host/outbound.websocket.completed";
+pub const EVENT_EXEC_REQUEST: &str = "host/exec.request";
+pub const EVENT_EXEC_DENIED: &str = "host/exec.denied";
+pub const EVENT_EXEC_STARTED: &str = "host/exec.started";
+pub const EVENT_EXEC_STOPPED: &str = "host/exec.stopped";
+pub const EVENT_EXEC_COMPLETED: &str = "host/exec.completed";
+pub const EVENT_EXEC_FAILED: &str = "host/exec.failed";
+pub const EVENT_PORT_LEASED: &str = "host/port.leased";
+pub const EVENT_PORT_RELEASED: &str = "host/port.released";
+pub const EVENT_PORT_DENIED: &str = "host/port.denied";
+pub const EVENT_PROXY_REGISTERED: &str = "host/proxy.registered";
+pub const EVENT_PROXY_UNREGISTERED: &str = "host/proxy.unregistered";
+pub const EVENT_PROXY_DENIED: &str = "host/proxy.denied";
+pub const EVENT_DEPLOYMENT_RECONCILED: &str = "host/deployment.reconciled";
+pub const EVENT_DEPLOYMENT_HEALTH: &str = "host/deployment.health";
+
+/// Event kinds emitted exclusively by the Plurora runtime.
+///
+/// The list is explicit because public event ownership follows semantic owner
+/// namespaces rather than a single reserved string prefix.
+pub const PLATFORM_EVENT_KINDS: &[&str] = &[
+    EVENT_SESSION_OPENED,
+    EVENT_SESSION_CLOSED,
+    EVENT_SESSION_FORKED,
+    EVENT_PACKAGE_LOADED,
+    EVENT_PACKAGE_LOADING,
+    EVENT_PACKAGE_STARTING,
+    EVENT_PACKAGE_READY,
+    EVENT_PACKAGE_STOPPING,
+    EVENT_PACKAGE_STOPPED,
+    EVENT_PACKAGE_UNLOADED,
+    EVENT_PACKAGE_DEGRADED,
+    EVENT_PACKAGE_LOG,
+    PROJECT_INSTALLED,
+    PROJECT_STARTED,
+    PROJECT_STOPPED,
+    PROJECT_UNINSTALLED,
+    EVENT_ASSET_PUT,
+    EVENT_PROJECTION_UPDATED,
+    EVENT_PROPOSAL_CREATED,
+    EVENT_PROPOSAL_APPROVED,
+    EVENT_PROPOSAL_REJECTED,
+    EVENT_PROPOSAL_APPLIED,
+    EVENT_PROPOSAL_FAILED,
+    EVENT_CAPABILITY_INVOKED,
+    EVENT_CAPABILITY_COMPLETED,
+    EVENT_CAPABILITY_FAILED,
+    EVENT_PERMISSION_DENIED,
+    EVENT_PERMISSION_GRANTED,
+    EVENT_PERMISSION_REVOKED,
+    EVENT_ERROR,
+    EVENT_OUTBOUND_REQUEST,
+    EVENT_OUTBOUND_DENIED,
+    EVENT_OUTBOUND_EXECUTE_COMPLETED,
+    EVENT_OUTBOUND_STREAM_COMPLETED,
+    EVENT_STREAM_STARTED,
+    EVENT_STREAM_CHUNK,
+    EVENT_STREAM_PROGRESS,
+    EVENT_STREAM_ENDED,
+    EVENT_STREAM_ERROR,
+    EVENT_STREAM_CANCELLED,
+    EVENT_STREAM_TIMEOUT,
+    EVENT_OUTBOUND_WEBSOCKET_OPENED,
+    EVENT_OUTBOUND_WEBSOCKET_FRAME,
+    EVENT_OUTBOUND_WEBSOCKET_ERROR,
+    EVENT_OUTBOUND_WEBSOCKET_COMPLETED,
+    EVENT_EXEC_REQUEST,
+    EVENT_EXEC_DENIED,
+    EVENT_EXEC_STARTED,
+    EVENT_EXEC_STOPPED,
+    EVENT_EXEC_COMPLETED,
+    EVENT_EXEC_FAILED,
+    EVENT_PORT_LEASED,
+    EVENT_PORT_RELEASED,
+    EVENT_PORT_DENIED,
+    EVENT_PROXY_REGISTERED,
+    EVENT_PROXY_UNREGISTERED,
+    EVENT_PROXY_DENIED,
+    EVENT_DEPLOYMENT_RECONCILED,
+    EVENT_DEPLOYMENT_HEALTH,
+];
+
+pub fn is_platform_event_kind(kind: &str) -> bool {
+    PLATFORM_EVENT_KINDS.contains(&kind)
+}
 
 // ---------------------------------------------------------------------------
 // Outbound audit / redaction types (Phase S2)
@@ -105,7 +175,7 @@ impl Default for RedactionState {
 /// Generic outbound audit record / envelope.
 ///
 /// Records an outbound network request made by a package through
-/// Ygg-provided network/request helpers. This is a kernel event
+/// Ygg-provided network/request helpers. This is a platform event
 /// payload — it does NOT contain raw secrets, bodies, headers,
 /// prompts, or responses. Only `secret_ref` identifiers and the
 /// `redaction_state` are recorded.
@@ -327,13 +397,13 @@ impl EventEnvelope {
         }
     }
 
-    pub fn is_kernel_event(&self) -> bool {
-        self.writer_package_id == KERNEL_PACKAGE_ID && self.kind.starts_with("kernel/v1/")
+    pub fn is_platform_event(&self) -> bool {
+        self.writer_package_id == PLATFORM_RUNTIME_ID && is_platform_event_kind(&self.kind)
     }
 
     pub fn writer_owns_kind(&self) -> bool {
-        if self.kind.starts_with("kernel/v1/") {
-            return self.writer_package_id == KERNEL_PACKAGE_ID;
+        if is_platform_event_kind(&self.kind) {
+            return self.writer_package_id == PLATFORM_RUNTIME_ID;
         }
         self.kind
             .starts_with(&format!("{}/", self.writer_package_id))

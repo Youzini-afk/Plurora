@@ -5,8 +5,8 @@
  *
  * This module defines the **experience runtime contract** at the package/SDK
  * layer. It does NOT enter the kernel, does NOT add Rust protocol methods, and
- * does NOT add `kernel.v1.experience.*`, `kernel.v1.world.*`, `kernel.v1.turn.*`,
- * `kernel.v1.chat.*`, or `kernel.v1.memory.*`.
+ * does NOT add `platform.experience.*`, `platform.world.*`, `platform.turn.*`,
+ * `platform.chat.*`, or `platform.memory.*`.
  *
  * ## Design principles
  *
@@ -15,8 +15,8 @@
  * - **Deterministic**: No network, no real model inference, no random.
  * - **Secret-safe**: Uses `secret_ref` identifiers; rejects raw secrets.
  * - **No kernel experience namespace**: Output never contains
- *   `kernel.v1.experience.*`, `kernel.v1.world.*`, `kernel.v1.turn.*`,
- *   `kernel.v1.chat.*`, or `kernel.v1.memory.*`.
+ *   `platform.experience.*`, `platform.world.*`, `platform.turn.*`,
+ *   `platform.chat.*`, or `platform.memory.*`.
  * - **Surface-bound**: Experiences declare experience_entry, play_renderer,
  *   forge_panel, and assistant_action surfaces. The kernel never interprets
  *   experience semantics.
@@ -51,7 +51,7 @@
  * - `blockRawSecrets()` — check for raw-secret-like content
  * - `looksLikeRawSecret()` — heuristic check for raw secret values
  * - `isSecretFieldName()` — check for secret field names
- * - `hasKernelExperienceNamespace()` — check for forbidden kernel namespace
+ * - `hasPlatformExperienceNamespace()` — check for forbidden platform-reserved namespace
  *
  * Self-test:
  * - `runExperienceRuntimeSelfTest()` — pure-TS self-test
@@ -233,9 +233,9 @@ export function validateExperienceDescriptor(d: unknown): string[] {
     }
   }
 
-  // Check for forbidden kernel namespace
+  // Check for forbidden platform-reserved namespace
   const str = JSON.stringify(d);
-  for (const ns of ["kernel.v1.experience.", "kernel.v1.world.", "kernel.v1.turn.", "kernel.v1.chat.", "kernel.v1.memory."]) {
+  for (const ns of ["platform.experience.", "platform.world.", "platform.turn.", "platform.chat.", "platform.memory."]) {
     if (str.includes(ns)) errors.push(`must not contain ${ns}`);
   }
 
@@ -739,18 +739,18 @@ export function blockRawSecrets(input: unknown): {
 }
 
 // ---------------------------------------------------------------------------
-// Kernel namespace safety
+// Platform-reserved namespace safety
 // ---------------------------------------------------------------------------
 
 const FORBIDDEN_NAMESPACES = [
-  "kernel.v1.experience.",
-  "kernel.v1.world.",
-  "kernel.v1.turn.",
-  "kernel.v1.chat.",
-  "kernel.v1.memory.",
+  "platform.experience.",
+  "platform.world.",
+  "platform.turn.",
+  "platform.chat.",
+  "platform.memory.",
 ];
 
-export function hasKernelExperienceNamespace(value: unknown): boolean {
+export function hasPlatformExperienceNamespace(value: unknown): boolean {
   const str = JSON.stringify(value);
   return FORBIDDEN_NAMESPACES.some((ns) => str.includes(ns));
 }
@@ -909,12 +909,12 @@ export function runExperienceRuntimeSelfTest(): {
   const secretRefInput = blockRawSecrets({ api_key: "secret_ref:env:MY_KEY" });
   assert("secret_ref allowed", secretRefInput.clean);
 
-  // 12. Kernel namespace safety
-  const safeOutput = hasKernelExperienceNamespace(desc);
-  assert("descriptor no kernel namespace", !safeOutput);
+  // 12. Platform-reserved namespace safety
+  const safeOutput = hasPlatformExperienceNamespace(desc);
+  assert("descriptor no platform-reserved namespace", !safeOutput);
 
-  const badOutput = hasKernelExperienceNamespace({ ref: "kernel.v1.experience.run" });
-  assert("detects kernel.v1.experience namespace", badOutput);
+  const badOutput = hasPlatformExperienceNamespace({ ref: "platform.experience.run" });
+  assert("detects platform.experience namespace", badOutput);
 
   // 13. Lifecycle states
   assert("9 lifecycle states", EXPERIENCE_LIFECYCLE_STATES.length === 9);
@@ -927,7 +927,7 @@ export function runExperienceRuntimeSelfTest(): {
   // 15. Recovery strategies
   assert("5 recovery strategies", RECOVERY_STRATEGIES.length === 5);
 
-  // 16. No kernel namespace in any output
+  // 16. No platform-reserved namespace in any output
   const allOutputs = [desc, proj, cp, rec, plan, sub, forge, assist];
   for (const output of allOutputs) {
     const str = JSON.stringify(output);

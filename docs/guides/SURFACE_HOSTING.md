@@ -151,10 +151,10 @@ Surface 通过 `window.yggHost.callRpc(method, params)` 发起调用。未配置
 当前 bridge 方法 allowlist：
 
 - `host.info`
-- `kernel.v1.host.ping`
-- `kernel.v1.capability.invoke`
-- `kernel.v1.capability.stream`
-- `kernel.v1.capability.cancel`
+- `host.ping`
+- `capability.invoke`
+- `capability.stream`
+- `capability.cancel`
 
 Capability invoke/stream 必须满足：
 
@@ -168,7 +168,7 @@ Host 不把 raw runtime object、管理员方法、secret 或未过滤诊断传�
 
 ## Stream bridge
 
-Surface 只能订阅自己通过 `kernel.v1.capability.stream` 创建的 stream。宿主从当前项目 session 的事件订阅中筛选对应 `kernel/v1/stream.*` 事件，再转成：
+Surface 只能订阅自己通过 `capability.stream` 创建的 stream。宿主从当前项目 session 的事件订阅中筛选对应 `capability/stream.*` 事件，再转成：
 
 - `stream.frame`：`started`、`chunk`、`progress`；
 - `stream.ended`；

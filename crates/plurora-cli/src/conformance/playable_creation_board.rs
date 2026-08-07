@@ -9,7 +9,7 @@
 //! 6. Candidate / proposal do not mutate target branch
 //! 7. Reject / approve / fork minimal proof
 //! 8. Third-party replacement: no official priority
-//! 9. No forbidden namespace (kernel.v1.experience/world/scene/character/turn/chat/memory/agent/model/prompt/director)
+//! 9. No forbidden namespace (platform.experience/world/scene/character/turn/chat/memory/agent/model/prompt/director)
 //! 10. No raw secrets in any capability output
 //! 11. content_address is stable and deterministic (Beta 2)
 //! 12. create_checkpoint includes content_address and Beta 2 metadata (Beta 2)
@@ -520,17 +520,17 @@ pub(crate) async fn playable_board_no_forbidden_namespace() -> anyhow::Result<()
     ];
 
     let forbidden = [
-        "kernel.v1.experience.",
-        "kernel.v1.world.",
-        "kernel.v1.scene.",
-        "kernel.v1.character.",
-        "kernel.v1.turn.",
-        "kernel.v1.chat.",
-        "kernel.v1.memory.",
-        "kernel.v1.agent.",
-        "kernel.v1.model.",
-        "kernel.v1.prompt.",
-        "kernel.v1.director.",
+        "platform.experience.",
+        "platform.world.",
+        "platform.scene.",
+        "platform.character.",
+        "platform.turn.",
+        "platform.chat.",
+        "platform.memory.",
+        "platform.agent.",
+        "platform.model.",
+        "platform.prompt.",
+        "platform.director.",
     ];
 
     for cap in &caps {

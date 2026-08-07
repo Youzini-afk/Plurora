@@ -52,7 +52,7 @@ plurora conformance package --contract v1 --path <package> --static-only
 
 ### 4. Bindings / handshake
 
-路径 A subprocess 包必须完成 JSON-RPC stdio handshake，并声明自己接收的 bindings。Rust in-process 包必须能通过 `KernelEnv` 初始化。路径 B 包跳过 v1 binding 检查，但仍需要证明可启动且不会要求 kernel capability。
+路径 A subprocess 包必须完成 JSON-RPC stdio handshake，并声明自己接收的 bindings。Rust in-process 包必须能通过 `ComponentEnv` 初始化。路径 B 包跳过 v1 binding 检查，但仍需要证明可启动且不会要求 kernel capability。
 
 ### 5. Capability declarations
 

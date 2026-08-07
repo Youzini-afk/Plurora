@@ -6,7 +6,7 @@ Path B is the opt-out mode for kernel v1. A package sets `entry.contract: "none"
 
 ## What Path B is
 
-A Path B package is a self-contained app or tool. It can run as a process managed by the Plurora host, but it does not gain platform authority through manifest permissions, does not use `kernel.v1.capability.invoke`, and does not depend on v1 bindings.
+A Path B package is a self-contained app or tool. It can run as a process managed by the Plurora host, but it does not gain platform authority through manifest permissions, does not use `capability.invoke`, and does not depend on v1 bindings.
 
 This is not a second-class path. It is a first-class mode for migration, compatibility layers, existing tools, and prototypes.
 
@@ -54,7 +54,7 @@ Path B can keep descriptive metadata, surface descriptors, or host startup field
 | Capability handles | injected | not injected |
 | Reverse kernel calls | handle-scoped | unavailable or denied by host policy |
 | Secret resolution | `secret_ref` + host resolver | no v1 secret binding |
-| Network outbound | `kernel.v1.outbound.*` + audit | not managed by v1 outbound |
+| Network outbound | `platform.outbound.*` + audit | not managed by v1 outbound |
 | Lifecycle events | emitted | emitted |
 | Package logs | capturable | capturable |
 | Conformance kit | authority and invocation checks | self-contained and observable checks |

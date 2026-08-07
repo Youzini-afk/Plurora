@@ -84,9 +84,9 @@ pub(super) fn storage_lab_storage_backend_neutrality_alpha_s2_cases() -> Vec<Con
     vec![
         // --- storage-lab (Storage Backend Neutrality Alpha S2) ---
         c!(
-            "storage_lab.contract_shape_no_kernel_database_terms",
+            "storage_lab.contract_shape_no_platform_database_terms",
             ["storage_lab", "storage", "official"],
-            crate::conformance::storage_lab::contract_shape_no_kernel_database_terms
+            crate::conformance::storage_lab::contract_shape_no_platform_database_terms
         ),
         c!(
             "storage_lab.backend_classes_no_credentials",
@@ -244,9 +244,9 @@ pub(super) fn storage_lab_s5_retrieval_vector_multimodal_provider_contract_cases
             crate::conformance::storage_lab::retrieval_rejects_raw_secret
         ),
         c!(
-            "storage_lab.retrieval_no_kernel_vector_namespace_or_credentials",
+            "storage_lab.retrieval_no_platform_vector_namespace_or_credentials",
             ["storage_lab", "storage", "retrieval"],
-            crate::conformance::storage_lab::retrieval_no_kernel_vector_namespace_or_secret_config
+            crate::conformance::storage_lab::retrieval_no_platform_vector_namespace_or_secret_config
         ),
         c!(
             "tdb_retrieval_lab.contract_shape",

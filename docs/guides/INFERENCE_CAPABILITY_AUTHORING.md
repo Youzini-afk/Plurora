@@ -6,7 +6,7 @@
 
 ## 核心立场
 
-1. 推理是普通能力，不是内核原语。没有 `kernel.v1.model.*`、`kernel.v1.prompt.*`、`kernel.v1.chat.*` 或 `kernel.v1.embedding.*`。
+1. 推理是普通能力，不是内核原语。没有 `platform.model.*`、`platform.prompt.*`、`platform.chat.*` 或 `platform.embedding.*`。
 2. 请求信封与传输无关。它不包含 URL、HTTP header、status code 或 OpenAI messages 字段。
 3. Cloud adapter 是一类 provider，不是平台模型抽象。`official/model-provider-lab` 是普通 cloud API adapter lab，不代表 Ygg 的模型世界观。
 4. `local_process`、`in_memory`、`ipc`、`websocket` 与 `http` 平权。

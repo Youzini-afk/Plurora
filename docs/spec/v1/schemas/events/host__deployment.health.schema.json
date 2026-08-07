@@ -1,0 +1,69 @@
+{
+  "$defs": {
+    "DeploymentHealthProbe": {
+      "properties": {
+        "kind": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind"
+      ],
+      "type": "object"
+    },
+    "Payload": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "properties": {
+        "failure_count": {
+          "format": "uint32",
+          "minimum": 0.0,
+          "type": "integer"
+        },
+        "port_lease_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "previous_ready": {
+          "type": "boolean"
+        },
+        "probe": {
+          "$ref": "#/$defs/DeploymentHealthProbe"
+        },
+        "ready": {
+          "type": "boolean"
+        },
+        "reason": {
+          "type": "string"
+        },
+        "route_id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "failure_count",
+        "previous_ready",
+        "probe",
+        "ready",
+        "reason",
+        "route_id"
+      ],
+      "title": "DeploymentHealthEventPayload",
+      "type": "object"
+    }
+  },
+  "$id": "urn:plurora:schema:event:host/deployment.health:v1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "Payload schema for event kind host/deployment.health.",
+  "properties": {
+    "kind": {
+      "const": "host/deployment.health"
+    },
+    "payload": {
+      "$ref": "#/$defs/Payload"
+    }
+  },
+  "title": "host/deployment.health",
+  "type": "object"
+}

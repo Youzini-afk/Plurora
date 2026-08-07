@@ -1,0 +1,152 @@
+{
+  "$defs": {
+    "Errors": {
+      "items": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "details": true,
+          "message": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "details",
+          "message"
+        ],
+        "title": "ErrorShape",
+        "type": "object"
+      },
+      "type": "array"
+    },
+    "LocalExecLogLine": {
+      "properties": {
+        "message_redacted": {
+          "type": "string"
+        },
+        "seq": {
+          "format": "uint64",
+          "minimum": 0.0,
+          "type": "integer"
+        },
+        "stream": {
+          "$ref": "#/$defs/LocalExecLogStream"
+        }
+      },
+      "required": [
+        "message_redacted",
+        "seq",
+        "stream"
+      ],
+      "type": "object"
+    },
+    "LocalExecLogStream": {
+      "enum": [
+        "stdout",
+        "stderr",
+        "system"
+      ],
+      "type": "string"
+    },
+    "Params": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "properties": {
+        "exec_id": {
+          "type": "string"
+        },
+        "limit": {
+          "format": "uint32",
+          "minimum": 0.0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "since_seq": {
+          "format": "uint64",
+          "minimum": 0.0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "exec_id"
+      ],
+      "title": "LocalExecLogsRequest",
+      "type": "object"
+    },
+    "Result": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "properties": {
+        "error": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "exec_id": {
+          "type": "string"
+        },
+        "lines": {
+          "items": {
+            "$ref": "#/$defs/LocalExecLogLine"
+          },
+          "type": "array"
+        },
+        "next_seq": {
+          "format": "uint64",
+          "minimum": 0.0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "exec_id",
+        "lines"
+      ],
+      "title": "LocalExecLogsResponse",
+      "type": "object"
+    }
+  },
+  "$id": "urn:plurora:schema:method:host.exec.logs:v1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Plurora public platform method host.exec.logs.",
+  "properties": {
+    "errors": {
+      "$ref": "#/$defs/Errors"
+    },
+    "method": {
+      "const": "host.exec.logs"
+    },
+    "params": {
+      "$ref": "#/$defs/Params"
+    },
+    "result": {
+      "$ref": "#/$defs/Result"
+    }
+  },
+  "required": [
+    "method",
+    "params"
+  ],
+  "title": "host.exec.logs",
+  "type": "object",
+  "x-plurora-contract": {
+    "id": "host.exec.logs",
+    "implementation_status": "partial",
+    "introduced_in": "plurora.contract.default/v1@0.1.0",
+    "maturity": "experimental",
+    "owner_layer": "host",
+    "request_schema": "urn:plurora:schema:method:host.exec.logs:v1#/$defs/Params",
+    "response_schema": "urn:plurora:schema:method:host.exec.logs:v1#/$defs/Result",
+    "streaming": false
+  }
+}

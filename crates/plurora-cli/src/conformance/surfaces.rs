@@ -26,7 +26,7 @@ pub(crate) async fn contribution_list() -> anyhow::Result<()> {
     let all = runtime
         .call_protocol(
             &ProtocolContext::host_dev("conformance"),
-            "kernel.v1.surface.contribution.list",
+            "shell.contribution.list",
             json!({}),
         )
         .await
@@ -38,7 +38,7 @@ pub(crate) async fn contribution_list() -> anyhow::Result<()> {
     let entries = runtime
         .call_protocol(
             &ProtocolContext::host_dev("conformance"),
-            "kernel.v1.surface.contribution.list",
+            "shell.contribution.list",
             json!({"slot": "experience_entry"}),
         )
         .await
@@ -60,7 +60,7 @@ pub(crate) async fn contribution_list() -> anyhow::Result<()> {
     let described = runtime
         .call_protocol(
             &ProtocolContext::host_dev("conformance"),
-            "kernel.v1.surface.contribution.describe",
+            "shell.contribution.describe",
             json!({"surface_id": "thirdparty/surface-fixture/assist"}),
         )
         .await
@@ -72,7 +72,7 @@ pub(crate) async fn contribution_list() -> anyhow::Result<()> {
     let quick_actions = runtime
         .call_protocol(
             &ProtocolContext::host_dev("conformance"),
-            "kernel.v1.surface.contribution.list",
+            "shell.contribution.list",
             json!({"slot": "quick_action"}),
         )
         .await
@@ -96,7 +96,7 @@ pub(crate) async fn contribution_list() -> anyhow::Result<()> {
     let workshop_cards = runtime
         .call_protocol(
             &ProtocolContext::host_dev("conformance"),
-            "kernel.v1.surface.contribution.list",
+            "shell.contribution.list",
             json!({"slot": "workshop_card"}),
         )
         .await

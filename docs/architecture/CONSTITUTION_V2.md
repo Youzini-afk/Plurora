@@ -311,7 +311,7 @@ Experimental
 
 在候选分层被显式采纳为稳定宪法前：
 
-- `kernel.v1.*` 是 legacy operational contract，不再自动等同于永久宪法；
+- `platform.*` 是 legacy operational contract，不再自动等同于永久宪法；
 - 除安全修复、正确性修复和兼容所需字段外，不继续扩大其稳定表面积；
 - 新机制优先进入明确 owner 的 Experimental namespace；
 - 旧客户端通过 alias/adapter 继续工作；

@@ -2,7 +2,7 @@ schema_version: 1
 id: thirdparty/playable-seed
 version: 0.1.0
 display_name: Community Playable Seed
-description: "Third-party playable package proving official seed is replaceable: launch, render, Forge inspection, assistant proposals, and asset editing without kernel privilege or official namespace."
+description: "Third-party playable package proving official seed is replaceable: launch, render, Forge inspection, assistant proposals, and asset editing without platform privilege or official namespace."
 entry:
   kind: rust_inproc
   crate_ref: example-echo-rust-inproc

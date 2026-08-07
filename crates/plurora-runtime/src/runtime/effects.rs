@@ -331,7 +331,7 @@ pub(crate) fn principal_identity(principal: &ProtocolPrincipal) -> PrincipalIden
 }
 
 pub(crate) fn request_principal(caller_package_id: Option<&str>) -> PrincipalIdentity {
-    caller_package_id.map_or(PrincipalIdentity::Kernel, |package_id| {
+    caller_package_id.map_or(PrincipalIdentity::PlatformRuntime, |package_id| {
         PrincipalIdentity::Package {
             package_id: package_id.to_string(),
         }

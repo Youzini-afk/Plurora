@@ -1,7 +1,7 @@
 use std::fs;
 use std::path::Path;
 
-use plurora_runtime::KernelMethod;
+use plurora_runtime::PlatformMethod;
 use serde_json::Value;
 
 use super::defs::normalize_schema;
@@ -21,7 +21,7 @@ pub(crate) fn write_json(path: impl AsRef<Path>, value: &Value) -> anyhow::Resul
 
 pub(crate) fn write_method(
     out: &Path,
-    method: KernelMethod,
+    method: PlatformMethod,
     params: Value,
     result: Value,
 ) -> anyhow::Result<()> {

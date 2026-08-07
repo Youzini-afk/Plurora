@@ -1,54 +1,46 @@
-# Plurora Kernel SDK
+# Plurora Contract SDKs
 
-Generated SDKs for the public kernel contract live in this directory. The source
-of truth is `docs/spec/v1/schemas/`; run `scripts/regen-sdks.sh` after changing
-Rust contract types or schema exports.
+Generated SDKs for the Plurora public contract live in this directory. The
+source of truth is `docs/spec/v1/schemas/`; after changing public Rust types,
+method IDs, event kinds, or schema exports, run:
 
-Method schemas carry `x-plurora-contract` metadata. Generated source-level method names invoke
-the canonical wire ID, while explicit legacy wrappers preserve old wire IDs. Both SDKs support
-exact profile/layer-version selection; transports that cannot carry a selection fail rather than
-silently downgrading. The generated `ContractDiagnostic` and `ProtocolResponse` types describe
-additive transport-level lifecycle warnings, including Deprecated and Legacy Adapter states. TypeScript HTTP/stdio transports expose
-`drainContractDiagnostics()`, and Rust transports may implement `drain_contract_diagnostics()`.
+```bash
+bash scripts/regen-sdks.sh
+```
 
-Three distribution channels — pick what fits your workflow:
+Every public method has exactly one wire ID. The generated TypeScript and Rust
+clients expose that ID directly and can optionally attach an explicit contract
+selection. A transport that cannot carry the requested selection fails rather
+than silently dropping it.
 
-## Channel 1: npm (TypeScript only)
+## TypeScript
 
 ```bash
 npm install @plurora/contract-sdk
 ```
 
-Publishing is opt-in. The package is also usable directly from this repository.
-
-## Channel 2: workspace path reference
-
-```bash
-git clone plurora
-```
-
-Then in your `package.json`:
+The package is also usable by workspace path:
 
 ```json
-{ "dependencies": { "@plurora/contract-sdk": "file:../plurora/sdk/typescript/contract-sdk" } }
+{
+  "dependencies": {
+    "@plurora/contract-sdk": "file:../plurora/sdk/typescript/contract-sdk"
+  }
+}
 ```
 
-Rust consumers can depend on the generated crate by path:
+## Rust
 
 ```toml
 plurora-contract-sdk = { path = "../plurora/sdk/rust/plurora-contract-sdk" }
 ```
 
-## Channel 3: read schemas, generate yourself
+## Independent generation
+
+Third-party integrators do not need either first-party SDK. JSON Schema and
+OpenAPI remain public inputs for independent generators:
 
 ```bash
-git clone plurora
-# Use docs/spec/v1/schemas/ with your favorite codegen tool:
 quicktype --src-lang schema --lang go docs/spec/v1/schemas/methods/*.json
-# or oapi-codegen for Go
-# or openapi-generator for any of 50+ languages
-# from sdk/openapi.yaml
+# or generate from sdk/openapi.yaml
 ```
-
-Third-party integrators do not need to consume these SDKs; the JSON Schemas and
-OpenAPI description are stable inputs for independent code generation.

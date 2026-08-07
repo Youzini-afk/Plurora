@@ -3,7 +3,7 @@
 > [English](./CONTRACT_REGISTRY.en.md) · [中文](./CONTRACT_REGISTRY.md)
 
 本文描述当前用于分层合同、canonical ID、legacy alias 与显式协商的可执行兼容机制。它是 Experimental，不表示
-Constitution v2 已经 Stable，也不改变现有 `kernel.v1.*` payload 语义。
+Constitution v2 已经 Stable，也不改变现有 `platform.*` payload 语义。
 
 ## 单一解析边界
 
@@ -12,7 +12,7 @@ Runtime 在进入 permission gate 和 handler 前统一执行：
 1. 校验可选的 contract selection；
 2. 从集中 registry 解析 canonical ID 或 alias；
 3. 执行 request adapter；
-4. 以 `KernelMethod` 调用唯一 handler；
+4. 以 `PlatformMethod` 调用唯一 handler；
 5. 执行 response adapter。
 
 HTTP RPC、host stdio、in-process 和 subprocess reverse stdio 使用同一解析与协商逻辑。
@@ -33,19 +33,19 @@ Registry `0.5.0` 当前发布 36 条 identity alias：
 
 | Canonical | Legacy alias | Owner |
 |---|---|---|
-| `host.info` | `kernel.v1.host.info` | `host` |
-| `host.project.{list,get,start,stop,status}` | `kernel.v1.project.*` | `host` |
-| `host.target.{list,status,register,unregister}` | `kernel.v1.target.*` | `host` |
-| `host.exec.{start,stop,status,logs,list}` | `kernel.v1.exec.*` | `host` |
-| `host.port.{lease,release,status,list}` | `kernel.v1.port.*` | `host` |
-| `host.proxy.{register,unregister,status,list}` | `kernel.v1.proxy.*` | `host` |
-| `host.surface.bundle.resolve` | `kernel.v1.surface.resolve_bundle` | `host` |
-| `shell.contribution.{list,describe}` | `kernel.v1.surface.contribution.*` | `shell` |
-| `change.proposal.{create,get,list,approve,reject,apply}` | `kernel.v1.proposal.*` | `protocol` |
-| `projection.{register,rebuild,get,list}` | `kernel.v1.projection.*` | `protocol` |
+| `host.info` | `host.info` | `host` |
+| `host.project.{list,get,start,stop,status}` | `platform.project.*` | `host` |
+| `host.target.{list,status,register,unregister}` | `platform.target.*` | `host` |
+| `host.exec.{start,stop,status,logs,list}` | `platform.exec.*` | `host` |
+| `host.port.{lease,release,status,list}` | `platform.port.*` | `host` |
+| `host.proxy.{register,unregister,status,list}` | `platform.proxy.*` | `host` |
+| `host.surface.bundle.resolve` | `host.surface.bundle.resolve` | `host` |
+| `shell.contribution.{list,describe}` | `platform.surface.contribution.*` | `shell` |
+| `change.proposal.{create,get,list,approve,reject,apply}` | `platform.proposal.*` | `protocol` |
+| `projection.{register,rebuild,get,list}` | `platform.projection.*` | `protocol` |
 
 表中的 `*` / `{...}` 仅是文档缩写，每个后缀都在 registry 中逐项注册。其他方法在迁移前
-继续以现有 `kernel.v1.*` ID 作为 canonical ID。新增 alias 必须进入 registry，不能在
+继续以现有 `platform.*` ID 作为 canonical ID。新增 alias 必须进入 registry，不能在
 dispatcher、客户端或 transport 中加入字符串特判。
 
 Canonical/legacy 双栈只改变 owner 与 namespace：payload、权限、事件与 handler 保持一致。尤其
@@ -70,12 +70,12 @@ RPC envelope 可带可选字段：
 }
 ```
 
-- 省略 `contract` 时，为旧客户端使用 `kernel.v1` legacy profile。
-- 当前公开 `plurora.contract.default/v1`、`plurora.shell.default/v1` 与 `kernel.v1`；Shell Default
+- 省略 `contract` 时，为旧客户端使用 `platform contract` legacy profile。
+- 当前公开 `plurora.contract.default/v1`、`plurora.shell.default/v1` 与 `platform contract`；Shell Default
   精确要求 host、protocol、shell 三层的已发布版本。
 - 一旦客户端显式给出 profile 或 layer version，host 必须精确满足。
 - 未知 profile、profile 不包含所需 layer、或 version 不匹配时返回
-  `kernel/v1/error/unsupported_contract`，并在结构化 details 中报告原因。
+  `runtime/error/unsupported_contract`，并在结构化 details 中报告原因。
 - Host 不会自动回退到更弱 profile，也不会在协商失败后调用业务 handler。
 
 ## `host.info`
@@ -109,8 +109,8 @@ Registry `0.4.0` 开始第一个可验证的弃用窗口，`0.5.0` 完成第一�
 
 | Legacy alias | 当前成熟度 | Replacement | Replacement maturity | Deprecated in | Legacy Adapter from |
 |---|---|---|---|---|---|
-| `kernel.v1.host.info` | Legacy Adapter | `host.info` | Candidate | `plurora.contract.registry@0.4.0` | `plurora.contract.registry@0.5.0` |
-| `kernel.v1.target.list` | Legacy Adapter | `host.target.list` | Candidate | `plurora.contract.registry@0.4.0` | `plurora.contract.registry@0.5.0` |
+| `host.info` | Legacy Adapter | `host.info` | Candidate | `plurora.contract.registry@0.4.0` | `plurora.contract.registry@0.5.0` |
+| `host.target.list` | Legacy Adapter | `host.target.list` | Candidate | `plurora.contract.registry@0.4.0` | `plurora.contract.registry@0.5.0` |
 
 历史 `deprecated_in`、`replacement` 与 `support_until` metadata 保留。旧 ID 与 canonical ID
 仍进入同一个 handler、共享同一 request/response schema，并通过 identity adapter 保持 method
@@ -119,7 +119,7 @@ result 完全一致。进入 Legacy Adapter 后，旧 ID 只接受安全修复�
 
 HTTP RPC、host stdio 和 subprocess reverse stdio 在调用受跟踪的 Legacy Adapter alias 时，
 会附加 code 为 `plurora.contract.alias.legacy_adapter` 的可选顶层 `diagnostics` 数组。兼容路由
-`GET /kernel/v1/host.info` 通过
+`GET /removed/host.info` 通过
 `x-plurora-contract-*` response header 和指向 `/rpc` 的 `Link` 发布同一策略。
 Replacement header 的值是 canonical method ID，而不是 URL；应通过 `POST /rpc` 调用。
 诊断只用于迁移提示，不改变 method payload 或 error mapping；即使 contract selection

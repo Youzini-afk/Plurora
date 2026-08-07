@@ -314,7 +314,6 @@ pub fn check_manifest_declarations_consistent(manifest: &PackageManifest) -> Che
         .iter()
         .filter_map(|cap| namespace_of(&cap.id))
         .chain(std::iter::once(manifest.id.clone()))
-        .chain(std::iter::once("kernel/v1".to_string()))
         .collect();
     for req in &manifest.consumes {
         if namespace_of(&req.id)

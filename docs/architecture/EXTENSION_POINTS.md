@@ -26,7 +26,7 @@
 ```yaml
 contributes:
   hooks:
-    - extension_point: kernel/v1/event.before_append
+    - extension_point: journal/before_append
       handler: my_handler
       timing: sync
       precedence: 100
@@ -42,7 +42,7 @@ contributes:
 
 ## 实现状态
 
-当前 `kernel/v1/*` 扩展点集合保持兼容稳定。实现已覆盖事件追加和能力调用的核心路径：稳定排序、Component handler、payload 元数据修改、否决和卸载清理。Session 和 Package 生命周期钩子已在契约中预留。今天它们通过 `kernel/v1/session.*` 和 `kernel/v1/package.*` 事件传递，后续可补齐同步/异步处理。新的共享扩展语义应进入有明确 owner 的 Protocol namespace；实现可以由普通 Component Package 贡献，而不是继续扩大单体 `kernel.v1`。
+当前 `kernel/v1/*` 扩展点集合保持兼容稳定。实现已覆盖事件追加和能力调用的核心路径：稳定排序、Component handler、payload 元数据修改、否决和卸载清理。Session 和 Package 生命周期钩子已在契约中预留。今天它们通过 `context/.*` 和 `kernel/v1/package.*` 事件传递，后续可补齐同步/异步处理。新的共享扩展语义应进入有明确 owner 的 Protocol namespace；实现可以由普通 Component Package 贡献，而不是继续扩大单体 `platform contract`。
 
 ## 内核发出的扩展点
 
@@ -50,28 +50,28 @@ contributes:
 
 ### 会话生命周期
 
-- `kernel/v1/session.before_open` — sync，modifiable false，short_circuit true。
+- `context/before_open` — sync，modifiable false，short_circuit true。
   打开权限在此执行。订阅方可以否决。
-- `kernel/v1/session.after_open` — async。
-- `kernel/v1/session.before_close` — sync，modifiable false，short_circuit true。
-- `kernel/v1/session.after_close` — async。
+- `context/after_open` — async。
+- `context/before_close` — sync，modifiable false，short_circuit true。
+- `context/after_close` — async。
 
 Payload：会话 id、请求的 labels、包集、发起请求的身份。
 
 ### 事件日志
 
-- `kernel/v1/event.before_append` — sync，modifiable true，short_circuit true。
+- `journal/before_append` — sync，modifiable true，short_circuit true。
   权限和 schema 校验在此执行。订阅方可以修改 metadata 或否决。
-- `kernel/v1/event.after_append` — async。
+- `journal/after_append` — async。
   订阅方收到已持久化的信封。
 
 Payload：事件信封。内核不解释 payload 字段。只有写入者清单为该事件 kind 引用了 payload schema 时，内核才检查声明的 schema。
 
 ### 能力调用
 
-- `kernel/v1/capability.before_invoke` — sync，modifiable true，short_circuit true。
+- `capability/before_invoke` — sync，modifiable true，short_circuit true。
   权限、路由解析和配额执行在此发生。
-- `kernel/v1/capability.after_invoke` — async。
+- `capability/after_invoke` — async。
   订阅方收到 input、output（或 error）、延迟和 provider id。
 - `kernel/v1/capability.error` — async。
   订阅方收到结构化失败信息。
@@ -80,9 +80,9 @@ Payload：invocation envelope。
 
 ### 包生命周期
 
-- `kernel/v1/package.loaded` — async。
-- `kernel/v1/package.unloaded` — async。
-- `kernel/v1/package.degraded` — async。
+- `host/package.loaded` — async。
+- `host/package.unloaded` — async。
+- `host/package.degraded` — async。
 - `kernel/v1/package.heartbeat_lost` — async。
 
 ### 钩子注册表

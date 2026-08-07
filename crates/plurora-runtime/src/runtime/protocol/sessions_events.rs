@@ -14,15 +14,13 @@ where
         let request: OpenSessionRequest = serde_json::from_value(params)?;
         if context.is_host_device() {
             if !context.allows_host_action("project_operate") {
-                anyhow::bail!(
-                    "kernel.v1.session.open permission denied: Host device lacks project_operate"
-                );
+                anyhow::bail!("context.open permission denied: Host device lacks project_operate");
             }
             match request.metadata.get("project_id").and_then(Value::as_str) {
                 Some(project_id) if context.allows_host_resource("host", "project", project_id) => {
                 }
                 Some(project_id) => anyhow::bail!(
-                    "kernel.v1.session.open permission denied for project '{}'",
+                    "context.open permission denied for project '{}'",
                     project_id
                 ),
                 None if context.allows_all_host_resources("host", "project") => {}
@@ -42,7 +40,7 @@ where
         let session_id = params
             .get("session_id")
             .and_then(Value::as_str)
-            .ok_or_else(|| anyhow::anyhow!("kernel.v1.session.close requires session_id"))?
+            .ok_or_else(|| anyhow::anyhow!("context.close requires session_id"))?
             .to_string();
         if context.is_host_device() {
             self.ensure_host_session_access(context, "project_operate", &session_id)
@@ -59,7 +57,7 @@ where
         let session_id = params
             .get("session_id")
             .and_then(Value::as_str)
-            .ok_or_else(|| anyhow::anyhow!("kernel.v1.session.get requires session_id"))?;
+            .ok_or_else(|| anyhow::anyhow!("context.get requires session_id"))?;
         if context.is_host_device() {
             self.ensure_host_session_access(context, "observe", session_id)
                 .await?;
@@ -79,7 +77,7 @@ where
         let parent_session_id = params
             .get("parent_session_id")
             .and_then(Value::as_str)
-            .ok_or_else(|| anyhow::anyhow!("kernel.v1.session.fork requires parent_session_id"))?
+            .ok_or_else(|| anyhow::anyhow!("context.fork requires parent_session_id"))?
             .to_string();
         if context.is_host_device() {
             self.ensure_host_session_access(context, "project_operate", &parent_session_id)
@@ -88,9 +86,7 @@ where
         let forked_from_sequence = params
             .get("forked_from_sequence")
             .and_then(Value::as_u64)
-            .ok_or_else(|| {
-                anyhow::anyhow!("kernel.v1.session.fork requires forked_from_sequence")
-            })?;
+            .ok_or_else(|| anyhow::anyhow!("context.fork requires forked_from_sequence"))?;
         let metadata = params.get("metadata").cloned().unwrap_or_else(|| json!({}));
         Ok(serde_json::to_value(
             self.fork_session(parent_session_id, forked_from_sequence, metadata)
@@ -106,7 +102,7 @@ where
         let session_id = params
             .get("session_id")
             .and_then(Value::as_str)
-            .ok_or_else(|| anyhow::anyhow!("kernel.v1.session.branch.list requires session_id"))?
+            .ok_or_else(|| anyhow::anyhow!("context.branch.list requires session_id"))?
             .to_string();
         if context.is_host_device() {
             self.ensure_host_session_access(context, "observe", &session_id)

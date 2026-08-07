@@ -2,7 +2,7 @@
 
 > [English](./OBJECT_STORE.en.md) · [中文](./OBJECT_STORE.md)
 
-This document defines the currently implemented content-addressed object foundation. It is an Experimental Constitutional Substrate contract and does not change the `kernel.v1.asset.*` method IDs or their existing request shapes.
+This document defines the currently implemented content-addressed object foundation. It is an Experimental Constitutional Substrate contract and does not change the `platform.asset.*` method IDs or their existing request shapes.
 
 ## Identity and descriptors
 
@@ -36,13 +36,13 @@ The current implementations are in-memory and filesystem-backed stores. Filesyst
 
 ## Separating bytes from journals
 
-Object bytes live only in ObjectStore. Journals, events, and future receipts store descriptors or digest references and must not copy large bodies. The `kernel/v1/asset.put` event payload carries the additive `AssetRecord.descriptor`; event metadata carries only `artifact_digest`, `size_bytes`, and `content_included: false`.
+Object bytes live only in ObjectStore. Journals, events, and future receipts store descriptors or digest references and must not copy large bodies. The `object/put` event payload carries the additive `AssetRecord.descriptor`; event metadata carries only `artifact_digest`, `size_bytes`, and `content_included: false`.
 
 This boundary does not change secret policy: asset content remains arbitrary user data and is not raw-secret scanned, while asset metadata continues to use the existing raw-secret rejection rule.
 
 ## v1 Asset adapter
 
-`kernel.v1.asset.put/get/list` remain wire-compatible:
+`object.put/get/list` remain wire-compatible:
 
 - `put` commits UTF-8 content as a generic blob artifact;
 - `AssetRecord.hash` is now the canonical SHA-256 digest;
@@ -54,7 +54,7 @@ FNV-1a remains available only through `legacy_content_address()` and the explici
 
 ## Legacy event migration
 
-When rehydration reads an old `kernel/v1/asset.put` event containing `metadata.content`, it:
+When rehydration reads an old `object/put` event containing `metadata.content`, it:
 
 1. commits the old content idempotently to ObjectStore;
 2. computes a SHA-256 descriptor and corrects the canonical hash/size;

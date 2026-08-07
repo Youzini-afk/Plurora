@@ -51,7 +51,7 @@ See [`docs/product/PLATFORM_PRODUCT_MODEL.md`](docs/product/PLATFORM_PRODUCT_MOD
 
 The repository is in Foundation Alpha. Contract V1, the Rust Host/runtime, HTTP/RPC/SSE, Package and Component lifecycle, Web/PWA, Tauri Desktop, CLI, installation and updates, Project management, authority, objects and artifacts, model integration, controlled development, targets, and deployment already form a substantial operational surface.
 
-The current implementation still reflects historical Contract V1 aggregation: `kernel.v1.*` carries a mixture of substrate, Host, protocol, and shell semantics. The architectural direction is incremental ownership and compatibility rather than a destructive rewrite.
+The current implementation still reflects historical Contract V1 aggregation: `platform.*` carries a mixture of substrate, Host, protocol, and shell semantics. The architectural direction is incremental ownership and compatibility rather than a destructive rewrite.
 
 See [`docs/ALPHA_STATUS.md`](docs/ALPHA_STATUS.en.md) for implemented, partial, and deferred state, and [`docs/roadmap/NEXT_STEPS.md`](docs/roadmap/NEXT_STEPS.en.md) for construction direction.
 

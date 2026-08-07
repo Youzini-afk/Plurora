@@ -199,7 +199,7 @@ async fn call_outbound(
     runtime
         .call_protocol(
             &context,
-            "kernel.v1.outbound.execute",
+            "host.outbound.execute",
             json!({
                 "capability_id": format!("{package_id}/fetch"),
                 "destination_host": "api.example.com",

@@ -151,10 +151,10 @@ A surface calls `window.yggHost.callRpc(method, params)`. Without `hostBridge.ca
 The current bridge method allowlist is:
 
 - `host.info`
-- `kernel.v1.host.ping`
-- `kernel.v1.capability.invoke`
-- `kernel.v1.capability.stream`
-- `kernel.v1.capability.cancel`
+- `host.ping`
+- `capability.invoke`
+- `capability.stream`
+- `capability.cancel`
 
 Capability invoke and stream calls must satisfy all of the following:
 
@@ -168,7 +168,7 @@ The Host does not expose raw runtime objects, administrative methods, secrets, o
 
 ## Stream bridge
 
-A surface may subscribe only to a stream it created through `kernel.v1.capability.stream`. The host filters the current project session's event subscription for matching `kernel/v1/stream.*` events and maps them to:
+A surface may subscribe only to a stream it created through `capability.stream`. The host filters the current project session's event subscription for matching `capability/stream.*` events and maps them to:
 
 - `stream.frame` for `started`, `chunk`, and `progress`;
 - `stream.ended`;

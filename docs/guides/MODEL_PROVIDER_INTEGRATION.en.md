@@ -27,7 +27,7 @@ The current delivery includes:
 - `official/model-provider-lab` exposes `list_supported_families`, `validate_profile`, `normalize_request`, `invoke`, `normalize_stream`, `explain_error`, and `echo`.
 - `invoke` remains a fake/local provider adapter path for default validation and adapter-shape checks. It returns provider-shaped responses and auditable `outbound_request_shape`.
 - The host has a content-free `OutboundExecutor` boundary. It defaults to deny-all and has fake executor, loopback live HTTP executor, and hostile validation coverage. This proves request shapes can flow through host policy/audit boundaries, but it does not claim OS-level interception of arbitrary subprocess networking.
-- `kernel.v1.outbound.execute` is the public outbound protocol. Ordinary and official packages must use the same path; the package principal comes from protocol context and cannot spoof another package.
+- `host.outbound.execute` is the public outbound protocol. Ordinary and official packages must use the same path; the package principal comes from protocol context and cannot spoof another package.
 - `EnvSecretResolver` supports host-owned `secret_ref:env:NAME` allowlists. Raw secrets only exist briefly inside the host and never enter events, logs, audits, or responses.
 - `LiveHttpOutboundExecutor` uses `reqwest + rustls`, is disabled by default, enforces HTTPS-only, fails closed on redirects, requires timeouts, and records only redacted response/audit shapes. Loopback conformance uses `allow_insecure_loopback_for_tests=true` and does not depend on public internet.
 - `secret_headers` provides host-side header injection (for example Authorization bearer, x-api-key, and x-goog-api-key). Missing/invalid secrets fail closed. `static_headers` accepts only a tiny set of non-secret provider/version/format headers (anthropic-version, content-type, accept, http-referer, x-title) and blocks Authorization/x-api-key/Cookie and host-owned headers.
@@ -106,7 +106,7 @@ Examples:
 
 ### `invoke`
 
-`official/model-provider-lab/invoke` itself remains the fake/local adapter path. Real network calls do not use private official-package runtime access; they must be made by ordinary packages through public `kernel.v1.outbound.execute`, under host policy, secret resolution, and outbound execution.
+`official/model-provider-lab/invoke` itself remains the fake/local adapter path. Real network calls do not use private official-package runtime access; they must be made by ordinary packages through public `host.outbound.execute`, under host policy, secret resolution, and outbound execution.
 
 Outputs must keep:
 
@@ -121,7 +121,7 @@ Outputs must keep:
 
 This preserves replayable adapter testing and default validation. It also prevents the official provider package from gaining private outbound privileges unavailable to third parties.
 
-### `kernel.v1.outbound.execute`
+### `host.outbound.execute`
 
 The live HTTP path for ordinary capability packages:
 
@@ -173,7 +173,7 @@ Normalizes provider-specific code/status values into package-level error categor
 - `upstream_malformed`
 - `unknown`
 
-This is package-level normalization, not `kernel.v1.model.error`.
+This is package-level normalization, not `platform.model.error`.
 
 ## Manual live call boundary
 
@@ -182,7 +182,7 @@ Default validation does not require public internet access. Manual/live provider
 1. the provider package declares minimal network permissions;
 2. caller or host policy explicitly allows them;
 3. secrets are resolved through host resolver, with raw secrets never entering events/logs/audits;
-4. requests go through public `kernel.v1.outbound.execute` and the host outbound boundary;
+4. requests go through public `host.outbound.execute` and the host outbound boundary;
 5. audits record only host, method, purpose, secret_refs, usage/cost/error metadata, and redaction state;
 6. streams map to the content-free frame lifecycle;
 7. cancel/timeout are not swallowed by provider adapters;
@@ -208,7 +208,7 @@ The dependency direction is: transport-neutral contract → cloud/local adapter 
 
 - User balances, top-ups, billing admin, multipliers, or channel management systems.
 - Hosted platform relay keys.
-- `kernel.v1.model.*`, `kernel.v1.prompt.*`, `kernel.v1.chat.*`, or `kernel.v1.embedding.*`.
+- `platform.model.*`, `platform.prompt.*`, `platform.chat.*`, or `platform.embedding.*`.
 - Treating OpenAI-compatible as the only model protocol.
 - Treating `normalize_request` as the platform canonical request.
 - Letting official packages bypass manifest, permission, secret, network, or audit boundaries.
@@ -222,4 +222,4 @@ cargo run -p plurora-cli -- package check packages/official/model-provider-lab/m
 tsc -p clients/web/tsconfig.json --noEmit
 ```
 
-Current validation can cover `official.model_provider_lab`, `official.model_provider_lab_invoke_core`, `official.model_provider_lab_normalize_stream`, `official.inference_local_lab_*`, public `kernel.v1.outbound.execute`, secret header injection, live loopback provider shapes, provider quirk fixtures, non-HTTP inference seam proof, and outbound policy checks.
+Current validation can cover `official.model_provider_lab`, `official.model_provider_lab_invoke_core`, `official.model_provider_lab_normalize_stream`, `official.inference_local_lab_*`, public `host.outbound.execute`, secret header injection, live loopback provider shapes, provider quirk fixtures, non-HTTP inference seam proof, and outbound policy checks.

@@ -13,4 +13,4 @@ export const TONE_TO_DISK_CLASS: Record<string, string> = {
   failed: "bg-deep-rust",
 };
 
-export const TIMELINE_SESSION = "kernel_project_lifecycle";
+export const TIMELINE_SESSION = "host_project_lifecycle";

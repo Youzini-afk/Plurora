@@ -6,8 +6,8 @@
 //! recovery, and Play/Forge/Assist surface bindings. Deterministic,
 //! no-network, no real model inference.
 //!
-//! No `kernel.v1.experience.*`, `kernel.v1.world.*`, `kernel.v1.turn.*`,
-//! `kernel.v1.chat.*`, or `kernel.v1.memory.*` namespace references.
+//! No `platform.experience.*`, `platform.world.*`, `platform.turn.*`,
+//! `platform.chat.*`, or `platform.memory.*` namespace references.
 
 use serde_json::Value;
 
@@ -640,7 +640,7 @@ mod tests {
     }
 
     #[test]
-    fn no_kernel_experience_namespace_in_output() {
+    fn no_platform_experience_namespace_in_output() {
         let caps = [
             "official/experience-runtime-lab/describe_contract",
             "official/experience-runtime-lab/create_checkpoint",
@@ -653,28 +653,28 @@ mod tests {
             let result = try_handle(&req).unwrap().unwrap();
             let output_str = serde_json::to_string(&result).unwrap();
             assert!(
-                !output_str.contains("kernel.v1.experience."),
-                "{} must not contain kernel.v1.experience.",
+                !output_str.contains("platform.experience."),
+                "{} must not contain platform.experience.",
                 cap
             );
             assert!(
-                !output_str.contains("kernel.v1.world."),
-                "{} must not contain kernel.v1.world.",
+                !output_str.contains("platform.world."),
+                "{} must not contain platform.world.",
                 cap
             );
             assert!(
-                !output_str.contains("kernel.v1.turn."),
-                "{} must not contain kernel.v1.turn.",
+                !output_str.contains("platform.turn."),
+                "{} must not contain platform.turn.",
                 cap
             );
             assert!(
-                !output_str.contains("kernel.v1.chat."),
-                "{} must not contain kernel.v1.chat.",
+                !output_str.contains("platform.chat."),
+                "{} must not contain platform.chat.",
                 cap
             );
             assert!(
-                !output_str.contains("kernel.v1.memory."),
-                "{} must not contain kernel.v1.memory.",
+                !output_str.contains("platform.memory."),
+                "{} must not contain platform.memory.",
                 cap
             );
         }

@@ -1,0 +1,76 @@
+{
+  "$defs": {
+    "Errors": {
+      "items": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "details": true,
+          "message": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "details",
+          "message"
+        ],
+        "title": "ErrorShape",
+        "type": "object"
+      },
+      "type": "array"
+    },
+    "Params": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "properties": {
+        "surface_id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "surface_id"
+      ],
+      "title": "SurfaceDescribeParams",
+      "type": "object"
+    },
+    "Result": {
+      "type": "object"
+    }
+  },
+  "$id": "urn:plurora:schema:method:shell.contribution.describe:v1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Plurora public platform method shell.contribution.describe.",
+  "properties": {
+    "errors": {
+      "$ref": "#/$defs/Errors"
+    },
+    "method": {
+      "const": "shell.contribution.describe"
+    },
+    "params": {
+      "$ref": "#/$defs/Params"
+    },
+    "result": {
+      "$ref": "#/$defs/Result"
+    }
+  },
+  "required": [
+    "method",
+    "params"
+  ],
+  "title": "shell.contribution.describe",
+  "type": "object",
+  "x-plurora-contract": {
+    "id": "shell.contribution.describe",
+    "implementation_status": "partial",
+    "introduced_in": "plurora.shell.default/v1@0.1.0",
+    "maturity": "experimental",
+    "owner_layer": "shell",
+    "request_schema": "urn:plurora:schema:method:shell.contribution.describe:v1#/$defs/Params",
+    "response_schema": "urn:plurora:schema:method:shell.contribution.describe:v1#/$defs/Result",
+    "streaming": false
+  }
+}

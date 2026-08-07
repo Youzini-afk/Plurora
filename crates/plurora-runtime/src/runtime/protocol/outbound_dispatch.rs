@@ -29,7 +29,7 @@ where
         let package_id = params
             .get("package_id")
             .and_then(Value::as_str)
-            .ok_or_else(|| anyhow::anyhow!("kernel.v1.outbound.audit requires package_id"))?
+            .ok_or_else(|| anyhow::anyhow!("host.outbound.audit requires package_id"))?
             .to_string();
         Ok(serde_json::to_value(
             self.list_outbound_audit(&package_id).await?,
@@ -56,7 +56,7 @@ where
             }
             other => {
                 anyhow::bail!(
-                    "kernel.v1.outbound.execute requires package or host principal, got {:?}",
+                    "host.outbound.execute requires package or host principal, got {:?}",
                     other
                 )
             }
@@ -65,22 +65,22 @@ where
         let capability_id = params
             .get("capability_id")
             .and_then(Value::as_str)
-            .ok_or_else(|| anyhow::anyhow!("kernel.v1.outbound.execute requires capability_id"))?
+            .ok_or_else(|| anyhow::anyhow!("host.outbound.execute requires capability_id"))?
             .to_string();
         if !capability_id.starts_with(&format!("{package_id}/")) {
             anyhow::bail!(
-                "kernel.v1.outbound.execute capability_id must belong to the caller package namespace"
+                "host.outbound.execute capability_id must belong to the caller package namespace"
             );
         }
         let destination_host = params
             .get("destination_host")
             .and_then(Value::as_str)
-            .ok_or_else(|| anyhow::anyhow!("kernel.v1.outbound.execute requires destination_host"))?
+            .ok_or_else(|| anyhow::anyhow!("host.outbound.execute requires destination_host"))?
             .to_string();
         let method = params
             .get("method")
             .and_then(Value::as_str)
-            .ok_or_else(|| anyhow::anyhow!("kernel.v1.outbound.execute requires method"))?
+            .ok_or_else(|| anyhow::anyhow!("host.outbound.execute requires method"))?
             .to_string();
         let path: Option<String> = params
             .get("path")
@@ -132,7 +132,7 @@ where
             }
             let manifest = self.packages.manifest(&package_id).await.ok_or_else(|| {
                 anyhow::anyhow!(
-                    "kernel.v1.outbound.execute package '{}' is not loaded",
+                    "host.outbound.execute package '{}' is not loaded",
                     package_id
                 )
             })?;
@@ -167,13 +167,13 @@ where
         let mut resolved_secret_headers = Vec::new();
         for spec in &secret_headers_spec {
             HeaderName::from_bytes(spec.header_name.as_bytes()).map_err(|_| {
-                anyhow::anyhow!("kernel.v1.outbound.execute secret header name is invalid")
+                anyhow::anyhow!("host.outbound.execute secret header name is invalid")
             })?;
             let raw_value = self
                 .resolve_secret_ref_with_session(&spec.secret_ref, context.session_id.as_deref())
                 .await
                 .map_err(|_| {
-                    anyhow::anyhow!("kernel.v1.outbound.execute secret header is unavailable")
+                    anyhow::anyhow!("host.outbound.execute secret header is unavailable")
                 })?;
             let header_value = match spec.scheme.to_lowercase().as_str() {
                 "bearer" => format!("Bearer {}", raw_value),
@@ -182,7 +182,7 @@ where
                 other => format!("{} {}", other, raw_value),
             };
             HeaderValue::from_str(&header_value).map_err(|_| {
-                anyhow::anyhow!("kernel.v1.outbound.execute secret header value is invalid")
+                anyhow::anyhow!("host.outbound.execute secret header value is invalid")
             })?;
             resolved_secret_headers.push(crate::runtime::outbound::ResolvedSecretHeader {
                 header_name: spec.header_name.clone(),
@@ -221,10 +221,10 @@ where
         Ok(response_value)
     }
 
-    /// Y3: Dispatch `kernel.v1.outbound.stream`.
+    /// Y3: Dispatch `host.outbound.stream`.
     ///
-    /// Performs the same permission checks as `kernel.v1.outbound.execute`,
-    /// then starts a kernel stream and spawns the executor's `stream`
+    /// Performs the same permission checks as `host.outbound.execute`,
+    /// then starts a platform stream and spawns the executor's `stream`
     /// method to emit frames asynchronously. Returns a stream_id
     /// that the caller subscribes to via the existing event stream.
     pub(crate) async fn dispatch_outbound_stream(
@@ -242,7 +242,7 @@ where
                 .unwrap_or_else(|| "host/test".to_string()),
             other => {
                 anyhow::bail!(
-                    "kernel.v1.outbound.stream requires package or host principal, got {:?}",
+                    "host.outbound.stream requires package or host principal, got {:?}",
                     other
                 )
             }
@@ -251,22 +251,22 @@ where
         let capability_id = params
             .get("capability_id")
             .and_then(Value::as_str)
-            .ok_or_else(|| anyhow::anyhow!("kernel.v1.outbound.stream requires capability_id"))?
+            .ok_or_else(|| anyhow::anyhow!("host.outbound.stream requires capability_id"))?
             .to_string();
         if !capability_id.starts_with(&format!("{package_id}/")) {
             anyhow::bail!(
-                "kernel.v1.outbound.stream capability_id must belong to the caller package namespace"
+                "host.outbound.stream capability_id must belong to the caller package namespace"
             );
         }
         let destination_host = params
             .get("destination_host")
             .and_then(Value::as_str)
-            .ok_or_else(|| anyhow::anyhow!("kernel.v1.outbound.stream requires destination_host"))?
+            .ok_or_else(|| anyhow::anyhow!("host.outbound.stream requires destination_host"))?
             .to_string();
         let method = params
             .get("method")
             .and_then(Value::as_str)
-            .ok_or_else(|| anyhow::anyhow!("kernel.v1.outbound.stream requires method"))?
+            .ok_or_else(|| anyhow::anyhow!("host.outbound.stream requires method"))?
             .to_string();
         let path: Option<String> = params
             .get("path")
@@ -345,7 +345,7 @@ where
             }
             let manifest = self.packages.manifest(&package_id).await.ok_or_else(|| {
                 anyhow::anyhow!(
-                    "kernel.v1.outbound.stream package '{}' is not loaded",
+                    "host.outbound.stream package '{}' is not loaded",
                     package_id
                 )
             })?;
@@ -374,7 +374,7 @@ where
             "sse" => crate::runtime::outbound::StreamFormat::Sse,
             "ndjson" => crate::runtime::outbound::StreamFormat::Ndjson,
             "raw" => crate::runtime::outbound::StreamFormat::Raw,
-            other => anyhow::bail!("kernel.v1.outbound.stream unknown stream_format '{other}'"),
+            other => anyhow::bail!("host.outbound.stream unknown stream_format '{other}'"),
         };
         let max_frame_bytes = params
             .get("max_frame_bytes")
@@ -402,13 +402,13 @@ where
         let mut resolved_secret_headers = Vec::new();
         for spec in &secret_headers_spec {
             reqwest::header::HeaderName::from_bytes(spec.header_name.as_bytes()).map_err(|_| {
-                anyhow::anyhow!("kernel.v1.outbound.stream secret header name is invalid")
+                anyhow::anyhow!("host.outbound.stream secret header name is invalid")
             })?;
             let raw_value = self
                 .resolve_secret_ref_with_session(&spec.secret_ref, context.session_id.as_deref())
                 .await
                 .map_err(|_| {
-                    anyhow::anyhow!("kernel.v1.outbound.stream secret header is unavailable")
+                    anyhow::anyhow!("host.outbound.stream secret header is unavailable")
                 })?;
             let header_value = match spec.scheme.to_lowercase().as_str() {
                 "bearer" => format!("Bearer {}", raw_value),
@@ -417,7 +417,7 @@ where
                 other => format!("{} {}", other, raw_value),
             };
             reqwest::header::HeaderValue::from_str(&header_value).map_err(|_| {
-                anyhow::anyhow!("kernel.v1.outbound.stream secret header value is invalid")
+                anyhow::anyhow!("host.outbound.stream secret header value is invalid")
             })?;
             resolved_secret_headers.push(crate::runtime::outbound::ResolvedSecretHeader {
                 header_name: spec.header_name.clone(),
@@ -446,10 +446,10 @@ where
             static_headers,
         };
 
-        // Start a kernel stream via the existing streaming infrastructure.
+        // Start a platform stream via the existing streaming infrastructure.
         // We create a synthetic "capability" for the outbound stream.
         let outbound_capability_id = capability_id.clone();
-        let session_id = format!("kernel_outbound_stream_{}", package_id.replace('/', "_"));
+        let session_id = format!("platform_outbound_stream_{}", package_id.replace('/', "_"));
 
         // Register the stream in the StreamRegistry
         let stream_record = self
@@ -466,7 +466,7 @@ where
             )
             .await;
 
-        // Emit kernel/v1/stream.started event
+        // Emit capability/stream.started event
         let event_payload = json!({
             "invocation_id": stream_record.invocation_id,
             "stream_id": stream_record.stream_id,
@@ -474,7 +474,7 @@ where
             "provider_package_id": package_id,
             "session_id": session_id,
         });
-        self.append_kernel_event(
+        self.append_platform_event(
             &session_id,
             plurora_core::EVENT_STREAM_STARTED,
             event_payload,
@@ -484,7 +484,7 @@ where
         // Create cancel signal
         let (cancel_tx, cancel_rx) = crate::runtime::outbound::CancelSignal::new();
 
-        // Store the cancel sender so that kernel.v1.capability.cancel can set it
+        // Store the cancel sender so that capability.cancel can set it
         let invocation_id = stream_record.invocation_id.clone();
         let stream_id = stream_record.stream_id.clone();
 
@@ -504,7 +504,7 @@ where
         let network_performed =
             matches!(executor_kind, crate::runtime::outbound::ExecutorKind::Real);
 
-        // Create a StreamEmitter that feeds into the kernel stream lifecycle
+        // Create a StreamEmitter that feeds into the platform stream lifecycle
         let emitter = Arc::new(StreamEmitterAdapter {
             streams: self.streams.clone(),
             store: self.store.clone(),
@@ -548,19 +548,19 @@ where
                 )
                 .await;
 
-            // Helper closure for appending kernel events
+            // Helper closure for appending platform events
             let append_event = |kind: &'static str, payload: Value| {
                 let store = store_for_end.clone();
                 let session_id = session_id_for_end.clone();
                 async move {
-                    use plurora_core::{new_id, EventEnvelope, KERNEL_PACKAGE_ID};
+                    use plurora_core::{new_id, EventEnvelope, PLATFORM_RUNTIME_ID};
                     let seq = store.next_sequence(&session_id).await.unwrap_or(0);
                     let event = EventEnvelope {
                         id: new_id("evt"),
                         session_id,
                         sequence: seq,
                         timestamp: chrono::Utc::now(),
-                        writer_package_id: KERNEL_PACKAGE_ID.to_string(),
+                        writer_package_id: PLATFORM_RUNTIME_ID.to_string(),
                         kind: kind.to_string(),
                         schema_version: 1,
                         payload,
@@ -727,7 +727,7 @@ where
         });
 
         // Return the stream response immediately
-        let response = crate::runtime::outbound::KernelOutboundStreamResponse {
+        let response = crate::runtime::outbound::OutboundStreamResponse {
             stream_id: stream_record.stream_id.clone(),
             status: crate::runtime::outbound::StreamStartStatus::Ok,
             redaction_state: RedactionState::Redacted,
@@ -753,7 +753,7 @@ where
                 .map(str::to_string)
                 .unwrap_or_else(|| "host/test".to_string()),
             other => anyhow::bail!(
-                "kernel.v1.outbound.websocket.open requires package or host principal, got {:?}",
+                "host.outbound.websocket.open requires package or host principal, got {:?}",
                 other
             ),
         };
@@ -761,20 +761,18 @@ where
         let capability_id = params
             .get("capability_id")
             .and_then(Value::as_str)
-            .ok_or_else(|| {
-                anyhow::anyhow!("kernel.v1.outbound.websocket.open requires capability_id")
-            })?
+            .ok_or_else(|| anyhow::anyhow!("host.outbound.websocket.open requires capability_id"))?
             .to_string();
         if !capability_id.starts_with(&format!("{package_id}/")) {
             anyhow::bail!(
-                "kernel.v1.outbound.websocket.open capability_id must belong to the caller package namespace"
+                "host.outbound.websocket.open capability_id must belong to the caller package namespace"
             );
         }
         let destination_host = params
             .get("destination_host")
             .and_then(Value::as_str)
             .ok_or_else(|| {
-                anyhow::anyhow!("kernel.v1.outbound.websocket.open requires destination_host")
+                anyhow::anyhow!("host.outbound.websocket.open requires destination_host")
             })?
             .to_string();
         let path = params
@@ -822,7 +820,7 @@ where
             }
             let manifest = self.packages.manifest(&package_id).await.ok_or_else(|| {
                 anyhow::anyhow!(
-                    "kernel.v1.outbound.websocket.open package '{}' is not loaded",
+                    "host.outbound.websocket.open package '{}' is not loaded",
                     package_id
                 )
             })?;
@@ -857,15 +855,13 @@ where
         let mut secret_headers = HashMap::new();
         for spec in &secret_headers_spec {
             HeaderName::from_bytes(spec.header_name.as_bytes()).map_err(|_| {
-                anyhow::anyhow!("kernel.v1.outbound.websocket.open secret header name is invalid")
+                anyhow::anyhow!("host.outbound.websocket.open secret header name is invalid")
             })?;
             let raw_value = self
                 .resolve_secret_ref_with_session(&spec.secret_ref, context.session_id.as_deref())
                 .await
                 .map_err(|_| {
-                    anyhow::anyhow!(
-                        "kernel.v1.outbound.websocket.open secret header is unavailable"
-                    )
+                    anyhow::anyhow!("host.outbound.websocket.open secret header is unavailable")
                 })?;
             let header_value = match spec.scheme.to_lowercase().as_str() {
                 "bearer" => format!("Bearer {}", raw_value),
@@ -874,7 +870,7 @@ where
                 other => format!("{} {}", other, raw_value),
             };
             HeaderValue::from_str(&header_value).map_err(|_| {
-                anyhow::anyhow!("kernel.v1.outbound.websocket.open secret header value is invalid")
+                anyhow::anyhow!("host.outbound.websocket.open secret header value is invalid")
             })?;
             secret_headers.insert(spec.header_name.clone(), header_value);
         }
@@ -883,7 +879,10 @@ where
             .map(|hdr| (hdr.name, hdr.value))
             .collect::<HashMap<_, _>>();
 
-        let session_id = format!("kernel_outbound_websocket_{}", package_id.replace('/', "_"));
+        let session_id = format!(
+            "platform_outbound_websocket_{}",
+            package_id.replace('/', "_")
+        );
         let stream_record = self
             .streams
             .start_invocation(
@@ -896,7 +895,7 @@ where
                 }),
             )
             .await;
-        self.append_kernel_event(
+        self.append_platform_event(
             &session_id,
             plurora_core::EVENT_STREAM_STARTED,
             json!({
@@ -992,7 +991,7 @@ where
                     .streams
                     .error_invocation(&stream_record.invocation_id, reason)
                     .await;
-                self.append_kernel_event(
+                self.append_platform_event(
                     &session_id,
                     plurora_core::EVENT_OUTBOUND_WEBSOCKET_ERROR,
                     json!({
@@ -1003,7 +1002,7 @@ where
                     }),
                 )
                 .await?;
-                self.append_kernel_event(
+                self.append_platform_event(
                     &session_id,
                     plurora_core::EVENT_STREAM_ERROR,
                     json!({
@@ -1101,7 +1100,7 @@ where
                 let store = store.clone();
                 let session_id = session_id_for_task.clone();
                 async move {
-                    use plurora_core::{new_id, EventEnvelope, KERNEL_PACKAGE_ID};
+                    use plurora_core::{new_id, EventEnvelope, PLATFORM_RUNTIME_ID};
                     let seq = store.next_sequence(&session_id).await.unwrap_or(0);
                     let _ = store
                         .append(EventEnvelope {
@@ -1109,7 +1108,7 @@ where
                             session_id,
                             sequence: seq,
                             timestamp: chrono::Utc::now(),
-                            writer_package_id: KERNEL_PACKAGE_ID.to_string(),
+                            writer_package_id: PLATFORM_RUNTIME_ID.to_string(),
                             kind: kind.to_string(),
                             schema_version: 1,
                             payload,
@@ -1198,7 +1197,7 @@ where
                         break;
                     }
                     other => {
-                        let (kind, mut payload, _) = websocket_event_to_kernel_event(other);
+                        let (kind, mut payload, _) = websocket_event_to_platform_event(other);
                         if kind == plurora_core::EVENT_OUTBOUND_WEBSOCKET_OPENED {
                             if let Value::Object(map) = &mut payload {
                                 map.insert(
@@ -1336,7 +1335,7 @@ where
             .get("connection_id")
             .and_then(Value::as_str)
             .ok_or_else(|| {
-                anyhow::anyhow!("kernel.v1.outbound.websocket.send requires connection_id")
+                anyhow::anyhow!("host.outbound.websocket.send requires connection_id")
             })?;
         let frame = parse_websocket_frame(params)?;
         let (frame_kind, frame_bytes) = match &frame {
@@ -1374,7 +1373,7 @@ where
                     .get_invocation_by_stream_id(connection_id)
                     .await
                 {
-                    self.append_kernel_event(
+                    self.append_platform_event(
                         &record.session_id,
                         plurora_core::EVENT_OUTBOUND_WEBSOCKET_ERROR,
                         json!({
@@ -1423,7 +1422,7 @@ where
             .get("connection_id")
             .and_then(Value::as_str)
             .ok_or_else(|| {
-                anyhow::anyhow!("kernel.v1.outbound.websocket.close requires connection_id")
+                anyhow::anyhow!("host.outbound.websocket.close requires connection_id")
             })?;
         let code = params.get("code").and_then(Value::as_u64).unwrap_or(1000) as u16;
         let reason = params
@@ -1480,7 +1479,7 @@ where
                     .get_invocation_by_stream_id(connection_id)
                     .await
                 {
-                    self.append_kernel_event(
+                    self.append_platform_event(
                         &record.session_id,
                         plurora_core::EVENT_OUTBOUND_WEBSOCKET_ERROR,
                         json!({
@@ -1564,14 +1563,14 @@ async fn websocket_effect_context<S: EventStore>(
 }
 
 // ---------------------------------------------------------------------------
-// Y3: StreamEmitterAdapter — bridges OutboundStreamFrame to kernel stream lifecycle
+// Y3: StreamEmitterAdapter — bridges OutboundStreamFrame to platform stream lifecycle
 // ---------------------------------------------------------------------------
 
 /// Adapter that implements `StreamEmitter` and feeds frames into
-/// the kernel stream registry.
+/// the platform stream registry.
 ///
 /// Each emitted `OutboundStreamFrame` is converted to a chunk in
-/// the `StreamRegistry` and records `kernel/v1/stream.chunk` events.
+/// the `StreamRegistry` and records `capability/stream.chunk` events.
 /// The spawned task's completion handler emits terminal events.
 struct StreamEmitterAdapter<S: EventStore> {
     streams: Arc<StreamRegistry>,
@@ -1616,8 +1615,8 @@ where
             "bytes_received": frame.bytes_received,
         });
 
-        // Append a chunk frame to the kernel stream
-        let _kernel_frame = self
+        // Append a chunk frame to the platform stream
+        let _platform_frame = self
             .streams
             .append_chunk(
                 &self.invocation_id,
@@ -1626,7 +1625,7 @@ where
             )
             .await?;
 
-        use plurora_core::{new_id, EventEnvelope, EVENT_STREAM_CHUNK, KERNEL_PACKAGE_ID};
+        use plurora_core::{new_id, EventEnvelope, EVENT_STREAM_CHUNK, PLATFORM_RUNTIME_ID};
         let seq = self.store.next_sequence(&self.session_id).await?;
         self.store
             .append(EventEnvelope {
@@ -1634,7 +1633,7 @@ where
                 session_id: self.session_id.clone(),
                 sequence: seq,
                 timestamp: chrono::Utc::now(),
-                writer_package_id: KERNEL_PACKAGE_ID.to_string(),
+                writer_package_id: PLATFORM_RUNTIME_ID.to_string(),
                 kind: EVENT_STREAM_CHUNK.to_string(),
                 schema_version: 1,
                 payload: json!({
@@ -1750,9 +1749,7 @@ fn parse_websocket_frame(params: &Value) -> anyhow::Result<OutboundWebSocketFram
                 .get("text")
                 .or_else(|| params.get("data"))
                 .and_then(Value::as_str)
-                .ok_or_else(|| {
-                    anyhow::anyhow!("kernel.v1.outbound.websocket.send requires text data")
-                })?
+                .ok_or_else(|| anyhow::anyhow!("host.outbound.websocket.send requires text data"))?
                 .to_string(),
         )),
         "binary" => {
@@ -1761,27 +1758,25 @@ fn parse_websocket_frame(params: &Value) -> anyhow::Result<OutboundWebSocketFram
                 .or_else(|| params.get("data"))
                 .and_then(Value::as_array)
                 .ok_or_else(|| {
-                    anyhow::anyhow!("kernel.v1.outbound.websocket.send requires binary bytes array")
+                    anyhow::anyhow!("host.outbound.websocket.send requires binary bytes array")
                 })?;
             let mut bytes = Vec::with_capacity(arr.len());
             for value in arr {
                 let byte = value.as_u64().ok_or_else(|| {
-                    anyhow::anyhow!(
-                        "kernel.v1.outbound.websocket.send binary bytes must be integers"
-                    )
+                    anyhow::anyhow!("host.outbound.websocket.send binary bytes must be integers")
                 })?;
                 if byte > u8::MAX as u64 {
-                    anyhow::bail!("kernel.v1.outbound.websocket.send binary byte out of range");
+                    anyhow::bail!("host.outbound.websocket.send binary byte out of range");
                 }
                 bytes.push(byte as u8);
             }
             Ok(OutboundWebSocketFrame::Binary(Bytes::from(bytes)))
         }
-        other => anyhow::bail!("kernel.v1.outbound.websocket.send unknown frame kind '{other}'"),
+        other => anyhow::bail!("host.outbound.websocket.send unknown frame kind '{other}'"),
     }
 }
 
-fn websocket_event_to_kernel_event(event: WebSocketEvent) -> (&'static str, Value, bool) {
+fn websocket_event_to_platform_event(event: WebSocketEvent) -> (&'static str, Value, bool) {
     match event {
         WebSocketEvent::Opened {
             connection_id,
@@ -1855,7 +1850,7 @@ fn websocket_event_to_kernel_event(event: WebSocketEvent) -> (&'static str, Valu
     }
 }
 
-/// L4: Parse `secret_headers` from `kernel.v1.outbound.execute` params.
+/// L4: Parse `secret_headers` from `host.outbound.execute` params.
 ///
 /// Expected format:
 /// ```json
@@ -1877,9 +1872,9 @@ fn parse_secret_headers(
         None => return Ok(Vec::new()),
     };
 
-    let headers_obj = secret_headers_value.as_object().ok_or_else(|| {
-        anyhow::anyhow!("kernel.v1.outbound.execute secret_headers must be an object")
-    })?;
+    let headers_obj = secret_headers_value
+        .as_object()
+        .ok_or_else(|| anyhow::anyhow!("host.outbound.execute secret_headers must be an object"))?;
 
     let mut specs = Vec::new();
     for (header_name, header_spec) in headers_obj {
@@ -1887,12 +1882,12 @@ fn parse_secret_headers(
             .get("secret_ref")
             .and_then(Value::as_str)
             .ok_or_else(|| {
-                anyhow::anyhow!("kernel.v1.outbound.execute secret header requires secret_ref")
+                anyhow::anyhow!("host.outbound.execute secret header requires secret_ref")
             })?
             .to_string();
 
         if !plurora_core::SecretRef::is_valid_ref(&secret_ref) {
-            anyhow::bail!("kernel.v1.outbound.execute secret header secret_ref is invalid");
+            anyhow::bail!("host.outbound.execute secret header secret_ref is invalid");
         }
 
         let scheme = header_spec
@@ -1911,7 +1906,7 @@ fn parse_secret_headers(
     Ok(specs)
 }
 
-/// L5: Parse `static_headers` from `kernel.v1.outbound.execute` params.
+/// L5: Parse `static_headers` from `host.outbound.execute` params.
 ///
 /// Expected format:
 /// ```json
@@ -1938,16 +1933,16 @@ fn parse_static_headers(
         None => return Ok(Vec::new()),
     };
 
-    let headers_obj = static_headers_value.as_object().ok_or_else(|| {
-        anyhow::anyhow!("kernel.v1.outbound.execute static_headers must be an object")
-    })?;
+    let headers_obj = static_headers_value
+        .as_object()
+        .ok_or_else(|| anyhow::anyhow!("host.outbound.execute static_headers must be an object"))?;
 
     let mut headers = Vec::new();
     for (header_name, header_value) in headers_obj {
         // Defense-in-depth: reject known secret-bearing header names
         if crate::runtime::outbound::is_secret_header_name(header_name) {
             anyhow::bail!(
-                "kernel.v1.outbound.execute static_headers rejected: '{}' is a secret-bearing header; use secret_headers with secret_ref instead",
+                "host.outbound.execute static_headers rejected: '{}' is a secret-bearing header; use secret_headers with secret_ref instead",
                 header_name
             );
         }
@@ -1955,7 +1950,7 @@ fn parse_static_headers(
         // Only allowlisted header names are permitted
         if !crate::runtime::outbound::is_static_header_allowed(header_name) {
             anyhow::bail!(
-                "kernel.v1.outbound.execute static_headers rejected: '{}' is not on the safe header allowlist",
+                "host.outbound.execute static_headers rejected: '{}' is not on the safe header allowlist",
                 header_name
             );
         }
@@ -1964,7 +1959,7 @@ fn parse_static_headers(
             .as_str()
             .ok_or_else(|| {
                 anyhow::anyhow!(
-                    "kernel.v1.outbound.execute static_headers value for '{}' must be a string",
+                    "host.outbound.execute static_headers value for '{}' must be a string",
                     header_name
                 )
             })?
@@ -1973,7 +1968,7 @@ fn parse_static_headers(
         // Reject values that look like raw secrets
         if looks_like_raw_secret_value(&value) {
             anyhow::bail!(
-                "kernel.v1.outbound.execute static_headers rejected: value for '{}' looks like a raw secret; use secret_headers with secret_ref instead",
+                "host.outbound.execute static_headers rejected: value for '{}' looks like a raw secret; use secret_headers with secret_ref instead",
                 header_name
             );
         }
