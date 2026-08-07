@@ -2,9 +2,9 @@
 
 > [English](./KERNEL_V1_CONTRACT.en.md) · [中文](./KERNEL_V1_CONTRACT.md)
 
-This document is the v1 specification for the Yggdrasil platform contract. It defines the public kernel boundary: methods, events, error codes, capability handles, manifest declarations, schemas, and conformance expectations. Any participant can call the kernel through this contract; any implementation must prove conformance through code, schemas, and tests.
+This document is the v1 specification for Yggdrasil's current platform contract. It defines the operative public boundary: methods, events, error codes, capability handles, manifest declarations, schemas, and conformance expectations. Any participant can call the platform through this contract; every implementation must satisfy the same schema and behavioral conformance. `kernel.v1.*` is a compatibility name rather than automatic membership in the long-term constitutional substrate.
 
-v1 does not put content semantics into the kernel. Characters, worlds, prompts, models, messages, memory, and similar concepts remain package-owned.
+v1 does not put content semantics into core mechanisms. Characters, worlds, prompts, models, messages, memory, and similar concepts belong to their protocols, components, or products rather than the constitutional substrate.
 
 ## Status language
 
@@ -289,7 +289,7 @@ All 161 schemas must pass `cargo run -p ygg-cli --bin validate-schemas`.
 
 ## Content-free invariant
 
-The kernel crates must not define or require content-shaped concepts such as `Turn`, `Message`, `PromptFrame`, `ModelCall`, `Agent`, `World`, `Scene`, `Director`, or `Memory`. Any such concept belongs to a package or client.
+The current kernel crates must not define or require content-shaped concepts such as `Turn`, `Message`, `PromptFrame`, `ModelCall`, `Agent`, `World`, `Scene`, `Director`, or `Memory`. Such concepts are owned by the relevant Protocol, Component, Product, or Client rather than the constitutional substrate; Contract V1 may carry them through Package-writer events, projections, and capabilities.
 
 ## Object contracts
 
@@ -297,7 +297,7 @@ The kernel crates must not define or require content-shaped concepts such as `Tu
 
 `KernelSession` is a content-free execution context. It may hold identity, labels, active package set, principal scope, status, timestamps, and metadata. It must not hold messages, turns, prompts, characters, worlds, memory, or model calls.
 
-A session id only identifies kernel ordering and permission scope. Packages may express content state in their own event payloads or projections, but the kernel treats those as opaque JSON.
+A session id only identifies current runtime ordering and permission scope. Protocols or Components may express domain state through the current Package writer's event payloads, objects, or projections, while the runtime treats them as opaque data and public descriptors.
 
 ### `EventEnvelope`
 

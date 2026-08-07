@@ -2,40 +2,52 @@
 
 > [English](./SURFACE_HOSTING.en.md) · [中文](./SURFACE_HOSTING.md)
 
-This guide describes how `clients/web` handles two surface shapes: structured shell descriptors, and external React / Web surface bundles hosted through sandboxed iframes. It documents the v0 host boundary: the web shell remains a plain TypeScript SPA, while third-party iframe surfaces interact with Yggdrasil through the public protocol and an explicit host bridge.
+This guide explains the two surface forms handled by the platform shell: structured descriptors rendered by the platform, and static Web bundles running inside sandboxed iframes. The current shell uses React 19, but the surface boundary is framework-neutral; third-party code participates only through public contracts and an explicit Host bridge.
 
-## Purpose
+## Two surface forms
 
-Yggdrasil capability packages can contribute surface descriptors through their manifests. `clients/web` turns those descriptors into visible UI. Small shell entries are rendered from structured metadata by the platform. When a third-party surface brings its own frontend bundle, the web shell does not load that code directly into the main window. Instead, `SurfaceHost` creates an iframe:
+Capability packages declare surfaces under `contributes.surfaces`. The host chooses the presentation from the descriptor:
 
-- the main shell keeps control of navigation, sessions, the public-protocol client, and permission prompts;
-- the third-party bundle runs inside an isolated frame;
-- the frame and host communicate only through a narrow `postMessage` protocol;
-- the surface cannot reach the kernel directly and only gets bridge methods explicitly wired by the host.
+- `quick_action`, `workshop_card`, and `home_card` entries with `metadata.shell_schema_version: 1` are rendered directly by the platform;
+- projects that own a frontend use `entry.kind: surface_bundle` to provide a static ESM bundle mounted by `SurfaceHost` in an isolated iframe.
 
-The host implementation is in `clients/web/src/surfaces/surface-host.ts`. The frame bootstrap is in `clients/web/public/surface-frame.html`.
+Structured descriptors contain only bounded text, icon hints, ordering, and same-package targets. The platform does not load package JavaScript, parse HTML, or create an iframe for them. They are discovery affordances today; any future execution wiring still crosses public protocol, permission, proposal, and audit boundaries.
 
-## Structured shell descriptors
+## Static bundle packages
 
-These slots are rendered directly by the web shell:
+A minimal manifest:
 
-- `quick_action`
-- `workshop_card`
-- `home_card` entries with `metadata.shell_schema_version: 1`
+```yaml
+schema_version: 1
+id: example/project-surface
+version: 0.1.0
+license: AGPL-3.0-only
+entry:
+  kind: surface_bundle
+  bundle: dist/bundle.mjs
+contributes:
+  surfaces:
+    - id: example/project-entry
+      version: 0.1.0
+      slot: experience_entry
+      title: Example project
+      allowed_capability_ids:
+        - example/project/inspect
+      activation:
+        input_schema: {}
+      required_permissions: []
+permissions: {}
+```
 
-They accept only bounded metadata:
+`surface_bundle` is a static, non-executing package entry. The Host does not start it as Rust, subprocess, WASM, or remote package code; installation only places the bundle and sibling static assets into project dist and includes them in the install `tree_hash`.
 
-- `title`: localized string, max 80 characters per entry.
-- `description`: optional localized string, max 240 characters per entry.
-- `icon`: an allowlisted platform icon hint.
-- `order`, `category`, `badge`, `tone`: display-only hints for the platform renderer.
-- `surface_id` or top-level `capability_id`: must point to a surface or capability declared by the same package.
+The raw `/surface-bundles/projects/<project_id>/...` path requires Host identity and exact project authority. After `host.surface.bundle.resolve` succeeds, the Host issues a random, five-minute, read-only `/surface-assets/<lease>/...` URL bound to the current grant and bundle root. Relative modules, stylesheets, fonts, and images must stay under that lease root. Revoking or expiring the grant invalidates the lease immediately.
 
-The web shell does not load bundles, parse HTML, run package JavaScript, or create iframes for these descriptors. A package-contributed `quick_action` is currently a discovery affordance: clicking it shows the package source and target instead of silently invoking a capability. Future executable wiring must still cross the public protocol, permission, proposal, and audit boundaries.
+Do not place secrets, tokens, private configuration, host paths, or source maps in `dist/`. Private data must be reached through capabilities, `secret_ref`, outbound audit, and bridge authority.
 
-This mechanism is for Home cards and lightweight entry points. It is not a way to replace the whole Home page, core Settings pages, the project grid, the Continue Card, or the Activity Timeline.
+## SurfaceHost API
 
-## Host API
+The current Web implementation lives in `clients/web/src/surfaces/surface-host.ts`:
 
 ```ts
 export interface SurfaceHostOptions {
@@ -46,11 +58,14 @@ export interface SurfaceHostOptions {
   wrapperClass?: string;
   hostBridge?: SurfaceHostBridge;
   initialProps?: unknown;
+  stylesheets?: string[];
 }
 
 export interface SurfaceHostBridge {
+  currentSessionId?: string;
+  allowedCapabilityIds?: Iterable<string>;
   callRpc?(method: string, params: unknown): Promise<unknown>;
-  subscribeEvents?(sessionId: string, callback: (event: unknown) => void): () => void;
+  subscribeEvents?(callback: (event: unknown) => void): () => void;
 }
 
 export interface SurfaceHostHandle {
@@ -59,191 +74,125 @@ export interface SurfaceHostHandle {
   unmount(): Promise<void>;
 }
 
-export function mountSurface(options: SurfaceHostOptions): Promise<SurfaceHostHandle>;
-
-// Unmount operation shape:
-export function unmountSurface(handle: SurfaceHostHandle): Promise<void>;
+export function mountSurface(
+  options: SurfaceHostOptions,
+): Promise<SurfaceHostHandle>;
 ```
 
-`mountSurface(options)`:
+`mountSurface`:
 
-1. finds the DOM container named by `options.containerId`;
-2. creates a `sandbox="allow-scripts"` iframe and loads `/surface-frame.html`;
-3. waits for the frame to send `{type: 'ready'}`;
-4. sends `{type: 'mount', bundleUrl, exportName, wrapperClass, initialProps}` to the frame;
-5. registers an `rpc.call` listener scoped to that iframe.
+1. finds the target container;
+2. creates an iframe with only `sandbox="allow-scripts"`;
+3. waits for the frame's `ready` message;
+4. creates a mount-scoped `bridge_token`;
+5. sends the bundle URL, export, styles, and sanitized `initialProps`;
+6. registers RPC and stream message handlers;
+7. closes subscriptions, notifies the frame, removes listeners, and removes the iframe during `unmount()`.
 
-The current implementation exposes unmounting as `SurfaceHostHandle.unmount()`; the equivalent `unmountSurface(handle)` shape is `handle.unmount()`. It removes the message listener and removes the iframe from the DOM.
+The host injects `currentSessionId` as both `sessionId` and `session_id`, overriding fields with those names supplied through `initialProps`. A surface cannot select another session.
 
-## Surface bundle expectations
+## Bundle mount contract
 
-A surface bundle must be an ESM module loadable via dynamic `import(bundleUrl)`, and it must expose a named export. `exportName` comes from surface metadata, for example `YdlTavernPlaySurface`.
-
-Installed project browser bundles are static, non-executing package entries, but they are no longer anonymously enumerable. The internal `/surface-bundles/projects/<project_id>/...` path requires a Host identity with exact project authority. After `host.surface.bundle.resolve` succeeds, the Host issues the opaque-origin iframe a random, five-minute, read-only `/surface-assets/<lease>/...` handle bound to the grant and bundle root, with a CORS-readable response. Relative modules, stylesheets, fonts, and images stay under that lease root; revoking or expiring the device grant invalidates the handle immediately. `dist/` participates in install `tree_hash`, so bundle-only updates are detected by install-lab and refresh project dist. An asset lease is still not a secret container: do not put secrets, tokens, private configuration, host paths, or source maps in `dist/`. Private data must flow through capabilities, `secret_ref`, outbound audit, and bridge permissions — never through the bundle.
-
-The frame accepts two mount contracts:
+The bundle must be an ESM module dynamically importable from a same-origin lease URL and expose a named export whose name is a bounded JavaScript identifier. The current frame invokes the export as:
 
 ```ts
-export async function YdlTavernPlaySurface(root: HTMLElement, props: unknown) {
+export function ExampleSurface(
+  root: HTMLElement,
+  props: Record<string, unknown>,
+): void | (() => void) {
   // render into root
-}
-
-export const YdlTavernPlaySurface = {
-  async mount(root: HTMLElement, props: unknown) {
-    // render into root
-  },
-};
-```
-
-A React surface normally calls `createRoot(root).render(...)` inside the mount function. A plain DOM surface may update `root` directly.
-
-CSS must be scoped under a wrapper class so it does not leak across nodes in the frame and so the host can size or theme by surface type:
-
-```css
-.ydltavern-play-surface {
-  min-height: 100%;
-}
-
-.ydltavern-play-surface .message-row {
-  /* scoped styles */
+  return () => {
+    // release listeners and UI state
+  };
 }
 ```
 
-`wrapperClass` is applied to the frame's `#root` element.
+A React surface may call `createRoot(root).render(...)` and return a wrapper around `root.unmount()`. A plain DOM surface may mutate `root` directly. `wrapperClass` is assigned to the frame's `#root`; styles should be scoped beneath that class.
 
-## Iframe security model
+## Iframe and CSP
 
-The host creates the iframe with only:
+The host creates:
 
 ```html
 <iframe sandbox="allow-scripts" src="/surface-frame.html"></iframe>
 ```
 
-There is no `allow-same-origin`, `allow-forms`, `allow-popups`, or other sandbox capability. This means:
+There is no `allow-same-origin`, `allow-forms`, `allow-popups`, or top-level navigation authority. The frame therefore has an opaque origin and cannot inherit Host cookies, localStorage, or DOM authority.
 
-- surface scripts can run;
-- the frame does not get host same-origin authority;
-- form submission, popups, and top-level navigation are unavailable by default;
-- every host capability must go through the `postMessage` bridge.
-
-`surface-frame.html` currently uses this CSP:
+`surface-frame.html` uses this CSP:
 
 ```text
-default-src 'self'; script-src 'self' blob:; connect-src 'self'
+default-src 'self';
+script-src 'self';
+connect-src 'none';
+style-src 'self' 'unsafe-inline';
+img-src 'self' data: blob:;
+font-src 'self' data:;
 ```
 
-The page also allows the minimal inline style and local/data/blob images needed for basic rendering. Network connections remain limited by `connect-src 'self'`; third-party bundles should not fetch arbitrary networks directly.
+The frame bootstrap accepts only same-origin `/surface-assets/`, public `/assets/`, and its own bootstrap script. A bundle cannot load raw `/surface-bundles/` paths or make direct public-network requests from the frame; network effects must cross Host-controlled capability and outbound boundaries.
 
 ## postMessage protocol
 
-After load, the frame first notifies the host:
+The main messages are:
 
-```ts
-// frame → host
-{ type: 'ready' }
+```text
+frame -> host: ready
+host  -> frame: mount | unmount | rpc.result | stream.frame | stream.ended | stream.error
+frame -> host: rpc.call | stream.subscribe | stream.unsubscribe | mount.error
 ```
 
-The host then sends the mount instruction:
+Other than the initial `ready`, Host and frame messages are bound to the current `bridge_token`. The host also validates `event.source`, the current session, subscription identity, and stream ownership. The asset lease authorizes static reads only; the `bridge_token` authenticates messages for one mount only. Neither is a Host credential.
 
-```ts
-// host → frame
-{
-  type: 'mount',
-  bundleUrl,
-  exportName,
-  wrapperClass,
-  initialProps,
-}
-```
+## RPC bridge
 
-The host creates an ephemeral `bridge_token` for each mount. The frame only accepts mount/unmount/RPC result messages from `window.parent`; bundle and stylesheet URLs must be same-origin `/surface-assets/` leases or public `/assets/` paths and cannot load raw `/surface-bundles/` locations directly; `exportName` must be a bounded JavaScript identifier. The asset lease authorizes static reads only, while the `bridge_token` authenticates messages from the current frame; neither is a Host credential. On the host side, frame messages are checked against `event.source`, `bridge_token`, session id, and the capability allowlist.
+A surface calls `window.yggHost.callRpc(method, params)`. Without `hostBridge.callRpc`, the call receives a normalized `no_bridge` error.
 
-When a surface needs host RPC, code in the frame calls `window.yggHost.callRpc(method, params)`, which sends:
+The current bridge method allowlist is:
 
-```ts
-// frame → host
-{ type: 'rpc.call', id, method, params }
-```
+- `host.info`
+- `kernel.v1.host.ping`
+- `kernel.v1.capability.invoke`
+- `kernel.v1.capability.stream`
+- `kernel.v1.capability.cancel`
 
-The host answers after the call finishes:
+Capability invoke and stream calls must satisfy all of the following:
 
-```ts
-// host → frame
-{ type: 'rpc.result', id, result }
+- `capability_id` appears in the surface descriptor's `allowed_capability_ids`;
+- `session_id` is rewritten by the host to `currentSessionId`;
+- only allowed input, provider, version, and bounded metadata fields survive sanitization;
+- returned `stream_id` / `invocation_id` values are recorded as owned by that surface;
+- cancel may target only a stream or invocation created by that surface.
 
-// or
-{ type: 'rpc.result', id, error: { code, message } }
-```
+The Host does not expose raw runtime objects, administrative methods, secrets, or unfiltered diagnostics. Bridge failures are mapped to a bounded public code and message.
 
-The frame allocates `id` values to match pending promises. The host only accepts messages whose source is the expected iframe `contentWindow`.
+## Stream bridge
 
-## Host bridge
+A surface may subscribe only to a stream it created through `kernel.v1.capability.stream`. The host filters the current project session's event subscription for matching `kernel/v1/stream.*` events and maps them to:
 
-`hostBridge.callRpc(method, params)` is opt-in. If `mountSurface` does not receive `hostBridge.callRpc`, surface RPC calls receive:
+- `stream.frame` for `started`, `chunk`, and `progress`;
+- `stream.ended`;
+- `stream.error` for error, cancelled, and timeout terminals.
 
-```ts
-{ type: 'rpc.result', id, error: { code: 'no_bridge', message: 'host did not configure RPC bridge' } }
-```
+The implementation places hard limits on owned streams and concurrent subscriptions per surface, and closes every subscription during unmount. A surface cannot use the subscription API to enumerate other streams in the same session.
 
-By default, a third-party surface has no kernel access. The host must explicitly decide which public-protocol methods may be forwarded, which principal is used, and how approval or permission state is displayed. Do not pass internal runtime objects or unfiltered admin methods to a surface.
+## Project-page lifecycle
 
-`subscribeEvents` is also an explicit bridge capability. The v0 host API defines the shape; the concrete event subscription wiring belongs to the host-side surface integration.
+After Home starts a project, it opens `/project/<project_id>`. The project page omits the platform top bar and retains only the full-screen SurfaceHost and project-console boundary. Closing the tab does not stop the project session automatically; the host page performs stop through `host.project.stop`, not through implicit iframe authority.
 
-Future lifecycle callbacks can be added on the same boundary, for example:
+Iframe memory is not persistent state. Recoverable state belongs in project capabilities, events, assets, or projections and is reloaded through public contracts. `initialProps` is suitable only for session, descriptor, and read-only startup information.
 
-- `onClose`
-- `onProposalDraft`
-- `onDirtyStateChanged`
-- `onFocusRequest`
+## Current boundaries
 
-These callbacks should stay explicit and auditable. They must not become an implicit kernel side door.
+- Bundles are limited to Host-same-origin leased asset URLs; cross-origin bundles still require a separate origin allowlist, integrity pins, and CSP design.
+- The frame cannot call Tauri APIs directly; desktop authority must be exposed through a deliberately controlled public boundary.
+- Surface lifecycle callbacks such as `onClose` and `onProposalDraft` are not yet a stable contract.
+- Structured quick actions remain discovery affordances and do not bypass proposal, permission, or audit to execute directly.
 
-## YdlTavern surface example
+## Related documentation
 
-YdlTavern is an independent integration project that runs on top of Yggdrasil. Its `manifest.yaml` can declare three surfaces:
-
-```yaml
-surfaces:
-  - id: ydltavern.play
-    slot: play_renderer
-    metadata:
-      framework: react
-      bundle_url: /surfaces/ydltavern/index.js
-      export_name: YdlTavernPlaySurface
-      wrapper_class: ydltavern-play-surface
-
-  - id: ydltavern.settings
-    slot: forge_panel
-    metadata:
-      framework: react
-      bundle_url: /surfaces/ydltavern/index.js
-      export_name: YdlTavernSettingsSurface
-      wrapper_class: ydltavern-settings-surface
-
-  - id: ydltavern.extensions
-    slot: assistant_action
-    metadata:
-      framework: react
-      bundle_url: /surfaces/ydltavern/index.js
-      export_name: YdlTavernExtensionsSurface
-      wrapper_class: ydltavern-extensions-surface
-```
-
-The web shell reads descriptors and metadata through `kernel.v1.surface.contribution.list` / `.describe`, chooses the surface for the target slot, resolves `bundle_url`, `export_name`, and `wrapper_class`, then calls `mountSurface`. The host can pass the session id, descriptor, and read-only configuration in `initialProps`, and can decide whether to wire `hostBridge.callRpc` based on permissions.
-
-When Home opens a project, the web shell opens `/project/<project_id>` in a separate tab. That page has no platform topbar or back button; it only hosts the full-viewport sandboxed iframe. Closing the tab does not stop the project session. The project tab supports `⌘ .` / `Ctrl .` to stop the current project. Stop is handled by the host page and is not exposed as a surface bridge capability.
-
-## v0 limitations
-
-- **Same-origin leased bundles:** the iframe currently loads only Host same-origin `/surface-assets/` lease URLs. Cross-origin bundles need an explicit allowlist, CSP changes, and origin checks.
-- **No persistent frame state:** mount/unmount discards iframe memory. The host should own recoverable state and pass it back through `initialProps`.
-- **No direct Tauri API:** iframe code cannot use Tauri APIs directly. Desktop capabilities must be exposed through controlled host bridge methods.
-- **No implicit kernel access:** every RPC is explicitly wired by the host and should continue to use the public protocol and permission boundary.
-- **Lifecycle callbacks are not complete:** `onClose`, `onProposalDraft`, and related callbacks are future work.
-
-## Related docs
-
-- [`../../BUILDING.md`](../../BUILDING.md) — web / desktop build and release notes.
-- [`../architecture/ARCHITECTURE.md`](../architecture/ARCHITECTURE.en.md) — where the web shell, SurfaceHost, and desktop wrapper fit.
-- [`../ALPHA_STATUS.md`](../ALPHA_STATUS.en.md) — current completion status.
-- [`../roadmap/NEXT_STEPS.md`](../roadmap/NEXT_STEPS.en.md) — follow-up work.
+- [`../architecture/ARCHITECTURE.md`](../architecture/ARCHITECTURE.en.md) — the architectural position of shells, projects, and packages.
+- [`PROJECT_MODEL.md`](PROJECT_MODEL.en.md) — project installation, startup, and session binding.
+- [`CAPABILITY_HANDLES.md`](CAPABILITY_HANDLES.en.md) — capability authority and attenuation.
+- [`SECRET_MANAGEMENT.md`](SECRET_MANAGEMENT.en.md) — `secret_ref` and secret boundaries.
+- [`../ALPHA_STATUS.md`](../ALPHA_STATUS.en.md) — current implementation status.

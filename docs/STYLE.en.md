@@ -1,86 +1,149 @@
-# Documentation style and red lines
+# Documentation Style and Red Lines
 
 > [English](./STYLE.en.md) · [中文](./STYLE.md)
 
-This document is the minimum set of rules for writing docs in the Yggdrasil repository. The goal: keep docs written for readers, not polluted by development logs.
+These are the minimum documentation rules for the Yggdrasil repository. They keep platform identity, long-term architecture, official product choices, current implementation, and construction direction distinct, so development history or one product profile cannot redefine the whole platform.
 
-## Write for readers, not for development logs
+## Documentation truth hierarchy
 
-The primary audience for these docs is new engineers and external users. They want to know **what something is, how to use it, and where the boundary is**. They don't care which iteration shipped which line.
+When documents conflict, interpret them in this order:
 
-Do write:
+1. [`CHARTER.md`](CHARTER.en.md) defines platform identity, long-term goals, and non-negotiable principles;
+2. [`architecture/VISION.md`](architecture/VISION.en.md) and long-term architecture documents define layers, ownership, and evolution direction;
+3. [`product/PLATFORM_PRODUCT_MODEL.md`](product/PLATFORM_PRODUCT_MODEL.en.md) defines product responsibility of the official distribution; a specific Product Profile constrains only products that adopt it;
+4. contracts, specs, and guides define current public behavior and usage;
+5. [`ALPHA_STATUS.md`](ALPHA_STATUS.en.md) states current implementation facts; code, generated schemas, and CI are final evidence for concrete counts and behavior;
+6. [`roadmap/NEXT_STEPS.md`](roadmap/NEXT_STEPS.en.md) describes construction direction and trade-offs, not implemented fact or permanent commitment;
+7. historical implementation plans and Git history explain how the repository arrived here but cannot override newer long-term documents or current status.
 
-- What the platform is, how the kernel is defined, what a capability package is, what a project is, what a surface is.
-- How to run it, how to write a capability package, how to host a surface, how to manage secrets.
-- Where the boundaries are: what is not in kernel scope, what lives in capability packages, what lives in projects.
+Changing platform identity requires explicit Charter revision. Changing official product opinion must not silently rewrite the substrate. An implementation change should update related status, contracts, or guides in the same commit.
 
-Don't write:
+## Write for readers, not as a development log
 
-- "We recently shipped X", "Round 10A.4 completed Y", "Phase B optimization moved Z to …".
-- Doc sections that read like commit-message dumps.
-- Already-completed work described as "in progress".
+Readers care what something is, why it belongs to a layer, how to use it, where its boundary lies, and what happens on failure.
 
-## No phase numbers
+Write about:
 
-The repo no longer uses names like `Round X` / `Phase Y` / `Alpha Z` / `Beta N` / `T-track` / `U-track` in docs. They are temporary internal grouping labels and carry no meaning for readers.
+- what platform, protocols, components, Host, distributions, and products own;
+- how to run, install, invoke, debug, migrate, and recover;
+- accurate `implemented`, `partial`, and `deferred` state;
+- authority, data, error, cancellation, compatibility, and migration boundaries.
 
-Use these instead:
+Do not write:
 
-- Capabilities that exist in the repo → state the fact directly: "The kernel exposes X", "the package provides Y", "the surface uses Z".
-- Work that is not done yet → `planned`, `deferred`, `still to be done`, `future work`.
-- Done but still being polished → `partial` / `partial-real` / `partial-opt-in`, paired with a concrete delta description.
+- commit-log narration such as “we recently completed X” or “Round 10A.4 advanced Y”;
+- phase names, test counts, or feature counts merely to display effort;
+- candidate direction as implemented fact;
+- completed temporary plans on the shortest reading path forever.
 
-Do not number "the current state", and do not keep stale phase markers around.
+## Do not substitute phase numbers for meaning
 
-## Status docs vs concept docs
+Long-lived documents do not use temporary labels such as `Round X`, `Phase Y`, `T-track`, or `U-track`. Name stable meaning directly: “device authority,” “artifact lifecycle,” or “remote Component.”
 
-Two kinds of docs, two narrative styles:
+Use status terms consistently:
 
-- **Concept docs** (`CHARTER`, `VISION`, `ARCHITECTURE`, `PLATFORM_KERNEL`, `CAPABILITY_PACKAGE`, `PLAY_CREATION_MODEL`, `KERNEL_V1_CONTRACT`, the guides) describe invariants, mechanisms, contracts, and usage. They should not be polluted by time — unless the platform stance or mechanism itself changes, leave them stable.
-- **Status docs** (`ALPHA_STATUS`, `roadmap/NEXT_STEPS`, `spec/CONFORMANCE_MATRIX`, `COMPATIBILITY_MATRIX`) describe current state, partial, deferred, what's next. They are living documents and may include numbers, tables, and implementation progress — but they still should not read like a development log.
+- `implemented`: the public path is operational;
+- `partial`: substantial capability exists but a boundary or lifecycle remains incomplete;
+- `experimental` / `candidate`: maturity is not Stable;
+- `deferred` / `planned`: not implemented or intentionally postponed.
 
-If a PR turns a concept doc into "we recently added phase X", that's the wrong direction — make X land in a status doc, and rewrite the relevant concept-doc paragraphs into stable description.
+A one-time implementation plan may live in `docs/roadmap/`, but is deleted on completion, with durable conclusions moved into architecture, spec, guide, or status documents.
 
-## ZH/EN 1:1 alignment
+## Distinguish platform, distribution, and Product Profile
 
-The main narrative, navigation, and primary guides must be maintained in both Chinese and English:
+- Platform documents must not make Project, Home, Play, Forge, Assist, Tavern, chat, worlds, or deployment the only center of Yggdrasil;
+- the official distribution may be opinionated but identifies its organization as a replaceable product choice;
+- a Product Profile may constrain participants that adopt it but is not mandatory ontology for every product;
+- when a product need motivates lower-layer work, documentation identifies whether the result belongs to a Protocol, Host, or a substrate mechanism that truly cannot move upward;
+- convenience of the current official implementation is not a reason to enter the substrate.
 
-- File names: Chinese is `xxx.md` (default), English is `xxx.en.md`.
-- The second line of each file is a bilingual blockquote: `> [English](./xxx.en.md) · [中文](./xxx.md)` for switching languages.
-- Editing one side requires editing the other in the same change; drift is not allowed.
-- Exceptions: `inventory/*.raw.md` machine-read scans are dominated by literal ST source identifiers and have no Chinese mirror; npm/cargo-style package / SDK READMEs are English-only by ecosystem convention.
+## Proper role of tests and conformance
 
-## Doc red lines
+Tests, fixtures, conformance, dogfood, and external integrations are used to:
 
-Don't do these when writing docs:
+- find defects;
+- constrain public behavior;
+- prevent regressions;
+- measure performance, compatibility, and reliability;
+- support current status statements.
 
-- ❌ Naming docs like `ROUND_X_PLAN.md` / `PHASE_Y_DESIGN.md` / `*_ALPHA.md`. Temporary plan docs must be deleted as soon as the work is done, and durable content folded into README / the relevant guide / status docs.
-- ❌ Pasting raw stderr / raw API keys / raw secrets into docs. When examples are needed, use `secret_ref:env:NAME`-style references.
-- ❌ Writing host absolute paths (e.g. `/home/<user>/...`) into reader-facing guides. `~/.yggdrasil/<area>/` is fine, but don't expose machine specifics.
-- ❌ Claiming "full-domain byte-level ST alignment" or "the kernel is SillyTavern-compatible" without fixtures and alignment tests to back it up.
-- ❌ Stacking "Round X / Round X+1 / ..." completion lists in the main narrative. Completed phases belong to git history.
-- ❌ Leaking integration-project semantics (chat, character, tavern, prompt, etc.) into Yggdrasil platform / kernel docs.
+Do not present them as the purpose of the project or invent functionality merely to “prove an abstraction.” First explain what is being built for users, creators, or the ecosystem; then explain how quality systems preserve it.
 
-## Lifecycle of temporary plan docs
+Use precise terms:
 
-Plan docs (e.g. for a refactor, merge, or scrub) may live under `docs/roadmap/`, provided they:
+- a concrete Package or repository used by tests → `fixture`, `integration fixture`, `compatibility case`;
+- conditions required before stability → `adoption condition`, `compatibility condition`, `fitness condition`;
+- do not call a product a “pressure source” or “platform proof.”
 
-- Carry a clear "this is a temporary plan and will be deleted when done" note at the top.
-- Are deleted immediately when the work is finished — no stale roadmaps left in the repo.
-- Have any long-term content (final architecture decisions, stable boundaries) folded into architecture / spec / guide / status docs rather than left in the plan doc.
+## Concept documents and status documents
 
-## Ask before writing
+### Long-term and concept documents
 
-Before adding or making major changes to a doc, ask:
+`CHARTER`, `VISION`, `ARCHITECTURE`, `PLATFORM_KERNEL`, `CAPABILITY_PACKAGE`, `PLATFORM_PRODUCT_MODEL`, candidate constitutions, and stable protocol documents describe goals, ownership, mechanisms, and long-term boundaries.
 
-1. Who is the reader? What do they need to understand?
-2. Is this a concept doc or a status doc?
-3. Is it redundant? Is the same fact already in README, ALPHA_STATUS, a guide, or somewhere else?
-4. Will it leak phase numbers, development increments, stale roadmaps, host paths, or raw secrets?
-5. Are the Chinese and English versions in sync?
+They are not polluted by individual commits or phases, but must change when platform goals, architectural ownership, or the contract itself changes.
 
-Answering these tends to make the doc shorter and more stable.
+### Current status documents
 
-## One-liner
+`ALPHA_STATUS`, roadmaps, and compatibility or conformance matrices may contain versions, counts, `implemented` / `partial` / `deferred`, and current limitations, but are still not development logs.
 
-**Docs are stable references for readers, not archives of the development process.**
+### Guides
+
+A guide describes the current path for a reader to complete a task and states whether it belongs to the platform, Host, official distribution, or a Profile. A current UI concept does not become platform constitution merely because a guide uses it.
+
+## Verifiable implementation facts
+
+Check code, generated artifacts, or CI before documenting:
+
+- Web and Desktop frameworks and lifecycle;
+- method, event, schema, test, or Package counts;
+- supported execution forms, databases, and transports;
+- authority enforcement, secrets, deployment, recovery, and migration behavior;
+- compatibility or external-integration coverage.
+
+Avoid copying fast-drifting counts into many documents. When a number is needed, prefer a single source in status documentation.
+
+## Mechanical checks
+
+Before committing documentation changes, run:
+
+```bash
+python3 scripts/check-docs.py
+```
+
+The script checks repository-local relative links, Chinese counterparts for English documents, and complete cross-links in documents that already use the standard language switch. It does not judge platform direction, architecture opinions, or wording, and does not replace human review.
+
+## Chinese / English synchronization
+
+Maintain primary narrative, navigation, and guides in both languages:
+
+- Chinese defaults to `xxx.md`, English to `xxx.en.md`;
+- use `> [English](./xxx.en.md) · [中文](./xxx.md)` at the top;
+- update both languages in the same commit; wording may differ, but facts, status, boundaries, and links match;
+- generated inventories and ecosystem-standard npm/cargo README files may remain English-only.
+
+## Documentation red lines
+
+- ❌ Do not include raw stderr, API keys, tokens, passwords, or raw secrets; use `secret_ref` examples.
+- ❌ Do not include a specific user's absolute Host path in reader-facing guides; use conventions such as `~/.yggdrasil/<area>/`.
+- ❌ Do not claim coverage or interoperability without code, fixtures, or compatibility checks.
+- ❌ Do not move YdlTavern or another product's chat, character, or prompt semantics into the platform substrate.
+- ❌ Do not treat an official Package ID, UI slot, or default provider as authority, routing priority, or permanent ontology.
+- ❌ Do not use openness to excuse unusable, incomplete, or unrecoverable products; do not use usability to excuse private APIs or data lock-in.
+- ❌ Do not retain temporary plans, completed migration checklists, or commit messages as permanent specifications.
+
+## Before adding or substantially changing a document
+
+Ask:
+
+1. Who is the reader, and what must they understand or complete?
+2. Is this platform principle, architecture, protocol, Host, distribution, Product Profile, guide, or status?
+3. Who owns this meaning and lifecycle?
+4. Does it turn a current official choice into a platform-wide requirement?
+5. Has current fact been checked against code or generated artifacts?
+6. Are error, cancellation, recovery, migration, and deletion paths clear?
+7. Are Chinese/English and relative links synchronized?
+
+## One-line summary
+
+**Documentation keeps platform goals, layers, product opinions, and current facts in their proper places; it is stable reference, not a proof document or a development log.**

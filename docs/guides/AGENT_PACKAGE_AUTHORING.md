@@ -2,7 +2,7 @@
 
 > [English](./AGENT_PACKAGE_AUTHORING.en.md) · [中文](./AGENT_PACKAGE_AUTHORING.md)
 
-本文说明如何在 Yggdrasil 中编写类 agent 能力包。核心原则是：agent 属于能力包语义，不属于内核语义。
+本文说明如何在 Yggdrasil 当前 Contract V1 中，用普通 Package / Component 实现类 agent 能力。Agent 的共享语义可以由可选 Protocol / Profile 定义，具体运行状态由 Component 或 Product 拥有；它不是宪法基底服务。
 
 ## 你应该使用什么
 
@@ -10,7 +10,7 @@
 - 用 `kernel.v1.capability.invoke` 或 `kernel.v1.capability.stream` 启动运行。
 - 用 `kernel.v1.capability.cancel` 取消流式调用。
 - 用 `kernel.v1.proposal.*` 产出、审批和应用变更。
-- 用包拥有的事件或流式帧记录追踪。
+- 用当前 Package writer namespace 的事件、Artifact 或流式帧记录追踪。
 - 用 surface contribution 暴露 `assistant_action`、`forge_panel` 或 `home_card`。
 - 用 `secret_ref` 而不是 raw secrets。
 - 用显式 `provider_package_id` 处理 provider 冲突。

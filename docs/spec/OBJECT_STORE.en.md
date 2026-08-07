@@ -2,7 +2,7 @@
 
 > [English](./OBJECT_STORE.en.md) · [中文](./OBJECT_STORE.md)
 
-This document defines the content-addressed object foundation implemented by Contract v2 Phase 4. It is an Experimental Constitutional Substrate contract and does not change the `kernel.v1.asset.*` method IDs or their existing request shapes.
+This document defines the currently implemented content-addressed object foundation. It is an Experimental Constitutional Substrate contract and does not change the `kernel.v1.asset.*` method IDs or their existing request shapes.
 
 ## Identity and descriptors
 
@@ -67,7 +67,7 @@ Migration is therefore interruptible and repeatable, with CAS providing natural 
 
 An object is committed to CAS before its referencing event is appended. A failed event append may therefore leave an unreachable object, but it cannot return a successful reference to missing bytes. Future reachability-based GC uses the journal as its root set; the failure path must not directly delete a digest that another event may share. The filesystem implementation uses a temporary file, file sync, and atomic rename; on Unix it also syncs the parent directory after publication.
 
-The default host stores objects under `<data-dir>/objects`. Moving a SQLite journal requires moving that directory with it; hosts sharing a PostgreSQL event store must likewise deploy/configure a shared object backend. Remote object backends and reachability GC remain later runtime work and do not change this phase's digest/descriptor contract.
+The default host stores objects under `<data-dir>/objects`. Moving a SQLite journal requires moving that directory with it; hosts sharing a PostgreSQL event store must likewise deploy/configure a shared object backend. Remote object backends and reachability GC remain later runtime work and do not change the current digest/descriptor contract.
 
 ## Executable acceptance
 

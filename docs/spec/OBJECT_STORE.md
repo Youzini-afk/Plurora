@@ -2,7 +2,7 @@
 
 > [English](./OBJECT_STORE.en.md) · [中文](./OBJECT_STORE.md)
 
-本文定义 Contract v2 Phase 4 已实现的内容寻址对象基础。它是 Constitutional Substrate 的 Experimental 合同，不改变 `kernel.v1.asset.*` 的方法 ID 或现有请求形状。
+本文定义当前已实现的内容寻址对象基础。它是 Constitutional Substrate 的 Experimental 合同，不改变 `kernel.v1.asset.*` 的方法 ID 或现有请求形状。
 
 ## 身份与描述符
 
@@ -67,7 +67,7 @@ rehydration 读取含 `metadata.content` 的旧 `kernel/v1/asset.put` 事件时�
 
 对象先提交到 CAS，再追加引用事件。事件追加失败时可能留下无引用对象，但不会产生指向缺失 bytes 的成功响应；后续以 journal 可达性为依据的 GC 负责回收孤儿，不能在失败路径直接删除共享 digest。文件系统实现使用临时文件、文件同步和原子 rename；Unix 上在发布后同步父目录。
 
-默认 host 把对象放在 `<data-dir>/objects`。迁移 SQLite 日志时必须同时迁移该目录；多个 host 共享 PostgreSQL event store 时也必须配置/部署共享的对象后端。远程对象后端与可达性 GC 属于后续运行时工作，不改变本阶段的 digest/descriptor 合同。
+默认 host 把对象放在 `<data-dir>/objects`。迁移 SQLite 日志时必须同时迁移该目录；多个 host 共享 PostgreSQL event store 时也必须配置/部署共享的对象后端。远程对象后端与可达性 GC 属于后续运行时工作，不改变当前 digest/descriptor 合同。
 
 ## 可执行验收
 

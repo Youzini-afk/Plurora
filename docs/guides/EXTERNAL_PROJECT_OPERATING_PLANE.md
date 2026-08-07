@@ -4,7 +4,7 @@
 
 External Project Operating Plane 说明 Yggdrasil 不必只接入已经适配清单和能力契约的项目。未适配的 git、npm、本地目录或 archive 项目可以先作为 external project 被平台理解、评估风险、规划、展示和包装。只有稳定的 adapter 或 wrapper 才进入普通 Ygg 包和能力体系。
 
-外部调研证据保存在 `/tmp/opencode/ygg-external-project-plane-20260520/`。本阶段参考了 GitHub 供应链安全资料、npm lifecycle scripts 文档，以及 agent/RCE 沙箱资料。关键结论是：install/run 等于执行不可信代码。workflow 和 secret 泄漏是真实风险。未适配项目必须先走计划、策略、提案和审计边界。
+安全边界从一个事实出发：install/run 等于执行不可信代码，workflow 与 secret 泄漏都是真实风险。因此未适配项目先进入计划、策略、proposal 和审计边界；只有用户批准且被类型化 executor 约束的操作才产生副作用。
 
 ## 四类对象
 

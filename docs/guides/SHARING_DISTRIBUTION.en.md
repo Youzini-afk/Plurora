@@ -2,15 +2,15 @@
 
 > [English](./SHARING_DISTRIBUTION.en.md) · [中文](./SHARING_DISTRIBUTION.md)
 
-This document describes the shareable, reproducible, importable composition and session distribution mechanism in Yggdrasil. It is provided by the `official/sharing-lab` ordinary capability package.
+This document describes shareable, reproducible, and importable composition and Session distribution under the current Contract V1. `official/sharing-lab` is the current ordinary Package and Component implementation; long-term shared meaning may enter an optional Sharing Protocol rather than the constitutional substrate.
 
 ## Core Principles
 
-- Share first, marketplace later: the current scope is local/file-level sharing proof. It covers composition bundles, branch/session bundle manifests, package-set lockfiles, compatibility/migration reports, AI disclosure metadata, read-only shared session manifests, and async fork sharing plans.
+- Share first, marketplace later: the current implementation is local/file-level sharing. It covers composition bundles, branch/session bundle manifests, package-set lockfiles, compatibility/migration reports, AI disclosure metadata, read-only shared session manifests, and async fork sharing plans.
 - No marketplace: no package signing network, dependency resolver economy, or hosted billing. Distribution is local file exchange, not a commercial marketplace.
-- No `kernel.v1.sharing.*`: sharing is package-owned behavior, not a kernel capability.
+- No `kernel.v1.sharing.*`: shared Sharing meaning belongs to an optional Protocol, while concrete import/export behavior is implemented by ordinary Components and Products rather than the constitutional substrate.
 - No raw secrets: only `secret_ref` references are allowed in bundles; raw secrets are never stored.
-- No public network required: all sharing proofs are local files. No remote service or public network access is needed.
+- No public network required: the current sharing fixtures use local files and need no remote service or public network access.
 
 ## Sharing Contract
 
@@ -25,8 +25,8 @@ This document describes the shareable, reproducible, importable composition and 
 | `create_package_set_lockfile` | Create a package-set lockfile pinning exact package versions and content addresses |
 | `compatibility_report` | Produce a compatibility/migration report between two bundle versions or package sets |
 | `ai_disclosure_bundle` | Produce AI disclosure metadata bundle for composition or session content |
-| `read_only_share_manifest` | Create a read-only shared session manifest (local/file-level proof) |
-| `async_fork_share_plan` | Create an async fork sharing plan (local proof for deferred/async session fork sharing) |
+| `read_only_share_manifest` | Create a read-only shared session manifest (current local/file-level implementation) |
+| `async_fork_share_plan` | Create an async fork sharing plan (current local implementation for deferred/async session fork sharing) |
 
 ## Bundle Shapes
 

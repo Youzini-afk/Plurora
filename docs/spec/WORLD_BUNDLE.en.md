@@ -1,8 +1,10 @@
 # Experimental World Bundle
 
+> [English](./WORLD_BUNDLE.en.md) · [中文](./WORLD_BUNDLE.md)
+
 Status: Experimental profile `ygg.world.bundle/experimental/v1`.
 
-World Bundle is the portability proof for a persistent higher-level world without making `World` a kernel substrate type. The concrete archive is readable, verifiable, and auditable without loading the original package, starting a component, enabling a model provider, or mounting the Web shell.
+World Bundle is an optional Profile for carrying, reading, and migrating a persistent higher-level World across Hosts without making `World` a substrate type. The concrete archive is readable, integrity-checkable, and auditable without loading the original Package, starting a Component, enabling a model provider, or mounting the Web Shell.
 
 ## Archive shape
 
@@ -105,7 +107,7 @@ Unknown artifact semantics are not an error. Their bytes and descriptors remain 
 - `world_bundle.reexecution_branch`;
 - `world_bundle.shell_independence`.
 
-The pressure source is the real `official/playable-creation-board` package. The suite creates state, a branch, and controlled capability receipts on Host A; imports into an independent SQLite journal plus filesystem CAS on Host B; replays with no original package; uses an alternative echo-backed implementation on a new branch; and reads the same archive through the headless CLI.
+The current integration fixture uses the `official/playable-creation-board` Package. The suite creates state, a branch, and controlled capability receipts on Host A; imports into an independent SQLite journal plus filesystem CAS on Host B; replays with no original Package; uses an alternative echo-backed implementation on a new branch; and reads the same archive through the headless CLI. The fixture checks compatibility behavior of this Profile without making that Package or the World ontology the center of the platform.
 
 ## Current limits
 

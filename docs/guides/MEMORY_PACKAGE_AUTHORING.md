@@ -2,11 +2,11 @@
 
 > [English](./MEMORY_PACKAGE_AUTHORING.en.md) · [中文](./MEMORY_PACKAGE_AUTHORING.md)
 
-本指南说明如何在 Yggdrasil 中创作、替换和消费包拥有的长期记忆与知识。记忆是普通能力包，不是内核服务。
+本指南说明如何在当前 Contract V1 中，用普通 Package / Component 创作、替换和消费长期记忆与知识。Memory 的共享语义可以由可选 Protocol 定义，具体记录和检索实现由 Component / Product 拥有；它不是宪法基底服务。
 
 ## 核心原则
 
-1. 包拥有记忆。记忆记录、检索、更新、纠正和删改计划由普通能力包拥有，不属于 `kernel.v1.memory.*`。
+1. Memory 不进入基底。记忆记录、检索、更新、纠正和删改计划由采用的 Protocol、Component 与 Product 管理；当前 V1 通过普通 Package 分发实现，而不是 `kernel.v1.memory.*`。
 2. 无官方优先级。`official/memory-lab` 是一种实现。第三方包如 `thirdparty/memory-lab` 完全可互换。
 3. 变更要走提案。记忆更新、纠正和遗忘/删改只产出提案草案或计划。它们永不直接修改可信状态或删除记录。消费者必须审批后才能应用。
 4. 参考实现本地可重放。它不要求网络、嵌入 API 或模型推理。第三方包可通过自身出站和网络权限添加此类能力。

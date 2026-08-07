@@ -1,116 +1,70 @@
-# Capability Package Specification
+# Packages, Components, and Capability Contracts
 
 > [English](./CAPABILITY_PACKAGE.en.md) · [中文](./CAPABILITY_PACKAGE.md)
 
-A capability package is Yggdrasil's unit of distribution and execution. Anything outside the kernel ships as a package.
+Contract V1 currently uses one Package Manifest to describe distribution, execution, capabilities, protocol contributions, surfaces, and permissions. That model remains operational, but the long-term architecture distinguishes separate ownership:
 
-This document describes how a package identifies itself, loads, and interacts with the kernel and other packages. Every package follows the same rules, regardless of origin.
+- **Package / Package Envelope:** retrieval, distribution, installation, and supply-chain envelope;
+- **Component:** activatable and invokable implementation unit;
+- **Protocol:** shared semantic and behavioral contract implemented by more than one component;
+- **Content / Artifact:** user or product data, static resources, and immutable artifacts;
+- **Adapter:** a component that connects an external system or legacy contract to public protocols.
+
+A Package may carry several of these, but Package itself is not the ontology unit for every kind of platform meaning.
 
 ## Equality rule
 
-Official, third-party, in-process, subprocess, WASM, and remote packages share one manifest format, one lifecycle, one capability fabric, and one permission system.
+Official Packages, third-party Packages, and different execution forms use the same:
 
-There is no private API. Anything an official package can do, any package can do.
+- descriptor and manifest schemas;
+- installation and integrity checks;
+- capability and protocol registration;
+- authority bindings;
+- invocation, streams, cancellation, and effect receipts;
+- diagnostics, migration, and conformance entry points.
 
-## Manifest
+There is no private API unlocked by Package ID and no implicit official implementation priority. Maintainers or signatures may affect source trust and policy, but cannot grant runtime authority automatically.
 
-A package is described by a manifest. It is a serializable document that must conform to a published schema.
+## Current V1 Manifest
+
+The V1 Manifest is the current public compatibility format. Its main shape is:
 
 ```yaml
 schema_version: 1
-
-id: org/name              # globally unique, namespaced
-version: 0.1.0            # semver
-display_name: ...
+id: org/name
+version: 0.1.0
+display_name: Example
 description: ...
-author: ...
-license: ...
+license: AGPL-3.0-only
 
 entry:
   kind: rust_inproc | subprocess | wasm | remote
-
-  # kind: rust_inproc
-  crate: path or registry coordinate
-  symbol: register_fn
-  abi_version: 1
-
-  # kind: subprocess
-  command: [executable, args...]
-  env: { ... }
-  transport: jsonrpc-stdio | jsonrpc-tcp
-
-  # kind: wasm
-  module: path or url
-  abi_version: 1
-  memory_limit_mb: 64
-
-  # kind: remote
-  endpoint: https://... or wss://...
-  auth: { scheme: bearer | mtls | none, ... }
+  contract: v1 | none
+  # kind-specific fields
 
 provides:
   - id: org/name/capability
     version: 0.1.0
-    input_schema: <jsonschema or ref>
-    output_schema: <jsonschema or ref>
+    input_schema: {}
+    output_schema: {}
     streaming: false
-    side_effects: [event_append, network, filesystem, package_call, ...]
-    description: ...
+    side_effects: []
 
 consumes:
-  - id: other-org/cap
+  - id: other-org/capability
     version: ^0.2
 
 contributes:
-  schemas:
-    - id: org/name/event/foo
-      schema: <jsonschema>
-  hooks:
-    - extension_point: kernel/v1/event.after_append
-      handler: handle_event
-      timing: async
-  assets:
-    - id: org/name/asset/...
-      mime: ...
-      source: ...
-  extension_points:
-    - id: org/name/lifecycle.before_step
-      payload_schema: <jsonschema>
-      timing: sync | async
-      modifiable: true
-      short_circuit: true
-  surfaces:
-    - id: org/name/entry
-      version: 0.1.0
-      slot: experience_entry        # | home_card | quick_action | workshop_card | play_renderer | forge_panel | asset_editor | assistant_action
-      title: ...
-      description: ...
-      capability_id: org/name/launch
-      activation:
-        launch_capability_id: org/name/launch
-        session_template:
-          labels: [...]
-          metadata: { ... }
-        input_schema: <jsonschema>
-      required_permissions:
-        - permission: events.read
-          scope: session
-          reason: render the play surface
-          risk: low                 # | medium | high
-      approval_policy: none         # | user_approval | fork_then_approve
-      metadata: { ... }
+  schemas: []
+  hooks: []
+  extension_points: []
+  surfaces: []
 
 permissions:
-  network:
-    hosts: [api.example.com] | none | any
-  filesystem:
-    paths: [./data] | none
-  events:
-    append: true
-    read: true
-  packages:
-    call: [other-org/*]
-  declared_side_effects: [user-data-read, llm-inference, ...]
+  network: { hosts: [] }
+  filesystem: { paths: [] }
+  events: { read: false, append: false }
+  capabilities: { invoke: [] }
 
 sandbox_policy:
   cpu_quota_ms_per_invoke: 5000
@@ -118,97 +72,169 @@ sandbox_policy:
   wall_clock_ms: 30000
 ```
 
-The kernel rejects manifests that fail schema validation. It also refuses to load a package that requests permissions outside the host's policy.
+The authoritative fields are in [`../spec/v1/schemas/manifest.schema.json`](../spec/v1/schemas/manifest.schema.json). As Package Envelope, Component Descriptor, Protocol Descriptor, and Content Root separate over time, V1 Manifests remain readable through generation or legacy adapters.
 
-## Entry forms
+## Package Envelope
 
-All four entry forms are first-class. The choice is an implementation detail.
+A Package Envelope owns:
 
-### rust_inproc
+- source and retrieval coordinates;
+- version, signature, license, and maintainer information;
+- manifest, tree, and artifact digests;
+- references to carried components, protocols, content, and surfaces;
+- platform and architecture compatibility requirements;
+- metadata required for installation, update, migration, and rollback.
 
-Loaded as a Rust crate or shared library compiled against the kernel's package ABI. It is fast, has no IPC cost, and gives the best performance. Trust level is highest. Crashes can affect the host; the sandbox is the host itself.
+Package installation is a Host Control Plane operation. Successful installation does not mean every Component has been activated or every declared permission has been granted.
 
-### subprocess
+## Component
 
-The kernel spawns a child process and speaks JSON-RPC over stdio or a local socket. It is language-agnostic, and crashes are isolated. Performance is bounded by IPC.
+A Component is the implementation unit that provides behavior. At minimum it has:
 
-### wasm
+- independent identity and behavior or artifact digest;
+- exports, imports, and adopted protocol profiles;
+- trust class and enforced boundaries;
+- resource limits;
+- activation, health, and deactivation state;
+- compatibility and migration claims.
 
-The kernel runs the package inside a WASM host with declared memory and CPU caps. Isolation is strong. Language choice is limited to WASM-targetable languages, and performance is bounded by WASM and ABI marshalling.
+A Package may contain several Components. Updating one Component should not automatically require migration of every piece of content in the same Package.
 
-### remote
+## Execution forms and trust
 
-The package runs anywhere reachable over HTTP or WebSocket. The connection is authenticated. This fits hosted services and external systems that participate as packages.
+A common capability contract does not imply identical isolation guarantees:
 
-A package may declare alternative entries. For example, it can offer `rust_inproc` plus a `subprocess` fallback, and let the host pick by policy.
+| V1 entry / component form | Long-term trust class | Meaning |
+|---|---|---|
+| `rust_inproc` | `trusted_native` | high performance with Host-process trust; crashes and unenforced effects may affect the Host |
+| `subprocess` | `isolated_process` | process failure isolation; OS filesystem/network enforcement depends on Host policy |
+| `wasm` | `sandboxed_component` | intended for explicit imports, resource limits, and portability; complete execution support is still under construction |
+| `remote` | `remote_boundary` | remote identity, network failure, tenancy, and service policy are explicit; general remote component execution is still under construction |
+| static bundle/content | `static_resource` | no code execution; verifiable content or surfaces only |
+| `contract: none` | `foreign_capsule` | the Host may supervise lifecycle without promising v1 bindings, composition, or protocol guarantees |
 
-## Lifecycle
-
-```text
-discovered  -> kernel sees the manifest
-loading     -> manifest validated, sandbox prepared
-starting    -> entry point booted, kernel handshake
-ready       -> capabilities and hooks registered, accepting calls
-degraded    -> reachable but reporting reduced ability
-stopping    -> graceful shutdown signal sent
-stopped     -> resources released
-unloaded    -> manifest no longer active in the host
-```
-
-Each state transition emits a kernel event.
+Different forms may implement the same protocol, but conformance and UI must disclose their actual guarantees rather than describing them as only packaging differences.
 
 ## Capability contract
 
-A capability is identified by `id` and `version`. Calls are typed by `input_schema` and `output_schema`. They may stream.
+A Capability is described by stable ID, version, input/output schemas, streaming, and effect requirements. Callers may select implementations using capability, protocol profile, and version constraints.
 
-A consumer requests a capability by id and version constraint. The kernel selects a provider based on:
+Routing considers:
 
-1. Active package set in the session scope.
-2. Declared precedence rules in the session/profile. The kernel has no default precedence; the policy is configured by the host or a routing package.
-3. Compatibility of versions.
+1. whether current authority permits invocation;
+2. whether the Component is active and healthy;
+3. whether protocol, version, and profile are compatible;
+4. whether the distribution or caller explicitly selected a provider;
+5. whether multiple implementations remain ambiguous, in which case routing fails and requires a choice.
 
-There is no implicit "official wins" rule.
+There is no implicit official priority.
 
-If two packages provide the same capability id and the host has not configured precedence, the kernel reports an ambiguous-route error and refuses the call.
+Capability invocation produces structured terminal state. External effects or nondeterminism produce or reference an EffectReceipt. Large inputs and outputs should use ArtifactDescriptor rather than expanding wire envelopes indefinitely.
 
-## Hook contract
+## Protocol contribution
 
-A package may subscribe to extension points. They can be defined by the kernel or by packages. The subscription declares timing and whether the handler may mutate or veto.
+A Protocol defines shared meaning; a Component implements a Protocol. A Package may carry a protocol descriptor, but maintaining that Package grants no kernel privilege.
 
-The kernel dispatches hooks according to their declared semantics. Subscribers run in declared order; ties use subscriber precedence configured by the host.
+A protocol contribution should describe at least:
 
-See `EXTENSION_POINTS.md` for the kernel-emitted point set and the contract.
+- protocol ID and version;
+- schema or equivalent type contract;
+- field semantics and lifecycle;
+- error, cancellation, and effect semantics;
+- authority and privacy requirements;
+- compatibility profiles and migration;
+- behavioral checks and implementation claims.
 
-## Permissions and sandbox
+Shared meaning such as extension points, projections, change workflows, agents, memory, worlds, and surfaces should move from Package-private convention into explicit Protocols rather than expanding one monolithic kernel namespace.
 
-The manifest is a contract with the host. The kernel enforces it on every operation:
+## Surface contribution
 
-- An undeclared event append is refused.
-- An undeclared network call is refused.
-- An undeclared cross-package invocation is refused.
-- A capability that exceeds its declared `side_effects` is refused.
+A V1 Package may contribute Surface descriptors. The Manifest supplies bundle, capability allowlist, activation, and permission requirements; the adopting Shell Profile interprets the slot.
 
-The host may layer additional policy on top, such as deny-lists, quotas, and audit. Packages cannot bypass it.
+Therefore:
 
-## Distribution
+- official and third-party Packages may both provide Surfaces;
+- a Surface has no implicit kernel access;
+- `experience_entry`, `forge_panel`, and `assistant_action` are current Profile enums rather than constitutional substrate types;
+- third-party shells may define or negotiate another Surface Profile;
+- static Surface bundles and executable Components may be versioned and addressed independently.
 
-A package distribution includes the manifest and the entry artifact:
+## Authority and declarations
 
-- For `rust_inproc`: source crate or precompiled `cdylib` matching the host ABI version.
-- For `subprocess`: an executable for the target platform plus the manifest.
-- For `wasm`: a `.wasm` module plus the manifest.
-- For `remote`: just the manifest with the endpoint.
+Manifest permissions are the maximum scope requested by a Package, not an actual grant. The Host mints bindings according to user choice, principal, Project or target selectors, policy, and environment.
 
-A package registry is out of scope for the kernel.v1. Hosts and tools may build registries on top.
+Execution must ensure:
 
-## Versioning
+- ungranted capability, event, network, filesystem, or secret operations are rejected;
+- long-running work revalidates grants before important effects;
+- delegation, leases, quotas, and revocation take effect;
+- raw secrets do not enter Manifests, logs, receipts, or public state;
+- declared-versus-used audit does not depend on Package-name privilege.
 
-`version` follows semver. `schema_version` of the manifest format is independent of package version.
+`entry.contract: "none"` does not turn Manifest declarations into platform authority. It is an explicit self-contained path with reduced interoperability guarantees, not a way to bypass Host security boundaries.
 
-A breaking ABI change in `rust_inproc` is signaled by a new `abi_version` in the entry. Hosts refuse to load mismatched ABI versions.
+## Lifecycles
 
-## Identity
+Two lifecycles must be kept distinct.
 
-Package id is namespaced. The kernel does not own the namespace; conventions and registries do.
+### Package lifecycle (Host)
 
-The kernel only enforces uniqueness inside one host instance.
+```text
+discovered → resolved → downloaded → verified → installed
+           → update available → migrated / rolled back → removed
+```
+
+### Component lifecycle (runtime / substrate)
+
+```text
+inactive → activating → ready → degraded → stopping → inactive
+                         └──────────────→ failed
+```
+
+Stopping a Component is not uninstalling a Package. Removing a Package must first address dependencies, running instances, user data, and rollback information.
+
+## Content and user data
+
+Content should not lose independent identity merely because it was distributed beside executable code. Important content should:
+
+- use content digests and open ArtifactDescriptors;
+- be copyable and exportable without knowing the original Package implementation;
+- reference dependencies, schemas or protocol profiles, and migration explicitly;
+- distinguish user-owned data, reconstructable cache, and executable artifacts;
+- never be silently overwritten by a Component update.
+
+## Distribution and updates
+
+Package registries, marketplaces, and dependency-resolution services belong to the Host and distribution ecosystem rather than the constitutional substrate. Competing registries may coexist, and offline files and local source remain first-class sources.
+
+Updates should pin:
+
+- retrieval source and immutable commit or digest;
+- Package Envelope;
+- Component artifacts;
+- Protocol profiles;
+- Content roots;
+- user-approved authority changes and migration plans.
+
+Automatic update cannot bypass new authority, data migration, or trust boundaries.
+
+## Versioning and compatibility
+
+- Package version, Component version, Protocol version, and Manifest `schema_version` are different dimensions;
+- breaking Component ABI change must not masquerade as content migration;
+- Protocol major change needs compatibility, adapters, or migration;
+- unknown fields and Artifacts should be preserved where practical;
+- V1 Manifests coexist with future descriptor separation through compatibility generation and adapters.
+
+## Design test
+
+When adding something, identify what it is:
+
+- a bundle of artifacts for retrieval and installation → Package Envelope;
+- behavior that is activated and invoked → Component;
+- meaning shared by multiple implementations → Protocol;
+- portable data owned by users or products → Content / Artifact;
+- operation on a real machine → Host;
+- interaction viewpoint of a Shell → Product Profile.
+
+Do not assume Package permanently owns a concept merely because the current V1 Manifest can contain another field.

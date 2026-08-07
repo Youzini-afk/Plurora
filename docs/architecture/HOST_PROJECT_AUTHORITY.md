@@ -2,16 +2,16 @@
 
 > [English](./HOST_PROJECT_AUTHORITY.en.md) · [中文](./HOST_PROJECT_AUTHORITY.md)
 
-状态：**Candidate 实现**。Phase 1 已实现本文的项目/目标级授权边界；字段与行为仍按 Candidate 管理，在跨平台 CI 和剩余跨 operation receipt 闭环持续验证前不视为 Stable。
+状态：**Candidate 实现**。本文定义的项目/目标级授权边界已经接入 Host Access、RPC、项目 session、部署和受控开发路径；字段与行为仍按 Candidate 管理，在跨平台验证和跨 operation receipt 闭环充分前不视为 Stable。
 
-当前实现快照（2026-07-25）：
+当前实现：
 
 - HTTP、Cookie、Bearer 与 RPC 在 Host Access 层统一保留逻辑 `host_device` 身份、grant、delegation chain、action 和结构化资源 selector；为保持冻结的 Contract V1 principal union，RPC context 使用 fail-closed 的 `anonymous` sentinel 加 Host 建立的 authority envelope，旧 runtime 忽略 envelope 时只会拒绝；
 - project/session/event/proposal/surface/target/exec/port/proxy 在服务端执行精确资源校验或过滤，legacy adapter 复用 canonical policy；
 - pairing journal 支持衰减委托、期限、祖先撤销级联、旧全局 grant 的显式 wildcard 水化，以及有界、原子的管理员批量撤销；Web/PWA 与 `yg host access` CLI 使用同一 API；
 - 设备调用写入不含凭据与请求 payload 的 `host/control/v1/authority.decision` allow/deny journal；
 - 全局 package/capability/asset/projection 与 surface contribution 尚无项目归属，因此精确项目设备只能通过已验证项目/session 路径操作资源和解析其项目 bundle，不能枚举 Host 全局 catalog；opaque-origin frame 只获得绑定 grant 和 bundle root 的五分钟只读 asset lease，原始静态路径仍要求 Host 身份；
-- Phase 2 的部署 job 与 activation 已持久化不含凭据的 authority lease，在每个新副作用前重新水化 grant 并拒绝过期/撤销，同时持久化 revision/direct-route ownership；跨 operation 的完整 effect-receipt 串联仍留给一等部署 operation 迁移。
+- 部署 job 与 activation 持久化不含凭据的 authority lease，在每个新副作用前重新水化 grant 并拒绝过期/撤销，同时持久化 revision/direct-route ownership；跨 operation 的完整 effect-receipt 串联仍是 Candidate 边界。
 - development execute/recover 在内存中保留不含凭据的认证身份，在 Docker 与 managed-workspace 效应前刷新 grant journal，并在阻塞验证结束后再次复核。撤销无法取消已经在途的单个效应，但会阻止清理、promotion 或任何后续用户效应；之后必须由当前仍获授权的身份显式恢复并对账 durable 状态。
 
 ## 目标
@@ -81,7 +81,7 @@ HostOperationContext
 
 ## Grant 模型
 
-Host grant 保留当前 opaque、只存 digest 的 bearer credential；第一阶段不要求换成自包含 token。权威语义先稳定，再决定是否采用 Biscuit 等编码。
+Host grant 保留当前 opaque、只存 digest 的 bearer credential；当前合同不要求换成自包含 token。权威语义先稳定，再决定是否采用 Biscuit 等编码。
 
 候选 grant 形状：
 

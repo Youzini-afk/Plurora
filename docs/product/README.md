@@ -2,6 +2,7 @@
 
 > [English](./README.en.md) · [中文](./README.md)
 
-Yggdrasil 的产品立场：游创一体平台。玩家与创作者是同一份底座上的不同行为，由真实可玩体验牵引下一阶段的工作。
+这里区分 Yggdrasil 的总体产品责任与可选产品 Profile。官方发行版应当完整、好用并持续打磨，但它的组织方式不能成为整个平台的强制本体。
 
-- [`PLAY_CREATION_MODEL.md`](PLAY_CREATION_MODEL.md) — 游创一体的产品立场与三个 surface（Home/Play/Forge/Assist）的协作模型
+- [`PLATFORM_PRODUCT_MODEL.md`](PLATFORM_PRODUCT_MODEL.md) — 官方发行版的使用者、生命周期、好用原则，以及 Project / Shell 的产品边界
+- [`PLAY_CREATION_MODEL.md`](PLAY_CREATION_MODEL.md) — 可选的游创产品 Profile，与 Home / Play / Forge / Assist 的当前协作语言

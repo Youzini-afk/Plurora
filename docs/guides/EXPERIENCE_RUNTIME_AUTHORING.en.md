@@ -1,17 +1,17 @@
 # Experience Runtime Authoring Guide
 
-> English · [中文](./EXPERIENCE_RUNTIME_AUTHORING.md)
+> [English](./EXPERIENCE_RUNTIME_AUTHORING.en.md) · [中文](./EXPERIENCE_RUNTIME_AUTHORING.md)
 
 This guide explains how to create, inspect, checkpoint, recover, and replace experience-runtime packages in Yggdrasil.
 
 ## Overview
 
-Experience runtime defines how ordinary package-owned experiences run continuously, pause, recover, checkpoint, and fork. Agentic Forge can change them through proposals. All experience semantics live at the package layer; nothing enters the kernel.v1.
+This guide uses ordinary Packages and Components under the current Contract V1 to implement an Experience Runtime Product Profile: continuous execution, pause, recovery, checkpoint, and fork. Shared lifecycle meaning may be defined by an optional Protocol or Profile, while concrete experience state belongs to Products and Components rather than the constitutional substrate.
 
 Key constraints:
 - No `kernel.v1.experience.*`, `kernel.v1.world.*`, `kernel.v1.turn.*`, `kernel.v1.chat.*`, or `kernel.v1.memory.*`.
 - Experience packages are ordinary packages with no kernel privilege.
-- Experience descriptors, state projections, checkpoints, and recovery plans are package-owned artifacts, not kernel primitives.
+- Current Experience descriptors, state projections, checkpoints, and recovery plans are distributed by the corresponding Component or Product Package; they are product artifacts rather than substrate primitives.
 - All behavior goes through the public protocol.
 
 ## Generating an experience-runtime package
@@ -31,7 +31,7 @@ The generated package includes:
 
 ## Experience Descriptor
 
-The experience descriptor (`experience_runtime_descriptor`) is package-owned experience metadata:
+The experience descriptor (`experience_runtime_descriptor`) is product metadata for the current Profile and is distributed by the corresponding Package:
 
 ```typescript
 const desc = createExperienceDescriptor({
@@ -231,6 +231,6 @@ import {
 ## Further Reading
 
 - `docs/CHARTER.md` — Immutable founding principles
-- `docs/product/PLAY_CREATION_MODEL.md` — Play-creation product stance
+- `docs/product/PLAY_CREATION_MODEL.md` — stance and boundary of the optional play-creation Product Profile
 - `docs/guides/AGENTIC_FORGE_PACKAGE_AUTHORING.md` — Agentic Forge authoring guide
 - `docs/roadmap/NEXT_STEPS.md` — Roadmap

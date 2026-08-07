@@ -299,6 +299,8 @@ engine 包 manifest 的 `permissions.secret_refs` 没声明这个 ref。编辑 m
 
 ## 推迟事项
 
-- 多并发活跃项目：当前 host 以项目 session 传递 scope；更强的 multi-tenant `project_id` in `ProtocolContext` 是 planned。
-- Tauri shell 中的真实路径与 managed host lifecycle：planned。
-- 生产级跨源 surface bundle allowlist 与 CSP 加固。
+- 多并发活跃项目：当前 Host 以项目 session 传递 scope；更强的 multi-tenant `project_id` in `ProtocolContext` 仍待补齐。
+- 生产级跨源 surface bundle allowlist、origin 校验与对应 CSP 策略。
+- 单 chat 多并发生成、token-rate 展示和 Realtime/WebSocket 交互体验。
+
+Desktop 已管理 loopback Host sidecar，并复用同一项目、secret、surface 和出站边界；它不再是本链路的待实现项。

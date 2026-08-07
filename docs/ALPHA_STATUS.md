@@ -2,9 +2,9 @@
 
 > [English](./ALPHA_STATUS.en.md) · [中文](./ALPHA_STATUS.md)
 
-这是 Yggdrasil 当前状态的快照，每完成一项里程碑就会刷新。每条都有代码与 conformance 用例支撑，明确标注 partial 或 deferred 的除外。
+这是 Yggdrasil 当前实现状态的快照。它记录代码、公开合同和质量检查已经支持什么，明确标注 partial 或 deferred 的除外；它不负责定义平台为什么存在或未来只能往哪里发展。
 
-愿景与原则见 [`CHARTER.md`](CHARTER.md)、[`architecture/VISION.md`](architecture/VISION.md)、[`product/PLAY_CREATION_MODEL.md`](product/PLAY_CREATION_MODEL.md)。下一步见 [`roadmap/NEXT_STEPS.md`](roadmap/NEXT_STEPS.md)。
+平台目标与原则见 [`CHARTER.md`](CHARTER.md) 和 [`architecture/VISION.md`](architecture/VISION.md)；官方产品责任见 [`product/PLATFORM_PRODUCT_MODEL.md`](product/PLATFORM_PRODUCT_MODEL.md)，游创只是可选 Profile。建设方向见 [`roadmap/NEXT_STEPS.md`](roadmap/NEXT_STEPS.md)。
 
 ## 概要
 
@@ -13,7 +13,7 @@
 - **代码健康：** CLI、运行时各域行为、协议分发、in-process 处理器、事件存储——都已按域拆分，不再继续往单文件里堆。
 - **人测底座：** 安装 warning 与 schema 形状已稳定；原生项目安装链路从 source → store → nested manifests/profile autoload → project registry → project dist → 受保护的 `/surface-bundles/projects/<project_id>/...` → 短期 sandbox asset lease；`surface_bundle` 是 static、non-executing 入口；`dist/` 已进入 `tree_hash`，store schema 迁移会清掉旧 store，install/update/uninstall 后会回收孤立 store；`official/install-lab` 提供 `check_for_updates` / `update_project`，CLI `yg update` 与 Web 项目控制台都通过它更新；Surface bridge 已收敛 allowlist、stream ownership、诊断脱敏、secret 输入清理、CSP/CORS 加固与 typed `allowed_capability_ids`；桌面端管理 loopback Host sidecar，Web shell 可安装为 PWA；自托管部署底座包含统一 local/Agent target driver、target / exec / port / proxy、HTTP/WebSocket 反代、显式 Deploy broker、默认私有/显式公开 route、共享 Host/project/target 客户端 context，以及 Verified ChangeSet → private preview → 独立部署审批 → activation → reconcile/recover/rollback。可撤销 scoped device pairing 让手机通过同一 Host API 控制项目、部署与 ChangeSet；Web/Desktop/PWA 复用同一 client core，远程 CLI 通过同一 Bearer/public Host 边界完成 project/target 操作以及 ChangeSet 的草拟、审阅、批准/拒绝、执行、导出和恢复完整生命周期。
 
-平台底座已就位。下一阶段由真实项目部署、人测和 AI 原生体验共同牵引剩下的工作。
+当前已经形成较大的可运行面，但平台和官方产品都不等于“完成”。后续建设同时关注开放性、多样性、先进执行与协议能力、长期数据演化，以及普通用户和创作者的完整体验。
 
 ## 内核
 
@@ -23,7 +23,7 @@
 - Experimental EffectReceipt 与 Change primitives 已落地：capability/outbound/stream/WebSocket/exec terminal path 生成内容寻址 receipt；历史重放不调用 executor，capability re-execute 创建新 branch 与 parent-linked receipt；旧 Proposal lifecycle 作为 Intent/ChangeSet/PolicyDecision/Commit adapter 继续兼容。
 - Experimental Protocol Commons 注册表已落地：`host.info` 发布 Change、Shell Default 与 World Bundle 描述符；显式协议/Profile 协商先于 dispatch；不支持的 major 以结构化原因拒绝；protocol、implementation 与 package conformance 使用独立可执行报告。
 - Package envelope 与 component identity 已分离：显式 component/behavior digest 在重新打包后保持稳定；runtime 与 effect evidence 携带 component trust/边界数据；composition lock 分离 component/profile/content pin；`contract:none` 明确报告为不可移植 Foreign Capsule。
-- Experimental World Bundle 已落地并由 `official/playable-creation-board` 证明：canonical archive descriptor 覆盖原始 v1 envelope 与完整 SHA-256 closure；全新 SQLite/filesystem host 保持 object、lineage 与 receipt；historical replay 不调用 executor；替代实现生成 child branch/head；headless CLI 无需 Web-shell 状态即可读取同一 archive。
+- Experimental World Bundle 已落地，并由 `official/playable-creation-board` 的跨 Host conformance fixture 覆盖：canonical archive descriptor 保留原始 v1 envelope 与完整 SHA-256 closure；全新 SQLite/filesystem Host 保持 object、lineage 与 receipt；historical replay 不调用 executor；替代实现生成 child branch/head；headless CLI 无需 Web Shell 状态即可读取同一 archive。
 - 用 JSON Schema 子集校验能力 I/O 与能力包声明的事件 payload。
 - Contract V1 身份 union 继续保持 `host_admin`、`host_dev`、`package`、`human`、`assistant`、`anonymous`。配对设备在远程 RPC 边界使用 fail-closed 的 `anonymous` V1 sentinel，并通过 Host 建立的 authority envelope 保留 grant、delegation 与资源约束；旧 runtime 忽略新 envelope 时只会拒绝而不会扩大权限。脱敏 Host 控制面审计仍以逻辑 `host_device` 记录设备；human 与 assistant 身份支持作用域授权。
 - 审计事件：`kernel/v1/permission.granted|revoked|denied`、`kernel/v1/package.*` 生命周期、`kernel/v1/proposal.*` 生命周期；Contract V1 之外另有脱敏的 `host/control/v1/authority.decision` Host 控制面授权判定日志。

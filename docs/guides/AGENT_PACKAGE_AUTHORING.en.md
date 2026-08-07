@@ -2,7 +2,7 @@
 
 > [English](./AGENT_PACKAGE_AUTHORING.en.md) · [中文](./AGENT_PACKAGE_AUTHORING.md)
 
-This guide explains how to write agent-like capability packages for Yggdrasil. The core rule is simple: agents live in packages, not in the kernel.v1.
+This guide explains how to implement agent-like capability with ordinary Packages and Components under the current Contract V1. Shared Agent meaning may be defined by optional Protocols or Profiles, while concrete run state belongs to a Component or Product rather than the constitutional substrate.
 
 ## What to use
 
@@ -10,7 +10,7 @@ This guide explains how to write agent-like capability packages for Yggdrasil. T
 - Start runs through `kernel.v1.capability.invoke` or `kernel.v1.capability.stream`.
 - Cancel streaming invocations through `kernel.v1.capability.cancel`.
 - Produce, approve, and apply changes through `kernel.v1.proposal.*`.
-- Record traces through package-owned events or stream frames.
+- Record traces through the current Package-writer namespace, Artifacts, or stream frames.
 - Expose `assistant_action`, `forge_panel`, or `home_card` through surface contributions.
 - Use `secret_ref` instead of raw secrets.
 - Use explicit `provider_package_id` when providers conflict.

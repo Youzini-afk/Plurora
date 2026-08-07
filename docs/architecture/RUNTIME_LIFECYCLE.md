@@ -2,7 +2,9 @@
 
 > [English](./RUNTIME_LIFECYCLE.en.md) · [中文](./RUNTIME_LIFECYCLE.md)
 
-内核运行三类生命周期：包、会话和能力调用。它们不描述 turn、chat、prompt，也不描述其他内容形态的操作。这些都属于能力包。
+本文记录 Contract V1 当前 runtime 协调的 Package、Session、Proposal 与 Capability Invocation 生命周期。它们是现行兼容合同，不代表宪法基底永久只认识或必须认识这些名词。
+
+这些生命周期不描述 turn、chat、prompt 或其他领域操作。领域语义由采用的 Protocol、Component 或 Product 拥有；当前 V1 常以 Package writer 和事件命名空间承载它们。
 
 ## 包生命周期
 
@@ -35,7 +37,7 @@ closing     kernel/v1/session.before_close 已 dispatch（sync，可 veto）
 closed      kernel/v1/session.closed 已发出；日志已冻结，不再接受 append
 ```
 
-内核不拥有“当前 turn”、“活跃 actor”或会话的任何内容级状态。如果能力包需要这些概念，就从事件中自行推导。
+runtime 不拥有“当前 turn”、“活跃 actor”或 Session 的任何内容级状态。需要这些概念的协议或组件从事件、对象和自己的 projection 中推导。
 
 ## 提案生命周期
 

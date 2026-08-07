@@ -2,9 +2,9 @@
 
 > [English](./CONTRACT_REGISTRY.en.md) · [中文](./CONTRACT_REGISTRY.md)
 
-This document describes the first executable compatibility mechanism for the layered contract
-migration. It is Experimental: it does not claim that Constitution v2 is Stable and does not
-change existing `kernel.v1.*` payload semantics.
+This document describes the executable compatibility mechanism currently used for layered contracts,
+canonical IDs, legacy aliases, and explicit negotiation. It is Experimental: it does not claim that
+Constitution v2 is Stable and does not change existing `kernel.v1.*` payload semantics.
 
 ## One resolution boundary
 
@@ -50,9 +50,10 @@ Until migrated, every other method keeps its existing `kernel.v1.*` ID as its ca
 aliases must be registered centrally; dispatchers, clients, and transports must not add string
 special cases.
 
-Phase 3 changes only ownership and namespace. Payloads, permissions, events, and handlers remain
-unchanged. In particular, `change.proposal.*` still uses the existing `ProposalRecord`; it does not
-pretend to provide the Intent, ChangeSet, Commit, or EffectReceipt primitives introduced in Phase 5.
+The canonical/legacy dual stack changes only ownership and namespace. Payloads, permissions, events,
+and handlers remain unchanged. In particular, `change.proposal.*` still uses the existing
+`ProposalRecord`; Intent, ChangeSet, Commit, and EffectReceipt are separate Experimental primitives
+and cannot be inferred to be fully implemented by the proposal facade merely from its alias name.
 
 ## Explicit negotiation
 

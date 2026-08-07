@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- Reframed Yggdrasil as an open digital creation and runtime platform guided
+  by openness, plurality, valuable advanced technology, long-term evolution,
+  and usability
+- Separated constitutional substrate, Protocol Commons, Components/Content,
+  Host control planes, distributions, and products in the architecture docs
+- Defined the official distribution as a complete but replaceable product,
+  and play-creation as an optional Product Profile rather than platform law
+- Reclassified Package as a distribution envelope, Component as an execution
+  unit, Project as a current Host/distribution model, and Contract V1 names as
+  compatibility surfaces with explicit long-term owners
+- Replaced completed temporary roadmap plans with durable architecture, guide,
+  status, and construction-direction documentation
+
 ### Added
 - Vite bundling and iframe-based SurfaceHost in clients/web (S1)
 - Tauri 2.x desktop wrapper at clients/desktop (S2)

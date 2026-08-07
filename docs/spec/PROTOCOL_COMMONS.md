@@ -1,5 +1,7 @@
 # Protocol Commons 注册表
 
+> [English](./PROTOCOL_COMMONS.en.md) · [中文](./PROTOCOL_COMMONS.md)
+
 状态：Experimental，描述符 Schema 版本 1。
 
 Protocol Commons 是共享语义的注册表。只有 JSON 形状并不构成协议；每个注册协议还必须声明生命周期、错误与取消模型、权限边界、行为向量、兼容 Profile、迁移以及实现。注册项不获得路由优先级，官方实现与第三方实现使用完全相同的向量集合。
@@ -19,7 +21,7 @@ Protocol Commons 是共享语义的注册表。只有 JSON 形状并不构成协
 
 仓库内文档引用可以暂时没有 digest。若 Package 或 World Bundle 要提出跨主机完整性声明，必须先把这些引用物化为内容寻址 Artifact。
 
-`host.info` 会公开 `protocol_commons_registry_version` 和完整描述符注册表。Phase 6 有意只注册：
+`host.info` 会公开 `protocol_commons_registry_version` 和完整描述符注册表。当前 registry 有意只注册：
 
 | 协议 | 版本 | Profile | 状态 |
 | --- | --- | --- | --- |
@@ -69,7 +71,7 @@ Change 协议引用增量的 Intent、ChangeSet、PolicyDecision、Commit 和 Ef
 该 Profile 要求：
 
 - 通过 `shell.contribution.*` 进行公开发现；
-- 元数据有界且归属 Package；
+- 元数据有界、owner 明确，并通过当前 Package Manifest 分发；
 - Surface bridge allowlist 与 session scope 显式；
 - 不隐式获得 kernel、文件系统、网络或宿主 UI 权限；
 - 替换 Shell 不改变 journal history、object identity 或 receipt。
@@ -78,9 +80,9 @@ Change 协议引用增量的 Intent、ChangeSet、PolicyDecision、Commit 和 Ef
 
 ## World Bundle Experimental Profile
 
-`ygg.world.bundle/experimental/v1` 定义可移植性证明目标，但不会把 `World` 加入 substrate。描述符引用 EventEnvelope、ArtifactDescriptor、EffectReceipt，以及具体的 [`WORLD_BUNDLE.md`](WORLD_BUNDLE.md) archive/head/journal schema。
+`ygg.world.bundle/experimental/v1` 定义可移植性条件，但不会把 `World` 加入 substrate。描述符引用 EventEnvelope、ArtifactDescriptor、EffectReceipt，以及具体的 [`WORLD_BUNDLE.md`](WORLD_BUNDLE.md) archive/head/journal schema。
 
-五个必需向量覆盖引用闭包、跨主机导入、离线回放、新分支重执行和 Shell 独立性。它们现已用真实 `official/playable-creation-board` 压力源全部通过，因此 `ygg.runtime.world-bundle` 已注册为第一个一致性 production implementation claim。
+五个必需向量覆盖引用闭包、跨 Host 导入、离线回放、新分支重执行和 Shell 独立性。当前 `official/playable-creation-board` integration fixture 已覆盖这些向量，因此 `ygg.runtime.world-bundle` 注册了第一个 production implementation claim；该声明描述当前实现覆盖，不代表 World Bundle 是平台唯一内容 Profile。
 
 ## World Bundle 生命周期
 

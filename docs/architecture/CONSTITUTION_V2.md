@@ -8,14 +8,14 @@
 
 ## 核心承诺
 
-Yggdrasil 承载可移植、可分叉、可组合、可审计的 AI 原生世界与体验。
-模型、agent、组件、引擎、客户端和宿主都可以替换；重要内容、历史与所有权不属于任何单一宿主。
+Yggdrasil 承载可移植、可组合、可审计并能长期演化的应用、工具、服务、世界、游戏、agent 与其他数字形态。
+模型、agent、组件、引擎、客户端和 Host 都可以替换；重要内容、历史与所有权不属于任何单一实现或服务。
 
 产品可以把「世界」作为媒介身份，但宪法基底不把 `World` 固化为系统本体。基底只认识身份、权力、对象、引用、因果、效果和证明；世界由上层协议定义。
 
 一句话边界：
 
-> 基底拥有物理法则，协议公地拥有共同语言，体验层拥有观点；内容属于创作者和玩家。
+> 基底拥有物理法则，协议公地拥有共同语言，发行版和产品拥有观点；数据与内容属于用户和创作者。
 
 ## 为什么需要新的边界
 
@@ -26,7 +26,7 @@ Yggdrasil 承载可移植、可分叉、可组合、可审计的 AI 原生世界
 - **可组合性：** 独立作者只凭共同协议即可互操作，而不只共享 JSON 形状。
 - **可治理性：** 协议有成熟度、版本协商、支持窗口、迁移工具和行为一致性测试。
 
-「内核不认识内容概念」并不等于内核没有本体。`session`、`package`、`project`、`proposal`、`surface`、`target`、`proxy` 同样是本体。任何进入长期稳定合同的名词，都必须证明自己是无法安全移到上层的物理法则。
+「内核不认识内容概念」并不等于内核没有本体。`session`、`package`、`project`、`proposal`、`surface`、`target`、`proxy` 同样是本体。任何进入长期稳定合同的名词，都必须满足“无法安全移到上层”的严格下沉门槛。
 
 ## 不可变原则
 
@@ -309,7 +309,7 @@ Experimental
 本文不要求删除现有实现。当前方法可以继续服务现有 Web、CLI、package 和 conformance，但其长期所有权要按
 [`CONTRACT_LAYERING_MATRIX.md`](../spec/CONTRACT_LAYERING_MATRIX.md) 重新分类。
 
-在分层迁移完成前：
+在候选分层被显式采纳为稳定宪法前：
 
 - `kernel.v1.*` 是 legacy operational contract，不再自动等同于永久宪法；
 - 除安全修复、正确性修复和兼容所需字段外，不继续扩大其稳定表面积；
@@ -317,11 +317,11 @@ Experimental
 - 旧客户端通过 alias/adapter 继续工作；
 - v2 数据必须能够保留原始 v1 envelope 和未知字段，以支持无损转移。
 
-迁移实施顺序见 [`CONTRACT_V2_MIGRATION.md`](../roadmap/CONTRACT_V2_MIGRATION.md)。
+当前代码已经具备 owner namespace、Contract Registry、legacy adapter、ObjectStore、EffectReceipt、Change primitives、Protocol Commons 和 World Bundle 等 Experimental 机制。它们为候选分层提供了可运行基础，但不自动把本文升级为 Stable；长期归属仍以 [`CONTRACT_LAYERING_MATRIX.md`](../spec/CONTRACT_LAYERING_MATRIX.md) 为审查依据。
 
-## 稳定前的验收题
+## 稳定采纳条件
 
-Yggdrasil 在宣布新基底稳定前，应能够证明：
+候选基底在进入 Stable 前，必须满足以下兼容、可移植与独立实现条件：
 
 1. 同一个 World Bundle 能导入第二个独立 host。
 2. 替换模型 provider 不需要迁移世界数据。
@@ -333,7 +333,7 @@ Yggdrasil 在宣布新基底稳定前，应能够证明：
 8. 模型服务离线时，历史仍可确定性重放。
 9. Web shell 被 desktop、VR 或 headless shell 替换时，世界数据不变。
 
-这些是架构 fitness tests，不是产品演示清单。
+这些条件约束稳定性声明和兼容承诺，不决定 Yggdrasil 应该为了它们建设哪些产品功能。
 
 ## 非规范性参考
 

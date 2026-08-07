@@ -2,73 +2,85 @@
 
 > [English](./README.en.md) · [中文](./README.md)
 
-**一个面向 AI 原生世界、游戏、故事与游玩的可扩展创作平台。**
+**一个面向人、AI 与软件共同创造和运行的开放数字平台。**
 
-它由三层构成：一个稳定、克制、对内容无意见的内核；一个开放的能力包生态；以及 Home 上可安装、可启动、可停止的项目。平台中每一个有意义的概念——角色、提示词、模型、agent、世界、规则、记忆——都来自能力包，不是内核；项目是宿主运行时概念。
+Yggdrasil 让应用、工具、服务、世界、游戏、agent、创作环境和未来尚未被命名的数字形态，能够被创建、组合、运行、审视、修改、迁移和替换。平台提供可信的共同基础，但不规定上层最终应该长成什么样。
 
 ```text
-┌──────────────────────────────────────────────┐
-│  Web shell · CLI · 第三方客户端                 │   走公开协议
-├──────────────────────────────────────────────┤
-│  公开协议   ·   /rpc + SSE                    │
-├──────────────────────────────────────────────┤
-│  项目（Home 卡片：YdlTavern / ...）             │   可安装/启动/停止
-├──────────────────────────────────────────────┤
-│  能力包（官方包 = 第三方包）                       │   清单驱动
-├──────────────────────────────────────────────┤
-│  内核：会话 · 事件 · 权限 · ...                 │   对内容无意见
-└──────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────┐
+│ Products / Experiences / Services                        │
+├──────────────────────────────────────────────────────────┤
+│ Distributions / Shells / Clients                         │
+├──────────────────────────────────────────────────────────┤
+│ Protocol Commons / Components / Content                  │
+├──────────────────────────────────────────────────────────┤
+│ Constitutional Substrate                                 │
+└──────────────────────────────────────────────────────────┘
+
+Host Control Plane / Runtime Fabric 横跨各层，管理安装、执行、
+文件、secret、网络、target、部署、备份和诊断。
 ```
 
-## 为什么做这个
+## 我们想建设什么
 
-今天大多数 AI 原生创作工具把使用者切成两半：消费成品体验的玩家，和构建体验的开发者。**Yggdrasil 拒绝这种切分。**
+Yggdrasil 长期追求五件事：
 
-玩家可以审视当前会话、让 assistant 修改、fork 它、替换其中某个能力包，再把改动反馈出去。创作者面对同一份公开协议、同样的能力包、同样的 surface。底座在两个方向上完全相同。
+- **开放：** 源码、协议、数据和扩展入口公开；用户能导出、迁移和删除数据；官方实现没有私有 API。
+- **多样：** 不固定唯一应用形态、工作流、Shell、模型、组件或内容本体。
+- **先进：** 采用真正增加自由度、安全性、性能和可移植性的技术，而不是为了新而新。
+- **长久：** 稳定层小、协议可演化、旧数据可读取、错误抽象能迁移和退出。
+- **好用：** 官方发行版安装后能直接工作，简单路径简单，复杂能力按需展开，失败可恢复。
 
-完整的产品立场见 [`docs/product/PLAY_CREATION_MODEL.md`](docs/product/PLAY_CREATION_MODEL.md)。
+完整原则见 [`docs/CHARTER.md`](docs/CHARTER.md)，长期形态见 [`docs/architecture/VISION.md`](docs/architecture/VISION.md)。
 
-## 重心所在
+## 平台与官方产品
 
-- 内核只承载能力包，不干别的。
-- 所有有意义的概念都由能力包提供。
-- 官方包没有任何特权——同一份清单，同一套机制，同一道权限闸门。
-- 创作者可以随意组合、替换、或自己写新的能力包。
+Yggdrasil 不只是内核，也不等于官方 Web/Desktop。当前官方发行版使用 Home、Settings、Project frame、Console 和可贡献 Surface，提供本地 managed Host、远程 Host、安装、运行、创作、部署、权限和数据管理等体验。
 
-平台的职责是让激进的 AI 原生创作成为可能，不是给某条「官方路径」开特权。
+这些是正在持续打磨的默认产品选择，而不是整个平台的永久本体：
+
+- 第三方可以替换客户端、Shell、组件、协议、模型和 Host；
+- Project 是当前官方 Host 的安装实例模型，不是所有产品必须采用的根对象；
+- Home / Play / Forge / Assist 属于可选产品 Profile，不属于宪法基底；
+- 官方组件和客户端只使用第三方也能使用的公开边界。
+
+总体产品责任见 [`docs/product/PLATFORM_PRODUCT_MODEL.md`](docs/product/PLATFORM_PRODUCT_MODEL.md)。游创是可选强观点 Profile，见 [`docs/product/PLAY_CREATION_MODEL.md`](docs/product/PLAY_CREATION_MODEL.md)。
 
 ## 当前状态
 
-平台底座已经搭好：安装/更新链路、surface bundle freshness 防护、项目控制台诊断与更新入口都已落地。Contract V1 是公开平台规范，见 [`docs/spec/KERNEL_V1_CONTRACT.md`](docs/spec/KERNEL_V1_CONTRACT.md)。下一阶段不再继续摊大表面积，而是用真实可玩体验来牵引剩下的工作。
+仓库处于 Foundation Alpha：公开 Contract V1、Rust Host/runtime、HTTP/RPC/SSE、Package 与 Component 生命周期、Web/PWA、Tauri Desktop、CLI、安装更新、项目管理、权限、对象与工件、模型接入、受控开发、target 与部署等基础已经形成较大可运行面。
 
-详细状态、能力清单、partial 与 deferred 项见 [`docs/ALPHA_STATUS.md`](docs/ALPHA_STATUS.md)。下一步方向见 [`docs/roadmap/NEXT_STEPS.md`](docs/roadmap/NEXT_STEPS.md)。
+当前实现仍带有 Contract V1 的历史聚合：`kernel.v1.*` 同时包含部分基底、Host、协议和 Shell 语义。新的架构方向不是推倒重写，而是在保持兼容和数据可读的前提下逐步明确所有权。
+
+具体已实现、partial 和 deferred 状态见 [`docs/ALPHA_STATUS.md`](docs/ALPHA_STATUS.md)。当前建设方向见 [`docs/roadmap/NEXT_STEPS.md`](docs/roadmap/NEXT_STEPS.md)。
 
 ## 仓库一览
 
 ```text
-crates/                Rust 内核与运行时
-  ygg-core/              内核类型与契约（对内容无意见）
-  ygg-runtime/           运行时主机：会话、事件、能力包、能力、钩子、
-                         surface、提案、资产、分支、projection
-  ygg-service/           公开协议层（HTTP /rpc、事件 SSE 订阅）
-  ygg-cli/               host 模式、清单工具、能力包脚手架、conformance
+crates/
+  ygg-core/            当前核心类型、schema、身份、事件与合同对象
+  ygg-runtime/         runtime、组件执行、协议调度与部分 Host 能力
+  ygg-service/         HTTP / RPC / SSE 与 Host service 边界
+  ygg-cli/             CLI、Host、脚手架、contract 与 conformance 工具
 
-clients/web/           React 19 + Tailwind v4 + Vite 平台 Web shell
-clients/desktop/       Tauri 2.x 桌面 wrapper（嵌入 web shell）
+clients/web/           官方 React 19 + Tailwind v4 + Vite Web Shell / PWA
+clients/desktop/       Tauri 2.x wrapper + managed Host sidecar
 
-packages/official/     通过普通清单加载的官方基础能力包
-profiles/              host profile，批量自动加载能力包
-examples/              示例清单与 fixture 包
+packages/official/     通过普通 Manifest 加载的第一方组件与实验能力
+profiles/              发行版 / Host 的组件与策略组合
+examples/              示例、fixture 与第三方接入样例
 
-sdk/typescript/        子进程能力包脚手架与领域 SDK
-sdk/rust/              生成的 Rust kernel SDK
-docs/                  架构、协议、规范、路线图、产品文档
-integrations/          上游项目调研记录（pi、TavernHeadless、pretext、TDB...）
+sdk/typescript/        TypeScript SDK 与子进程组件工具
+sdk/rust/              生成的 Rust contract SDK
+docs/                  章程、架构、协议、产品、指南、状态与路线图
+integrations/          外部项目和生态接入调研
 ```
+
+代码目录反映当前实现，不单凭 crate 名称决定永久架构归属。
 
 ## 快速上手
 
-启动 host：
+启动 Host：
 
 ```bash
 cargo run -p ygg-cli -- host serve \
@@ -76,21 +88,21 @@ cargo run -p ygg-cli -- host serve \
   --profile profiles/forge-alpha.yaml
 ```
 
-构建或检查 Web shell：
+构建或检查 Web Shell：
 
 ```bash
 npm run check --prefix clients/web
 npm run build --prefix clients/web
 ```
 
-跑完整 conformance 套件：
+运行测试与 conformance：
 
 ```bash
 cargo test --workspace
 cargo run -p ygg-cli -- conformance
 ```
 
-安装和管理能力包：
+安装和管理 Package / Project：
 
 ```bash
 yg install github.com/user/yggdrasil-package#v1.2.0
@@ -103,45 +115,40 @@ yg update [<package-id>|--project-id <project-id>] [--check-only]
 yg lockfile --check
 ```
 
-只用公开协议跑通空白游创循环：
+通过公开协议运行空白游创示例：
 
 ```bash
 cargo run -p ygg-cli -- play-create-demo
 ```
 
-更多命令（清单、能力包、composition、host 模式、第三方创作循环、模板）见 [`docs/guides/PACKAGE_AUTHORING_WALKTHROUGH.md`](docs/guides/PACKAGE_AUTHORING_WALKTHROUGH.md)。
+更多命令和组件创作流程见 [`docs/guides/PACKAGE_AUTHORING_WALKTHROUGH.md`](docs/guides/PACKAGE_AUTHORING_WALKTHROUGH.md)。
 
 ## 文档导航
 
-每篇开发文档都有英文与简体中文两版，文件顶部的双语 blockquote 可在两种语言间切换。[`docs/`](docs/README.md) 按主题分组：架构、协议、规范、产品、能力包创作、性能、路线图、tavern 兼容。
-
-按目的的最短读路径：
+每篇主要文档都有英文与简体中文版本，顶部可切换语言。完整索引见 [`docs/README.md`](docs/README.md)。
 
 | 你想 | 先读 |
 |---|---|
-| 理解平台立场 | [`docs/CHARTER.md`](docs/CHARTER.md) → [`docs/architecture/VISION.md`](docs/architecture/VISION.md) → [`docs/product/PLAY_CREATION_MODEL.md`](docs/product/PLAY_CREATION_MODEL.md) |
-| 理解架构 | [`docs/architecture/ARCHITECTURE.md`](docs/architecture/ARCHITECTURE.md) → [`docs/architecture/PLATFORM_KERNEL.md`](docs/architecture/PLATFORM_KERNEL.md) → [`docs/architecture/CAPABILITY_PACKAGE.md`](docs/architecture/CAPABILITY_PACKAGE.md) |
+| 理解平台目标 | [`docs/CHARTER.md`](docs/CHARTER.md) → [`docs/architecture/VISION.md`](docs/architecture/VISION.md) |
+| 理解分层架构 | [`docs/architecture/ARCHITECTURE.md`](docs/architecture/ARCHITECTURE.md) → [`docs/architecture/PLATFORM_KERNEL.md`](docs/architecture/PLATFORM_KERNEL.md) → [`docs/architecture/CAPABILITY_PACKAGE.md`](docs/architecture/CAPABILITY_PACKAGE.md) |
+| 理解官方产品 | [`docs/product/PLATFORM_PRODUCT_MODEL.md`](docs/product/PLATFORM_PRODUCT_MODEL.md) → [`docs/design/PLATFORM_UI_DESIGN.md`](docs/design/PLATFORM_UI_DESIGN.md) |
 | 接入公开协议 | [`docs/protocol/PROTOCOL_V0.md`](docs/protocol/PROTOCOL_V0.md) → [`docs/spec/KERNEL_V1_CONTRACT.md`](docs/spec/KERNEL_V1_CONTRACT.md) |
-| 写第一个能力包 | [`docs/guides/PACKAGE_AUTHORING_WALKTHROUGH.md`](docs/guides/PACKAGE_AUTHORING_WALKTHROUGH.md) |
-| 安装能力包/项目 | [`docs/guides/PACKAGE_INSTALLATION.md`](docs/guides/PACKAGE_INSTALLATION.md) → [`docs/guides/PROJECT_MODEL.md`](docs/guides/PROJECT_MODEL.md) |
+| 看长期合同分层 | [`docs/architecture/CONSTITUTION_V2.md`](docs/architecture/CONSTITUTION_V2.md) → [`docs/spec/CONTRACT_LAYERING_MATRIX.md`](docs/spec/CONTRACT_LAYERING_MATRIX.md) |
+| 写第一个 Package / Component | [`docs/guides/PACKAGE_AUTHORING_WALKTHROUGH.md`](docs/guides/PACKAGE_AUTHORING_WALKTHROUGH.md) |
+| 安装 Package / Project | [`docs/guides/PACKAGE_INSTALLATION.md`](docs/guides/PACKAGE_INSTALLATION.md) → [`docs/guides/PROJECT_MODEL.md`](docs/guides/PROJECT_MODEL.md) |
 | 管理 API key / secret | [`docs/guides/SECRET_MANAGEMENT.md`](docs/guides/SECRET_MANAGEMENT.md) |
-| 跑真实模型端到端调用 | [`docs/guides/REAL_MODEL_END_TO_END.md`](docs/guides/REAL_MODEL_END_TO_END.md) |
-| 写 agent / 模型 / 体验包 | [`docs/guides/AGENT_PACKAGE_AUTHORING.md`](docs/guides/AGENT_PACKAGE_AUTHORING.md)、[`docs/guides/MODEL_PROVIDER_INTEGRATION.md`](docs/guides/MODEL_PROVIDER_INTEGRATION.md)、[`docs/guides/EXPERIENCE_RUNTIME_AUTHORING.md`](docs/guides/EXPERIENCE_RUNTIME_AUTHORING.md) |
-| 挂载第三方 Web surface | [`docs/guides/SURFACE_HOSTING.md`](docs/guides/SURFACE_HOSTING.md) |
+| 写 agent / 模型 / 体验组件 | [`docs/guides/AGENT_PACKAGE_AUTHORING.md`](docs/guides/AGENT_PACKAGE_AUTHORING.md)、[`docs/guides/MODEL_PROVIDER_INTEGRATION.md`](docs/guides/MODEL_PROVIDER_INTEGRATION.md)、[`docs/guides/EXPERIENCE_RUNTIME_AUTHORING.md`](docs/guides/EXPERIENCE_RUNTIME_AUTHORING.md) |
+| 挂载第三方 Web Surface | [`docs/guides/SURFACE_HOSTING.md`](docs/guides/SURFACE_HOSTING.md) |
 | 看当前状态 | [`docs/ALPHA_STATUS.md`](docs/ALPHA_STATUS.md) |
-| 看下一步 | [`docs/roadmap/NEXT_STEPS.md`](docs/roadmap/NEXT_STEPS.md) |
+| 看建设方向 | [`docs/roadmap/NEXT_STEPS.md`](docs/roadmap/NEXT_STEPS.md) |
 | 写文档 | [`docs/STYLE.md`](docs/STYLE.md) |
 
-## 延后事项
+## 可以在 Yggdrasil 上发展的形态
 
-下面这些方向有价值，但不属于内核——它们都将以普通能力包的形态到来：
+聊天、世界模拟、Tavern、游戏引擎桥接、IDE、普通 Web 服务、agent runtime、文档工具、节点编辑器和市场，都可以成为平台上的产品、协议、组件或发行版。它们没有一项是平台唯一中心，也没有一项因为“官方”而获得隐藏权威。
 
-- 兼容 SillyTavern 资源与扩展的接入项目 YdlTavern——独立仓库，跑在 Yggdrasil 之上（[`docs/tavern/TAVERN_COMPAT.md`](docs/tavern/TAVERN_COMPAT.md)）。
-- 生产级长期自治 agent、多 agent 协作、生产级记忆系统、世界模拟、导演。
-- 外部游戏引擎接入（UE5、Godot、Unity、Web 端）。
-- 完整 Studio、ComfyUI 风格节点编辑器、市场。
-- 最终视觉设计。
+YdlTavern 是一个独立接入项目，边界见 [`docs/tavern/TAVERN_COMPAT.md`](docs/tavern/TAVERN_COMPAT.md)。
 
-## 协议
+## 许可证
 
-Yggdrasil 以 GNU Affero General Public License v3.0（仅此版本，`AGPL-3.0-only`）发布，详见 [`LICENSE`](LICENSE)；第一方代码与第三方内容的边界见 [`docs/LICENSING.md`](docs/LICENSING.md)。
+Yggdrasil 以 GNU Affero General Public License v3.0（仅此版本，`AGPL-3.0-only`）发布，详见 [`LICENSE`](LICENSE)；第一方代码、外部依赖和第三方内容的边界见 [`docs/LICENSING.md`](docs/LICENSING.md)。

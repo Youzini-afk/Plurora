@@ -1,5 +1,7 @@
 # Protocol Commons Registry
 
+> [English](./PROTOCOL_COMMONS.en.md) · [中文](./PROTOCOL_COMMONS.md)
+
 Status: Experimental, descriptor schema version 1.
 
 The Protocol Commons is the registry for shared semantics. A JSON shape alone is not a protocol: every registered protocol also names its lifecycle, error and cancellation model, authority boundary, behavioral vectors, compatibility profiles, migrations, and implementations. Registry entries do not receive routing priority, and an official provider is evaluated by the same vector set as any third-party provider.
@@ -19,7 +21,7 @@ The Protocol Commons is the registry for shared semantics. A JSON shape alone is
 
 Document references may omit a digest while the referenced document is repository-local. A portable package or World Bundle must materialize such references as content-addressed artifacts before making a cross-host integrity claim.
 
-`host.info` exposes `protocol_commons_registry_version` and the full descriptor registry. Phase 6 intentionally registers only:
+`host.info` exposes `protocol_commons_registry_version` and the full descriptor registry. The current registry intentionally includes only:
 
 | Protocol | Version | Profile | Status |
 | --- | --- | --- | --- |
@@ -69,7 +71,7 @@ The Change protocol references the additive Intent, ChangeSet, PolicyDecision, C
 The profile requires:
 
 - public discovery through `shell.contribution.*`;
-- bounded, package-owned structured metadata;
+- bounded structured metadata with an explicit owner, distributed through the current Package Manifest;
 - an explicit surface bridge allowlist and session scope;
 - no implicit kernel, filesystem, network, or host-UI authority;
 - shell replacement without changing journal history, object identity, or receipts.
@@ -78,9 +80,9 @@ The current lifecycle and bridge error model are documented in [`SURFACE_HOSTING
 
 ## World Bundle Experimental profile
 
-`ygg.world.bundle/experimental/v1` defines the portability proof target without adding `World` to the substrate. Its descriptor references event envelopes, artifact descriptors, effect receipts, and the concrete [`WORLD_BUNDLE.md`](WORLD_BUNDLE.en.md) archive/head/journal schemas.
+`ygg.world.bundle/experimental/v1` defines portability conditions without adding `World` to the substrate. Its descriptor references event envelopes, artifact descriptors, effect receipts, and the concrete [`WORLD_BUNDLE.md`](WORLD_BUNDLE.en.md) archive/head/journal schemas.
 
-The required vectors cover reference closure, cross-host import, offline replay, re-execution on a new branch, and shell independence. All five now pass against the real `official/playable-creation-board` pressure source, so `ygg.runtime.world-bundle` is registered as the first conforming production implementation claim.
+The required vectors cover reference closure, cross-Host import, offline replay, re-execution on a new branch, and shell independence. The current `official/playable-creation-board` integration fixture covers those vectors, so `ygg.runtime.world-bundle` registers the first production implementation claim. That claim describes current implementation coverage; it does not make World Bundle the platform's only content profile.
 
 ## World Bundle lifecycle
 

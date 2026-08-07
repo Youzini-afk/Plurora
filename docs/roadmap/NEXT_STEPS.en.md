@@ -1,128 +1,180 @@
-# Next steps
+# Construction Direction
 
 > [English](./NEXT_STEPS.en.md) · [中文](./NEXT_STEPS.md)
 
-This document is about where Yggdrasil goes next. Completed state lives in [`../ALPHA_STATUS.md`](../ALPHA_STATUS.en.md), not here.
+Yggdrasil does not move forward by expanding around one product, example, or workflow, and it does not invent features to complete a proof exercise. Construction direction comes from the five long-term goals in the charter: openness, plurality, advanced capability, longevity, and usability.
 
-## Where we are
+These directions progress in parallel. Phase numbers would create a false linear order. Every concrete task should belong to a clear user lifecycle, architecture layer, and long-term responsibility.
 
-- The kernel is content-free. Official packages have no privileges. Public protocol is the only entry.
-- The secure-execution layer is complete: `secret_ref`, local encrypted secret store, network declarations, outbound audit and redaction, HTTP/WebSocket outbound executors, streaming and cancel lifecycle.
-- The platform substrate is complete: package installation, native project install/mount, profile autoload, installed project surface bundles, surface-bundle freshness safeguards, project update, Home project shelf, structured shell descriptors, standalone project tabs, project-console diagnostics, the explicit Docker Deploy broker, durable deployment jobs, controlled Host development ChangeSets, target/exec/port/proxy deployment primitives, ygg-service HTTP/WebSocket reverse proxy, revocable Host device identity attenuated by actions and project/target resources, mobile PWA and remote CLI control, private-by-default and explicitly public application routes, Settings, real model end-to-end, streaming UX, the constrained Surface bridge, the managed-Host desktop wrapper, release pipeline, web shell release closure, and the code-organization split.
-- Multi-provider model integration, a transport-neutral inference seam, Agentic Forge, the external project operating plane, storage backend neutrality, the PostgreSQL event backend, and the real TDB Rust adapter — all in.
-- Contract V1 is the public platform spec; all 161 schemas (80 methods + 59 events + 22 top-level) validate, and 474 conformance cases pass.
-- All nine Contract v2 layering-migration phases are complete: on top of the first eight substrate milestones, clients now use canonical APIs and Contract Registry `0.5.0` completes the real Deprecated → Legacy Adapter transition for `kernel.v1.host.info` and `kernel.v1.target.list`. See [`CONTRACT_V2_MIGRATION.md`](CONTRACT_V2_MIGRATION.en.md) for the implementation record.
+## Most important current work
 
-The next stage isn't more substrate sprawl. Real project deployment, human testing, and playable experiences pull what comes next.
+### Make the official distribution complete and usable
 
-The dependency order among project authority, reliable deployment, operational safety, remote targets, and unified clients is fixed in
-[`HOST_OPERATIONS_IMPLEMENTATION.en.md`](HOST_OPERATIONS_IMPLEMENTATION.en.md). Implementation satisfied project-isolation and local-recovery gates before enabling the Remote Target Candidate; real-project pressure still drives this work, and none of it becomes kernel content ontology.
+Web, Desktop, PWA, and CLI already expose substantial capability, but everyday use can still feel like a platform control plane rather than a mature product. Complete lifecycles before adding more isolated panels:
 
-As of 2026-07-24, the Phase 0–5 Candidates are complete. The authenticated Remote Target Agent gate covers equivalent local/Agent Docker deployment, actual-port projection, loopback-only HTTP/WebSocket tunnels, and the complete remote fault matrix. The unified-client and development-to-deployment gate further covers shared Host/project/target context, Project Console target operations, and Verified Artifact → private preview → approval → activation → recover → rollback through public Host contracts. GitHub CI accepts both gates.
+- first launch, local managed Host, remote Host connection, and recovery;
+- discovery, import, installation, authorization, running, stopping, update, and removal;
+- state, progress, cancellation, failure explanation, and next actions;
+- storage use, backup, export, migration, archive, and deletion;
+- human-readable authority requests, duration, target resources, and revocation;
+- mobile, keyboard, accessibility, internationalization, slow networks, and low-power devices;
+- progressive disclosure between simple use and advanced control.
 
-> “Complete” here means current v1 operational closure, not that every `kernel.v1.*`
-> boundary is permanent constitutional substrate. The long-term layering candidate is
-> [`CONSTITUTION_V2.md`](../architecture/CONSTITUTION_V2.en.md), with item-level ownership and temporary implementation order in
-> [`CONTRACT_LAYERING_MATRIX.md`](../spec/CONTRACT_LAYERING_MATRIX.en.md) and
-> [`CONTRACT_V2_MIGRATION.md`](CONTRACT_V2_MIGRATION.en.md). The candidate changes no current status before explicit adoption.
+The official distribution continues to use public contracts and does not create private Desktop capability or official Package shortcuts. See [`../product/PLATFORM_PRODUCT_MODEL.md`](../product/PLATFORM_PRODUCT_MODEL.en.md).
 
-## Long-term direction
+### Make creator experience one continuous path
 
-The platform stance lives in [`../product/PLAY_CREATION_MODEL.md`](../product/PLAY_CREATION_MODEL.en.md).
+A creator should not need to understand the whole kernel before beginning, and should not be trapped in an unextensible low-code surface when deeper work is needed. The path should connect:
 
-The shape:
+```text
+template / import
+→ local run and hot reload
+→ observe events, calls, objects, and state
+→ modify content, composition, components, or protocols
+→ human / AI assistance
+→ debug and test
+→ package, share, deploy
+→ update and migrate
+```
 
-- one or two real playable experiences or deployed projects become the pressure source that surfaces the remaining substrate work;
-- every new piece of infrastructure has to answer "which real user, player, creator, or deployment loop got stuck here";
-- no more pre-planned multi-stage roadmaps stacked in advance.
+Near-term priorities include:
 
-## Scoring
+- clear, low-boilerplate Package, Component, and Surface templates;
+- consistent TypeScript, Rust, and future WASM SDK experience;
+- local development mode, hot reload, source maps, logs, and error location;
+- visible authority, protocol bindings, effects, and artifact provenance;
+- understandable composition and dependency-conflict diagnostics;
+- AI tools that work through ordinary capabilities, explicit scope, and reviewable changes rather than a generic root shell;
+- a stable path from local work to a shareable artifact.
 
-Every new piece of work is graded against charter discipline:
+Play-creation is only an optional Profile. Document tools, services, IDEs, and headless systems may use different creation flows.
 
-- The kernel stays content-free — no conversation / model / prompt / memory / world / character / director semantics seep in.
-- No path gives official packages a privilege.
-- All package and UI behavior crosses the public-protocol boundary.
-- New substrate has to answer a real playable experience's pressure.
+### Converge long-term ownership of Contract V1
 
-## What's actively in flight
+Contract V1 remains a supported public contract, but `kernel.v1.*` no longer expands indiscriminately. Current work should:
 
-These are known to-dos. Priority follows real friction.
+- make owners across substrate, Host, Protocol Commons, and Shell Profile visible;
+- give new capability an explicit namespace, version, and maturity;
+- maintain Contract Registry, explicit negotiation, canonical methods, and legacy adapters;
+- preserve readable and migratable old clients, old data, and unknown fields;
+- classify Surface slots, Project, targets, and deployment as Profile or Host rather than permanent kernel ontology;
+- create a Protocol only when real shared semantics exist, rather than freezing one Package's private JSON prematurely.
 
-### Contract frontier
+See [`../spec/CONTRACT_LAYERING_MATRIX.md`](../spec/CONTRACT_LAYERING_MATRIX.en.md) for itemized ownership and [`../architecture/CONSTITUTION_V2.md`](../architecture/CONSTITUTION_V2.en.md) for the candidate constitution.
 
-- WIT worlds + the WASM entry form from scaffold to partial: map bindings to resource imports and complete wasm package execution.
-- Remote packages: SPIFFE identity, Biscuit token exchange, remote package lifecycle and audit.
-- Powerbox: explicit user / host grants, handle delegation, temporary authority, revocable delegation.
-- Cross-package delegation, attenuation-chain audit, lease refresh, bulk revoke.
-- Extract the conformance kit as an embeddable library that supports project-defined checks.
-- Round out SDK distribution: npm publish, Rust crate publish, OpenAPI / codegen documentation.
+### Complete component execution and the trust model
 
-### Package system and runtime
+Rust in-process and subprocess execution are operational. WASM and general remote components still provide substantial opportunity. Advanced execution work is selected for real benefit:
 
-- Package-owned projection execution.
-- `event.subscribe` permission for package principals.
-- Timeout and error audit for hook handlers.
-- Persistent capability-provider selection policy beyond explicit per-call selection.
-- Runtime object/artifact permissions, quotas, and reachability GC; content-addressed blob storage itself is complete.
-- Broader transport-consistency coverage in conformance.
+- WASM Component and WIT for portability, explicit imports, and resource limits;
+- clearer OS-level filesystem, network, and resource enforcement claims for subprocesses;
+- identity, tenancy, deadlines, reconnect, idempotency, and effect receipts for remote components;
+- trusted native retained as a high-performance escape hatch rather than a home for untrusted dynamic code;
+- separation of static resources from executable components;
+- UI and conformance that honestly present the guarantees of each trust class.
 
-### Project and multi-tenancy
+WASM, remote execution, and new transports do not become priorities merely because they are newer. They progress when they add portability, security, performance, or ecosystem language choice.
 
-- Extend the existing verified project/session binding to fine-grained development-artifact read authority, encryption/retention policy, reachability GC, and journal snapshot compaction; runtime permission, event, and resolver paths already consume the same project binding.
-- Project archive auto-cleanup beyond 30 days.
-- `yg secret put / list / delete` CLI.
-- OS keyring integration (deferred until CI / cross-platform builds have stable system dependencies).
-- Host device identity now has project/target selectors, delegation chains, ancestor-revocation cascade, redacted allow/deny journals, bounded atomic administrator bulk revoke, and continuous grant reauthorization at long-running development effect boundaries.
-- Add more explicit verifiers and sandbox backends. Each must declare network, secret, resource, and effect needs and must not collapse into a generic shell runner.
-- Deployment auto-restart (separate phase): first persist "deploy intent" (image, etc.) in host-plane terms, then add bounded-retry + backoff self-healing without leaking Docker semantics into the kernel proxy / port records. Today's health supervision only monitors, flips readiness, and audits — it does not re-deploy.
-- Deployment and authoring UX polish: Docker pull progress, long-term log archival, artifact retention/cleanup, and richer guided deployment-descriptor/adapter authoring across Web and the public-API ChangeSet CLI.
-- Target-edge ingress and application identity need separate designs; arbitrary network proxying and a general remote shell remain explicit non-goals.
+### Treat user data, content, and artifacts as long-term assets
 
-### Models and outbound
+ObjectStore, ArtifactDescriptor, World Bundle, deployment artifacts, and effect receipts already exist, but long-term data governance must converge:
 
-- Expand real-model outbound conformance with local mock HTTP / WebSocket servers, without adding default public-internet dependencies.
-- Real WebSocket smoke against OpenAI Realtime / Gemini Live, kept explicitly opt-in.
-- More provider registries, tokenizer / billing metadata adapters, still as ordinary capability packages.
-- Multi-concurrent generation in one chat, token-rate UI, Realtime / WebSocket streaming UX.
+- clear classification of user data, reconstructable cache, executable artifacts, and temporary diagnostics;
+- content digests, references, provenance, reachability, retention, and garbage collection;
+- encryption, backup, export, import, migration, and deletion;
+- lossless transfer of unknown artifact types and unknown fields;
+- Component updates that never silently overwrite user content;
+- historical replay that uses recorded results while re-execution creates a new causal branch;
+- multi-Host replication and conflict policy defined by adopted protocols rather than accidental filesystem paths.
 
-### Install and release
+Portability is part of platform identity, not release polish.
 
-- Update-flow follow-up is mostly polish: clearer failure recovery, external wrapped adapter updates, and more UI progress detail.
-- Tauri UI install polish and release integration.
-- Sigstore keyless verification.
-- Auto-update daemon.
-- Binary package distribution.
-- Desktop release code signing / notarization.
-- Replace placeholder desktop icons with real app icons.
-- Managed-Host Desktop follow-up: richer crash recovery guidance, sidecar-update coordination, and diagnostic export. Controlled start/stop, a random loopback port, one-time bootstrap, and a durable SQLite profile are complete.
+### Build competitive Protocol Commons
 
-### Web shell and surfaces
+The platform needs interoperability stronger than “everyone sends JSON” without freezing official opinions into the only standard. Protocol work includes:
 
-- Executable wiring for structured shell descriptors: package-contributed `quick_action` / `workshop_card` entries are discovery affordances today. If they become executable later, they must go through proposal / permission / audit and must not silently invoke capabilities.
-- Surface lifecycle hooks (`onClose`, `onProposalDraft`, and related callbacks).
-- Cross-origin surface-bundle allowlist, including CSP and origin checks.
-- Community-marketplace surface allowlists, integrity pins, version pins, and audit metadata; installed project bundles remain Host same-origin through short-lived project/grant-bound asset leases.
-- The project-console update entry already uses `check_for_updates` / `update_project`; next steps are richer update progress, failure recovery, and history.
-- Wire up real stderr / exit metadata for the Failure modal, project `size_bytes` for Disk usage, and a more precise `storage_summary` measurement state once the host exposes them.
-- Richer failure and health monitoring.
+- protocol descriptors, profiles, versions, and maturity;
+- field meaning, lifecycle, errors, cancellation, effects, and privacy;
+- adapters, migration, and deprecation windows;
+- implementation claims and behavioral checks;
+- explicit selection when multiple implementations or protocols coexist;
+- adapters to external ecosystems such as MCP, A2A, OCI, and WASI rather than unconditional reinvention.
 
-### Performance
+Candidate areas include Surface, Change, Workspace, Inference, Agent, Memory, World, Document, Sharing, and Evaluation. Each may have competing approaches and does not become Stable merely by being official.
 
-The baseline lives in [`../performance/BASELINE.md`](../performance/BASELINE.en.md) and [`../../perf/baseline.json`](../../perf/baseline.json). Future optimizations use it as the regression reference: measure before changing behavior.
+### Strengthen local-first, remote, and multi-Host use
 
-## Integration projects (separate repos)
+Local use remains first-class while users can extend capability to remote devices and services:
 
-These run on top of Yggdrasil and consume the platform through the public protocol. They don't live in this repo.
+- a managed local Host works without a cloud account;
+- remote Hosts use explicit HTTPS identity, pairing, grants, and resource selectors;
+- one client strictly isolates credentials, caches, and Project or target preferences between Hosts;
+- device revocation, ancestor revocation, offline state, reconnect, and expiration are understandable;
+- large artifact transfer is resumable, verifiable, and bounded;
+- multi-Host content and state migration do not depend on local absolute paths;
+- remote capability does not degrade into arbitrary shell or unlimited filesystem access.
 
-- **YdlTavern** — an independent integration project on Yggdrasil, compatible with SillyTavern's character cards, world books, presets, chat history, and extension API, with the engine layer running on Yggdrasil. Repo: <https://github.com/Youzini-afk/Yggdrasil-Tavern>. For Yggdrasil's side of the boundary, see [`../tavern/TAVERN_COMPAT.md`](../tavern/TAVERN_COMPAT.en.md).
+### Keep improving reliability, performance, and maintainability
 
-## Indefinitely deferred at the kernel level
+Quality systems serve product and platform construction:
 
-These don't belong in the kernel. They'll arrive as ordinary capability packages or future work:
+- tests cover authority boundaries, migration, recovery, cancellation, concurrency, and data integrity;
+- conformance constrains public contract behavior rather than deciding product direction;
+- performance baselines cover startup, interaction, streams, object transfer, mobile networks, and resource use;
+- failure injection covers process exit, Host restart, network loss, revocation, partial effects, and damaged artifacts;
+- documentation, schemas, SDKs, code, and CI remain aligned on implementation facts;
+- obsolete compatibility layers and temporary plans are removed instead of accumulating forever.
 
-- pi as a wholesale product shell embedding — see [`../architecture/PI_INTEGRATION.md`](../architecture/PI_INTEGRATION.en.md). Agent infrastructure can only move forward as ordinary packages and SDKs.
-- External game-engine bridges (UE5, Godot, Unity, web clients).
-- A privileged built-in Studio, a UI that bypasses the public protocol, or a kernel-owned official inspector. Public-protocol clients and package-contributed surfaces can keep evolving.
-- Conversation runtime, prompts, models / sampling, message / turn semantics, memory models, world simulation, directors in the kernel. These stay in ordinary packages.
-- Marketplace, package signing networks, dependency-resolver economy. The local sharing proof is done — see [`../guides/SHARING_DISTRIBUTION.md`](../guides/SHARING_DISTRIBUTION.en.md).
+The current implementation snapshot is in [`../ALPHA_STATUS.md`](../ALPHA_STATUS.en.md).
+
+## Things that are explicitly not the center of the platform
+
+These may continue to be built, but none defines Yggdrasil's only direction:
+
+- a Project workflow;
+- play-creation, Tavern, worlds, or chat;
+- agents or model inference;
+- Docker and deployment;
+- the official Web or Desktop shell;
+- one protocol profile;
+- one demonstration, fixture, or external project.
+
+They are products, protocols, Host capabilities, or use cases on the platform. Importance does not grant ownership of every other direction.
+
+## Areas not expanded proactively
+
+Without clear user value and layer ownership, do not proactively add:
+
+- deployment backends added for feature count;
+- kernel-owned chat, agent, memory, world, or Project UI semantics;
+- official Package private APIs, name privilege, or hidden routing;
+- arbitrary remote shells, unlimited Host filesystems, or long-lived root credentials;
+- Stable schemas without migration paths;
+- fashionable technology without capability benefit;
+- marketplace, billing, and ecosystem economics while core lifecycles remain incomplete.
+
+These are not permanent prohibitions. They may return when their value, boundary, and maintenance model are clear.
+
+## Selecting concrete work
+
+Before entering the active queue, a task should answer:
+
+1. Which user or creator gains which real capability?
+2. Does it make a lifecycle more complete, reliable, or understandable?
+3. Does it belong to substrate, protocol, component, Host, distribution, or a product?
+4. Does it preserve data ownership, public boundaries, and replacement space?
+5. Does its technology produce measurable security, performance, portability, or maintenance benefit?
+6. What are its error, cancellation, recovery, migration, and deletion paths?
+7. Would it freeze a current official choice into a requirement for the whole platform?
+
+Tests, fixtures, and conformance follow design to keep those goals from regressing; they do not replace the goals.
+
+## Documentation and status
+
+- Platform identity and principles: [`../CHARTER.md`](../CHARTER.en.md)
+- Long-term shape: [`../architecture/VISION.md`](../architecture/VISION.en.md)
+- Layered architecture: [`../architecture/ARCHITECTURE.md`](../architecture/ARCHITECTURE.en.md)
+- Official product responsibility: [`../product/PLATFORM_PRODUCT_MODEL.md`](../product/PLATFORM_PRODUCT_MODEL.en.md)
+- Current implementation snapshot: [`../ALPHA_STATUS.md`](../ALPHA_STATUS.en.md)
+
+This roadmap describes construction direction. It does not promise that every item proceeds simultaneously and does not present candidates as implemented facts.

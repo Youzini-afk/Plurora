@@ -2,11 +2,11 @@
 
 > [English](./MEMORY_PACKAGE_AUTHORING.en.md) · [中文](./MEMORY_PACKAGE_AUTHORING.md)
 
-This guide explains how to author, replace, and consume package-owned long-term memory and knowledge in Yggdrasil. Memory is an ordinary package capability, not a kernel service.
+This guide explains how to author, replace, and consume long-term memory and knowledge through ordinary Packages and Components under the current Contract V1. Shared Memory meaning may be defined by an optional Protocol, while concrete records and retrieval belong to Components and Products rather than the constitutional substrate.
 
 ## Core Principles
 
-1. Package-owned memory. Memory records, retrieval, updates, corrections, and redaction plans are owned by ordinary capability packages, not by `kernel.v1.memory.*`.
+1. Memory stays above the substrate. Adopted Protocols, Components, and Products manage records, retrieval, updates, corrections, and redaction plans; Contract V1 distributes implementations through ordinary Packages rather than `kernel.v1.memory.*`.
 2. No official priority. `official/memory-lab` is one implementation. Third-party packages like `thirdparty/memory-lab` are fully interchangeable.
 3. Mutations go through proposals. Memory updates, corrections, and forget/redaction produce proposal drafts or plans. They never directly mutate trusted state or delete records. Consumers must approve before application.
 4. The reference implementation is locally replayable. It does not require network, embedding APIs, or model inference. Third-party packages may add such capabilities through their own outbound/network permissions.

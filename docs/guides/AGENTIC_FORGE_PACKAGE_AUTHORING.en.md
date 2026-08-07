@@ -2,11 +2,11 @@
 
 > [English](./AGENTIC_FORGE_PACKAGE_AUTHORING.en.md) · [中文](./AGENTIC_FORGE_PACKAGE_AUTHORING.md)
 
-This guide describes the Agentic Forge contract: how to build, run, and replace agent packages in Yggdrasil. It requires no kernel privilege.
+This guide describes the current Contract V1 Agentic Forge Product Profile: how to build, run, and replace an agent runtime through ordinary Packages and Components. It requires no substrate or official-implementation privilege.
 
 ## What Agentic Forge Is
 
-Agentic Forge is a package-owned agent runtime contract. Agents are ordinary packages. They observe branches, maintain plan graphs, call scoped capability tools, explore scratch branches, and produce candidates. When a change should reach the target branch, they ask the user through an inspectable proposal. Agents do not enter the kernel ontology.
+Agentic Forge is an optional agent-runtime Profile. The current implementation is provided by ordinary Component Packages: it observes branches, maintains plan graphs, calls scoped capability tools, explores scratch branches, and produces candidates. When a change should reach the target branch, it asks the user through an inspectable proposal. Shared meaning belongs to the Profile and concrete run state to the Component or Product; Agent does not enter the constitutional substrate.
 
 ## What Agentic Forge Is Not
 

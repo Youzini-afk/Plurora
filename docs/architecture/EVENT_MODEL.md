@@ -2,9 +2,9 @@
 
 > [English](./EVENT_MODEL.en.md) · [中文](./EVENT_MODEL.md)
 
-事件日志是内核的真相来源。它按会话组织，只追加、持久化，并保持顺序。
+当前 Contract V1 事件日志保存需要长期排序、审计和因果关联的事实。它按 Session scope 组织，只追加、持久化，并保持顺序；大对象和可移植内容使用 ObjectStore / ArtifactDescriptor，而不是把所有数据复制进日志。
 
-内核不解释事件 payload。意义由能力包拥有。
+runtime 不解释事件 payload。共享含义由采用的 Protocol 定义，具体领域状态由 Component 或 Product 拥有；当前 V1 使用 Package writer namespace 表达事件 owner。
 
 ## 信封
 
@@ -101,9 +101,9 @@ kernel/v1/error
 
 这些是内核按名称识别的全部事件 kind。它们的 payload 描述内核操作，不描述内容。
 
-### 能力包发出的 kind
+### 非核心事件 kind
 
-其余都属于能力包。每个能力包在自己的清单中定义事件 kind，命名空间位于 package id 之下。示例仅用于说明，不属于内核：
+当前 Contract V1 由 Package writer 在自己的 Manifest 中声明非核心事件 kind，并使用 package id 命名空间。长期语义可以由 Protocol、Component 或 Product 拥有；Package 只是当前分发与 writer 身份边界。示例仅用于说明，不属于基底：
 
 ```text
 someorg/conversation/turn.started
@@ -113,13 +113,13 @@ someorg/world-sim/tick.completed
 someorg/memory-pack/proposal.created
 ```
 
-内核持久化并排序这些事件。但它不理解它们。
+runtime 持久化并排序这些不透明事件，但不解释其领域语义。
 
 ## 权限
 
 追加事件要求写入方清单中有 `events.append`。读取事件流要求 `events.read`，并且可以限定到特定会话。
 
-能力包不能在另一个能力包的命名空间下追加事件。跨能力包协调应通过能力调用或扩展点完成，不能在日志中冒充对方。
+一个 writer 不能在另一个 owner 的命名空间下追加事件。跨组件或跨协议协调应通过公开调用、协议或扩展点完成，不能在日志中冒充对方。
 
 ## 持久化规则
 

@@ -42,9 +42,9 @@ Dispositions:
 
 - Code contains 80 `KernelMethod` variants and 80 method schemas.
 - Code, schemas, and `EVENT_KIND_REGISTRY.md` all contain 59 kernel events, including `kernel/v1/deployment.health`.
-- There are 22 top-level schemas. Phase 2 added `contract-selection.schema.json`, Phase 4 added `artifact-descriptor.schema.json`, Phase 5 added EffectReceipt plus four Change primitive schemas, Phase 6 added `protocol-descriptor.schema.json`, Phase 7 added component, package-envelope, and composition-lock schemas, Phase 8 added World Bundle, World Head, and journal-range schemas, and Phase 9 added `protocol-response.schema.json` for additive transport diagnostics.
+- There are 22 top-level schemas covering contract selection, artifact descriptors, EffectReceipt, Change primitives, protocol descriptors, component/package envelopes/composition locks, World Bundle/World Head/journal ranges, and `protocol-response.schema.json` for additive transport diagnostics.
 - Known drift among `KernelMethod::status()`, Contract documentation, and actual dispatch is aligned and test-enforced.
-- The Experimental method contract registry, centralized alias resolution, explicit profile/version negotiation, and identity adapters are implemented. Phase 3 publishes 36 canonical/legacy dual-stack routes across the Host Control Plane, host bundle resolver, Shell contributions, Change/Proposal, and Projection.
+- The Experimental method contract registry, centralized alias resolution, explicit profile/version negotiation, and identity adapters are implemented. The Host Control Plane, host bundle resolver, Shell contributions, Change/Proposal, and Projection currently publish 36 canonical/legacy dual-stack routes.
 - The Experimental Protocol Commons registry publishes Change, Shell Default, and World Bundle descriptors, negotiates explicit protocol/profile selections before dispatch, and separates protocol, implementation, and package reports. The concrete World Bundle archive and all five portability vectors now back the `ygg.runtime.world-bundle` implementation claim.
 - The Web client now uses canonical IDs in production; generated SDKs derive canonical clients and explicit legacy wrappers from schema metadata, queue transport diagnostics, and reject duplicate wire IDs, function names, or operation IDs before generation.
 
@@ -314,4 +314,4 @@ Every migration implementation satisfies:
 6. Conformance is split into substrate, host, protocol-profile, shell-profile, and legacy-adapter suites.
 7. A legacy alias is removed only after migration tooling, support window, and replacement conformance all exist.
 
-The implementation route is defined in [`CONTRACT_V2_MIGRATION.md`](../roadmap/CONTRACT_V2_MIGRATION.en.md).
+Current runtime status is in [`../ALPHA_STATUS.md`](../ALPHA_STATUS.en.md). This document retains only long-term ownership classification and compatibility obligations; current priorities are in [`../roadmap/NEXT_STEPS.md`](../roadmap/NEXT_STEPS.en.md).

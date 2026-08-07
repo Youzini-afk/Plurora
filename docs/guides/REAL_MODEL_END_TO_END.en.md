@@ -299,6 +299,8 @@ Check that Play returned `session_id`, iframe `initialProps.sessionId` is non-em
 
 ## Deferred items
 
-- Concurrent active projects: current host scope flows through project sessions; stronger multi-tenant `project_id` in `ProtocolContext` is planned.
-- Real paths and managed host lifecycle in the Tauri shell: planned.
-- Production cross-origin surface-bundle allowlists and CSP hardening.
+- Concurrent active projects: current Host scope flows through project sessions; stronger multi-tenant `project_id` in `ProtocolContext` remains incomplete.
+- Production cross-origin surface-bundle allowlists, origin validation, and the corresponding CSP policy.
+- Concurrent generations within one chat, token-rate presentation, and Realtime/WebSocket interaction UX.
+
+Desktop already manages a loopback Host sidecar and reuses the same project, secret, surface, and outbound boundaries; it is no longer a missing part of this path.

@@ -2,9 +2,9 @@
 
 > [English](./EXTENSION_POINTS.en.md) · [中文](./EXTENSION_POINTS.md)
 
-An extension point is a named hook emitted by the kernel or a package during operation. Other packages may subscribe to it. The kernel routes the call; it does not assign meaning.
+An extension point is a named hook in the current Contract V1 runtime. The core runtime or a Package writer may declare it, and ordinary Components may subscribe. The runtime performs authorized routing without interpreting domain meaning.
 
-This document covers the small set of kernel-emitted points and the shared rules for all extension points.
+This document records the current compatibility contract. Long-term shared extension meaning belongs to an explicit Protocol owner; a Package distributes implementations and declarations rather than permanently owning all extension ontology.
 
 ## Hook contract
 
@@ -17,7 +17,7 @@ Every extension point has:
 - `short_circuit`: whether a subscriber may veto the operation.
 - `ordering`: how the dispatcher orders subscribers. Declared precedence is used first; ties use a stable order.
 
-The kernel publishes a schema for each kernel-emitted point. Packages publish schemas for the points they declare.
+The core owner publishes schemas for core extension points. A non-core Protocol or Component owner publishes its schema and distributes it through the current Package Manifest.
 
 ## Subscription
 
@@ -42,11 +42,11 @@ Synchronous handlers run within the operation's deadline. Asynchronous handlers 
 
 ## Implementation status
 
-The kernel-emitted point set is fixed by design. The current implementation covers the core paths for event append and capability invoke: stable ordering, package-owned handlers, payload metadata mutation, veto, and unload cleanup. Session and package lifecycle hooks are reserved in the contract. Today they are delivered through `kernel/v1/session.*` and `kernel/v1/package.*` events; later they will gain synchronous and asynchronous hook handling. New points should come from package contributions, not from growing the kernel.v1.
+The current `kernel/v1/*` extension-point set remains compatibility-stable. The implementation covers event append and capability invocation: stable ordering, Component handlers, payload metadata mutation, veto, and unload cleanup. Session and Package lifecycle hooks are reserved in the contract. Today they are delivered through `kernel/v1/session.*` and `kernel/v1/package.*` events; synchronous and asynchronous handling may be completed later. New shared extension meaning belongs in a Protocol namespace with an explicit owner; ordinary Component Packages may provide implementations without continuing to grow monolithic `kernel.v1`.
 
 ## Kernel-emitted points
 
-The kernel emits a small fixed set of points. New points come from package contributions.
+The current runtime emits only this small compatibility set. New non-core extension points are defined by explicit Protocol or Component owners and distributed through ordinary Packages.
 
 ### Session lifecycle
 

@@ -4,7 +4,7 @@
 
 External Project Operating Plane shows that Yggdrasil does not have to accept only projects that already implement the manifest and capability contract. Unadapted git, npm, local, or archive projects can first be understood, risk-scored, planned, displayed, and wrapped by the platform. Only stable adapters or wrappers enter the ordinary Ygg package and capability world.
 
-External evidence is saved under `/tmp/opencode/ygg-external-project-plane-20260520/`. This work used GitHub supply-chain security material, npm lifecycle script documentation, and agent/RCE sandbox references. The core conclusion is that install/run means executing untrusted code. Workflow and secret exfiltration are real risks. Unadapted projects must go through planning, policy, proposal, and audit boundaries first.
+The security boundary starts from one fact: install/run means executing untrusted code, and workflow or secret exfiltration are real risks. An unadapted project therefore enters planning, policy, proposal, and audit boundaries first; only user-approved operations constrained by typed executors may produce effects.
 
 ## Four object classes
 

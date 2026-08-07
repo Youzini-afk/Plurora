@@ -2,16 +2,16 @@
 
 > [English](./HOST_PROJECT_AUTHORITY.en.md) · [中文](./HOST_PROJECT_AUTHORITY.md)
 
-Status: **Candidate implementation**. Phase 1 implements the project/target authorization boundary defined here. Fields and behavior remain Candidate rather than Stable while cross-platform CI and the remaining cross-operation receipt closure continue to validate them.
+Status: **Candidate implementation**. The project/target authorization boundary defined here is connected to Host Access, RPC, project sessions, deployment, and controlled-development paths. Fields and behavior remain Candidate rather than Stable until cross-platform validation and cross-operation receipt closure are sufficient.
 
-Implementation snapshot (2026-07-25):
+Current implementation:
 
 - HTTP, Cookie, Bearer, and RPC retain the same logical `host_device` identity, grant, delegation chain, actions, and structured resource selectors at the Host Access layer. To preserve the frozen Contract V1 principal union, RPC contexts use a fail-closed `anonymous` sentinel plus a Host-established authority envelope, so an older runtime that ignores the envelope can only deny;
 - project/session/event/proposal/surface/target/exec/port/proxy paths enforce exact resources or server-side filtering, and legacy adapters reuse canonical policy;
 - the pairing journal supports attenuated delegation, expiry, ancestor-revocation cascade, explicit wildcard hydration for legacy global grants, and bounded atomic administrator bulk revoke; Web/PWA and the `yg host access` CLI use the same API;
 - device calls append redacted `host/control/v1/authority.decision` allow/deny records without credentials or request payloads;
 - global package/capability/asset/projection objects and surface contributions do not yet carry project ownership, so exact-project devices operate through verified project/session paths and may resolve their project bundle but cannot enumerate Host-global catalogues. An opaque-origin frame receives only a five-minute, read-only asset lease bound to its grant and bundle root; raw static paths still require a Host identity;
-- Phase 2 deployment jobs and activations persist a redacted authority lease, rehydrate current grant state, reject expiry/revocation before each new effect, and persist revision/direct-route ownership. Full cross-operation effect-receipt linkage remains part of the first-class deployment operation migration.
+- deployment jobs and activations persist a redacted authority lease, rehydrate current grant state, reject expiry/revocation before each new effect, and persist revision/direct-route ownership. Full cross-operation effect-receipt linkage remains a Candidate boundary.
 - development execute/recover keeps the authenticated identity in memory without credentials, refreshes the grant journal before Docker and managed-workspace effects, and rechecks after blocking verification. Revocation cannot cancel an already in-flight effect, but it prevents cleanup/promotion or any later user effect; explicit recovery by a currently authorized identity reconciles the durable state.
 
 ## Goal
@@ -81,7 +81,7 @@ When runtime code needs project scope, it receives this verified resource contex
 
 ## Grant model
 
-Host grants retain the current opaque bearer credential whose digest alone is stored. Phase one does not require a self-contained token. Authority semantics stabilize before selecting a Biscuit-like encoding.
+Host grants retain the current opaque bearer credential whose digest alone is stored. The current contract does not require a self-contained token. Authority semantics stabilize before selecting a Biscuit-like encoding.
 
 Candidate shape:
 

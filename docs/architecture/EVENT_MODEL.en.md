@@ -2,9 +2,9 @@
 
 > [English](./EVENT_MODEL.en.md) · [中文](./EVENT_MODEL.md)
 
-The event log is the kernel's source of truth. It is organized by session, append-only, durable, and ordered.
+The current Contract V1 event log preserves facts that need durable order, audit, and causal relationships. It is organized by Session scope, append-only, durable, and ordered; large objects and portable content use ObjectStore and ArtifactDescriptor instead of copying every byte into the journal.
 
-The kernel does not interpret event payloads. Meaning is owned by capability packages.
+The runtime does not interpret event payloads. Adopted Protocols define shared meaning, while Components or Products own concrete domain state; Contract V1 uses the Package-writer namespace to identify event ownership.
 
 ## Envelope
 
@@ -101,9 +101,9 @@ kernel/v1/error
 
 These are the only event kinds the kernel knows about by name. Their payloads describe kernel operations, not content.
 
-### Package-emitted kinds
+### Non-core event kinds
 
-Everything else belongs to packages. Each package defines its own event kinds in its manifest, namespaced under its package id. These examples are illustrative and not part of the kernel:
+Under Contract V1, a Package writer declares non-core event kinds in its Manifest and uses its Package ID namespace. Long-term meaning may be owned by a Protocol, Component, or Product; Package is the current distribution and writer-identity boundary. These examples are illustrative and not part of the substrate:
 
 ```text
 someorg/conversation/turn.started
@@ -113,13 +113,13 @@ someorg/world-sim/tick.completed
 someorg/memory-pack/proposal.created
 ```
 
-The kernel persists these and orders them. It does not understand them.
+The runtime persists and orders these opaque events without interpreting their domain meaning.
 
 ## Permissions
 
 Appending an event requires `events.append` in the writer's manifest. Reading an event stream requires `events.read`, and may be scoped to specific sessions.
 
-A package cannot append events under another package's namespace. Cross-package coordination should use capability invocations or extension points, not impersonation in the log.
+A writer cannot append events under another owner's namespace. Cross-component or cross-protocol coordination uses public invocation, protocols, or extension points rather than impersonation in the log.
 
 ## Persistence rules
 

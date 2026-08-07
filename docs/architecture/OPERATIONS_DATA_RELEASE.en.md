@@ -2,9 +2,9 @@
 
 > [English](./OPERATIONS_DATA_RELEASE.en.md) · [中文](./OPERATIONS_DATA_RELEASE.md)
 
-Status: **Phase 3 baseline implemented; remaining hardening stays governed by this contract**. This document defines the data, health, diagnostics, upgrade, and release baseline required before a Host carries real projects and remote targets.
+Status: **The operational-safety baseline is implemented; remaining hardening stays governed by this contract**. This document defines the data, health, diagnostics, upgrade, and release baseline required while a Host carries real projects and remote targets.
 
-## Current implementation status (2026-07-23)
+## Current implementation status
 
 Implemented:
 

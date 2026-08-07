@@ -2,11 +2,11 @@
 
 > [English](./AGENTIC_FORGE_PACKAGE_AUTHORING.en.md) · [中文](./AGENTIC_FORGE_PACKAGE_AUTHORING.md)
 
-本指南描述 Agentic Forge 契约：如何在 Yggdrasil 中构建、运行和替换 agent 包。它不需要内核特权。
+本指南描述当前 Contract V1 的 Agentic Forge Product Profile：如何用普通 Package / Component 构建、运行和替换 agent runtime。它不需要基底或官方实现特权。
 
 ## Agentic Forge 是什么
 
-Agentic Forge 是包拥有的 agent runtime 契约。Agent 是普通包。它们观察分支、维护计划图、调用有范围的能力工具，在 scratch 分支探索，并产出候选结果。需要进入目标分支时，它们通过可审查的提案请求用户提升。Agent 不进入内核 ontology。
+Agentic Forge 是一套可选 agent runtime Profile。当前实现由普通 Component Package 提供：观察分支、维护计划图、调用有范围的能力工具，在 scratch 分支探索并产出候选结果。需要进入目标分支时，它通过可审查的 proposal 请求用户提升。共享语义属于该 Profile，具体 run state 由 Component / Product 拥有；Agent 不进入宪法基底。
 
 ## Agentic Forge 不是什么
 

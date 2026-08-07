@@ -1,122 +1,83 @@
-# Play-creation model
+# Play-Creation Product Profile
 
 > [English](./PLAY_CREATION_MODEL.en.md) · [中文](./PLAY_CREATION_MODEL.md)
 
-This document fixes Yggdrasil's product stance. Yggdrasil is not a chat tool, not a game engine, not a Tavern compatibility layer, and not a developer workbench. It's a play-creation platform, meant to make AI-native experiences possible that didn't exist before — and to let the people playing them inspect, modify, and fork them.
+Play-creation is one opinionated product form that Yggdrasil can support: a person can experience a work and also inspect, modify, fork, compose, and continue creating it.
 
-This stance is what the kernel, the public protocol, the official packages, the web shell, and the SDKs all serve. When a future feature seems to clash with the stance, the stance wins.
+This document defines the product language and surface collaboration of the current official play-creation profile. It is not the only product stance of the whole Yggdrasil platform, and it does not require other applications, services, tools, or distributions to adopt Project, Play, Forge, or Assist.
 
-## The play-creation premise
+The general product model is in [`PLATFORM_PRODUCT_MODEL.md`](PLATFORM_PRODUCT_MODEL.en.md).
 
-Most AI-native creation tools today split people in two: players who consume a finished experience, and developers who build it. Yggdrasil refuses that split.
+## Premise
 
-A player on Yggdrasil can:
+Many creation tools divide people rigidly into consumers of finished work and developers of tools. The play-creation profile makes those behaviors a continuum:
 
-- start a session;
-- inspect what's happening;
-- ask an assistant to change something;
-- fork the session to try another path;
-- swap one capability package for another;
-- save their version and share it.
+- users can launch work, observe state, save, fork, replace components, and request changes;
+- creators debug, compose, extend, and publish through the same public contracts;
+- AI assistance and direct editing use explicit identity, authority, change, and approval boundaries;
+- deeper creation does not require switching to a developer edition with private platform authority.
 
-A creator on Yggdrasil can:
+## Surfaces in the current profile
 
-- write a package that loads on any host;
-- declare entries, capabilities, hooks, and surfaces;
-- debug live with the same protocol the player uses;
-- watch the play-creation loop run on top of their package — no separate "developer mode."
-
-The substrate is the same in both directions. There is no "player edition" and "developer edition" of Yggdrasil. There's one host speaking the public protocol, and the rest is a choice of packages.
-
-## Three first-class surfaces
-
-The platform organizes itself around three surfaces. The kernel knows their slot names; the kernel does not know what they mean.
+These slots belong to the current Shell Profile and Contract V1 compatibility surface, not to the constitutional substrate. Future shells may adopt different slots and interaction structures.
 
 ### Home / Play
 
-A console-style launcher and play surface. It discovers playable content from `experience_entry` descriptors that packages declare, and renders package-declared `play_renderer` surfaces in the session. Home / Play is where most people spend most of their time.
+Home discovers and launches works or projects managed by the current distribution. Play hosts the work's primary surface. The platform owns navigation, authority, and Host connection; the work owns its visual and domain semantics.
 
-Home isn't a store, and it isn't a router. It's a surface that asks the public protocol "what's launchable here right now?" and trusts packages to answer.
+### Forge / Workbench
 
-### Forge
-
-The agentic creation workspace. It honestly exposes the substrate: events, capabilities, assets, projections, branches, proposals, surfaces, packages, hooks, permissions. It hosts package-declared `forge_panel` surfaces, so packages can put their own creation or inspection panels next to the generic inspectors.
-
-Forge is where a play-creator becomes a creator-creator without leaving the platform. Visual editors, node editors, prompt editors, lorebooks, world maps — those tools live in Forge as Forge editor modes contributed by packages, not as kernel features.
+Forge is a workspace for deeper creation and inspection. Events, components, objects, branches, changes, authority, and diagnostics may be observed there. Domain editors come from components or surfaces rather than kernel hard-coding.
 
 ### Assist
 
-A cross-mode assistant drawer. In Play, it offers small live tweaks and proposals. In Forge, it does deeper work — proposing operations, drafting packages, explaining diffs, suggesting changes. In both modes, every change goes through `kernel.v1.proposal.*` and is approved before it lands.
+Assist is contextual assistance. It may explain state, suggest work, draft controlled changes, or call already-authorized capabilities, but it is not a privileged mutation path. Third-party assistants, direct human tools, or automation components may replace it.
 
-Assist is a thin client of the proposal lifecycle. It is not a privileged path for changes. A third-party assistant package can replace `official/assistant-lab` and run the same way.
+## Typical play-creation loop
 
-## The creator flow
+```text
+discover a work
+→ launch and use it
+→ inspect state and history
+→ request a change or fork
+→ human or AI tooling produces a candidate
+→ review and authorize
+→ apply to a new branch or the current work
+→ compare, retain, share, or continue creating
+```
 
-The play-creation loop runs on the existing substrate. End to end:
+A product may omit, extend, or reorder these steps. The platform supplies generic identity, authority, objects, history, invocation, and Host capability; adopted protocols and components own the work's semantics.
 
-1. Home discovers `experience_entry` surfaces over the public protocol.
-2. A player launches an experience.
-3. The kernel opens a session bound to the package set that experience needs.
-4. The package writes its own events and drives its own `play_renderer`.
-5. The player asks Assist to change something.
-6. Assist (also a package) calls `kernel.v1.proposal.create` with generic operations.
-7. The player reviews the proposal and approves it.
-8. The kernel applies the approved operations and writes `kernel/v1/proposal.applied`.
-9. The player can fork the session at a sequence number to try another path.
-10. The player can open Forge to inspect events, assets, projections, branches.
-11. The player can edit a package or composition through a Forge editor.
-12. The loop continues.
+## Default opinions of the profile
 
-The kernel never invents domain semantics for any of these steps. Semantics belong to packages. The loop works because packages can declare their own surfaces, propose their own operations, and own their own events — while the kernel mediates generically.
+The play-creation profile favors:
 
-## What the platform provides — and doesn't
+- inspectable history and traceable important changes;
+- a branch or recoverable point before modification;
+- replaceable components without loss of the work;
+- third-party surfaces and creation tools;
+- AI output as candidate work rather than unlimited authority;
+- sharing that includes content, dependencies, compatibility, and migration information rather than only a screenshot or live link.
 
-The platform provides:
+These opinions constrain products that choose the profile, not other Yggdrasil products.
 
-- a content-free kernel;
-- a manifest model for packages;
-- a permission and principal model for humans, assistants, packages, and hosts;
-- one public protocol everyone uses;
-- generic surface contributions for Home / Play, Forge, asset editors, and assistant actions;
-- a generic proposal / approval lifecycle for any change;
-- a generic asset, branch, and projection substrate;
-- official foundation packages that demonstrate, not privilege.
+## Coexistence with other product forms
 
-The platform does not provide:
+A document tool, ordinary Web service, IDE, automation system, multiplayer world, or headless agent runtime may ignore the play-creation profile completely. It can still share Yggdrasil identity, authority, objects, invocation, components, Hosts, and protocol evolution.
 
-- a chat experience, or any other genre;
-- a model-provider abstraction;
-- a memory model, retrieval strategy, or director;
-- a SillyTavern compatibility layer;
-- an external game-engine bridge;
-- a favored visual editor or asset editor;
-- a marketplace.
+Likewise, YdlTavern, world simulations, external game engines, and other experiences may adopt all, part, or none of this profile. Official implementations receive no implicit priority.
 
-Each of these is welcome as a package. None is welcome as the kernel.v1.
+## Construction boundary
 
-## Stance on Tavern, agents, and external engines
+Play-creation needs may reveal missing generic platform capability, but they do not directly move these concepts into the constitutional substrate:
 
-SillyTavern resources, agent loops, and external-engine bridges are all valuable — but they belong to package families, not the platform family.
+- player, character, message, turn, world, scene, or game-rule semantics;
+- Home, Play, Forge, Assist, or a concrete editor;
+- one fixed proposal, branch, or publishing workflow;
+- official component IDs, default models, or UI state.
 
-When they arrive, they will be ordinary packages, bound by the same manifests, the same fabric, the same permissions, and the same sandbox rules as any third-party package. They will not get kernel privilege. The play-creation loop runs on top of them the same way it runs on top of a tiny fixture experience: discover, launch, propose, approve, apply, fork.
+A mechanism moves downward only after it is generalized, assigned to the correct layer, and independently useful to other product forms.
 
-If one day a Tavern-shaped runtime ships as an official package, a third-party world simulator package must be able to coexist with it in the same session. If it can't, the bug is in the kernel, not the third-party package.
+## Current implementation
 
-## Stance on radical creation
-
-The goal isn't to ship a better Tavern. The goal is to let experiences exist that the platform's authors didn't foresee — and to let the players who try those experiences fork, inspect, modify, and share what they find.
-
-The substrate already biases toward this. Events are append-only and the kernel owns ordering. Branches are first-class. Proposals are auditable. Surfaces are descriptors, not hardcoded UI. Packages are equal regardless of origin or entry form.
-
-When a feature decision makes radical creation harder — by privileging an official path, by hiding state from inspection, by forcing a single shape — the charter wins, and the feature gives way.
-
-## Stance on "release"
-
-There is no "1.0 chat experience" target. The platform's release shape is:
-
-- **Foundation Alpha** — the substrate is content-free and trustworthy (reached).
-- **Playable Experience Alpha** — at least one experience runs end to end on the substrate, replaceable, forkable, assistant-aided.
-- **Authoring Beta** — third parties can ship packages on equal footing with official ones.
-- **Substrate v1** — the substrate stops moving fast and commits to public protocol stability.
-
-Anything past Substrate v1 is product scope. The platform never owns it.
+The current official distribution, packages, and templates provide part of a play-creation experience. They are product capability rather than the only measure of platform completeness. Current status is recorded in [`../ALPHA_STATUS.md`](../ALPHA_STATUS.en.md).

@@ -2,9 +2,9 @@
 
 > [English](./DURABLE_DEPLOYMENT_CONTROLLER.en.md) · [中文](./DURABLE_DEPLOYMENT_CONTROLLER.md)
 
-状态：**Candidate 实现**。Phase 2 已在现有 Host facade 背后建立本地持久部署与恢复基线，Phase 4/5 又把同一 durable operation/receipt、target truth 和 artifact replay 语义扩展到 `local` 与 enrolled Agent，并接通 Verified Artifact 部署。下面的抽象记录仍是控制器语义模型；独立的 canonical `host.deployment.*` API 与自动自愈 restart 尚未启用，不能把候选名称当作已暴露合同。
+状态：**Candidate 实现**。现有 Host facade 已承载持久 deployment operation/receipt、`local` 与 enrolled Agent 的 target truth、artifact replay 和 Verified Artifact 部署。下面的抽象记录是控制器语义模型；独立的 canonical `host.deployment.*` API 与自动自愈 restart 尚未启用，不能把候选名称当作已暴露合同。
 
-当前实现快照（2026-07-24）：
+当前实现：
 
 - 单一连续 deployment journal 使用 sequence CAS，revision 激活同时按预期 parent revision fencing；
 - 构建输出在部署前解析为内容寻址的 Docker image ID；
@@ -117,7 +117,7 @@ stateDiagram-v2
   Reconciling --> NeedsAttention: truth unavailable
 ```
 
-每个 phase 只能在对应 terminal effect receipt 被持久化后前进。外部 effect 请求携带 operation id、step id、generation 和 lease epoch；重复请求返回相同结果或当前状态。
+每个 operation step 只能在对应 terminal effect receipt 被持久化后前进。外部 effect 请求携带 operation id、step id、generation 和 lease epoch；重复请求返回相同结果或当前状态。
 
 ## 安全激活
 
@@ -218,16 +218,11 @@ RestartPolicy
 
 现有 build-deploy/recover/rollback 与 verified ChangeSet 路由作为 facade 映射到该模型；`kernel.v1.port/proxy/exec` 保持 adapter，不承担长期 orchestration。
 
-## 实施记录与剩余边界
+## 当前边界
 
-1. 引入 intent、operation、lease 和 receipt 投影，旧部署流程双写但行为不变。
-2. 将 build 与 deploy record 分离，并让 recover/rollback 通过 operation 执行。
-3. 为 local target 实现真实 observation 和幂等 step ledger。
-4. 实现 candidate-first 和原子 route activation。
-5. 启动时 reconcile；完成故障注入后再启用有界 restart policy。
-6. 迁移客户端并停止创建旧形状的新部署记录。
+当前 Candidate 已通过现有 facade 提供 durable journal/lease/receipt、local/Agent truth、candidate-first 激活、启动 reconcile、显式 recover/rollback 和客户端接线。它不宣称上面的候选 `host.deployment.*` 名称已成为公开 API。
 
-当前 Candidate 已通过现有 facade 完成 durable journal/lease/receipt、local/Agent truth、candidate-first 激活、启动 reconcile、显式 recover/rollback 和客户端接线。它不宣称上面的候选 `host.deployment.*` 名称已成为公开 API，也不包含健康线程驱动的自动 restart；后者仍必须作为单独阶段实现 bounded retry/backoff 与 `CrashLoopBackoff`。
+健康监督目前只更新 readiness、保留诊断并触发显式 reconcile；它不会自动重新部署。自动 restart 只有在部署意图、retry budget、backoff、fencing、审计和 `CrashLoopBackoff` 状态都形成可恢复合同时才可启用。
 
 ## 完成门槛
 

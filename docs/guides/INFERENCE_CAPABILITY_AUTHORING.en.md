@@ -126,7 +126,7 @@ Manifest validation checks:
 ## Further reading
 
 - `docs/guides/MODEL_PROVIDER_INTEGRATION.md` — cloud API integration guide
-- `docs/roadmap/NEXT_STEPS.en.md` — completed phases and next direction
+- `docs/roadmap/NEXT_STEPS.en.md` — current priorities, acceptance gates, and explicit deferrals
 - `docs/guides/AGENT_PACKAGE_AUTHORING.md` — agent-like package authoring guide
 - `docs/architecture/CAPABILITY_PACKAGE.md` — capability package contract
 - `sdk/typescript/secure-execution/index.ts` — secure execution helpers

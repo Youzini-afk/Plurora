@@ -2,31 +2,37 @@
 
 > [English](./README.en.md) · [中文](./README.md)
 
-The kernel + packages + projects three-tier architecture, capability package contract, extension points, event model, and lifecycles.
+These documents cover Yggdrasil's long-term layering, the compatibility boundary of Contract V1, and concrete Host control-plane designs. The long-term architecture distinguishes constitutional substrate, Protocol Commons, components/content, Host, distributions, and products rather than reducing every concept to a kernel-or-Package binary.
 
-## Platform stance
+## Platform shape and substrate
 
-- [`VISION.md`](VISION.en.md) — what the platform is for
-- [`ARCHITECTURE.md`](ARCHITECTURE.en.md) — kernel + packages + projects layering
-- [`PLATFORM_KERNEL.md`](PLATFORM_KERNEL.en.md) — what the kernel does and does not do
-- [`CONSTITUTION_V2.md`](CONSTITUTION_V2.en.md) — candidate v2 constitution: long-term layers, invariants, and anti-rigidity constraints; it does not yet replace the current contract
+- [`VISION.md`](VISION.en.md) — intended long-term shape, openness, and technical direction
+- [`ARCHITECTURE.md`](ARCHITECTURE.en.md) — layers, one-way dependencies, orthogonal Host relationship, and current implementation placement
+- [`PLATFORM_KERNEL.md`](PLATFORM_KERNEL.en.md) — mechanisms owned by the constitutional substrate and compatibility responsibilities of the current v1 kernel
+- [`CONSTITUTION_V2.md`](CONSTITUTION_V2.en.md) — candidate long-term constitution, invariants, and evolution constraints; it does not yet replace Contract V1
 
-## Capability package contract
+## Packages, Components, Protocols, and runtime
 
-- [`CAPABILITY_PACKAGE.md`](CAPABILITY_PACKAGE.en.md) — package contract
-- [`EXTENSION_POINTS.md`](EXTENSION_POINTS.en.md) — hook contract
-- [`EVENT_MODEL.md`](EVENT_MODEL.en.md) — opaque event log model
-- [`RUNTIME_LIFECYCLE.md`](RUNTIME_LIFECYCLE.en.md) — kernel-side lifecycles
-
-## Upstream integration boundaries
-
-- [`PI_INTEGRATION.md`](PI_INTEGRATION.en.md) — absorption boundary for the pi agent framework
+- [`CAPABILITY_PACKAGE.md`](CAPABILITY_PACKAGE.en.md) — Package Envelopes, Components, Protocols, Content, and execution trust
+- [`EXTENSION_POINTS.md`](EXTENSION_POINTS.en.md) — current extension-point and hook contracts and their long-term protocol ownership
+- [`EVENT_MODEL.md`](EVENT_MODEL.en.md) — journals, events, and opaque payloads
+- [`RUNTIME_LIFECYCLE.md`](RUNTIME_LIFECYCLE.en.md) — current runtime and Component lifecycles
 
 ## Host control planes
 
-- [`HOST_DEVELOPMENT_CONTROL_PLANE.md`](HOST_DEVELOPMENT_CONTROL_PLANE.en.md) — controlled source changes, verification, promotion, and recovery
-- [`HOST_REMOTE_ACCESS.md`](HOST_REMOTE_ACCESS.en.md) — root/device identities, scopes, HTTPS pairing, and explicit application-route exposure
-- [`HOST_PROJECT_AUTHORITY.md`](HOST_PROJECT_AUTHORITY.en.md) — project-scoped resources, authenticated context, session binding, and authorization audit
+- [`HOST_DEVELOPMENT_CONTROL_PLANE.md`](HOST_DEVELOPMENT_CONTROL_PLANE.en.md) — controlled source change, verification, promotion, and recovery
+- [`HOST_REMOTE_ACCESS.md`](HOST_REMOTE_ACCESS.en.md) — root/device identity, scope, HTTPS pairing, and application-route exposure
+- [`HOST_PROJECT_AUTHORITY.md`](HOST_PROJECT_AUTHORITY.en.md) — current Project resource authority, authenticated context, session binding, and audit
 - [`DURABLE_DEPLOYMENT_CONTROLLER.md`](DURABLE_DEPLOYMENT_CONTROLLER.en.md) — desired/observed state, idempotent operations, safe activation, and recovery
 - [`TARGET_AGENT_PROTOCOL.md`](TARGET_AGENT_PROTOCOL.en.md) — remote target identity, typed operations, artifact/secret, and tunnel boundaries
-- [`OPERATIONS_DATA_RELEASE.md`](OPERATIONS_DATA_RELEASE.en.md) — migration, backup, health, diagnostics, upgrade, and supply-chain gates
+- [`OPERATIONS_DATA_RELEASE.md`](OPERATIONS_DATA_RELEASE.en.md) — migration, backup, health, diagnostics, upgrades, and supply chain
+
+These Host designs manage real resources without entering the constitutional substrate or owning upper-layer product content semantics.
+
+## External ecosystem boundaries
+
+- [`PI_INTEGRATION.md`](PI_INTEGRATION.en.md) — Component and Protocol absorption boundary for the pi agent framework
+
+## Ownership of the current contract
+
+Contract V1 remains the current public contract. To classify a method, object, or event as substrate, Host, Protocol, or Shell Profile, read [`../spec/CONTRACT_LAYERING_MATRIX.md`](../spec/CONTRACT_LAYERING_MATRIX.en.md) and [`../spec/CONTRACT_REGISTRY.md`](../spec/CONTRACT_REGISTRY.en.md).

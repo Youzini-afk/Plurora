@@ -2,20 +2,24 @@
 
 > [English](./PROJECT_MODEL.en.md) · [中文](./PROJECT_MODEL.md)
 
-Yggdrasil is a platform. Many projects run on that platform. Each project is like a game on a Steam shelf: an independent entry point, independent state, and something the user can run alone or alongside other projects.
+Project is the model used by the current official Host and distribution to organize installable, runnable instances. Each Project has a stable ID, entry point, state, data, secret policy, and lifecycle, and may run independently beside other Projects.
 
-## Three-tier architecture
+Project is important, but it is not the permanent root object required by every Yggdrasil product. World, Document, Service, Workspace, Collection, and other protocol objects may retain their own identity; an adapter or product mapping can associate them with a Project when the official Home needs to manage them.
+
+## Layer and boundary
 
 ```text
-Kernel (content-free, stable)
-  ↓ provides protocol / scheduling / package registration / capability dispatch / event stream / permissions
-Capability packages (reusable, shared across projects)
-  ↓ provide capabilities (model-provider-lab / persona-lab / ...)
-Projects (use capability packages)
-  YdlTavern / future coding agent / future image-gen / ...
+Constitutional Substrate
+  identity, authority, objects, journal, invocation, streams, effects
+             ↓
+Protocols / Components / Content
+  a Project may compose them without owning all of their meaning
+             ↓
+Host Control Plane / Official Distribution
+  ProjectDescriptor, ProjectRegistry, data directories, lifecycle, Home mapping
 ```
 
-The kernel does not know projects exist. A project is a host/runtime concept, not kernel ontology.
+Project belongs to the Host and distribution rather than the constitutional substrate. Contract V1 continues to expose Project lifecycle through public methods; third-party clients may use those methods or build a completely different distribution.
 
 ## Steam analogy
 

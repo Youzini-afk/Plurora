@@ -2,9 +2,9 @@
 
 > [English](./KERNEL_V1_CONTRACT.en.md) · [中文](./KERNEL_V1_CONTRACT.md)
 
-本文档是 Yggdrasil 平台契约的 v1 版本规范。它定义内核的公开边界：方法、事件、错误码、能力句柄、清单声明、schema 与 conformance 期望。任何参与方都可以通过此契约调用内核；任何实现都必须用代码、schema 与 conformance 证明自己遵守它。
+本文档是 Yggdrasil 当前平台契约的 v1 版本规范。它定义现行公开边界：方法、事件、错误码、能力句柄、清单声明、schema 与 conformance 期望。任何参与方都可以通过此契约调用平台；任何实现都必须满足相同的 schema 与行为 conformance。`kernel.v1.*` 是兼容名称，不自动等同于长期宪法基底。
 
-v1 的设计目标不是把某种内容形态写进内核，而是让能力包、安全执行、审计、SDK 与第三方客户端拥有稳定边界。角色、世界、提示词、模型、消息、记忆等内容语义仍属于能力包。
+v1 的设计目标不是把某种内容形态写进核心机制，而是让组件、安全执行、审计、SDK 与第三方客户端拥有稳定边界。角色、世界、提示词、模型、消息、记忆等内容语义属于相应协议、组件或产品，不属于宪法基底。
 
 ## 状态语言
 
@@ -289,7 +289,7 @@ v1 仅允许 additive 变更：新增可选字段、新增方法、新增事件�
 
 ## 内容无关不变量
 
-内核 crate 不得定义或要求内容形态概念，如 `Turn`、`Message`、`PromptFrame`、`ModelCall`、`Agent`、`World`、`Scene`、`Director` 或 `Memory`。任何此类概念都属于能力包或客户端。
+当前 kernel crate 不得定义或要求内容形态概念，如 `Turn`、`Message`、`PromptFrame`、`ModelCall`、`Agent`、`World`、`Scene`、`Director` 或 `Memory`。此类概念由相应 Protocol、Component、Product 或 Client 拥有，不属于宪法基底；Contract V1 可以通过 Package writer 的事件、projection 和 capability 承载它们。
 
 ## 对象契约
 
@@ -297,7 +297,7 @@ v1 仅允许 additive 变更：新增可选字段、新增方法、新增事件�
 
 `KernelSession` 是内容无关的执行上下文。它可以持有身份、标签、活跃包集、principal 范围、状态、时间戳和 metadata。它不得持有消息、回合、提示词、角色、世界、记忆或模型调用。
 
-Session id 只表示内核排序与权限范围，不表示某种产品体验。能力包可以在自己的事件 payload 或 projection 中表达内容状态，但内核只按不透明 JSON 处理。
+Session id 只表示当前 runtime 的排序与权限范围，不表示某种产品体验。Protocol 或 Component 可以通过当前 Package writer 的事件 payload、object 或 projection 表达领域状态，但 runtime 只按不透明数据和公开 descriptor 处理。
 
 ### `EventEnvelope`
 

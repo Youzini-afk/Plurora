@@ -2,9 +2,8 @@
 
 > [English](./README.en.md) · [中文](./README.md)
 
-当前阶段、下一步和延后工作的前置条件。已完成阶段的实时快照见 [`../ALPHA_STATUS.md`](../ALPHA_STATUS.md)。
+路线图目录只保留当前仍会影响取舍的工作。已经完成的实施分期属于 Git 历史；稳定语义应进入 architecture、spec 或 guide，当前实现事实进入 [`../ALPHA_STATUS.md`](../ALPHA_STATUS.md)。
 
-- [`NEXT_STEPS.md`](NEXT_STEPS.md) — 当前与下一阶段的工作清单
-- [`HOST_OPERATIONS_IMPLEMENTATION.md`](HOST_OPERATIONS_IMPLEMENTATION.md) — 项目级权威、可靠部署、remote target 与统一客户端的依赖顺序和 Phase 门槛
-- [`CONTRACT_V2_MIGRATION.md`](CONTRACT_V2_MIGRATION.md) — 从 v1 单体合同迁移到分层合同的临时执行计划、兼容门与验收标准
-- [`MODEL_INFERENCE_PREREQUISITES.md`](MODEL_INFERENCE_PREREQUISITES.md) — 真实模型推理上线前必须就绪的安全/审计/契约前置条件
+- [`NEXT_STEPS.md`](NEXT_STEPS.md) — 围绕开放、多样、先进、长久和好用的当前建设方向、取舍与明确不主动扩张项。
+
+新增路线图文档前，应先判断它是否只是一次性实施计划。临时计划完成后必须删除，并把仍然有效的结论收敛到长期文档。

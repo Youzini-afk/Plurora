@@ -2,9 +2,9 @@
 
 > [English](./EXTENSION_POINTS.en.md) · [中文](./EXTENSION_POINTS.md)
 
-扩展点是内核或能力包在运行时发出的具名钩子。其他能力包可以订阅。内核负责路由调用，不负责解释含义。
+扩展点是当前 Contract V1 runtime 中的具名钩子。核心 runtime 或 Package writer 可以声明它们，普通 Component 可以订阅；runtime 负责受权路由，不解释领域含义。
 
-本文档涵盖少量由内核发出的扩展点，以及所有扩展点共同遵守的规则。
+本文档记录当前兼容合同。长期共享扩展语义应由明确的 Protocol owner 定义，Package 负责分发实现和声明，而不是永久拥有所有扩展本体。
 
 ## 钩子契约
 
@@ -17,7 +17,7 @@
 - `short_circuit`：订阅方是否可以否决该操作。
 - `ordering`：分发器如何排列订阅方。先按声明的 precedence 排序；相同时使用稳定顺序。
 
-内核为自己发出的每个扩展点发布 schema。能力包为自己声明的扩展点发布 schema。
+核心 owner 为核心扩展点发布 schema；非核心扩展点由其 Protocol / Component owner 发布 schema，并通过当前 Package Manifest 分发。
 
 ## 订阅
 
@@ -42,11 +42,11 @@ contributes:
 
 ## 实现状态
 
-内核发出的扩展点集合在设计上是固定的。当前实现已覆盖事件追加和能力调用的核心路径：稳定排序、包内处理器、payload 元数据修改、否决和卸载清理。会话和包生命周期钩子已在契约中预留。今天它们通过 `kernel/v1/session.*` 和 `kernel/v1/package.*` 事件传递，后续会补齐同步/异步钩子处理。新的扩展点应由能力包贡献，而不是扩展内核。
+当前 `kernel/v1/*` 扩展点集合保持兼容稳定。实现已覆盖事件追加和能力调用的核心路径：稳定排序、Component handler、payload 元数据修改、否决和卸载清理。Session 和 Package 生命周期钩子已在契约中预留。今天它们通过 `kernel/v1/session.*` 和 `kernel/v1/package.*` 事件传递，后续可补齐同步/异步处理。新的共享扩展语义应进入有明确 owner 的 Protocol namespace；实现可以由普通 Component Package 贡献，而不是继续扩大单体 `kernel.v1`。
 
 ## 内核发出的扩展点
 
-内核只发出少量固定扩展点。新的扩展点由能力包贡献。
+当前 runtime 只发出少量固定兼容扩展点。新的非核心扩展点由明确 Protocol / Component owner 定义并通过普通 Package 分发。
 
 ### 会话生命周期
 

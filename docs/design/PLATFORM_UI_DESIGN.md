@@ -2,8 +2,9 @@
 
 > [English](./PLATFORM_UI_DESIGN.en.md) · [中文](./PLATFORM_UI_DESIGN.md)
 >
-> 作为 Stitch 屏生成与 React 实现的唯一来源，覆盖 `clients/web` 平台壳。
-> YdlTavern 自身界面与未来项目的内部 UI 不在本文档范围 — 项目自管视觉。
+> 作为 Stitch 屏生成与 React 实现的唯一来源，覆盖 `clients/web` 官方发行版 Shell。
+> 本文描述的是当前官方产品的视觉与交互观点，不是 Yggdrasil 的平台宪法。
+> 第三方发行版、YdlTavern 与其他产品可以采用完全不同的导航和视觉语言。
 
 ---
 
@@ -16,9 +17,9 @@
 | **变异 Variance** | `8` | 非对称网格、分数列宽、慷慨留白。不要可预测的三等分卡片行。 |
 | **动效 Motion** | `5` | 微妙永续 loop（状态脉冲、卡片悬停 lift、级联 mount）。不要电影化炫技。平台是工坊不是 demo reel。 |
 
-> Yggdrasil 是游创一体平台 — 像 Steam 遇上设计师工作台。
-> 平台壳必须像一台精心安排的工作台，项目坐在架上，
-> 而不是企业 SaaS dashboard、不是代码 IDE、不是 chatbot UI。
+> 当前官方发行版把开放平台能力组织成一张温暖、清楚、可逐步深入的工作台。
+> 这是 `clients/web` 的产品观点：项目和内容在架上，控制与创作工具按需展开；
+> 它不要求第三方 Shell 复制这种布局，也不把 Yggdrasil 限定成 Steam、IDE 或 chatbot。
 
 ---
 
@@ -344,14 +345,14 @@ Home 是平台第一印象 — 必须立即建立编辑工坊气氛，没有营�
 
 ---
 
-## 10. 实现提示（Stitch 之后的 React 阶段）
+## 10. React 实现提示
 
-- Tailwind v3 配自定 theme tokens（上面颜色）
-- `@phosphor-icons/react`，weight=1.5 默认
-- Cabinet Grotesk 从 Fontshare 或本地 woff2；Geist + Geist Mono 用 `@fontsource/geist` + `@fontsource/geist-mono`
-- Framer Motion 处理 spring physics；永续 loop 隔离在 memoized leaf 组件
-- 主题用 CSS variables，`<html>` 上 `data-theme="dark"` 切 dark 模式，默认读 `prefers-color-scheme` + 用户切换
-- 复用已有 protocol client；不重新 fetch — 把新壳接入现有 `client.invoke` / `client.subscribeEvents`
+- Tailwind v4；设计 token 通过 `src/styles/app.css` 的 `@theme` 和 CSS variables 定义，不使用 `tailwind.config.js`
+- `@phosphor-icons/react` 通过 `src/components/icons.tsx` 做语义化 re-export，页面不直接混用 icon library
+- Bricolage Grotesque、Geist 与 JetBrains Mono 通过 `@fontsource-variable/*` 随 bundle 分发，不依赖运行时 CDN
+- Motion v12 负责进入/退出和 spring；永续 loop 隔离在 memoized leaf 组件，并遵守 `prefers-reduced-motion`
+- `<html data-theme="light|dark">` 与 CSS variables 驱动主题，默认跟随系统并允许用户覆盖
+- 复用 `client-core` 与公开 protocol/Host access client；不在页面组件里复制认证、RPC、SSE 或 pairing 逻辑
 
 ---
 

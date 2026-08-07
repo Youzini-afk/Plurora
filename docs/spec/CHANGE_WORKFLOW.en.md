@@ -1,8 +1,10 @@
 # Change workflow and Proposal adapter
 
+> [English](./CHANGE_WORKFLOW.en.md) · [中文](./CHANGE_WORKFLOW.md)
+
 Status: Experimental, schema version 1.
 
-Phase 5 introduces a generic `Intent → ChangeSet → PolicyDecision → Commit` chain. It describes the goal, operations, authority decision, and actual commit result without adding world, conversation, model, or other content-domain semantics to the kernel.
+The generic `Intent → ChangeSet → PolicyDecision → Commit` chain describes a change's goal, operations, authority decision, and actual commit result without adding world, conversation, model, or other content-domain semantics to the kernel.
 
 ## Schemas and type URIs
 

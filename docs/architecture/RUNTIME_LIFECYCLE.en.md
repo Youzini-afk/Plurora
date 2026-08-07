@@ -2,7 +2,9 @@
 
 > [English](./RUNTIME_LIFECYCLE.en.md) · [中文](./RUNTIME_LIFECYCLE.md)
 
-The kernel runs three lifecycles: package, session, and capability invocation. They do not describe turns, chats, prompts, or other content-shaped operations. Those belong to packages.
+This document records the Package, Session, Proposal, and Capability Invocation lifecycles coordinated by the current Contract V1 runtime. They are operative compatibility contracts, not a permanent declaration that the constitutional substrate knows or must know exactly these nouns.
+
+These lifecycles do not describe turns, chats, prompts, or other domain operations. Domain meaning belongs to adopted Protocols, Components, or Products; Contract V1 commonly carries it through Package writers and event namespaces.
 
 ## Package lifecycle
 
@@ -35,7 +37,7 @@ closing     kernel/v1/session.before_close dispatched (sync, vetoable)
 closed      kernel/v1/session.closed emitted; log frozen for further appends
 ```
 
-The kernel does not own a "current turn," "active actor," or any content-level state of the session. If a package needs such a concept, it derives it from events.
+The runtime does not own a "current turn," "active actor," or any content-level state of a Session. Protocols or Components that need those concepts derive them from events, objects, and their own projections.
 
 ## Proposal lifecycle
 

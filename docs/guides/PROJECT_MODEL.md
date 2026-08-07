@@ -2,21 +2,29 @@
 
 > [English](./PROJECT_MODEL.en.md) · [中文](./PROJECT_MODEL.md)
 
-Yggdrasil 是一个平台。平台上跑很多项目。每个项目像 Steam 货架上的一个游戏 ——
-独立的入口、独立的状态、可以单独玩或同时跑多个。
+Project 是当前官方 Host 与发行版用于组织可安装、可运行实例的模型。每个 Project
+拥有稳定 ID、入口、状态、数据、secret policy 和生命周期，可以独立运行，也可以与
+其他 Project 并存。
 
-## 三层架构
+Project 很重要，但不是 Yggdrasil 上所有产品必须采用的永久根对象。World、Document、
+Service、Workspace、Collection 或其他协议对象可以保持自己的身份；当官方 Home 需要
+管理它们时，可以通过 adapter 或产品映射与 Project 关联。
+
+## 所属层与边界
 
 ```text
-内核 (无内容, 不变)
-  ↓ 提供协议/调度/包注册/能力分发/事件流/权限
-能力包 (可复用, 跨项目共享)
-  ↓ 提供能力 (model-provider-lab / persona-lab / ...)
-项目 (使用能力包)
-  YdlTavern / 未来 coding agent / 未来 image-gen / ...
+Constitutional Substrate
+  身份、authority、对象、journal、调用、流、效果与协商
+             ↓
+Protocols / Components / Content
+  Project 可以组合它们，但不拥有其全部语义
+             ↓
+Host Control Plane / Official Distribution
+  ProjectDescriptor、ProjectRegistry、数据目录、生命周期与 Home 映射
 ```
 
-内核完全不知道项目存在。项目是宿主/运行时概念，不是内核 ontology。
+Project 属于 Host / distribution，而不是宪法基底。当前 Contract V1 仍通过公开方法暴露
+Project 生命周期；第三方客户端可以使用这些方法，也可以构建完全不同的发行版。
 
 ## Steam 类比
 

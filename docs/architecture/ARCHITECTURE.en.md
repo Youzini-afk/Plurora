@@ -2,189 +2,214 @@
 
 > [English](./ARCHITECTURE.en.md) · [中文](./ARCHITECTURE.md)
 
-Yggdrasil has three tiers: a content-free kernel, reusable capability packages, and projects that use those packages. The kernel is small and content-free; everything meaningful lives in packages, and a project is a host/runtime-managed instance, not kernel ontology.
+Yggdrasil is not a closed three-tier product stack of “kernel, packages, projects.” It is a set of open layers with explicit ownership and one-way dependencies: a very small constitutional substrate, evolvable protocols, replaceable components and content, a Host that manages real resources, replaceable distributions, and freely evolving products.
+
+Contract V1 and the current code still retain historical boundaries such as `session`, `package`, `project`, `surface`, and `proposal`. They are the operational public contract, not automatically the permanent architecture. Long-term ownership is described by [`CONSTITUTION_V2.md`](CONSTITUTION_V2.en.md) and [`../spec/CONTRACT_LAYERING_MATRIX.md`](../spec/CONTRACT_LAYERING_MATRIX.en.md).
+
+## Layering model
 
 ```text
 ┌─────────────────────────────────────────────────────────────────┐
-│ Projects (launchable Home instances: YdlTavern / coding agent / ...)│
+│ Products / Experiences / Services                               │
+│ Apps, tools, worlds, games, documents, agents, unknown forms    │
+├─────────────────────────────────────────────────────────────────┤
+│ Distributions / Shells / Clients                                │
+│ Official and third-party Web, Desktop, PWA, CLI, IDE, headless  │
+├─────────────────────────────────────────────────────────────────┤
+│ Protocol Commons                                                │
+│ Shared meaning, profiles, state machines, migration, behavior   │
+├─────────────────────────────────────────────────────────────────┤
+│ Components / Content / Adapters                                 │
+│ WASM, process, remote, trusted native, resources, adapters      │
+├─────────────────────────────────────────────────────────────────┤
+│ Constitutional Substrate                                        │
+│ Identity, authority, objects, journal, causality, effects       │
 └─────────────────────────────────────────────────────────────────┘
-                          ▲     use packages     ▲
-                          │                      │
-┌─────────────────────────────────────────────────────────────────┐
-│ Capability packages (every meaningful concept lives here)        │
-│                                                                  │
-│   official packages          third-party packages                │
-│   ┌──────────────┐ ┌──────────────┐ ┌──────────────┐ ┌────────┐ │
-│   │ conversation │ │ tavern compat│ │ world sim    │ │  ...   │ │
-│   │ runtime      │ │ (future)     │ │ (community)  │ │        │ │
-│   └──────────────┘ └──────────────┘ └──────────────┘ └────────┘ │
-│   ┌──────────────┐ ┌──────────────┐ ┌──────────────┐ ┌────────┐ │
-│   │ memory pack  │ │ agent pack   │ │ inspector ui │ │  ...   │ │
-│   └──────────────┘ └──────────────┘ └──────────────┘ └────────┘ │
-│                                                                  │
-│   no privilege difference between official and third-party       │
-└─────────────────────────────────────────────────────────────────┘
-                          ▲    same contract    ▲
-                          │                     │
-┌─────────────────────────────────────────────────────────────────┐
-│ Yggdrasil kernel (content-free)                                  │
-│                                                                  │
-│   sessions      events       packages       capabilities         │
-│   permissions   sandbox      hooks          assets               │
-│                                                                  │
-│   schemas, ids, ordering, replay, transports                     │
-└─────────────────────────────────────────────────────────────────┘
-                          ▲    public protocol    ▲
-                          │                       │
-┌─────────────────────────────────────────────────────────────────┐
-│ Transports                                                       │
-│   in-process • stdio JSON-RPC • TCP JSON-RPC • HTTP • WebSocket  │
-│   (WASM host • remote endpoint)                                  │
-└─────────────────────────────────────────────────────────────────┘
+
+Host Control Plane / Runtime Fabric is orthogonal to those layers:
+installation, processes, files, secrets, network, ports, targets,
+deployment, backup, and diagnostics.
 ```
 
-## The three tiers
+“Orthogonal” means that a Host can supply machine capability to different products and protocols without owning their content semantics. A headless service, a local creation tool, and a multiplayer world may share the same Host and substrate while using completely different protocols and shells.
 
-### The kernel
+## Responsibilities
 
-The kernel hosts capability packages and nothing else. The full responsibility list is in [`PLATFORM_KERNEL.md`](PLATFORM_KERNEL.en.md). Briefly: identity, sessions, an opaque event log, the package registry, capability routing, extension dispatch, permissions, and transports.
+### Constitutional Substrate
 
-### Capability packages
+The substrate owns only mechanisms that cannot safely be reimplemented by an ordinary upper layer:
 
-Capability packages provide every meaningful concept on the platform: characters, prompts, models, agents, worlds, rules, memory, presentation, and so on. See [`CAPABILITY_PACKAGE.md`](CAPABILITY_PACKAGE.en.md).
+- principals and authenticated call context;
+- authority minting, attenuation, delegation, leases, refresh, and revocation;
+- content-addressed objects, verifiable references, and unforgeable handles;
+- append-only journals, stable order, causal references, and head primitives;
+- invoke, stream, cancel, deadlines, and backpressure;
+- compare-and-swap, preconditions, idempotency, and atomic commit;
+- effect receipts, audit, and provenance connection points;
+- minimal component-instance lifecycle and health;
+- protocol, version, and profile negotiation.
 
-A package can be a Rust in-process crate, a subprocess, a WASM module, or a remote service. The kernel treats all four the same.
+The substrate does not own Project, Home, Play, Forge, Assistant, models, agents, memory, worlds, documents, deployment products, or a concrete secret store.
 
-### Projects
+The current `ygg-core` and `ygg-runtime` still mix some Host, protocol, and shell semantics. Migration separates them incrementally with compatibility and data safety rather than creating instability through a one-shot rewrite.
 
-A project is a runtime instance: it has an entry surface, its own state and data directory, and can appear as a Home card with independent start/stop lifecycle. Projects reference capability packages, but the project concept is not written into the kernel. The host owns `ProjectDescriptor`, `ProjectRegistry`, per-project data directories, project-level secret stores, and the Home lifecycle. See [`../guides/PROJECT_MODEL.md`](../guides/PROJECT_MODEL.en.md).
+### Protocol Commons
 
-## Boundary rules
+Protocol Commons owns shared meaning and behavior required across implementations, including:
 
-These aren't preferences; they're invariants.
+- data shape and field meaning;
+- lifecycle, state machines, errors, and cancellation;
+- authority, privacy, and effect requirements;
+- compatibility profiles, version negotiation, and migration;
+- executable behavioral contracts and implementation claims.
 
-### 1. The kernel knows nothing about content
+Agent, Memory, World, Document, Workspace, Surface, Change, and Inference may become protocols here, and competing protocols may coexist. Official maintenance does not grant kernel routing priority; only participants that explicitly adopt a protocol or profile are constrained by it.
 
-Characters, scenes, worlds, prompts, models, turns, chats, agents, memory, games, rules, dice, inventories, genres — none of these live in the kernel.v1. If a concept means something to a player or a creator, it belongs in a package.
+### Components / Content / Adapters
 
-### 2. Official packages have no privileges
+Components implement protocol capability, content carries user and product data, and adapters connect external systems. Execution forms include:
 
-Anything an official package can do, a third-party can do too. Same manifest, same fabric, same hooks, same permission gate. No kernel shortcuts based on package id.
+- sandboxed WASM components;
+- isolated processes;
+- remote service boundaries;
+- trusted native implementations;
+- static resources and surface bundles;
+- foreign capsules.
 
-### 3. Protocol first
+They may expose capability through the same invocation protocol, but they cannot claim identical isolation, failure, latency, or supply-chain guarantees.
 
-The kernel exposes one public contract. Studio, the CLI, in-process packages, subprocess packages, WASM packages, and remote services all use it. No private side door.
+A Package is a retrieval, distribution, and installation envelope rather than the ontology unit for every kind of meaning. One Package may carry multiple components, protocol descriptors, content, and surfaces. Components, content, and protocols should have independent identity, digests, versions, and migration paths where practical. See [`CAPABILITY_PACKAGE.md`](CAPABILITY_PACKAGE.en.md).
 
-### 4. Entry forms are equal
+### Host Control Plane / Runtime Fabric
 
-A package can be `rust_inproc`, `subprocess`, `wasm`, or `remote`. Packaging form is an implementation detail; the fabric treats them all the same.
+The Host manages resources and operations in the real environment:
 
-### 5. Events are truth, but opaque to the kernel
+- package and component retrieval, installation, update, and removal;
+- local processes, WASM, remote services, and target lifecycle;
+- files, workspaces, secrets, network, ports, and proxies;
+- installation instances such as Projects used by a distribution;
+- deployment, runtime health, logs, backup, recovery, and diagnostics;
+- device identity, resource selectors, and Host administration policy.
 
-The kernel orders and persists events. It doesn't interpret payloads — meaning belongs to packages.
+Host operations still use substrate identity, authority, effects, and audit. The ability to start a World or Document product does not give the Host authority to interpret its content.
 
-### 6. Sandboxing is declarative
+### Distributions / Shells / Clients
 
-Side effects, network reach, filesystem reach, cross-package calls — all declared in the manifest. The kernel enforces them. An undeclared side effect is a violation.
+A distribution organizes platform capability into a usable product. The current official distribution includes React Web/PWA, Tauri Desktop, and Rust CLI, and uses Home, Settings, Project frames, Console, and a Surface bridge.
 
-### 7. Composition over containment
+These are official product choices:
 
-Multiple packages can coexist in one session. There is no canonical "main experience." Conflicts are resolved by host-configured priority, not kernel defaults.
+- they may be opinionated and polished aggressively;
+- they use only public contracts and explicit Host APIs;
+- they cannot become a bypass for component authority;
+- third-party shells, IDEs, headless clients, or radically different distributions may replace them.
 
-## Contract v1 boundary
+Surface slots, Home cards, Forge panels, and Assistant actions belong to the current Shell Profile and Contract V1 compatibility surface, not the constitutional substrate.
 
-The public platform spec is [`../spec/KERNEL_V1_CONTRACT.md`](../spec/KERNEL_V1_CONTRACT.en.md). v1 schemas live under `../spec/v1/schemas/`; method, event, and top-level schemas are the single source of truth for SDK generation, the conformance kit, and third-party implementations.
+### Products / Experiences / Services
 
-### Capability handles
+The top layer owns domain ontology, business rules, and final interaction. Chat, worlds, games, design tools, ordinary Web services, IDEs, automation, and unknown future forms evolve here.
 
-Manifest strings declare an authority ceiling; runtime capability handles represent actual authority. The kernel mints handles during package load / handshake / init, and can attenuate, revoke, and expire them. Capability calls, event access, outbound requests, and secret resolution should use handles or equivalent runtime bindings rather than package names or bare strings.
+A product chooses:
 
-See [`../guides/CAPABILITY_HANDLES.md`](../guides/CAPABILITY_HANDLES.en.md).
+- whether to use Project;
+- whether to use event sourcing, branches, or approval;
+- whether to use AI;
+- whether to provide a UI;
+- whether it is local, remote, collaborative, or offline;
+- which protocols, components, and Host capabilities it adopts.
 
-### Binding injection
+A product choice cannot become a requirement for every Yggdrasil product in reverse.
 
-Path A packages (`entry.contract: "v1"`) receive bindings at startup. Subprocess packages receive a bindings dictionary during `package.handshake`; Rust in-process packages initialize through `KernelEnv`; WASM and remote are planned to be completed through WIT resource imports and SPIFFE/Biscuit token exchange. Bindings contain only the package's least granted authority.
+## One-way dependency and the downward-movement gate
 
-### Path B
+The intended dependency direction is:
 
-Path B packages (`entry.contract: "none"`) run self-contained. The kernel still hosts lifecycle, captures logs, and emits events, but does not inject v1 handles, enforce manifest permissions, or turn manifest declarations into platform authority. Path A and Path B are both first-class modes; packages needing capability invoke, network, secrets, or declared-vs-used audit should use Path A.
+```text
+Product
+  ↓
+Distribution / Shell Profile
+  ↓
+Protocols and Components
+  ↓
+Constitutional Substrate
+```
 
-See [`../guides/PATH_B_SELF_CONTAINED.md`](../guides/PATH_B_SELF_CONTAINED.en.md).
+The Host supplies authorized real-world resources across the layers without creating reverse semantic dependency.
 
-## Project layer
+Before moving an upper-layer need downward, ask:
 
-The project layer sits above capability packages. It combines a package set, entry surface, state directory, and secret policy into a runtime instance users can see, launch, and uninstall. The Home screen renders projects as cards; clicking Play asks the host through `kernel.v1.project.start`, then navigates to the project's entry surface.
+1. Is it an opinion of this product, or shared meaning needed by multiple independent products?
+2. Does it belong in a competitive protocol, a Host machine operation, or a mechanism that truly cannot move above the substrate?
+3. Would moving it downward reduce lock-in, or freeze the current official implementation into platform law?
+4. Are versioning, migration, unknown-data preservation, and old-client compatibility defined?
 
-Projects still preserve the kernel invariants: the kernel does not interpret YdlTavern, coding-agent, image-gen, or other content shapes; project management belongs to host/admin protocol and the runtime registry, and ordinary packages cannot use project methods to gain authority.
+The default answer is not “everything becomes a package.” It stays in the highest layer that owns its meaning and lifecycle.
 
-## What's not on this picture
+## The place of Contract V1
 
-Tavern isn't a kernel layer. It will arrive as a future capability package family.
+Contract V1 is the current operational public contract, used for generated SDKs and guarded by conformance. It currently carries responsibilities from several layers:
 
-pi isn't a kernel layer. It will ship as capability packages.
+- `kernel.v1.session.*`, events, capability, and authority are close to substrate;
+- Project, target, exec, port, proxy, and diagnostics belong to the Host;
+- projection, proposal/change, and extension point belong to evolvable protocols;
+- surface slots and shell contributions belong to a Shell Profile.
 
-Studio isn't a kernel layer. It's a client of the public protocol, like any other; it may eventually ship as an official package plus a UI shell.
+Current clients and third-party integrations may continue using v1. New meaning should not expand `kernel.v1.*` indiscriminately; prefer namespaces with explicit owners, Contract Registry, profile negotiation, and legacy adapters. See [`../spec/CONTRACT_LAYERING_MATRIX.md`](../spec/CONTRACT_LAYERING_MATRIX.en.md) for itemized ownership.
 
-External game engines aren't a kernel layer. They join as remote-entry packages or as protocol clients.
+## Current official distribution
 
-## Client shell and release boundary
+### Web / PWA
 
-### Web client architecture
-
-`clients/web` is a plain TypeScript SPA. Vite provides the dev server, type-check/build flow, and production bundling. The shell does not make React or another frontend framework part of its architecture; Home / Play, Forge, and Assist are public-protocol clients.
-
-The web shell talks to the host only through public transports: HTTP `POST /rpc` for capability and kernel-method calls, plus SSE for event subscriptions. It does not read SQLite, import runtime crates, or use private shortcuts for official packages.
+`clients/web` is the official React 19 + Tailwind v4 + Vite platform shell and can be installed as a PWA. It uses the public platform and Host boundaries through HTTP `POST /rpc`, SSE, and `/host/v1/*`; it does not read SQLite or import private runtime state.
 
 ### SurfaceHost
 
-Third-party web surface bundles are mounted through an iframe-based SurfaceHost. The host creates a `sandbox="allow-scripts"` iframe, loads `surface-frame.html`, and sends a mount instruction by `postMessage`. A surface sends `{type: 'rpc.call'}` to the host, and the host returns `{type: 'rpc.result'}` according to the explicit bridge configuration.
+Third-party Web surfaces are mounted in sandboxed iframes. A surface has no kernel access by default. The Host forwards only explicit methods and capability allowlists, and binds stream ownership, session, project/grant, and short-lived asset leases to the current mount. See [`../guides/SURFACE_HOSTING.md`](../guides/SURFACE_HOSTING.en.md).
 
-By default there is no kernel access; the host must explicitly wire `hostBridge.callRpc`. For the surface bundle contract, iframe CSP, YdlTavern example, and v0 limits, see [`../guides/SURFACE_HOSTING.md`](../guides/SURFACE_HOSTING.en.md).
+### Desktop
 
-### Desktop wrapper
+`clients/desktop` is a Tauri 2.x wrapper and manages a loopback-only Host sidecar. It prepares a persistent profile, starts `ygg host serve` on a random loopback port, completes health and one-time bootstrap, reveals the Web shell, and terminates the sidecar on exit.
 
-`clients/desktop` is a Tauri 2.x wrapper. Production builds embed `clients/web/dist`; development points at the Vite dev server. It is a desktop container for the web shell, not a second protocol or private Studio.
+Desktop, Web/PWA, and remote Host connections reuse the same client core and public boundaries. Official Desktop owns no second protocol or private Studio.
 
-v0 boundary: the desktop wrapper does not spawn `ygg-cli host serve`; users run the host separately. Managed subprocess support can be added later, but should preserve the public-protocol boundary. Build requirements are in [`../../BUILDING.md`](../../BUILDING.md).
+### CLI and headless use
 
-### Release pipeline
+`ygg-cli` exposes Host, installation, Project, package, composition, contract, conformance, and operational entry points. Running locally does not allow the CLI to gain product authority by inspecting the Host data directory outside the public boundary.
 
-Releases are triggered by `v*` tags in GitHub Actions. The pipeline builds the web shell, builds cross-platform Tauri installers, and creates a draft GitHub release. `scripts/release-version.sh` synchronizes the version across Cargo, the web package, the desktop package, and Tauri config.
+## Current Project model
 
-The current release pipeline does not include signing, notarization, or auto-update. Build and release steps are in [`../../BUILDING.md`](../../BUILDING.md); release notes are in [`../../CHANGELOG.md`](../../CHANGELOG.md).
+Project is the official Host's installable and runnable instance model, composed of `ProjectDescriptor`, `ProjectRegistry`, data directories, secret policy, and lifecycle. It is a Host and distribution concept, not constitutional substrate and not a root object required by every product.
+
+World, Document, Service, Workspace, and other protocol objects may exist independently. When the current official Home needs to manage them, an adapter or product mapping may associate them with a Project without destroying their identity. See [`../guides/PROJECT_MODEL.md`](../guides/PROJECT_MODEL.en.md) and [`../product/PLATFORM_PRODUCT_MODEL.md`](../product/PLATFORM_PRODUCT_MODEL.en.md).
 
 ## Repository map
 
-The Yggdrasil Foundation workspace:
-
 ```text
-crates/ygg-core      Kernel types: ids, schemas, manifests, principals, opaque events
-crates/ygg-runtime   Kernel scheduler: sessions, packages, capabilities, hooks, surfaces,
-                     proposals, assets, branches, projections, sandbox, transports
-crates/ygg-service   Public protocol surface (HTTP /rpc, SSE event subscribe)
-crates/ygg-cli       Host modes, manifest tools, package authoring, conformance
-clients/web          Vite + plain TS Home/Play, Forge, and Assist shell
-clients/desktop      Tauri 2.x desktop wrapper
-packages/official    Foundation capability packages loaded through ordinary manifests
-sdk/typescript       Subprocess-package authoring helpers and template runtime
-profiles/            Host profiles for autoloading sets of packages
-examples/            Example package manifests and fixtures
+crates/ygg-core      current core types, schemas, identity, events, contracts
+crates/ygg-runtime   runtime, component execution, dispatch, some Host work
+crates/ygg-service   HTTP / RPC / SSE and Host service boundary
+crates/ygg-cli       CLI, Host, scaffolding, contract, conformance tooling
+clients/web          official React Web shell / PWA
+clients/desktop      Tauri wrapper + managed Host sidecar
+packages/official    first-party components and experiments via manifests
+sdk/                 generated contract SDKs and domain SDKs
+profiles/            distribution / Host component and policy compositions
+examples/            examples, fixtures, and third-party integration samples
+docs/                charter, architecture, protocols, product, guides, status
 ```
 
-The kernel crate is content-free. Conversation, worlds, agents, memory, and model behavior — when they arrive — come as ordinary capability packages with no kernel privilege.
+The code layout still reflects historical Contract V1 aggregation. Permanent ownership cannot be inferred from crate names alone.
 
-## Where to read next
+## Read next
 
-- [`CHARTER.md`](../CHARTER.en.md) for principles.
-- [`PLATFORM_KERNEL.md`](PLATFORM_KERNEL.en.md) for what the kernel does and doesn't do.
-- [`CAPABILITY_PACKAGE.md`](CAPABILITY_PACKAGE.en.md) for the package contract.
-- [`EXTENSION_POINTS.md`](EXTENSION_POINTS.en.md) for the hook contract.
-- [`EVENT_MODEL.md`](EVENT_MODEL.en.md) for the opaque event log.
-- [`RUNTIME_LIFECYCLE.md`](RUNTIME_LIFECYCLE.en.md) for kernel-side lifecycles.
-- [`../spec/KERNEL_V1_CONTRACT.md`](../spec/KERNEL_V1_CONTRACT.en.md) for the public v1 contract and schemas.
-- [`../guides/CAPABILITY_HANDLES.md`](../guides/CAPABILITY_HANDLES.en.md) for capability handles and audit.
-- [`../protocol/PROTOCOL_V0.md`](../protocol/PROTOCOL_V0.en.md) for the public protocol.
-- [`../guides/SURFACE_HOSTING.md`](../guides/SURFACE_HOSTING.en.md) for third-party web surface hosting.
-- [`../guides/PROJECT_MODEL.md`](../guides/PROJECT_MODEL.en.md) for the Home project layer and lifecycle.
-- [`../../BUILDING.md`](../../BUILDING.md) for web / desktop build and release steps.
-- [`../../CHANGELOG.md`](../../CHANGELOG.md) for release notes.
+- [`../CHARTER.md`](../CHARTER.en.md) — platform goals and non-negotiable principles;
+- [`VISION.md`](VISION.en.md) — the intended long-term shape;
+- [`CONSTITUTION_V2.md`](CONSTITUTION_V2.en.md) — candidate constitutional substrate;
+- [`../spec/CONTRACT_LAYERING_MATRIX.md`](../spec/CONTRACT_LAYERING_MATRIX.en.md) — itemized ownership of the current contract;
+- [`PLATFORM_KERNEL.md`](PLATFORM_KERNEL.en.md) — substrate responsibility and the current kernel compatibility boundary;
+- [`CAPABILITY_PACKAGE.md`](CAPABILITY_PACKAGE.en.md) — Packages, components, content, and execution trust;
+- [`../product/PLATFORM_PRODUCT_MODEL.md`](../product/PLATFORM_PRODUCT_MODEL.en.md) — product responsibility of the official distribution;
+- [`../guides/PROJECT_MODEL.md`](../guides/PROJECT_MODEL.en.md) — the current official Project model;
+- [`../ALPHA_STATUS.md`](../ALPHA_STATUS.en.md) — actual implementation status;
+- [`../roadmap/NEXT_STEPS.md`](../roadmap/NEXT_STEPS.en.md) — current construction direction.

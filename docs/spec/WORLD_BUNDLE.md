@@ -1,8 +1,10 @@
 # Experimental World Bundle
 
+> [English](./WORLD_BUNDLE.en.md) · [中文](./WORLD_BUNDLE.md)
+
 状态：Experimental profile `ygg.world.bundle/experimental/v1`。
 
-World Bundle 用来证明持久化的高层 World 可以跨宿主迁移，但不会因此把 `World` 变成 kernel substrate 类型。具体 archive 无需加载原始 Package、启动 component、启用模型 provider 或挂载 Web shell，就能被读取、验证和审计。
+World Bundle 为持久化的高层 World 提供跨 Host 携带、读取和迁移的可选 Profile，但不会因此把 `World` 变成 substrate 类型。具体 archive 无需加载原始 Package、启动 Component、启用模型 provider 或挂载 Web Shell，就能被读取、校验和审计。
 
 ## Archive 结构
 
@@ -105,7 +107,7 @@ ygg world-bundle import <archive.json> --data-dir <fresh-dir> [--json]
 - `world_bundle.reexecution_branch`；
 - `world_bundle.shell_independence`。
 
-压力源是真实的 `official/playable-creation-board` Package。测试在 Host A 创建状态、branch 和受控 capability receipt；在 Host B 的独立 SQLite journal 与 filesystem CAS 中导入；不加载原始 Package 完成回放；在新分支使用 echo-backed 替代实现；最后由 headless CLI 读取同一个 archive。
+当前 integration fixture 使用 `official/playable-creation-board` Package。测试在 Host A 创建状态、branch 和受控 capability receipt；在 Host B 的独立 SQLite journal 与 filesystem CAS 中导入；不加载原始 Package 完成回放；在新分支使用 echo-backed 替代实现；最后由 headless CLI 读取同一个 archive。该 fixture 检查此 Profile 的兼容行为，不把该 Package 或 World 本体提升为平台中心。
 
 ## 当前限制
 

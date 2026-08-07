@@ -2,82 +2,131 @@
 
 > [English](./VISION.en.md) · [中文](./VISION.md)
 
-Yggdrasil is an extensible creation platform for AI-native worlds, games, stories, and play.
+Yggdrasil should become open digital ground that people can depend on for a long time: immediately useful to ordinary users, fast for creators to build with, deep enough for professional extension, reliable for operators, and spacious enough for forms the platform authors never anticipated.
 
-The center is stable, restrained, and has no opinion about content. Every meaningful concept lives in capability packages, and the kernel hosts them all on equal terms.
+AI-native capability is important, but the platform does not define itself as chat, agents, worlds, games, or any other single product form.
 
-## What Yggdrasil is
+## Intended platform shape
 
-A kernel that hosts capability packages.
+```text
+┌──────────────────────────────────────────────────────────┐
+│ Products / Experiences / Services                        │
+│ Apps, tools, worlds, games, agent workspaces, services   │
+├──────────────────────────────────────────────────────────┤
+│ Distributions / Shells / Clients                         │
+│ Official and third-party Web, Desktop, CLI, mobile, IDE  │
+├──────────────────────────────────────────────────────────┤
+│ Protocol Commons / Components / Content                  │
+│ Competing protocols, replaceable components, compositions│
+├──────────────────────────────────────────────────────────┤
+│ Constitutional Substrate                                 │
+│ Identity, authority, objects, journal, causality, effects │
+└──────────────────────────────────────────────────────────┘
 
-A public protocol that lets clients, packages, and outside systems join on equal footing.
+Host Control Plane / Runtime Fabric crosses these layers:
+installation, processes, WASM, remote execution, files, secrets, networking,
+ports, deployment, backup, and diagnostics.
+```
 
-An event log that preserves what happened.
+This is not a single mandatory top-to-bottom product stack. Distributions and products may choose different protocols, components, and Host capabilities. The non-optional boundary is explicit identity, authority, and public contracts.
 
-A creation substrate for radical AI-native experiences — without prescribing what those experiences look like or who builds them.
+## Openness in actual use
 
-## What Yggdrasil isn't
+A user should be able to:
 
-Not an application, not a chat tool, not a SillyTavern replacement, not a framework with built-in genres. The kernel doesn't carry privileged official content.
+- use Yggdrasil locally without mandatory cloud registration;
+- take away data, history, configuration, compositions, and content;
+- replace models, components, clients, storage, and Hosts without rebuilding all work;
+- inspect which code, service, or principal has which authority;
+- reject official defaults in favor of third-party or self-built implementations;
+- read important data after an official service disappears.
 
-The platform won't ship a flagship experience. The kernel takes no stance on characters, worlds, prompts, models, agents, or memory. Those are package concerns.
+A third-party author should be able to integrate from public documentation, SDKs, and protocols alone, without copying repository-internal code or receiving a whitelist identity.
 
-## What "radical creation freedom" means here
+## How plurality emerges
 
-Creators aren't confined to shapes the platform imagined.
+The platform decouples these dimensions as far as practical:
 
-A creator can:
+```text
+content and data model
+× protocol semantics
+× component implementation
+× interaction and surfaces
+× models and agents
+× execution and isolation
+× storage and retrieval
+× local / remote / multiple Hosts
+× individual / collaborative / automated use
+```
 
-- define their own genres, loops, rules, and presentation;
-- compose AI behavior like building blocks;
-- inspect, fork, rewrite, and recombine any experience;
-- replace or override any official package with one of their own;
-- ship new capabilities, new event kinds, new extension points;
-- mix multiple packages in one session, with no privileged participant.
+A product may select only a small subset. A local tool need not carry deployment. A headless service need not have Home. A world product need not use Project Console. An ordinary Web application need not adopt agents or models.
 
-The platform's job is to make that possible — not to ship the experience itself.
+This requires Yggdrasil to distinguish mechanisms, protocols, distributions, and products rather than forcing everything into a kernel-or-package binary.
 
-## Why kernel + capability packages
+## Technical direction
 
-Closed frameworks decide what the medium is. Yggdrasil refuses to do that.
+Yggdrasil's technical ambition focuses on foundations that improve long-term capability:
 
-Putting all meaning in packages — including official ones — keeps the medium open. It also keeps the platform honest: if an official "conversation runtime" can be replaced, or can coexist with a third-party "world simulator," then the kernel isn't quietly in charge.
+- **Capability-oriented security:** least authority, attenuation, delegation, leases, revocation, and understandable authority chains;
+- **Content-addressed data:** verifiable identity for important objects without dependence on local paths;
+- **Portable components:** WASM, isolated processes, remote boundaries, and trusted native implementations can serve the same protocols while disclosing different trust guarantees;
+- **Local-first and multi-Host:** local and offline operation first, with safe expansion to remote devices and multiple nodes;
+- **Streaming execution:** streams, cancellation, deadlines, backpressure, recovery, and long-running observation as platform capabilities;
+- **Causality and effects:** historical replay separated from re-execution, with auditable receipts for nondeterminism and external effects;
+- **Protocol evolution:** explicit negotiation, maturity, compatibility profiles, deprecation, migration, and legacy adapters;
+- **Implementation independence:** data and protocols are not bound to a language, UI framework, model vendor, or cloud platform.
 
-That's how creation freedom is protected over time.
+These directions do not all enter the stable layer at once. Maturity and real value decide whether a mechanism remains Experimental, becomes Candidate, or reaches Stable.
 
-## Where Yggdrasil fits
+## Long-term evolution
 
-Yggdrasil is designed to serve as:
+Yggdrasil does not interpret compatibility as preserving every failed decision forever. It evolves through:
 
-- a local platform host;
-- a headless service that speaks the public protocol;
-- a library embedded in a larger product;
-- an open protocol endpoint that outside systems join as packages or clients.
+- a very small stable substrate;
+- versioned and competitive protocol commons;
+- independently addressed components, content, and protocol descriptors;
+- compatibility reading, explicit migration, and reversible adoption;
+- lossless preservation of unknown artifacts;
+- clear separation of historical fact, current state, and re-execution;
+- the ability to rewrite the official distribution while user data and third-party components survive.
 
-All four use the same contract.
+Contract V1 is the current operational public contract; it does not automatically become the permanent constitution. Long-term ownership and migration boundaries are described by [`CONSTITUTION_V2.md`](CONSTITUTION_V2.en.md) and [`../spec/CONTRACT_LAYERING_MATRIX.md`](../spec/CONTRACT_LAYERING_MATRIX.en.md).
 
-## Deferred capability families
+## A usable default distribution
 
-These are valuable directions, but they belong in capability packages, not the kernel.v1. They wait until the kernel and package layers are stable.
+The official Yggdrasil distribution is not merely a demonstration shell. It should be a product people choose to use for the long term. It needs to:
 
-- YdlTavern — an independent integration project on Yggdrasil that's compatible with SillyTavern's resources and extensions. See [`../tavern/TAVERN_COMPAT.md`](../tavern/TAVERN_COMPAT.en.md).
-- An agent integration package family (pi or otherwise).
-- A game-engine bridge family (UE5, Godot, Unity, web clients).
-- An official conversation runtime package.
-- An official inspector and creator UI.
+- work locally after installation;
+- make discovery, installation, running, stopping, updating, and removal clear;
+- present authority, risk, state, and recovery in human terms;
+- give creators templates, debugging, hot reload, composition, asset management, and AI assistance;
+- make local/remote connection, backup, migration, and recovery direct;
+- hide unnecessary complexity from simple use while retaining depth for experts;
+- implement everything through public protocols so third-party distributions can choose another path.
 
-Each will be built and judged as an ordinary capability package. None will get kernel privilege.
+The official distribution may organize itself around Projects, Home, a Workbench, or other concepts, but those are product choices rather than ontology requirements for every upper-layer system.
 
-## Non-goals
+## Platform and product
 
-The kernel will not ship a chat experience, a world simulator, a director, a memory model, a SillyTavern compatibility layer, an external engine bridge, or an official UI.
+The platform expands the space of choices and provides trusted common ground. A product makes opinionated choices and completes one path through that space.
 
-Each of those is fine as a capability package; none of them belong in the kernel.v1.
+Therefore:
 
-## Stance on the current code
+- neutrality cannot excuse the platform from building an excellent default experience;
+- convenience cannot let a product demand permanent adoption of its ontology;
+- the Host may own real machine-operation semantics without moving product content semantics into the substrate;
+- a protocol may constrain participants that adopt it, but it is not the only possible protocol;
+- a successful official product improves usability while remaining replaceable.
 
-The Rust workspace today is at Platform Foundation Alpha: kernel-only events/sessions, manifest-driven packages, real `rust_inproc` and subprocess execution, the hook fabric, the SQLite event log, principals with permissions, surface contributions, the proposal/approval lifecycle, the asset/branch/projection substrate, and a web shell that speaks the public protocol. The current discipline is preventing contract drift — surfaces, proposals, branches, assets, and projections must stay generic, content shapes don't leak into the kernel, and official packages only use what any third-party package can use.
+## Desired result
 
-## What success looks like
+As Yggdrasil matures, it should support all of these at once:
 
-Yggdrasil succeeds when a creator builds something the platform's authors never anticipated, ships it as a capability package, and runs it next to official packages without being treated as a second-class citizen.
+- an official distribution that non-technical users can install and use reliably;
+- third-party components, protocols, shells, and complete products;
+- local, remote, headless, and embedded deployments;
+- AI-intensive products and products with no AI dependency;
+- data and history that survive implementation, machine, and time boundaries;
+- uses the platform authors neither predicted nor specially authorized.
+
+No single feature, example, or acceptance exercise defines that destination. It is the shared direction maintained throughout construction.

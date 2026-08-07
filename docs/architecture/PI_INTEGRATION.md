@@ -2,66 +2,72 @@
 
 > [English](./PI_INTEGRATION.en.md) · [中文](./PI_INTEGRATION.md)
 
-本文档固定 Yggdrasil 如何吸收 [pi](https://github.com/earendil-works/pi) 的 agent 框架能力。pi 是 agent 能力包基础设施的重要参考，也可以作为包内实现来源。它不是 Yggdrasil 的内核、协议或产品壳。
+本文固定 Yggdrasil 如何借鉴或承载 [pi](https://github.com/earendil-works/pi) 一类 agent framework。pi 可以作为普通能力包的实现来源，也可以帮助定义 SDK adapter；它不是 Yggdrasil 的内核、公开合同或产品壳。
 
-## 当前立场
+## 核心立场
 
-Yggdrasil 要能托管、约束、观察和替换 agent 类能力包。Yggdrasil 本身不应变成内置 agent runtime。
+Yggdrasil 要能托管、约束、观察和替换 agent 类 Component 与 Product，但平台本身不拥有 agent ontology。Run、step、tool、trace、prompt、model、memory 和 coding workflow 的共享含义属于可选 Protocol / Profile，具体状态与行为属于 Component 或 Product，不进入宪法基底。
 
-Agent 基础设施必须落在现有公开原语上：
+Agent 基础设施必须复用现有公开原语：
 
-- `kernel.v1.capability.invoke` / `kernel.v1.capability.stream` 启动或推进 agent 类包能力。
-- `kernel.v1.capability.cancel` 取消运行中的流式调用。
-- `kernel.v1.capability.discover` / `kernel.v1.capability.describe` 发现可映射为 agent 工具的能力。
-- `kernel.v1.proposal.create/get/list/approve/reject/apply` 承载 agent 产生的变更提案。
-- `kernel.v1.event.append/list/subscribe` 承载包拥有的 trace、工具调用和 run events。
-- `kernel.v1.surface.contribution.*` 让 Assist / Forge 通过公开协议发现 agent 动作和 trace 面板。
-- 权限、`secret_ref`、网络声明、出站审计/脱敏和流式取消生命周期继续由安全执行底座约束。
+- `kernel.v1.capability.discover/describe` 发现可映射为 tool 的能力；
+- `kernel.v1.capability.invoke/stream/cancel` 执行、流式推进和取消；
+- `kernel.v1.proposal.*` 或通用 Change workflow 承载受审查变更；
+- `kernel.v1.event.*` 以当前 Package writer namespace 承载 trace、tool-call 和 run event；
+- `kernel.v1.surface.contribution.*` 让 shell 发现 agent action、trace 或 review panel；
+- capability handle、permission、`secret_ref`、network declaration、outbound audit 和 stream ownership 约束副作用。
 
-## pi 分层吸收策略
+没有 `kernel.v1.agent.*` 私有旁路，也没有因为某个 agent 包是官方维护就获得的额外权威。
 
-| pi 层 | Yggdrasil 处理方式 | 理由 |
+## pi 分层吸收
+
+| pi 层 | Yggdrasil 处理方式 | 边界 |
 |---|---|---|
-| `pi-ai` | 参考 + 未来普通 model/inference 包内可选使用 | provider registry、流式/tool-call 和 faux provider 很有价值。真实模型调用仍要等 host 策略、secret、网络、审计、usage 和脱敏契约成熟。 |
-| `pi-agent-core` | 现在做 adapter + 包内可选 | `AgentEvent`、`AgentTool`、before/after tool-call、parallel/sequential execution、steer/followUp queues 可吸收。model/message/systemPrompt/thinkingLevel 不能进入内核。 |
-| `pi-coding-agent` | 仅作参考 | 它是完整 coding-agent 产品，带 TUI、bash/read/write/edit tools、会话 JSONL、model resolver、skills/extensions 和 coding workflow。不适合作为 Ygg 平台依赖或产品壳。 |
+| `pi-ai` | 作为 provider、streaming 和 tool-call adapter 的实现参考 | Provider 语义留在普通 inference/model 包；secret、网络和审计由 Host 边界执行。 |
+| `pi-agent-core` | 可由 SDK 或能力包包装 | `AgentEvent`、tool adapter、steer/follow-up queue 等可以留在包内；message、system prompt、thinking level 不进入内核。 |
+| `pi-coding-agent` | 作为完整产品和 workflow 的参考 | TUI、bash/read/write/edit、session format、skills 和 coding policy 不成为 Yggdrasil 平台默认值。 |
 
-更细的 ledger 见 [`../../integrations/pi/README.md`](../../integrations/pi/README.md)。
+更细的上游 ledger 见 [`../../integrations/pi/README.md`](../../integrations/pi/README.md)。
 
-## Agent 概念到 Ygg 原语的映射
+## 概念映射
 
 | Agent 概念 | Yggdrasil 公开原语 | 规则 |
 |---|---|---|
-| run / turn / step | 包能力调用或流式调用 | 内核不新增 agent 生命周期。 |
-| cancellation | `kernel.v1.capability.cancel` | 使用通用流式取消生命周期。 |
-| tool discovery | `kernel.v1.capability.discover` / `describe` | 工具是能力的 adapter view。 |
-| tool execution | `kernel.v1.capability.invoke` / `stream` | 必须保留调用者身份、provider 包、权限门禁和审计。 |
-| tool ambiguity | 显式 `provider_package_id` | 禁止自动偏向官方 provider。 |
-| proposal | `kernel.v1.proposal.*` | Agent 不直接修改受信状态。 |
-| trace | 包拥有的事件或流式帧 | 内核不理解 trace payload。 |
-| state | 包拥有的 asset/projection/get_state 能力 | 不新增 `kernel.v1.agent.state`。 |
-| memory/prompt/model | 未来的普通包 | 不进入内核。 |
-| UI | surface contributions + public protocol | Assist/Forge 不读取 runtime 内部状态。 |
+| run / turn / step | Component capability call、stream 或协议拥有的状态 | 基底不新增 agent 生命周期。 |
+| cancellation | `kernel.v1.capability.cancel` | 只能取消调用者拥有的 invocation/stream。 |
+| tool discovery | `kernel.v1.capability.discover/describe` | Tool 是 capability 的 adapter view。 |
+| tool execution | `kernel.v1.capability.invoke/stream` | 保留 caller、provider、session、权限和 receipt。 |
+| provider ambiguity | 显式 `provider_package_id` | 不自动偏向官方 provider。 |
+| proposed mutation | `kernel.v1.proposal.*` / Change workflow | Agent 不直接修改受信状态。 |
+| trace | writer-scoped event、stream frame 或 artifact | runtime 不解释 trace payload。 |
+| working state | Component / Product event、object、projection 或 capability | 不新增 substrate agent state。 |
+| model / prompt / memory | 可选 Protocol 与普通 Component | 可以组合和替换，不进入宪法基底。 |
+| UI | surface contribution + public client | Shell 不读取 agent runtime 私有状态。 |
 
-## SDK 与包边界
+## 仓库中的普通组件
 
-后续 agent 基础设施可以新增：
+当前仓库通过普通 SDK、Component Package 和 integration fixture 实现并持续检查这条边界：
 
-- `sdk/typescript/ygg-agent-adapter`：把 Ygg 能力映射为 pi-style tool，提供提案、trace、流式取消和权限/provider diagnostics helpers。
-- `ygg init-package --template agent-runtime`：生成子进程 agent 包模板，默认不联网。
-- `official/pi-agent-runtime-lab`：普通参考包，默认 no-network/faux，不真实调用模型。
-- `official/capability-tool-bridge-lab`：普通 tool bridge 包，用于发现能力、预览权限、显式选择 provider，并通过公开协议调用。
-- Forge/Assist 的 agent trace/tool/proposal 观察面。
-- 第三方 replacement proof，用来证明官方 agent 包无优先级。
+- `sdk/typescript/ygg-agent-adapter` 把 Ygg capability 映射为 pi-style tool；
+- `sdk/typescript/agentic-forge` 提供包拥有的 run lifecycle、plan graph、working state 和 candidate helper；
+- `official/pi-agent-runtime-lab` 提供默认不联网的参考 agent 包；
+- `official/capability-tool-bridge-lab` 负责 capability discovery、permission preview、显式 provider 选择和受控调用；
+- `official/agentic-forge-lab` 提供 scratch branch、candidate、compare、promote 和 replay；
+- 第三方 replacement fixture 检查这些官方实现没有隐式优先级。
 
-这些组件不能：
+真实模型出站已经由独立的 model/inference 包和 Host outbound boundary 提供。Agent 包可以在 manifest 权限、capability binding 和用户/Host policy 允许时消费这些能力，但不能直接读取 raw API key、绕过 network declaration，或把 prompt/response 写入未脱敏审计。
 
-- import runtime private modules；
-- bypass package/capability/permission/proposal boundaries；
-- hardcode official package IDs in UI；
-- expose raw secrets in events/proposals/audit；
-- provide default bash/edit/write tools；
-- 在当前阶段发起真实模型调用。
+## 包和 SDK 的禁止项
+
+Agent adapter、参考包和 shell integration 不能：
+
+- import runtime private module；
+- 绕过 package、capability、permission、proposal 或 Change boundary；
+- 在 UI 中硬编码官方 package ID 作为优先实现；
+- 在 event、proposal、receipt 或 audit 中暴露 raw secret；
+- 默认提供不受约束的 bash/edit/write 或任意远程 shell；
+- 把 caller 提供的 session、target、path 或 network destination 当作授权依据；
+- 让 agent trace、prompt 或 model taxonomy 成为 kernel schema。
 
 ## 内核非目标
 
@@ -72,18 +78,6 @@ Agent 基础设施必须落在现有公开原语上：
 - `kernel.v1.prompt.*`
 - `kernel.v1.memory.*`
 - `kernel.v1.turn.*`
-- agent state、chat transcript、prompt template、model provider、thinking/reasoning 或 memory taxonomy。
+- agent state、chat transcript、prompt template、provider registry、thinking/reasoning 或 memory taxonomy。
 
-## 反模式
-
-- 把 `pi-coding-agent` 嵌成 Ygg 产品壳。
-- `Assist` 通过 private runtime path 启动 agent。
-- Tool bridge 自动选择第一个匹配 provider，或偏向官方 provider。
-- Agent 包直接写 asset/projection/session trusted state。
-- 把 pi `AgentState` 存成 kernel state。
-- 为了 trace viewer 新增 kernel trace ontology。
-- 先接真实 OpenAI/Anthropic，再补 secret、网络、审计和脱敏。
-
-## 当前状态
-
-Agent 基础设施已进入执行阶段。当前文档固定边界和 ledger。接下来会先做 adapter SDK、默认不联网的模板、普通官方参考包、tool bridge、Forge/Assist 观察面和第三方 replacement proof。真实模型推理继续延后，等专门能力包和 host 策略准备好之后再接入。
+这些概念可以由可选 Protocol 定义、由 Component 实现并由 Product 组合。具体完成状态和建设方向分别见 [`../ALPHA_STATUS.md`](../ALPHA_STATUS.md) 与 [`../roadmap/NEXT_STEPS.md`](../roadmap/NEXT_STEPS.md)。

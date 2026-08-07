@@ -2,7 +2,7 @@
 
 > [English](./HOST_OPERATIONS.en.md) · [中文](./HOST_OPERATIONS.md)
 
-本手册覆盖 Phase 3 已实现的本地 SQLite Host 运维基线。PostgreSQL 备份、在线不停机备份和原目录覆盖恢复尚未提供。
+本手册覆盖当前本地 SQLite Host 运维基线。PostgreSQL 备份、在线不停机备份和原目录覆盖恢复尚未提供。
 
 ## 健康检查
 

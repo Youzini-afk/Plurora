@@ -1,9 +1,12 @@
 # Design System: Yggdrasil Platform Shell
 
+> [English](./PLATFORM_UI_DESIGN.en.md) · [中文](./PLATFORM_UI_DESIGN.md)
+>
 > Single source of truth for Stitch screen generation and React implementation
-> of the Yggdrasil platform shell (`clients/web`). YdlTavern's own surface and
-> any future project's UI are out of scope for this document — projects govern
-> their own visual language.
+> of the official `clients/web` distribution shell. This document expresses the
+> current official product's visual and interaction opinions, not Yggdrasil's
+> platform constitution. Third-party distributions and products may use a
+> completely different navigation and visual language.
 
 ---
 
@@ -16,10 +19,11 @@
 | **Variance**       | `8` | Asymmetric grids, fractional column splits, generous empty zones. No predictable 3-up card rows. |
 | **Motion Intent**  | `5` | Subtle perpetual loops (state pulse, card hover-lift, cascade mount). No cinematic theatrics. The platform is a calm workshop, not a demo reel. |
 
-> Yggdrasil is a play-and-create unified platform — like Steam meets a
-> designer's bench. The shell must feel like an intentional workshop where
-> projects sit on shelves, not a corporate SaaS dashboard, not a code IDE,
-> not a chatbot UI.
+> The current official distribution organizes open platform capability into a
+> warm, legible workbench that can disclose depth gradually. Projects and
+> content sit on shelves while control and creation tools appear as needed.
+> Third-party shells need not copy this layout, and Yggdrasil is not defined as
+> Steam, an IDE, or a chatbot.
 
 ---
 
@@ -447,18 +451,14 @@ viewport breaks are critical failures.
 
 ---
 
-## 10. Implementation hints (for the React phase that follows Stitch)
+## 10. React implementation hints
 
-- Tailwind v3 with custom theme tokens for the colors above
-- `@phosphor-icons/react` weight=1.5 default
-- Cabinet Grotesk loaded from Fontshare or local woff2; Geist + Geist Mono
-  from `@fontsource/geist` + `@fontsource/geist-mono`
-- Framer Motion for spring physics; isolate perpetual loops in memoized leaf
-  components
-- CSS variables for theme tokens, `data-theme="dark"` on `<html>` for dark
-  mode, system-preference default + user toggle
-- Reuse existing protocol client; don't re-fetch — wire the new shell into
-  the existing `client.invoke` / `client.subscribeEvents` infrastructure
+- Tailwind v4; define design tokens through `@theme` and CSS variables in `src/styles/app.css`, with no `tailwind.config.js`
+- Re-export `@phosphor-icons/react` semantically from `src/components/icons.tsx`; page code does not mix icon libraries directly
+- Bundle Bricolage Grotesque, Geist, and JetBrains Mono through `@fontsource-variable/*`; do not require a runtime CDN
+- Use Motion v12 for entrance, exit, and spring behavior; isolate perpetual loops in memoized leaf components and honor `prefers-reduced-motion`
+- Drive themes through CSS variables and `<html data-theme="light|dark">`, following the system by default with an explicit user override
+- Reuse `client-core` and the public protocol/Host access clients; page components do not duplicate authentication, RPC, SSE, or pairing logic
 
 ---
 

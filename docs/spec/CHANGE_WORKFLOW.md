@@ -1,8 +1,10 @@
 # Change workflow 与 Proposal adapter
 
+> [English](./CHANGE_WORKFLOW.en.md) · [中文](./CHANGE_WORKFLOW.md)
+
 状态：Experimental，schema version 1。
 
-Phase 5 引入通用 `Intent → ChangeSet → PolicyDecision → Commit` 数据链。它描述改变的目标、操作、授权判断与实际提交结果，不向 kernel 引入世界、对话、模型或内容领域语义。
+通用 `Intent → ChangeSet → PolicyDecision → Commit` 数据链描述改变的目标、操作、授权判断与实际提交结果，不向 kernel 引入世界、对话、模型或内容领域语义。
 
 ## Schemas 与 type URI
 

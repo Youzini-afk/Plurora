@@ -2,40 +2,52 @@
 
 > [English](./SURFACE_HOSTING.en.md) · [中文](./SURFACE_HOSTING.md)
 
-本指南说明 `clients/web` 如何处理两类 surface：结构化 shell descriptor，以及用 sandboxed iframe 承载的外部 React / Web surface bundle。它描述的是 v0 宿主边界：Web shell 仍然是 plain TypeScript SPA，第三方 iframe surface 通过公开协议和显式 host bridge 与 Yggdrasil 交互。
+本指南说明平台 shell 如何处理两类 surface：由平台渲染的结构化 descriptor，以及在 sandboxed iframe 中运行的静态 Web bundle。当前 shell 使用 React 19，但 surface 边界不依赖 React；第三方代码只能通过公开合同和显式 Host bridge 参与。
 
-## 目的
+## 两类 surface
 
-Yggdrasil 的能力包可以通过 manifest 贡献 surface 描述符。`clients/web` 负责把这些描述符变成可见 UI。小颗粒 shell 入口由平台用结构化 metadata 渲染；需要自带前端 bundle 的第三方 surface 则不把代码直接加载进主窗口，而是通过 `SurfaceHost` 创建 iframe：
+能力包通过 manifest 的 `contributes.surfaces` 声明 surface。宿主根据 descriptor 决定如何呈现：
 
-- 主 shell 保持对导航、会话、公开协议客户端和权限提示的控制；
-- 第三方 bundle 在隔离 frame 内运行；
-- frame 与宿主只通过窄 `postMessage` 协议通信；
-- surface 不能直接访问 kernel，只能使用宿主显式接线的 bridge。
+- `quick_action`、`workshop_card` 和带 `metadata.shell_schema_version: 1` 的 `home_card` 由平台直接渲染；
+- 需要自有前端的项目通过 `entry.kind: surface_bundle` 提供静态 ESM bundle，并由 `SurfaceHost` 放入隔离 iframe。
 
-实现入口见 `clients/web/src/surfaces/surface-host.ts`，frame bootstrap 见 `clients/web/public/surface-frame.html`。
+结构化 descriptor 只允许受限文本、icon hint、排序和同包 target。平台不会为它加载包 JS、解析 HTML 或创建 iframe。它们当前是发现入口；未来接线执行时仍必须经过公开协议、权限、proposal 和审计。
 
-## 结构化 shell descriptor
+## 静态 bundle 包
 
-这些 slot 由 Web shell 直接渲染：
+最小 manifest：
 
-- `quick_action`
-- `workshop_card`
-- 带 `metadata.shell_schema_version: 1` 的 `home_card`
+```yaml
+schema_version: 1
+id: example/project-surface
+version: 0.1.0
+license: AGPL-3.0-only
+entry:
+  kind: surface_bundle
+  bundle: dist/bundle.mjs
+contributes:
+  surfaces:
+    - id: example/project-entry
+      version: 0.1.0
+      slot: experience_entry
+      title: Example project
+      allowed_capability_ids:
+        - example/project/inspect
+      activation:
+        input_schema: {}
+      required_permissions: []
+permissions: {}
+```
 
-它们只允许受限 metadata：
+`surface_bundle` 是静态、不可执行的 package entry。Host 不把它作为 Rust、subprocess、WASM 或 remote package 启动；安装器只把 bundle 与同目录静态资源纳入项目 dist 和 `tree_hash`。
 
-- `title`：本地化字符串，单项最多 80 字符。
-- `description`：可选本地化字符串，单项最多 240 字符。
-- `icon`：平台维护的 icon hint 白名单。
-- `order`、`category`、`badge`、`tone`：只影响平台渲染。
-- `surface_id` 或 top-level `capability_id`：必须指向同一 package 声明的 surface 或 capability。
+原始 `/surface-bundles/projects/<project_id>/...` 路径要求 Host 身份与精确项目权威。`host.surface.bundle.resolve` 成功后，Host 为当前 grant 和 bundle root 签发随机、五分钟、只读的 `/surface-assets/<lease>/...` URL。相对 module、stylesheet、font 和 image 必须留在同一 lease root。Grant 撤销或过期会立即使 lease 失效。
 
-Web shell 不会为这些 descriptor 加载 bundle、解析 HTML、运行包 JS 或创建 iframe。`quick_action` 当前只是发现入口；点击包贡献的 action 会显示来源与目标，不会静默调用能力。后续若要接入执行，也必须走公开协议、权限、提案和审计。
+不要把 secret、token、私有配置、主机路径或 source map 放进 `dist/`。私有数据必须通过 capability、`secret_ref`、出站审计和 bridge 权限取得。
 
-这层机制用于 Home 的小卡片和入口，不用于替换整个 Home、Settings 核心页、项目网格、Continue Card 或 Activity Timeline。
+## SurfaceHost API
 
-## Host API
+当前 Web 实现位于 `clients/web/src/surfaces/surface-host.ts`：
 
 ```ts
 export interface SurfaceHostOptions {
@@ -46,11 +58,14 @@ export interface SurfaceHostOptions {
   wrapperClass?: string;
   hostBridge?: SurfaceHostBridge;
   initialProps?: unknown;
+  stylesheets?: string[];
 }
 
 export interface SurfaceHostBridge {
+  currentSessionId?: string;
+  allowedCapabilityIds?: Iterable<string>;
   callRpc?(method: string, params: unknown): Promise<unknown>;
-  subscribeEvents?(sessionId: string, callback: (event: unknown) => void): () => void;
+  subscribeEvents?(callback: (event: unknown) => void): () => void;
 }
 
 export interface SurfaceHostHandle {
@@ -59,191 +74,125 @@ export interface SurfaceHostHandle {
   unmount(): Promise<void>;
 }
 
-export function mountSurface(options: SurfaceHostOptions): Promise<SurfaceHostHandle>;
-
-// Unmount operation shape:
-export function unmountSurface(handle: SurfaceHostHandle): Promise<void>;
+export function mountSurface(
+  options: SurfaceHostOptions,
+): Promise<SurfaceHostHandle>;
 ```
 
-`mountSurface(options)` 会：
+`mountSurface` 会：
 
-1. 查找 `options.containerId` 指向的 DOM 容器；
-2. 创建 `sandbox="allow-scripts"` iframe，加载 `/surface-frame.html`；
-3. 等待 frame 发送 `{type: 'ready'}`；
-4. 向 frame 发送 `{type: 'mount', bundleUrl, exportName, wrapperClass, initialProps}`；
-5. 为该 iframe 注册 `rpc.call` 监听器。
+1. 查找目标容器；
+2. 创建只有 `sandbox="allow-scripts"` 的 iframe；
+3. 等待 frame 的 `ready` 消息；
+4. 生成 mount-scoped `bridge_token`；
+5. 发送 bundle URL、export、样式和清理后的 `initialProps`；
+6. 注册 RPC 与 stream message handler；
+7. 在 `unmount()` 时关闭订阅、通知 frame、移除 listener 和 iframe。
 
-当前实现把 unmount 操作挂在 `SurfaceHostHandle.unmount()` 上；`unmountSurface(handle)` 的等价形状是 `handle.unmount()`。它会移除 message listener，并从 DOM 中移除 iframe。
+宿主会把 `currentSessionId` 注入为 `sessionId` 与 `session_id`，并覆盖调用方在 `initialProps` 中提供的同名字段。Surface 不能自行选择另一个 session。
 
-## Surface bundle 约定
+## Bundle mount contract
 
-Surface bundle 必须是可被动态 `import(bundleUrl)` 加载的 ESM module，并暴露一个具名 export。`exportName` 来自 surface metadata，例如 `YdlTavernPlaySurface`。
-
-已安装项目的 browser bundle 是 static/non-executing 产物，但不再是匿名可枚举资源。内部 `/surface-bundles/projects/<project_id>/...` 路径要求 Host 身份与精确项目权威；`host.surface.bundle.resolve` 授权成功后为 opaque-origin iframe 签发随机、五分钟、只读、绑定 grant 与 bundle root 的 `/surface-assets/<lease>/...` 句柄，并设置 CORS 可读响应。相对 module、stylesheet、font 和 image 留在同一 lease root；撤销或过期设备 grant 会让句柄立即失效。`dist/` 参与安装 `tree_hash`，所以只更新 bundle 也能被 install-lab 检测并刷新 project dist。asset lease 仍不等于 secret 容器：不要把 secret、token、私有配置、主机路径或 source map 放进 `dist/`。私有数据必须通过 capability、`secret_ref`、出站审计和 bridge 权限边界取得，而不是写进 bundle。
-
-frame 接受两种 mount contract：
+Bundle 必须是同源 lease URL 可动态导入的 ESM module，并暴露一个受限 JavaScript identifier 形式的具名 export。当前 frame 调用 export 的形状是：
 
 ```ts
-export async function YdlTavernPlaySurface(root: HTMLElement, props: unknown) {
+export function ExampleSurface(
+  root: HTMLElement,
+  props: Record<string, unknown>,
+): void | (() => void) {
   // render into root
-}
-
-export const YdlTavernPlaySurface = {
-  async mount(root: HTMLElement, props: unknown) {
-    // render into root
-  },
-};
-```
-
-React surface 通常在 mount function 内调用 `createRoot(root).render(...)`。Plain DOM surface 可以直接修改 `root`。
-
-CSS 必须限制在 wrapper class 之下，避免污染 frame 内其他节点，也便于宿主按 surface 类型控制尺寸和主题：
-
-```css
-.ydltavern-play-surface {
-  min-height: 100%;
-}
-
-.ydltavern-play-surface .message-row {
-  /* scoped styles */
+  return () => {
+    // release listeners and UI state
+  };
 }
 ```
 
-`wrapperClass` 会被设置到 frame 的 `#root` 元素上。
+React surface 可以在函数中调用 `createRoot(root).render(...)`，并返回 `root.unmount()` 包装函数。Plain DOM surface 可以直接操作 `root`。`wrapperClass` 会设置到 frame 的 `#root`；样式应限制在该 class 下。
 
-## Iframe 安全模型
+## Iframe 与 CSP
 
-宿主创建 iframe 时只设置：
+宿主创建：
 
 ```html
 <iframe sandbox="allow-scripts" src="/surface-frame.html"></iframe>
 ```
 
-没有 `allow-same-origin`、`allow-forms`、`allow-popups` 或其他权限。结果是：
+没有 `allow-same-origin`、`allow-forms`、`allow-popups` 或顶层导航权限，因此 frame 是 opaque origin，不能继承 Host 的 cookie、localStorage 或 DOM 权限。
 
-- surface script 可以运行；
-- frame 不能取得宿主同源权限；
-- form submit、popup、顶层导航等能力默认不可用；
-- 所有宿主能力都必须走 `postMessage` bridge。
-
-`surface-frame.html` 当前使用的 CSP 是：
+`surface-frame.html` 的 CSP 是：
 
 ```text
-default-src 'self'; script-src 'self' blob:; connect-src 'self'
+default-src 'self';
+script-src 'self';
+connect-src 'none';
+style-src 'self' 'unsafe-inline';
+img-src 'self' data: blob:;
+font-src 'self' data:;
 ```
 
-页面还允许必要的 inline style 和本地/data/blob 图片，用于基础渲染。网络连接仍限制为 `connect-src 'self'`；第三方 bundle 不应直接访问任意外网。
+Frame bootstrap 只接受同源 `/surface-assets/`、公开 `/assets/` 和自身 bootstrap script。Bundle 不能直接加载原始 `/surface-bundles/` 路径，也不能从 frame 直接访问公网；网络能力必须经过 Host-controlled capability/outbound 边界。
 
 ## postMessage 协议
 
-Frame load 后先通知宿主：
+主要消息：
 
-```ts
-// frame → host
-{ type: 'ready' }
+```text
+frame -> host: ready
+host  -> frame: mount | unmount | rpc.result | stream.frame | stream.ended | stream.error
+frame -> host: rpc.call | stream.subscribe | stream.unsubscribe | mount.error
 ```
 
-宿主随后发送 mount 指令：
+除初始 `ready` 外，Host 与 frame 的消息都绑定当前 `bridge_token`。宿主还验证 `event.source`、当前 session、subscription identity 和 stream ownership。Asset lease 只授权静态读取；`bridge_token` 只认证当前 mount 的消息。两者都不是 Host credential。
 
-```ts
-// host → frame
-{
-  type: 'mount',
-  bundleUrl,
-  exportName,
-  wrapperClass,
-  initialProps,
-}
-```
+## RPC bridge
 
-宿主为每次 mount 生成临时 `bridge_token`。Frame 只接受来自 `window.parent` 的 mount/unmount/RPC result 消息；bundle URL 和 stylesheet URL 必须来自同源 `/surface-assets/` lease 或公开 `/assets/` 路径，不能直接加载原始 `/surface-bundles/` 路径；`exportName` 必须是受限 JS identifier。asset lease 只授权静态读取，`bridge_token` 只认证当前 frame 的消息，两者都不是 Host credential。宿主收到 frame 消息时同时校验 `event.source`、`bridge_token`、session id 和 capability allowlist。
+Surface 通过 `window.yggHost.callRpc(method, params)` 发起调用。未配置 `hostBridge.callRpc` 时，调用返回标准化的 `no_bridge` 错误。
 
-Surface 如需调用宿主 RPC，frame 内代码通过 `window.yggHost.callRpc(method, params)` 发送：
+当前 bridge 方法 allowlist：
 
-```ts
-// frame → host
-{ type: 'rpc.call', id, method, params }
-```
+- `host.info`
+- `kernel.v1.host.ping`
+- `kernel.v1.capability.invoke`
+- `kernel.v1.capability.stream`
+- `kernel.v1.capability.cancel`
 
-宿主完成调用后返回：
+Capability invoke/stream 必须满足：
 
-```ts
-// host → frame
-{ type: 'rpc.result', id, result }
+- `capability_id` 在 surface descriptor 的 `allowed_capability_ids` 中；
+- `session_id` 由宿主重写为 `currentSessionId`；
+- 只保留允许的 input、provider、version 和 bounded metadata 字段；
+- stream 返回的 `stream_id` / `invocation_id` 记录为该 surface 所有；
+- cancel 只能作用于该 surface 创建的 stream 或 invocation。
 
-// or
-{ type: 'rpc.result', id, error: { code, message } }
-```
+Host 不把 raw runtime object、管理员方法、secret 或未过滤诊断传给 surface。Bridge error 会映射为有限的公开 code/message。
 
-`id` 由 frame 分配，用于匹配 pending promise。宿主只处理来自对应 iframe `contentWindow` 的 message。
+## Stream bridge
 
-## Host bridge
+Surface 只能订阅自己通过 `kernel.v1.capability.stream` 创建的 stream。宿主从当前项目 session 的事件订阅中筛选对应 `kernel/v1/stream.*` 事件，再转成：
 
-`hostBridge.callRpc(method, params)` 是 opt-in。如果 `mountSurface` 没有收到 `hostBridge.callRpc`，surface 调用 RPC 会得到：
+- `stream.frame`：`started`、`chunk`、`progress`；
+- `stream.ended`；
+- `stream.error`：error、cancelled、timeout。
 
-```ts
-{ type: 'rpc.result', id, error: { code: 'no_bridge', message: 'host did not configure RPC bridge' } }
-```
+当前实现对每个 surface 的 owned streams 和并发 subscriptions 设置硬上限，并在 unmount 时关闭全部订阅。Surface 不能用 subscription API 枚举同 session 的其他 stream。
 
-默认状态下，第三方 surface 没有 kernel access。宿主必须显式决定哪些公开协议方法可以转发、使用哪个 principal、如何显示审批或权限状态。不要把内部 runtime object 或未过滤的 admin 方法传入 surface。
+## 项目页生命周期
 
-`subscribeEvents` 也属于显式 bridge 能力；v0 host API 只定义形状，具体事件订阅接线由宿主 surface integration 决定。
+Home 启动项目后打开 `/project/<project_id>`。项目页不加载平台顶栏，只保留全屏 SurfaceHost 和项目控制台边界。关闭标签页不会自动停止项目 session；停止操作由宿主页通过 `host.project.stop` 执行，不作为 iframe 的隐式能力。
 
-后续可以在同一边界上增加 surface lifecycle callback，例如：
+Iframe 内存不是持久状态。可恢复状态应由项目能力包、事件、asset 或 projection 持有，并通过公开协议重新获取。`initialProps` 只适合 session、descriptor 和只读启动信息。
 
-- `onClose`
-- `onProposalDraft`
-- `onDirtyStateChanged`
-- `onFocusRequest`
+## 当前边界
 
-这些 callback 应保持显式、可审计，不应变成隐式 kernel 旁路。
-
-## YdlTavern surface 示例
-
-YdlTavern 是独立接入项目，运行在 Yggdrasil 之上。它的 `manifest.yaml` 可以声明三个 surface：
-
-```yaml
-surfaces:
-  - id: ydltavern.play
-    slot: play_renderer
-    metadata:
-      framework: react
-      bundle_url: /surfaces/ydltavern/index.js
-      export_name: YdlTavernPlaySurface
-      wrapper_class: ydltavern-play-surface
-
-  - id: ydltavern.settings
-    slot: forge_panel
-    metadata:
-      framework: react
-      bundle_url: /surfaces/ydltavern/index.js
-      export_name: YdlTavernSettingsSurface
-      wrapper_class: ydltavern-settings-surface
-
-  - id: ydltavern.extensions
-    slot: assistant_action
-    metadata:
-      framework: react
-      bundle_url: /surfaces/ydltavern/index.js
-      export_name: YdlTavernExtensionsSurface
-      wrapper_class: ydltavern-extensions-surface
-```
-
-Web shell 通过 `kernel.v1.surface.contribution.list` / `.describe` 读取描述符和 metadata，选择目标 slot 的 surface，解析 `bundle_url`、`export_name`、`wrapper_class`，然后调用 `mountSurface`。宿主可以把 session id、surface descriptor、只读配置等放入 `initialProps`，并按权限决定是否接线 `hostBridge.callRpc`。
-
-在 Home 打开项目时，Web shell 会新开 `/project/<project_id>` 标签页。该页面没有平台顶栏或返回按钮，只保留全屏 sandbox iframe。关闭标签页不会停止项目 session；项目页支持 `⌘ .` / `Ctrl .` 停止当前项目。Stop 由宿主页处理，不作为 surface bridge 能力暴露。
-
-## v0 限制
-
-- **同源 leased bundle：** iframe 当前只加载 Host 同源 `/surface-assets/` lease URL。跨源 bundle 需要显式 allowlist、CSP 更新和来源校验。
-- **无持久 frame 状态：** mount/unmount 会丢弃 iframe 内存状态。宿主应持有可恢复状态，并通过 `initialProps` 传回 surface。
-- **无 Tauri 直通 API：** iframe 内不能直接访问 Tauri API。需要桌面能力时，通过宿主 bridge 暴露受控方法。
-- **无隐式 kernel access：** 所有 RPC 都由宿主显式接线，并应继续走公开协议和权限边界。
-- **生命周期 callback 未完成：** `onClose`、`onProposalDraft` 等仍是后续工作。
+- Bundle 只允许 Host 同源的 leased asset URL；cross-origin bundle 仍需独立的 origin allowlist、integrity pin 和 CSP 设计。
+- Frame 不能直接访问 Tauri API；桌面能力必须由宿主设计成受控公开边界。
+- Surface lifecycle callback（如 `onClose`、`onProposalDraft`）尚未形成稳定合同。
+- Structured quick action 仍是发现入口，不会绕过 proposal、permission 或 audit 直接执行。
 
 ## 相关文档
 
-- [`../../BUILDING.md`](../../BUILDING.md) — Web / desktop 构建与 release 说明。
-- [`../architecture/ARCHITECTURE.md`](../architecture/ARCHITECTURE.md) — Web shell、SurfaceHost、desktop wrapper 的架构位置。
-- [`../ALPHA_STATUS.md`](../ALPHA_STATUS.md) — 当前完成状态。
-- [`../roadmap/NEXT_STEPS.md`](../roadmap/NEXT_STEPS.md) — 后续工作。
+- [`../architecture/ARCHITECTURE.md`](../architecture/ARCHITECTURE.md) — shell、项目和能力包的架构位置。
+- [`PROJECT_MODEL.md`](PROJECT_MODEL.md) — 项目安装、启动和 session 绑定。
+- [`CAPABILITY_HANDLES.md`](CAPABILITY_HANDLES.md) — capability 权威与衰减。
+- [`SECRET_MANAGEMENT.md`](SECRET_MANAGEMENT.md) — `secret_ref` 和 secret 边界。
+- [`../ALPHA_STATUS.md`](../ALPHA_STATUS.md) — 当前实现状态。

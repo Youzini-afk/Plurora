@@ -2,7 +2,7 @@
 
 > [English](./HOST_OPERATIONS.en.md) · [中文](./HOST_OPERATIONS.md)
 
-This runbook covers the Phase 3 baseline for a local SQLite Host. PostgreSQL backup, zero-downtime online backup, and in-place overwrite restore are not yet provided.
+This runbook covers the current operational baseline for a local SQLite Host. PostgreSQL backup, zero-downtime online backup, and in-place overwrite restore are not yet provided.
 
 ## Health checks
 

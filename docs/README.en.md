@@ -2,65 +2,69 @@
 
 > [English](./README.en.md) · [中文](./README.md)
 
-Topic-grouped navigation for the developer docs. Every doc has both English and Simplified Chinese versions; the bilingual blockquote at the top of each file switches between them. When writing docs, follow [`STYLE.md`](STYLE.en.md).
+The documentation is organized by long-term principles, current implementation, architecture layer, product, public contracts, and authoring guides. Major documents are available in English and Simplified Chinese. Follow [`STYLE.md`](STYLE.en.md) when writing documentation.
 
 ## Newcomer 1 / 2 / 3 path
 
-1. Read [`CHARTER.md`](CHARTER.en.md) → [`architecture/VISION.md`](architecture/VISION.en.md) → [`product/PLAY_CREATION_MODEL.md`](product/PLAY_CREATION_MODEL.en.md) for the platform stance.
-2. Read [`architecture/ARCHITECTURE.md`](architecture/ARCHITECTURE.en.md) → [`architecture/PLATFORM_KERNEL.md`](architecture/PLATFORM_KERNEL.en.md) → [`architecture/CAPABILITY_PACKAGE.md`](architecture/CAPABILITY_PACKAGE.en.md) for the three-tier architecture and its boundaries.
-3. Walk through [`guides/PACKAGE_AUTHORING_WALKTHROUGH.md`](guides/PACKAGE_AUTHORING_WALKTHROUGH.en.md) to ship a first capability package.
+1. Read [`CHARTER.md`](CHARTER.en.md) → [`architecture/VISION.md`](architecture/VISION.en.md) to understand why the platform exists and what it pursues for the long term.
+2. Read [`architecture/ARCHITECTURE.md`](architecture/ARCHITECTURE.en.md) → [`architecture/PLATFORM_KERNEL.md`](architecture/PLATFORM_KERNEL.en.md) → [`architecture/CAPABILITY_PACKAGE.md`](architecture/CAPABILITY_PACKAGE.en.md) to understand the boundaries among substrate, protocols, components, Host, distributions, and products.
+3. Read [`product/PLATFORM_PRODUCT_MODEL.md`](product/PLATFORM_PRODUCT_MODEL.en.md) and walk through [`guides/PACKAGE_AUTHORING_WALKTHROUGH.md`](guides/PACKAGE_AUTHORING_WALKTHROUGH.en.md) to understand official product responsibility and complete a first Package / Component.
 
-After that, hop into the relevant guide / spec / roadmap on demand.
+Then enter the relevant guide, spec, or roadmap as needed.
 
-## Stance and status
+## Principles, product, and status
 
-- [`CHARTER.md`](CHARTER.en.md) — permanent principles
-- [`ALPHA_STATUS.md`](ALPHA_STATUS.en.md) — living snapshot of done / partial / deferred
-- [`STYLE.md`](STYLE.en.md) — documentation conventions and red lines
+- [`CHARTER.md`](CHARTER.en.md) — platform identity, five long-term goals, and non-negotiable principles
+- [`architecture/VISION.md`](architecture/VISION.en.md) — intended long-term shape and technical direction
+- [`product/PLATFORM_PRODUCT_MODEL.md`](product/PLATFORM_PRODUCT_MODEL.en.md) — user lifecycles, usability principles, and product boundaries of the official distribution
+- [`product/PLAY_CREATION_MODEL.md`](product/PLAY_CREATION_MODEL.en.md) — optional play-creation product profile, not the only form of the platform
+- [`ALPHA_STATUS.md`](ALPHA_STATUS.en.md) — factual snapshot of implemented, partial, and deferred work
+- [`roadmap/NEXT_STEPS.md`](roadmap/NEXT_STEPS.en.md) — construction direction around openness, plurality, advanced capability, longevity, and usability
+- [`STYLE.md`](STYLE.en.md) — documentation truth hierarchy, bilingual synchronization, and writing red lines
 - [`LICENSING.md`](LICENSING.en.md) — `AGPL-3.0-only` first-party scope and third-party license boundaries
-- [`../BUILDING.md`](../BUILDING.md) — Rust, web, Tauri desktop, and release build notes
-- [`product/`](product/README.en.md) — play-creation product stance
+- [`../BUILDING.md`](../BUILDING.md) — Rust, Web, Tauri Desktop, and release build instructions
 
-## Architecture and protocol
+## Architecture and public contracts
 
-- [`architecture/`](architecture/README.en.md) — kernel + packages + projects layering, capability contract, extension points, event model, lifecycles
-- [`protocol/`](protocol/README.en.md) — public protocol spec
-- [`spec/`](spec/README.en.md) — executable v1 contract matrix, conformance roadmap, schemas
-- [`architecture/CONSTITUTION_V2.md`](architecture/CONSTITUTION_V2.en.md) → [`spec/CONTRACT_LAYERING_MATRIX.md`](spec/CONTRACT_LAYERING_MATRIX.en.md) — candidate v2 constitution and item-by-item contract ownership; v1 remains current
+- [`architecture/`](architecture/README.en.md) — layered architecture, constitutional substrate, components, and Host control planes
+- [`protocol/`](protocol/README.en.md) — current public transport and invocation protocol
+- [`spec/`](spec/README.en.md) — Contract V1 schemas, Contract Registry, Protocol Commons, and compatibility contracts
+- [`architecture/CONSTITUTION_V2.md`](architecture/CONSTITUTION_V2.en.md) → [`spec/CONTRACT_LAYERING_MATRIX.md`](spec/CONTRACT_LAYERING_MATRIX.en.md) — candidate long-term constitution and itemized ownership of the current contract; v1 remains current
 
-## Authoring
+## Authoring, installation, and operation
 
-- [`guides/`](guides/README.en.md) — capability package authoring guides, grouped by domain (foundation / agent / model / inference / experience / memory / storage / external projects / sharing)
-- [`guides/CAPABILITY_HANDLES.md`](guides/CAPABILITY_HANDLES.en.md) — v1 capability handles, attenuation, revoke, and effect audit
-- [`guides/CONFORMANCE_KIT.md`](guides/CONFORMANCE_KIT.en.md) — third-party package v1 conformance kit
-- [`guides/PACKAGE_INSTALLATION.md`](guides/PACKAGE_INSTALLATION.en.md) — `yg install/update`, lockfiles, content-addressed store, bundle freshness, and consent prompts
-- [`guides/PROJECT_MODEL.md`](guides/PROJECT_MODEL.en.md) — Home project shelf, `project.yaml`, project lifecycle, console diagnostics/update, and project-level secrets
-- [`guides/SECRET_MANAGEMENT.md`](guides/SECRET_MANAGEMENT.en.md) — `secret_ref:env:` / `secret_ref:store:`, local encrypted store, and API key management
-- [`guides/REAL_MODEL_END_TO_END.md`](guides/REAL_MODEL_END_TO_END.en.md) — end-to-end path from YdlTavern Send to a real provider response
+- [`guides/`](guides/README.en.md) — guides grouped by foundation, agent, model, inference, experience, memory, storage, external projects, and distribution
+- [`guides/PACKAGE_AUTHORING_WALKTHROUGH.md`](guides/PACKAGE_AUTHORING_WALKTHROUGH.en.md) — first Package / Component
+- [`guides/CAPABILITY_HANDLES.md`](guides/CAPABILITY_HANDLES.en.md) — authority handles, attenuation, revocation, and effect audit
+- [`guides/CONFORMANCE_KIT.md`](guides/CONFORMANCE_KIT.en.md) — Contract V1 behavioral checks for third-party implementations
+- [`guides/PACKAGE_INSTALLATION.md`](guides/PACKAGE_INSTALLATION.en.md) — installation, updates, lockfiles, content-addressed store, and consent prompts
+- [`guides/PROJECT_MODEL.md`](guides/PROJECT_MODEL.en.md) — current official Host Project installation-instance model and boundary
+- [`guides/SECRET_MANAGEMENT.md`](guides/SECRET_MANAGEMENT.en.md) — `secret_ref`, local encrypted store, and API key management
+- [`guides/REAL_MODEL_END_TO_END.md`](guides/REAL_MODEL_END_TO_END.en.md) — real-provider end-to-end invocation
 - [`guides/PATH_B_SELF_CONTAINED.md`](guides/PATH_B_SELF_CONTAINED.en.md) — `entry.contract: "none"` self-contained path
-- [`guides/SURFACE_HOSTING.md`](guides/SURFACE_HOSTING.en.md) — `clients/web` iframe SurfaceHost and third-party web surface bundle hosting
+- [`guides/SURFACE_HOSTING.md`](guides/SURFACE_HOSTING.en.md) — iframe SurfaceHost and third-party Web Surface hosting
 
-## Performance and roadmap
+## Performance, status, and external integrations
 
-- [`performance/`](performance/README.en.md) — performance baseline, conformance feedback loop, code health
-- [`roadmap/`](roadmap/README.en.md) — current and upcoming work, model inference prerequisites
-- [`roadmap/CONTRACT_V2_MIGRATION.md`](roadmap/CONTRACT_V2_MIGRATION.en.md) — layered-contract migration order, compatibility gates, and definition of done
-- [`tavern/`](tavern/README.en.md) — how Yggdrasil relates to YdlTavern, the SillyTavern-compatible integration project
+- [`performance/`](performance/README.en.md) — performance baselines, quality feedback, and code health
+- [`roadmap/`](roadmap/README.en.md) — construction direction that still affects current choices
+- [`tavern/`](tavern/README.en.md) — relationship between Yggdrasil and the independent YdlTavern integration project
 
 ## Shortest path by intent
 
-| If you want to | Read first |
+| Goal | Read first |
 |---|---|
-| Understand the platform stance | [`CHARTER.md`](CHARTER.en.md) → [`architecture/VISION.md`](architecture/VISION.en.md) → [`product/PLAY_CREATION_MODEL.md`](product/PLAY_CREATION_MODEL.en.md) |
-| Understand the architecture | [`architecture/ARCHITECTURE.md`](architecture/ARCHITECTURE.en.md) → [`guides/PROJECT_MODEL.md`](guides/PROJECT_MODEL.en.md) → [`architecture/PLATFORM_KERNEL.md`](architecture/PLATFORM_KERNEL.en.md) → [`architecture/CAPABILITY_PACKAGE.md`](architecture/CAPABILITY_PACKAGE.en.md) |
-| Review the candidate v2 boundaries | [`architecture/CONSTITUTION_V2.md`](architecture/CONSTITUTION_V2.en.md) → [`spec/CONTRACT_LAYERING_MATRIX.md`](spec/CONTRACT_LAYERING_MATRIX.en.md) → [`roadmap/CONTRACT_V2_MIGRATION.md`](roadmap/CONTRACT_V2_MIGRATION.en.md) |
-| Use the public protocol | [`protocol/PROTOCOL_V0.md`](protocol/PROTOCOL_V0.en.md) → [`spec/KERNEL_V1_CONTRACT.md`](spec/KERNEL_V1_CONTRACT.en.md) |
-| Write your first package | [`guides/PACKAGE_AUTHORING_WALKTHROUGH.md`](guides/PACKAGE_AUTHORING_WALKTHROUGH.en.md) |
-| Install capability packages/projects | [`guides/PACKAGE_INSTALLATION.md`](guides/PACKAGE_INSTALLATION.en.md) → [`guides/PROJECT_MODEL.md`](guides/PROJECT_MODEL.en.md) |
+| Understand platform goals | [`CHARTER.md`](CHARTER.en.md) → [`architecture/VISION.md`](architecture/VISION.en.md) |
+| Understand layering | [`architecture/ARCHITECTURE.md`](architecture/ARCHITECTURE.en.md) → [`architecture/PLATFORM_KERNEL.md`](architecture/PLATFORM_KERNEL.en.md) → [`architecture/CAPABILITY_PACKAGE.md`](architecture/CAPABILITY_PACKAGE.en.md) |
+| Understand the official product | [`product/PLATFORM_PRODUCT_MODEL.md`](product/PLATFORM_PRODUCT_MODEL.en.md) → [`design/PLATFORM_UI_DESIGN.md`](design/PLATFORM_UI_DESIGN.en.md) |
+| Review long-term contract boundaries | [`architecture/CONSTITUTION_V2.md`](architecture/CONSTITUTION_V2.en.md) → [`spec/CONTRACT_LAYERING_MATRIX.md`](spec/CONTRACT_LAYERING_MATRIX.en.md) → [`spec/CONTRACT_REGISTRY.md`](spec/CONTRACT_REGISTRY.en.md) |
+| Use public contracts | [`protocol/PROTOCOL_V0.md`](protocol/PROTOCOL_V0.en.md) → [`spec/KERNEL_V1_CONTRACT.md`](spec/KERNEL_V1_CONTRACT.en.md) |
+| Write a first Package / Component | [`guides/PACKAGE_AUTHORING_WALKTHROUGH.md`](guides/PACKAGE_AUTHORING_WALKTHROUGH.en.md) |
+| Install a Package / Project | [`guides/PACKAGE_INSTALLATION.md`](guides/PACKAGE_INSTALLATION.en.md) → [`guides/PROJECT_MODEL.md`](guides/PROJECT_MODEL.en.md) |
 | Manage API keys / secrets | [`guides/SECRET_MANAGEMENT.md`](guides/SECRET_MANAGEMENT.en.md) |
-| Run real model calls end to end | [`guides/REAL_MODEL_END_TO_END.md`](guides/REAL_MODEL_END_TO_END.en.md) |
-| Host third-party web surfaces | [`guides/SURFACE_HOSTING.md`](guides/SURFACE_HOSTING.en.md) |
-| Build web / desktop / release | [`../BUILDING.md`](../BUILDING.md) |
-| See current status | [`ALPHA_STATUS.md`](ALPHA_STATUS.en.md) |
-| See what's next | [`roadmap/NEXT_STEPS.md`](roadmap/NEXT_STEPS.en.md) |
-| Write docs | [`STYLE.md`](STYLE.en.md) |
+| Run real model invocation | [`guides/REAL_MODEL_END_TO_END.md`](guides/REAL_MODEL_END_TO_END.en.md) |
+| Host third-party Web Surfaces | [`guides/SURFACE_HOSTING.md`](guides/SURFACE_HOSTING.en.md) |
+| Build Web / Desktop / Release | [`../BUILDING.md`](../BUILDING.md) |
+| Review current status | [`ALPHA_STATUS.md`](ALPHA_STATUS.en.md) |
+| Review construction direction | [`roadmap/NEXT_STEPS.md`](roadmap/NEXT_STEPS.en.md) |
+| Write documentation | [`STYLE.md`](STYLE.en.md) |

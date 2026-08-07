@@ -9,13 +9,13 @@
 
 ## Core promise
 
-Yggdrasil hosts portable, forkable, composable, and auditable AI-native worlds and experiences. Models, agents, components, engines, clients, and hosts may be replaced; important content, history, and ownership do not belong to any single host.
+Yggdrasil hosts portable, composable, auditable, and long-lived applications, tools, services, worlds, games, agents, and other digital forms. Models, agents, components, engines, clients, and Hosts may be replaced; important content, history, and ownership do not belong to any single implementation or service.
 
 The product may use “world” as its medium identity, but the constitutional substrate does not freeze `World` into system ontology. The substrate knows identity, authority, objects, references, causality, effects, and proof. Higher-level protocols define worlds.
 
 The boundary in one sentence:
 
-> The substrate owns physical laws, the protocol commons owns shared language, and the experience layer owns opinions; content belongs to creators and players.
+> The substrate owns physical laws, Protocol Commons owns shared language, and distributions and products own viewpoints; data and content belong to users and creators.
 
 ## Why a new boundary is needed
 
@@ -26,7 +26,7 @@ The current design is strong at extensibility: packages can declare capabilities
 - **Composability:** independent authors can interoperate through shared protocols, not merely matching JSON shapes.
 - **Governance:** protocols have maturity, negotiation, support windows, migration tools, and behavioral conformance.
 
-“The kernel does not know content concepts” does not mean the kernel has no ontology. `session`, `package`, `project`, `proposal`, `surface`, `target`, and `proxy` are ontological choices too. Every noun admitted to a long-lived stable contract must prove that it is a physical law that cannot safely live above the substrate.
+“The kernel does not know content concepts” does not mean the kernel has no ontology. `session`, `package`, `project`, `proposal`, `surface`, `target`, and `proxy` are ontological choices too. Every noun admitted to a long-lived stable contract must satisfy the strict downward-movement gate that it cannot safely live above the substrate.
 
 ## Immutable principles
 
@@ -309,7 +309,7 @@ Concepts that do not satisfy these conditions remain in Experimental/Candidate p
 This document does not require deleting existing implementation. Current methods may continue serving the existing Web shell, CLI, packages, and conformance, while their long-term ownership is reclassified by
 [`CONTRACT_LAYERING_MATRIX.md`](../spec/CONTRACT_LAYERING_MATRIX.en.md).
 
-Until layering migration is complete:
+Until the candidate layering is explicitly adopted as a stable constitution:
 
 - `kernel.v1.*` is a legacy operational contract, not automatically a permanent constitution;
 - its stable surface does not expand except for security fixes, correctness fixes, and compatibility fields;
@@ -317,11 +317,11 @@ Until layering migration is complete:
 - old clients continue through aliases and adapters;
 - v2 data preserves original v1 envelopes and unknown fields for lossless transfer.
 
-Implementation order is defined in [`CONTRACT_V2_MIGRATION.md`](../roadmap/CONTRACT_V2_MIGRATION.en.md).
+The codebase already contains Experimental owner namespaces, a Contract Registry, legacy adapters, ObjectStore, EffectReceipt, Change primitives, Protocol Commons, and World Bundles. They provide an operational foundation for the candidate layering, but they do not promote this document to Stable; [`CONTRACT_LAYERING_MATRIX.md`](../spec/CONTRACT_LAYERING_MATRIX.en.md) remains the ownership review reference.
 
-## Fitness tests before stability
+## Conditions for stable adoption
 
-Before declaring the new substrate stable, Yggdrasil proves that:
+Before the candidate substrate becomes Stable, it must satisfy these compatibility, portability, and independent-implementation conditions:
 
 1. the same World Bundle imports into a second independent host;
 2. replacing a model provider requires no world-data migration;
@@ -333,7 +333,7 @@ Before declaring the new substrate stable, Yggdrasil proves that:
 8. history replays deterministically while the model service is offline;
 9. replacing the Web shell with desktop, VR, or headless does not change world data.
 
-These are architectural fitness tests, not a product-demo checklist.
+These conditions constrain stability claims and compatibility commitments; they do not decide which product functionality Yggdrasil should build merely to satisfy them.
 
 ## Non-normative references
 

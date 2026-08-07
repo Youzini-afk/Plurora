@@ -52,7 +52,7 @@ tsc -p clients/web/tsconfig.json --noEmit
 
 The output envelope now includes `schema`, `created_at`, `git`, and `env`; each scenario includes p50/p95/p99, RSS delta, and `iterations_capped` when applicable. The committed [`../../perf/baseline.json`](../../perf/baseline.json) is a Linux developer-machine reference, not a CI budget; future optimizations should use it as the regression reference.
 
-Frontend performance diagnostics should use existing web checks, browser profilers, or focused tests; do not point to a helper file that is not present. The independent YdlTavern repository's benchmark convention is documented in [`YdlTavern/docs/guides/PERFORMANCE_BASELINE.md`](../../../YdlTavern/docs/guides/PERFORMANCE_BASELINE.en.md).
+Frontend performance diagnostics should use existing web checks, browser profilers, or focused tests; do not point to a helper file that is not present. YdlTavern's benchmark convention is documented in the independent repository's [`docs/guides/PERFORMANCE_BASELINE.en.md`](https://github.com/Youzini-afk/Yggdrasil-Tavern/blob/main/docs/guides/PERFORMANCE_BASELINE.en.md).
 
 The current pre-human-testing baseline should also watch install/profile/surface/security-bridge paths: project install, profile autoload, static surface-bundle serving, bridge allowlists, stream ownership, redacted diagnostics, and secret-input cleanup.
 

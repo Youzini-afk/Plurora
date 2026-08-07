@@ -1,17 +1,17 @@
 # Experience Runtime 创作指南
 
-> [English](./EXPERIENCE_RUNTIME_AUTHORING.en.md) · 中文
+> [English](./EXPERIENCE_RUNTIME_AUTHORING.en.md) · [中文](./EXPERIENCE_RUNTIME_AUTHORING.md)
 
 本指南说明如何创建、检查、checkpoint、恢复和替换 Yggdrasil 中的 experience-runtime 包。
 
 ## 概述
 
-Experience runtime 定义普通包拥有的体验如何连续运行、暂停、恢复、checkpoint 和 fork。Agentic Forge 可以通过提案修改它们。所有体验语义都在包层，不进入内核。
+本指南使用当前 Contract V1 的普通 Package / Component 实现一种 Experience Runtime Product Profile：连续运行、暂停、恢复、checkpoint 和 fork。共享的体验生命周期可以由可选 Protocol / Profile 定义，具体体验状态由 Product 与 Component 拥有；它不进入宪法基底。
 
 关键约束：
 - 不新增 `kernel.v1.experience.*`、`kernel.v1.world.*`、`kernel.v1.turn.*`、`kernel.v1.chat.*` 或 `kernel.v1.memory.*`。
 - Experience 包是普通包，没有内核特权。
-- Experience 描述符、状态 projection、checkpoint 和恢复计划是包拥有的资产，不是内核原语。
+- 当前 Experience 描述符、状态 projection、checkpoint 和恢复计划由对应 Component / Product 的 Package 分发，是产品工件而不是基底原语。
 - 所有行为通过公开协议完成。
 
 ## 生成 experience-runtime 包
@@ -31,7 +31,7 @@ ygg init-package ./my-experience \
 
 ## Experience 描述符
 
-Experience 描述符（`experience_runtime_descriptor`）是包拥有的体验元数据，包含：
+Experience 描述符（`experience_runtime_descriptor`）是当前 Profile 的产品元数据，由对应 Package 分发，包含：
 
 ```typescript
 const desc = createExperienceDescriptor({
@@ -231,6 +231,6 @@ import {
 ## 延伸阅读
 
 - `docs/CHARTER.md` — 不可变根本原则
-- `docs/product/PLAY_CREATION_MODEL.md` — 游创一体的产品立场
+- `docs/product/PLAY_CREATION_MODEL.md` — 可选游创 Product Profile 的产品立场与边界
 - `docs/guides/AGENTIC_FORGE_PACKAGE_AUTHORING.md` — Agentic Forge 创作指南
 - `docs/roadmap/NEXT_STEPS.md` — 路线图

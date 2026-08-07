@@ -1,127 +1,180 @@
-# 下一步
+# 建设方向
 
 > [English](./NEXT_STEPS.en.md) · [中文](./NEXT_STEPS.md)
 
-这份文档讲 Yggdrasil 接下来要往哪走。已完成的状态见 [`../ALPHA_STATUS.md`](../ALPHA_STATUS.md)，不在这里复述。
+Yggdrasil 的下一步不是围绕某个单一产品、示例或工作流扩张，也不是为了完成一张证明题而增加功能。建设方向来自章程中的五个长期目标：开放、多样、先进、长久、好用。
 
-## 现在在哪
+这些方向并行推进，不用阶段编号制造虚假的线性顺序。每一项具体工作都应落在清楚的用户生命周期、架构层和长期责任中。
 
-- 内核对内容无意见，官方包没有特权，公开协议是唯一入口。
-- 安全执行底座完整：`secret_ref`、本地加密 secret store、网络声明、外发审计与脱敏、HTTP/WebSocket 出站执行器、流式与取消生命周期。
-- 平台底座完整：包安装、原生项目安装/挂载、profile autoload、installed project surface bundle、surface bundle freshness 防护、项目更新、Home 项目货架、结构化 shell descriptor、独立项目标签页、项目控制台诊断、显式 Docker Deploy broker、durable 部署作业、受控 Host 开发 ChangeSet、target/exec/port/proxy 部署原语、ygg-service HTTP/WebSocket 反代、按 action 与 project/target 资源衰减的可撤销 Host 设备身份、移动 PWA 与远程 CLI 控制、默认私有且显式公开的应用 route、Settings、真实模型端到端、流式 UX、受限 Surface bridge、managed-Host 桌面 wrapper、release pipeline、Web shell release closure 与代码组织拆分。
-- 多 provider 模型接入、transport-neutral 推理接缝、Agentic Forge、外部项目操作平面、存储中立性、PostgreSQL 事件后端、TDB 真实 Rust adapter——都已落地。
-- Contract V1 是公开平台规范，80 methods + 59 events + 22 top-level = 161 个 schema 全部通过校验，474 conformance cases 通过。
-- Contract v2 分层迁移的九个 Phase 已全部完成：在前八步底座之上，客户端已迁到 canonical API，Contract Registry `0.5.0` 也完成了 `kernel.v1.host.info` / `kernel.v1.target.list` 的真实 Deprecated → Legacy Adapter 转换；完整实施记录见 [`CONTRACT_V2_MIGRATION.md`](CONTRACT_V2_MIGRATION.md)。
+## 当前最重要的工作
 
-下一阶段不再继续摊大表面积，而是由真实项目部署、人测和可玩体验来牵引剩下的工作。
+### 让官方发行版成为完整、好用的产品
 
-项目级权威、可靠部署、运行安全、remote target 与统一客户端之间的依赖顺序已经固定在
-[`HOST_OPERATIONS_IMPLEMENTATION.md`](HOST_OPERATIONS_IMPLEMENTATION.md)。实现已经按顺序先满足项目隔离和本地恢复门槛，再开放 Remote Target Candidate；这些能力仍由真实项目压力驱动，不构成新的内核内容本体。
+当前 Web、Desktop、PWA 与 CLI 已经拥有大量能力，但日常体验仍容易显得像平台控制面而不是成熟产品。优先补齐完整生命周期，而不是继续堆独立面板：
 
-截至 2026-07-24，Phase 0–5 Candidate 已完成。authenticated Remote Target Agent gate 覆盖 local/Agent 等价 Docker deployment、actual-port 投影、loopback-only HTTP/WebSocket tunnel 与完整远端故障矩阵；统一客户端和开发—部署 gate 进一步覆盖共享 Host/project/target context、Project Console target operation，以及通过公开 Host contract 完成的 Verified Artifact → private preview → approval → activation → recover → rollback。两条 gate 都由 GitHub CI 验收。
+- 第一次启动、本地 managed Host、远程 Host 连接和恢复；
+- 发现、导入、安装、授权、运行、停止、更新、卸载；
+- 状态、进度、取消、失败原因和下一步操作；
+- 存储占用、备份、导出、迁移、归档和删除；
+- 权限请求的人类可读解释、期限、目标资源和撤销入口；
+- 移动端、键盘、无障碍、国际化、慢网络和低性能设备；
+- 简单模式与高级控制之间的渐进式展开。
 
-> 这里的「完整」指当前 v1 运行闭环，不代表现有 `kernel.v1.*` 边界已经成为永久宪法。
-> 长期分层候选见 [`CONSTITUTION_V2.md`](../architecture/CONSTITUTION_V2.md)，逐项归属与临时实施顺序见
-> [`CONTRACT_LAYERING_MATRIX.md`](../spec/CONTRACT_LAYERING_MATRIX.md) 和
-> [`CONTRACT_V2_MIGRATION.md`](CONTRACT_V2_MIGRATION.md)。候选方案在显式采纳前不改变当前工作状态。
+官方发行版继续使用公开合同，不建立 Desktop 私有能力或官方 Package 捷径。产品模型见 [`../product/PLATFORM_PRODUCT_MODEL.md`](../product/PLATFORM_PRODUCT_MODEL.md)。
 
-## 长期方向
+### 把创作者体验做成一条连续路径
 
-平台立场见 [`../product/PLAY_CREATION_MODEL.md`](../product/PLAY_CREATION_MODEL.md)。
+创作者不应先理解整个内核才能开始，也不应在需要深入时被困在不可扩展的低代码界面。需要连贯连接：
 
-要点：
+```text
+模板 / 导入
+→ 本地运行与热更新
+→ 观察事件、调用、对象和状态
+→ 修改内容、composition、组件或协议
+→ 人类 / AI 辅助
+→ 调试与测试
+→ 打包、分享、部署
+→ 更新与迁移
+```
 
-- 用一两个真实可玩体验或真实部署项目作为压力源，倒逼底座剩下的工作浮现出来。
-- 任何新增基础设施都要回答「哪个真实用户、玩家、创作者或部署循环卡住了」。
-- 不再按计划预先堆叠多层路标。
+近期重点包括：
 
-## 评分标准
+- 清楚、少样板的 Package / Component / Surface 模板；
+- TypeScript、Rust 与未来 WASM SDK 的一致体验；
+- 本地开发模式、热更新、source map、日志和错误定位；
+- 可视化查看 authority、protocol binding、effect 和 artifact provenance；
+- composition 与依赖冲突的可理解诊断；
+- AI 工具通过普通能力、明确作用域和可审阅变更工作，而不是获得通用 root shell；
+- 从本地作品到可分享工件的稳定打包路径。
 
-每条新工作都按章程纪律评：
+游创只是可选 Profile；文档工具、服务、IDE 和无头系统应能采用不同创作流。
 
-- 内核保持对内容无意见，不渗入对话 / 模型 / 提示词 / 记忆 / 世界 / 角色 / 导演等语义。
-- 任何路径上都不让官方包获得特权。
-- 所有能力包与 UI 行为都走公开协议边界。
-- 新增的底座必须能回答某个真实可玩体验的压力。
+### 收敛 Contract V1 的长期所有权
 
-## 接下来会推进的工作
+Contract V1 继续作为支持中的公开合同，但不再无差别扩大 `kernel.v1.*`。建设重点是：
 
-下面这些是已知该做、也会真实推进的事项。优先级取决于真实摩擦点。
+- 让 substrate、Host、Protocol Commons 和 Shell Profile 的 owner 清楚可见；
+- 为新能力选择明确 namespace、version 和 maturity；
+- 继续维护 Contract Registry、显式协商、canonical method 与 legacy adapter；
+- 保证旧客户端、旧数据和未知字段可读取与迁移；
+- 将 Surface slot、Project、target、deployment 等正确标记为 Profile / Host，而不是永久内核本体；
+- 只在有真实公共语义时建立 Protocol，不把某个 Package 私有 JSON 过早冻结成平台标准。
 
-### 契约前沿
+逐项归属见 [`../spec/CONTRACT_LAYERING_MATRIX.md`](../spec/CONTRACT_LAYERING_MATRIX.md)，候选宪法见 [`../architecture/CONSTITUTION_V2.md`](../architecture/CONSTITUTION_V2.md)。
 
-- WIT worlds + WASM entry form 从 scaffold 推进到 partial：把 bindings 映射成 resource imports，补齐 wasm 包执行。
-- Remote 包：SPIFFE 身份、Biscuit token 兑换、远端包生命周期与审计。
-- Powerbox：显式 user/host 授权、句柄转授、临时权威、可撤销 delegation。
-- 跨包委派、衰减链审计、租约刷新、批量撤销。
-- Conformance kit 抽成可嵌入库，支持项目自定义检查。
-- SDK 发布渠道完善：npm 发布、Rust crate 发布、OpenAPI/codegen 文档。
+### 完善组件执行与信任模型
 
-### 包系统与运行时
+当前 rust in-process 与 subprocess 已经可运行；WASM 和通用 remote component 仍有明显空间。推进先进执行能力时，以实际收益为标准：
 
-- 包持有的 projection 执行。
-- 能力包身份的 `event.subscribe` 权限。
-- 钩子处理器的超时与错误审计。
-- 能力 provider 的持久选择策略（超出单次调用显式选择）。
-- object/artifact 的运行时权限、配额与可达性 GC；内容寻址 blob 存储本身已完成。
-- 更广的传输层一致性覆盖。
+- WASM Component / WIT 带来可移植、显式 imports 和资源限制；
+- subprocess 需要更清楚的 OS 级文件系统、网络和资源强制声明；
+- remote component 需要身份、租户、deadline、重连、幂等和 effect receipt；
+- trusted native 保留为高性能逃生口，但不用于不可信动态代码；
+- static resource 与 executable component 分离；
+- UI 和 conformance 诚实呈现每种 trust class 的实际保证。
 
-### 项目与多租户
+WASM、remote 或新 transport 不因为“技术更新”自动优先；只有它们能增加可移植性、安全性、性能或生态语言选择时才推进。
 
-- 把现有 verified project/session binding 继续扩展到开发 artifact 的细粒度读取权限、加密/保留策略、reachability GC 与 journal snapshot compaction；运行时权限、事件与 resolver 已消费相同的项目绑定。
-- 项目归档超过 30 天自动清理。
-- `yg secret put / list / delete` CLI。
-- OS keyring 集成（等 CI / 跨平台构建有稳定系统依赖时再恢复）。
-- Host 设备身份已具备 project/target selector、delegation chain、祖先撤销级联、脱敏 allow/deny journal、有界原子的管理员批量撤销，以及开发长操作效应边界上的持续 grant 再授权。
-- 增加更多显式 verifier 与 sandbox backend；每一种都必须声明网络、secret、资源和效果，不能退化为通用 shell runner。
-- 部署自动重启（单独阶段）：先把「部署意图」（image 等）持久化到 host-plane，再做有界重试 + backoff 的自愈，且不让 Docker 语义渗进内核 proxy / port 记录。当前健康监督只监测、翻 readiness、写审计，不自动重新部署。
-- 部署与创作 UX polish：Docker pull 进度、长期日志归档、artifact 保留/清理，以及在 Web 与公开 API ChangeSet CLI 上继续丰富部署描述符、adapter 引导式创作。
-- target-edge ingress 与应用身份需要单独设计；任意网络代理和通用远程 shell 仍明确不做。
+### 把用户数据、内容和工件当作长期资产
 
-### 模型与出站
+ObjectStore、ArtifactDescriptor、World Bundle、deployment artifact 和 effect receipt 已经出现，但还需要统一长期数据治理：
 
-- 使用本地 mock HTTP / WebSocket server 扩展真实模型出站 conformance，不引入默认公网依赖。
-- OpenAI Realtime / Gemini Live 真实 WebSocket smoke，保持显式 opt-in。
-- 更多 provider registry、tokenizer / 计费 metadata 适配，仍作为普通能力包实现。
-- 单 chat 多并发生成、token-rate UI、Realtime / WebSocket streaming UX。
+- 用户数据、可重建 cache、可执行工件和临时诊断明确分类；
+- 内容摘要、引用、provenance、可达性、保留和垃圾回收；
+- 加密、备份、导出、导入、迁移和删除；
+- 未知 artifact type 与未知字段的保真转移；
+- Component 更新不能静默覆盖用户内容；
+- 历史回放使用已记录结果，重新执行创建新因果分支；
+- 多 Host 复制和冲突策略由采用的协议明确，而不是由路径碰巧决定。
 
-### 安装与发布
+可移植性不是发布前的收尾项，而是平台长期身份的一部分。
 
-- 更新链路的下一步主要是 polish：更细的失败恢复提示、外部 wrapped adapter 更新、更多 UI 进度细节。
-- Tauri UI 安装 polish 与发行集成。
-- Sigstore keyless 验签。
-- 自动更新守护进程。
-- 二进制包分发。
-- Desktop release code signing / notarization。
-- 替换 placeholder desktop icons 为真实应用图标。
-- Desktop managed Host 的后续 polish：更丰富的崩溃恢复提示、sidecar 更新协调与诊断导出；受控启动 / 停止、随机 loopback 端口、一次性 bootstrap 和持久 SQLite profile 已完成。
+### 建设可竞争的协议公地
 
-### Web shell 与 surface
+平台需要比“大家都传 JSON”更强的互操作，同时避免把官方观点冻结成唯一标准。协议工作应包括：
 
-- 结构化 shell descriptor 的下一步执行接线：包贡献的 `quick_action` / `workshop_card` 现在是发现入口，后续若要可执行，必须走 proposal / permission / audit，不得直接静默调用能力。
-- Surface lifecycle hooks（`onClose`、`onProposalDraft` 等）。
-- Cross-origin surface bundle allowlist（含 CSP 与 origin 校验）。
-- 社区 marketplace 的 surface allowlist / integrity pin / version pin / audit metadata；默认 installed project bundle 仍走 Host same-origin、绑定 project/grant 的短期 asset lease。
-- 项目控制台更新入口已接 `check_for_updates` / `update_project`；后续补更丰富的更新进度、失败恢复和历史记录。
-- 当 host 暴露后接入：真实 stderr / exit metadata 给 Failure modal、项目 `size_bytes` 给 Disk usage、更精确的 storage_summary 测量状态。
-- Failure 与 health 监控更丰富。
+- protocol descriptor、profile、版本与成熟度；
+- 字段语义、生命周期、错误、取消、effect 和 privacy；
+- adapter、迁移和弃用窗口；
+- 实现声明和行为检查；
+- 多个实现或多个协议共存时的显式选择；
+- 与 MCP、A2A、OCI、WASI 等外部生态通过 adapter 互操作，而不是无条件重新发明。
 
-### 性能
+候选领域包括 Surface、Change、Workspace、Inference、Agent、Memory、World、Document、Sharing 和 Evaluation。每个领域都可以有竞争方案，不因“官方”自动进入 Stable。
 
-性能基线见 [`../performance/BASELINE.md`](../performance/BASELINE.md) 与 [`../../perf/baseline.json`](../../perf/baseline.json)。后续优化以基线为 regression reference，先测量再改。
+### 强化 local-first、远程与多 Host
 
-## 接入项目（独立仓库）
+本地使用应始终是一等路径，同时允许用户把能力扩展到远程设备和服务：
 
-下面这些跑在 Yggdrasil 之上，通过公开协议消费平台。它们不在本仓库里：
+- managed local Host 无需云账户即可工作；
+- remote Host 使用明确 HTTPS 身份、pairing、grant 和资源 selector；
+- 同一客户端严格隔离不同 Host 的凭据、缓存和 Project / target 偏好；
+- 设备撤销、祖先授权撤销、离线、重连和过期处理清楚；
+- 大工件传输可恢复、可校验、可限额；
+- 多 Host 内容和状态迁移不依赖本机绝对路径；
+- 远程能力不退化成任意 shell 或无限文件系统访问。
 
-- **YdlTavern** —— 跑在 Yggdrasil 之上、兼容 SillyTavern 资源与扩展的独立接入项目：支持 SillyTavern 的角色卡、世界书、预设、聊天历史和扩展 API，引擎层走 Yggdrasil。仓库：<https://github.com/Youzini-afk/Yggdrasil-Tavern>。Yggdrasil 这边的边界见 [`../tavern/TAVERN_COMPAT.md`](../tavern/TAVERN_COMPAT.md)。
+### 持续提高可靠性、性能与可维护性
 
-## 内核范围内的无限期延后
+质量保障服务于产品与平台建设：
 
-这些不会进内核，会以普通能力包或后续工作的形式出现：
+- 测试覆盖权限边界、迁移、恢复、取消、并发和数据完整性；
+- conformance 约束公开合同行为，而不是决定产品方向；
+- 性能基线关注启动、交互、stream、对象传输、移动网络和资源占用；
+- 故障注入覆盖进程退出、Host 重启、断网、撤权、部分 effect 和损坏工件；
+- 文档、schema、SDK、代码和 CI 对实现事实保持一致；
+- 删除过时兼容层和临时计划，避免复杂度永久累积。
 
-- pi 作为产品壳的整包嵌入 —— 见 [`../architecture/PI_INTEGRATION.md`](../architecture/PI_INTEGRATION.md)。Agent 基础设施只能以普通能力包 / SDK 形态推进。
-- 外部游戏引擎桥接（UE5 / Godot / Unity / Web 客户端）。
-- 享受特权的内置 Studio、绕过公开协议的 UI、由内核拥有的官方审查器。公开协议的客户端和能力包贡献的 surface 可以继续演化。
-- 内核里的对话运行时、提示词、模型 / 采样、消息 / 回合语义、记忆模型、世界模拟、导演。
-- 市场、包签名网络、依赖解析经济。本地分享 proof 已完成，见 [`../guides/SHARING_DISTRIBUTION.md`](../guides/SHARING_DISTRIBUTION.md)。
+当前实现快照见 [`../ALPHA_STATUS.md`](../ALPHA_STATUS.md)。
+
+## 明确不是平台中心的东西
+
+以下能力可以继续建设，但不能被写成 Yggdrasil 唯一方向：
+
+- Project workflow；
+- 游创、Tavern、世界或聊天；
+- agent 或模型推理；
+- Docker 与部署；
+- 官方 Web / Desktop Shell；
+- 某个 protocol profile；
+- 某个演示、fixture 或外部项目。
+
+它们是平台上的产品、协议、Host 能力或使用场景。一个方向很重要，不等于它拥有其他方向。
+
+## 暂不主动扩张
+
+在没有清楚用户价值和所属层之前，不主动增加：
+
+- 以功能数量为目的的新部署后端；
+- 内核内置聊天、agent、memory、world 或 Project UI 语义；
+- 官方 Package 私有 API、名称特权或隐藏路由；
+- 任意远程 shell、无限 Host 文件系统或长期 root credential；
+- 没有迁移路径的 Stable schema；
+- 只因为流行而引入、却没有能力收益的新技术；
+- 在核心生命周期仍不完整时过早建设市场、计费和生态经济。
+
+这不是永久禁止；当它们有明确价值、边界和长期维护方式时，可以重新进入建设计划。
+
+## 选择具体工作的判断方式
+
+一项工作进入当前建设队列前，应能清楚回答：
+
+1. 它让哪类使用者或创作者获得了什么实际能力？
+2. 它使一个生命周期更完整、更可靠或更容易理解了吗？
+3. 它属于基底、协议、组件、Host、发行版还是具体产品？
+4. 它是否保持数据所有权、公开边界和替换空间？
+5. 它采用的技术是否带来可衡量的安全、性能、可移植性或维护收益？
+6. 它的错误、取消、恢复、迁移和删除路径是什么？
+7. 它是否会把当前官方选择反向冻结成整个平台的要求？
+
+测试、fixture 和 conformance 在设计之后用来保证这些目标不退化，而不是代替目标本身。
+
+## 文档与状态
+
+- 平台身份和原则：[`../CHARTER.md`](../CHARTER.md)
+- 长期整体形态：[`../architecture/VISION.md`](../architecture/VISION.md)
+- 分层架构：[`../architecture/ARCHITECTURE.md`](../architecture/ARCHITECTURE.md)
+- 官方产品责任：[`../product/PLATFORM_PRODUCT_MODEL.md`](../product/PLATFORM_PRODUCT_MODEL.md)
+- 当前实现快照：[`../ALPHA_STATUS.md`](../ALPHA_STATUS.md)
+
+路线图描述建设方向，不承诺所有条目同时进行，也不把候选项写成已实现事实。

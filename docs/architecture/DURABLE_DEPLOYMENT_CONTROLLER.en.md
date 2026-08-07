@@ -2,9 +2,9 @@
 
 > [English](./DURABLE_DEPLOYMENT_CONTROLLER.en.md) · [中文](./DURABLE_DEPLOYMENT_CONTROLLER.md)
 
-Status: **Candidate implementation**. Phase 2 established durable local deployment and recovery behind the existing Host facades. Phase 4/5 extended the same durable operation/receipt, target-truth, and artifact-replay semantics across `local` and enrolled Agents and connected Verified Artifact deployment. The abstract records below remain the controller's semantic model. A standalone canonical `host.deployment.*` API and automatic self-healing restart are not enabled; candidate names must not be read as exposed contracts.
+Status: **Candidate implementation**. Existing Host facades carry durable deployment operations and receipts, target truth across `local` and enrolled Agents, artifact replay, and Verified Artifact deployment. The abstract records below are the controller's semantic model. A standalone canonical `host.deployment.*` API and automatic self-healing restart are not enabled; candidate names must not be read as exposed contracts.
 
-Implementation snapshot (2026-07-24):
+Current implementation:
 
 - one contiguous deployment journal now uses sequence CAS, while revision activation also fences on the expected parent revision;
 - build output is resolved to a content-addressable Docker image ID before deployment;
@@ -112,7 +112,7 @@ stateDiagram-v2
   Reconciling --> NeedsAttention: truth unavailable
 ```
 
-Each phase advances only after its terminal effect receipt is durable. Requests carry operation id, step id, generation, and lease epoch; duplicates return the same receipt or current state.
+Each operation step advances only after its terminal effect receipt is durable. Requests carry operation id, step id, generation, and lease epoch; duplicates return the same receipt or current state.
 
 ## Safe activation
 
@@ -194,16 +194,11 @@ Health supervision only updates observation and audit. The controller creates a 
 
 The current public contract is the `/host/v1/build-deploy` route, project-scoped deployment recover/rollback, target operations, and ChangeSet deployment preview/approve/activate/reconcile. All are Host-owned; there is no kernel deployment-orchestration method. `host.deployment.intent.*`, `host.deployment.operation.*`, `host.deployment.revision.*`, observation, and operation streams are possible future canonical names if the facades converge, not current endpoints. Existing build-deploy/recover/rollback and verified-ChangeSet routes map to this semantic model. `kernel.v1.port/proxy/exec` remain adapters rather than orchestration ontology.
 
-## Implementation record and remaining boundary
+## Current boundary
 
-1. Add intent, operation, lease, and receipt projections; dual-write old flow without behavior change.
-2. Separate build/deploy records and route recover/rollback through operations.
-3. Add real local-target observation and an idempotent step ledger.
-4. Implement candidate-first and atomic route activation.
-5. Reconcile on startup; enable bounded restart only after failure-injection coverage.
-6. Migrate clients and stop creating legacy-shaped deployments.
+The current Candidate provides durable journal/lease/receipt behavior, local/Agent truth, candidate-first activation, startup reconciliation, explicit recover/rollback, and client wiring through existing facades. It does not claim that the candidate `host.deployment.*` names are public APIs.
 
-The current Candidate covers durable journal/lease/receipt behavior, local/Agent truth, candidate-first activation, startup reconciliation, explicit recover/rollback, and client wiring through the existing facades. It does not claim that the candidate `host.deployment.*` names are public APIs, and it does not include health-thread-driven automatic restart. That remains a separate phase requiring bounded retry/backoff and `CrashLoopBackoff`.
+Health supervision currently updates readiness, preserves diagnostics, and supports explicit reconciliation; it does not redeploy automatically. Automatic restart may be enabled only when deployment intent, retry budgets, backoff, fencing, audit, and a recoverable `CrashLoopBackoff` state form one durable contract.
 
 ## Completion gate
 

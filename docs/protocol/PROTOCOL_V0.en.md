@@ -2,13 +2,15 @@
 
 > [English](./PROTOCOL_V0.en.md) · [中文](./PROTOCOL_V0.md)
 
-The kernel exposes one public protocol. Studio, CLI, in-process packages, subprocess packages, WASM packages, and remote services use the same contract.
+Yggdrasil currently exposes substrate, Host, Protocol, and Shell Profile capability through one public contract. Official Web/Desktop, CLI, in-process Components, subprocesses, future WASM Components, and remote services share the same identity, authority, and behavioral semantics.
 
 There is no private bypass. Official clients use this protocol; third parties use this protocol.
 
+This document retains `kernel.v1.*` compatibility names for the current wire surface; those names do not determine permanent architectural ownership. See [`../spec/CONTRACT_LAYERING_MATRIX.md`](../spec/CONTRACT_LAYERING_MATRIX.en.md) for itemized owners.
+
 ## Transports
 
-All transports eventually surface the same protocol. The current host implements a minimal public subset first. The rest stay marked as deferred until conformance covers them.
+All transports eventually surface the same public behavior. The current Host implements an operational subset first; additional transports open only after identity, authority, error, cancellation, and terminal semantics are clear.
 
 - In-process: a Rust API that mirrors the wire shape one-to-one.
 - Subprocess: JSON-RPC over stdio. Required for the current host.
@@ -20,7 +22,7 @@ All transports eventually surface the same protocol. The current host implements
 - Remote endpoint: HTTP and WebSocket against a declared URL. Deferred.
 - WASM host: marshalled calls into the kernel-provided ABI. Deferred.
 
-Transport selection is a host concern. A method is considered implemented only when a public transport path and a conformance case both exercise it without bypassing runtime permission checks.
+Transport selection is a Host concern. Status documentation marks a method implemented only when a public transport path is operational, a behavioral check exists, and runtime authority is not bypassed.
 
 ## Protocol envelope
 
@@ -155,7 +157,7 @@ kernel.v1.projection.get       fetch projection state
 kernel.v1.projection.list      list projection records
 ```
 
-The kernel manages projection records and rebuild lifecycle. It does not interpret content-specific state semantics. Package-owned projection execution belongs to packages.
+The current runtime manages projection records and rebuild lifecycle without interpreting domain-state meaning. Shared Projection contracts belong to optional Protocols, concrete materializers are implemented by Components, and Contract V1 registers and distributes them through Package writers.
 
 ### Health and identity
 

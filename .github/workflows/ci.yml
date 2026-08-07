@@ -31,6 +31,9 @@ jobs:
       - name: Verify first-party license metadata
         run: bash scripts/check-license-metadata.sh
 
+      - name: Verify documentation links and bilingual pairs
+        run: python3 scripts/check-docs.py
+
       - name: Regenerate schemas and SDKs
         run: bash scripts/regen-sdks.sh
 

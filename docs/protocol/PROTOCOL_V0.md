@@ -2,13 +2,15 @@
 
 > [English](./PROTOCOL_V0.en.md) · [中文](./PROTOCOL_V0.md)
 
-内核对外暴露一份公开协议。Studio、CLI、in-process 包、子进程包、WASM 包和远端服务使用同一份契约。
+Yggdrasil 当前通过一份公开合同暴露 substrate、Host、Protocol 和 Shell Profile 能力。官方 Web/Desktop、CLI、in-process Component、子进程、未来 WASM Component 和远端服务使用同一套身份、authority 与行为语义。
 
 不存在私有旁路。官方客户端使用这份协议；第三方也使用这份协议。
 
+本文保留 `kernel.v1.*` 兼容名称来描述当前 wire surface；这些名称不自动决定长期架构归属。逐项 owner 见 [`../spec/CONTRACT_LAYERING_MATRIX.md`](../spec/CONTRACT_LAYERING_MATRIX.md)。
+
 ## 传输层
 
-所有传输层最终呈现同一份协议。当前 host 先实现最小公开子集。其余传输层先标记为 deferred，等 conformance 覆盖后再开放。
+所有传输层最终呈现同一份公开行为。当前 Host 先实现可运行子集；其余 transport 只有在身份、authority、错误、取消和 terminal semantics 清楚后才开放。
 
 - In-process：与线上格式一一对应的 Rust API。
 - Subprocess：基于 stdio 的 JSON-RPC。当前 host 必须实现。
@@ -20,7 +22,7 @@
 - Remote endpoint：对声明 URL 的 HTTP 和 WebSocket。Deferred。
 - WASM host：通过内核提供的 ABI 进行编组调用。Deferred。
 
-传输层选择是 host 的职责。一个方法只有在公开传输路径和 conformance 用例都覆盖它时，才被视为已实现。覆盖必须不绕过运行时权限检查。
+传输层选择是 Host 的职责。状态文档只有在公开传输路径可用、行为检查存在并且没有绕过 runtime authority 时，才把一个方法标记为 implemented。
 
 ## 协议信封
 
@@ -155,7 +157,7 @@ kernel.v1.projection.get       fetch projection state
 kernel.v1.projection.list      list projection records
 ```
 
-内核管理 projection 记录和 rebuild 生命周期，但不解释内容相关的状态语义。包拥有的 projection 执行归包所有。
+当前 runtime 管理 projection 记录和 rebuild 生命周期，但不解释领域状态语义。Projection 的共享合同属于可选 Protocol，具体 materializer 由 Component 实现；Contract V1 通过 Package writer 注册和分发它们。
 
 ### 健康与身份
 

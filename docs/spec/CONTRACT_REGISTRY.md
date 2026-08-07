@@ -2,7 +2,7 @@
 
 > [English](./CONTRACT_REGISTRY.en.md) · [中文](./CONTRACT_REGISTRY.md)
 
-本文描述分层合同迁移的第一套可执行兼容机制。它是 Experimental，不表示
+本文描述当前用于分层合同、canonical ID、legacy alias 与显式协商的可执行兼容机制。它是 Experimental，不表示
 Constitution v2 已经 Stable，也不改变现有 `kernel.v1.*` payload 语义。
 
 ## 单一解析边界
@@ -48,9 +48,9 @@ Registry `0.5.0` 当前发布 36 条 identity alias：
 继续以现有 `kernel.v1.*` ID 作为 canonical ID。新增 alias 必须进入 registry，不能在
 dispatcher、客户端或 transport 中加入字符串特判。
 
-Phase 3 只迁移 owner 与 namespace：payload、权限、事件与 handler 不变。尤其
-`change.proposal.*` 仍使用现有 `ProposalRecord`，不提前冒充 Phase 5 才引入的
-Intent / ChangeSet / Commit / EffectReceipt。
+Canonical/legacy 双栈只改变 owner 与 namespace：payload、权限、事件与 handler 保持一致。尤其
+`change.proposal.*` 仍使用现有 `ProposalRecord`；Intent / ChangeSet / Commit / EffectReceipt
+是独立的 Experimental primitives，不能由 alias 名称推断为已被 proposal facade 完整实现。
 
 ## 显式协商
 

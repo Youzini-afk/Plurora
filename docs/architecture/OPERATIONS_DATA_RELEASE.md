@@ -2,9 +2,9 @@
 
 > [English](./OPERATIONS_DATA_RELEASE.en.md) · [中文](./OPERATIONS_DATA_RELEASE.md)
 
-状态：**Phase 3 基线已实现，剩余加固项继续受本文约束**。本文定义 Yggdrasil Host 在承载真实项目和远程 target 前必须满足的数据、健康、诊断、升级和发行底线。
+状态：**运行安全基线已实现，剩余加固项继续受本文约束**。本文定义 Yggdrasil Host 承载真实项目和远程 target 时必须满足的数据、健康、诊断、升级和发行底线。
 
-## 当前实现状态（2026-07-23）
+## 当前实现状态
 
 已经实现：
 

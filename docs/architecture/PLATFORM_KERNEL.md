@@ -1,160 +1,194 @@
-# 平台内核
+# 平台基底与当前内核边界
 
 > [English](./PLATFORM_KERNEL.en.md) · [中文](./PLATFORM_KERNEL.md)
 
-内核是让能力包在 Yggdrasil 上共存的那一层最薄的基础设施。它小、对内容无意见、稳定。
+本文区分两件事：
 
-本文界定内核做什么、不做什么。没列入内核职责的，必须生活在能力包里。
+1. Yggdrasil 长期应保持极小的 **Constitutional Substrate**；
+2. 当前 Contract V1 中名为 kernel 的实现边界。
 
-## 内核做什么
+二者目前并不完全重合。现有 `ygg-core` / `ygg-runtime` 为了提供可运行平台，还承载了一部分 Host、协议和 Shell 职责。长期目标不是否定现有代码，而是在保持兼容、迁移和数据可读的前提下，让职责回到正确层。
 
-### 1. 身份与 schema
+## 宪法基底拥有的机制
 
-- 为会话、事件、能力包、能力调用、资产记录生成 ID。
-- 每个持久化契约对象上维护 `schema_version`。
-- 用已发布的 schema 校验清单、钩子订阅、能力注册。
+### 身份与认证上下文
 
-### 2. 会话外壳
+- principal、调用者身份和认证后的 invocation context；
+- trace、parent invocation、租户或 Host 边界等通用上下文；
+- 不依赖显示名、路径或调用者自报字段的稳定身份。
 
-- 分配并寻址会话。
-- 持有每个会话的元数据（id、created_at、label、status）。
-- 承载事件流和权限作用域。
-- 内核不解读会话的用途——会话只是一个带标签的事件流，外加一组能力包。
+### Authority
 
-### 3. 只追加事件日志
+- capability / authority 的铸造、衰减、委托、租约、刷新和撤销；
+- resource selector、条件、配额和期限；
+- policy decision 与授权来源；
+- 长任务在副作用边界重新确认权威。
 
-- 接受授权写入方的事件。
-- 按会话排序。
-- 持久化。
-- 按需回放。
-- 内核把事件 payload 当成不透明 JSON。意义由能力包给出。
+Manifest 或协议声明的是请求上限，不是实际授权。
 
-### 4. 能力包注册
+### 对象与可验证引用
 
-- 从清单加载、校验、启动能力包。
-- 跟踪状态（registered、loading、ready、degraded、stopped）。
-- 干净地卸载。
-- 调度生命周期：会话声明哪些能力包在其作用域内是活跃的。
+- 内容寻址对象存储；
+- 开放类型的 artifact descriptor；
+- digest、size、references 与完整性验证；
+- 对未知 artifact type 的保真保存和转移。
 
-### 5. 能力路由
+宿主路径、临时 URL、进程 ID 和数据库行号不能成为长期可移植身份。
 
-- 按 id 和版本索引能力。
-- 把调用和流路由到提供方。
-- 在配置允许时把调用记进事件日志。
-- 在消费方和提供方之间协商版本约束。
+### Journal、因果与 Head 原语
 
-### 6. 扩展点分发
+- scope 内稳定、可分页的只追加顺序；
+- 明确的 causation / correlation / parent references；
+- branch 与 head 所需的最小原语；
+- 历史事实不可被静默重写。
 
-- 维护扩展点注册表。
-- 持有订阅方列表。
-- 按声明的顺序与时机分发钩子调用。
-- 强制超时和取消。
+领域如何解释事件、如何合并分支、什么构成一个 World 或 Document head，由协议拥有。
 
-### 7. 权限闸门
+### 调用、流与取消
 
-- 识别身份（host_admin、host_dev、package、human、assistant、anonymous）。
-- 读取每个能力包清单里声明的权限。
-- 跟踪 human 和 assistant 身份的作用域授权（`events.read`、`capabilities.invoke` 等）。
-- 在事件写入、能力调用、跨包调用、网络 / 文件系统访问上执行以上全部。
-- 拒绝未声明的副作用，并写入 `kernel/v1/permission.denied` 审计事件。
+- capability / component invoke；
+- streaming frame、progress、backpressure；
+- cancel、deadline、timeout 与 terminal state；
+- 幂等键、重试语义和调用收据。
 
-### 8. Surface 贡献
+### 事务与 Commit 原语
 
-- 接收能力包在清单里声明的 UI surface 描述符（slot 包括 `experience_entry`、`home_card`、`quick_action`、`workshop_card`、`play_renderer`、`forge_panel`、`asset_editor`、`assistant_action`）。
-- 通过公开协议暴露这些描述符，让任意客户端都能发现「现在这里有什么可启动、可查看、可让 assistant 操作」。
-- 只存描述符。渲染和内容语义归能力包和客户端管。
+- compare-and-swap；
+- precondition；
+- 原子状态更新；
+- 幂等和明确的部分失败语义。
 
-### 9. 提案生命周期
+基底不把这些原语固定成某一种产品的“提案”或“发布”流程。
 
-- 调度通用的、需审批的变更提案（`create`、`get`、`list`、`approve`、`reject`、`apply`）。
-- 仅 apply 内核已理解的通用操作（`asset.put`、`projection.rebuild`）。
-- 每次状态转换都发出 `kernel/v1/proposal.*` 审计事件。
-- 拒绝 apply 未审批的提案，或操作内核不认识的提案。内核绝不发明领域相关的提案语义。
+### Effect Receipt 与审计
 
-### 10. 资产、分支、projection
+- 外部效果和非确定性行为的可审计记录；
+- input/output/component/authority/policy/approval 引用；
+- 成功、拒绝、取消、超时和部分完成的明确区分；
+- 历史回放与重新执行模式分离。
 
-- 维护不透明的资产注册表（`id`、`mime`、`hash`、`size`、`origin_package`、`metadata`、内容 blob）。
-- 把会话的 fork / 分支沿革作为内核记录持有。
-- 维护通用的 projection 记录，通过过滤事件日志重建；内核不解读 projection 状态。
-- 上述三者都能从持久事件日志恢复。
+Receipt 记录必要引用和决策，不复制 raw secret 或无关用户内容。
 
-### 11. 传输层
+### 最小组件生命周期
 
-- 在以下通道上承载规范的协议信封：in-process Rust API、HTTP `/rpc`、host JSON-RPC stdio（`ygg host-stdio`）、SSE 事件订阅。
-- 基于配置文件的 `ygg host serve` 自动加载能力包并暴露同一份 dispatcher。
-- WebSocket 出站与部署反代已落地；TCP 传输留给后续工作。
-- 所有传输都呈现同一份概念协议；官方包、客户端、第三方都用这份。
+- 组件实例的 activation、health、deactivation 和失败边界；
+- 调用所需的 export / import binding；
+- trust class 和实际强制边界的可见声明。
 
-### 12. 沙箱边界
+Package 的下载、安装目录和用户界面属于 Host / distribution，不属于基底。
 
-- in-process Rust 能力包在内核进程内运行（信任级别 `trusted_inproc`）。
-- 子进程能力包通过 stdio 上的 JSON-RPC 启动并被监管，支持握手、调用超时、卸载即杀、重启、stderr 捕获（信任级别 `process_isolated`）。
-- WASM（`wasm_sandbox`）和远程（`remote_boundary`）入口保留为一等清单形式；执行延后。
+### 协议与版本协商
 
-### 13. 公开协议
+- protocol ID、版本和 Profile 的显式选择；
+- 不允许静默降级的 requirement；
+- Contract Registry、alias 和 legacy adapter 入口；
+- transport-independent 的行为语义。
 
-- 以上所有内容的线路级契约。内核不走私有旁路；官方包和客户端跟第三方走同一份协议。
+## 宪法基底不拥有的内容
 
-## 内核不做什么
+以下都不属于基底：
 
-下列内容内核不持立场，全部归能力包，包括官方包。
+- Project、Home、Library、Play、Forge、Assistant、Editor；
+- package registry、marketplace、安装架和更新产品；
+- workspace、Docker、target、exec、port、proxy、部署与具体备份产品；
+- Chat、Message、Turn、Prompt、Model、Agent、Memory；
+- World、Entity、Scene、Quest、Document、Game 或 Simulation；
+- 具体 secret store、数据库、向量库或模型供应商；
+- 一种固定的 proposal、approval、change 或 publishing workflow；
+- 任何官方组件 ID 或 UI 状态。
 
-### 对话、提示词、模型
+这些概念分别属于 Host、协议公地、发行版或产品。它们可以非常重要、非常稳定，但重要不等于进入宪法基底。
 
-- 没有回合、消息、prompt frame、context plan、模型调用、采样或 token 用量这些概念。
-- 没有提示词渲染、模板语言、system / user / assistant 角色。
-- 没有模型 provider 抽象、流式 chunk 格式、聊天历史。
+## 当前 Contract V1 kernel 承载的兼容职责
 
-### 世界、角色、场景、规则
+当前 v1 公开合同仍包含：
 
-- 没有世界模型、场景图、actor 类型。
-- 没有角色 schema、关系状态、背包、时钟。
-- 没有规则引擎、条件 / 效果、骰子、战斗结算。
+- session 与 event；
+- package 生命周期与 capability routing；
+- extension point 与 hook；
+- asset、projection、proposal；
+- Project；
+- Host info、target、exec、port、proxy 与 outbound；
+- Surface contribution；
+- permission 与 audit。
 
-### 记忆
+这些方法继续是支持中的公开接口。它们的长期所有者不同：
 
-- 没有记忆分类、向量、检索策略。
-- 没有摘要、置顶、合并策略。
+| 当前概念 | 长期归属 |
+|---|---|
+| principal、authority、object、journal、invoke、stream、receipt | Constitutional Substrate |
+| package 获取、Project、target、exec、port、proxy、secret、部署 | Host Control Plane |
+| projection、change、领域共享状态机 | Protocol Commons |
+| Surface slot、Home / Forge / Assist 映射 | Shell / Product Profile |
+| chat、agent、memory、world 等语义 | 具体协议、组件或产品 |
 
-### Agent 与导演
+逐项分类见 [`../spec/CONTRACT_LAYERING_MATRIX.md`](../spec/CONTRACT_LAYERING_MATRIX.md)。
 
-- 没有 agent 循环、planner、director。
-- 没有提案-提交模式——除非能力包自己定义一个。
+## 当前实现中应继续保持的边界
 
-### 内容来源
+### 公开协议唯一
 
-- 没有 SillyTavern 解析器、PNG 元数据读取器、角色卡 schema。
-- 没有游戏引擎桥接、UE5 / Godot / Unity 胶水。
+HTTP、stdio、同进程调用、未来 WASM imports 和远程边界必须保留相同的身份、authority、错误和 effect 语义。内部调用不能获得第三方无法使用的能力。
 
-### 呈现
+### 官方实现无特权
 
-- 没有 UI、聊天面板、审查器、编辑器。
-- 没有主题、布局、资产渲染。
+官方组件和第三方组件通过同一注册、binding、调用和审计机制工作。包名不能成为权限判断或路由优先级。
 
-### 存储立场
+### 内容语义不进入核心机制
 
-- 没有业务表。内核要存事件、清单和资产记录，但不提供 ORM、查询构造器或面向内容的数据模型。
+内核和 Host 不解释角色、消息、模型、agent、世界、文档或游戏规则。它们可以保存不透明数据和可验证引用，但语义由协议与组件解释。
 
-## 灰色地带
+### 权威由句柄和调用上下文表达
 
-下面这些需要明确表态，避免漂移。
+裸字符串权限、调用者提供的 `session_id`、路径或 target ID 都不能单独构成授权依据。实际授权必须绑定认证 principal、资源 selector、条件和生命周期。
 
-### 资产
+### 事件日志不是所有数据的唯一存储
 
-内核维护资产注册表，记录 `id`、`mime`、`hash`、`size`、`origin_package` 和内容 blob。它不解析、不渲染、不解读资产内容。能力包自己管自己的格式。
+Journal 保存需要长期排序、审计或因果的事实。大对象、媒体、快照和模型输出进入对象存储；当前运行状态和 Host 操作可以使用专门的 durable control-plane projection。不能为了“事件即真相”的口号把所有字节复制进日志。
 
-### 事件排序
+### 历史回放不重新触发效果
 
-内核保证每个会话内单调排序并持久化。它不保证跨会话排序、因果图或关联语义。因果 / 关联字段是写入方提供的不透明元数据。
+读取历史使用已记录输出和 receipt。再次调用模型、网络、工具或进程必须创建新的 invocation 和因果分支。
 
-### 错误
+## 执行与信任
 
-内核错误覆盖：传输、权限、schema 校验、清单、容量、能力包生命周期。能力包错误以不透明的结构化失败的形式流过能力调用；内核不分类。
+统一调用合同不等于统一信任保证。至少区分：
 
-### 默认值
+| Trust class | 典型保证 |
+|---|---|
+| `sandboxed_component` | 显式 imports、资源限制、较强可移植性 |
+| `isolated_process` | 进程故障隔离；OS 级文件/网络强制需要 Host 提供可检查的 enforcement 声明 |
+| `remote_boundary` | 远程身份、网络故障、租户和服务策略显式化 |
+| `trusted_native` | Host 级信任与性能逃生口，不适合不可信动态代码 |
+| `static_resource` | 不执行代码，只提供内容或 Surface |
+| `foreign_capsule` | 可托管，但不承诺平台协议、组合或可移植保证 |
 
-内核不附带默认能力包。一个发行版可以打包官方包，但不加载任何清单启动时，内核二进制本身跑的是一个空平台：它接受会话、接受事件，但没有能力注册，也没有任何语义。
+Rust in-process、subprocess、WASM 和 remote 可以服务相同协议，但不得被文档描述为“只有打包形式不同”。
+
+## Transport
+
+当前实现支持：
+
+- in-process Rust 调用；
+- HTTP `/rpc`；
+- SSE 事件订阅；
+- Host stdio JSON-RPC；
+- Host-owned HTTP / WebSocket outbound 与反向代理。
+
+未来 transport 可以增加，但不能改变上层合同的身份、authority 和 terminal semantics。
+
+## 新机制进入基底的门槛
+
+新增基底职责前，必须说明：
+
+1. 为什么普通协议、组件或 Host 无法安全实现；
+2. 它是否与特定产品、UI、工作流或内容本体无关；
+3. 它是否增加用户自由和可替换性，而不是锁定当前官方实现；
+4. 它的错误、取消、资源限制、审计和迁移语义；
+5. 它如何与现有 v1 数据和客户端兼容。
+
+“多个功能都方便使用它”不足以进入基底。默认放在能够拥有其语义和生命周期的最高层。
 
 ## 稳定性承诺
 
-本文档通过显式修订变更。任何新职责都要论证为什么不能放进能力包。默认答案是「能力包，不是内核」。
+当前 Contract V1 保持可用并通过兼容层演化；候选 v2 只有在明确采纳后才成为稳定宪法。基底可以增长，但增长速度必须慢于上层产品和协议，且每一次增长都应缩小未来锁定，而不是扩大它。

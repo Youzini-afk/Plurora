@@ -2,7 +2,7 @@
 
 > [English](./TARGET_AGENT_PROTOCOL.en.md) · [中文](./TARGET_AGENT_PROTOCOL.md)
 
-Status: **implementation contract; Phase 4 in progress**. A Target Agent is a remote execution adapter for the Host Control Plane. It is not a remote package, general SSH shell, second Host, or application identity provider.
+Status: **Candidate implementation contract**. A Target Agent is a remote execution adapter for the Host Control Plane. It is not a remote package, general SSH shell, second Host, or application identity provider. Identity, typed operations, artifacts, Docker deployment, and the authenticated reverse tunnel form one controlled boundary; automatic placement and target-edge ingress are outside the current contract.
 
 ## Three remote boundaries
 
@@ -64,7 +64,7 @@ The `target-agent.v1` identity and observation control plane exposes:
 
 Enrollment tokens and agent credentials enter the `host_control_target_agents` journal only as domain-separated SHA-256 digests. Challenges are single-use; after restart every non-revoked remote target first returns to `Offline`; an old credential or epoch cannot restore availability. The compatibility names `kernel.v1.target.register/unregister` now fail closed, so caller JSON cannot bypass enrollment and create an `Available` target.
 
-Phase 4B adds these typed-worker routes without adding a general command surface:
+The typed-worker control plane exposes these routes without adding a general command surface:
 
 | Caller | Route | Authority and purpose |
 |---|---|---|
@@ -81,7 +81,7 @@ Revoke fails closed for new work and new accepted/running transitions. The linea
 
 Operation authority binds target, operation, step, project, effect, artifacts, lease/policy epochs, expiry, nonce, and request digest. Remote Agent authority is MACed with the epoch-scoped, domain-separated enrollment credential digest, and the Agent independently recomputes that MAC from the credential it received once. A local-driver journal record uses a stable domain-separated key confined to the Host and does not treat that key as a network identity. The native client disables redirects, requires HTTPS for a remote Host, never persists the credential in config or ledger, and reads it only from `YGG_TARGET_AGENT_CREDENTIAL`; loopback HTTP is confined to the same machine.
 
-Phase 4C now routes local versus agent drivers from `ExecutionTargetReachability`; no caller-provided network address can act as a driver fallback. Local and Agent deployment operations share one typed Docker driver: non-privileged bridge networking, `127.0.0.1` binding only, no command/env/mount inputs, and idempotent lookup through target/project/deployment/route/lease/operation ownership labels. The `apply` receipt returns Docker's actual loopback port. The Host projects a successful receipt back into the target-owned lease and promotes route readiness only when route, lease, project, and target all match; restart recovery never uses Host-local Docker observation to discard remote leases. An effect that was issued but cannot be confirmed becomes `outcome_unknown` rather than a false failure; Host startup durably resolves interrupted local Accepted/Running records the same way.
+Driver routing selects local or Agent execution from `ExecutionTargetReachability`; no caller-provided network address can act as a fallback. Local and Agent deployment operations share one typed Docker driver: non-privileged bridge networking, `127.0.0.1` binding only, no command/env/mount inputs, and idempotent lookup through target/project/deployment/route/lease/operation ownership labels. The `apply` receipt returns Docker's actual loopback port. The Host projects a successful receipt back into the target-owned lease and promotes route readiness only when route, lease, project, and target all match; restart recovery never uses Host-local Docker observation to discard remote leases. An effect that was issued but cannot be confirmed becomes `outcome_unknown` rather than a false failure; Host startup durably resolves interrupted local Accepted/Running records the same way.
 
 The Candidate authenticated reverse-tunnel/private-preview baseline is also implemented. An Agent with `reverse_tunnel` reachability and the Deployment capability initiates `GET /target-agent/v1/tunnel` with its existing `YggTarget` identity. The Host accepts one live tunnel per target only when identity, lease epoch, and policy epoch match. Every `Open` binds the target, route, port lease, port name, Docker-observed port, and both epochs; bounded binary streams are multiplexed only by Host-generated opaque stream IDs. Before connecting, the Agent revalidates every managed-container ownership label, Running state, and exact `127.0.0.1` port mapping, so the tunnel cannot dial an arbitrary Agent loopback port. Disconnect or revoke immediately makes that target's routes unready; reconnect restores them only from durable receipt projection. Public versus Host-authenticated access remains Host route policy, and arbitrary network upstreams remain forbidden.
 
@@ -145,7 +145,7 @@ Journals and artifacts carry only `secret_ref`. The Host creates a short-lived e
 
 ## Network and ingress
 
-The Host loopback-only upstream rule remains a security boundary. The implemented first-stage remote route uses an authenticated target tunnel:
+The Host loopback-only upstream rule remains a security boundary. The implemented remote route uses an authenticated target tunnel:
 
 1. Agent actually reserves a target-loopback port;
 2. Controller registers a target-aware route;
@@ -169,14 +169,14 @@ An internally bounded one-use loopback bridge credential lets the existing HTTP/
 | Tunnel loss | Route becomes unready while intent remains |
 | Version mismatch | Incompatible; never execute unknown semantics |
 
-## Delivery slices
+## Capability levels
 
 1. Identity and observation: durable registry, enrollment, heartbeat, negotiation, observe.
 2. Typed verifier worker: artifact transfer, declarative verifier, receipts/logs.
 3. Private deployment preview: deployment/port/tunnel operations and Host-authenticated route.
 4. Public deployment through an already-public Host, followed later by target-edge design.
 
-Initial placement is explicit. No automatic scheduler, multi-Host leader election, or secret federation.
+Current placement is explicit. There is no automatic scheduler, multi-Host leader election, or secret federation.
 
 ## Completion gate
 

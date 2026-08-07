@@ -1,116 +1,70 @@
-# 能力包规范
+# Package、组件与能力契约
 
 > [English](./CAPABILITY_PACKAGE.en.md) · [中文](./CAPABILITY_PACKAGE.md)
 
-能力包是 Yggdrasil 的分发和执行单元。只要不属于内核，就以能力包发布。
+当前 Contract V1 使用一个 Package Manifest 同时描述分发、执行、能力、协议贡献、Surface 和权限。这个模型可以继续工作，但长期架构必须区分不同所有权：
 
-本文档说明能力包如何描述自身、如何加载，以及如何与内核和其他能力包交互。无论来源如何，每个能力包都遵守同一套规则。
+- **Package / Package Envelope：** 获取、分发、安装和供应链信封；
+- **Component：** 可激活、可调用的实现单元；
+- **Protocol：** 多个实现共同遵守的语义与行为合同；
+- **Content / Artifact：** 用户或产品数据、静态资源和不可变工件；
+- **Adapter：** 把外部系统或旧合同接入公开协议的组件。
+
+Package 可以携带以上多种内容，但 Package 本身不是所有平台语义的本体单位。
 
 ## 平等规则
 
-官方包、第三方包、in-process 包、子进程包、WASM 包和远端包共享同一份清单格式、同一个生命周期、同一套能力织物和同一个权限系统。
+官方 Package、第三方 Package 和不同执行形态使用相同的：
 
-没有私有 API。官方包能做的，任何能力包都能做。
+- descriptor / manifest schema；
+- 安装与完整性检查；
+- capability 与 protocol 注册；
+- authority binding；
+- 调用、stream、取消和 effect receipt；
+- 诊断、迁移和 conformance 入口。
 
-## 清单
+没有按 Package ID 开放的私有 API，也没有隐式“官方实现优先”。维护者或签名可以影响来源信任与策略，但不能自动获得运行权威。
 
-能力包由清单描述。清单是一份可序列化文档，必须符合已发布的 schema。
+## 当前 V1 Manifest
+
+V1 Manifest 是当前公开兼容格式，主要形状如下：
 
 ```yaml
 schema_version: 1
-
-id: org/name              # globally unique, namespaced
-version: 0.1.0            # semver
-display_name: ...
+id: org/name
+version: 0.1.0
+display_name: Example
 description: ...
-author: ...
-license: ...
+license: AGPL-3.0-only
 
 entry:
   kind: rust_inproc | subprocess | wasm | remote
-
-  # kind: rust_inproc
-  crate: path or registry coordinate
-  symbol: register_fn
-  abi_version: 1
-
-  # kind: subprocess
-  command: [executable, args...]
-  env: { ... }
-  transport: jsonrpc-stdio | jsonrpc-tcp
-
-  # kind: wasm
-  module: path or url
-  abi_version: 1
-  memory_limit_mb: 64
-
-  # kind: remote
-  endpoint: https://... or wss://...
-  auth: { scheme: bearer | mtls | none, ... }
+  contract: v1 | none
+  # kind-specific fields
 
 provides:
   - id: org/name/capability
     version: 0.1.0
-    input_schema: <jsonschema or ref>
-    output_schema: <jsonschema or ref>
+    input_schema: {}
+    output_schema: {}
     streaming: false
-    side_effects: [event_append, network, filesystem, package_call, ...]
-    description: ...
+    side_effects: []
 
 consumes:
-  - id: other-org/cap
+  - id: other-org/capability
     version: ^0.2
 
 contributes:
-  schemas:
-    - id: org/name/event/foo
-      schema: <jsonschema>
-  hooks:
-    - extension_point: kernel/v1/event.after_append
-      handler: handle_event
-      timing: async
-  assets:
-    - id: org/name/asset/...
-      mime: ...
-      source: ...
-  extension_points:
-    - id: org/name/lifecycle.before_step
-      payload_schema: <jsonschema>
-      timing: sync | async
-      modifiable: true
-      short_circuit: true
-  surfaces:
-    - id: org/name/entry
-      version: 0.1.0
-      slot: experience_entry        # | home_card | quick_action | workshop_card | play_renderer | forge_panel | asset_editor | assistant_action
-      title: ...
-      description: ...
-      capability_id: org/name/launch
-      activation:
-        launch_capability_id: org/name/launch
-        session_template:
-          labels: [...]
-          metadata: { ... }
-        input_schema: <jsonschema>
-      required_permissions:
-        - permission: events.read
-          scope: session
-          reason: render the play surface
-          risk: low                 # | medium | high
-      approval_policy: none         # | user_approval | fork_then_approve
-      metadata: { ... }
+  schemas: []
+  hooks: []
+  extension_points: []
+  surfaces: []
 
 permissions:
-  network:
-    hosts: [api.example.com] | none | any
-  filesystem:
-    paths: [./data] | none
-  events:
-    append: true
-    read: true
-  packages:
-    call: [other-org/*]
-  declared_side_effects: [user-data-read, llm-inference, ...]
+  network: { hosts: [] }
+  filesystem: { paths: [] }
+  events: { read: false, append: false }
+  capabilities: { invoke: [] }
 
 sandbox_policy:
   cpu_quota_ms_per_invoke: 5000
@@ -118,97 +72,169 @@ sandbox_policy:
   wall_clock_ms: 30000
 ```
 
-内核拒绝未通过 schema 验证的清单。若能力包请求的权限超出 host 策略，内核也会拒绝加载。
+实际字段以 [`../spec/v1/schemas/manifest.schema.json`](../spec/v1/schemas/manifest.schema.json) 为准。未来拆分 Package Envelope、Component Descriptor、Protocol Descriptor 和 Content Root 时，v1 Manifest 通过生成或 legacy adapter 继续可读。
 
-## Entry 形式
+## Package Envelope
 
-四种入口形式都是一等的。选择哪一种，是实现细节。
+Package Envelope 负责：
 
-### rust_inproc
+- 来源和获取坐标；
+- 版本、签名、许可证与维护者信息；
+- manifest / tree / artifact digest；
+- 携带的 component、protocol、content 和 Surface 引用；
+- 平台与架构兼容要求；
+- 安装、更新、迁移和回滚所需元数据。
 
-以 Rust crate 或共享库加载，并编译到内核能力包 ABI。它速度快，没有 IPC 成本，性能最好。信任级别最高。崩溃可能影响 host；沙箱就是 host 本身。
+Package 安装是 Host Control Plane 操作。安装成功不等于其中所有 Component 已被激活，也不等于获得了声明中的所有权限。
 
-### subprocess
+## Component
 
-内核启动子进程，通过 stdio 或本地 socket 上的 JSON-RPC 通信。它与语言无关，崩溃会被隔离。性能受 IPC 限制。
+Component 是实际提供行为的实现单位。它至少拥有：
 
-### wasm
+- 独立 identity 与 behavior / artifact digest；
+- exports、imports 和采用的 protocol profile；
+- trust class 与强制边界；
+- resource limits；
+- activation、health 和 deactivation 状态；
+- 兼容与迁移声明。
 
-内核在 WASM host 内运行能力包，并使用声明的内存和 CPU 上限。隔离性强。可用语言受限于能否编译到 WASM，性能受 WASM 和 ABI 编组影响。
+一个 Package 可以包含多个 Component；更新一个 Component 不应自动要求迁移同一 Package 中所有内容。
 
-### remote
+## 执行形态与信任
 
-能力包可以运行在任何能通过 HTTP 或 WebSocket 访问的位置。连接需要认证。这适合托管服务，也适合以能力包身份接入的外部系统。
+统一 capability contract 不等于统一隔离保证：
 
-能力包可以声明备用入口。例如同时提供 `rust_inproc` 和 `subprocess`，由 host 按策略选择。
+| V1 entry / component form | 长期 trust class | 说明 |
+|---|---|---|
+| `rust_inproc` | `trusted_native` | 性能高，拥有 Host 进程级信任；崩溃和未拦截副作用可能影响 Host |
+| `subprocess` | `isolated_process` | 进程故障隔离；文件系统和网络的 OS 级强制由 Host 策略决定 |
+| `wasm` | `sandboxed_component` | 目标是显式 imports、资源限制和可移植执行；当前完整执行支持仍在建设 |
+| `remote` | `remote_boundary` | 远程身份、网络故障、租户和服务策略必须显式；当前通用远程组件执行仍在建设 |
+| static bundle/content | `static_resource` | 不执行代码，只提供可验证内容或 Surface |
+| `contract: none` | `foreign_capsule` | Host 可以托管生命周期，但不承诺 v1 binding、组合或协议保证 |
+
+不同形态可以实现同一协议，但 conformance 和 UI 必须诚实展示实际保证，不能把它们描述成只有打包格式不同。
+
+## Capability 契约
+
+Capability 由稳定 ID、版本、input/output schema、streaming 与 effect 要求描述。调用方可以按 capability、protocol profile 和版本约束选择实现。
+
+路由遵守：
+
+1. 当前 authority 是否允许调用；
+2. 组件是否已激活且健康；
+3. protocol / version / profile 是否兼容；
+4. distribution 或调用方是否显式选择 provider；
+5. 多个实现仍然歧义时，拒绝并要求选择。
+
+不存在隐式官方优先级。
+
+Capability 调用产生结构化 terminal state；涉及外部效果或非确定性时，产生或引用 EffectReceipt。大输入和输出应使用 ArtifactDescriptor，而不是无限扩张线路 envelope。
+
+## Protocol contribution
+
+Protocol 定义共享语义，Component 实现 Protocol。一个 Package 可以携带 protocol descriptor，但维护该 Package 不代表拥有内核特权。
+
+协议贡献至少应说明：
+
+- protocol ID 与版本；
+- schema 或等价类型合同；
+- 字段语义和生命周期；
+- 错误、取消和 effect 语义；
+- authority 与隐私要求；
+- compatibility profile 与迁移；
+- 行为检查和实现声明。
+
+Extension point、projection、change workflow、agent、memory、world、surface 等共享语义应逐渐从 Package 私有约定进入明确 Protocol，而不是继续扩大单体 kernel namespace。
+
+## Surface contribution
+
+当前 v1 Package 可以贡献 Surface descriptor。Surface 的 bundle、capability allowlist、activation 和 permission requirements 来自 Manifest；具体 slot 由采用它的 Shell Profile 解释。
+
+因此：
+
+- Surface 可以由官方或第三方 Package 提供；
+- Surface 默认没有隐式 kernel access；
+- `experience_entry`、`forge_panel`、`assistant_action` 等是当前 Profile 的枚举，不是宪法基底类型；
+- 第三方 Shell 可以定义或协商不同的 Surface Profile；
+- 静态 Surface bundle 与执行 Component 可以独立版本和寻址。
+
+## Authority 与声明
+
+Manifest permissions 是 Package 请求的最大范围，不是实际 grant。Host 根据用户选择、principal、Project / target selector、策略和环境铸造实际 binding。
+
+执行时必须做到：
+
+- 未授予的 capability、event、network、filesystem 或 secret 操作被拒绝；
+- 长任务在关键副作用前重新确认 grant；
+- delegation、lease、quota 和 revoke 能够生效；
+- raw secret 不进入 Manifest、日志、receipt 或公开状态；
+- declared-vs-used audit 不依赖 Package 名称特权。
+
+`entry.contract: "none"` 不把 Manifest 声明转换成平台 authority；它是一种明确降低互操作保证的自包含路径，而不是绕过 Host 安全边界的方式。
 
 ## 生命周期
 
+需要区分两个生命周期。
+
+### Package 生命周期（Host）
+
 ```text
-discovered  -> kernel sees the manifest
-loading     -> manifest validated, sandbox prepared
-starting    -> entry point booted, kernel handshake
-ready       -> capabilities and hooks registered, accepting calls
-degraded    -> reachable but reporting reduced ability
-stopping    -> graceful shutdown signal sent
-stopped     -> resources released
-unloaded    -> manifest no longer active in the host
+discovered → resolved → downloaded → verified → installed
+           → update available → migrated / rolled back → removed
 ```
 
-每次状态转换都会发出内核事件。
+### Component 生命周期（runtime / substrate）
 
-## 能力契约
+```text
+inactive → activating → ready → degraded → stopping → inactive
+                         └──────────────→ failed
+```
 
-一个能力由 `id` 和 `version` 标识。调用由 `input_schema` 和 `output_schema` 约束类型。能力可以支持流式输出。
+停止 Component 不等于卸载 Package；卸载 Package 也必须先处理依赖、运行实例、用户数据和回滚信息。
 
-消费方用 id 和版本约束请求能力。内核根据以下条件选择 provider：
+## Content 与用户数据
 
-1. 会话作用域内的活跃能力包集合。
-2. 会话/profile 中声明的优先级规则。内核没有默认优先级；策略由 host 或路由能力包配置。
-3. 版本兼容性。
+Content 不应因为与可执行代码同包发布，就失去独立身份。重要内容应：
 
-不存在隐式的「官方包优先」规则。
+- 使用内容摘要和开放 ArtifactDescriptor；
+- 能在不知道原始 Package 实现的情况下复制和导出；
+- 明确引用依赖、schema / protocol profile 和迁移；
+- 区分用户拥有的数据、可重建 cache 和可执行工件；
+- 不因更新 Component 而被静默覆盖。
 
-如果两个能力包提供同一个能力 id，而 host 未配置优先级，内核会报告 ambiguous-route 错误并拒绝调用。
+## 分发与更新
 
-## 钩子契约
+Package registry、marketplace 和依赖解析服务属于 Host / distribution 生态，不属于宪法基底。不同 registry 可以竞争，离线文件和本地 source 仍是一等来源。
 
-能力包可以订阅扩展点。扩展点可以由内核定义，也可以由能力包定义。订阅会声明时机，以及处理器能否修改或否决。
+更新应锁定：
 
-内核按声明的语义分发钩子。订阅方按声明顺序运行；若顺序相同，则使用 host 配置的订阅方优先级。
+- 获取来源与不可变 commit / digest；
+- Package Envelope；
+- Component artifacts；
+- Protocol profiles；
+- Content roots；
+- 用户已同意的权限变化与迁移计划。
 
-详见 `EXTENSION_POINTS.md` 了解内核发出的扩展点集合及契约。
+自动更新不能绕过新的权限、数据迁移或信任边界。
 
-## 权限与沙箱
+## 版本与兼容
 
-清单是能力包与 host 的契约。内核会在每次操作上强制执行：
+- Package version、Component version、Protocol version 和 Manifest `schema_version` 是不同维度；
+- 破坏性 Component ABI 变化不应伪装成内容迁移；
+- Protocol major 变化需要 compatibility / adapter / migration；
+- 未知字段和未知 Artifact 应在可行时保留；
+- v1 Manifest 与未来 descriptor 拆分通过兼容生成和 adapter 共存。
 
-- 未声明的事件追加被拒绝。
-- 未声明的网络调用被拒绝。
-- 未声明的跨能力包调用被拒绝。
-- 超出其声明 `side_effects` 的能力被拒绝。
+## 设计判断
 
-host 可以继续叠加额外策略，例如 deny-list、配额和审计。能力包无法绕过。
+新增内容时先判断它是什么：
 
-## 分发
+- 为了获取和安装而组合工件 → Package Envelope；
+- 实现行为并被调用 → Component；
+- 多个实现共享的含义 → Protocol；
+- 用户或产品拥有的可移植数据 → Content / Artifact；
+- 现实机器操作 → Host；
+- 某个 Shell 的交互观点 → Product Profile。
 
-能力包分发包含清单和入口产物：
-
-- `rust_inproc`：源 crate 或与 host ABI 版本匹配的预编译 `cdylib`。
-- `subprocess`：目标平台的可执行文件加清单。
-- `wasm`：`.wasm` 模块加清单。
-- `remote`：仅有带 endpoint 的清单。
-
-能力包注册表不在内核范围内。Host 和工具可以在此之上构建注册表。
-
-## 版本管理
-
-`version` 遵循 semver。清单格式的 `schema_version` 与能力包版本无关。
-
-`rust_inproc` 的破坏性 ABI 变更通过入口中的新 `abi_version` 标识。Host 拒绝加载 ABI 版本不匹配的能力包。
-
-## 身份
-
-能力包 id 带命名空间。内核不拥有命名空间；约定和注册表拥有。
-
-内核只在单个 host 实例内强制唯一性。
+不要因为现有 v1 Manifest 能装下一个字段，就默认 Package 永久拥有这个概念。
