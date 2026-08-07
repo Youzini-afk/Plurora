@@ -7,8 +7,8 @@
 当前实现：
 
 - HTTP、Cookie、Bearer 与 RPC 在 Host Access 层统一保留逻辑 `host_device` 身份、grant、delegation chain、action 和结构化资源 selector；为保持冻结的 Contract V1 principal union，RPC context 使用 fail-closed 的 `anonymous` sentinel 加 Host 建立的 authority envelope，旧 runtime 忽略 envelope 时只会拒绝；
-- project/session/event/proposal/surface/target/exec/port/proxy 在服务端执行精确资源校验或过滤，legacy adapter 复用 canonical policy；
-- pairing journal 支持衰减委托、期限、祖先撤销级联、旧全局 grant 的显式 wildcard 水化，以及有界、原子的管理员批量撤销；Web/PWA 与 `plurora host access` CLI 使用同一 API；
+- project/context/journal/change/surface/target/exec/port/proxy 在服务端执行精确资源校验或过滤，所有受支持的公开 transport 复用同一 MethodPolicy；
+- pairing journal 支持衰减委托、期限、祖先撤销级联、较早持久化 global grant 的显式 wildcard 水化，以及有界、原子的管理员批量撤销；Web/PWA 与 `plurora host access` CLI 使用同一 API；
 - 设备调用写入不含凭据与请求 payload 的 `host/control/v1/authority.decision` allow/deny journal；
 - 全局 package/capability/asset/projection 与 surface contribution 尚无项目归属，因此精确项目设备只能通过已验证项目/session 路径操作资源和解析其项目 bundle，不能枚举 Host 全局 catalog；opaque-origin frame 只获得绑定 grant 和 bundle root 的五分钟只读 asset lease，原始静态路径仍要求 Host 身份；
 - 部署 job 与 activation 持久化不含凭据的 authority lease，在每个新副作用前重新水化 grant 并拒绝过期/撤销，同时持久化 revision/direct-route ownership；跨 operation 的完整 effect-receipt 串联仍是 Candidate 边界。
@@ -16,14 +16,14 @@
 
 ## 目标
 
-Plurora 的宪法基底拥有 principal、认证后的调用上下文、能力的衰减/转授/撤销和审计机制；Project 则是 Host Control Plane 资源。项目级隔离必须利用前者保护后者，不能把 `Project` 提升为内核内容本体，也不能继续把 caller 提交的 `session_id` 当作授权证明。
+Plurora 的宪法基底拥有 principal、认证后的调用上下文、能力的衰减/转授/撤销和审计机制；Project 则是 Host Control Plane 资源。项目级隔离必须利用前者保护后者，不能把 `Project` 提升为 substrate ontology，也不能继续把 caller 提交的 `session_id` 当作授权证明。
 
 完成后应同时满足：
 
 - root、设备、CLI、Web/PWA、桌面、package surface 和未来 target agent 通过同一套认证上下文进入公开协议；
 - grant 可以限制到明确的 project、target 和 Host 操作；
 - session 只携带 Host 已验证的项目绑定，不能扩大调用者权威；
-- transport、路径别名或 legacy adapter 不能绕过资源授权；
+- HTTP、Host stdio、in-process 与 subprocess transport 不能绕过资源授权，也不能发明替代 method identity；
 - 每个允许或拒绝的敏感操作都能关联主体、grant、delegation、资源和 effect receipt。
 
 ## 分层边界
@@ -111,7 +111,7 @@ HostGrant
 2. root 是本 Host 的根权威，但也必须经过公开 API 和审计路径。
 3. 设备身份不能在 RPC 边界被折叠成无约束的 `HostDev`。
 4. grant 撤销影响所有新调用；已开始操作是否取消由该操作的 lease/policy 明确决定。
-5. legacy 全局设备 grant 迁移为显式 `all-projects` / `all-targets` selector，迁移必须写审计事件，不能静默改变语义。
+5. 较早持久化的全局设备 grant 通过显式 `all-projects` / `all-targets` selector 表达，任何数据转换都必须写审计事件，不能静默改变语义。
 
 ## 方法授权
 
@@ -129,7 +129,7 @@ MethodPolicy
 授权顺序固定为：
 
 1. transport 认证凭据并建立 `AuthenticatedCallContext`；
-2. canonicalize 方法名，legacy alias 只能指向相同 policy；
+2. 通过 Contract Registry 解析精确公开 method，并拒绝未知 identity；
 3. resource extractor 从已解析参数和服务端投影提取资源；
 4. 验证 session/project/object 归属，拒绝冲突；
 5. policy engine 对 action × resources × authority 求交；
@@ -168,7 +168,7 @@ MethodPolicy
 | 威胁 | 防线 |
 |---|---|
 | 用项目 A grant 提交项目 B 的 `session_id` | 服务端 session binding 与 resource selector 交叉验证 |
-| 通过 legacy 方法名逃逸 | alias 在授权前 canonicalize，共用 MethodPolicy |
+| transport-specific method mapping 逃逸 | 所有 transport 把同一个已解析 `PlatformMethod` 交给同一 MethodPolicy table |
 | 直接 HTTP RPC 获得 `HostDev` 权限 | 保留 authenticated principal/grant，不做身份折叠 |
 | 列表/事件流泄露其他项目 | 服务端 projection 过滤，subscribe 时固定 resource scope |
 | iframe/project bundle 偷取 Host token | surface bridge 只暴露短期项目句柄与方法 allowlist |
@@ -176,13 +176,13 @@ MethodPolicy
 | grant 被撤销后继续创建副作用 | 每次调用检查投影；长操作通过 lease epoch 再授权 |
 | in-process 或 stdio 绕过 HTTP middleware | transport-neutral dispatch 强制要求认证上下文 |
 
-## 合同与兼容策略
+## 演进与兼容策略
 
-- 新字段先作为 optional 进入 Experimental/Candidate schema，旧客户端缺省表示原有全局范围。
+- 新字段先作为 optional 进入 Experimental/Candidate schema；缺省继续表示较早持久化 global grant 的含义。
 - 新建 grant 的 UI/API 在迁移完成后必须显式提交 resource selectors。
-- canonical owner 是 `host.access`、`host.project` 和相关 Host 方法；`platform.*` 仅保留 legacy adapter。
-- 对每个 canonical/legacy/direct transport 组合运行同一授权 conformance table。
-- 在全局 grant 迁移和客户端升级完成前，不移除旧字段或旧响应形状。
+- Authority 仍由 Host Access API，以及每项 operation 使用的精确公开 `host.*`、`context.*`、`journal.*` 与 `change.*` method 拥有。
+- 对 HTTP RPC、Host stdio、in-process dispatch、subprocess reverse stdio 与 direct Host route 运行同一授权 conformance table。
+- 不得在没有显式新版本边界与 migration path 时删除现有 v1 field 或 response shape。
 
 ## 实施顺序
 
@@ -195,7 +195,7 @@ MethodPolicy
 ## 完成门槛
 
 - project A-only device 对项目 B 的 get/list/event/secret/develop/deploy/route 全部拒绝；
-- 伪造 session、legacy alias、直接 transport 和重放旧 grant 都不能绕过；
-- root、全局设备和迁移前客户端维持明确、经过测试的兼容行为；
+- 伪造 Context binding、未注册 method、direct transport 与 replay grant 都不能绕过 policy；
+- Root、已持久化 global grant 与使用当前 v1 shape 的 client 保持显式测试行为；
 - revoke、expiry、delegation attenuation 和批量撤销有并发测试；
 - 审计能从用户动作追到 policy decision 和 effect receipt，且不泄露凭据。

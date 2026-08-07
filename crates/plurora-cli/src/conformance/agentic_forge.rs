@@ -1590,7 +1590,7 @@ pub(crate) async fn agentic_forge_plan_toolchain_requires_provider() -> anyhow::
 // ---------------------------------------------------------------------------
 
 /// Phase F case 1: third-party agentic forge manifest passes package check,
-/// and replacement composition has correct shape with no official priority.
+/// and replacement composition has correct shape with no publisher priority.
 pub(crate) async fn agentic_forge_thirdparty_replacement_shape() -> anyhow::Result<()> {
     use crate::commands::package;
 
@@ -1613,7 +1613,7 @@ pub(crate) async fn agentic_forge_thirdparty_replacement_shape() -> anyhow::Resu
         "composition must have replacement_candidates"
     );
 
-    // No official priority: official is a candidate, not auto-selected
+    // No publisher priority: the first-party implementation is a candidate, not auto-selected
     let candidates = comp["replacement_candidates"].as_sequence().unwrap();
     let has_first_party = candidates
         .iter()
@@ -1622,10 +1622,10 @@ pub(crate) async fn agentic_forge_thirdparty_replacement_shape() -> anyhow::Resu
         has_first_party,
         "plurora/agentic-forge-lab must appear as replacement candidate"
     );
-    // Official is just a candidate — no priority field
+    // The first-party implementation is just a candidate — no priority field
     anyhow::ensure!(
         comp.get("priority").is_none(),
-        "composition must not have priority field — official has no routing priority"
+        "composition must not have priority field — the first-party implementation has no routing priority"
     );
 
     // Verify required capabilities align with agentic-forge-lab
@@ -1645,7 +1645,7 @@ pub(crate) async fn agentic_forge_thirdparty_replacement_shape() -> anyhow::Resu
     Ok(())
 }
 
-/// Phase F case 2: no official priority — both official and thirdparty descriptors
+/// Phase F case 2: no publisher priority — both first-party and third-party descriptors
 /// are ordinary packages; describe_contract confirms no_platform_privilege.
 pub(crate) async fn agentic_forge_no_publisher_priority() -> anyhow::Result<()> {
     let (_store, runtime) = runtime();
@@ -1679,16 +1679,16 @@ pub(crate) async fn agentic_forge_no_publisher_priority() -> anyhow::Result<()> 
         || output_str.contains("platform.turn.");
     anyhow::ensure!(
         !has_platform_priv,
-        "official agentic-forge must not contain platform.agent/model/prompt/memory/turn namespace"
+        "first-party agentic-forge must not contain platform.agent/model/prompt/memory/turn namespace"
     );
 
     // Verify describe_contract says it's an ordinary package
     anyhow::ensure!(
         desc.output["package_kind"] == json!("ordinary"),
-        "official agentic-forge must be declared as ordinary package, not privileged"
+        "first-party agentic-forge must be declared as ordinary package, not privileged"
     );
 
-    // Third-party package manifest has no official privilege fields
+    // Third-party package manifest has no first-party privilege fields
     let thirdparty_path = PathBuf::from("examples/packages/thirdparty-agentic-forge/manifest.yaml");
     let tp_content = tokio::fs::read_to_string(&thirdparty_path).await?;
     let tp_manifest: serde_yaml::Value = serde_yaml::from_str(&tp_content)?;

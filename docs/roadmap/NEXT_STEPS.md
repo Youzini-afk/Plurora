@@ -51,13 +51,13 @@ Plurora 的下一步不是围绕某个单一产品、示例或工作流扩张，
 
 ### 收敛 Contract V1 的长期所有权
 
-Contract V1 继续作为支持中的公开合同，但不再无差别扩大 `platform.*`。建设重点是：
+Contract V1 继续作为受支持的精确公开边界。建设重点是：
 
 - 让 substrate、Host、Protocol Commons 和 Shell Profile 的 owner 清楚可见；
 - 为新能力选择明确 namespace、version 和 maturity；
-- 继续维护 Contract Registry、显式协商、canonical method 与 legacy adapter；
-- 保证旧客户端、旧数据和未知字段可读取与迁移；
-- 将 Surface slot、Project、target、deployment 等正确标记为 Profile / Host，而不是永久内核本体；
+- 继续维护精确 Contract Registry、生成 identity 与显式 contract/profile/Protocol negotiation；
+- 当引入 breaking boundary 时，通过显式 versioned reader 与 migration tooling 保持较早数据和 unknown field 可读；
+- 将 Surface slot、Project、target、deployment 等正确标记为 Profile / Host，而不是永久 substrate ontology；
 - 只在有真实公共语义时建立 Protocol，不把某个 Package 私有 JSON 过早冻结成平台标准。
 
 逐项归属见 [`../spec/CONTRACT_LAYERING_MATRIX.md`](../spec/CONTRACT_LAYERING_MATRIX.md)，候选宪法见 [`../architecture/CONSTITUTION_V2.md`](../architecture/CONSTITUTION_V2.md)。

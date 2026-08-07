@@ -5,6 +5,7 @@ members = [
   "crates/plurora-service",
   "crates/plurora-cli",
   "sdk/rust/plurora-contract-sdk",
+  "clients/desktop/src-tauri",
 ]
 resolver = "2"
 

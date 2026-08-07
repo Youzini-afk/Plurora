@@ -72,7 +72,7 @@ Plurora 的技术野心集中在能长期提高能力的基础上：
 - **Local-first and multi-Host：** 本机优先、离线可用，同时能安全扩展到远程设备和多节点；
 - **Streaming execution：** 流、取消、deadline、背压、恢复和长任务观测是基础能力；
 - **Causality and effects：** 历史回放与重新执行分离，非确定性和外部效果留下可审计收据；
-- **Protocol evolution：** 显式协商、成熟度、兼容 Profile、弃用、迁移和 legacy adapter；
+- **Protocol evolution：** 显式协商、成熟度、兼容 Profile、弃用、迁移与 versioned reader；
 - **Implementation independence：** 数据和协议不绑定某一语言、UI 框架、模型供应商或云平台。
 
 这些方向不要求一次性全部进入稳定层。成熟度和实际收益决定它们停留在 Experimental、Candidate 还是 Stable。

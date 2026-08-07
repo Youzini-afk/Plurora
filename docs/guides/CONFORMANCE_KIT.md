@@ -6,7 +6,7 @@ Conformance kit 用来让第三方能力包在交给 host、市场、CI 或用�
 
 ## 目的
 
-Plurora 要求官方包和第三方包走同一份契约。Conformance kit 提供可重复的本地验证：manifest 是否能解析、entry 是否可运行、bindings 是否正确、能力声明是否一致、权限是否最小、审计是否可见、fixture 调用是否稳定。
+Plurora 要求第一方与第三方 Package 走同一份契约。Conformance kit 提供可重复的本地验证：manifest 是否能解析、entry 是否可运行、bindings 是否正确、能力声明是否一致、权限是否最小、审计是否可见、fixture 调用是否稳定。
 
 通过 kit 不代表包“质量好”或“内容正确”；它只说明该包按 v1 合同参与平台。
 
@@ -172,6 +172,6 @@ Kit 版本跟随 v1 schema additive 演进。新增检查默认应以 WARNING �
 
 ## 参考
 
-- [`../spec/KERNEL_V1_CONTRACT.md`](../spec/KERNEL_V1_CONTRACT.md)
+- [`../spec/PUBLIC_CONTRACT.md`](../spec/PUBLIC_CONTRACT.md)
 - [`CAPABILITY_HANDLES.md`](CAPABILITY_HANDLES.md)
 - [`PATH_B_SELF_CONTAINED.md`](PATH_B_SELF_CONTAINED.md)

@@ -26,7 +26,7 @@ replacement_candidates:
 compatibility_notes:
   - "Third-party replacement exposes equivalent surface slots to plurora/memory-lab"
   - "No platform privilege or Plurora publisher namespace required"
-  - "Official memory-lab is a replacement candidate only — no routing priority"
+  - "First-party memory-lab is a replacement candidate only — no routing priority"
   - "Both packages produce package-owned shapes: memory_record, retrieval_trace, update_draft, correction, redaction_plan, branch_view, provenance"
   - "Neither package may directly mutate trusted state or perform network/inference"
   - "Memory packages are ordinary packages with no special kernel memory access"

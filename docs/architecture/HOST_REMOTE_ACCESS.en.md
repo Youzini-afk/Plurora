@@ -45,9 +45,9 @@ Unknown HTTP paths, unknown RPC methods, and broad administrative mutations requ
 
 ## Project and target resources
 
-A grant's `resources` are structured selectors shaped as `{ kind: "project" | "target", id?: string }`. Omitting `id` selects every resource of that kind; an explicit id is compared structurally and exactly, never by string prefix. Legacy journal grants without `resources` rehydrate with the compatible all-projects + all-targets meaning. New Web and CLI pairings submit selectors explicitly.
+A grant's `resources` are structured selectors shaped as `{ kind: "project" | "target", id?: string }`. Omitting `id` selects every resource of that kind; an explicit id is compared structurally and exactly, never by string prefix. Earlier stored journal grants without `resources` rehydrate with the compatible all-projects + all-targets meaning. New Web and CLI pairings submit selectors explicitly.
 
-The server checks or filters HTTP project paths and static project bundles, canonical and legacy RPC, project lists, sessions/events, ChangeSets, deployment jobs/revisions, private `/p` routes, and target/exec/port/proxy objects. A device identity is no longer collapsed into `HostDev` at `/rpc`. The Host writes and verifies `metadata.project_id` on project sessions; forks preserve the binding, and a caller-supplied `session_id` is not authority by itself.
+The server checks or filters HTTP project paths and static project bundles, every supported public RPC transport, project lists, sessions/events, ChangeSets, deployment jobs/revisions, private `/p` routes, and target/exec/port/proxy objects. A device identity is no longer collapsed into `HostDev` at `/rpc`. The Host writes and verifies `metadata.project_id` on project sessions; forks preserve the binding, and a caller-supplied `session_id` is not authority by itself.
 
 A child grant cannot exceed its parent's scopes, resources, or expiry. Authentication validates the complete delegation chain, so revoking or expiring any ancestor invalidates descendants immediately. Device protocol allow/deny decisions are written to the `host_control_authority` journal with grant, delegation, canonical method, action, structured resources, and correlation—but never tokens, cookies, or raw request parameters.
 

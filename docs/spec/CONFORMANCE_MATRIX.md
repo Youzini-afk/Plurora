@@ -105,7 +105,7 @@ Surface/static bundle 与 bridge 还覆盖以下稳定断言：
 | events | 包在无 `events.append` 时被拒绝写入 | implemented in unit tests |
 | events | 包在无 `events.read` 时被拒绝读取 | implemented |
 | events | 包被拒绝写入他人 namespace | implemented in unit tests |
-| events | 包被拒绝写入 `kernel/v1/...` | implemented in unit tests |
+| events | Package 写入 `context/opened` 等 registry 平台事件时被拒绝 | implemented in unit tests |
 | events | 已关闭 session 拒绝追加 | implemented |
 | events | 带过滤条件的 sequence-range replay | implemented |
 | package | 有效 manifest 加载成功 | implemented |
@@ -120,7 +120,7 @@ Surface/static bundle 与 bridge 还覆盖以下稳定断言：
 | capability | 模糊 provider 被拒绝 | implemented in unit tests |
 | capability | 显式 provider 选择解决重复 provider | implemented |
 | capability | 版本约束过滤 provider | implemented |
-| official equality | 官方外观的包无路由优先 | implemented |
+| publisher equality | 官方外观的包无路由优先 | implemented |
 | hooks | veto fixture 报告 veto | implemented in unit tests |
 | hooks | 按 precedence/package/handler 稳定排序 | implemented |
 | hooks | before event append veto 阻止操作 | implemented |
@@ -140,15 +140,15 @@ Surface/static bundle 与 bridge 还覆盖以下稳定断言：
 | secret refs | `secret_ref:`、`secretRef:`、`secret-ref:`、`host:` reference pattern validation | implemented |
 | secret refs | proposal payload 中的 raw secret 会被拒绝 | implemented |
 | secret refs | asset metadata 中的 raw secret 会被拒绝 | implemented |
-| secret refs | 官方包没有 secret-scanning bypass | implemented |
+| secret refs | 第一方 Package 没有 secret-scanning bypass | implemented |
 | env resolver | `EnvSecretResolver` 在 env name 于 allowlist 中时允许解析（`secret_ref:env`、`secretRef:env`、`secret-ref:env`、`host:env`） | implemented |
 | env resolver | `EnvSecretResolver` 在 env name 不在 allowlist 中时拒绝解析；非 env vault 和 `host:<key>` 被拒绝 | implemented |
 | env resolver | `EnvSecretResolver` 缺失 env var 返回 typed error，不泄漏 raw value | implemented |
 | secret store | 10 个 secret_store 用例：put / has / list / delete / health + env/store/composite resolver paths | implemented |
 | protocol | 方法列表不包含内容方法 | implemented in unit tests |
 | protocol | 结构化权限错误码 | implemented |
-| protocol / legacy | canonical 与 legacy alias 结果、permission 和 error mapping 等价 | implemented |
-| protocol / canonical | 分层 namespace smoke 只调用 canonical Host/Shell/Change/Projection ID，并显式协商 default 与 Shell Default profile | implemented |
+| protocol / identity | Registry 对每个 method 只暴露一个 wire ID，不发布 alias，并拒绝未知 identity | implemented |
+| protocol / owner namespace | smoke 只调用 Host/Shell/Change/Projection owner ID，并显式协商 default 与 Shell Default profile | implemented |
 | protocol / negotiation | 未知 layer version 明确返回 `unsupported_contract` | implemented |
 | protocol / negotiation | 协商失败不静默回退，且业务 handler 零副作用 | implemented |
 | protocol | in-process 协议分发器调用 host.info | implemented |
@@ -188,7 +188,7 @@ Surface/static bundle 与 bridge 还覆盖以下稳定断言：
 | outbound | model provider outbound shape fake executor（三 provider host/method/path/secret_ref shape 通过 outbound boundary、call_count=3、executor_kind Fake） | implemented |
 | first-party Packages | model-routing-lab resolve deterministic route plans，包含 explicit fallbacks 与 normalized params | implemented |
 | first-party Packages | pi-agent-runtime-lab 生成 no-inference/no-network run plans、approval-gated proposals、trace summaries，且 surfaces 可发现 | implemented |
-| first-party Packages | capability-tool-bridge-lab 标记 ambiguous provider rejected、explicit third-party provider 可用、official 不优先、missing provider rejected、denied preview 报告 missing permission、raw secret unsafe_blocked | implemented |
+| first-party Packages | capability-tool-bridge-lab 标记 ambiguous provider rejected、explicit third-party provider 可用、第一方 provider 不优先、missing provider rejected、denied preview 报告 missing permission、raw secret unsafe_blocked | implemented |
 | first-party Packages | inference-local-lab describe_capabilities 不需要 network/secret，transports include in_memory/local_process，operation_kinds include generate/classify/transform | implemented |
 | first-party Packages | inference-local-lab invoke non-HTTP succeeds，无 URL/header/status/messages 字段，network_performed=false，transport_performed=in_memory_fake | implemented |
 | first-party Packages | inference-local-lab invoke rejects http transport、HTTP-shaped 字段（url/header/status_code）、messages-shaped 字段（messages/system/user/assistant）、raw secret | implemented |
@@ -199,7 +199,7 @@ Surface/static bundle 与 bridge 还覆盖以下稳定断言：
 | first-party Packages | inference-playtest-lab 被拒绝的 proposal 不能 apply | implemented |
 | first-party Packages | inference-playtest-lab approve/apply 成功，asset 被写入，branch_plan + fork 创建 branch，branch metadata 包含 proposal/source inference provenance | implemented |
 | first-party Packages | inference-playtest-lab 输出不含 messages/prompt/chat/platform.model 等术语 | implemented |
-| in-process packages | non-official `/preview` suffix 不会获得 official asset-lab fallback 行为 | implemented |
+| in-process packages | non-first-party `/preview` suffix 不会获得第一方 asset-lab fallback 行为 | implemented |
 | in-process packages | unknown registered in-process capability loud fail，而不是返回 generic fallback success | implemented |
 | first-party Packages | assistant-lab 通过授权返回需要审批的 proposal | implemented |
 | play-creation | 空白循环演练 assistant proposal、branch、asset、projection | implemented |
@@ -214,15 +214,15 @@ Surface/static bundle 与 bridge 还覆盖以下稳定断言：
 | first-party Packages | composition-lab v2 诊断返回 surface/capability/permission/replacement 字段与 compat-report | implemented |
 | replacement | 第三方 playable-seed surface 通过 shell.contribution.list 可发现 | implemented |
 | replacement | 第三方 playable-seed 能力调用通过正常路由工作 | implemented |
-| replacement | 歧义的 official+thirdparty 等效能力拒绝路由，无官方优先 | implemented |
+| replacement | 歧义的 first-party + third-party 等效 capability拒绝路由，无 publisher priority | implemented |
 | replacement | composition 描述符通过第三方 playable-seed 替换 | implemented |
 | replacement | 第三方 agent-runtime surfaces（assistant_action/forge_panel/home_card）通过 shell.contribution.list 可发现 | implemented |
 | replacement | 第三方 agent-runtime 能力调用产生 no-inference/no-network、approval-gated proposal、provenance 匹配 | implemented |
-| replacement | composition 描述符通过第三方 agent-runtime 替换，official 仅 replacement_candidate | implemented |
+| replacement | composition 描述符通过第三方 agent-runtime 替换，第一方 Package 仅为 replacement_candidate | implemented |
 | network | 无 network permission 的包被拒绝出站，产生 outbound.denied 审计 | implemented |
 | network | allowlisted host+method 允许，产生 redacted outbound.request 审计 | implemented |
 | network | host/method 不匹配被拒绝 | implemented |
-| network | 官方包无 network bypass | implemented |
+| network | 第一方 Package 无 network bypass | implemented |
 | network | 审计记录不包含 raw secret/body，只包含 secret_ref 和 redaction_state | implemented |
 | network | check_network_policy 纯函数测试 | implemented |
 | outbound | 无权限时 executor 不被调用 — 被拒绝的请求不会到达 executor | implemented |
@@ -322,7 +322,7 @@ Surface/static bundle 与 bridge 还覆盖以下稳定断言：
 | storage backend | in-memory 与 SQLite rehydrate 事件重放语义一致 | implemented |
 | storage lab | storage-lab 合约形状不含 kernel database 术语（platform.sqlite/postgres/tdb/vector/embedding/collection/sql/database） | implemented |
 | storage lab | storage-lab backend class 候选只含 capability flags，不含 secret-bearing backend config | implemented |
-| storage lab | package state plan namespace 属于 owning package，无 official 优先级 | implemented |
+| storage lab | package state plan namespace 属于 owning package，无 publisher priority | implemented |
 | storage lab | put document preview 不执行真实写入（write_performed=false） | implemented |
 | storage lab | get document preview 不执行真实读取（read_performed=false） | implemented |
 | storage lab | query prefix preview 不执行真实查询（query_performed=false） | implemented |
@@ -394,8 +394,8 @@ Surface/static bundle 与 bridge 还覆盖以下稳定断言：
 | schema | capability input schema 拒绝无效输入 | implemented |
 | schema | capability 输出 schema 拒绝无效输出 | implemented in runtime path |
 | schema | 声明了 schema 时 event payload schema 拒绝无效 payload | implemented |
-| official equality | `plurora/...` 包没有特殊路由或权限 | implemented |
-| official equality | 内核在未加载任何官方包时启动且 conformance 通过 | implemented |
+| publisher equality | `plurora/...` 包没有特殊路由或权限 | implemented |
+| publisher equality | 内核在未加载任何第一方 Package 时启动且 conformance 通过 | implemented |
 
 ## CLI 目标输出
 

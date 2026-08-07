@@ -550,7 +550,7 @@ mod tests {
     }
 
     #[test]
-    fn try_handle_official_preview() {
+    fn try_handle_first_party_preview() {
         let mut request = make_request("plurora/asset-lab", "plurora/asset-lab/preview");
         let result = try_handle(&mut request);
         assert!(

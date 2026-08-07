@@ -11,7 +11,7 @@
 - 它不是 Plurora 的模型抽象。
 - 它不是 LiteLLM / OneAPI compatible gateway。
 - 它不是 provider marketplace、计费系统或渠道后台。
-- 它没有内核特权；官方包和第三方包必须走同一套公开协议、权限、secret 和出站边界。
+- 它没有内核特权；第一方 Package 和第三方包必须走同一套公开协议、权限、secret 和出站边界。
 - OpenAI、Anthropic、Gemini、OpenRouter、DeepSeek、xAI、Fireworks 的 schema 是 adapter 内部细节，不是平台公共协议。
 - `normalize_request` 是 cloud adapter 内部 request builder helper，不是 Plurora canonical inference request。
 
@@ -106,7 +106,7 @@ OpenAI-compatible 是 adapter family，不是 Plurora 的唯一模型世界观�
 
 ### `invoke`
 
-`plurora/model-provider-lab/invoke` 本身仍然是 fake/local adapter path。真实网络调用不通过官方包私有 runtime access；它必须由 ordinary package 使用公开 `host.outbound.execute`，由 host policy、secret resolver 和 outbound executor 控制。
+`plurora/model-provider-lab/invoke` 本身仍然是 fake/local adapter path。真实网络调用不通过第一方 Package 私有 runtime access；它必须由 ordinary package 使用公开 `host.outbound.execute`，由 host policy、secret resolver 和 outbound executor 控制。
 
 输出必须保持：
 
@@ -186,7 +186,7 @@ OpenAI-compatible 是 adapter family，不是 Plurora 的唯一模型世界观�
 5. audit 只记录 host、method、purpose、secret_refs、usage/cost/error metadata 和 redaction state；
 6. 流式输出统一落到 content-free frame lifecycle；
 7. cancel/timeout 不被 provider adapter 私自吞掉；
-8. third-party provider package 可以替换官方 package，没有官方优先级。
+8. third-party provider Package 可以替换第一方 Package，没有 publisher priority。
 
 可选真实 DeepSeek smoke path 只在同时满足以下条件时运行：
 
@@ -211,7 +211,7 @@ PLURORA_LIVE_MODEL_TESTS=1 DEEPSEEK_API_KEY=... cargo run -p plurora-cli -- conf
 - `platform.model.*`、`platform.prompt.*`、`platform.chat.*`、`platform.embedding.*`。
 - 把 OpenAI-compatible 当作唯一模型协议。
 - 把 `normalize_request` 当作平台 canonical request。
-- 让官方包绕过 manifest、permission、secret、network 或 audit 边界。
+- 让第一方 Package 绕过 manifest、permission、secret、network 或 audit 边界。
 
 ## 验证
 

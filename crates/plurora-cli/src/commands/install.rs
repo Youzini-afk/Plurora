@@ -13,7 +13,7 @@ use crate::install::default_data_dir;
 use crate::install::url_parser::{parse_install_url, InstallSource};
 
 const INSTALL_PACKAGE_ID: &str = "plurora/install-lab";
-const OFFICIAL_MANIFESTS: [&str; 3] = [
+const FIRST_PARTY_MANIFESTS: [&str; 3] = [
     "packages/plurora/git-tools-lab/manifest.yaml",
     "packages/plurora/integrity-lab/manifest.yaml",
     "packages/plurora/install-lab/manifest.yaml",
@@ -281,7 +281,7 @@ fn choose_external_workspace(args: &InstallArgs) -> Result<()> {
 pub(crate) async fn load_install_runtime() -> Result<Runtime<InMemoryEventStore>> {
     let store = Arc::new(InMemoryEventStore::default());
     let runtime = Runtime::new(store, RuntimeConfig::default());
-    for manifest in OFFICIAL_MANIFESTS {
+    for manifest in FIRST_PARTY_MANIFESTS {
         runtime
             .load_package(read_manifest(workspace_path(manifest)).await?)
             .await?;

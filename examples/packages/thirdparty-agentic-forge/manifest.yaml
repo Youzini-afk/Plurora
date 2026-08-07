@@ -65,7 +65,7 @@ contributes:
     - id: thirdparty/agentic-forge/assistant-action
       slot: assistant_action
       title: Community Agentic Forge Assistant
-      description: Draft approval-gated promote proposals from a community-maintained forge fully interchangeable with the official agentic-forge-lab.
+      description: Draft approval-gated promote proposals from a community-maintained forge fully interchangeable with the first-party agentic-forge-lab.
       capability_id: thirdparty/agentic-forge/draft_promote_proposal
       approval_policy: fork_then_approve
     - id: thirdparty/agentic-forge/home-card

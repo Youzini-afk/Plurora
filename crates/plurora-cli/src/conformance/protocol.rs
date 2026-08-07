@@ -84,7 +84,7 @@ pub(crate) async fn protocol_commons_advertised() -> anyhow::Result<()> {
         .collect::<std::collections::BTreeSet<_>>();
     anyhow::ensure!(
         change.conforming_implementations.len() == 2,
-        "change protocol must prove official and third-party vector parity"
+        "change protocol must prove first-party and third-party vector parity"
     );
     for implementation in &change.conforming_implementations {
         let claimed = implementation

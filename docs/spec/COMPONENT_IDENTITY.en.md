@@ -10,7 +10,7 @@ Plurora separates how software is retrieved from what behavior it claims to impl
 |---|---|---|
 | Package envelope | retrieval source, manifest, install transaction, integrity evidence | stable implementation identity |
 | Component | executable or static implementation, behavior claim, execution boundary | content ownership or package origin |
-| Protocol implementation | protocol/version/profile/vector claim | routing priority or official preference |
+| Protocol implementation | protocol/version/profile/vector claim | routing priority or publisher preference |
 | Content root | immutable world/project/media data | a particular executable implementation |
 | Surface | shell contribution and activation metadata | ownership of the underlying world state |
 

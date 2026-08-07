@@ -2,62 +2,48 @@
 
 > [English](./CONTRACT_REGISTRY.en.md) · [中文](./CONTRACT_REGISTRY.md)
 
-This document describes the executable compatibility mechanism currently used for layered contracts,
-canonical IDs, legacy aliases, and explicit negotiation. It is Experimental: it does not claim that
-Constitution v2 is Stable and does not change existing `platform.*` payload semantics.
+This document describes the executable registry for Plurora's public contract. The registry is the single source of truth for method identity, ownership, maturity, schemas, implementation status, streaming behavior, and explicit contract negotiation.
+
+The current pre-release registry exposes exactly one wire ID for every method. It does not resolve alternate IDs, run request/response adapters, or publish parallel compatibility surfaces.
 
 ## One resolution boundary
 
-Before a permission gate or handler runs, the runtime always:
+Before a permission gate or handler runs, every transport uses the same sequence:
 
-1. validates the optional contract selection;
-2. resolves a canonical ID or alias through the central registry;
-3. applies the request adapter;
-4. invokes the single `PlatformMethod` handler;
-5. applies the response adapter.
+1. validate the optional contract selection;
+2. resolve the requested method by exact registry ID;
+3. attach the Host-established principal and transport context;
+4. dispatch the single `PlatformMethod` handler;
+5. return the common result or structured error envelope.
 
-HTTP RPC, host stdio, in-process calls, and subprocess reverse stdio share this logic. An alias
-does not create a second handler, principal, permission, or audit path.
+HTTP RPC, Host stdio, in-process calls, and subprocess reverse stdio share this boundary. A missing or unknown ID fails before business dispatch.
 
 ## Registry shape
 
-Each `ContractMethod` advertises:
+Registry version `0.1.0` publishes 80 `ContractMethod` records. Each record contains:
 
-- `canonical_id` and `aliases`;
-- `owner_layer` and `maturity`;
+- `id` — the only public wire ID;
+- `owner_layer` — `substrate`, `host`, `protocol`, or `shell`;
+- `maturity` — `experimental`, `candidate`, or `stable`;
 - request and response schema URIs;
-- request and response adapters;
-- introduced, deprecated, and replacement metadata;
-- current implementation status and streaming metadata.
+- `introduced_in`;
+- implementation status;
+- streaming metadata.
 
-Registry `0.5.0` currently publishes 36 identity aliases:
+The first ID segment declares ownership:
 
-| Canonical | Legacy alias | Owner |
+| Prefix | Owner | Examples |
 |---|---|---|
-| `host.info` | `host.info` | `host` |
-| `host.project.{list,get,start,stop,status}` | `platform.project.*` | `host` |
-| `host.target.{list,status,register,unregister}` | `platform.target.*` | `host` |
-| `host.exec.{start,stop,status,logs,list}` | `platform.exec.*` | `host` |
-| `host.port.{lease,release,status,list}` | `platform.port.*` | `host` |
-| `host.proxy.{register,unregister,status,list}` | `platform.proxy.*` | `host` |
-| `host.surface.bundle.resolve` | `host.surface.bundle.resolve` | `host` |
-| `shell.contribution.{list,describe}` | `platform.surface.contribution.*` | `shell` |
-| `change.proposal.{create,get,list,approve,reject,apply}` | `platform.proposal.*` | `protocol` |
-| `projection.{register,rebuild,get,list}` | `platform.projection.*` | `protocol` |
+| `context`, `journal`, `capability`, `authority`, `object`, `identity` | Substrate | `context.open`, `journal.append`, `authority.handle.revoke` |
+| `host` | Host | `host.project.list`, `host.outbound.execute` |
+| `protocol`, `change`, `projection` | Protocol | `protocol.extension.list`, `change.proposal.apply` |
+| `shell` | Shell | `shell.contribution.list` |
 
-The `*` and `{...}` notation is documentation shorthand; every suffix is registered explicitly.
-Until migrated, every other method keeps its existing `platform.*` ID as its canonical ID. New
-aliases must be registered centrally; dispatchers, clients, and transports must not add string
-special cases.
-
-The canonical/legacy dual stack changes only ownership and namespace. Payloads, permissions, events,
-and handlers remain unchanged. In particular, `change.proposal.*` still uses the existing
-`ProposalRecord`; Intent, ChangeSet, Commit, and EffectReceipt are separate Experimental primitives
-and cannot be inferred to be fully implemented by the proposal facade merely from its alias name.
+Package capability IDs remain Package-owned slash namespaces such as `org/package/capability`; they are not public-contract method IDs.
 
 ## Explicit negotiation
 
-The RPC envelope may include an optional field:
+The RPC envelope may include a contract selection:
 
 ```json
 {
@@ -68,79 +54,43 @@ The RPC envelope may include an optional field:
     "profile": "plurora.contract.default/v1",
     "versions": [
       { "layer": "host", "version": "0.1.0" }
-    ]
+    ],
+    "protocols": []
   }
 }
 ```
 
-- Omitting `contract` selects the `platform contract` legacy profile for old clients.
-- The advertised profiles are currently `plurora.contract.default/v1`, `plurora.shell.default/v1`, and
-  `platform contract`. Shell Default requires the published host, protocol, and shell layer versions.
-- Once a client explicitly requests a profile or layer version, the host must satisfy it exactly.
-- Unknown profiles, layers outside the profile, and version mismatches return
-  `runtime/error/unsupported_contract` with a structured reason.
-- The host never silently falls back to a weaker profile and never invokes the business handler
-  after negotiation fails.
+- Omitting `contract` selects `plurora.contract.default/v1`.
+- `plurora.contract.default/v1` requires the published substrate, Host, Protocol, and Shell layer versions.
+- `plurora.shell.default/v1` requires the published Host, Protocol, and Shell layer versions.
+- Explicit layer requirements must match exactly.
+- Duplicate requirements, unknown profiles, layers outside the selected profile, and version mismatches fail closed.
+- Explicit Protocol Commons selections are negotiated before method dispatch.
+- Negotiation never silently falls back to another profile or version.
+
+An unsatisfied selection returns `protocol/error/unsupported_contract` with a structured reason and does not invoke the requested handler.
 
 ## `host.info`
 
-The existing `protocol_version`, `methods`, and `supported_transports` fields remain unchanged.
-The following fields are additive and optional:
+`host.info` publishes the registry version, default profile, layer and version descriptors, profiles, method descriptors, supported transports, and Protocol Commons descriptors. Clients must use this response for discovery rather than infer support from product branding or Package IDs.
 
-- `contract_registry_version` and `default_profile`;
-- `layers`, `versions`, `profiles`, and `maturity`;
-- `aliases` and `contract_methods`.
+## Schemas and SDKs
 
-Old SDKs can ignore these fields, while new SDKs must allow them to be absent when connected to an
-older host.
+Every method schema carries `x-plurora-contract` metadata derived from the runtime registry. The generator:
 
-## SDKs
+- emits one TypeScript and one Rust method identity per wire ID;
+- rejects duplicate wire IDs, generated function names, and OpenAPI operation IDs;
+- keeps request/result types synchronized with the JSON Schemas;
+- emits negotiation-capable clients only when the transport can carry contract selection.
 
-The generator reads `x-plurora-contract` metadata from every method schema:
-
-- existing source-level method names invoke the canonical wire ID;
-- each legacy wire ID gets an explicit `legacyKernelV1...` / `legacy_kernel_v1_...` wrapper;
-- a negotiated client is enabled only when its transport can carry contract selection, so a
-  requirement is never silently ignored.
-- generation rejects duplicate canonical/alias wire IDs, TypeScript/Rust function names, and
-  OpenAPI operation IDs, and validates each alias target and replacement.
-
-Schemas, SDKs, and OpenAPI are regenerated together; generated artifacts are not edited manually.
-
-## Legacy Adapter transition and diagnostics
-
-Registry `0.4.0` began the first measured deprecation window; `0.5.0` completes the first real
-`Deprecated → Legacy Adapter` transition:
-
-| Legacy alias | Current maturity | Replacement | Replacement maturity | Deprecated in | Legacy Adapter from |
-|---|---|---|---|---|---|
-| `host.info` | Legacy Adapter | `host.info` | Candidate | `plurora.contract.registry@0.4.0` | `plurora.contract.registry@0.5.0` |
-| `host.target.list` | Legacy Adapter | `host.target.list` | Candidate | `plurora.contract.registry@0.4.0` | `plurora.contract.registry@0.5.0` |
-
-Historical `deprecated_in`, `replacement`, and `support_until` metadata remains published. The old
-and canonical IDs still reach the same handler, share the same request/response schemas, and use
-identity adapters to return the same method result. After entering Legacy Adapter, an old ID accepts
-only security fixes and data-reading compatibility; it receives no new field semantics.
-
-HTTP RPC, host stdio, and subprocess reverse stdio add an optional top-level `diagnostics` array with
-code `plurora.contract.alias.legacy_adapter` when a tracked Legacy Adapter alias is requested. The ad-hoc
-`GET /removed/host.info` route exposes the same
-policy through `x-plurora-contract-*` response headers and a `Link` to `/rpc`. The replacement
-header value is a canonical method ID, not a URL; invoke it with `POST /rpc`. Diagnostics are
-advisory and do not alter the method payload or error mapping, including when contract selection is
-structurally invalid but the requested legacy method ID can still be recovered.
-
-Run a read-only migration preview with:
+Run the repository generator to update schemas, OpenAPI, and both generated SDKs together:
 
 ```sh
-plurora contract migrate PATH --json
+scripts/regen-sdks.sh
 ```
 
-By default the tool migrates only aliases with published lifecycle/deprecation metadata. Add `--all-aliases`
-to opt into proactive migration of every registered alias, and add `--write` only after reviewing the
-preview. Replacements require whole contract-ID boundaries; the scanner accepts a conservative
-source/Markdown extension allowlist and reports every unsupported, non-UTF-8, or oversized file it
-skips, plus every excluded symlink or build/dependency/vendor directory. Writes use same-directory
-staging plus atomic replacement, and previously applied files are rolled back if a later write fails.
-Excluded paths are never followed. Web is the first real client migrated with `--all-aliases`: its protocol client, surface
-bridge, bundle resolver, tests, and guide now use canonical IDs.
+Generated artifacts are reviewed but not edited manually. A clean regeneration must be deterministic.
+
+## Change discipline
+
+Within the current v1 boundary, compatible evolution is additive. Removing or renaming a method, changing requiredness, or changing field meaning requires a new explicit version boundary. Pre-release destructive resets are performed as one coordinated repository change; the finished tree contains only the selected identity set.

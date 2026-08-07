@@ -1,13 +1,13 @@
-# Platform Substrate and Current Kernel Boundary
+# Constitutional Substrate and Current Runtime Boundary
 
-> [English](./PLATFORM_KERNEL.en.md) · [中文](./PLATFORM_KERNEL.md)
+> [English](./CONSTITUTIONAL_SUBSTRATE.en.md) · [中文](./CONSTITUTIONAL_SUBSTRATE.md)
 
 This document separates two things:
 
 1. the deliberately small **Constitutional Substrate** Plurora should retain for the long term;
-2. the implementation boundary currently named kernel in Contract V1.
+2. the broader implementation boundary currently carried by `plurora-core` and `plurora-runtime`.
 
-They do not yet coincide completely. To provide an operational platform, the current `plurora-core` and `plurora-runtime` also carry some Host, protocol, and shell responsibility. The long-term goal is not to invalidate that code, but to return responsibility to the correct layer while preserving compatibility, migration, and data readability.
+They do not yet coincide completely. To provide an operational platform, `plurora-core` and `plurora-runtime` also carry some Host, Protocol, and Shell responsibility. The long-term goal is to return responsibility to the correct layer while preserving explicit version boundaries, migration, and data readability.
 
 ## Mechanisms owned by the constitutional substrate
 
@@ -81,7 +81,7 @@ Package download, installation directories, and user-facing management belong to
 
 - explicit selection of protocol IDs, versions, and profiles;
 - requirements that do not allow silent downgrade;
-- Contract Registry, aliases, and legacy-adapter entry points;
+- exact Contract Registry identities, explicit profile/layer/Protocol negotiation, and versioned migration boundaries;
 - transport-independent behavioral semantics.
 
 ## What the constitutional substrate does not own
@@ -95,7 +95,7 @@ The substrate does not own:
 - World, Entity, Scene, Quest, Document, Game, or Simulation;
 - a concrete secret store, database, vector store, or model vendor;
 - one fixed proposal, approval, change, or publishing workflow;
-- any official component ID or UI state.
+- any first-party component ID or UI state.
 
 Those concepts belong respectively to the Host, Protocol Commons, a distribution, or a product. They may be important and stable without belonging to the constitutional substrate.
 
@@ -130,9 +130,9 @@ See [`../spec/CONTRACT_LAYERING_MATRIX.md`](../spec/CONTRACT_LAYERING_MATRIX.en.
 
 HTTP, stdio, in-process invocation, future WASM imports, and remote boundaries preserve the same identity, authority, error, and effect semantics. Internal callers receive no capability unavailable to third parties.
 
-### No official privilege
+### No first-party privilege
 
-Official and third-party components use the same registration, bindings, invocation, and audit mechanisms. Package names cannot determine authority or routing priority.
+First-party and third-party components use the same registration, bindings, invocation, and audit mechanisms. Package names cannot determine authority or routing priority.
 
 ### Content meaning stays out of core mechanisms
 

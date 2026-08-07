@@ -9,7 +9,7 @@
 ## 概要
 
 - **Conformance：** 473 个具名 CLI 用例通过，外加 crate / service 单元测试；161 个 v1 schema（80 methods + 59 events + 22 top-level）通过校验。
-- **章程纪律：** 内核对内容无意见；官方包没有特权；公开协议是唯一入口；入口形态平等；能力句柄、bindings 注入、Path A / Path B、conformance kit 与生成 SDK 已落地；可信路径阻断 raw secret，全部走 manifest 声明的 `secret_ref`；权限授权可重新水化；网络声明带审计与脱敏；通用流式与取消生命周期；外发执行有边界，默认全拒；公开 HTTPS 出站走同样的 host policy / 审计 / 脱敏边界；一元、SSE/NDJSON/raw 流和 WebSocket 三个原语都有完成审计事件。
+- **章程纪律：** 内核对内容无意见；第一方 Package 没有特权；公开协议是唯一入口；入口形态平等；能力句柄、bindings 注入、Path A / Path B、conformance kit 与生成 SDK 已落地；可信路径阻断 raw secret，全部走 manifest 声明的 `secret_ref`；权限授权可重新水化；网络声明带审计与脱敏；通用流式与取消生命周期；外发执行有边界，默认全拒；公开 HTTPS 出站走同样的 host policy / 审计 / 脱敏边界；一元、SSE/NDJSON/raw 流和 WebSocket 三个原语都有完成审计事件。
 - **代码健康：** CLI、运行时各域行为、协议分发、in-process 处理器、事件存储——都已按域拆分，不再继续往单文件里堆。
 - **人测底座：** 安装 warning 与 schema 形状已稳定；原生项目安装链路从 source → store → nested manifests/profile autoload → project registry → project dist → 受保护的 `/surface-bundles/projects/<project_id>/...` → 短期 sandbox asset lease；`surface_bundle` 是 static、non-executing 入口；`dist/` 已进入 `tree_hash`，store schema 迁移会清掉旧 store，install/update/uninstall 后会回收孤立 store；`plurora/install-lab` 提供 `check_for_updates` / `update_project`，CLI `plurora update` 与 Web 项目控制台都通过它更新；Surface bridge 已收敛 allowlist、stream ownership、诊断脱敏、secret 输入清理、CSP/CORS 加固与 typed `allowed_capability_ids`；桌面端管理 loopback Host sidecar，Web shell 可安装为 PWA；自托管部署底座包含统一 local/Agent target driver、target / exec / port / proxy、HTTP/WebSocket 反代、显式 Deploy broker、默认私有/显式公开 route、共享 Host/project/target 客户端 context，以及 Verified ChangeSet → private preview → 独立部署审批 → activation → reconcile/recover/rollback。可撤销 scoped device pairing 让手机通过同一 Host API 控制项目、部署与 ChangeSet；Web/Desktop/PWA 复用同一 client core，远程 CLI 通过同一 Bearer/public Host 边界完成 project/target 操作以及 ChangeSet 的草拟、审阅、批准/拒绝、执行、导出和恢复完整生命周期。
 
@@ -19,8 +19,8 @@
 
 - 不带内容的会话、只追加的不透明事件、清单驱动的能力包、能力机制、钩子机制、surface 贡献、提案生命周期、资产 / 分支 / projection 底座。
 - SQLite 事件日志，每会话单调递增的序号，可重新水化的底座。
-- Experimental SHA-256 ObjectStore 与 ArtifactDescriptor 已落地：内存/文件系统 CAS、读取后校验、stream、旧 FNV asset 事件幂等迁移；asset 事件只保存 descriptor/ref，不再保存正文。
-- Experimental EffectReceipt 与 Change primitives 已落地：capability/outbound/stream/WebSocket/exec terminal path 生成内容寻址 receipt；历史重放不调用 executor，capability re-execute 创建新 branch 与 parent-linked receipt；旧 Proposal lifecycle 作为 Intent/ChangeSet/PolicyDecision/Commit adapter 继续兼容。
+- Experimental SHA-256 ObjectStore 与 ArtifactDescriptor 已落地：内存/文件系统 CAS、读取后校验、stream、较早 FNV asset record 的幂等转换；asset 事件只保存 descriptor/ref，不再保存正文。
+- Experimental EffectReceipt 与 Change primitive 已落地：capability/outbound/stream/WebSocket/exec terminal path 生成内容寻址 receipt；历史 replay 不调用 executor；capability re-execute 创建新 branch 与 parent-linked receipt；当前 `change.proposal.*` facade 把 approval-gated operation 映射为 Intent/ChangeSet/PolicyDecision/Commit evidence。
 - Experimental Protocol Commons 注册表已落地：`host.info` 发布 Change、Shell Default 与 World Bundle 描述符；显式协议/Profile 协商先于 dispatch；不支持的 major 以结构化原因拒绝；protocol、implementation 与 package conformance 使用独立可执行报告。
 - Package envelope 与 component identity 已分离：显式 component/behavior digest 在重新打包后保持稳定；runtime 与 effect evidence 携带 component trust/边界数据；composition lock 分离 component/profile/content pin；`contract:none` 明确报告为不可移植 Foreign Capsule。
 - Experimental World Bundle 已落地，并由 `plurora/playable-creation-board` 的跨 Host conformance fixture 覆盖：canonical archive descriptor 保留原始 v1 envelope 与完整 SHA-256 closure；全新 SQLite/filesystem Host 保持 object、lineage 与 receipt；historical replay 不调用 executor；替代实现生成 child branch/head；headless CLI 无需 Web Shell 状态即可读取同一 archive。
@@ -36,7 +36,7 @@
 - **环境变量解析器：** host 拥有的解析器，带显式 allowlist。默认全拒；env 名要先放行才能解析。错误只带 env 名，绝不带原始值。
 - **本地加密 secret store：** `secret_ref:store:NAME` 通过 `StoreSecretResolver` 从 `~/.plurora/secrets.dat` 解析；`secret_ref:project:NAME` 先读项目级 store，再按 `secret_policy` 回退平台 store；store 使用 age (X25519) 加密，主密钥来自 OS keyring（延后启用）或 0600 本地 key 文件。
 - **Raw secret 阻断：** 提案的 operations / expected effects 与资产 metadata 会被保守扫描，明显的 API key、token、password 字段被拒绝。资产内容与普通文本不扫描，避免误伤用户内容。
-- **网络权限声明：** 清单中的 `permissions.network` 同时支持扁平 `hosts`（向后兼容）和结构化 `declarations`（带 `host` / `methods` / `purpose`）。无声明的能力包不能出网。官方包没有绕过。
+- **网络权限声明：** 清单中的 `permissions.network` 同时支持扁平 `hosts`（向后兼容）和结构化 `declarations`（带 `host` / `methods` / `purpose`）。无声明的 Package 不能出网；第一方 Package 也没有绕过。
 - **外发审计与脱敏：** 每条出站请求都生成审计记录，只含身份、能力包 id、目标主机、方法、用途、脱敏状态、用到的 `secret_ref`，不含原始 body / header / 提示词 / 响应。
 - **外发执行边界：** 内容无关的 HTTP 与 WebSocket executor trait。默认 deny-all（fail-closed），可切换为 fake executor（带 fixture，用于 conformance）或 live executor（HTTP 使用 reqwest + rustls，WebSocket 使用 tokio-tungstenite + rustls；默认关闭；HTTP 为 HTTPS-only，WebSocket 为 WSS-only；重定向 fail-closed；secret header 只在执行时注入，不进审计）。真实 live 模型 / WebSocket 出站必须通过 profile 与环境变量显式 opt-in；默认 conformance 不联网，真实 WebSocket smoke 还要求 `PLURORA_LIVE_WEBSOCKET_TESTS=1`。
 - **协议方法：** `host.outbound.audit` 列出某个能力包的出站审计事件；`host.outbound.execute` 让普通能力包通过 host executor 发起一元出站请求；`host.outbound.stream` 提供 SSE/NDJSON/raw 流式出站；`host.outbound.websocket.open|send|close` 提供双向 WebSocket 出站。
@@ -47,7 +47,7 @@
 
 - 规范的请求 / 响应信封，自带 host 绑定的身份上下文。调用方不能自己声称是某个能力包或 admin。
 - 同一份 dispatcher 同时承载 HTTP `POST /rpc` 和 host JSON-RPC stdio (`plurora host-stdio`)。
-- Contract Registry `0.5.0` 已完成第一次真实 Deprecated → Legacy Adapter 转换：36 条 alias 仍统一走集中解析；`host.info` 与 `host.target.list` 是 Candidate，其 the public contract alias 保留 `0.4.0` 弃用历史并从 `0.5.0` 起冻结为 identity Legacy Adapter。它们只接受安全修复和数据读取兼容，不增加新字段语义；HTTP、host stdio 与 subprocess reverse stdio 返回 additive lifecycle diagnostics，生成 SDK 以队列保留警告；`plurora contract migrate` 提供有 ID 边界的 preview 与原子写入/回滚。Web 生产调用已全部切换到 canonical ID。
+- Contract Registry `0.1.0` 发布 80 个精确 owner-based method ID、两个显式 contract profile、逐层版本要求与 fail-closed Protocol Commons negotiation。HTTP RPC、Host stdio、in-process 调用与 subprocess reverse stdio 使用同一个精确 resolver；生成 SDK 对每个 wire ID 只暴露一个 method identity，Web client 也只发送这些 ID。
 - 通过 SSE 订阅事件，支持 `after_sequence` 回放和实时追尾。
 - 基于 profile 的 `plurora host serve` 自动加载能力包，对外暴露 `/rpc` 与 SSE。
 - Host 控制平面在 Contract V1 之外保持独立：root token 是根凭据；持久化设备 grant 同时按 action scope 与 `project` / `target` 资源选择器衰减，支持有界委托、祖先撤销级联、过期、单项撤销和原子的管理员批量撤销。HTTP 与 RPC 在进入运行时前保留同一设备身份和 authority，项目会话必须显式绑定项目；每次设备协议调用都会写入脱敏的 allow/deny 判定日志。开发长操作会在 Docker 与 managed-workspace 效应前、以及阻塞验证结束后刷新 grant/祖先状态。移动 PWA 与 `plurora host access` CLI 通过同一 Host API 管理授权，pairing 仍只经 HTTPS 一次性交换为 Secure/HttpOnly Cookie。详见 [`architecture/HOST_REMOTE_ACCESS.md`](architecture/HOST_REMOTE_ACCESS.md)。
@@ -60,7 +60,7 @@
 - `wasm` 与 `remote` 入口：清单已支持，执行延后。
 - 路径 A (`entry.contract: "v1"`) 接收能力句柄 bindings 并接受权限强制；路径 B (`entry.contract: "none"`) 自包含运行，不接收 v1 权威，但生命周期仍可观察。
 - 能力路由支持显式 provider 选择，以及精确匹配和 `^x.y` 简单版本约束。歧义时拒绝，除非调用方指定 `provider_package_id`。
-- 钩子机制：确定性排序、能力包持有的处理器、payload 元数据修改、否决、卸载清理；覆盖 `journal/before_append|after_append` 与 `capability/before_invoke|after_invoke`。
+- Hook fabric：为 `journal/before_append|after_append` 与 `capability/before_invoke|after_invoke` 提供确定性 subscription 排序、veto 报告、metadata/input 修改路径与卸载清理。任意 handler capability 的通用执行、独立 async delivery 与每个 handler 的 quota 尚未完成。
 
 ## 底座
 
@@ -155,7 +155,7 @@
 | token-rate UI | deferred |
 | Realtime / WebSocket streaming UX | deferred |
 
-## 官方能力包
+## 第一方 capability Package
 
 全部是普通能力包，没有内核特权。位于 `packages/plurora/`，通过普通清单加载。
 
@@ -200,7 +200,7 @@
 
 **第三方替换证明**
 
-- `thirdparty/playable-seed`、`thirdparty/agent-runtime`、`thirdparty/agentic-forge`、`thirdparty/memory-lab` —— 证明对应官方包都可被第三方替换，没有官方优先级。
+- `thirdparty/playable-seed`、`thirdparty/agent-runtime`、`thirdparty/agentic-forge`、`thirdparty/memory-lab` —— 证明对应第一方 Package 都可被第三方替换，没有 publisher priority。
 
 Forge profile (`profiles/forge-alpha.yaml`) 会自动加载这些包以及示例 fixture 包。
 
@@ -221,7 +221,7 @@ Forge profile (`profiles/forge-alpha.yaml`) 会自动加载这些包以及示例
 
 ## Contract v1 与 SDK 生成
 
-- `docs/spec/KERNEL_V1_CONTRACT.md` 是公开平台规范。
+- `docs/spec/PUBLIC_CONTRACT.md` 是公开平台规范。
 - `docs/spec/v1/schemas/` 是 SDK 与 conformance 的单一可信源：80 methods、59 events、22 top-level，共 161 个 schema。
 - `sdk/typescript/contract-sdk/` 与 `sdk/rust/plurora-contract-sdk/` 由 schema 生成；TypeScript 包可通过 npm、工作空间路径或自行 codegen 使用。
 - `plurora conformance package --contract v1 --path <package>` 提供第三方包 8 项验收检查。
@@ -249,11 +249,11 @@ Forge profile (`profiles/forge-alpha.yaml`) 会自动加载这些包以及示例
 - **响应式与暗色模式：** 显式 `data-theme` 切换（system/light/dark）；`@custom-variant dark` 把 Tailwind `dark:` 绑定到属性；modal overlay 用单独的 `--color-overlay` token 不随主题翻转；`prefers-reduced-motion` 收敛动效；`:focus-visible` 键盘导航 ring。
 - **PWA 与移动控制：** manifest、service worker 和离线 app-shell 缓存已接入；`/pair` 在认证 gate 前展示邀请内容，领取后使用同源 device Cookie。移动 topbar 保留 Settings、语言与退出入口，不把 root token 写入设备存储。
 - **SurfaceHost：** 通过 sandboxed iframe 挂载第三方 Web surface bundle；默认没有隐式平台权限，只有宿主显式配置的 bridge 能调用公开协议。Bridge 以 typed `allowed_capability_ids` 和方法 allowlist 限定可调用能力，stream 订阅归属绑定到发起 surface，诊断与日志脱敏，secret 输入态在关闭时清理，并通过 CSP/CORS 与短期 asset lease 保持 same-origin project 边界。流式订阅通过 postMessage 桥接 `capability/stream.*`。
-- **没有官方包特权通道——shell 和别的客户端一样是公开协议的客户端；调用平台工具包时也走普通 `capability.invoke`。**
+- **没有第一方 Package 特权通道——shell 和别的客户端一样是公开协议的客户端；调用平台工具包时也走普通 `capability.invoke`。**
 
 ## 桌面与发布
 
-- `clients/desktop` 提供 Tauri 2.x wrapper，并拥有 loopback-only managed Host sidecar。启动时生成 root token 与一次性 bootstrap nonce，以随机端口启动 `host serve`，等待健康后导航隐藏窗口；使用持久 SQLite desktop profile、打包的 Web dist 与依赖顺序明确的官方包 autoload，退出时停止子进程。Web/PWA 与 Desktop 复用同一客户端核心和公开 Host 边界。
+- `clients/desktop` 提供 Tauri 2.x wrapper，并拥有 loopback-only managed Host sidecar。启动时生成 root token 与一次性 bootstrap nonce，以随机端口启动 `host serve`，等待健康后导航隐藏窗口；使用持久 SQLite desktop profile、打包的 Web dist 与依赖顺序明确的第一方 Package autoload，退出时停止子进程。Web/PWA 与 Desktop 复用同一客户端核心和公开 Host 边界。
 - GitHub Actions CI 与 `v*` tag release workflow 已落地，构建跨平台 Tauri 安装包并创建 draft release。`scripts/release-version.sh` 同步 Cargo、Web package、desktop package 与 Tauri 配置。
 - 构建说明见 [`../BUILDING.md`](../BUILDING.md)；变更记录见 [`../CHANGELOG.md`](../CHANGELOG.md)。签名、公证、自动更新未启用。
 
@@ -274,7 +274,7 @@ Forge profile (`profiles/forge-alpha.yaml`) 会自动加载这些包以及示例
 - `crates/plurora-cli/src/schema_export/` 负责 v1 schema 导出；`src/bin/export-schemas.rs` 只是薄入口。生成文件仍只来自 exporter，不手改 SDK 或 schema。
 - `crates/plurora-runtime/src/runtime/` 按 session、events、packages、capabilities、hooks、permissions、assets、branches、projections、proposals 分模块；`runtime/protocol_dispatch.rs` 只保留 public router，具体 public protocol 处理器在 `runtime/protocol/` 下按 domain 拆分。`runtime/mod.rs` 保持公开 `Runtime<S>` API。
 - 协议方法的元数据与分发共享 `PlatformMethod` 这一份事实来源，并有注册表 / 分发的一致性单测。
-- `crates/plurora-runtime/src/inproc/` 把官方包行为按域拆开；`plurora/install-lab` 已拆成 `install_lab/` 子模块（types/source/planner/executor/layout/project_kind/fs_copy），公共 helper 走 provider package + 本地能力名路由，不再用 suffix-only 兜底。
+- `crates/plurora-runtime/src/inproc/` 把第一方 Package 行为按域拆开；`plurora/install-lab` 已拆成 `install_lab/` 子模块（types/source/planner/executor/layout/project_kind/fs_copy），公共 helper 走 provider package + 本地能力名路由，不再用 suffix-only 兜底。
 - `clients/web` 的 Home 与 Install flow 已拆成 page shell + hooks/helpers/step components；UI 继续只走公开协议，不读本地文件系统或 runtime 私有状态。
 
 这些拆分不改变行为，只是让后续新增能力包、conformance、handler 与 UI flow 时仍然可审查。
@@ -289,7 +289,7 @@ Forge profile (`profiles/forge-alpha.yaml`) 会自动加载这些包以及示例
 - `--fail-fast` 首个失败即停；
 - `--slowest <N>` 显示最慢 N 个。
 
-每个用例有 tag（runtime / event / capability / package / subprocess / official / network / outbound / stream / agentic / experience / memory / sharing / secret / composition / replacement / surface / protocol / permission / hook / host / asset / projection / substrate / storage / live / external_project / project_intake / workspace_lab / retrieval 等）。详见 [`performance/CONFORMANCE_FEEDBACK.md`](performance/CONFORMANCE_FEEDBACK.md)。
+每个用例有 tag（runtime / event / capability / package / subprocess / first_party / network / outbound / stream / agentic / experience / memory / sharing / secret / composition / replacement / surface / protocol / permission / hook / host / asset / projection / substrate / storage / live / external_project / project_intake / workspace_lab / retrieval 等）。详见 [`performance/CONFORMANCE_FEEDBACK.md`](performance/CONFORMANCE_FEEDBACK.md)。
 
 外加 `cargo test --workspace` 下的 crate 与 service 单测，以及 `npm run check --prefix clients/web` / `npm run build --prefix clients/web` 检查 Web shell。
 
@@ -340,7 +340,7 @@ npm run build --prefix clients/web
 - [`CHARTER.md`](CHARTER.md) —— 不变的根本原则。
 - [`architecture/`](architecture/README.md) —— 架构、内核、能力包契约、扩展点、事件、生命周期。
 - [`product/`](product/README.md) —— 游创立场。
-- [`protocol/PROTOCOL_V0.md`](protocol/PROTOCOL_V0.md) —— 公开协议。
+- [`protocol/PUBLIC_PROTOCOL.md`](protocol/PUBLIC_PROTOCOL.md) —— 公开协议。
 - [`spec/`](spec/README.md) —— 可执行契约矩阵与 conformance 路线图。
 - [`guides/`](guides/README.md) —— 能力包创作指南。
 - [`roadmap/NEXT_STEPS.md`](roadmap/NEXT_STEPS.md) —— 下一步。

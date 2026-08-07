@@ -44,7 +44,7 @@ required_surfaces:
 # replacement_candidates:
   # - plurora/experience-alt
 # compatibility_notes:
-  # - "Requires kernel v0.1.0 or later"
+  # - "Requires plurora.contract.default/v1"
 "#
         ),
     )?;

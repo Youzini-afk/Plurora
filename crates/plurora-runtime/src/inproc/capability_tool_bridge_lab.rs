@@ -1199,8 +1199,8 @@ mod tests {
     }
 
     #[test]
-    fn discover_tools_no_official_preference() {
-        // When ambiguous, official is NOT preferred
+    fn discover_tools_no_publisher_preference() {
+        // When ambiguous, no publisher is preferred
         let request = make_request(
             "discover_tools",
             serde_json::json!({

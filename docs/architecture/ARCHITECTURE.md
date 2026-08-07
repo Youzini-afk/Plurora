@@ -62,7 +62,7 @@ Host Control Plane / Runtime Fabric 与上述层正交：
 - compatibility profile、版本协商与迁移；
 - 可执行行为合同和实现声明。
 
-Agent、Memory、World、Document、Workspace、Surface、Change、Inference 等可以在这里形成协议，也可以存在竞争协议。官方维护不赋予内核路由优先级；只有显式采用某个协议或 Profile 的参与者受其约束。
+Agent、Memory、World、Document、Workspace、Surface、Change、Inference 等可以在这里形成协议，也可以存在竞争协议。第一方维护不赋予内核路由优先级；只有显式采用某个协议或 Profile 的参与者受其约束。
 
 ### Components / Content / Adapters
 
@@ -140,7 +140,7 @@ Host 为各层提供受权的现实资源，但不创造反向语义依赖。
 
 1. 它是这个产品的观点，还是多个独立产品共同需要的语义？
 2. 它属于可竞争协议、Host 机器操作，还是确实无法安全上移的基底机制？
-3. 下沉后是否减少锁定，而不是把当前官方实现冻结成平台法律？
+3. 下沉后是否减少锁定，而不是把当前第一方实现冻结成平台法律？
 4. 是否有版本、迁移、未知数据保留和旧客户端兼容路径？
 
 默认答案不是“一律做成包”，而是放到拥有该语义和生命周期的最上层。
@@ -149,12 +149,12 @@ Host 为各层提供受权的现实资源，但不创造反向语义依赖。
 
 Contract V1 是当前可运行、可生成 SDK、由 conformance 守护的公开合同。它同时承载了多层职责：
 
-- `platform.session.*` / event / capability / authority 接近基底；
-- Project、target、exec、port、proxy、diagnostics 属于 Host；
-- projection、proposal/change、extension point 属于可演化协议；
-- surface slot 与 shell contribution 属于 Shell Profile。
+- `context.*`、`journal.*`、`capability.*`、`authority.*`、`object.*` 与 `identity.*` 属于 Substrate；
+- `host.*` 拥有 Project、target、exec、port、proxy、outbound adapter、Package operation 与 diagnostics；
+- `protocol.*`、`change.*` 与 `projection.*` 属于可演化 Protocol；
+- `shell.*` contribution discovery 与 surface interpretation 属于 Shell Profile。
 
-当前客户端和第三方集成可以继续使用 v1。新的语义不应继续无差别地扩大 `platform.*`；优先使用明确 owner 的 namespace、Contract Registry、Profile 协商和 legacy adapter。逐项归属见 [`../spec/CONTRACT_LAYERING_MATRIX.md`](../spec/CONTRACT_LAYERING_MATRIX.md)。
+当前客户端和第三方集成都使用这套精确 v1 identity。新增语义必须声明 owner、maturity、schema 与可协商版本边界，不能积累成隐藏 alias 或第一方 shortcut。逐项归属见 [`../spec/CONTRACT_LAYERING_MATRIX.md`](../spec/CONTRACT_LAYERING_MATRIX.md)。
 
 ## 当前官方发行版
 
@@ -206,7 +206,7 @@ docs/                章程、架构、协议、产品、指南与状态
 - [`VISION.md`](VISION.md) — 长期整体形态；
 - [`CONSTITUTION_V2.md`](CONSTITUTION_V2.md) — 候选宪法基底；
 - [`../spec/CONTRACT_LAYERING_MATRIX.md`](../spec/CONTRACT_LAYERING_MATRIX.md) — 当前合同逐项归属；
-- [`PLATFORM_KERNEL.md`](PLATFORM_KERNEL.md) — 基底职责与当前 kernel 兼容边界；
+- [`CONSTITUTIONAL_SUBSTRATE.md`](CONSTITUTIONAL_SUBSTRATE.md) — 基底职责与当前 kernel 兼容边界；
 - [`CAPABILITY_PACKAGE.md`](CAPABILITY_PACKAGE.md) — Package、component、content 与执行信任；
 - [`../product/PLATFORM_PRODUCT_MODEL.md`](../product/PLATFORM_PRODUCT_MODEL.md) — 官方发行版的产品责任；
 - [`../guides/PROJECT_MODEL.md`](../guides/PROJECT_MODEL.md) — 当前官方 Project 模型；

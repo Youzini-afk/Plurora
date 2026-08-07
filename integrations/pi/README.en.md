@@ -2,7 +2,7 @@
 
 > 中文默认说明见 [`README.md`](./README.md).
 
-This directory records how Plurora studies and absorbs [pi](https://github.com/earendil-works/pi) without turning pi into the kernel, protocol, or an official privileged path.
+This directory records how Plurora studies and absorbs [pi](https://github.com/earendil-works/pi) without turning pi into the kernel, protocol, or a first-party privileged path.
 
 ## Upstream snapshot
 
@@ -85,7 +85,7 @@ These are explicitly out of Plurora agent infrastructure:
 Every agent infrastructure update must prove:
 
 - no new `platform.agent.*`, `platform.model.*`, `platform.prompt.*`, `platform.memory.*`, or `platform.turn.*`;
-- official agent/reference packages have no priority;
+- first-party agent/reference Packages have no priority;
 - tool bridge rejects ambiguous providers or requires explicit providers;
 - unauthorized tool calls fail and are audited;
 - unapproved proposals cannot apply;

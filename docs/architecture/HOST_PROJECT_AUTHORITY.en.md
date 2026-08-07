@@ -7,8 +7,8 @@ Status: **Candidate implementation**. The project/target authorization boundary 
 Current implementation:
 
 - HTTP, Cookie, Bearer, and RPC retain the same logical `host_device` identity, grant, delegation chain, actions, and structured resource selectors at the Host Access layer. To preserve the frozen Contract V1 principal union, RPC contexts use a fail-closed `anonymous` sentinel plus a Host-established authority envelope, so an older runtime that ignores the envelope can only deny;
-- project/session/event/proposal/surface/target/exec/port/proxy paths enforce exact resources or server-side filtering, and legacy adapters reuse canonical policy;
-- the pairing journal supports attenuated delegation, expiry, ancestor-revocation cascade, explicit wildcard hydration for legacy global grants, and bounded atomic administrator bulk revoke; Web/PWA and the `plurora host access` CLI use the same API;
+- project/context/journal/change/surface/target/exec/port/proxy paths enforce exact resources or server-side filtering, and every supported public transport reuses the same method policy;
+- the pairing journal supports attenuated delegation, expiry, ancestor-revocation cascade, explicit wildcard hydration for earlier stored global grants, and bounded atomic administrator bulk revoke; Web/PWA and the `plurora host access` CLI use the same API;
 - device calls append redacted `host/control/v1/authority.decision` allow/deny records without credentials or request payloads;
 - global package/capability/asset/projection objects and surface contributions do not yet carry project ownership, so exact-project devices operate through verified project/session paths and may resolve their project bundle but cannot enumerate Host-global catalogues. An opaque-origin frame receives only a five-minute, read-only asset lease bound to its grant and bundle root; raw static paths still require a Host identity;
 - deployment jobs and activations persist a redacted authority lease, rehydrate current grant state, reject expiry/revocation before each new effect, and persist revision/direct-route ownership. Full cross-operation effect-receipt linkage remains a Candidate boundary.
@@ -16,14 +16,14 @@ Current implementation:
 
 ## Goal
 
-The constitutional substrate owns principals, authenticated call context, authority attenuation/delegation/revocation, and audit mechanisms. A Project is a Host Control Plane resource. Project isolation must use the former to protect the latter without promoting `Project` into kernel ontology or treating a caller-supplied `session_id` as proof of authority.
+The constitutional substrate owns principals, authenticated call context, authority attenuation/delegation/revocation, and audit mechanisms. A Project is a Host Control Plane resource. Project isolation must use the former to protect the latter without promoting `Project` into substrate ontology or treating a caller-supplied `session_id` as proof of authority.
 
 The completed design must ensure that:
 
 - root, devices, CLI, Web/PWA, desktop, package surfaces, and future target agents enter the public protocol through one authenticated context model;
 - grants can be constrained to exact projects, targets, and Host actions;
 - sessions carry only Host-verified project bindings and cannot amplify authority;
-- transports, aliases, and legacy adapters cannot bypass resource authorization;
+- HTTP, Host stdio, in-process, and subprocess transports cannot bypass resource authorization or invent alternate method identities;
 - sensitive allow/deny decisions link subject, grant, delegation, resource, and effect receipt.
 
 ## Layer boundary
@@ -129,7 +129,7 @@ MethodPolicy
 The fixed order is:
 
 1. authenticate the transport into `AuthenticatedCallContext`;
-2. canonicalize the method name so aliases share policy;
+2. resolve the exact public method through the Contract Registry and reject unknown identities;
 3. extract resources from parsed parameters and server-side projections;
 4. validate session/project/object ownership and reject conflicts;
 5. intersect action, resources, and authority;
@@ -158,7 +158,7 @@ Sensitive calls record principal, credential kind, grant, delegation-chain diges
 | Threat | Required defense |
 |---|---|
 | Project A grant submits project B session | Cross-check Host session binding and selectors |
-| Legacy alias escapes policy | Canonicalize before authorization |
+| Transport-specific method mapping escapes policy | Pass the same resolved `PlatformMethod` into one MethodPolicy table |
 | HTTP RPC device becomes `HostDev` | Preserve authenticated identity and grant |
 | Lists or streams leak other projects | Server-side projection filters and fixed subscription scope |
 | Project iframe steals a Host token | Expose only short-lived project handles and allowlisted methods |
@@ -166,13 +166,13 @@ Sensitive calls record principal, credential kind, grant, delegation-chain diges
 | Revoked grant creates new effects | Recheck projection per call and lease epoch for long work |
 | In-process/stdio bypasses middleware | Require authenticated context in transport-neutral dispatch |
 
-## Compatibility
+## Evolution and compatibility
 
-- New fields begin optional under Experimental/Candidate schemas; omission preserves legacy global scope.
+- New fields begin optional under Experimental/Candidate schemas; omission preserves the meaning of earlier stored global grants.
 - New-grant UI/API must submit selectors after migration.
-- Canonical ownership remains under `host.access`, `host.project`, and related Host methods; `platform.*` remains an adapter.
-- Run one authorization conformance table across canonical, legacy, HTTP, and direct transports.
-- Do not remove old fields or response shapes before grant and client migration completes.
+- Authority remains Host-owned through the Host Access API and the exact public `host.*`, `context.*`, `journal.*`, and `change.*` methods used by each operation.
+- Run one authorization conformance table across HTTP RPC, Host stdio, in-process dispatch, subprocess reverse stdio, and direct Host routes.
+- Do not remove existing v1 fields or response shapes without an explicit new version boundary and migration path.
 
 ## Implementation order
 
@@ -185,7 +185,7 @@ Sensitive calls record principal, credential kind, grant, delegation-chain diges
 ## Completion gate
 
 - A project-A-only device is denied project B get/list/event/secret/develop/deploy/route operations.
-- Forged sessions, aliases, direct transports, and replayed grants cannot bypass policy.
-- Root, global devices, and pre-migration clients retain explicit tested compatibility.
+- Forged Context bindings, unregistered methods, direct transports, and replayed grants cannot bypass policy.
+- Root, stored global grants, and clients using the current v1 shape retain explicit tested behavior.
 - Revocation, expiry, attenuation, and bulk revocation have concurrency coverage.
 - Audit traces user action through policy decision and effect receipt without credential leakage.

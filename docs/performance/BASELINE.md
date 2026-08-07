@@ -45,7 +45,7 @@ cargo run -p plurora-cli -- perf baseline --format json
 | scenario_id | 说明 |
 |---|---|
 | `inproc_echo_invoke` | Rust inproc 包 echo 能力调用。使用 `examples/packages/echo-rust-inproc/manifest.yaml`。 |
-| `first_party_capability_invoke` | 官方包能力调用。使用 `plurora/composition-lab/describe`。 |
+| `first_party_capability_invoke` | 第一方 Package 能力调用。使用 `plurora/composition-lab/describe`。 |
 | `event_store_append_list_range` | 内存 event store 批量追加（100 events）、全量 list、range 查询。 |
 | `event_store_append_list_range_1k` | 内存 event store 原子追加（1,000 events）、全量 list、kind-prefix 查询。 |
 | `event_store_append_list_range_10k` | 内存 event store 原子追加（10,000 events）、全量 list、kind-prefix 查询。 |
@@ -118,7 +118,7 @@ JSON 输出使用 envelope：
 
 ## 红线
 
-- 不做官方包 fast path。官方包和第三方包走同一路由与权限边界。
+- 不做第一方 Package fast path。第一方 Package 和第三方包走同一路由与权限边界。
 - 不绕过权限、钩子、schema、脱敏或审计。
 - 不需要真实网络或 provider。
 - 不修改 runtime 边界或公开协议。

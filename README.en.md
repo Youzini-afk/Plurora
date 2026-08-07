@@ -26,7 +26,7 @@ backup, and diagnostics.
 
 Plurora pursues five long-term goals:
 
-- **Open:** public source, protocols, data, and extension points; user export, migration, and deletion; no private official APIs.
+- **Open:** public source, protocols, data, and extension points; user export, migration, and deletion; no private APIs reserved for first-party code.
 - **Plural:** no single application form, workflow, shell, model, component, or content ontology.
 - **Advanced:** technology that materially improves freedom, security, performance, and portability rather than novelty for its own sake.
 - **Long-lived:** small stable layers, evolvable protocols, readable old data, and migration or retirement for failed abstractions.
@@ -43,7 +43,7 @@ Those are evolving default product choices rather than permanent ontology for th
 - third parties may replace clients, shells, components, protocols, models, and Hosts;
 - Project is the current official Host's installation-instance model, not a root object required by every product;
 - Home / Play / Forge / Assist belong to optional product profiles rather than the constitutional substrate;
-- official components and clients use only public boundaries available to third parties.
+- first-party components and clients use only public boundaries available to third parties.
 
 See [`docs/product/PLATFORM_PRODUCT_MODEL.md`](docs/product/PLATFORM_PRODUCT_MODEL.en.md) for general product responsibility. Play-creation is an optional opinionated profile described in [`docs/product/PLAY_CREATION_MODEL.md`](docs/product/PLAY_CREATION_MODEL.en.md).
 
@@ -51,7 +51,7 @@ See [`docs/product/PLATFORM_PRODUCT_MODEL.md`](docs/product/PLATFORM_PRODUCT_MOD
 
 The repository is in Foundation Alpha. Contract V1, the Rust Host/runtime, HTTP/RPC/SSE, Package and Component lifecycle, Web/PWA, Tauri Desktop, CLI, installation and updates, Project management, authority, objects and artifacts, model integration, controlled development, targets, and deployment already form a substantial operational surface.
 
-The current implementation still reflects historical Contract V1 aggregation: `platform.*` carries a mixture of substrate, Host, protocol, and shell semantics. The architectural direction is incremental ownership and compatibility rather than a destructive rewrite.
+The current Contract V1 exposes 80 exact owner-based method IDs across Substrate, Host, Protocol, and Shell responsibilities. Implementation decomposition continues behind that public boundary without creating private first-party paths or parallel wire identities.
 
 See [`docs/ALPHA_STATUS.md`](docs/ALPHA_STATUS.en.md) for implemented, partial, and deferred state, and [`docs/roadmap/NEXT_STEPS.md`](docs/roadmap/NEXT_STEPS.en.md) for construction direction.
 
@@ -131,9 +131,9 @@ Major documents are available in English and Simplified Chinese and link to the 
 | Goal | Read first |
 |---|---|
 | Understand platform goals | [`docs/CHARTER.md`](docs/CHARTER.en.md) → [`docs/architecture/VISION.md`](docs/architecture/VISION.en.md) |
-| Understand layering | [`docs/architecture/ARCHITECTURE.md`](docs/architecture/ARCHITECTURE.en.md) → [`docs/architecture/PLATFORM_KERNEL.md`](docs/architecture/PLATFORM_KERNEL.en.md) → [`docs/architecture/CAPABILITY_PACKAGE.md`](docs/architecture/CAPABILITY_PACKAGE.en.md) |
+| Understand layering | [`docs/architecture/ARCHITECTURE.md`](docs/architecture/ARCHITECTURE.en.md) → [`docs/architecture/CONSTITUTIONAL_SUBSTRATE.md`](docs/architecture/CONSTITUTIONAL_SUBSTRATE.en.md) → [`docs/architecture/CAPABILITY_PACKAGE.md`](docs/architecture/CAPABILITY_PACKAGE.en.md) |
 | Understand the official product | [`docs/product/PLATFORM_PRODUCT_MODEL.md`](docs/product/PLATFORM_PRODUCT_MODEL.en.md) → [`docs/design/PLATFORM_UI_DESIGN.md`](docs/design/PLATFORM_UI_DESIGN.en.md) |
-| Use public contracts | [`docs/protocol/PROTOCOL_V0.md`](docs/protocol/PROTOCOL_V0.en.md) → [`docs/spec/KERNEL_V1_CONTRACT.md`](docs/spec/KERNEL_V1_CONTRACT.en.md) |
+| Use public contracts | [`docs/protocol/PUBLIC_PROTOCOL.md`](docs/protocol/PUBLIC_PROTOCOL.en.md) → [`docs/spec/PUBLIC_CONTRACT.md`](docs/spec/PUBLIC_CONTRACT.en.md) |
 | Review long-term contract layering | [`docs/architecture/CONSTITUTION_V2.md`](docs/architecture/CONSTITUTION_V2.en.md) → [`docs/spec/CONTRACT_LAYERING_MATRIX.md`](docs/spec/CONTRACT_LAYERING_MATRIX.en.md) |
 | Write a first Package / Component | [`docs/guides/PACKAGE_AUTHORING_WALKTHROUGH.md`](docs/guides/PACKAGE_AUTHORING_WALKTHROUGH.en.md) |
 | Install a Package / Project | [`docs/guides/PACKAGE_INSTALLATION.md`](docs/guides/PACKAGE_INSTALLATION.en.md) → [`docs/guides/PROJECT_MODEL.md`](docs/guides/PROJECT_MODEL.en.md) |

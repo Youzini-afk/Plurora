@@ -23,7 +23,7 @@ The current delivery includes:
 
 - `integrations/model-providers/` stores the provider research ledger, provider matrix, stream compatibility notes, and error taxonomy.
 - `sdk/typescript/model-provider-adapter` provides a pure TypeScript cloud adapter for provider profiles, adapter-local request builders, error classification, and stream event parsing. It does not go online, do billing, or access private runtime APIs.
-- `plurora/model-provider-lab` is an ordinary official cloud adapter capability package covering OpenAI, Anthropic, Gemini, OpenAI-compatible, OpenRouter, DeepSeek, xAI, Fireworks, and related cloud provider families.
+- `plurora/model-provider-lab` is an ordinary first-party cloud adapter capability Package covering OpenAI, Anthropic, Gemini, OpenAI-compatible, OpenRouter, DeepSeek, xAI, Fireworks, and related cloud provider families.
 - `plurora/model-provider-lab` exposes `list_supported_families`, `validate_profile`, `normalize_request`, `invoke`, `normalize_stream`, `explain_error`, and `echo`.
 - `invoke` remains a fake/local provider adapter path for default validation and adapter-shape checks. It returns provider-shaped responses and auditable `outbound_request_shape`.
 - The host has a content-free `OutboundExecutor` boundary. It defaults to deny-all and has fake executor, loopback live HTTP executor, and hostile validation coverage. This proves request shapes can flow through host policy/audit boundaries, but it does not claim OS-level interception of arbitrary subprocess networking.
@@ -106,7 +106,7 @@ Examples:
 
 ### `invoke`
 
-`plurora/model-provider-lab/invoke` itself remains the fake/local adapter path. Real network calls do not use private official-package runtime access; they must be made by ordinary packages through public `host.outbound.execute`, under host policy, secret resolution, and outbound execution.
+`plurora/model-provider-lab/invoke` itself remains the fake/local adapter path. Real network calls do not use private first-party Package runtime access; they must be made by ordinary packages through public `host.outbound.execute`, under host policy, secret resolution, and outbound execution.
 
 Outputs must keep:
 
@@ -186,7 +186,7 @@ Default validation does not require public internet access. Manual/live provider
 5. audits record only host, method, purpose, secret_refs, usage/cost/error metadata, and redaction state;
 6. streams map to the content-free frame lifecycle;
 7. cancel/timeout are not swallowed by provider adapters;
-8. third-party provider packages can replace first-party Packages without official priority.
+8. third-party provider Packages can replace first-party Packages without publisher priority.
 
 The optional real DeepSeek smoke path only runs when explicitly enabled:
 

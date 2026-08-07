@@ -7,7 +7,7 @@ This is the long-term guide for performance and code health. It replaces the tem
 ## Principles
 
 1. Measure before optimizing. Use `cargo run -p plurora-cli -- perf baseline`, conformance timing, Web TypeScript diagnostics, and focused tests before changing architecture.
-2. Optimization must not change the platform contract. Official and third-party packages must keep sharing the same manifest, capability, permission, hook, schema, redaction, and audit path.
+2. Optimization must not change the platform contract. First-party and third-party Packages must keep sharing the same manifest, capability, permission, hook, schema, redaction, and audit path.
 3. UI stays on the public protocol. The web shell must not read SQLite, runtime internals, or special-case first-party Packages.
 4. Do not introduce content ontology in the name of performance. Do not add `platform.agent.*`, `platform.model.*`, `platform.memory.*`, `platform.experience.*`, `platform.sharing.*`, or similar product/content namespaces.
 5. Advanced optimization needs evidence. Capability or surface caches, RawValue, registry helpers/codegen, per-domain crates, and similar changes require baseline or profiling evidence.
@@ -76,14 +76,14 @@ New conformance cases must declare tags so the suite does not become an unfilter
 Completed low-risk structural improvements:
 
 - Protocol dispatch split into domain helpers while preserving `PlatformMethod` as the source of truth.
-- Official in-process dispatch moved from a linear chain to a provider-indexed table. It still preserves package-aware routing and avoids official fast paths.
+- First-party in-process dispatch moved from a linear chain to a provider-indexed table. It still preserves package-aware routing and avoids first-party fast paths.
 - Shared in-process safety helper for raw-secret and rejection logic.
 - Composition/package diagnostics use sets/indexes to avoid obvious O(n²) scans.
 
 Future structural splits should keep:
 
 - Public protocol shapes unchanged.
-- Replacement/no-official-priority conformance passing.
+- Replacement/no-publisher-priority conformance passing.
 - No hard-to-review macros or generated artifacts as the sole truth.
 
 ## Event store / replay discipline
@@ -167,4 +167,4 @@ Consider cache/codegen/RawValue-like optimizations only when:
 - Redaction/schema/hook/audit behavior remains explicit and reviewable.
 - Conformance or unit tests cover invalidation, mismatch, and hostile paths.
 
-There is currently no evidence requiring heavy codegen, RawValue rewrites, arenas, or official-package fast paths; keep them deferred.
+There is currently no evidence requiring heavy codegen, RawValue rewrites, arenas, or first-party Package fast paths; keep them deferred.

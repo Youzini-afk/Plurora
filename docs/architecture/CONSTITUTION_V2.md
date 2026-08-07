@@ -3,7 +3,7 @@
 > [English](./CONSTITUTION_V2.en.md) · [中文](./CONSTITUTION_V2.md)
 
 > 状态：候选架构。当前 [`CHARTER.md`](../CHARTER.md) 与
-> [`KERNEL_V1_CONTRACT.md`](../spec/KERNEL_V1_CONTRACT.md) 仍是仓库现行契约。
+> [`PUBLIC_CONTRACT.md`](../spec/PUBLIC_CONTRACT.md) 仍是仓库现行契约。
 > 本文只有在显式采纳后才取代其中的边界；采纳前不应宣称已有 v2 实现。
 
 ## 核心承诺
@@ -36,7 +36,7 @@ Manifest 声明的是请求上限，不是实际权威。实际权威由不可�
 
 所有跨边界行为都必须能回答：谁、对什么资源、在什么条件下、获得了什么权力、权力来自哪里、何时失效。
 
-### 2. 官方实现没有特权
+### 2. 第一方实现没有特权
 
 官方组件、协议实现和 shell profile 与第三方使用相同的注册、授权、调用、审计和 conformance 机制。官方身份可以表达维护责任，不能表达隐式权威或路由优先级。
 
@@ -73,7 +73,7 @@ WASM、进程、远程服务和 native in-process 可以实现相同协议，但
 
 ### 10. 错误抽象可以退出历史舞台
 
-稳定不是 additive-only 的永久堆积。每个稳定协议都必须有弃用、支持窗口、迁移和 legacy adapter 机制。兼容层可以长期读取旧数据，但旧抽象不因此继续获得新功能。
+稳定不是 additive-only 的永久堆积。每个稳定协议都必须有弃用、支持窗口、迁移与 versioned reader 机制。兼容 reader 可以长期读取旧数据，但旧抽象不因此继续获得新的行为能力。
 
 ## 分层模型
 
@@ -209,7 +209,7 @@ Receipt 的 envelope、statement 和具体 predicate 可以分层演进；这一
 - 迁移、adapter 和弃用说明；
 - 已通过 conformance 的独立实现列表。
 
-协议可以相互竞争和分叉。官方维护的协议不获得内核路由优先级。外部协议如 MCP、A2A 或引擎协议可以通过 adapter 成为协议公地成员，不要求重新发明 Plurora 专用版本。
+协议可以相互竞争和分叉。第一方维护的协议不获得内核路由优先级。外部协议如 MCP、A2A 或引擎协议可以通过 adapter 成为协议公地成员，不要求重新发明 Plurora 专用版本。
 
 ## Component 与执行信任
 
@@ -281,14 +281,14 @@ Experimental
 → Candidate
 → Stable
 → Deprecated
-→ Legacy Adapter
+→ Versioned Reader
 ```
 
 - **Experimental：** 可快速破坏；不得获得长期兼容承诺。
 - **Candidate：** 语义、错误、测试向量和迁移草案已存在；至少有两个不同消费者。
 - **Stable：** 通过反僵化规则、行为 conformance 和独立实现要求。
 - **Deprecated：** 仍在支持窗口内，但有明确替代者和迁移路径。
-- **Legacy Adapter：** 只读取、转换或兼容旧合同，不接收新功能。
+- **Versioned Reader：** 只读取或转换较早 contract/data boundary，不接收新的行为能力。
 
 版本协商必须显式；客户端不得在回退时静默丢失所需能力。
 
@@ -302,7 +302,7 @@ Experimental
 4. 至少有两个独立实现通过行为 conformance；
 5. 有明确的版本协商、弃用和迁移路径。
 
-未满足条件的概念保留在 Experimental/Candidate 协议或宿主层。使用频率高、由官方维护或当前实现方便，都不是进入 substrate 的充分理由。
+未满足条件的概念保留在 Experimental/Candidate 协议或宿主层。使用频率高、由第一方维护或当前实现方便，都不是进入 substrate 的充分理由。
 
 ## 与当前 Contract V1 的关系
 
@@ -311,13 +311,13 @@ Experimental
 
 在候选分层被显式采纳为稳定宪法前：
 
-- `platform.*` 是 legacy operational contract，不再自动等同于永久宪法；
-- 除安全修复、正确性修复和兼容所需字段外，不继续扩大其稳定表面积；
+- 精确 owner-based Contract V1 仍是现行公开边界，但不自动等同于永久宪法；
+- v1 compatible evolution 遵守 additive rule，breaking behavior 必须进入新的可协商 contract/profile/version boundary；
 - 新机制优先进入明确 owner 的 Experimental namespace；
-- 旧客户端通过 alias/adapter 继续工作；
-- v2 数据必须能够保留原始 v1 envelope 和未知字段，以支持无损转移。
+- 较早数据通过显式 versioned reader 与 migration tooling 保持可读，而不是依赖隐藏 dispatch alias；
+- 未来 v2 必须保留原始 v1 envelope 与 unknown field，以支持无损转移。
 
-当前代码已经具备 owner namespace、Contract Registry、legacy adapter、ObjectStore、EffectReceipt、Change primitives、Protocol Commons 和 World Bundle 等 Experimental 机制。它们为候选分层提供了可运行基础，但不自动把本文升级为 Stable；长期归属仍以 [`CONTRACT_LAYERING_MATRIX.md`](../spec/CONTRACT_LAYERING_MATRIX.md) 为审查依据。
+当前代码已经具备 owner-based identity、精确 Contract Registry、ObjectStore、EffectReceipt、Change primitive、Protocol Commons 与 World Bundle。它们为候选分层提供可运行基础，但不自动把本文升级为 Stable；长期归属仍以 [`CONTRACT_LAYERING_MATRIX.md`](../spec/CONTRACT_LAYERING_MATRIX.md) 为审查依据。
 
 ## 稳定采纳条件
 

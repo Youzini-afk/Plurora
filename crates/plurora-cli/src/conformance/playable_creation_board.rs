@@ -8,7 +8,7 @@
 //! 5. bind_agent_run produces scoped agentic-forge binding
 //! 6. Candidate / proposal do not mutate target branch
 //! 7. Reject / approve / fork minimal proof
-//! 8. Third-party replacement: no official priority
+//! 8. Third-party replacement: no publisher priority
 //! 9. No forbidden namespace (platform.experience/world/scene/character/turn/chat/memory/agent/model/prompt/director)
 //! 10. No raw secrets in any capability output
 //! 11. content_address is stable and deterministic (Beta 2)
@@ -468,7 +468,7 @@ pub(crate) async fn playable_board_reject_approve_fork_proof() -> anyhow::Result
     Ok(())
 }
 
-/// Case 8: Third-party replacement: no official priority.
+/// Case 8: Third-party replacement: no publisher priority.
 /// bind_agent_run accepts thirdparty/agentic-forge as forge provider.
 pub(crate) async fn playable_board_thirdparty_no_publisher_priority() -> anyhow::Result<()> {
     let runtime = load_playable_creation_board().await?;

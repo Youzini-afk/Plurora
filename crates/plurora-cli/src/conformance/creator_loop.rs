@@ -9,7 +9,7 @@
 //! 6. Package diagnostics: network access triggers non-deterministic hint
 //! 7. Composition diagnostics: experience surface coverage, replacement hint, checkpoint/recovery coverage
 //! 8. Walkthrough reference: playable-creation-board package check output is verifiable
-//! 9. No privileged official dependency: third-party playable-seed replaces official playable-seed
+//! 9. No privileged first-party dependency: third-party playable-seed replaces first-party playable-seed
 
 use std::fs;
 use std::path::PathBuf;
@@ -487,8 +487,8 @@ pub(crate) async fn creator_loop_walkthrough_reference() -> anyhow::Result<()> {
     Ok(())
 }
 
-/// Case 9: No privileged official dependency — third-party playable-seed
-/// replaces official playable-seed through composition.
+/// Case 9: No privileged first-party dependency — third-party playable-seed
+/// replaces first-party playable-seed through composition.
 pub(crate) async fn creator_loop_thirdparty_no_privilege() -> anyhow::Result<()> {
     // Verify the third-party playable-seed package passes package check
     let tp_manifest_path =

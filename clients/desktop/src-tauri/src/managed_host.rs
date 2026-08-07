@@ -19,7 +19,7 @@ use uuid::Uuid;
 
 const LISTEN_PREFIX: &str = "PLURORA_HOST_LISTEN_ADDR=";
 const DESKTOP_PROFILE_NAME: &str = "desktop";
-const OFFICIAL_MANIFESTS: [(&str, &str); 7] = [
+const FIRST_PARTY_MANIFESTS: [(&str, &str); 7] = [
     ("git-tools-lab", "git-tools-lab/manifest.yaml"),
     ("integrity-lab", "integrity-lab/manifest.yaml"),
     ("install-lab", "install-lab/manifest.yaml"),
@@ -269,7 +269,7 @@ fn resolve_first_party_manifest_sources(
     #[cfg(not(debug_assertions))]
     let root = _app.path().resource_dir()?.join("plurora-packages");
 
-    OFFICIAL_MANIFESTS
+    FIRST_PARTY_MANIFESTS
         .iter()
         .map(|(name, relative)| {
             let path = root.join(relative);

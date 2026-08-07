@@ -203,6 +203,6 @@ Rust in-process 包通过 `ComponentEnv` 获得句柄。Host catalog 负责把 m
 
 ## 参考
 
-- [`../spec/KERNEL_V1_CONTRACT.md`](../spec/KERNEL_V1_CONTRACT.md)
+- [`../spec/PUBLIC_CONTRACT.md`](../spec/PUBLIC_CONTRACT.md)
 - [`CONFORMANCE_KIT.md`](CONFORMANCE_KIT.md)
 - [`PATH_B_SELF_CONTAINED.md`](PATH_B_SELF_CONTAINED.md)

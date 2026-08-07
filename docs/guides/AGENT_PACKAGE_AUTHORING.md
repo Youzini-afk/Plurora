@@ -98,7 +98,7 @@ const plan = await adapter.invokeCapabilityTool(tool, {
 
 它没有官方特权。它不是真实 agent runtime，也不做模型推理。
 
-`plurora/capability-tool-bridge-lab` 也是普通包。它只生成工具发现、权限预览和调用计划。它不会代替 agent 调用目标能力，以避免 confused deputy。
+`plurora/capability-tool-bridge-lab` 也是普通 Package。它只生成工具发现、权限预览和调用计划。它不会代替 agent 调用目标能力，以避免 confused deputy。
 
 ## 第三方替换证明
 
@@ -107,7 +107,7 @@ const plan = await adapter.invokeCapabilityTool(tool, {
 - `examples/packages/thirdparty-agent-runtime/manifest.yaml`
 - `examples/compositions/agent-runtime-replacement/composition.yaml`
 
-这个例子证明第三方 agent runtime 可以提供同等 surface、能力、提案和追踪形状。official 包只是 `replacement_candidate`，没有优先级。
+这个例子证明第三方 agent runtime 可以提供同等 surface、能力、提案和追踪形状。第一方 Package 只是 `replacement_candidate`，没有优先级。
 
 验证：
 
@@ -118,13 +118,13 @@ cargo run -p plurora-cli -- composition check examples/compositions/agent-runtim
 
 ## UI 观察
 
-Forge 的 Agent Observability 区块和 Assist Drawer 的 Agent Readiness 面板只读取公开协议数据：surface contribution、能力、事件和提案。它们不硬编码 official 包，也不启动真实 agent 或模型。
+Forge 的 Agent Observability 区块和 Assist Drawer 的 Agent Readiness 面板只读取公开协议数据：surface contribution、能力、事件和提案。它们不硬编码 第一方 Package，也不启动真实 agent 或模型。
 
 ## 与 pi 的关系
 
 [pi](https://github.com/earendil-works/pi) 是参考来源：
 
-- `pi-agent-core` 的事件、工具、gate 和队列思路可被普通包内部吸收。
+- `pi-agent-core` 的事件、工具、gate 和队列思路可被普通 Package 内部吸收。
 - `pi-ai` 的 faux provider / stream shape 可作为未来模型包参考。
 - `pi-coding-agent` 只作为产品和观测经验参考，不嵌入 Plurora。
 

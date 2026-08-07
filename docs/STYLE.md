@@ -18,6 +18,21 @@
 
 改变平台身份需要显式修订章程。改变官方产品观点不能静默改写基底。改变当前实现时，应在同一提交更新相关状态、合同或指南。
 
+## 身份与命名
+
+仓库身份属于公开契约，不是装饰性措辞。
+
+- 产品与项目名称：叙事使用 `Plurora`，机器身份使用 `plurora`。
+- 公开 method ID 使用 owner-based dot namespace：`context.*`、`journal.*`、`capability.*`、`authority.*`、`object.*`、`identity.*`、`host.*`、`protocol.*`、`change.*`、`projection.*` 与 `shell.*`。
+- 平台拥有的 event kind 来自显式 registry，使用语义 slash namespace，并由 `plurora/runtime` 写入。
+- Package capability 与 event ID 必须以精确 Package ID 加 `/` 开头。
+- 第一方 Package 使用 publisher namespace `plurora/*`。该身份不授予 authority、routing priority、UI privilege 或 substrate ownership。
+- Schema、OpenAPI 与 SDK 身份由可执行 registry 和 generator 生成；不得手工维护平行名称。
+- 预发布工作树只保留被选定的一套身份。不要为了让改名看似安全而加入旧名称 alias、fallback 环境变量、重复 CLI 入口或 compatibility route。
+- 稳定后的 breaking change 使用显式新 contract/profile/version 边界与 migration plan，不能隐藏在 alias 中。
+
+长期文档直接使用当前身份。历史改名计划在结论进入 architecture、spec、status 与检查后删除。
+
 ## 写给读者，不写开发日志
 
 读者关心：它是什么、为什么属于这一层、怎样使用、边界是什么、失败后怎样处理。
@@ -55,7 +70,7 @@
 - 官方发行版可以有强观点，但必须注明它是可替换的产品选择；
 - Product Profile 可以约束采用它的参与者，但不能声称是所有产品的强制本体；
 - 某个产品需求若推动底层变化，文档必须说明它最终属于 Protocol、Host 还是确实无法上移的 substrate mechanism；
-- “当前官方实现方便”不是进入基底的理由。
+- “当前第一方实现方便”不是进入基底的理由。
 
 ## 测试与 conformance 的正确位置
 
@@ -79,7 +94,7 @@
 
 ### 长期 / 概念文档
 
-`CHARTER`、`VISION`、`ARCHITECTURE`、`PLATFORM_KERNEL`、`CAPABILITY_PACKAGE`、`PLATFORM_PRODUCT_MODEL`、候选宪法和稳定协议文档，描述目标、所有权、机制和长期边界。
+`CHARTER`、`VISION`、`ARCHITECTURE`、`CONSTITUTIONAL_SUBSTRATE`、`CAPABILITY_PACKAGE`、`PLATFORM_PRODUCT_MODEL`、候选宪法和稳定协议文档，描述目标、所有权、机制和长期边界。
 
 它们不应被具体提交或阶段污染，但平台目标、架构归属或合同本身改变时必须更新。
 
@@ -109,6 +124,7 @@ Guide 应描述读者完成一项任务的当前路径，并在开头说明它�
 
 ```bash
 python3 scripts/check-docs.py
+python3 scripts/check-identity.py
 ```
 
 该脚本只检查仓库内相对链接、英文文档的中文配对，以及已经采用标准语言切换的文档是否完整链接两种语言。它不判断平台方向、架构观点或措辞是否正确，不能替代人工审阅。

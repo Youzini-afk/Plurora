@@ -86,7 +86,7 @@ Conversation, models, agents, memory, worlds, games, documents, project workflow
 
 ### Composition and replacement outrank centralization
 
-Components, protocols, clients, and products can be replaced independently. An official default must not silently become the permanent only choice; ambiguity is resolved by explicit selection, profiles, or policy rather than official priority.
+Components, protocols, clients, and products can be replaced independently. An official default must not silently become the permanent only choice; ambiguity is resolved by explicit selection, profiles, or policy rather than publisher priority.
 
 ### The default product is not platform law
 

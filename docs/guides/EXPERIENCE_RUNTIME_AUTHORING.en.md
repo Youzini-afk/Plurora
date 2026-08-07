@@ -188,7 +188,7 @@ Experience-runtime packages are ordinary packages. Any third-party package that 
 
 - Same surface slots (experience_entry, play_renderer, forge_panel, assistant_action)
 - Same capability shape
-- No official priority
+- No publisher priority
 - Declare replacement via composition descriptor
 
 ## Red Lines
@@ -223,7 +223,7 @@ import {
 
 ## Reference Implementation
 
-- `packages/plurora/experience-runtime-lab/` — Official experience-runtime lab package
+- `packages/plurora/experience-runtime-lab/` — First-party experience-runtime lab Package
 - `crates/plurora-runtime/src/inproc/experience_runtime_lab.rs` — Replayable in-process handler
 - `sdk/typescript/experience-runtime/` — TypeScript SDK
 - `docs/guides/EXPERIENCE_RUNTIME_AUTHORING.md` — This document

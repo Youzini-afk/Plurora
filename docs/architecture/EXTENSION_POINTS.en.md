@@ -2,135 +2,67 @@
 
 > [English](./EXTENSION_POINTS.en.md) · [中文](./EXTENSION_POINTS.md)
 
-An extension point is a named hook in the current Contract V1 runtime. The core runtime or a Package writer may declare it, and ordinary Components may subscribe. The runtime performs authorized routing without interpreting domain meaning.
+An extension point is a named interception point in the current public-contract runtime. Package Manifests declare subscriptions; the runtime owns registration, stable ordering, unload cleanup, and the bounded dispatch behavior implemented for that point.
 
-This document records the current compatibility contract. Long-term shared extension meaning belongs to an explicit Protocol owner; a Package distributes implementations and declarations rather than permanently owning all extension ontology.
+Extension points are not private APIs and do not grant authority. A subscriber remains a Package participant subject to Manifest, permission, and runtime boundaries.
 
-## Hook contract
+## Descriptor and subscription shape
 
-Every extension point has:
+A Manifest may declare an `ExtensionPointDescriptor` with:
 
-- `id`: namespaced, immutable.
-- `payload_schema`: the JSON shape of the call.
-- `timing`: `sync` or `async`. Synchronous handlers block the operation. Asynchronous handlers do not.
-- `modifiable`: whether subscribers may return a changed payload that the next subscriber sees.
-- `short_circuit`: whether a subscriber may veto the operation.
-- `ordering`: how the dispatcher orders subscribers. Declared precedence is used first; ties use a stable order.
+- immutable `id` and `version`;
+- `payload_schema`;
+- `timing` (`sync` or `async`);
+- `modifiable`;
+- `short_circuit`.
 
-The core owner publishes schemas for core extension points. A non-core Protocol or Component owner publishes its schema and distributes it through the current Package Manifest.
+A `HookSubscription` declares:
 
-## Subscription
+- `extension_point`;
+- `handler`;
+- `timing`;
+- integer `precedence`.
 
-A subscriber is declared in a manifest:
+Subscriptions are ordered by precedence, then subscriber Package ID, then handler name. Unloading a Package removes its subscriptions.
 
-```yaml
-contributes:
-  hooks:
-    - extension_point: journal/before_append
-      handler: my_handler
-      timing: sync
-      precedence: 100
-```
+## Core points invoked today
 
-The kernel verifies that the subscriber's manifest declares the permissions implied by the hook. For example, `event.before_append` requires event read; modifying the payload requires event append.
+The current runtime invokes exactly four built-in points:
 
-A subscriber that returns an error stops the operation only when `short_circuit: true`. Otherwise the error is logged and dispatch continues.
+| Point | Current behavior |
+|---|---|
+| `journal/before_append` | Awaited before persistence; may veto; the current dispatcher can return amended metadata. |
+| `journal/after_append` | Awaited after persistence; receives the stored envelope; return value is ignored. |
+| `capability/before_invoke` | Awaited before provider resolution/execution; may veto; the current dispatcher can return amended input. |
+| `capability/after_invoke` | Awaited after a successful invocation; receives the invocation result; return value is ignored. |
 
-## Cancellation and timeout
+`protocol.extension.list` returns these four IDs. `protocol.extension.describe` is reserved but not yet dispatched.
 
-Synchronous handlers run within the operation's deadline. Asynchronous handlers receive a deadline derived from the package sandbox policy. Exceeding the deadline cancels the handler and counts as a failed call.
+## Current implementation boundary
 
-## Implementation status
+The registry, deterministic ordering, veto reporting, metadata/input mutation path, and unload cleanup are implemented and covered by runtime/conformance checks.
 
-The current `kernel/v1/*` extension-point set remains compatibility-stable. The implementation covers event append and capability invocation: stable ordering, Component handlers, payload metadata mutation, veto, and unload cleanup. Session and Package lifecycle hooks are reserved in the contract. Today they are delivered through `context/.*` and `kernel/v1/package.*` events; synchronous and asynchronous handling may be completed later. New shared extension meaning belongs in a Protocol namespace with an explicit owner; ordinary Component Packages may provide implementations without continuing to grow monolithic `platform contract`.
+Arbitrary Package hook-handler execution, independent asynchronous delivery, deadline/quota enforcement per handler, failure audit, descriptor version negotiation, and generic dispatch of Package-declared extension points are not complete. Manifest declaration support must not be mistaken for a fully operational generic extension bus.
 
-## Kernel-emitted points
+## Package-owned extension semantics
 
-The current runtime emits only this small compatibility set. New non-core extension points are defined by explicit Protocol or Component owners and distributed through ordinary Packages.
+A Package may publish descriptor data under its own Package ID namespace. Shared semantics that need interoperability should be owned by an explicit Protocol. The runtime must not infer meaning from the ID or grant first-party implementations special routing.
 
-### Session lifecycle
-
-- `context/before_open` — sync, modifiable false, short_circuit true.
-  Permission to open is enforced here. Subscribers may veto.
-- `context/after_open` — async.
-- `context/before_close` — sync, modifiable false, short_circuit true.
-- `context/after_close` — async.
-
-Payload: session id, requested labels, package set, requesting principal.
-
-### Event log
-
-- `journal/before_append` — sync, modifiable true, short_circuit true.
-  Permission and schema enforcement happen here. Subscribers may amend metadata or veto.
-- `journal/after_append` — async.
-  Subscribers receive the persisted envelope.
-
-Payload: event envelope. The kernel does not interpret the payload field. It only checks declared schemas when the writer's manifest references a payload schema for that event kind.
-
-### Capability invocation
-
-- `capability/before_invoke` — sync, modifiable true, short_circuit true.
-  Permission, route resolution, and quota enforcement happen here.
-- `capability/after_invoke` — async.
-  Subscribers receive input, output (or error), latency, and provider id.
-- `kernel/v1/capability.error` — async.
-  Subscribers receive the structured failure.
-
-Payload: invocation envelope.
-
-### Package lifecycle
-
-- `host/package.loaded` — async.
-- `host/package.unloaded` — async.
-- `host/package.degraded` — async.
-- `kernel/v1/package.heartbeat_lost` — async.
-
-### Hook registry
-
-- `kernel/v1/hook.registered` — async.
-- `kernel/v1/hook.unregistered` — async.
-
-These let observability packages discover the live extension topology.
-
-## Package-emitted points
-
-A package may publish its own extension points by listing them under `contributes.extension_points`. The package becomes the owner of the schema.
-
-The kernel routes calls but does not validate semantics. If the owning package is unloaded, the kernel refuses to dispatch the point and emits `kernel/v1/hook.unregistered` for any orphaned subscribers.
-
-Example (illustrative; not part of the kernel):
+Illustrative descriptor:
 
 ```yaml
 contributes:
   extension_points:
     - id: someorg/conversation/before_step
-      payload_schema: ...
+      version: 1.0.0
+      payload_schema: {}
       timing: sync
       modifiable: true
       short_circuit: true
 ```
 
-A different package can subscribe:
-
-```yaml
-contributes:
-  hooks:
-    - extension_point: someorg/conversation/before_step
-      handler: ...
-```
-
-The kernel does not know what `conversation/before_step` means. The owning package does.
-
-## Discovery
-
-A client may query the kernel for live extension points and their subscribers. Schemas are exposed. Creator tools, observability dashboards, and other packages use this to see what is currently extensible in a running host.
-
-## Versioning
-
-Each extension point has a `version`. Subscribers declare the version they target. The kernel refuses to dispatch to a subscriber whose declared version is incompatible with the live point.
-
-Breaking changes to a point require a new id. The owning package may emit both versions during transition.
+Until generic Package-owned dispatch is implemented, this declaration is discoverable contract data rather than proof that arbitrary runtime calls are emitted for the point.
 
 ## Stability
 
-The kernel-emitted point set is small by design. Adding a kernel point needs the same justification as adding a kernel responsibility: it truly cannot live in a package.
+Adding a built-in point expands the public runtime boundary and therefore requires a clear owner, payload schema, authority model, terminal/error behavior, and conformance proof. Product convenience alone is insufficient.

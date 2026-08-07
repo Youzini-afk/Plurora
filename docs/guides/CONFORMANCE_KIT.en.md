@@ -2,11 +2,11 @@
 
 > [English](./CONFORMANCE_KIT.en.md) · [中文](./CONFORMANCE_KIT.md)
 
-The conformance kit lets third-party capability packages verify kernel v1 compliance before they are handed to a host, marketplace, CI gate, or user. It checks the platform boundary, not package content semantics.
+The conformance kit lets third-party capability Packages verify public Contract v1 compliance before they are handed to a host, marketplace, CI gate, or user. It checks the platform boundary, not package content semantics.
 
 ## Purpose
 
-Plurora requires official and third-party packages to use the same contract. The kit provides repeatable local validation: whether the manifest parses, the entry can run, bindings are correct, capability declarations line up, permissions are least-authority, audit is visible, and fixture calls are stable.
+Plurora requires first-party and third-party Packages to use the same contract. The kit provides repeatable local validation: whether the manifest parses, the entry can run, bindings are correct, capability declarations line up, permissions are least-authority, audit is visible, and fixture calls are stable.
 
 Passing the kit does not mean the package is high quality or content-correct. It means the package participates in the platform according to v1.
 
@@ -107,7 +107,7 @@ In a monorepo, run the command for every package manifest. For Path B packages, 
 
 A future iteration will extract the kit as an embeddable library. For now, run custom checks as separate CI steps and use conformance JSON as input. Examples: require every network declaration to include `purpose`, or require package ids to match an organization prefix.
 
-Custom checks must not replace the official kit. They may tighten project rules, never loosen the v1 contract.
+Custom checks must not replace the repository conformance kit. They may tighten project rules, never loosen the v1 contract.
 
 ## Relationship to SDKs
 
@@ -172,6 +172,6 @@ Kit versions follow additive v1 schema evolution. New checks should enter as WAR
 
 ## References
 
-- [`../spec/KERNEL_V1_CONTRACT.md`](../spec/KERNEL_V1_CONTRACT.en.md)
+- [`../spec/PUBLIC_CONTRACT.md`](../spec/PUBLIC_CONTRACT.en.md)
 - [`CAPABILITY_HANDLES.md`](CAPABILITY_HANDLES.en.md)
 - [`PATH_B_SELF_CONTAINED.md`](PATH_B_SELF_CONTAINED.en.md)

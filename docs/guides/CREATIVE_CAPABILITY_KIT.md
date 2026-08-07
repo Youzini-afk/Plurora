@@ -4,7 +4,7 @@
 
 Creative Capability Kit 把成熟的无界面创作和 RP 流程整理成通用能力包。这些包遵守 Plurora 的公开协议和清单约束。
 
-TavernHeadless 提供边界案例参考。但这些官方包不是 `tavern-*` wrapper：
+TavernHeadless 提供边界案例参考。但这些第一方 Package 不是 `tavern-*` wrapper：
 
 - `plurora/persona-lab` 处理类似 persona 的结构化 profile。
 - `plurora/knowledge-lab` 处理结构化知识集合和匹配追踪。

@@ -14,7 +14,7 @@ Contract V1 and the current code still retain historical boundaries such as `ses
 │ Apps, tools, worlds, games, documents, agents, unknown forms    │
 ├─────────────────────────────────────────────────────────────────┤
 │ Distributions / Shells / Clients                                │
-│ Official and third-party Web, Desktop, PWA, CLI, IDE, headless  │
+│ First-party and third-party Web, Desktop, PWA, CLI, IDE, headless  │
 ├─────────────────────────────────────────────────────────────────┤
 │ Protocol Commons                                                │
 │ Shared meaning, profiles, state machines, migration, behavior   │
@@ -63,7 +63,7 @@ Protocol Commons owns shared meaning and behavior required across implementation
 - compatibility profiles, version negotiation, and migration;
 - executable behavioral contracts and implementation claims.
 
-Agent, Memory, World, Document, Workspace, Surface, Change, and Inference may become protocols here, and competing protocols may coexist. Official maintenance does not grant kernel routing priority; only participants that explicitly adopt a protocol or profile are constrained by it.
+Agent, Memory, World, Document, Workspace, Surface, Change, and Inference may become protocols here, and competing protocols may coexist. First-party maintenance does not grant substrate routing priority; only participants that explicitly adopt a protocol or profile are constrained by it.
 
 ### Components / Content / Adapters
 
@@ -150,12 +150,12 @@ The default answer is not “everything becomes a package.” It stays in the hi
 
 Contract V1 is the current operational public contract, used for generated SDKs and guarded by conformance. It currently carries responsibilities from several layers:
 
-- `platform.session.*`, events, capability, and authority are close to substrate;
-- Project, target, exec, port, proxy, and diagnostics belong to the Host;
-- projection, proposal/change, and extension point belong to evolvable protocols;
-- surface slots and shell contributions belong to a Shell Profile.
+- `context.*`, `journal.*`, `capability.*`, `authority.*`, `object.*`, and `identity.*` are substrate-owned;
+- `host.*` owns Project, target, exec, port, proxy, outbound adapters, package operations, and diagnostics;
+- `protocol.*`, `change.*`, and `projection.*` belong to evolvable Protocols;
+- `shell.*` contribution discovery and surface interpretation belong to a Shell Profile.
 
-Current clients and third-party integrations may continue using v1. New meaning should not expand `platform.*` indiscriminately; prefer namespaces with explicit owners, Contract Registry, profile negotiation, and legacy adapters. See [`../spec/CONTRACT_LAYERING_MATRIX.md`](../spec/CONTRACT_LAYERING_MATRIX.en.md) for itemized ownership.
+Current clients and third-party integrations use these exact v1 identities. New meaning requires an explicit owner, maturity, schema, and negotiated version boundary; it must not accumulate as hidden aliases or first-party shortcuts. See [`../spec/CONTRACT_LAYERING_MATRIX.md`](../spec/CONTRACT_LAYERING_MATRIX.en.md) for itemized ownership.
 
 ## Current official distribution
 
@@ -207,7 +207,7 @@ The code layout still reflects historical Contract V1 aggregation. Permanent own
 - [`VISION.md`](VISION.en.md) — the intended long-term shape;
 - [`CONSTITUTION_V2.md`](CONSTITUTION_V2.en.md) — candidate constitutional substrate;
 - [`../spec/CONTRACT_LAYERING_MATRIX.md`](../spec/CONTRACT_LAYERING_MATRIX.en.md) — itemized ownership of the current contract;
-- [`PLATFORM_KERNEL.md`](PLATFORM_KERNEL.en.md) — substrate responsibility and the current kernel compatibility boundary;
+- [`CONSTITUTIONAL_SUBSTRATE.md`](CONSTITUTIONAL_SUBSTRATE.en.md) — substrate responsibility and the current kernel compatibility boundary;
 - [`CAPABILITY_PACKAGE.md`](CAPABILITY_PACKAGE.en.md) — Packages, components, content, and execution trust;
 - [`../product/PLATFORM_PRODUCT_MODEL.md`](../product/PLATFORM_PRODUCT_MODEL.en.md) — product responsibility of the official distribution;
 - [`../guides/PROJECT_MODEL.md`](../guides/PROJECT_MODEL.en.md) — the current official Project model;

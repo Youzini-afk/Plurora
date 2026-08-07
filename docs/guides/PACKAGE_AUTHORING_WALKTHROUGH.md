@@ -2,7 +2,7 @@
 
 > [English](./PACKAGE_AUTHORING_WALKTHROUGH.en.md) · [中文](./PACKAGE_AUTHORING_WALKTHROUGH.md)
 
-这份 walkthrough 创建一个第三方能力包。它会出现在 Home，贡献 Forge 与 assistant surfaces，通过本地检查，并且可以与其他包组合。它刻意使用与官方包相同的公开清单、能力和 surface 路径。
+这份 walkthrough 创建一个第三方能力包。它会出现在 Home，贡献 Forge 与 assistant surfaces，通过本地检查，并且可以与其他包组合。它刻意使用与第一方 Package 相同的公开清单、能力和 surface 路径。
 
 ## 1. 生成能力包
 
@@ -88,7 +88,7 @@ cargo run -p plurora-cli -- package check examples/packages/thirdparty-playable-
 cargo run -p plurora-cli -- composition check examples/compositions/playable-seed-replacement/composition.yaml
 ```
 
-该 package id 是 `thirdparty/playable-seed`，不是 `plurora/*`。它在没有 official priority 的情况下暴露兼容的 Play/Forging/Assistant/Asset surfaces。
+该 package id 是 `thirdparty/playable-seed`，不是 `plurora/*`。它在没有 publisher priority 的情况下暴露兼容的 Play/Forging/Assistant/Asset surfaces。
 
 ## 4. 在 host profile 中加载能力包
 
@@ -114,9 +114,9 @@ Forge 现在包含基于 public protocol data 的轻量 authoring panels：
 - packages、capabilities、surfaces、assets、projections 与 entry surfaces 的创作诊断；
 - templates、package checks、fixture runs、reloads 与 compositions 的 CLI command guidance。
 
-## 5. 与官方包对比
+## 5. 与第一方 Package 对比
 
-`packages/plurora/` 下的官方包是 reference implementations，不是特权路径：
+`packages/plurora/` 下的第一方 Package 是 reference implementations，不是特权路径：
 
 - `plurora/composition-lab` 解释 launch plans 与 surface graphs。
 - `plurora/asset-lab` preview assets 并草拟 import plans。
@@ -125,7 +125,7 @@ Forge 现在包含基于 public protocol data 的轻量 authoring panels：
 
 只要第三方包暴露兼容的 surfaces 与 capabilities，就应该能替换其中任意一个。
 
-`examples/packages/thirdparty-playable-seed` package 是当前 proof。检查会验证它的 surfaces 可发现、capabilities 通过普通 routing 调用、composition checks 通过。共享 capability id 在没有 explicit provider 时会被判定为 ambiguous。不存在隐式 official priority。
+`examples/packages/thirdparty-playable-seed` package 是当前 proof。检查会验证它的 surfaces 可发现、capabilities 通过普通 routing 调用、composition checks 通过。共享 capability id 在没有 explicit provider 时会被判定为 ambiguous。不存在隐式 publisher priority。
 
 ## 不变量
 
@@ -266,9 +266,9 @@ cargo run -p plurora-cli -- composition check /tmp/my-board-composition/composit
 - State capability coverage：显示 `create_checkpoint` 和 `draft_recovery` 的 provider 数量
 - Optional package coverage：提示 `memory-lab` 和 `experience-observability-lab` 以获得更丰富的体验
 
-### 8.4 与官方参考包对比
+### 8.4 与第一方参考 Package 对比
 
-官方 `plurora/playable-creation-board` 包拥有相同的 surfaces 和 capabilities。你的第三方包使用相同的公开清单、能力和 surface 路径，没有特权，也没有特殊路由。两者同时加载时，内核不会优先选择官方包。若要在 composition 中替换它，将你的包声明为主要 provider，官方包声明为 `replacement_candidate`。
+第一方 `plurora/playable-creation-board` Package 拥有相同的 surfaces 和 capabilities。你的第三方 Package 使用相同的公开 Manifest、capability 与 surface 路径，没有特权，也没有特殊路由。两者同时加载时，runtime 不会优先选择第一方 Package。若要在 composition 中替换它，将你的 Package 声明为主要 provider，并将第一方 Package 声明为 `replacement_candidate`。
 
 ### 8.5 更丰富的生命周期：playable-experience template
 

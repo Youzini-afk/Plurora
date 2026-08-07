@@ -25,7 +25,7 @@ Host Control Plane / Runtime Fabric 横跨各层，管理安装、执行、
 
 Plurora 长期追求五件事：
 
-- **开放：** 源码、协议、数据和扩展入口公开；用户能导出、迁移和删除数据；官方实现没有私有 API。
+- **开放：** 源码、协议、数据和扩展入口公开；用户能导出、迁移和删除数据；第一方实现没有私有 API。
 - **多样：** 不固定唯一应用形态、工作流、Shell、模型、组件或内容本体。
 - **先进：** 采用真正增加自由度、安全性、性能和可移植性的技术，而不是为了新而新。
 - **长久：** 稳定层小、协议可演化、旧数据可读取、错误抽象能迁移和退出。
@@ -42,7 +42,7 @@ Plurora 不只是内核，也不等于官方 Web/Desktop。当前官方发行版
 - 第三方可以替换客户端、Shell、组件、协议、模型和 Host；
 - Project 是当前官方 Host 的安装实例模型，不是所有产品必须采用的根对象；
 - Home / Play / Forge / Assist 属于可选产品 Profile，不属于宪法基底；
-- 官方组件和客户端只使用第三方也能使用的公开边界。
+- 第一方组件和客户端只使用第三方也能使用的公开边界。
 
 总体产品责任见 [`docs/product/PLATFORM_PRODUCT_MODEL.md`](docs/product/PLATFORM_PRODUCT_MODEL.md)。游创是可选强观点 Profile，见 [`docs/product/PLAY_CREATION_MODEL.md`](docs/product/PLAY_CREATION_MODEL.md)。
 
@@ -50,7 +50,7 @@ Plurora 不只是内核，也不等于官方 Web/Desktop。当前官方发行版
 
 仓库处于 Foundation Alpha：公开 Contract V1、Rust Host/runtime、HTTP/RPC/SSE、Package 与 Component 生命周期、Web/PWA、Tauri Desktop、CLI、安装更新、项目管理、权限、对象与工件、模型接入、受控开发、target 与部署等基础已经形成较大可运行面。
 
-当前实现仍带有 Contract V1 的历史聚合：`platform.*` 同时包含部分基底、Host、协议和 Shell 语义。新的架构方向不是推倒重写，而是在保持兼容和数据可读的前提下逐步明确所有权。
+当前 Contract V1 通过 80 个精确的 owner-based method ID 分别表达 Substrate、Host、Protocol 与 Shell 职责。实现仍会在该公开边界之后继续拆分，但不会创建第一方私有路径或并行 wire identity。
 
 具体已实现、partial 和 deferred 状态见 [`docs/ALPHA_STATUS.md`](docs/ALPHA_STATUS.md)。当前建设方向见 [`docs/roadmap/NEXT_STEPS.md`](docs/roadmap/NEXT_STEPS.md)。
 
@@ -130,9 +130,9 @@ cargo run -p plurora-cli -- play-create-demo
 | 你想 | 先读 |
 |---|---|
 | 理解平台目标 | [`docs/CHARTER.md`](docs/CHARTER.md) → [`docs/architecture/VISION.md`](docs/architecture/VISION.md) |
-| 理解分层架构 | [`docs/architecture/ARCHITECTURE.md`](docs/architecture/ARCHITECTURE.md) → [`docs/architecture/PLATFORM_KERNEL.md`](docs/architecture/PLATFORM_KERNEL.md) → [`docs/architecture/CAPABILITY_PACKAGE.md`](docs/architecture/CAPABILITY_PACKAGE.md) |
+| 理解分层架构 | [`docs/architecture/ARCHITECTURE.md`](docs/architecture/ARCHITECTURE.md) → [`docs/architecture/CONSTITUTIONAL_SUBSTRATE.md`](docs/architecture/CONSTITUTIONAL_SUBSTRATE.md) → [`docs/architecture/CAPABILITY_PACKAGE.md`](docs/architecture/CAPABILITY_PACKAGE.md) |
 | 理解官方产品 | [`docs/product/PLATFORM_PRODUCT_MODEL.md`](docs/product/PLATFORM_PRODUCT_MODEL.md) → [`docs/design/PLATFORM_UI_DESIGN.md`](docs/design/PLATFORM_UI_DESIGN.md) |
-| 接入公开协议 | [`docs/protocol/PROTOCOL_V0.md`](docs/protocol/PROTOCOL_V0.md) → [`docs/spec/KERNEL_V1_CONTRACT.md`](docs/spec/KERNEL_V1_CONTRACT.md) |
+| 接入公开协议 | [`docs/protocol/PUBLIC_PROTOCOL.md`](docs/protocol/PUBLIC_PROTOCOL.md) → [`docs/spec/PUBLIC_CONTRACT.md`](docs/spec/PUBLIC_CONTRACT.md) |
 | 看长期合同分层 | [`docs/architecture/CONSTITUTION_V2.md`](docs/architecture/CONSTITUTION_V2.md) → [`docs/spec/CONTRACT_LAYERING_MATRIX.md`](docs/spec/CONTRACT_LAYERING_MATRIX.md) |
 | 写第一个 Package / Component | [`docs/guides/PACKAGE_AUTHORING_WALKTHROUGH.md`](docs/guides/PACKAGE_AUTHORING_WALKTHROUGH.md) |
 | 安装 Package / Project | [`docs/guides/PACKAGE_INSTALLATION.md`](docs/guides/PACKAGE_INSTALLATION.md) → [`docs/guides/PROJECT_MODEL.md`](docs/guides/PROJECT_MODEL.md) |

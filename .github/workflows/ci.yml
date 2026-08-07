@@ -34,8 +34,8 @@ jobs:
       - name: Verify documentation links and bilingual pairs
         run: python3 scripts/check-docs.py
 
-      - name: Verify Plurora identity reset inventory
-        run: python3 scripts/check-plurora-identity.py
+      - name: Verify Plurora identity invariants
+        run: python3 scripts/check-identity.py
 
       - name: Regenerate schemas and SDKs
         run: bash scripts/regen-sdks.sh

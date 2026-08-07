@@ -29,7 +29,7 @@ They may begin by modifying existing content, composing components, or using AI 
 
 ### Component and product developers
 
-They need stable SDKs, clear contracts, a debuggable runtime, compatibility and migration tools, publishable artifacts, and integration without official repository internals.
+They need stable SDKs, clear contracts, a debuggable runtime, compatibility and migration tools, publishable artifacts, and integration without first-party repository internals.
 
 ### Host operators
 
@@ -122,7 +122,7 @@ The official distribution may choose default protocols, components, layouts, and
 
 - defaults are visible and replaceable;
 - data survives client replacement;
-- official components use public interfaces only;
+- first-party components use public interfaces only;
 - third parties can provide similar or radically different products;
 - official product needs may motivate platform improvements but do not automatically become substrate responsibilities;
 - a capability serving only the official interface stays in the distribution or its profile.

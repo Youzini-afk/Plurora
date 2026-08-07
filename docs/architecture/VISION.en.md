@@ -14,7 +14,7 @@ AI-native capability is important, but the platform does not define itself as ch
 │ Apps, tools, worlds, games, agent workspaces, services   │
 ├──────────────────────────────────────────────────────────┤
 │ Distributions / Shells / Clients                         │
-│ Official and third-party Web, Desktop, CLI, mobile, IDE  │
+│ First-party and third-party Web, Desktop, CLI, mobile, IDE  │
 ├──────────────────────────────────────────────────────────┤
 │ Protocol Commons / Components / Content                  │
 │ Competing protocols, replaceable components, compositions│
@@ -73,7 +73,7 @@ Plurora's technical ambition focuses on foundations that improve long-term capab
 - **Local-first and multi-Host:** local and offline operation first, with safe expansion to remote devices and multiple nodes;
 - **Streaming execution:** streams, cancellation, deadlines, backpressure, recovery, and long-running observation as platform capabilities;
 - **Causality and effects:** historical replay separated from re-execution, with auditable receipts for nondeterminism and external effects;
-- **Protocol evolution:** explicit negotiation, maturity, compatibility profiles, deprecation, migration, and legacy adapters;
+- **Protocol evolution:** explicit negotiation, maturity, compatibility profiles, deprecation, migration, and versioned readers;
 - **Implementation independence:** data and protocols are not bound to a language, UI framework, model vendor, or cloud platform.
 
 These directions do not all enter the stable layer at once. Maturity and real value decide whether a mechanism remains Experimental, becomes Candidate, or reaches Stable.

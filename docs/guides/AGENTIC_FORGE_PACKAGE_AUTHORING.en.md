@@ -2,7 +2,7 @@
 
 > [English](./AGENTIC_FORGE_PACKAGE_AUTHORING.en.md) · [中文](./AGENTIC_FORGE_PACKAGE_AUTHORING.md)
 
-This guide describes the current Contract V1 Agentic Forge Product Profile: how to build, run, and replace an agent runtime through ordinary Packages and Components. It requires no substrate or official-implementation privilege.
+This guide describes the current Contract V1 Agentic Forge Product Profile: how to build, run, and replace an agent runtime through ordinary Packages and Components. It requires no substrate or first-party-implementation privilege.
 
 ## What Agentic Forge Is
 
@@ -82,7 +82,7 @@ Inference failures return explicit kinds and recovery hints:
 
 ## Third-Party Replacement
 
-Official agentic-forge-lab is an ordinary package. It has no kernel privilege and no routing priority. Third-party packages can replace it:
+The first-party `plurora/agentic-forge-lab` is an ordinary Package. It has no kernel privilege and no routing priority. Third-party packages can replace it:
 
 1. Create a package with equivalent capability shapes (e.g., `thirdparty/agentic-forge`)
 2. Create a composition that declares `replacement_candidates: [plurora/agentic-forge-lab]`
@@ -107,7 +107,7 @@ See `examples/packages/thirdparty-agentic-forge/` and `examples/compositions/age
 
 ## Forge Workspace Public Protocol
 
-The forge workspace surfaces (`forge_panel`, `assistant_action`, `home_card`) are public protocol. Any package can contribute to these surface slots — official or third-party. The runtime does not prefer first-party Packages.
+The forge workspace surfaces (`forge_panel`, `assistant_action`, `home_card`) are public protocol. Any Package can contribute to these surface slots — first-party or third-party. The runtime does not prefer first-party implementations.
 
 ## TypeScript SDK
 

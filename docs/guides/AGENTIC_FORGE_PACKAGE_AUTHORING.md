@@ -2,7 +2,7 @@
 
 > [English](./AGENTIC_FORGE_PACKAGE_AUTHORING.en.md) · [中文](./AGENTIC_FORGE_PACKAGE_AUTHORING.md)
 
-本指南描述当前 Contract V1 的 Agentic Forge Product Profile：如何用普通 Package / Component 构建、运行和替换 agent runtime。它不需要基底或官方实现特权。
+本指南描述当前 Contract V1 的 Agentic Forge Product Profile：如何用普通 Package / Component 构建、运行和替换 agent runtime。它不需要 substrate 或第一方实现特权。
 
 ## Agentic Forge 是什么
 
@@ -82,7 +82,7 @@ Capability tool bridge（`plurora/capability-tool-bridge-lab`）提供：
 
 ## Third-Party Replacement
 
-Official agentic-forge-lab 是普通包。它没有内核特权，也没有路由优先级。第三方包可以替换它：
+第一方 `plurora/agentic-forge-lab` 是普通 Package。它没有 substrate 特权，也没有路由优先级。第三方 Package 可以替换它：
 
 1. 创建具有等价能力形状的包（如 `thirdparty/agentic-forge`）
 2. 创建声明 `replacement_candidates: [plurora/agentic-forge-lab]` 的 composition
@@ -107,7 +107,7 @@ Official agentic-forge-lab 是普通包。它没有内核特权，也没有路�
 
 ## Forge Workspace 公共协议
 
-Forge workspace surface（`forge_panel`、`assistant_action`、`home_card`）属于公共协议。任何包都可以贡献到这些 surface slot，包括 official 和 third-party。Runtime 不偏好 official 包。
+Forge workspace surface（`forge_panel`、`assistant_action`、`home_card`）属于公共协议。任何 Package 都可以贡献到这些 surface slot，包括 first-party 与 third-party。Runtime 不偏好第一方 Package。
 
 ## TypeScript SDK
 

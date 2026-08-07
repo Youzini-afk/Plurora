@@ -2,13 +2,13 @@
 
 > [English](./README.en.md) · [中文](./README.md)
 
-These documents cover Plurora's long-term layering, the compatibility boundary of Contract V1, and concrete Host control-plane designs. The long-term architecture distinguishes constitutional substrate, Protocol Commons, components/content, Host, distributions, and products rather than reducing every concept to a kernel-or-Package binary.
+These documents cover Plurora's long-term layering, the current public-contract boundary, and concrete Host control-plane designs. The long-term architecture distinguishes constitutional substrate, Protocol Commons, components/content, Host, distributions, and products rather than reducing every concept to a kernel-or-Package binary.
 
 ## Platform shape and substrate
 
 - [`VISION.md`](VISION.en.md) — intended long-term shape, openness, and technical direction
 - [`ARCHITECTURE.md`](ARCHITECTURE.en.md) — layers, one-way dependencies, orthogonal Host relationship, and current implementation placement
-- [`PLATFORM_KERNEL.md`](PLATFORM_KERNEL.en.md) — mechanisms owned by the constitutional substrate and compatibility responsibilities of the current v1 kernel
+- [`CONSTITUTIONAL_SUBSTRATE.md`](CONSTITUTIONAL_SUBSTRATE.en.md) — mechanisms owned by the constitutional substrate and responsibilities currently carried by the wider runtime
 - [`CONSTITUTION_V2.md`](CONSTITUTION_V2.en.md) — candidate long-term constitution, invariants, and evolution constraints; it does not yet replace Contract V1
 
 ## Packages, Components, Protocols, and runtime

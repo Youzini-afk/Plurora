@@ -18,6 +18,21 @@ When documents conflict, interpret them in this order:
 
 Changing platform identity requires explicit Charter revision. Changing official product opinion must not silently rewrite the substrate. An implementation change should update related status, contracts, or guides in the same commit.
 
+## Identity and naming
+
+Repository identity is part of the public contract, not decorative wording.
+
+- Product and project name: `Plurora` in prose, `plurora` in machine identifiers.
+- Public method IDs use owner-based dot namespaces: `context.*`, `journal.*`, `capability.*`, `authority.*`, `object.*`, `identity.*`, `host.*`, `protocol.*`, `change.*`, `projection.*`, and `shell.*`.
+- Platform-owned event kinds use the explicit registry and semantic slash namespaces; they are written by `plurora/runtime`.
+- Package capability and event IDs begin with the exact Package ID followed by `/`.
+- First-party Packages use publisher namespace `plurora/*`. That identity grants no authority, routing priority, UI privilege, or substrate ownership.
+- Generated schemas, OpenAPI, and SDK identities come from the executable registry and generators; do not hand-edit parallel names.
+- The pre-release tree keeps one selected identity set. Do not add old-name aliases, fallback environment variables, duplicate CLI entry points, or compatibility routes merely to make a rename appear safer.
+- A stable breaking change uses an explicit new contract/profile/version boundary and migration plan, not a hidden alias.
+
+Durable documents name the current identity directly. Historical rename plans are deleted after their conclusions move into architecture, specs, status, and checks.
+
 ## Write for readers, not as a development log
 
 Readers care what something is, why it belongs to a layer, how to use it, where its boundary lies, and what happens on failure.
@@ -79,7 +94,7 @@ Use precise terms:
 
 ### Long-term and concept documents
 
-`CHARTER`, `VISION`, `ARCHITECTURE`, `PLATFORM_KERNEL`, `CAPABILITY_PACKAGE`, `PLATFORM_PRODUCT_MODEL`, candidate constitutions, and stable protocol documents describe goals, ownership, mechanisms, and long-term boundaries.
+`CHARTER`, `VISION`, `ARCHITECTURE`, `CONSTITUTIONAL_SUBSTRATE`, `CAPABILITY_PACKAGE`, `PLATFORM_PRODUCT_MODEL`, candidate constitutions, and stable protocol documents describe goals, ownership, mechanisms, and long-term boundaries.
 
 They are not polluted by individual commits or phases, but must change when platform goals, architectural ownership, or the contract itself changes.
 
@@ -109,6 +124,7 @@ Before committing documentation changes, run:
 
 ```bash
 python3 scripts/check-docs.py
+python3 scripts/check-identity.py
 ```
 
 The script checks repository-local relative links, Chinese counterparts for English documents, and complete cross-links in documents that already use the standard language switch. It does not judge platform direction, architecture opinions, or wording, and does not replace human review.
@@ -128,7 +144,7 @@ Maintain primary narrative, navigation, and guides in both languages:
 - ❌ Do not include a specific user's absolute Host path in reader-facing guides; use conventions such as `~/.plurora/<area>/`.
 - ❌ Do not claim coverage or interoperability without code, fixtures, or compatibility checks.
 - ❌ Do not move YdlTavern or another product's chat, character, or prompt semantics into the platform substrate.
-- ❌ Do not treat an official Package ID, UI slot, or default provider as authority, routing priority, or permanent ontology.
+- ❌ Do not treat an first-party Package ID, UI slot, or default provider as authority, routing priority, or permanent ontology.
 - ❌ Do not use openness to excuse unusable, incomplete, or unrecoverable products; do not use usability to excuse private APIs or data lock-in.
 - ❌ Do not retain temporary plans, completed migration checklists, or commit messages as permanent specifications.
 

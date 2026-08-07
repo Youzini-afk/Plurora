@@ -1,13 +1,13 @@
-# 平台基底与当前内核边界
+# 宪法基底与当前 Runtime 边界
 
-> [English](./PLATFORM_KERNEL.en.md) · [中文](./PLATFORM_KERNEL.md)
+> [English](./CONSTITUTIONAL_SUBSTRATE.en.md) · [中文](./CONSTITUTIONAL_SUBSTRATE.md)
 
 本文区分两件事：
 
 1. Plurora 长期应保持极小的 **Constitutional Substrate**；
-2. 当前 Contract V1 中名为 kernel 的实现边界。
+2. 当前由 `plurora-core` 与 `plurora-runtime` 承载的更宽实现边界。
 
-二者目前并不完全重合。现有 `plurora-core` / `plurora-runtime` 为了提供可运行平台，还承载了一部分 Host、协议和 Shell 职责。长期目标不是否定现有代码，而是在保持兼容、迁移和数据可读的前提下，让职责回到正确层。
+二者目前并不完全重合。`plurora-core` / `plurora-runtime` 为了提供可运行平台，还承载了一部分 Host、Protocol 与 Shell 职责。长期目标是让职责回到正确层，同时保持显式版本边界、迁移能力与数据可读性。
 
 ## 宪法基底拥有的机制
 
@@ -81,7 +81,7 @@ Package 的下载、安装目录和用户界面属于 Host / distribution，不�
 
 - protocol ID、版本和 Profile 的显式选择；
 - 不允许静默降级的 requirement；
-- Contract Registry、alias 和 legacy adapter 入口；
+- 精确 Contract Registry identity、显式 profile/layer/Protocol negotiation 与 versioned migration boundary；
 - transport-independent 的行为语义。
 
 ## 宪法基底不拥有的内容
@@ -130,7 +130,7 @@ Package 的下载、安装目录和用户界面属于 Host / distribution，不�
 
 HTTP、stdio、同进程调用、未来 WASM imports 和远程边界必须保留相同的身份、authority、错误和 effect 语义。内部调用不能获得第三方无法使用的能力。
 
-### 官方实现无特权
+### 第一方实现无特权
 
 官方组件和第三方组件通过同一注册、binding、调用和审计机制工作。包名不能成为权限判断或路由优先级。
 
@@ -183,7 +183,7 @@ Rust in-process、subprocess、WASM 和 remote 可以服务相同协议，但不
 
 1. 为什么普通协议、组件或 Host 无法安全实现；
 2. 它是否与特定产品、UI、工作流或内容本体无关；
-3. 它是否增加用户自由和可替换性，而不是锁定当前官方实现；
+3. 它是否增加用户自由和可替换性，而不是锁定当前第一方实现；
 4. 它的错误、取消、资源限制、审计和迁移语义；
 5. 它如何与现有 v1 数据和客户端兼容。
 

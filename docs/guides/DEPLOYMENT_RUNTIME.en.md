@@ -174,7 +174,7 @@ Deployment is a separate, explicit host-broker action. This keeps “open projec
 - Path-prefix proxying does not follow upstream redirects and strips `Set-Cookie`, `Location`, CORS, and other dangerous response headers. Vhost proxying only allows host-only cookies and same-upstream `Location` rewrites.
 - Prebuilt-image deployment does not accept env / volume / secret fields. Source Build & Deploy accepts only explicitly approved runtime env / volume fields; raw runtime secrets are injected only inside the host-private runner, and build-time secrets are not supported yet.
 - Verified ChangeSet deployment never reuses the verification image, builds from the live workspace, or bypasses separate deployment approval; preview always starts Host-authenticated.
-- Docker is implemented by an ordinary capability package. No official fast path.
+- Docker is implemented by an ordinary capability package. No first-party fast path.
 
 ## Next
 

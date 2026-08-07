@@ -74,10 +74,10 @@ Play-creation needs may reveal missing generic platform capability, but they do 
 - player, character, message, turn, world, scene, or game-rule semantics;
 - Home, Play, Forge, Assist, or a concrete editor;
 - one fixed proposal, branch, or publishing workflow;
-- official component IDs, default models, or UI state.
+- first-party component IDs, default models, or UI state.
 
 A mechanism moves downward only after it is generalized, assigned to the correct layer, and independently useful to other product forms.
 
 ## Current implementation
 
-The current official distribution, packages, and templates provide part of a play-creation experience. They are product capability rather than the only measure of platform completeness. Current status is recorded in [`../ALPHA_STATUS.md`](../ALPHA_STATUS.en.md).
+The current official distribution, first-party Packages, and templates provide part of a play-creation experience. They are product capability rather than the only measure of platform completeness. Current status is recorded in [`../ALPHA_STATUS.md`](../ALPHA_STATUS.en.md).

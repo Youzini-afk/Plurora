@@ -87,7 +87,7 @@ const plan = await adapter.invokeCapabilityTool(tool, {
 
 If multiple providers expose the same capability, explicitly choose `provider_package_id`. Do not choose the first provider automatically and do not prefer `plurora/*`.
 
-## Official reference packages
+## First-party reference Packages
 
 `plurora/pi-agent-runtime-lab` is an ordinary reference package. It provides local, replayable capabilities:
 
@@ -96,7 +96,7 @@ If multiple providers expose the same capability, explicitly choose `provider_pa
 - proposal drafts;
 - echo.
 
-It has no official privilege. It is not a real agent runtime and performs no model inference.
+It has no first-party privilege. It is not a real agent runtime and performs no model inference.
 
 `plurora/capability-tool-bridge-lab` is also an ordinary package. It only produces tool discovery, permission previews, and invocation plans. It does not execute target capabilities on behalf of agents, which avoids confused-deputy behavior.
 

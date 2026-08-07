@@ -76,7 +76,7 @@ cargo run -p plurora-cli -- conformance --case sharing_lab --tag secret
 | event | 事件追加与读取 |
 | capability | 能力发现与调用 |
 | package | 包加载、卸载、重启 |
-| official | 官方包 conformance |
+| first_party | 第一方 Package conformance |
 | schema | JSON Schema 验证 |
 | protocol | 公开协议分发 |
 | permission | 权限与身份 |

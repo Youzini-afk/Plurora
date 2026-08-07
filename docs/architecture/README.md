@@ -2,13 +2,13 @@
 
 > [English](./README.en.md) · [中文](./README.md)
 
-这里记录 Plurora 的长期分层、当前 Contract V1 兼容边界，以及 Host 控制平面的具体设计。长期架构区分宪法基底、协议公地、组件/内容、Host、发行版和产品，而不是把所有概念压成“内核或 Package”二选一。
+这里记录 Plurora 的长期分层、当前公开契约边界，以及 Host 控制平面的具体设计。长期架构区分宪法基底、协议公地、组件/内容、Host、发行版和产品，而不是把所有概念压成“内核或 Package”二选一。
 
 ## 平台形态与基底
 
 - [`VISION.md`](VISION.md) — 长期整体形态、开放性与技术方向
 - [`ARCHITECTURE.md`](ARCHITECTURE.md) — 分层模型、单向依赖、Host 正交关系与当前实现位置
-- [`PLATFORM_KERNEL.md`](PLATFORM_KERNEL.md) — 宪法基底拥有的机制，以及当前 v1 kernel 的兼容职责
+- [`CONSTITUTIONAL_SUBSTRATE.md`](CONSTITUTIONAL_SUBSTRATE.md) — 宪法基底拥有的机制，以及当前较宽 runtime 承载的职责
 - [`CONSTITUTION_V2.md`](CONSTITUTION_V2.md) — 候选长期宪法、不变量与演化约束；尚未替代 Contract V1
 
 ## Package、Component、Protocol 与运行时

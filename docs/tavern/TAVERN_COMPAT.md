@@ -12,7 +12,7 @@ YdlTavern 通过公开协议消费 Plurora。它不读 Plurora 内部，也不�
 
 ## 为什么不放在 Plurora 仓库
 
-Plurora 是平台。把一个产品级、跟特定社区直接对接、UI 与扩展兼容范围大的项目塞进 `packages/plurora/`，会立刻撞到章程：「官方包没有特权」。
+Plurora 是平台。把一个产品级、跟特定社区直接对接、UI 与扩展兼容范围大的项目塞进 `packages/plurora/`，会立刻撞到章程：「第一方 Package 没有特权」。
 
 YdlTavern 体量很大、产品决策很多。它需要自己的仓库节奏、自己的 issue 频道、自己的 release 周期。这些都是产品话题，不是平台话题。两件事分开。
 

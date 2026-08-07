@@ -7,7 +7,7 @@ These examples show provider profile shapes accepted by `plurora/model-provider-
 Use them as:
 
 - input references for `validate_profile`, `normalize_request`, `invoke`, and `normalize_stream`;
-- profile-shape references for third-party provider packages;
+- profile-shape references for third-party provider Packages;
 - proof that Plurora handles multiple provider API shapes rather than only OpenAI-compatible APIs.
 
 Current files:

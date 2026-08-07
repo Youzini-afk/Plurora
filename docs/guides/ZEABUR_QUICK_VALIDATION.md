@@ -70,7 +70,7 @@ curl http://127.0.0.1:8080/healthz
 - 仅用于快速验证；不替代正式桌面分发。
 - access token 只是 quick-validation auth，不是生产级 session auth。
 - Surface bundle/asset 通过短期只读 lease 暴露给 sandbox，但仍绝不要嵌入 secret。
-- 该适配器不引入新的官方包 namespace 或安装模型。
+- 该适配器不引入新的第一方 Package namespace 或安装模型。
 - 公网验证请使用一次性 `/data` volume，测试结束后删除。
 - 不要在公网 quick-validation URL 中输入真实 API key 或敏感 secret。
 - 内置 Web 应用是静态构建；本地热更新仍使用现有 Vite 工作流。

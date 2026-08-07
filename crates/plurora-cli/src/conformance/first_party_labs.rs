@@ -342,7 +342,7 @@ pub(crate) async fn composition_lab_diagnostics() -> anyhow::Result<()> {
                 "optional_packages": ["example/optional-extra"],
                 "permission_expectations": ["capabilities.invoke"],
                 "replacement_candidates": ["example/diag-comp-alt"],
-                "compatibility_notes": ["Requires kernel v0.1.0"],
+                "compatibility_notes": ["Requires plurora.contract.default/v1"],
                 "surfaces": [{"slot": "experience_entry"}],
             }),
         })
@@ -383,7 +383,7 @@ pub(crate) async fn composition_lab_diagnostics() -> anyhow::Result<()> {
                 "required_capabilities": ["example/diag-comp/echo"],
                 "permission_expectations": ["capabilities.invoke"],
                 "replacement_candidates": ["example/diag-comp-alt"],
-                "compatibility_notes": ["Requires kernel v0.1.0"],
+                "compatibility_notes": ["Requires plurora.contract.default/v1"],
             }),
         })
         .await?;
@@ -423,7 +423,7 @@ pub(crate) async fn composition_lab_diagnostics() -> anyhow::Result<()> {
                 "available_capabilities": ["example/diag-comp/echo"],
                 "permission_expectations": ["capabilities.invoke"],
                 "replacement_candidates": ["example/diag-comp-alt"],
-                "compatibility_notes": ["Requires kernel v0.1.0"],
+                "compatibility_notes": ["Requires plurora.contract.default/v1"],
                 "surfaces": [{"slot": "experience_entry"}],
             }),
         })
@@ -1019,7 +1019,7 @@ pub(crate) async fn capability_tool_bridge_lab() -> anyhow::Result<()> {
         tools[0]["ambiguous"] == json!(true),
         "ambiguous tool should be flagged"
     );
-    // No official preference
+    // No publisher preference
     anyhow::ensure!(
         tools[0]["provider_package_id"].is_null(),
         "ambiguous tool should not auto-select first-party provider"

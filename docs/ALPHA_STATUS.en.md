@@ -19,8 +19,8 @@ The repository now has a substantial operational surface, but neither the platfo
 
 - Content-free sessions, append-only opaque events, manifest-driven packages, capability fabric, hook fabric, surface contributions, the proposal lifecycle, and the asset / branch / projection substrate.
 - A SQLite event log with monotonic per-session sequence numbers and a rehydratable substrate.
-- The Experimental SHA-256 ObjectStore and ArtifactDescriptor are implemented: in-memory/filesystem CAS, verified reads, streaming, and idempotent migration of legacy FNV asset events; asset events now retain only descriptors/references rather than bodies.
-- Experimental EffectReceipt and Change primitives are implemented: capability/outbound/stream/WebSocket/exec terminal paths produce content-addressed receipts; historical replay calls no executor, capability re-execution creates a new branch and parent-linked receipt, and the old Proposal lifecycle remains compatible as an Intent/ChangeSet/PolicyDecision/Commit adapter.
+- The Experimental SHA-256 ObjectStore and ArtifactDescriptor are implemented: in-memory/filesystem CAS, verified reads, streaming, and idempotent conversion of older FNV asset records; asset events now retain only descriptors/references rather than bodies.
+- Experimental EffectReceipt and Change primitives are implemented: capability/outbound/stream/WebSocket/exec terminal paths produce content-addressed receipts; historical replay calls no executor; capability re-execution creates a new branch and parent-linked receipt; the current `change.proposal.*` facade maps approval-gated operations into Intent/ChangeSet/PolicyDecision/Commit evidence.
 - The Experimental Protocol Commons registry is implemented: `host.info` publishes Change, Shell Default, and World Bundle descriptors; explicit protocol/profile negotiation precedes dispatch; unsupported majors reject with a structured reason; protocol, implementation, and package conformance are separate executable reports.
 - Package envelopes and component identity are separated: explicit component/behavior digests survive repackaging, runtime and effect evidence carry component trust/boundary data, composition locks keep component/profile/content pins separate, and `contract:none` is reported as a non-portable Foreign Capsule.
 - The Experimental World Bundle is implemented and covered by the cross-Host conformance fixture in `plurora/playable-creation-board`: canonical archive descriptors preserve exact v1 envelopes and the complete SHA-256 closure; fresh SQLite/filesystem Hosts retain objects, lineage, and receipts; historical replay invokes no executor; replacement execution creates a child branch/head; and the headless CLI reads the same archive without Web Shell state.
@@ -47,7 +47,7 @@ The repository now has a substantial operational surface, but neither the platfo
 
 - A canonical request / response envelope carrying a host-bound principal context. Callers can't claim to be a package or admin.
 - The same dispatcher handles HTTP `POST /rpc` and host JSON-RPC stdio (`plurora host-stdio`).
-- Contract Registry `0.5.0` completes the first real Deprecated → Legacy Adapter transition: all 36 aliases still resolve centrally; `host.info` and `host.target.list` are Candidate, while their the public contract aliases retain the `0.4.0` deprecation history and are frozen as identity Legacy Adapters from `0.5.0`. They accept security fixes and data-reading compatibility but no new field semantics. HTTP, host stdio, and subprocess reverse stdio emit additive lifecycle diagnostics; generated SDKs queue those warnings; `plurora contract migrate` previews boundary-aware migrations and uses atomic write/rollback. Web sends canonical IDs in production.
+- Contract Registry `0.1.0` publishes 80 exact owner-based method IDs, two explicit contract profiles, per-layer version requirements, and fail-closed Protocol Commons negotiation. HTTP RPC, Host stdio, in-process calls, and subprocess reverse stdio use the same exact resolver. The generated SDKs expose one method identity per wire ID, and the Web client sends only those IDs.
 - Event subscription via SSE, with `after_sequence` replay and live tailing.
 - Profile-driven `plurora host serve` autoloads packages and exposes both `/rpc` and SSE.
 - The Host control plane remains separate from Contract V1: the root token is the root credential, while durable device grants attenuate both action scopes and `project` / `target` resource selectors, with bounded delegation, ancestor-revocation cascade, expiry, single revoke, and atomic administrator bulk revoke. HTTP and RPC preserve the same device identity and authority before entering the runtime, project sessions require an explicit project binding, and each device protocol call records a redacted allow/deny decision. Long-running development execution refreshes grant/ancestor state before Docker and managed-workspace effects and after blocking verification. The mobile PWA and `plurora host access` CLI manage authority through the same Host API; pairing still exchanges a one-time HTTPS token for a Secure/HttpOnly cookie. See [`architecture/HOST_REMOTE_ACCESS.md`](architecture/HOST_REMOTE_ACCESS.en.md).
@@ -60,7 +60,7 @@ The repository now has a substantial operational surface, but neither the platfo
 - `wasm` and `remote` entries: manifests support them; execution is deferred.
 - Path A (`entry.contract: "v1"`) receives capability-handle bindings and permission enforcement; Path B (`entry.contract: "none"`) runs self-contained with no v1 authority, while lifecycle remains observable.
 - Capability routing supports explicit provider selection and simple exact / `^x.y` version constraints. Ambiguous routes are rejected unless the caller supplies `provider_package_id`.
-- Hook fabric: deterministic ordering, package-owned handler capabilities, payload metadata mutation, veto, unload cleanup. Covers `journal/before_append|after_append` and `capability/before_invoke|after_invoke`.
+- Hook fabric: deterministic subscription ordering, veto reporting, metadata/input mutation paths, and unload cleanup for `journal/before_append|after_append` and `capability/before_invoke|after_invoke`. Generic arbitrary handler-capability execution, independent async delivery, and per-handler quotas remain incomplete.
 
 ## Substrate
 
@@ -200,7 +200,7 @@ All ordinary packages, no kernel privilege. They live in `packages/plurora/` and
 
 **Third-party replacement proofs**
 
-- `thirdparty/playable-seed`, `thirdparty/agent-runtime`, `thirdparty/agentic-forge`, `thirdparty/memory-lab` — show that each first-party Package can be replaced by a third party with no priority for the official version.
+- `thirdparty/playable-seed`, `thirdparty/agent-runtime`, `thirdparty/agentic-forge`, `thirdparty/memory-lab` — show that each first-party Package can be replaced by a third party with no priority for the first-party version.
 
 The Forge profile (`profiles/forge-alpha.yaml`) autoloads these and the example fixture packages.
 
@@ -221,7 +221,7 @@ Under `sdk/typescript/`:
 
 ## Contract v1 and SDK generation
 
-- `docs/spec/KERNEL_V1_CONTRACT.md` is the public platform spec.
+- `docs/spec/PUBLIC_CONTRACT.md` is the public platform spec.
 - `docs/spec/v1/schemas/` is the single source of truth for SDKs and conformance: 80 methods, 59 events, 22 top-level schemas, 161 total.
 - `sdk/typescript/contract-sdk/` and `sdk/rust/plurora-contract-sdk/` are generated from schemas; the TypeScript package can be consumed through npm, workspace path, or independent codegen.
 - `plurora conformance package --contract v1 --path <package>` provides 8 third-party package acceptance checks.
@@ -253,7 +253,7 @@ The platform user-facing chrome — Home, Settings, Install flow, Project frame,
 
 ## Desktop and releases
 
-- `clients/desktop` provides a Tauri 2.x wrapper and owns a loopback-only managed Host sidecar. Startup generates a root token and one-time bootstrap nonce, launches `host serve` on a random port, waits for health, then navigates the hidden window. It uses a durable SQLite desktop profile, bundled Web dist, dependency-ordered official-package autoload, and stops the subprocess on exit. Web/PWA and Desktop reuse the same client core and public Host boundary.
+- `clients/desktop` provides a Tauri 2.x wrapper and owns a loopback-only managed Host sidecar. Startup generates a root token and one-time bootstrap nonce, launches `host serve` on a random port, waits for health, then navigates the hidden window. It uses a durable SQLite desktop profile, bundled Web dist, dependency-ordered first-party Package autoload, and stops the subprocess on exit. Web/PWA and Desktop reuse the same client core and public Host boundary.
 - GitHub Actions CI and the `v*` tag release workflow are in place, building cross-platform Tauri installers and creating a draft release. `scripts/release-version.sh` synchronizes Cargo, the web package, the desktop package, and Tauri config.
 - Build notes are in [`../BUILDING.md`](../BUILDING.md); changes are in [`../CHANGELOG.md`](../CHANGELOG.md). Signing, notarization, and auto-update are not enabled.
 
@@ -274,7 +274,7 @@ The platform user-facing chrome — Home, Settings, Install flow, Project frame,
 - `crates/plurora-cli/src/schema_export/` owns v1 schema export; `src/bin/export-schemas.rs` is a thin entry. Generated files still come from the exporter only — SDKs and schemas are not hand-edited.
 - `crates/plurora-runtime/src/runtime/` splits runtime behavior into session, events, packages, capabilities, hooks, permissions, assets, branches, projections, and proposals. `runtime/protocol_dispatch.rs` is now the public router facade; concrete public-protocol handlers live under `runtime/protocol/` by domain. `runtime/mod.rs` keeps the public `Runtime<S>` API.
 - Protocol metadata and dispatch share a single source of truth (`PlatformMethod`), with a registry / dispatch consistency unit test.
-- `crates/plurora-runtime/src/inproc/` splits official-package behavior by domain; `plurora/install-lab` is split into `install_lab/` modules (types/source/planner/executor/layout/project_kind/fs_copy). The shared helper routes by provider package plus local capability name, not suffix-only fallback.
+- `crates/plurora-runtime/src/inproc/` splits first-party Package behavior by domain; `plurora/install-lab` is split into `install_lab/` modules (types/source/planner/executor/layout/project_kind/fs_copy). The shared helper routes by provider package plus local capability name, not suffix-only fallback.
 - `clients/web` Home and Install flow are split into page shells plus hooks/helpers/step components. The UI still uses public protocol only and does not read the local filesystem or private runtime state.
 
 These splits don't change behavior — they keep the codebase reviewable as more packages, conformance cases, handlers, and UI flows land.
@@ -289,7 +289,7 @@ These splits don't change behavior — they keep the codebase reviewable as more
 - `--fail-fast` — stop at the first failure.
 - `--slowest <N>` — report the slowest N.
 
-Every case has tags (runtime / event / capability / package / subprocess / official / network / outbound / stream / agentic / experience / memory / sharing / secret / composition / replacement / surface / protocol / permission / hook / host / asset / projection / substrate / storage / live / external_project / project_intake / workspace_lab / retrieval, and so on). See [`performance/CONFORMANCE_FEEDBACK.md`](performance/CONFORMANCE_FEEDBACK.en.md).
+Every case has tags (runtime / event / capability / package / subprocess / first_party / network / outbound / stream / agentic / experience / memory / sharing / secret / composition / replacement / surface / protocol / permission / hook / host / asset / projection / substrate / storage / live / external_project / project_intake / workspace_lab / retrieval, and so on). See [`performance/CONFORMANCE_FEEDBACK.md`](performance/CONFORMANCE_FEEDBACK.en.md).
 
 Plus crate and service unit tests via `cargo test --workspace`, and `npm run check --prefix clients/web` / `npm run build --prefix clients/web` for the web shell.
 
@@ -340,7 +340,7 @@ If anything fails, the code is the source of truth — update this document.
 - [`CHARTER.md`](CHARTER.en.md) — principles that don't change.
 - [`architecture/`](architecture/README.en.md) — architecture, kernel, package contract, extension points, events, lifecycles.
 - [`product/`](product/README.en.md) — play-creation stance.
-- [`protocol/PROTOCOL_V0.md`](protocol/PROTOCOL_V0.en.md) — public protocol.
+- [`protocol/PUBLIC_PROTOCOL.md`](protocol/PUBLIC_PROTOCOL.en.md) — public protocol.
 - [`spec/`](spec/README.en.md) — executable contract matrix and conformance roadmap.
 - [`guides/`](guides/README.en.md) — capability-package authoring guides.
 - [`roadmap/NEXT_STEPS.md`](roadmap/NEXT_STEPS.en.md) — what's next.

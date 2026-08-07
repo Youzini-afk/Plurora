@@ -39,4 +39,4 @@ The decision vocabulary is:
 5. Preview deterministic transforms with `plurora/text-transform-lab/apply_preview`.
 6. If persistence is desired, create an approval-gated proposal that writes assets or rebuilds projections through public protocol.
 
-The flow is intentionally package-level. A third-party package can replace any official lab by exposing compatible capabilities and surfaces.
+The flow is intentionally package-level. A third-party package can replace any first-party lab by exposing compatible capabilities and surfaces.

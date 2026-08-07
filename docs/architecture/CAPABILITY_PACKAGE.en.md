@@ -14,7 +14,7 @@ A Package may carry several of these, but Package itself is not the ontology uni
 
 ## Equality rule
 
-Official Packages, third-party Packages, and different execution forms use the same:
+First-party Packages, third-party Packages, and different execution forms use the same:
 
 - descriptor and manifest schemas;
 - installation and integrity checks;
@@ -72,7 +72,7 @@ sandbox_policy:
   wall_clock_ms: 30000
 ```
 
-The authoritative fields are in [`../spec/v1/schemas/manifest.schema.json`](../spec/v1/schemas/manifest.schema.json). As Package Envelope, Component Descriptor, Protocol Descriptor, and Content Root separate over time, V1 Manifests remain readable through generation or legacy adapters.
+The authoritative fields are in [`../spec/v1/schemas/manifest.schema.json`](../spec/v1/schemas/manifest.schema.json). As Package Envelope, Component Descriptor, Protocol Descriptor, and Content Root separate over time, V1 Manifests remain readable through explicit versioned readers and migration tooling.
 
 ## Package Envelope
 
@@ -127,7 +127,7 @@ Routing considers:
 4. whether the distribution or caller explicitly selected a provider;
 5. whether multiple implementations remain ambiguous, in which case routing fails and requires a choice.
 
-There is no implicit official priority.
+There is no implicit publisher priority.
 
 Capability invocation produces structured terminal state. External effects or nondeterminism produce or reference an EffectReceipt. Large inputs and outputs should use ArtifactDescriptor rather than expanding wire envelopes indefinitely.
 
@@ -153,7 +153,7 @@ A V1 Package may contribute Surface descriptors. The Manifest supplies bundle, c
 
 Therefore:
 
-- official and third-party Packages may both provide Surfaces;
+- first-party and third-party Packages may both provide Surfaces;
 - a Surface has no implicit kernel access;
 - `experience_entry`, `forge_panel`, and `assistant_action` are current Profile enums rather than constitutional substrate types;
 - third-party shells may define or negotiate another Surface Profile;

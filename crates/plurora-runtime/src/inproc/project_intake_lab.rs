@@ -879,7 +879,7 @@ fn generate_adapter_manifest_preview(request: &InprocInvocation) -> anyhow::Resu
         .and_then(Value::as_str)
         .unwrap_or("subprocess");
 
-    // Reject official adapter package ids
+    // Reject first-party adapter Package IDs
     if is_unsafe_adapter_package_id(adapter_package_id) {
         return Ok(serde_json::json!({
             "kind": "project_intake_rejected",
@@ -1238,7 +1238,7 @@ fn check_adapter_readiness(request: &InprocInvocation) -> anyhow::Result<Value> 
         .and_then(Value::as_str)
         .unwrap_or("");
 
-    // Reject official adapter ids
+    // Reject first-party adapter IDs
     let capability_namespace_ok = !is_unsafe_adapter_package_id(adapter_package_id)
         && !is_capability_namespace_mismatch(adapter_package_id, capability_name);
 

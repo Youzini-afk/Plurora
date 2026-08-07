@@ -9,7 +9,7 @@ The root `Dockerfile` builds:
 - `clients/web` with `npm ci` and `npm run build`
 - the Rust `plurora` release binary
 - a runtime image that serves the built web app and host API on one port
-- the minimal official lab manifests needed for web install and secret-store quick validation (`git-tools-lab`, `integrity-lab`, `install-lab`, `secret-store-lab`)
+- the minimal first-party lab Manifests needed for web install and secret-store quick validation (`git-tools-lab`, `integrity-lab`, `install-lab`, `secret-store-lab`)
 
 At runtime the container starts:
 

@@ -12,7 +12,7 @@ Plurora 通过 `secret_ref` 引用密钥，宿主在能力调用时解析为真�
 - 缺失、拒绝、格式错误一律 fail-closed。
 - 错误消息不泄漏值。
 - `secret_ref` 是运行时权威输入，不是存储 raw secret 的容器。
-- 官方包没有特殊权限；官方能力也只能通过普通 manifest 声明使用 secret。
+- 第一方 Package 没有特殊权限；第一方 capability 也只能通过普通 manifest 声明使用 secret。
 
 ## `secret_ref` 格式
 

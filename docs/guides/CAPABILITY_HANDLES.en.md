@@ -203,6 +203,6 @@ New calls must fail. In-flight streaming calls follow cancel/termination policy 
 
 ## References
 
-- [`../spec/KERNEL_V1_CONTRACT.md`](../spec/KERNEL_V1_CONTRACT.en.md)
+- [`../spec/PUBLIC_CONTRACT.md`](../spec/PUBLIC_CONTRACT.en.md)
 - [`CONFORMANCE_KIT.md`](CONFORMANCE_KIT.en.md)
 - [`PATH_B_SELF_CONTAINED.md`](PATH_B_SELF_CONTAINED.en.md)

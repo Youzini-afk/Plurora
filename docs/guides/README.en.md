@@ -36,6 +36,6 @@ Capability-package authoring guides grouped by domain. Each one targets a class 
 ## Platform extensions
 
 - [`SHARING_DISTRIBUTION.md`](SHARING_DISTRIBUTION.en.md) — sharing and distribution: composition bundles, package-set lockfiles, AI disclosure
-- [`STORAGE_BACKEND_NEUTRALITY.md`](STORAGE_BACKEND_NEUTRALITY.en.md) — backend-neutral storage contracts and the official lab
+- [`STORAGE_BACKEND_NEUTRALITY.md`](STORAGE_BACKEND_NEUTRALITY.en.md) — backend-neutral storage contracts and the first-party lab
 - [`POSTGRES_TDB_INTEGRATION.md`](POSTGRES_TDB_INTEGRATION.en.md) — PostgreSQL (event backend) + TDB (retrieval provider) integration
 - [`EXTERNAL_PROJECT_OPERATING_PLANE.md`](EXTERNAL_PROJECT_OPERATING_PLANE.en.md) — external project operating plane (intake / workspace / adapter)

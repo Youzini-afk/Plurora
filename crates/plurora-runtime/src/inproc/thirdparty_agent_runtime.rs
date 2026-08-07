@@ -2,7 +2,7 @@
 //!
 //! Demonstrates that third-party packages can produce the same
 //! deterministic, no-network, no-inference, proposal-gated output shapes
-//! as the official labs without any platform privilege or special routing.
+//! as the first-party labs without any platform privilege or special routing.
 
 use serde_json::Value;
 

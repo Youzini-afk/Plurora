@@ -134,6 +134,6 @@ entry:
 
 ## 参考
 
-- [`../spec/KERNEL_V1_CONTRACT.md`](../spec/KERNEL_V1_CONTRACT.md)
+- [`../spec/PUBLIC_CONTRACT.md`](../spec/PUBLIC_CONTRACT.md)
 - [`CAPABILITY_HANDLES.md`](CAPABILITY_HANDLES.md)
 - [`CONFORMANCE_KIT.md`](CONFORMANCE_KIT.md)

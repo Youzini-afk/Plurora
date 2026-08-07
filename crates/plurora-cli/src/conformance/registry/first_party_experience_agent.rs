@@ -8,7 +8,7 @@ macro_rules! c {
 
 pub(super) fn first_party_foundation_labs_cases() -> Vec<ConformanceCase> {
     vec![
-        // --- official foundation / labs ---
+        // --- first-party foundation / labs ---
         c!(
             "first_party.foundation_packages",
             ["first_party", "slow"],

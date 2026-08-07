@@ -17,7 +17,7 @@ Agent 基础设施必须复用现有公开原语：
 - `platform.surface.contribution.*` 让 shell 发现 agent action、trace 或 review panel；
 - capability handle、permission、`secret_ref`、network declaration、outbound audit 和 stream ownership 约束副作用。
 
-没有 `platform.agent.*` 私有旁路，也没有因为某个 agent 包是官方维护就获得的额外权威。
+没有 `platform.agent.*` 私有旁路，也没有因为某个 agent 包是第一方维护就获得的额外权威。
 
 ## pi 分层吸收
 
@@ -53,7 +53,7 @@ Agent 基础设施必须复用现有公开原语：
 - `plurora/pi-agent-runtime-lab` 提供默认不联网的参考 agent 包；
 - `plurora/capability-tool-bridge-lab` 负责 capability discovery、permission preview、显式 provider 选择和受控调用；
 - `plurora/agentic-forge-lab` 提供 scratch branch、candidate、compare、promote 和 replay；
-- 第三方 replacement fixture 检查这些官方实现没有隐式优先级。
+- 第三方 replacement fixture 检查第一方实现没有隐式优先级。
 
 真实模型出站已经由独立的 model/inference 包和 Host outbound boundary 提供。Agent 包可以在 manifest 权限、capability binding 和用户/Host policy 允许时消费这些能力，但不能直接读取 raw API key、绕过 network declaration，或把 prompt/response 写入未脱敏审计。
 
@@ -63,7 +63,7 @@ Agent adapter、参考包和 shell integration 不能：
 
 - import runtime private module；
 - 绕过 package、capability、permission、proposal 或 Change boundary；
-- 在 UI 中硬编码官方 package ID 作为优先实现；
+- 在 UI 中硬编码第一方 Package ID 作为优先实现；
 - 在 event、proposal、receipt 或 audit 中暴露 raw secret；
 - 默认提供不受约束的 bash/edit/write 或任意远程 shell；
 - 把 caller 提供的 session、target、path 或 network destination 当作授权依据；

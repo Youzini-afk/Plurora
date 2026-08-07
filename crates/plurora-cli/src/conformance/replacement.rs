@@ -2,7 +2,7 @@
 //! with a third-party package, no platform privilege or hardcoding required.
 //!
 //! Also covers Phase J6: proving third-party agent runtime is replaceable
-//! with the official pi-agent-runtime-lab.
+//! with the first-party pi-agent-runtime-lab.
 
 use std::path::PathBuf;
 
@@ -188,7 +188,7 @@ pub(crate) async fn thirdparty_seed_invocation() -> anyhow::Result<()> {
     Ok(())
 }
 
-/// Proves that when both an official and a third-party package provide the same
+/// Proves that when both a first-party and a third-party Package provide the same
 /// capability ID, the kernel does NOT prefer the first-party Package. The ambiguous
 /// route is rejected, requiring explicit provider selection — same as any other
 /// duplicate-provider scenario.
@@ -210,7 +210,7 @@ pub(crate) async fn ambiguous_no_publisher_priority() -> anyhow::Result<()> {
         ))
         .await?;
 
-    // Without explicit provider, the route should be ambiguous — NOT preferred to official
+    // Without explicit provider, the route should be ambiguous — NOT preferred to the first-party implementation
     let denied = runtime
         .invoke_capability(CapabilityInvocationRequest {
             handle: None,
@@ -227,7 +227,7 @@ pub(crate) async fn ambiguous_no_publisher_priority() -> anyhow::Result<()> {
         "ambiguous route should be rejected, first-party Package should NOT win"
     );
 
-    // With explicit third-party provider, it should work — proving no official priority
+    // With explicit third-party provider, it should work — proving no publisher priority
     let result = runtime
         .invoke_capability(CapabilityInvocationRequest {
             handle: None,
@@ -346,7 +346,7 @@ pub(crate) async fn thirdparty_agent_runtime_surfaces() -> anyhow::Result<()> {
 
 /// Proves that the third-party agent-runtime capabilities produce
 /// deterministic, no-network, no-inference, approval-gated output
-/// — the same constraints as the official pi-agent-runtime-lab.
+/// — the same constraints as the first-party pi-agent-runtime-lab.
 pub(crate) async fn thirdparty_agent_runtime_invocation() -> anyhow::Result<()> {
     let (_store, runtime) = runtime();
     runtime
@@ -506,11 +506,11 @@ pub(crate) async fn thirdparty_agent_runtime_invocation() -> anyhow::Result<()> 
     Ok(())
 }
 
-/// Proves that when both the official pi-agent-runtime-lab and the third-party
+/// Proves that when both the first-party pi-agent-runtime-lab and the third-party
 /// agent-runtime are loaded, the composition check with the third-party as the
-/// required package and official as replacement_candidate succeeds. This
-/// verifies no official priority: the third-party is the selected provider and
-/// official is only a candidate.
+/// required package and the first-party Package as replacement_candidate succeeds. This
+/// verifies no publisher priority: the third-party is the selected provider and
+/// the first-party Package is only a candidate.
 pub(crate) async fn composition_agent_runtime_replacement() -> anyhow::Result<()> {
     composition::composition_check(PathBuf::from(
         "examples/compositions/agent-runtime-replacement/composition.yaml",

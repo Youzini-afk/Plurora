@@ -1,6 +1,6 @@
 # Error Codes (v1)
 
-Plurora v1 reserves JSON-RPC application error numbers `-32000..-32099`. The current runtime `ProtocolError.code` remains a string identifier; the table assigns canonical numeric aliases for cross-language implementations and future JSON-RPC adapters.
+Plurora v1 reserves JSON-RPC application error numbers `-32000..-32099`. The current runtime `ProtocolError.code` remains a string identifier; the table assigns stable numeric equivalents for cross-language implementations and future JSON-RPC transports.
 
 | Number | String identifier | Name | When emitted | Recovery hint |
 |---:|---|---|---|---|
@@ -11,7 +11,7 @@ Plurora v1 reserves JSON-RPC application error numbers `-32000..-32099`. The cur
 | -32004 | `runtime/error/ambiguous_route` | AmbiguousRoute | Capability resolution found multiple providers. | Specify provider_package_id or a tighter version constraint. |
 | -32005 | `runtime/error/schema_invalid` | SchemaInvalid | Manifest/capability input/output/event schema validation failed. | Validate locally with the public schemas and resend. |
 | -32006 | `runtime/error/package_state` | PackageState | Package/session/stream is closed, not loaded, degraded, or not ready. | Load/restart/open the resource before retrying. |
-| -32007 | `runtime/error/unsupported_contract` | UnsupportedContract | An explicitly requested contract profile, layer, or version cannot be satisfied exactly. | Read `host.info` and select an advertised profile/version; do not assume automatic downgrade. |
+| -32007 | `protocol/error/unsupported_contract` | UnsupportedContract | An explicitly requested contract profile, layer, or version cannot be satisfied exactly. | Read `host.info` and select an advertised profile/version; do not assume automatic downgrade. |
 | -32010 | `manifest/invalid_package_id` | InvalidPackageId | Manifest package id is not a namespaced id. | Use an id like `org/package`. |
 | -32011 | `manifest/invalid_namespaced_id` | InvalidNamespacedId | Capability, schema, surface, extension point, or hook id lacks namespace. | Use slash-separated package-owned ids. |
 | -32012 | `manifest/invalid_version` | InvalidVersion | Semver-like version validation failed. | Use `MAJOR.MINOR.PATCH`. |

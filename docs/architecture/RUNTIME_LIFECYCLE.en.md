@@ -2,98 +2,85 @@
 
 > [English](./RUNTIME_LIFECYCLE.en.md) · [中文](./RUNTIME_LIFECYCLE.md)
 
-This document records the Package, Session, Proposal, and Capability Invocation lifecycles coordinated by the current Contract V1 runtime. They are operative compatibility contracts, not a permanent declaration that the constitutional substrate knows or must know exactly these nouns.
-
-These lifecycles do not describe turns, chats, prompts, or other domain operations. Domain meaning belongs to adopted Protocols, Components, or Products; Contract V1 commonly carries it through Package writers and event namespaces.
+This document records the Package, Context, Proposal, and Capability Invocation lifecycles coordinated by the current public-contract runtime. These are operative contracts, not a claim that every Plurora product must organize its domain around the same nouns.
 
 ## Package lifecycle
 
 ```text
-discovered  manifest visible to the host
-loading     manifest validated, sandbox prepared, ABI checked
-starting    entry point booted, kernel handshake, capabilities and hooks registered
-ready       accepting calls and dispatches
-degraded    reachable but reporting reduced ability (heartbeat slow, partial features)
-stopping    graceful shutdown signal sent
-stopped     resources released
-unloaded    no longer active in the host
+discovered  Manifest visible to the Host
+loading     Manifest validated and execution boundary prepared
+starting    entry starting and declarations registered
+ready       accepting supported calls
+loaded      Package registration committed
+degraded    reachable but reduced or failed
+stopping    shutdown initiated
+stopped     execution resources released
+unloaded    Package removed from the live registry
 ```
 
-Each transition emits a `kernel/v1/package.*` event. Subscribers react through the public protocol, including observability tools and other packages. The kernel exposes no private hook for package state.
+Transitions emit platform-owned `host/package.*` events with writer `plurora/runtime`. Subscribers observe them through the public journal; there is no private first-party lifecycle channel.
 
-## Session lifecycle
+## Context lifecycle
 
-A session is a labeled event stream with an attached package set and a permission scope. The kernel does not assign any other meaning to it.
+A Context is a labeled event stream with an active Package set and authority scope. The runtime does not assign content meaning to it.
 
 ```text
-requested   open() received, principal and labels supplied
-opening     context/before_open dispatched (sync, vetoable)
-open        context/opened emitted
-            event log accepting appends from authorized writers
-            capability invocations dispatching against the active package set
-forking     fork() received with parent session and forked-from sequence
-forked      context/forked emitted; child session inherits parent up to the chosen sequence
-closing     context/before_close dispatched (sync, vetoable)
-closed      context/closed emitted; log frozen for further appends
+requested   context.open received
+open        context/opened persisted
+forking     context.fork received with parent and sequence
+forked      child lineage recorded and context/forked persisted
+closing     context.close received
+closed      context/closed persisted; further appends rejected
 ```
 
-The runtime does not own a "current turn," "active actor," or any content-level state of a Session. Protocols or Components that need those concepts derive them from events, objects, and their own projections.
+The runtime owns identity, ordering, lineage, and authority boundaries. Protocols and Components derive domain state from journal events, objects, and projections.
 
 ## Proposal lifecycle
 
-The kernel mediates generic approval-gated change proposals. The lifecycle is content-free. It only knows the operations it can apply, such as `asset.put` and `projection.rebuild`.
+The `change.proposal.*` facade mediates approval-gated generic changes:
 
 ```text
-created     proposal recorded under requesting principal; change/proposal.created emitted
-approved    approver decision recorded; change/proposal.approved emitted
-rejected    approver decision recorded; change/proposal.rejected emitted
-applied     approved proposal executed against the kernel; change/proposal.applied emitted
-failed     application or validation failed; change/proposal.failed emitted
+created     proposal recorded; change/proposal.created
+approved    review decision recorded; change/proposal.approved
+rejected    review decision recorded; change/proposal.rejected
+applied     approved operations committed; change/proposal.applied
+failed      validation or application failed; change/proposal.failed
 ```
 
-A package or assistant principal cannot apply a proposal directly. It must reach `approved` first. The kernel does not invent domain-specific proposal semantics; richer operations such as multi-step transactions and package-side compensation belong to packages built on top.
+Apply rechecks authority and terminal state. Proposal payload meaning remains outside the constitutional substrate.
 
 ## Capability invocation lifecycle
 
 ```text
-requested        invoke(id, version, input) received
-authorizing      capability/before_invoke dispatched (sync, vetoable)
-routed           provider selected by id+version+session package set
-running          provider executing; streaming chunks may flow
-completed        capability/completed emitted with output (or stream end)
-failed           capability/failed emitted with structured error
-cancelled        cancellation acknowledged by provider; failed/completed event records the outcome
+requested        capability.invoke or capability.stream received
+authorizing      caller handle, scope, permissions, and input checked
+intercepting     capability/before_invoke dispatched
+routed           provider selected explicitly or unambiguously
+running          provider executes; stream frames may be emitted
+completed        capability/completed or stream-ended terminal recorded
+failed           capability/failed or stream-error terminal recorded
+cancelled        cancellation terminal recorded
+timed out        timeout terminal recorded
 ```
 
-The kernel records invocations as kernel events. The contents of `input` and `output` are opaque to the platform. They are validated only against the provider's declared schemas.
+Invocation input and output are provider-owned JSON validated against declared schemas. The runtime records authority and execution evidence without interpreting domain content.
 
-## Cancellation and timeouts
+## Deadlines and cancellation
 
-Every long-running operation has a deadline, including capability invocation, hook dispatch, and package start. The deadline is derived from manifest sandbox policy plus host policy. Exceeding it triggers cancellation, and the kernel records the outcome.
+Long-running execution is bounded by Manifest sandbox policy and Host policy. Cancellation and timeout prevent further stream chunks and produce distinct terminal state. Domain-specific actions such as “regenerate” remain Package capabilities rather than platform lifecycle primitives.
 
-The kernel does not invent its own cancellation semantics for content. There is no "regenerate" or "stop generating" in the platform. Such operations are package capabilities.
+## Restart and replay
 
-## Replay and bootstrap
+On Host restart:
 
-When a host restarts:
+1. durable stores and profiles are opened;
+2. Manifests are rediscovered and autoloaded Packages re-enter their lifecycle;
+3. journal data is immediately readable according to authority;
+4. Components rebuild their own projections through public replay;
+5. interrupted Host operations use their domain-specific durable recovery rules.
 
-1. Manifests are rediscovered.
-2. Packages move through `loading` and `starting`.
-3. Stored sessions are accessible for read-only replay immediately.
-4. A session resumes write operations only after its required packages reach `ready`.
+The runtime does not reconstruct hidden content state outside public events, objects, receipts, and registered stores.
 
-Packages that need to rebuild internal state from the event log do so via `events.read` and the replay stream. The kernel offers no other recovery mechanism.
+## Deliberate omissions
 
-## Errors
-
-The kernel classifies errors only at its own boundary: transport, manifest, schema, permission, capacity, lifecycle, ambiguous-route. Package errors flow through capability invocations as opaque structured failures and are recorded under `capability/failed`.
-
-## What this lifecycle does not describe
-
-- No turn, no message, no prompt cycle.
-- No model call orchestration.
-- No memory update flow.
-- No agent task.
-- No world tick.
-
-All of the above belong inside packages. None of them are kernel lifecycles.
+This lifecycle does not define turns, messages, prompts, model orchestration, memory updates, agent tasks, or world ticks. Protocols, Components, and Products may define those lifecycles independently.

@@ -10,7 +10,7 @@
 
 关键约束：
 - 不新增 `platform.experience.*`、`platform.world.*`、`platform.turn.*`、`platform.chat.*` 或 `platform.memory.*`。
-- Experience 包是普通包，没有内核特权。
+- Experience Package 是普通 Package，没有 substrate 特权。
 - 当前 Experience 描述符、状态 projection、checkpoint 和恢复计划由对应 Component / Product 的 Package 分发，是产品工件而不是基底原语。
 - 所有行为通过公开协议完成。
 
@@ -184,11 +184,11 @@ Experience 可以通过 `bind_agent_run` 连接到 Agentic Forge：
 
 ## 第三方替换
 
-Experience-runtime 包是普通包。任何满足相同 surface 和能力契约的第三方包都可以替换它。替换规则：
+Experience-runtime Package 是普通 Package。任何满足相同 surface 与 capability 契约的第三方 Package 都可以替换它。替换规则：
 
 - 同等 surface slot（experience_entry、play_renderer、forge_panel、assistant_action）
 - 同等能力形状
-- 无 official priority
+- 无 publisher priority
 - 通过 composition descriptor 声明替换
 
 ## 红线

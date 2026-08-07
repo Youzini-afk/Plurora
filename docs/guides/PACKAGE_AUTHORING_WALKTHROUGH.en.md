@@ -88,7 +88,7 @@ cargo run -p plurora-cli -- package check examples/packages/thirdparty-playable-
 cargo run -p plurora-cli -- composition check examples/compositions/playable-seed-replacement/composition.yaml
 ```
 
-The package id is `thirdparty/playable-seed`, not `plurora/*`, and it exposes compatible Play/Forging/Assistant/Asset surfaces without official priority.
+The package id is `thirdparty/playable-seed`, not `plurora/*`, and it exposes compatible Play/Forging/Assistant/Asset surfaces without publisher priority.
 
 ## 4. Load the package in a host profile
 
@@ -125,7 +125,7 @@ First-party Packages under `packages/plurora/` are reference implementations, no
 
 A third-party package should be able to replace any of these when it exposes compatible surfaces and capabilities.
 
-The `examples/packages/thirdparty-playable-seed` package is the current proof. Checks verify that its surfaces are discoverable, capabilities invoke through normal routing, and composition checks pass. Shared capability ids are rejected as ambiguous unless an explicit provider is selected. There is no implicit official priority.
+The `examples/packages/thirdparty-playable-seed` package is the current proof. Checks verify that its surfaces are discoverable, capabilities invoke through normal routing, and composition checks pass. Shared capability ids are rejected as ambiguous unless an explicit provider is selected. There is no implicit publisher priority.
 
 ## Invariants
 
@@ -266,9 +266,9 @@ cargo run -p plurora-cli -- composition check /tmp/my-board-composition/composit
 - State capability coverage: shows `create_checkpoint` and `draft_recovery` provider counts
 - Optional package coverage: hints about `memory-lab` and `experience-observability-lab` for richer experiences
 
-### 8.4 Compare with the official reference
+### 8.4 Compare with the first-party reference
 
-The official `plurora/playable-creation-board` package has the same surfaces and capabilities. Your third-party package uses the same public manifest, capability, and surface path. It has no privilege and no special routing. When both are loaded, the kernel does not prefer the first-party Package. If you want to replace it in a composition, declare your package as the primary provider and the first-party Package as a `replacement_candidate`.
+The first-party `plurora/playable-creation-board` Package has the same surfaces and capabilities. Your third-party Package uses the same public Manifest, capability, and surface path. It has no privilege and no special routing. When both are loaded, the runtime does not prefer the first-party Package. If you want to replace it in a composition, declare your Package as the primary provider and the first-party Package as a `replacement_candidate`.
 
 ### 8.5 For a richer lifecycle: playable-experience template
 

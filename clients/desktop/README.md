@@ -39,7 +39,7 @@ stages it as Tauri's `plurora-host` external binary. On launch Desktop:
 
 - creates or merges a writable `<data>/profiles/desktop.yaml` instead of using the transient in-memory Host defaults;
 - configures a profile-relative SQLite event store (`desktop-events.sqlite`) so sessions, runtime projections, deployment jobs, and revisions survive Desktop restarts;
-- copies bundled official manifests into `<data>/desktop/plurora-packages/` and autoloads git, integrity, install, Docker runtime, project intake, secret store, and workspace labs in dependency-safe order;
+- copies bundled first-party Manifests into `<data>/desktop/plurora-packages/` and autoloads git, integrity, install, Docker runtime, project intake, secret store, and workspace labs in dependency-safe order;
 - binds the Host to an OS-assigned `127.0.0.1` port;
 - supplies a per-launch token through the child environment, never argv;
 - waits for the stable listen handshake and `/healthz`;

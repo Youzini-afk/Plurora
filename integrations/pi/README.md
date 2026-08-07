@@ -85,7 +85,7 @@
 每次 agent infrastructure 更新都要证明：
 
 - 没有新增 `platform.agent.*`、`platform.model.*`、`platform.prompt.*`、`platform.memory.*`、`platform.turn.*`。
-- official agent/reference packages 没有优先级。
+- 第一方 agent/reference packages 没有优先级。
 - tool bridge 对 ambiguous provider 拒绝或要求显式 provider。
 - unauthorized tool calls 失败并审计。
 - proposal 未批准不能 apply。

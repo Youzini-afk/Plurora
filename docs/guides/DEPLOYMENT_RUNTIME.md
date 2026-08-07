@@ -22,7 +22,7 @@ Docker、git、安装、secret store、workspace、adapter 都不是内核概念
 - `LocalExecExecutor` trait：默认 `DenyAllLocalExecExecutor`，profile 显式开启后可用 `LiveLocalExecExecutor`。
 - `LiveLocalExecExecutor`：只接受 argv 数组，不接受 shell 字符串；cwd、env、日志、超时、kill 都由 host 控制。
 - `plurora-service` 反代：`/p/<route_id>/...` 继续保留并位于 Host 认证内；如果 route 显式选择 `public`，且设置 `PLURORA_APP_BASE_DOMAIN=apps.example.com` 或 `--app-base-domain apps.example.com`，才会额外启用 `<slug>.apps.example.com/` 免 Host 认证虚拟主机，让社区应用拥有根路径 `/`。两种入口都只指向 active loopback port lease；禁 redirect；剥离或重写危险 header；限制响应体；支持 HTTP 与 WebSocket。
-- `plurora/docker-runtime-lab`：普通官方能力包，使用 `bollard` 管理 Docker 容器。默认无 Docker 时 fail-closed；真实 Docker smoke 需要显式 opt-in。
+- `plurora/docker-runtime-lab`：普通第一方 capability Package，使用 `bollard` 管理 Docker 容器。默认无 Docker 时 fail-closed；真实 Docker smoke 需要显式 opt-in。
 - Target driver：内置 `local` 与 enrolled Agent 使用相同的 durable operation、artifact transfer、declarative verifier、deployment apply/stop 和 receipt 模型；Agent 上游仍只绑定 loopback，并经 target/route/lease/epoch 约束的认证 tunnel 回到 Host proxy。
 - Web 项目控制台：显示 target / exec / port / proxy 诊断，以及 host-plane 的活动修订、恢复状态、修订历史和最近任务。若项目声明部署描述符，用户可显式选择 Host 认证或公开 route，再点击 Deploy / Stop、启动 Build & Deploy、恢复或回滚；Development 区还可把已验证 ChangeSet 送入 private preview、独立部署审批、activation 和中断对账。默认保持 Host 认证。
 - 持久化与回放：exec / port / proxy 注册表的变更都写进事件日志，host 重启时回放重建。

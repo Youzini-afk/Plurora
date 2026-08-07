@@ -2387,11 +2387,11 @@ export const labels = {
     packagesEyebrowLoading: "已安装包 · 加载中…",
     packagesEyebrowCount: (count) => `已安装包 · ${count} 个包`,
     packagesTitle: "工作台清单",
-    packagesDescription: "此工作台中安装的项目、官方包和依赖。刷新会检查上游来源。",
+    packagesDescription: "此工作台中安装的项目、第一方 Package 和依赖。刷新会检查上游来源。",
     packagesFilterPlaceholder: "筛选包…",
     packagesFilterAll: "全部",
     packagesFilterProjects: "项目",
-    packagesFilterPlurora: "官方",
+    packagesFilterPlurora: "Plurora",
     packagesFilterThirdParty: "第三方",
     packagesRefreshing: "正在刷新清单…",
     packagesRefresh: "刷新",
@@ -2496,7 +2496,7 @@ export const labels = {
     aboutChannel: "通道",
     aboutWhat: "Plurora 是什么",
     aboutPara1:
-      "Plurora 是一个内核，也是一份契约。内核在沙盒中托管你的项目；契约让任何项目——官方、社区或自建——都能成为一等公民。",
+      "Plurora 是一个内核，也是一份契约。内核在沙盒中托管你的项目；契约让任何项目——Plurora、社区或自建——都能成为一等公民。",
     aboutPara2:
       "它运行在你的机器上，使用你的密钥、你的文件和你的网络。没有 SaaS 账号、没有中心注册表、没有遥测。你安装的项目保存在本地平台数据目录中，直到你移除它们。",
     aboutPara3: "你现在看到的 shell 只是众多可能 UI 之一。任何人都可以编写另一个。平台是契约，而不是这个窗口。",

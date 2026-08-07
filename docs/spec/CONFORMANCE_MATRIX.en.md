@@ -105,7 +105,7 @@ Surface/static bundle and bridge coverage also includes these stable assertions:
 | events | package denied when writing without `events.append` | implemented in unit tests |
 | events | package denied when reading without `events.read` | implemented |
 | events | package denied when writing another namespace | implemented in unit tests |
-| events | package denied when writing `kernel/v1/...` | implemented in unit tests |
+| events | Package denied when writing a registered platform-owned kind such as `context/opened` | implemented in unit tests |
 | events | closed session rejects append | implemented |
 | events | sequence-range replay with filters | implemented |
 | package | valid manifest loads | implemented |
@@ -120,7 +120,7 @@ Surface/static bundle and bridge coverage also includes these stable assertions:
 | capability | ambiguous provider rejected | implemented in unit tests |
 | capability | explicit provider selection resolves duplicate providers | implemented |
 | capability | version constraint filters providers | implemented |
-| official equality | official-looking package has no route precedence | implemented |
+| publisher equality | a `plurora/*`-looking Package has no route precedence | implemented |
 | hooks | veto fixture reports veto | implemented in unit tests |
 | hooks | stable ordering by precedence/package/handler | implemented |
 | hooks | before event append veto blocks operation | implemented |
@@ -147,8 +147,8 @@ Surface/static bundle and bridge coverage also includes these stable assertions:
 | secret store | 10 secret_store cases: put / has / list / delete / health plus env/store/composite resolver paths | implemented |
 | protocol | method list contains no content methods | implemented in unit tests |
 | protocol | structured permission error code | implemented |
-| protocol / legacy | canonical and legacy alias results, permissions, and error mapping are equivalent | implemented |
-| protocol / canonical | layered-namespace smoke calls only canonical Host/Shell/Change/Projection IDs and explicitly negotiates the default and Shell Default profiles | implemented |
+| protocol / identity | the registry exposes one wire ID per method, publishes no aliases, and rejects unknown identities | implemented |
+| protocol / owner namespaces | smoke calls only Host/Shell/Change/Projection owner IDs and explicitly negotiates the default and Shell Default profiles | implemented |
 | protocol / negotiation | unknown layer versions return `unsupported_contract` explicitly | implemented |
 | protocol / negotiation | failed negotiation never silently downgrades and has zero handler side effects | implemented |
 | protocol | in-process protocol dispatcher calls host.info | implemented |
@@ -188,7 +188,7 @@ Surface/static bundle and bridge coverage also includes these stable assertions:
 | outbound | model provider outbound shape fake executor (three-provider host/method/path/secret_ref shapes pass outbound boundary, call_count=3, executor_kind Fake) | implemented |
 | first-party Packages | model-routing-lab resolves deterministic route plans with explicit fallbacks and normalized params | implemented |
 | first-party Packages | pi-agent-runtime-lab produces no-inference/no-network run plans, approval-gated proposals, trace summaries, and discoverable surfaces | implemented |
-| first-party Packages | capability-tool-bridge-lab marks ambiguous provider rejected, explicit third-party provider available, official not preferred, missing provider rejected, denied preview reports missing permission, raw secret unsafe_blocked | implemented |
+| first-party Packages | capability-tool-bridge-lab marks ambiguous provider rejected, explicit third-party provider available, first-party provider not preferred, missing provider rejected, denied preview reports missing permission, raw secret unsafe_blocked | implemented |
 | first-party Packages | inference-local-lab describe_capabilities: no network/secret required, transports include in_memory/local_process, operation_kinds include generate/classify/transform | implemented |
 | first-party Packages | inference-local-lab invoke non-HTTP succeeds with no URL/header/status/messages fields, network_performed=false, transport_performed=in_memory_fake | implemented |
 | first-party Packages | inference-local-lab invoke rejects http transport, HTTP-shaped fields (url/header/status_code), messages-shaped fields (messages/system/user/assistant), raw secret | implemented |
@@ -199,7 +199,7 @@ Surface/static bundle and bridge coverage also includes these stable assertions:
 | first-party Packages | inference-playtest-lab rejected proposal cannot apply | implemented |
 | first-party Packages | inference-playtest-lab approve/apply succeeds, asset written, branch_plan + fork creates branch with proposal/source inference provenance | implemented |
 | first-party Packages | inference-playtest-lab output contains no messages/prompt/chat/platform.model terms | implemented |
-| in-process packages | non-official `/preview` suffix does not receive official asset-lab fallback behavior | implemented |
+| in-process packages | non-first-party `/preview` suffix does not receive first-party asset-lab fallback behavior | implemented |
 | in-process packages | unknown registered in-process capability fails loudly instead of returning generic fallback success | implemented |
 | first-party Packages | assistant-lab returns approval-gated proposals through grants | implemented |
 | play-creation | blank loop exercises assistant proposal, branch, asset, projection | implemented |
@@ -214,11 +214,11 @@ Surface/static bundle and bridge coverage also includes these stable assertions:
 | first-party Packages | composition-lab v2 diagnostics return surface/capability/permission/replacement fields and compat-report | implemented |
 | replacement | third-party playable-seed surfaces discoverable through shell.contribution.list | implemented |
 | replacement | third-party playable-seed capability invocation works through normal routing | implemented |
-| replacement | ambiguous official+thirdparty equivalent capability rejects route without official priority | implemented |
+| replacement | ambiguous first-party + third-party equivalent capability rejects route without publisher priority | implemented |
 | replacement | composition descriptor passes with third-party playable-seed replacement | implemented |
 | replacement | third-party agent-runtime surfaces (assistant_action/forge_panel/home_card) discoverable through shell.contribution.list | implemented |
 | replacement | third-party agent-runtime capability invocation produces no-inference/no-network, approval-gated proposal, provenance match | implemented |
-| replacement | composition descriptor passes with third-party agent-runtime replacement, official is replacement_candidate only | implemented |
+| replacement | composition descriptor passes with third-party agent-runtime replacement, the first-party Package is replacement_candidate only | implemented |
 | network | package without network permission denied outbound, produces outbound.denied audit | implemented |
 | network | allowlisted host+method allowed, produces redacted outbound.request audit | implemented |
 | network | host/method mismatch denied | implemented |
@@ -322,7 +322,7 @@ Surface/static bundle and bridge coverage also includes these stable assertions:
 | storage backend | in-memory and SQLite rehydrate event replay semantics are identical | implemented |
 | storage lab | storage-lab contract shape contains no kernel database terms (platform.sqlite/postgres/tdb/vector/embedding/collection/sql/database) | implemented |
 | storage lab | storage-lab backend class candidates contain capability flags only, no secret-bearing backend config | implemented |
-| storage lab | package state plan namespace belongs to owning package, no official priority | implemented |
+| storage lab | package state plan namespace belongs to owning package, no publisher priority | implemented |
 | storage lab | put document preview does not perform real write (write_performed=false) | implemented |
 | storage lab | get document preview does not perform real read (read_performed=false) | implemented |
 | storage lab | query prefix preview does not execute real query (query_performed=false) | implemented |
@@ -357,7 +357,7 @@ Surface/static bundle and bridge coverage also includes these stable assertions:
 | creator loop | network access triggers non-deterministic hint in package diagnostics | implemented |
 | creator loop | composition check provides experience surface coverage, replacement hints, checkpoint/recovery coverage, memory/observability hints | implemented |
 | creator loop | playable-creation-board package check output is verifiable with expected diagnostic fields | implemented |
-| creator loop | third-party playable-seed replaces official playable-seed without privilege | implemented |
+| creator loop | third-party playable-seed replaces first-party playable-seed without privilege | implemented |
 | capability handles | package load auto-mints capability handles from manifest declarations | implemented |
 | capability handles | `authority.handle.attenuate` creates a narrower child handle and cannot expand authority | implemented |
 | capability handles | `authority.handle.revoke` immediately invalidates handles and related calls | implemented |
@@ -403,8 +403,8 @@ Surface/static bundle and bridge coverage also includes these stable assertions:
 | schema | capability input schema rejects invalid input | implemented |
 | schema | capability output schema rejects invalid output | implemented in runtime path |
 | schema | event payload schema rejects invalid payload when schema is declared | implemented |
-| official equality | an `plurora/...` package has no special routing or permissions | implemented |
-| official equality | kernel starts and conformance passes with no first-party Packages loaded | implemented |
+| publisher equality | an `plurora/...` package has no special routing or permissions | implemented |
+| publisher equality | kernel starts and conformance passes with no first-party Packages loaded | implemented |
 
 ## CLI target output
 

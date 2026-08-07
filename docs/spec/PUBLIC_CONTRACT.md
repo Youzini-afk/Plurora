@@ -1,8 +1,8 @@
-# 内核 v1 契约
+# 公开契约 v1
 
-> [English](./KERNEL_V1_CONTRACT.en.md) · [中文](./KERNEL_V1_CONTRACT.md)
+> [English](./PUBLIC_CONTRACT.en.md) · [中文](./PUBLIC_CONTRACT.md)
 
-本文档是 Plurora 当前平台契约的 v1 版本规范。它定义现行公开边界：方法、事件、错误码、能力句柄、清单声明、schema 与 conformance 期望。任何参与方都可以通过此契约调用平台；任何实现都必须满足相同的 schema 与行为 conformance。`platform.*` 是兼容名称，不自动等同于长期宪法基底。
+本文档定义 Plurora 当前 v1 公开契约：方法、事件、错误、capability handle、Manifest 声明、schema、协商与 conformance。所有参与方使用同一套按 owner 分层的身份与行为规则；契约不暴露并行 alias surface。
 
 v1 的设计目标不是把某种内容形态写进核心机制，而是让组件、安全执行、审计、SDK 与第三方客户端拥有稳定边界。角色、世界、提示词、模型、消息、记忆等内容语义属于相应协议、组件或产品，不属于宪法基底。
 
@@ -16,16 +16,16 @@ v1 的设计目标不是把某种内容形态写进核心机制，而是让组�
 
 v1 契约支持两种参与方式：
 
-- **路径 A**（默认）：包通过 `entry.contract: "v1"` 接受契约约束。Manifest 声明能力、权限与副作用；运行时强制权限；能力调用通过内核铸造的句柄；生命周期与审计事件完整记录。
-- **路径 B**：包通过 `entry.contract: "none"` 选择退出契约约束。内核仍托管进程并发出生命周期事件，但不强制能力/权限检查，也不会为该包创建 v1 能力绑定。
+- **路径 A**（默认）：Package 通过 `entry.contract: "v1"` 接受契约约束。Manifest 声明 capability、permission 与 effect；runtime 强制执行；调用使用 runtime-minted handle；生命周期与审计事件会被记录。
+- **路径 B**：Package 通过 `entry.contract: "none"` 退出 v1 capability enforcement。Host 仍可运行进程并记录生命周期，但不会注入 v1 authority binding。
 
-两种路径都是平台一等公民。路径 A 面向需要内核能力、网络、secret、审计和 SDK 的集成包；路径 B 面向自包含应用、迁移期工具或不需要平台能力的第三方进程。
+路径 A 适合需要平台 authority、network、secret、audit 与 SDK 的 Package。路径 B 适合只需要托管、不需要平台 authority 的自包含应用与工具。
 
-## 协议方法矩阵（80）
+## 公开方法矩阵（80）
 
 完整请求/响应 schema 位于 `docs/spec/v1/schemas/methods/`。方法名是稳定公开 API；v1 只允许 additive 变更。
 
-### `platform.session.*`（6）
+### `context.*`（6）
 
 | 方法 | 状态 | 契约 |
 |---|---:|---|
@@ -36,15 +36,15 @@ v1 契约支持两种参与方式：
 | `context.get` | partial | 查询单个 session；行为与错误契约仍在加固。 |
 | `context.list` | planned | 预留 host 管理列表。 |
 
-### `journal.event.*`（3）
+### `journal.*`（3）
 
 | 方法 | 状态 | 契约 |
 |---|---:|---|
-| `journal.append` | implemented | 对非内核 writer 强制 namespace 和 `events.append`。 |
+| `journal.append` | implemented | 对 Package writer 强制 event ownership 与 `events.append`。 |
 | `journal.list` | partial | 按 session 列出事件，支持 sequence、limit、kind、writer 过滤与权限门控；跨后端一致性仍在加固。 |
 | `journal.subscribe` | planned | SSE replay/tail 路由已存在；公开 method dispatch 与 package-principal subscribe 权限尚未落地。 |
 
-### `platform.package.*`（7）
+### `host.package.*`（7）
 
 | 方法 | 状态 | 契约 |
 |---|---:|---|
@@ -56,16 +56,17 @@ v1 契约支持两种参与方式：
 | `host.package.logs` | partial | 捕获 subprocess stderr；stdout 保留给 JSON-RPC 帧。 |
 | `host.package.describe` | planned | 可由 status manifest 派生，公开方法预留。 |
 
-### `platform.capability.*`（5）
+### `capability.*`（5）
 
 | 方法 | 状态 | 契约 |
 |---|---:|---|
 | `capability.discover` | implemented | 列出注册的 capability descriptor。 |
 | `capability.describe` | planned | 预留 descriptor 单项查询。 |
 | `capability.invoke` | partial | 用调用者上下文与 capability handle 强制权限；验证 schema；completed/failed 终态挂接 EffectReceipt；支持 recorded replay 与 branch re-execute；跨 entry/transport 一致性仍在加固。 |
-| `capability.stream` / `cancel` | partial | 流式生命周期、取消、超时与事件已存在，ended/error/cancelled/timeout 产生可区分 terminal receipt；跨传输一致性继续加固。 |
+| `capability.stream` | partial | 启动 streaming invocation，产生有序 start/chunk/progress/terminal frame；ended/error/cancelled/timeout 生成可区分 terminal receipt。 |
+| `capability.cancel` | partial | 取消已知 active invocation、阻止后续 chunk，并记录 cancelled terminal state。 |
 
-### `platform.cap.*`（3）
+### `authority.handle.*`（3）
 
 | 方法 | 状态 | 契约 |
 |---|---:|---|
@@ -73,7 +74,7 @@ v1 契约支持两种参与方式：
 | `authority.handle.revoke` | partial | 立刻撤销句柄；完整子树传播仍需加固。 |
 | `authority.handle.list` | partial | 列出 package 当前持有的 live handles；delegate/lease refresh 尚未完成。 |
 
-### `platform.permission.*`（4）
+### `authority.grant.*` / `authority.decision.*`（4）
 
 | 方法 | 状态 | 契约 |
 |---|---:|---|
@@ -82,7 +83,7 @@ v1 契约支持两种参与方式：
 | `authority.grant.list` | partial | 列出当前 grants。 |
 | `authority.decision.list` | partial | 查询 grant/revoke 审计。 |
 
-### `platform.proposal.*`（6）
+### `change.proposal.*`（6）
 
 | 方法 | 状态 | 契约 |
 |---|---:|---|
@@ -91,9 +92,9 @@ v1 契约支持两种参与方式：
 | `change.proposal.list` | partial | 列出 proposal。 |
 | `change.proposal.approve` | partial | 要求 proposal-scoped review authority，标记已审批并写事件。 |
 | `change.proposal.reject` | partial | 要求 proposal-scoped review authority，标记已拒绝并写 denied receipt/event。 |
-| `change.proposal.apply` | partial | 重新检查 apply 与 required authority；旧 Proposal 适配为 Intent/ChangeSet/PolicyDecision/Commit，preflight 后应用 asset/projection 操作，并以 CAS 记录 operation 与 committed/failed/partial receipt。 |
+| `change.proposal.apply` | partial | 重新检查 apply 与 required authority；把当前 proposal facade 映射为 Intent/ChangeSet/PolicyDecision/Commit evidence，preflight object/projection operation，并以 CAS 记录 committed/failed/partial receipt。 |
 
-### `platform.asset.*`（3）
+### `object.*`（3）
 
 | 方法 | 状态 | 契约 |
 |---|---:|---|
@@ -101,7 +102,7 @@ v1 契约支持两种参与方式：
 | `object.get` | partial | 读取 asset record。 |
 | `object.list` | partial | 列出 asset records。 |
 
-### `platform.projection.*`（4）
+### `projection.*`（4）
 
 | 方法 | 状态 | 契约 |
 |---|---:|---|
@@ -110,18 +111,20 @@ v1 契约支持两种参与方式：
 | `projection.get` | partial | 读取 projection state。 |
 | `projection.list` | partial | 列出 projection。 |
 
-### `platform.outbound.*`（6）
+### `host.outbound.*`（6）
 
 | 方法 | 状态 | 契约 |
 |---|---:|---|
 | `host.outbound.audit` | partial | 查询出站审计与 terminal receipt descriptor；跨执行器视图一致性仍在加固。 |
 | `host.outbound.execute` | partial | 受 manifest network/secret_ref 约束的一元 HTTPS 出站；denied/error/success 均产生 receipt。 |
 | `host.outbound.stream` | partial | 受约束 SSE/NDJSON/raw 流式出站；terminal completion 产生 receipt。 |
-| `platform.outbound.websocket.*` | partial | 受约束 WSS open/send/close；连接生命周期与事件覆盖仍在加固。 |
+| `host.outbound.websocket.open` | partial | 通过 Host policy、secret resolution、audit 与 streaming event boundary 打开受 Manifest 约束的 WSS connection。 |
+| `host.outbound.websocket.send` | partial | 在 caller 与 connection 检查后，向 Host-owned connection 发送 bounded frame。 |
+| `host.outbound.websocket.close` | partial | 关闭 Host-owned connection，并发出 terminal completion evidence。 |
 
-Git 安装不是内核传输；未来由普通官方能力包 `plurora/git-tools-lab` 通过 `host.outbound.execute` 与 `permissions.filesystem.write` 实现。
+Git 安装不是 transport primitive；它属于普通第一方 capability Package `plurora/git-tools-lab`，通过 `host.outbound.execute` 与声明的 filesystem authority 实现。
 
-### `platform.target.*` / `exec.*` / `port.*` / `proxy.*`（17）
+### `host.target.*` / `host.exec.*` / `host.port.*` / `host.proxy.*`（17）
 
 | 方法 | 状态 | 契约 |
 |---|---:|---|
@@ -144,7 +147,7 @@ Git 安装不是内核传输；未来由普通官方能力包 `plurora/git-tools
 | `host.proxy.list` | partial | HostAdmin/HostDev only；列出 route。 |
 
 
-### `platform.project.*`（5）
+### `host.project.*`（5）
 
 | 方法 | 状态 | 契约 |
 |---|---:|---|
@@ -154,7 +157,7 @@ Git 安装不是内核传输；未来由普通官方能力包 `plurora/git-tools
 | `host.project.stop` | implemented | HostAdmin/HostDev only；停止 Running 项目并发出生命周期事件。 |
 | `host.project.status` | implemented | HostAdmin/HostDev only；返回项目状态、最近错误；Running 时包含 `running_session_id`。 |
 
-### `platform.host.*`（4）
+### `host.*` / `identity.current`（4）
 
 | 方法 | 状态 | 契约 |
 |---|---:|---|
@@ -163,7 +166,7 @@ Git 安装不是内核传输；未来由普通官方能力包 `plurora/git-tools
 | `host.diagnostics` | partial | 返回包/capability/hook 计数和本地诊断。 |
 | `identity.current` | planned | Identity provider 集成预留。 |
 
-### `platform.audit.*`（1）
+### `host.package.audit`（1）
 
 | 方法 | 状态 | 契约 |
 |---|---:|---|
@@ -186,26 +189,26 @@ Git 安装不是内核传输；未来由普通官方能力包 `plurora/git-tools
 
 | 分组 | 数量 | 示例 |
 |---|---:|---|
-| session | 3 | `context/opened`、`.closed`、`.forked` |
-| package lifecycle | 9 | `loading`、`starting`、`ready`、`loaded`、`stopping`、`stopped`、`unloaded`、`degraded`、`log` |
-| project lifecycle | 4 | `project.installed`、`.started`、`.stopped`、`.uninstalled` |
-| capability lifecycle | 3 | `capability.invoked`、`.completed`、`.failed` |
-| stream lifecycle | 7 | `stream.started`、`.chunk`、`.progress`、`.ended`、`.error`、`.cancelled`、`.timeout` |
-| permissions | 3 | `permission.granted`、`.revoked`、`.denied` |
-| proposals | 5 | `proposal.created`、`.approved`、`.rejected`、`.applied`、`.failed` |
-| assets / projections | 2 | `asset.put`、`projection.updated` |
-| outbound / websocket | 8 | `outbound.request`、`.denied`、completion events、websocket frames |
-| exec | 6 | `exec.request`、`.started`、`.completed`、`.failed`、`.stopped`、`.denied` |
-| port | 3 | `port.leased`、`.released`、`.denied` |
-| proxy | 3 | `proxy.registered`、`.unregistered`、`.denied` |
-| deployment | 2 | `deployment.reconciled`、`deployment.health` |
+| Context | 3 | `context/opened`、`context/closed`、`context/forked` |
+| Package lifecycle | 9 | `host/package.loading`、`.starting`、`.ready`、`.loaded`、`.stopping`、`.stopped`、`.unloaded`、`.degraded`、`.log` |
+| Project lifecycle | 4 | `host/project.installed`、`.started`、`.stopped`、`.uninstalled` |
+| Capability lifecycle | 3 | `capability/invoked`、`capability/completed`、`capability/failed` |
+| Stream lifecycle | 7 | `capability/stream.started`、`.chunk`、`.progress`、`.ended`、`.error`、`.cancelled`、`.timeout` |
+| Authority | 3 | `authority/grant.created`、`authority/grant.revoked`、`authority/denied` |
+| Change proposal | 5 | `change/proposal.created`、`.approved`、`.rejected`、`.applied`、`.failed` |
+| Object / projection | 2 | `object/put`、`projection/updated` |
+| Outbound / WebSocket | 8 | `host/outbound.request`、`.denied`、completion event、WebSocket frame |
+| Exec | 6 | `host/exec.request`、`.started`、`.completed`、`.failed`、`.stopped`、`.denied` |
+| Port | 3 | `host/port.leased`、`.released`、`.denied` |
+| Proxy | 3 | `host/proxy.registered`、`.unregistered`、`.denied` |
+| Deployment | 2 | `host/deployment.reconciled`、`host/deployment.health` |
 | error | 1 | `runtime/error` |
 
-非内核事件类型必须以 writer package id 加 `/` 开头。内核必须拒绝包写入 `kernel/v1/...` 或其他包 namespace。
+Package-owned event kind 必须以精确 writer Package ID 加 `/` 开头。Registry 中的平台事件只能由 `plurora/runtime` 写入；Package 不能冒充平台事件或其他 Package namespace。
 
 ## 能力句柄模型
 
-Manifest 声明的字符串是**权限上限**；运行时句柄是**实际权威**。包不能通过伪造字符串获得权威，必须使用内核在 load/handshake/init 阶段注入的 handle。
+Manifest 字符串是**authority ceiling**，runtime handle 是**实际 authority**。Package 不能通过伪造字符串提权，必须使用 runtime 在 load/handshake/init 阶段 mint 的 handle。
 
 - `authority.handle.attenuate(parent, constraints)` → 子句柄。
 - `authority.handle.revoke(handle)` → 立刻失效。
@@ -213,7 +216,7 @@ Manifest 声明的字符串是**权限上限**；运行时句柄是**实际权�
 
 句柄字段：
 
-- `id`：内核铸造的不可伪造标识。
+- `id`：不可伪造的 runtime-minted identifier。
 - `cap_type`：能力种类，如 capability invoke、events read、outbound。
 - `cap_version`：句柄语义版本。
 - `scope`：package、session、capability、provider、host 等范围。
@@ -242,7 +245,7 @@ Bindings 必须只包含调用方被授予的权威。路径 B 包不会收到 v
 `plurora audit --package <id>` 和 `host.package.audit` 报告 declared vs used authority 差异。审计输入来自：
 
 1. manifest 声明的 permissions、capabilities、secret_refs、network hosts；
-2. 内核铸造与衰减的 capability handles；
+2. runtime mint 与 attenuate 后的 capability handle；
 3. `capability.invoked|completed|failed` 与 outbound audit events；
 4. permission grants/revokes 与 package lifecycle；
 5. Path B 的 `contract_mode: "none"` 标记。
@@ -289,7 +292,7 @@ v1 仅允许 additive 变更：新增可选字段、新增方法、新增事件�
 
 ## 内容无关不变量
 
-当前 kernel crate 不得定义或要求内容形态概念，如 `Turn`、`Message`、`PromptFrame`、`ModelCall`、`Agent`、`World`、`Scene`、`Director` 或 `Memory`。此类概念由相应 Protocol、Component、Product 或 Client 拥有，不属于宪法基底；Contract V1 可以通过 Package writer 的事件、projection 和 capability 承载它们。
+宪法基底与公开契约 runtime 不得要求 `Turn`、`Message`、`PromptFrame`、`ModelCall`、`Agent`、`World`、`Scene`、`Director` 或 `Memory` 等内容形态概念。这些概念由相应 Protocol、Component、Product 或 Client 拥有；Contract V1 仅把它们作为 opaque 的 Package-owned event、object、projection 与 capability 承载。
 
 ## 对象契约
 
@@ -303,7 +306,7 @@ Session id 只表示当前 runtime 的排序与权限范围，不表示某种产
 
 `EventEnvelope` 是 append-only 事实记录。每个 envelope 至少包含 session id、sequence、writer package id、kind、schema version、timestamp、payload 和 metadata。Sequence 在单 session 内单调递增。
 
-内核只验证 namespace、权限和 schema 形状。事件语义属于 writer package。
+Runtime 只校验 owner、authority 与 schema 形状；事件语义属于其语义 owner。
 
 ### `PackageManifest`
 
@@ -325,7 +328,7 @@ requires:
       - "0123456789ABCDEF0123456789ABCDEF01234567"
 ```
 
-实际安装/解析由 `plurora/install-lab` 负责，内核不参与依赖解析。
+实际安装和解析由 `plurora/install-lab` 处理；宪法基底不负责依赖解析。
 详见 [`docs/guides/PACKAGE_INSTALLATION.md`](../guides/PACKAGE_INSTALLATION.md)。
 
 Manifest 是审核与句柄铸造输入，不是运行时权威本身。运行时权威必须通过 bindings 和 capability handles 表达。
@@ -340,11 +343,11 @@ Descriptor 描述 provider-owned capability：id、version、input schema、outp
 
 ### `HookSubscription`
 
-Hook subscription 来自 manifest。内核负责排序、卸载清理和事件/能力生命周期分发。Hook handler 仍必须通过普通 capability 和权限边界执行。
+Hook subscription 来自 Manifest。Runtime 拥有稳定排序、卸载清理，以及当前四个 journal/capability interception point。任意 hook handler 的通用执行尚未完成；见 [`../architecture/EXTENSION_POINTS.md`](../architecture/EXTENSION_POINTS.md)。
 
 ### `AssetRecord`
 
-Asset record 是不透明 metadata：id、origin package、mime、hash、size、metadata。内核不解释 asset 内容。Content-addressed blob 存储与 package-principal asset 权限是后续底座项。
+Asset record 是 opaque metadata：id、origin Package、mime、hash、size 与 metadata。Runtime 不解释 asset 内容。
 
 ## 权限与拒绝语义
 
@@ -354,20 +357,20 @@ Asset record 是不透明 metadata：id、origin package、mime、hash、size、
 
 Host-dev 操作必须在协议上下文中显式标记为 host/dev。匿名 host 调用不能变成 package privilege。
 
-## 命名空间规则
+## Namespace 规则
 
-协议方法使用 `platform.<namespace>.<name>`。内核事件使用 `kernel/v1/<kind>`。包事件必须以 package id 加 `/` 开头。
+公开方法使用精确的 owner-based dot ID。第一段标明 Substrate、Host、Protocol 或 Shell owner，例如 `context.open`、`host.project.list`、`change.proposal.apply` 与 `shell.contribution.list`。
+
+平台事件由显式 59 项 registry 定义，只能由 `plurora/runtime` 写入。Package-owned event kind 必须以精确 Package ID 加 `/` 开头；Package capability ID 也使用同一 Package-owned slash namespace 约定。
 
 保留规则：
 
-- `platform.*` 方法只属于内核。
-- `kernel/v1/*` 事件只由内核写入。
-- `kernel.v2.*` 与 `kernel/v2/*` 留给 breaking changes。
-- 包不得声明看似内核 namespace 的 capability id。
+- 当前 registry 对每个公开方法只暴露一个 wire ID，不提供 alias；
+- Package 不能占用公开方法 ID，也不能写入 registry 中的平台事件 kind；
+- `plurora/*` 只表示第一方 Package 身份，不授予 runtime authority 或 routing priority；
+- method、event 或 schema 的 breaking semantic change 必须进入新的显式版本边界，不能原地改名。
 
-分层迁移新增的 Experimental canonical ID 与 legacy alias 由
-[`CONTRACT_REGISTRY.md`](CONTRACT_REGISTRY.md) 集中管理；它们不删除或重命名任何
-`platform.*` v1 入口。
+可执行身份与协商规则见 [`CONTRACT_REGISTRY.md`](CONTRACT_REGISTRY.md)。
 
 ## Schema 规则
 
@@ -411,7 +414,7 @@ Handshake 必须声明 package id、protocol version、contract mode、可用 ca
 
 Rust in-process package 只能通过 host catalog 加载。Manifest 声明的 in-process entry 必须能映射到 host 提供的 trait 实现。找不到 catalog entry 时 fail closed。
 
-In-process 包不享受官方特权。它仍通过 `ComponentEnv`、bindings、handles、schema 和 audit 参与 v1。
+In-process Package 不享受第一方特权，仍通过 `ComponentEnv`、binding、handle、schema 与 audit 参与 v1。
 
 ## WASM 与 remote 预留
 
@@ -445,15 +448,15 @@ store-backed references are resolved via the `StoreSecretResolver` against an ag
 
 ## Proposal 契约
 
-Proposal 是 approval-gated change，不是内容模型。内核只管理 lifecycle：create、approve、reject、apply、failed。approval/apply 边界执行显式 authority 检查，终态转换受 compare-and-set 保护；Operation payload 仍是不透明 JSON，但 raw secret scanning 与 schema 基本形状必须执行。
+Proposal 是 approval-gated change，不是内容模型。Runtime 管理 create、approve、reject、apply 与 failed 状态。Approval/apply 边界执行显式 authority 检查，terminal transition 受 compare-and-set 保护；operation payload 仍是 opaque JSON，并接受 raw-secret 与 schema 检查。
 
 当前 apply 支持通用 asset/projection 操作。更广事务、补偿与 revert 属于后续工作。
 
 ## Surface 契约
 
-Surface contribution 是 package 声明的 UI/UX 入口描述符。内核保存和列出 descriptor，不渲染 UI、不解释内容语义。Host shell 决定如何挂载 iframe、bundle 或 native surface。
+Surface contribution 是 Package 声明的 UI/UX 入口 descriptor。Runtime 保存和列出 descriptor，不渲染 UI，也不解释内容语义。Host shell 决定如何挂载 iframe、bundle 或 native surface。
 
-官方 surface 与第三方 surface 使用同一 descriptor、同一权限声明、同一审核路径。
+第一方与第三方 surface 使用同一 descriptor、permission declaration 与 review path。
 
 ## Conformance 要求
 
@@ -480,38 +483,29 @@ Host operator 应能通过公开方法或 CLI 看见：
 - Path B package 的 lifecycle 与 logs；
 - conformance percentage 与失败原因。
 
-## 与旧文档的关系
+## Canonical reference
 
-旧的 alpha 契约已被本文件取代。所有长期引用应指向 `KERNEL_V1_CONTRACT.md`。`docs/spec/v1/` 下的 registry、error codes、versioning 与 schemas 是本契约的机器可读补充。
+长期引用应指向 `PUBLIC_CONTRACT.md`。Contract Registry、error code、versioning rule、event registry 与 `docs/spec/v1/` 下的 schema 是本契约的机器可读补充。
 
-## 附录 A：方法 namespace 计数
+## 附录 A：方法 owner-prefix 计数
 
-| Namespace | Count |
+| Prefix | Count |
 |---|---:|
-| `platform.session.*` | 6 |
-| `journal.event.*` | 3 |
-| `platform.package.*` | 7 |
-| `platform.capability.*` | 5 |
-| `platform.cap.*` | 3 |
-| `platform.permission.*` | 4 |
-| `platform.proposal.*` | 6 |
-| `platform.asset.*` | 3 |
-| `platform.projection.*` | 4 |
-| `platform.outbound.*` | 6 |
-| `platform.target.*` | 4 |
-| `platform.exec.*` | 5 |
-| `platform.port.*` | 4 |
-| `platform.proxy.*` | 4 |
-| `platform.project.*` | 5 |
-| `platform.host.*` | 4 |
-| `platform.audit.*` | 1 |
-| `platform.surface.*` | 3 |
-| `platform.extension_point.*` | 2 |
-| `platform.hook.*` | 1 |
+| `authority.*` | 7 |
+| `capability.*` | 5 |
+| `change.*` | 6 |
+| `context.*` | 6 |
+| `host.*` | 40 |
+| `identity.*` | 1 |
+| `journal.*` | 3 |
+| `object.*` | 3 |
+| `projection.*` | 4 |
+| `protocol.*` | 3 |
+| `shell.*` | 2 |
 
 ## 附录 B：发布前检查
 
-发布 v1 兼容 host 前，应运行：
+发布 v1 Host 前，应运行：
 
 ```bash
 cargo test -p plurora-core
@@ -536,7 +530,7 @@ v1 不承诺：
 - 市场、包签名网络或依赖解析经济；
 - UI framework 或 Studio 私有 API。
 
-这些能力可以由普通包、host policy 或未来 round 提供，但不能破坏本契约的不变量。
+这些能力可以由普通 Package、Host policy 或未来 round 提供，但不能破坏本契约的不变量。
 
 ## 其他参考
 

@@ -1,23 +1,46 @@
 # v1 Versioning Policy
 
-## Method namespace
+> [English](./VERSIONING.en.md) · [中文](./VERSIONING.md)
 
-The historical v1 schema files retain their `platform.*` names. The Contract Registry may expose a layered canonical wire ID (for example `host.target.list`) while retaining the corresponding `platform.*` ID as an explicit compatibility alias. Both IDs resolve at one boundary to the same handler and v1 payload semantics. Future breaking wire contracts use a separately negotiated major version; they do not overwrite v1.
+## Exact identities
 
-## Schema rule
+Contract Registry `0.1.0` publishes one owner-based wire ID per method. The v1 tree contains no method aliases or parallel event namespaces. Schema filenames, `$id` URNs, OpenAPI operation IDs, runtime dispatch, and generated SDK methods all derive from the same exact identity.
 
-`docs/spec/v1/schemas/` is the public v1 contract artifact. v1 evolves additive-only:
+## Additive v1 rule
 
-- Optional fields, event kinds, methods, or enum variants may be added when old implementations can safely ignore them.
-- Fields must not be removed, field types must not change, optional fields must not become required, published enums must not be narrowed, and existing event payload meaning must not change.
-- Schema changes must pass `scripts/validate-schemas.sh`; CI sets `BASE_SCHEMA_DIR` and checks removals plus common structural breakage such as type/const changes, new required fields, enum narrowing, removed properties/definitions, tighter bounds, and incompatible combinator changes.
+`docs/spec/v1/schemas/` is the public v1 contract artifact. Within a published v1 boundary:
 
-This additive guarantee applies to the serialized v1 wire contract. The Rust crates and generated SDKs are still pre-1.0: adding an optional wire field can add a field to a public Rust struct and therefore break downstream struct literals. Consumers should prefer constructors, builders, or deserialization and follow each crate or SDK's semantic version when upgrading.
+- optional fields, methods, event kinds, or open enum values may be added only when existing implementations can safely ignore them;
+- fields must not be removed or change type;
+- optional fields must not become required;
+- closed enums must not be narrowed;
+- existing error and event meaning must not change;
+- unknown fields that are declared forward-compatible must remain readable.
 
-## When v2 happens
+Schema changes must pass `scripts/validate-schemas.sh`. CI compares against the base schema tree and checks removals plus common structural breakage such as type/const changes, new required fields, enum narrowing, removed properties or definitions, tighter bounds, and incompatible combinator changes.
 
-Use `kernel.v2.*` for breaking changes: required-field changes, existing field type changes, error-code semantic changes, incompatible permission model changes, or incompatible event payload reshaping. v2 does not overwrite v1; hosts may expose multiple versions side by side.
+The serialized-wire guarantee is distinct from crate and SDK semantic versioning. Rust crates and generated SDKs are pre-1.0; an additive wire field can still affect source-level struct literals. Consumers should prefer constructors, builders, or deserialization and follow each artifact's semantic version.
+
+## Breaking changes
+
+A breaking change uses a new explicit contract/profile/version boundary, for example a new `plurora.contract.default/v2` profile or a new per-layer major version. It does not overwrite v1 and does not hide behind an unadvertised alias.
+
+Breaking changes include:
+
+- required-field or existing-field type changes;
+- incompatible authority or error semantics;
+- event payload reinterpretation;
+- removal or renaming of a stable method or event identity;
+- incompatible Protocol Commons lifecycle or profile changes.
+
+A stable breaking transition requires migration tooling, readable prior data, explicit negotiation, support policy, and conformance vectors for every supported boundary.
 
 ## Negotiation
 
-New clients call canonical `host.info` and inspect `contract_registry_version`, `contract_methods`, `aliases`, profiles, and protocol descriptors in addition to the historical method/status fields. Older clients may still call `host.info`; registry `0.4.0` marked that alias Deprecated, and registry `0.5.0` transitions it to an identity Legacy Adapter while retaining the original support-window metadata and advisory migration diagnostic. That adapter accepts security fixes and data-reading compatibility but no new field semantics. A client needing a method should select a supported contract/profile, prefer the advertised canonical ID, and reject an unsupported version rather than guessing or silently downgrading.
+Clients call `host.info` and inspect `contract_registry_version`, `contract_methods`, profiles, layer versions, supported transports, and Protocol Commons descriptors. They select a supported contract/profile and reject an unsupported version rather than guessing or silently downgrading.
+
+Omitting contract selection chooses `plurora.contract.default/v1`. Explicit requirements must match exactly; unknown profiles, duplicate requirements, unsupported Protocol majors, and version mismatches fail before method dispatch with `protocol/error/unsupported_contract`.
+
+## Pre-release resets
+
+Before a boundary is declared Stable, a coordinated destructive reset may replace an experimental identity set. Such a reset is completed atomically across runtime, schemas, SDKs, clients, tests, data conventions, and documentation. The finished tree keeps only the selected identity set; it does not preserve temporary aliases as permanent architecture.

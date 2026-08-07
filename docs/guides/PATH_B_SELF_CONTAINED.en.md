@@ -134,6 +134,6 @@ Path B is also not an audit bypass. The host should still record lifecycle, logs
 
 ## References
 
-- [`../spec/KERNEL_V1_CONTRACT.md`](../spec/KERNEL_V1_CONTRACT.en.md)
+- [`../spec/PUBLIC_CONTRACT.md`](../spec/PUBLIC_CONTRACT.en.md)
 - [`CAPABILITY_HANDLES.md`](CAPABILITY_HANDLES.en.md)
 - [`CONFORMANCE_KIT.md`](CONFORMANCE_KIT.en.md)

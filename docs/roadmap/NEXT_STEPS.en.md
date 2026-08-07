@@ -20,7 +20,7 @@ Web, Desktop, PWA, and CLI already expose substantial capability, but everyday u
 - mobile, keyboard, accessibility, internationalization, slow networks, and low-power devices;
 - progressive disclosure between simple use and advanced control.
 
-The official distribution continues to use public contracts and does not create private Desktop capability or official Package shortcuts. See [`../product/PLATFORM_PRODUCT_MODEL.md`](../product/PLATFORM_PRODUCT_MODEL.en.md).
+The official distribution continues to use public contracts and does not create private Desktop capability or first-party Package shortcuts. See [`../product/PLATFORM_PRODUCT_MODEL.md`](../product/PLATFORM_PRODUCT_MODEL.en.md).
 
 ### Make creator experience one continuous path
 
@@ -51,13 +51,13 @@ Play-creation is only an optional Profile. Document tools, services, IDEs, and h
 
 ### Converge long-term ownership of Contract V1
 
-Contract V1 remains a supported public contract, but `platform.*` no longer expands indiscriminately. Current work should:
+Contract V1 remains the supported exact public boundary. Current work should:
 
 - make owners across substrate, Host, Protocol Commons, and Shell Profile visible;
 - give new capability an explicit namespace, version, and maturity;
-- maintain Contract Registry, explicit negotiation, canonical methods, and legacy adapters;
-- preserve readable and migratable old clients, old data, and unknown fields;
-- classify Surface slots, Project, targets, and deployment as Profile or Host rather than permanent kernel ontology;
+- maintain the exact Contract Registry, generated identities, and explicit contract/profile/Protocol negotiation;
+- preserve readable prior data and unknown fields through explicit versioned readers and migration tooling when a breaking boundary is introduced;
+- classify Surface slots, Project, targets, and deployment as Profile or Host rather than permanent substrate ontology;
 - create a Protocol only when real shared semantics exist, rather than freezing one Package's private JSON prematurely.
 
 See [`../spec/CONTRACT_LAYERING_MATRIX.md`](../spec/CONTRACT_LAYERING_MATRIX.en.md) for itemized ownership and [`../architecture/CONSTITUTION_V2.md`](../architecture/CONSTITUTION_V2.en.md) for the candidate constitution.
@@ -147,7 +147,7 @@ Without clear user value and layer ownership, do not proactively add:
 
 - deployment backends added for feature count;
 - kernel-owned chat, agent, memory, world, or Project UI semantics;
-- official Package private APIs, name privilege, or hidden routing;
+- first-party Package private APIs, name privilege, or hidden routing;
 - arbitrary remote shells, unlimited Host filesystems, or long-lived root credentials;
 - Stable schemas without migration paths;
 - fashionable technology without capability benefit;

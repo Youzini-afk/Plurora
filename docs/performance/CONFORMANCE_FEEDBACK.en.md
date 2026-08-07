@@ -76,7 +76,7 @@ cargo run -p plurora-cli -- conformance --case sharing_lab --tag secret
 | event | Event append and read |
 | capability | Capability discovery and invocation |
 | package | Package load, unload, restart |
-| official | First-party Package conformance |
+| first_party | First-party Package conformance |
 | schema | JSON Schema validation |
 | protocol | Public protocol dispatch |
 | permission | Permissions / principals |

@@ -45,9 +45,9 @@ flowchart LR
 
 ## Project 与 target 资源
 
-grant 的 `resources` 使用结构化 selector：`{ kind: "project" | "target", id?: string }`。省略 `id` 表示该 kind 的全部资源；带 `id` 时只做结构化精确比较，不做字符串前缀匹配。旧 journal 中没有 `resources` 的 grant 会按兼容语义恢复为 all-projects + all-targets；新 Web/CLI pairing 会显式提交 selector。
+grant 的 `resources` 使用结构化 selector：`{ kind: "project" | "target", id?: string }`。省略 `id` 表示该 kind 的全部资源；带 `id` 时只做结构化精确比较，不做字符串前缀匹配。较早持久化、没有 `resources` 的 journal grant 会按兼容语义恢复为 all-projects + all-targets；新 Web/CLI pairing 会显式提交 selector。
 
-HTTP project 路径与静态 project bundle、canonical/legacy RPC、项目列表、session/event、ChangeSet、部署 job/revision、私有 `/p` route 和 target/exec/port/proxy 对象都在服务端检查或过滤。设备身份不会在 `/rpc` 被折叠为 `HostDev`。项目 session 由 Host 写入并验证 `metadata.project_id`；fork 保留该绑定，调用方提交的 `session_id` 本身不构成权威。
+HTTP project 路径与静态 project bundle、所有受支持的公开 RPC transport、项目列表、session/event、ChangeSet、部署 job/revision、私有 `/p` route 和 target/exec/port/proxy 对象都在服务端检查或过滤。设备身份不会在 `/rpc` 被折叠为 `HostDev`。项目 session 由 Host 写入并验证 `metadata.project_id`；fork 保留该绑定，调用方提交的 `session_id` 本身不构成权威。
 
 子 grant 的 scope、resource、期限都不能超过父 grant；认证会验证完整 delegation chain，撤销或过期任一祖先会使后代立即失效。设备协议 allow/deny 写入 `host_control_authority` journal，记录 grant、delegation、canonical method、action、结构化资源和 correlation，但不记录 token、Cookie 或原始请求参数。
 

@@ -7,7 +7,7 @@
 ## 原则
 
 1. 先测量，再优化。使用 `cargo run -p plurora-cli -- perf baseline`、conformance timing、Web TypeScript diagnostics 和针对性单元测试定位热点。不要凭感觉替换架构。
-2. 优化不得改变平台契约。官方包与第三方包必须继续走同一清单、能力、权限、钩子、schema、脱敏和审计路径。
+2. 优化不得改变平台契约。第一方 Package 与第三方包必须继续走同一清单、能力、权限、钩子、schema、脱敏和审计路径。
 3. UI 仍走公开协议。Web shell 不得读取 SQLite、runtime internals，也不得 special-case first-party Packages。
 4. 不要用性能名义引入内容本体。不要新增 `platform.agent.*`、`platform.model.*`、`platform.memory.*`、`platform.experience.*`、`platform.sharing.*` 等内容或产品命名空间。
 5. 高级优化必须有测量依据。能力或 surface cache、RawValue、registry helper/codegen、per-domain crates 等，都要由基线或 profiling 显示出实际收益空间。
@@ -42,7 +42,7 @@ tsc -p clients/web/tsconfig.json --noEmit
 `cargo run -p plurora-cli -- perf baseline` 当前覆盖：
 
 - Rust in-process capability invoke。
-- 官方包普通 capability invoke。
+- 第一方 Package 普通 capability invoke。
 - subprocess echo invoke（Python 可用时）。
 - in-memory event store append/list/range。
 - scale scenarios：1k / 10k / 100k events。
@@ -76,14 +76,14 @@ Conformance 支持：
 已完成的低风险结构优化包括：
 
 - protocol dispatch 按 domain helper 拆分，同时保持 `PlatformMethod` 为单一事实源。
-- official in-process dispatch 从线性链改为 provider-indexed table。它仍使用 package-aware routing，不给 official fast path。
+- first-party in-process dispatch 从线性链改为 provider-indexed table。它仍使用 package-aware routing，不给 first-party fast path。
 - shared inproc safety helper 收敛 raw-secret 和拒绝逻辑。
 - composition/package diagnostics 使用 set/index，避免明显的 O(n²) 扫描。
 
 后续结构拆分应继续遵守：
 
 - 公共协议 shape 不变。
-- replacement/no-official-priority conformance 必须通过。
+- replacement/no-publisher-priority conformance 必须通过。
 - 不为了少写 match 而把难审计的宏或生成物作为唯一 truth。
 
 ## Event store / replay 纪律
@@ -103,7 +103,7 @@ Storage backend 中立工作新增：
 
 `plurora/storage-lab` 提供 package-scoped storage/data 契约预览：
 
-- `plurora/storage-lab` 作为普通包提供 package-scoped storage/data 契约预览。它证明 storage 是普通 package 层能力，而非 kernel database/sql/vector API。
+- `plurora/storage-lab` 作为普通 Package 提供 package-scoped storage/data 契约预览。它证明 storage 是普通 Package 层 capability，而非 kernel database/sql/vector API。
 - 合约分层模型：event spine backend / package state store / blob store future / projection index future / retrieval provider future。
 - Backend class 候选只含 capability flags，不含 secret-bearing backend config。
 - Document CRUD preview 输出 write/read/query/delete/snapshot_performed=false，并返回脱敏内容。
@@ -167,4 +167,4 @@ Retrieval/vector/multimodal provider 契约证明新增：
 - 脱敏、schema、钩子和审计仍显式可审计。
 - 有 conformance 或 unit test 覆盖 invalidation、mismatch 和 hostile path。
 
-当前没有证据要求引入 heavy codegen、RawValue rewrite、arena 或官方包 fast path；这些保持延后。
+当前没有证据要求引入 heavy codegen、RawValue rewrite、arena 或第一方 Package fast path；这些保持延后。

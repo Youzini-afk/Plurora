@@ -1,6 +1,6 @@
 # 错误代码（v1）
 
-Plurora v1 保留 JSON-RPC application error 数值区间 `-32000..-32099`。当前运行时响应中的 `ProtocolError.code` 仍是字符串标识；下表给出规范化数值别名，供跨语言实现和未来 JSON-RPC 适配使用。
+Plurora v1 保留 JSON-RPC application error 数值区间 `-32000..-32099`。当前 runtime response 中的 `ProtocolError.code` 仍是字符串标识；下表给出稳定数值对应，供跨语言实现与未来 JSON-RPC transport 使用。
 
 | 数值 | 字符串标识 | 名称 | 何时产生 | 恢复建议 |
 |---:|---|---|---|---|
@@ -11,7 +11,7 @@ Plurora v1 保留 JSON-RPC application error 数值区间 `-32000..-32099`。当
 | -32004 | `runtime/error/ambiguous_route` | 路由歧义 | 能力解析匹配多个 provider。 | 指定 provider_package_id 或更严格版本约束。 |
 | -32005 | `runtime/error/schema_invalid` | Schema 无效 | manifest、能力输入/输出或事件 schema 校验失败。 | 使用公开 schema 本地校验后重发。 |
 | -32006 | `runtime/error/package_state` | 包/资源状态错误 | 包、session 或 stream 已关闭、未加载、降级或未就绪。 | 加载/重启/打开资源后重试。 |
-| -32007 | `runtime/error/unsupported_contract` | 合同不支持 | 显式请求的 contract profile、layer 或 version 无法精确满足。 | 读取 `host.info`，选择公开的 profile/version；不要假定 host 会自动降级。 |
+| -32007 | `protocol/error/unsupported_contract` | 合同不支持 | 显式请求的 contract profile、layer 或 version 无法精确满足。 | 读取 `host.info`，选择公开的 profile/version；不要假定 host 会自动降级。 |
 | -32010 | `manifest/invalid_package_id` | 包 ID 无效 | manifest 包 ID 不是 namespaced id。 | 使用类似 `org/package` 的 id。 |
 | -32011 | `manifest/invalid_namespaced_id` | 命名空间 ID 无效 | 能力、schema、surface、extension point 或 hook id 缺少 namespace。 | 使用斜杠分隔、归属包的 id。 |
 | -32012 | `manifest/invalid_version` | 版本无效 | semver-like 版本校验失败。 | 使用 `MAJOR.MINOR.PATCH`。 |

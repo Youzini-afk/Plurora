@@ -270,7 +270,7 @@ pub(crate) async fn host_method_mismatch_denied() -> anyhow::Result<()> {
 /// First-party Package has no network bypass.
 pub(crate) async fn first_party_no_network_bypass() -> anyhow::Result<()> {
     let (_store, runtime) = runtime();
-    // Load an "official" package with no network permission
+    // Load a `plurora/*`-looking Package with no network permission
     runtime
         .load_package(network_package("plurora/no-net-lab", vec![], vec![]))
         .await?;

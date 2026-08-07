@@ -1,7 +1,7 @@
 //! Shared conservative raw-secret detection primitives for inproc handlers.
 //!
 //! These functions detect likely raw-secret content in capability input values.
-//! They are used by official inproc packages to reject inputs containing
+//! They are used by first-party inproc Packages to reject inputs containing
 //! raw API keys, tokens, passwords, or high-entropy secret-like strings.
 //!
 //! **Important**: these are conservative heuristics, not a full secret scanner.

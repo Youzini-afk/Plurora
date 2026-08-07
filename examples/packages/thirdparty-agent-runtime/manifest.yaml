@@ -2,7 +2,7 @@ schema_version: 1
 id: thirdparty/agent-runtime
 version: 0.1.0
 display_name: Community Agent Runtime
-description: "Third-party agent runtime package proving official pi-agent-runtime-lab is replaceable: deterministic run plans, trace summaries, proposal drafts, and echo payloads without real model inference or network access."
+description: "Third-party agent runtime package proving first-party pi-agent-runtime-lab is replaceable: deterministic run plans, trace summaries, proposal drafts, and echo payloads without real model inference or network access."
 entry:
   kind: rust_inproc
   crate_ref: example-thirdparty-agent-runtime
@@ -48,7 +48,7 @@ contributes:
     - id: thirdparty/agent-runtime/assistant-action
       slot: assistant_action
       title: Community Agent Runtime Assistant
-      description: Draft approval-gated agent run proposals from a community-maintained runtime fully interchangeable with the official agent runtime.
+      description: Draft approval-gated agent run proposals from a community-maintained runtime fully interchangeable with the first-party agent runtime.
       capability_id: thirdparty/agent-runtime/draft_proposal
       approval_policy: fork_then_approve
     - id: thirdparty/agent-runtime/forge-panel

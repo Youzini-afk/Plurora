@@ -7,7 +7,7 @@ use serde_json::json;
 
 use super::fixtures::*;
 
-/// Proves that a non-official inproc package with a `/preview` capability suffix
+/// Proves that a non-first-party inproc Package with a `/preview` capability suffix
 /// does NOT receive `asset_preview` output from the shared common handlers.
 ///
 /// The common handlers are restricted to `plurora/` packages; a third-party

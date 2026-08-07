@@ -24,6 +24,6 @@ replacement_candidates:
 compatibility_notes:
   - "Third-party replacement exposes equivalent surface slots to plurora/agentic-forge-lab"
   - "No platform privilege or Plurora publisher namespace required"
-  - "Official agentic-forge-lab is a replacement candidate only — no routing priority"
+  - "The first-party plurora/agentic-forge-lab Package is a replacement candidate only — no routing priority"
   - "Both packages produce package-owned shapes: candidates, proposals, plan graphs, working state"
   - "Neither package may directly mutate target branches or perform network"

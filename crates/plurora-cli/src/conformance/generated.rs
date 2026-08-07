@@ -787,7 +787,7 @@ permission_expectations:
 replacement_candidates:
   - example/experience-alt
 compatibility_notes:
-  - "Requires kernel v0.1.0 or later"
+  - "Requires plurora.contract.default/v1"
 "#,
             manifest_yaml.display()
         ),

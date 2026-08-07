@@ -2,162 +2,83 @@
 
 > [English](./EVENT_MODEL.en.md) · [中文](./EVENT_MODEL.md)
 
-当前 Contract V1 事件日志保存需要长期排序、审计和因果关联的事实。它按 Session scope 组织，只追加、持久化，并保持顺序；大对象和可移植内容使用 ObjectStore / ArtifactDescriptor，而不是把所有数据复制进日志。
+公开契约的 journal 保存需要持久顺序、审计和因果关系的事实。它按 Context 作用域组织、只追加、持久且有序。大型或可移植内容应通过 ObjectStore 与 ArtifactDescriptor 引用，而不是复制进每条事件。
 
-runtime 不解释事件 payload。共享含义由采用的 Protocol 定义，具体领域状态由 Component 或 Product 拥有；当前 V1 使用 Package writer namespace 表达事件 owner。
+Runtime 不解释领域 payload。被采用的 Protocol 定义共享语义，Component 与 Product 拥有具体状态。
 
-## 信封
+## Envelope
 
-每个持久化事件都使用同一种信封：
+每条持久事件都使用同一个 `EventEnvelope`：
 
 ```text
-EventEnvelope
-- id                  unique event id
-- session_id          target session
-- sequence            monotonic per session
-- timestamp           kernel-assigned
-- writer_package_id   the package that produced the event (or "kernel")
-- kind                namespaced string, e.g. "context/opened" or "org/name/event/foo"
-- schema_version      payload schema version, owned by the writer
-- payload             opaque JSON, validated only against the writer's declared schema
-- metadata            opaque JSON; causation_id, correlation_id, trace ids, etc.
+id                  唯一事件 id
+session_id          目标 context
+sequence            context 内单调递增
+timestamp           runtime 分配
+writer_package_id   runtime 或 Package writer 身份
+kind                按 owner 分层的事件 kind
+schema_version      payload schema 版本
+payload             opaque JSON
+metadata            用于因果、关联、trace 与 hint 的 opaque JSON
 ```
 
-内核：
+Runtime 分配 `id`、`sequence`、`timestamp` 与最终 writer 身份。Package principal 不能自行声明另一个 writer。
 
-- 分配 `id`、`sequence`、`timestamp` 和 `writer_package_id`，
-- 要求 `kind` 命名空间在写入方的 id 之下（内核事件使用 `kernel/v1/...`），
-- 如果写入方声明了 schema，就用该 schema 验证 `payload`，
-- 将 `metadata` 视为不透明。
+## 平台拥有的事件 kind
 
-## 种类
-
-事件 kind 分为两类。
-
-### 内核发出的 kind
-
-内核自身只产生一小组固定 kind。它们描述内核操作，不描述内容。
-
-Session：
+59 个平台事件由显式 registry 定义，不依赖魔法字符串前缀。它们使用语义 owner namespace，例如：
 
 ```text
 context/opened
-context/closed
-context/forked
-```
-
-能力包生命周期：
-
-```text
 host/package.loading
-host/package.starting
-host/package.ready
-host/package.stopping
-host/package.stopped
-host/package.loaded
-host/package.unloaded
-host/package.degraded
-host/package.log
-```
-
-能力调用（计划中的审计形式）：
-
-```text
-capability/invoked
-capability/completed
-capability/failed
-```
-
-权限审计：
-
-```text
+capability/stream.started
 authority/grant.created
-authority/grant.revoked
-authority/denied
-```
-
-通用底座：
-
-```text
 object/put
 projection/updated
-```
-
-提案生命周期：
-
-```text
-change/proposal.created
-change/proposal.approved
-change/proposal.rejected
 change/proposal.applied
-change/proposal.failed
-```
-
-传输层 / runtime 错误（计划中）：
-
-```text
 runtime/error
 ```
 
-这些是内核按名称识别的全部事件 kind。它们的 payload 描述内核操作，不描述内容。
+只有 writer `plurora/runtime` 可以追加 registry 中的平台事件。完整列表与 payload schema 见 [`../spec/v1/EVENT_KIND_REGISTRY.md`](../spec/v1/EVENT_KIND_REGISTRY.md)。
 
-### 非核心事件 kind
+显式 registry 很重要，因为平台事件横跨 Substrate、Host、Protocol 与 runtime 职责。用单一保留前缀反而会掩盖 owner。
 
-当前 Contract V1 由 Package writer 在自己的 Manifest 中声明非核心事件 kind，并使用 package id 命名空间。长期语义可以由 Protocol、Component 或 Product 拥有；Package 只是当前分发与 writer 身份边界。示例仅用于说明，不属于基底：
+## Package 拥有的事件 kind
+
+Package 事件 kind 必须以精确 Package ID 加 `/` 开头：
 
 ```text
 someorg/conversation/turn.started
-someorg/conversation/prompt.rendered
-someorg/conversation/model.streamed
 someorg/world-sim/tick.completed
 someorg/memory-pack/proposal.created
 ```
 
-runtime 持久化并排序这些不透明事件，但不解释其领域语义。
+Package 不能写入另一个 Package 的 kind，也不能冒充 registry 中的平台事件。跨 Package 协作应使用公开 capability、被采用的 Protocol 或 extension point，而不是伪造 writer。
 
-## 权限
+## 校验与 authority
 
-追加事件要求写入方清单中有 `events.append`。读取事件流要求 `events.read`，并且可以限定到特定会话。
+除 writer 为 `plurora/runtime` 外，追加事件要求 writer Package Manifest 声明 `events.append`。当 Package 为某个事件 kind 声明 payload schema 时，runtime 会在持久化前使用支持的 JSON Schema 子集校验 payload。
 
-一个 writer 不能在另一个 owner 的命名空间下追加事件。跨组件或跨协议协调应通过公开调用、协议或扩展点完成，不能在日志中冒充对方。
+读取 journal 需要对应公开方法的 authority，并可按 Context、sequence range、writer 或 kind prefix 限定。
 
 ## 持久化规则
 
-- 只追加。日志从不被编辑。
-- 会话内排序是单调的。内核不承诺跨会话排序。
-- 持久化。`journal/after_append` 触发后，事件即已提交。
-- 可 replay。内核可以从 `sequence` 0 开始向前流式输出事件。
+- 只追加：已持久事件不被编辑。
+- 单调顺序：sequence 在单个 Context 内单调递增；不承诺跨 Context 全序。
+- 持久：只有 EventStore 提交 envelope 后 append 才成功。
+- 可重放：消费者可从 sequence cursor 读取并重建自己的 projection。
+- 默认 opaque：runtime 拥有 envelope 完整性，不拥有领域解释。
 
-## Replay
+## Replay 与 projection
 
-内核可以将事件 replay 给：
+Replay 服务于新连接客户端、重建中的 Component、审计工具与 projection materializer。Runtime 原样返回持久 envelope；Protocol 或 Component 解释 payload 并负责迁移。
 
-- 新订阅的客户端，
-- 请求追赶的新加载能力包，
-- 快照工具。
-
-内核原样 replay 信封。意义、projection 和状态重建由能力包负责。
-
-## 版本管理
-
-每个事件 kind 携带 `schema_version`。所属写入方负责迁移。内核不迁移 payload；它只持久化写入时的内容。
-
-能力包可以在不改动内核的情况下为自己的 kind 发布新的 `schema_version`。
+每个事件 kind 都携带 `schema_version`。语义 owner 负责版本演进，EventStore 保留当时写入的事实。
 
 ## 因果与关联
 
-信封的 `metadata` 可以携带 `causation_id`（导致此事件的那条事件）和 `correlation_id`（一个逻辑追踪）。内核将它们视为不透明字段。能力包决定它们的含义。
+`metadata` 可以携带 `causation_id`、`correlation_id`、trace id 或其他 owner-defined 字段。Runtime 将其视为 opaque，不从中推断领域语义。
 
-## 本模型刻意省略的东西
+## 刻意省略
 
-- 没有聊天历史概念。
-- 没有轮次或消息概念。
-- 没有 prompt frame、上下文计划或 model call 概念。
-- 没有记忆或世界状态概念。
-- 没有 agent 任务或提案概念。
-
-需要这些概念的能力包，可以把它们定义成自己的事件 kind。它们都不是内核事件。
-
-## 稳定性
-
-内核发出的 kind 集合刻意保持很小。新增内核 kind 需要和新增内核职责一样被论证：它确实无法合理地放进能力包。
+平台事件 registry 不把聊天历史、turn、prompt、model call、memory、world 或 agent task 定义为通用本体。Protocol 或 Package 可以在自己的 owner namespace 下定义这些事实，而无需把它们提升为宪法基底职责。

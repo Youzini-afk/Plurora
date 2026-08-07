@@ -3,7 +3,7 @@
 > [English](./CONSTITUTION_V2.en.md) · [中文](./CONSTITUTION_V2.md)
 
 > Status: candidate architecture. The current [`CHARTER.md`](../CHARTER.en.md) and
-> [`KERNEL_V1_CONTRACT.md`](../spec/KERNEL_V1_CONTRACT.en.md) remain the repository's
+> [`PUBLIC_CONTRACT.md`](../spec/PUBLIC_CONTRACT.en.md) remain the repository's
 > operative contract. This document supersedes those boundaries only after explicit
 > adoption; no implementation should claim v2 conformance before then.
 
@@ -38,7 +38,7 @@ Every cross-boundary action must answer: who, over which resource, under which c
 
 ### 2. First-party implementations have no privilege
 
-Official components, protocol implementations, and shell profiles use the same registration, authorization, invocation, audit, and conformance mechanisms as third parties. Official identity may express maintenance responsibility; it cannot imply authority or routing priority.
+First-party components, protocol implementations, and shell profiles use the same registration, authorization, invocation, audit, and conformance mechanisms as third parties. First-party identity may express maintenance responsibility; it cannot imply authority or routing priority.
 
 ### 3. The public contract is above internal calls
 
@@ -73,7 +73,7 @@ WASM, processes, remote services, and native in-process implementations may impl
 
 ### 10. Wrong abstractions can leave the system
 
-Stability is not permanent additive accumulation. Every stable protocol has deprecation, support-window, migration, and legacy-adapter mechanisms. A compatibility adapter may continue reading old data without granting the old abstraction new features forever.
+Stability is not permanent additive accumulation. Every stable protocol has deprecation, support-window, migration, and versioned-reader mechanisms. A compatibility reader may continue reading old data without granting the old abstraction new behavioral features forever.
 
 ## Layering model
 
@@ -209,7 +209,7 @@ Every protocol contains at least:
 - migration, adapter, and deprecation instructions;
 - a list of independent implementations that pass conformance.
 
-Protocols may compete and fork. An officially maintained protocol has no kernel routing priority. External protocols such as MCP, A2A, or engine protocols may join the commons through adapters; Plurora does not need to reinvent proprietary equivalents.
+Protocols may compete and fork. A first-party-maintained protocol has no substrate routing priority. External protocols such as MCP, A2A, or engine protocols may join the commons through adapters; Plurora does not need to reinvent proprietary equivalents.
 
 ## Components and execution trust
 
@@ -281,14 +281,14 @@ Experimental
 → Candidate
 → Stable
 → Deprecated
-→ Legacy Adapter
+→ Versioned Reader
 ```
 
 - **Experimental:** may break quickly and has no long-term compatibility promise.
 - **Candidate:** semantics, errors, test vectors, and a migration draft exist; at least two distinct consumers use it.
 - **Stable:** passes the anti-rigidity rule, behavioral conformance, and independent-implementation requirements.
 - **Deprecated:** remains inside a support window with an explicit replacement and migration path.
-- **Legacy Adapter:** only reads, transforms, or supports an old contract and receives no new features.
+- **Versioned Reader:** only reads or transforms a prior contract/data boundary and receives no new behavioral features.
 
 Version negotiation is explicit. A client must not silently lose a required capability when falling back.
 
@@ -302,7 +302,7 @@ A new concept enters the Stable substrate only when all conditions hold:
 4. at least two independent implementations pass behavioral conformance;
 5. version negotiation, deprecation, and migration paths are explicit.
 
-Concepts that do not satisfy these conditions remain in Experimental/Candidate protocols or host layers. High usage, official maintenance, or implementation convenience are not sufficient reasons for substrate admission.
+Concepts that do not satisfy these conditions remain in Experimental/Candidate protocols or host layers. High usage, first-party maintenance, or implementation convenience are not sufficient reasons for substrate admission.
 
 ## Relationship to the current Contract V1
 
@@ -311,13 +311,13 @@ This document does not require deleting existing implementation. Current methods
 
 Until the candidate layering is explicitly adopted as a stable constitution:
 
-- `platform.*` is a legacy operational contract, not automatically a permanent constitution;
-- its stable surface does not expand except for security fixes, correctness fixes, and compatibility fields;
+- the exact owner-based Contract V1 remains the operational public boundary, not automatically the permanent constitution;
+- compatible v1 evolution follows the additive rule, while breaking behavior requires a new negotiated contract/profile/version boundary;
 - new mechanisms enter an Experimental namespace with an explicit owner;
-- old clients continue through aliases and adapters;
-- v2 data preserves original v1 envelopes and unknown fields for lossless transfer.
+- prior data remains readable through explicit versioned readers and migration tooling rather than hidden dispatch aliases;
+- a future v2 preserves original v1 envelopes and unknown fields for lossless transfer.
 
-The codebase already contains Experimental owner namespaces, a Contract Registry, legacy adapters, ObjectStore, EffectReceipt, Change primitives, Protocol Commons, and World Bundles. They provide an operational foundation for the candidate layering, but they do not promote this document to Stable; [`CONTRACT_LAYERING_MATRIX.md`](../spec/CONTRACT_LAYERING_MATRIX.en.md) remains the ownership review reference.
+The codebase already contains owner-based identities, an exact Contract Registry, ObjectStore, EffectReceipt, Change primitives, Protocol Commons, and World Bundles. They provide an operational foundation for the candidate layering, but they do not promote this document to Stable; [`CONTRACT_LAYERING_MATRIX.md`](../spec/CONTRACT_LAYERING_MATRIX.en.md) remains the ownership review reference.
 
 ## Conditions for stable adoption
 

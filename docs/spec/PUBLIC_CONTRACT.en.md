@@ -1,8 +1,8 @@
-# Kernel v1 Contract
+# Public Contract v1
 
-> [English](./KERNEL_V1_CONTRACT.en.md) · [中文](./KERNEL_V1_CONTRACT.md)
+> [English](./PUBLIC_CONTRACT.en.md) · [中文](./PUBLIC_CONTRACT.md)
 
-This document is the v1 specification for Plurora's current platform contract. It defines the operative public boundary: methods, events, error codes, capability handles, manifest declarations, schemas, and conformance expectations. Any participant can call the platform through this contract; every implementation must satisfy the same schema and behavioral conformance. `platform.*` is a compatibility name rather than automatic membership in the long-term constitutional substrate.
+This document specifies Plurora's current v1 public contract. It defines the operative boundary for methods, events, errors, capability handles, Manifest declarations, schemas, negotiation, and conformance. Every participant uses the same owner-based identities and behavioral rules; the contract exposes no parallel alias surface.
 
 v1 does not put content semantics into core mechanisms. Characters, worlds, prompts, models, messages, memory, and similar concepts belong to their protocols, components, or products rather than the constitutional substrate.
 
@@ -16,16 +16,16 @@ v1 does not put content semantics into core mechanisms. Characters, worlds, prom
 
 The v1 contract supports two first-class participation modes:
 
-- **Path A** (default): a package sets `entry.contract: "v1"` and accepts contract enforcement. Its manifest declares capabilities, permissions, and effects; the runtime enforces permissions; invocation uses kernel-minted handles; lifecycle and audit events are recorded.
-- **Path B**: a package sets `entry.contract: "none"` and opts out of contract enforcement. The kernel still hosts the process and emits lifecycle events, but does not enforce v1 capability/permission checks or inject v1 bindings.
+- **Path A** (default): a Package sets `entry.contract: "v1"` and accepts contract enforcement. Its Manifest declares capabilities, permissions, and effects; the runtime enforces them; invocation uses runtime-minted handles; lifecycle and audit events are recorded.
+- **Path B**: a Package sets `entry.contract: "none"` and opts out of v1 capability enforcement. The Host may still run the process and records lifecycle, but does not inject v1 authority bindings.
 
-Path A is for packages that need kernel capabilities, network, secrets, audit, and SDK support. Path B is for self-contained apps, migration tools, and third-party processes that do not need platform authority.
+Path A is for Packages that need platform authority, network, secrets, audit, and SDK support. Path B is for self-contained applications and tools that need hosting but no platform authority.
 
-## Protocol method matrix (80)
+## Public method matrix (80)
 
 Complete request/response schemas live under `docs/spec/v1/schemas/methods/`. Method names are stable public API. v1 only allows additive changes.
 
-### `platform.session.*` (6)
+### `context.*` (6)
 
 | Method | Status | Contract |
 |---|---:|---|
@@ -36,15 +36,15 @@ Complete request/response schemas live under `docs/spec/v1/schemas/methods/`. Me
 | `context.get` | partial | Query one session; behavior and error contracts continue to harden. |
 | `context.list` | planned | Reserved host-management list. |
 
-### `journal.event.*` (3)
+### `journal.*` (3)
 
 | Method | Status | Contract |
 |---|---:|---|
-| `journal.append` | implemented | Enforce writer namespace and `events.append` for non-kernel writers. |
+| `journal.append` | implemented | Enforce event ownership and `events.append` for Package writers. |
 | `journal.list` | partial | List events with sequence, limit, kind, writer filters, and permission gates; backend parity continues to harden. |
 | `journal.subscribe` | planned | The SSE replay/tail route exists; public method dispatch and package-principal subscribe permission are not implemented. |
 
-### `platform.package.*` (7)
+### `host.package.*` (7)
 
 | Method | Status | Contract |
 |---|---:|---|
@@ -56,16 +56,17 @@ Complete request/response schemas live under `docs/spec/v1/schemas/methods/`. Me
 | `host.package.logs` | partial | Captures subprocess stderr; stdout remains JSON-RPC frames. |
 | `host.package.describe` | planned | Reserved descriptor query derivable from status manifest. |
 
-### `platform.capability.*` (5)
+### `capability.*` (5)
 
 | Method | Status | Contract |
 |---|---:|---|
 | `capability.discover` | implemented | List registered capability descriptors. |
 | `capability.describe` | planned | Reserved single-descriptor query. |
 | `capability.invoke` | partial | Enforce caller context and capability handles, validate schemas, attach EffectReceipt to completed/failed terminals, and support recorded replay plus branch re-execution; parity across entries and transports continues to harden. |
-| `capability.stream` / `cancel` | partial | Streaming lifecycle, cancellation, timeout, and events exist; ended/error/cancelled/timeout produce distinct terminal receipts; transport parity continues to harden. |
+| `capability.stream` | partial | Start a streaming invocation with ordered start/chunk/progress/terminal frames; ended/error/cancelled/timeout produce distinct terminal receipts. |
+| `capability.cancel` | partial | Cancel a known active invocation, prevent further chunks, and record a cancelled terminal state. |
 
-### `platform.cap.*` (3)
+### `authority.handle.*` (3)
 
 | Method | Status | Contract |
 |---|---:|---|
@@ -73,7 +74,7 @@ Complete request/response schemas live under `docs/spec/v1/schemas/methods/`. Me
 | `authority.handle.revoke` | partial | Immediately revoke a handle; complete descendant propagation needs hardening. |
 | `authority.handle.list` | partial | List live handles held by a package; delegation and lease refresh are not complete. |
 
-### `platform.permission.*` (4)
+### `authority.grant.*` / `authority.decision.*` (4)
 
 | Method | Status | Contract |
 |---|---:|---|
@@ -82,7 +83,7 @@ Complete request/response schemas live under `docs/spec/v1/schemas/methods/`. Me
 | `authority.grant.list` | partial | List current grants. |
 | `authority.decision.list` | partial | Query grant/revoke audit. |
 
-### `platform.proposal.*` (6)
+### `change.proposal.*` (6)
 
 | Method | Status | Contract |
 |---|---:|---|
@@ -91,9 +92,9 @@ Complete request/response schemas live under `docs/spec/v1/schemas/methods/`. Me
 | `change.proposal.list` | partial | List proposals. |
 | `change.proposal.approve` | partial | Require proposal-scoped review authority, mark approved, and emit an event. |
 | `change.proposal.reject` | partial | Require proposal-scoped review authority, mark rejected, and emit a denied receipt/event. |
-| `change.proposal.apply` | partial | Recheck apply plus required authority, adapt the old Proposal into Intent/ChangeSet/PolicyDecision/Commit, preflight asset/projection operations, and CAS-record operation plus committed/failed/partial receipts. |
+| `change.proposal.apply` | partial | Recheck apply plus required authority, map the current proposal facade into Intent/ChangeSet/PolicyDecision/Commit evidence, preflight object/projection operations, and CAS-record committed/failed/partial receipts. |
 
-### `platform.asset.*` (3)
+### `object.*` (3)
 
 | Method | Status | Contract |
 |---|---:|---|
@@ -101,7 +102,7 @@ Complete request/response schemas live under `docs/spec/v1/schemas/methods/`. Me
 | `object.get` | partial | Read an asset record. |
 | `object.list` | partial | List asset records. |
 
-### `platform.projection.*` (4)
+### `projection.*` (4)
 
 | Method | Status | Contract |
 |---|---:|---|
@@ -110,18 +111,20 @@ Complete request/response schemas live under `docs/spec/v1/schemas/methods/`. Me
 | `projection.get` | partial | Read projection state. |
 | `projection.list` | partial | List projections. |
 
-### `platform.outbound.*` (6)
+### `host.outbound.*` (6)
 
 | Method | Status | Contract |
 |---|---:|---|
 | `host.outbound.audit` | partial | Query outbound audit and terminal receipt descriptors; cross-executor view parity continues to harden. |
 | `host.outbound.execute` | partial | Manifest-gated unary HTTPS outbound with `secret_ref` support; denied/error/success all produce receipts. |
 | `host.outbound.stream` | partial | Manifest-gated SSE/NDJSON/raw streaming outbound with terminal completion receipts. |
-| `platform.outbound.websocket.*` | partial | Manifest-gated WSS open/send/close; connection lifecycle and event coverage continue to harden. |
+| `host.outbound.websocket.open` | partial | Open a Manifest-gated WSS connection through Host policy, secret resolution, audit, and the streaming event boundary. |
+| `host.outbound.websocket.send` | partial | Send a bounded frame on a Host-owned connection after caller and connection checks. |
+| `host.outbound.websocket.close` | partial | Close a Host-owned connection and emit the terminal completion evidence. |
 
-Git installation is not a kernel transport; future support belongs in the ordinary first-party capability package `plurora/git-tools-lab` using `host.outbound.execute` plus `permissions.filesystem.write`.
+Git installation is not a transport primitive; it belongs in the ordinary first-party capability Package `plurora/git-tools-lab` using `host.outbound.execute` plus declared filesystem authority.
 
-### `platform.target.*` / `exec.*` / `port.*` / `proxy.*` (17)
+### `host.target.*` / `host.exec.*` / `host.port.*` / `host.proxy.*` (17)
 
 | Method | Status | Contract |
 |---|---:|---|
@@ -144,7 +147,7 @@ Git installation is not a kernel transport; future support belongs in the ordina
 | `host.proxy.list` | partial | HostAdmin/HostDev only; list routes. |
 
 
-### `platform.project.*` (5)
+### `host.project.*` (5)
 
 | Method | Status | Contract |
 |---|---:|---|
@@ -154,7 +157,7 @@ Git installation is not a kernel transport; future support belongs in the ordina
 | `host.project.stop` | implemented | HostAdmin/HostDev only; stop a Running project and emit lifecycle events. |
 | `host.project.status` | implemented | HostAdmin/HostDev only; return project state and last error; includes `running_session_id` when running. |
 
-### `platform.host.*` (4)
+### `host.*` / `identity.current` (4)
 
 | Method | Status | Contract |
 |---|---:|---|
@@ -163,7 +166,7 @@ Git installation is not a kernel transport; future support belongs in the ordina
 | `host.diagnostics` | partial | Return local package/capability/hook diagnostics. |
 | `identity.current` | planned | Reserved identity-provider integration. |
 
-### `platform.audit.*` (1)
+### `host.package.audit` (1)
 
 | Method | Status | Contract |
 |---|---:|---|
@@ -186,26 +189,26 @@ The full registry is [`v1/EVENT_KIND_REGISTRY.md`](v1/EVENT_KIND_REGISTRY.en.md)
 
 | Group | Count | Examples |
 |---|---:|---|
-| session | 3 | `context/opened`, `.closed`, `.forked` |
-| package lifecycle | 9 | `loading`, `starting`, `ready`, `loaded`, `stopping`, `stopped`, `unloaded`, `degraded`, `log` |
-| project lifecycle | 4 | `project.installed`, `.started`, `.stopped`, `.uninstalled` |
-| capability lifecycle | 3 | `capability.invoked`, `.completed`, `.failed` |
-| stream lifecycle | 7 | `stream.started`, `.chunk`, `.progress`, `.ended`, `.error`, `.cancelled`, `.timeout` |
-| permissions | 3 | `permission.granted`, `.revoked`, `.denied` |
-| proposals | 5 | `proposal.created`, `.approved`, `.rejected`, `.applied`, `.failed` |
-| assets / projections | 2 | `asset.put`, `projection.updated` |
-| outbound / websocket | 8 | `outbound.request`, `.denied`, completion events, websocket frames |
-| exec | 6 | `exec.request`, `.started`, `.completed`, `.failed`, `.stopped`, `.denied` |
-| port | 3 | `port.leased`, `.released`, `.denied` |
-| proxy | 3 | `proxy.registered`, `.unregistered`, `.denied` |
-| deployment | 2 | `deployment.reconciled`, `deployment.health` |
+| context | 3 | `context/opened`, `context/closed`, `context/forked` |
+| Package lifecycle | 9 | `host/package.loading`, `.starting`, `.ready`, `.loaded`, `.stopping`, `.stopped`, `.unloaded`, `.degraded`, `.log` |
+| Project lifecycle | 4 | `host/project.installed`, `.started`, `.stopped`, `.uninstalled` |
+| Capability lifecycle | 3 | `capability/invoked`, `capability/completed`, `capability/failed` |
+| Stream lifecycle | 7 | `capability/stream.started`, `.chunk`, `.progress`, `.ended`, `.error`, `.cancelled`, `.timeout` |
+| Authority | 3 | `authority/grant.created`, `authority/grant.revoked`, `authority/denied` |
+| Change proposals | 5 | `change/proposal.created`, `.approved`, `.rejected`, `.applied`, `.failed` |
+| Objects / projections | 2 | `object/put`, `projection/updated` |
+| Outbound / WebSocket | 8 | `host/outbound.request`, `.denied`, completion events, WebSocket frames |
+| Exec | 6 | `host/exec.request`, `.started`, `.completed`, `.failed`, `.stopped`, `.denied` |
+| Port | 3 | `host/port.leased`, `.released`, `.denied` |
+| Proxy | 3 | `host/proxy.registered`, `.unregistered`, `.denied` |
+| Deployment | 2 | `host/deployment.reconciled`, `host/deployment.health` |
 | error | 1 | `runtime/error` |
 
-Non-kernel event kinds must start with the writer package id followed by `/`. The kernel must reject package attempts to write `kernel/v1/...` or another package namespace.
+Package-owned event kinds must start with the exact writer Package ID followed by `/`. Registered platform-owned kinds may be written only by `plurora/runtime`; Packages cannot impersonate them or another Package namespace.
 
 ## Capability handle model
 
-Manifest strings are the **authority ceiling**. Runtime handles are the **actual authority**. A package cannot gain authority by forging strings; it must use handles minted by the kernel during load, handshake, or init.
+Manifest strings are the **authority ceiling**. Runtime handles are the **actual authority**. A Package cannot gain authority by forging strings; it must use handles minted by the runtime during load, handshake, or init.
 
 - `authority.handle.attenuate(parent, constraints)` → child handle.
 - `authority.handle.revoke(handle)` → immediately invalid.
@@ -213,7 +216,7 @@ Manifest strings are the **authority ceiling**. Runtime handles are the **actual
 
 Handle fields:
 
-- `id`: unforgeable kernel-minted identifier.
+- `id`: unforgeable runtime-minted identifier.
 - `cap_type`: authority type, such as capability invoke, events read, or outbound.
 - `cap_version`: handle semantic version.
 - `scope`: package, session, capability, provider, host, or related scope.
@@ -242,7 +245,7 @@ Bindings must contain only the caller's granted authority. Path B packages do no
 `plurora audit --package <id>` and `host.package.audit` report declared vs used authority. Audit input comes from:
 
 1. manifest permissions, capabilities, secret_refs, and network hosts;
-2. kernel-minted and attenuated capability handles;
+2. runtime-minted and attenuated capability handles;
 3. `capability.invoked|completed|failed` and outbound audit events;
 4. permission grants/revokes and package lifecycle;
 5. Path B's `contract_mode: "none"` marker.
@@ -289,7 +292,7 @@ All 161 schemas must pass `cargo run -p plurora-cli --bin validate-schemas`.
 
 ## Content-free invariant
 
-The current kernel crates must not define or require content-shaped concepts such as `Turn`, `Message`, `PromptFrame`, `ModelCall`, `Agent`, `World`, `Scene`, `Director`, or `Memory`. Such concepts are owned by the relevant Protocol, Component, Product, or Client rather than the constitutional substrate; Contract V1 may carry them through Package-writer events, projections, and capabilities.
+The constitutional substrate and public-contract runtime must not require content-shaped concepts such as `Turn`, `Message`, `PromptFrame`, `ModelCall`, `Agent`, `World`, `Scene`, `Director`, or `Memory`. Those concepts belong to the relevant Protocol, Component, Product, or Client; Contract V1 may carry them as opaque Package-owned events, objects, projections, and capabilities.
 
 ## Object contracts
 
@@ -303,7 +306,7 @@ A session id only identifies current runtime ordering and permission scope. Prot
 
 `EventEnvelope` is append-only fact storage. Each envelope contains at least session id, sequence, writer package id, kind, schema version, timestamp, payload, and metadata. Sequence is monotonic per session.
 
-The kernel validates namespace, permission, and schema shape only. Event meaning belongs to the writer package.
+The runtime validates ownership, authority, and schema shape only. Event meaning belongs to its semantic owner.
 
 ### `PackageManifest`
 
@@ -325,7 +328,7 @@ requires:
       - "0123456789ABCDEF0123456789ABCDEF01234567"
 ```
 
-Actual install and resolution are handled by `plurora/install-lab`; the kernel does not participate in dependency resolution.
+Actual install and resolution are handled by `plurora/install-lab`; the constitutional substrate does not resolve dependencies.
 See [`docs/guides/PACKAGE_INSTALLATION.md`](../guides/PACKAGE_INSTALLATION.en.md).
 
 The manifest is audit and handle-minting input, not runtime authority. Runtime authority is expressed through bindings and capability handles.
@@ -340,11 +343,11 @@ A descriptor describes a provider-owned capability: id, version, input schema, o
 
 ### `HookSubscription`
 
-Hook subscriptions come from manifests. The kernel owns ordering, unload cleanup, and event/capability lifecycle dispatch. Hook handlers still execute through ordinary capabilities and permission boundaries.
+Hook subscriptions come from Manifests. The runtime owns stable ordering, unload cleanup, and the four currently implemented journal/capability interception points. Generic arbitrary hook-handler execution remains incomplete; see [`../architecture/EXTENSION_POINTS.md`](../architecture/EXTENSION_POINTS.en.md).
 
 ### `AssetRecord`
 
-An asset record is opaque metadata: id, origin package, mime, hash, size, metadata. The kernel does not interpret asset content. Content-addressed blob storage and package-principal asset permissions remain later substrate work.
+An asset record is opaque metadata: id, origin Package, mime, hash, size, and metadata. The runtime does not interpret asset content.
 
 ## Permission and denial semantics
 
@@ -356,18 +359,18 @@ Host-dev operations must be explicit in protocol context. Anonymous host calls m
 
 ## Namespace rules
 
-Protocol methods use `platform.<namespace>.<name>`. Kernel events use `kernel/v1/<kind>`. Package events must start with package id followed by `/`.
+Public method IDs are exact owner-based dot names. The first segment identifies Substrate, Host, Protocol, or Shell ownership, for example `context.open`, `host.project.list`, `change.proposal.apply`, and `shell.contribution.list`.
+
+Platform-owned event kinds are the explicit 59-entry registry and may be written only by `plurora/runtime`. Package-owned event kinds must begin with the exact Package ID followed by `/`. Package capability IDs follow the same Package-owned slash namespace convention.
 
 Reserved rules:
 
-- `platform.*` methods belong only to the kernel.
-- `kernel/v1/*` events are written only by the kernel.
-- `kernel.v2.*` and `kernel/v2/*` are reserved for breaking changes.
-- Packages must not declare capability ids that look like kernel namespaces.
+- the current registry exposes one wire ID per public method and no aliases;
+- a Package cannot claim a public method ID or a registered platform-owned event kind;
+- `plurora/*` identifies first-party Packages but grants no runtime authority or routing priority;
+- breaking method, event, or schema semantics require a new explicit version boundary rather than an in-place rename.
 
-Experimental canonical IDs and legacy aliases introduced by the layered migration are managed
-centrally by [`CONTRACT_REGISTRY.md`](CONTRACT_REGISTRY.en.md). They do not remove or rename any
-`platform.*` v1 entry point.
+The executable identity and negotiation rules are defined by [`CONTRACT_REGISTRY.md`](CONTRACT_REGISTRY.en.md).
 
 ## Schema rules
 
@@ -411,7 +414,7 @@ Handshake must declare package id, protocol version, contract mode, available ca
 
 Rust in-process packages load only through the host catalog. Manifest-declared in-process entries must map to host-provided trait implementations. Missing catalog entries fail closed.
 
-In-process packages do not gain official privilege. They still participate in v1 through `ComponentEnv`, bindings, handles, schemas, and audit.
+In-process Packages do not gain first-party privilege. They participate in v1 through `ComponentEnv`, bindings, handles, schemas, and audit.
 
 ## WASM and remote reservations
 
@@ -445,15 +448,15 @@ Undeclared secret refs, resolution failure, resolver denial, and raw secrets in 
 
 ## Proposal contract
 
-A proposal is an approval-gated change, not a content model. The kernel only manages lifecycle: create, approve, reject, apply, failed. Approval/apply boundaries enforce explicit authority, terminal transitions are compare-and-set guarded, and operation payload remains opaque JSON subject to raw-secret scanning and basic schema checks.
+A proposal is an approval-gated change, not a content model. The runtime manages the create, approve, reject, apply, and failed states. Approval/apply boundaries enforce explicit authority, terminal transitions are compare-and-set guarded, and operation payload remains opaque JSON subject to raw-secret scanning and schema checks.
 
 Current apply supports generic asset/projection operations. Broader transactions, compensation, and revert are later work.
 
 ## Surface contract
 
-A surface contribution is a package-declared UI/UX entry descriptor. The kernel stores and lists descriptors; it does not render UI or interpret content semantics. The host shell decides how to mount iframe, bundle, or native surfaces.
+A surface contribution is a Package-declared UI/UX entry descriptor. The runtime stores and lists descriptors; it does not render UI or interpret content semantics. The Host shell decides how to mount iframe, bundle, or native surfaces.
 
-Official and third-party surfaces use the same descriptors, permission declarations, and review path.
+First-party and third-party surfaces use the same descriptors, permission declarations, and review path.
 
 ## Conformance requirements
 
@@ -480,38 +483,29 @@ Host operators should be able to see through public methods or CLI:
 - Path B package lifecycle and logs;
 - conformance percentage and failure reasons.
 
-## Relationship to older docs
+## Canonical references
 
-The old alpha contract has been replaced by this file. Long-term references should point to `KERNEL_V1_CONTRACT.md`. The registry, error codes, versioning, and schemas under `docs/spec/v1/` are machine-readable companions to this contract.
+Long-term references point to `PUBLIC_CONTRACT.md`. The Contract Registry, error codes, versioning rules, event registry, and schemas under `docs/spec/v1/` are its machine-readable companions.
 
-## Appendix A: method namespace counts
+## Appendix A: method owner-prefix counts
 
-| Namespace | Count |
+| Prefix | Count |
 |---|---:|
-| `platform.session.*` | 6 |
-| `journal.event.*` | 3 |
-| `platform.package.*` | 7 |
-| `platform.capability.*` | 5 |
-| `platform.cap.*` | 3 |
-| `platform.permission.*` | 4 |
-| `platform.proposal.*` | 6 |
-| `platform.asset.*` | 3 |
-| `platform.projection.*` | 4 |
-| `platform.outbound.*` | 6 |
-| `platform.target.*` | 4 |
-| `platform.exec.*` | 5 |
-| `platform.port.*` | 4 |
-| `platform.proxy.*` | 4 |
-| `platform.project.*` | 5 |
-| `platform.host.*` | 4 |
-| `platform.audit.*` | 1 |
-| `platform.surface.*` | 3 |
-| `platform.extension_point.*` | 2 |
-| `platform.hook.*` | 1 |
+| `authority.*` | 7 |
+| `capability.*` | 5 |
+| `change.*` | 6 |
+| `context.*` | 6 |
+| `host.*` | 40 |
+| `identity.*` | 1 |
+| `journal.*` | 3 |
+| `object.*` | 3 |
+| `projection.*` | 4 |
+| `protocol.*` | 3 |
+| `shell.*` | 2 |
 
 ## Appendix B: release checks
 
-Before releasing a v1-compatible host, run:
+Before releasing a v1 Host, run:
 
 ```bash
 cargo test -p plurora-core
@@ -529,7 +523,7 @@ Also run package conformance against representative Path A and Path B examples.
 
 v1 does not promise:
 
-- chat, agent, model, world, memory, or director semantics in the kernel;
+- chat, agent, model, world, memory, or director semantics in the constitutional substrate;
 - arbitrary subprocess OS-level network interception;
 - production-grade secret vault integration;
 - completed WASM / remote execution;

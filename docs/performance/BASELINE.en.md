@@ -118,7 +118,7 @@ JSON output uses an envelope:
 
 ## Red lines
 
-- No official-package fast path. Official and third-party packages share the same routing and permission boundaries.
+- No first-party Package fast path. First-party and third-party Packages share the same routing and permission boundaries.
 - No bypass of permissions, hooks, schema validation, redaction, or audit.
 - No real network or provider required.
 - No runtime boundary or public protocol changes.

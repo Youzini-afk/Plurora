@@ -2,7 +2,7 @@ schema_version: 1
 id: thirdparty/surface-fixture
 version: 0.1.0
 display_name: Third-Party Surface Fixture
-description: Ordinary package proving Play/Home, Forge, and Assist surface descriptors are not official-only.
+description: Ordinary Package proving Play/Home, Forge, and Assist surface descriptors are not restricted to first-party Packages.
 entry:
   kind: rust_inproc
   crate_ref: example-echo-rust-inproc

@@ -10,7 +10,7 @@
 //! 7. No forbidden namespace (platform.project/workspace/git/npm/deploy/ide)
 //! 8. No raw secrets in any capability
 //! 9. Adapter manifest preview no write (E5)
-//! 10. Rejects official adapter id (E5)
+//! 10. Rejects first-party adapter id (E5)
 //! 11. Rejects path traversal adapter id (E5)
 //! 12. Capability namespace mismatch rejected (E5)
 //! 13. Wrapper preview no execution (E5)
@@ -491,7 +491,7 @@ pub(crate) async fn project_intake_adapter_manifest_preview_no_write() -> anyhow
     Ok(())
 }
 
-/// Case 10 (E5): Rejects official adapter package id.
+/// Case 10 (E5): Rejects first-party adapter Package ID.
 pub(crate) async fn project_intake_rejects_first_party_adapter_id() -> anyhow::Result<()> {
     let rt = load_project_intake_lab().await?;
 

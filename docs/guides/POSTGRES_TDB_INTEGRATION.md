@@ -78,7 +78,7 @@ integrations/tdb/TRIVIUMDB_REVIEW.md
 
 ## `plurora/tdb-retrieval-lab`
 
-新增普通官方包：
+新增普通第一方 Package：
 
 ```text
 packages/plurora/tdb-retrieval-lab

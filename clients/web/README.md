@@ -328,5 +328,5 @@ Production hosting still needs a static fileserver route (deferred).
   — `secret_ref` contract and platform/project scoping.
 - [`../../docs/architecture/HOST_REMOTE_ACCESS.md`](../../docs/architecture/HOST_REMOTE_ACCESS.md)
   — Host root/device identity, HTTPS pairing, and explicit public routes.
-- [`../../docs/spec/KERNEL_V1_CONTRACT.md`](../../docs/spec/KERNEL_V1_CONTRACT.md)
+- [`../../docs/spec/PUBLIC_CONTRACT.md`](../../docs/spec/PUBLIC_CONTRACT.md)
   — Public protocol that the shell consumes.

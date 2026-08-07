@@ -7,7 +7,7 @@
 ## 新人 1 / 2 / 3 路径
 
 1. 读 [`CHARTER.md`](CHARTER.md) → [`architecture/VISION.md`](architecture/VISION.md)，理解平台为什么存在、长期追求什么。
-2. 读 [`architecture/ARCHITECTURE.md`](architecture/ARCHITECTURE.md) → [`architecture/PLATFORM_KERNEL.md`](architecture/PLATFORM_KERNEL.md) → [`architecture/CAPABILITY_PACKAGE.md`](architecture/CAPABILITY_PACKAGE.md)，理解基底、协议、组件、Host、发行版和产品的边界。
+2. 读 [`architecture/ARCHITECTURE.md`](architecture/ARCHITECTURE.md) → [`architecture/CONSTITUTIONAL_SUBSTRATE.md`](architecture/CONSTITUTIONAL_SUBSTRATE.md) → [`architecture/CAPABILITY_PACKAGE.md`](architecture/CAPABILITY_PACKAGE.md)，理解基底、协议、组件、Host、发行版和产品的边界。
 3. 读 [`product/PLATFORM_PRODUCT_MODEL.md`](product/PLATFORM_PRODUCT_MODEL.md) 和 [`guides/PACKAGE_AUTHORING_WALKTHROUGH.md`](guides/PACKAGE_AUTHORING_WALKTHROUGH.md)，分别理解官方产品责任并完成第一个 Package / Component。
 
 随后按需要进入相应 guide、spec 或 roadmap。
@@ -55,10 +55,10 @@
 | 你想 | 先读 |
 |---|---|
 | 理解平台目标 | [`CHARTER.md`](CHARTER.md) → [`architecture/VISION.md`](architecture/VISION.md) |
-| 理解分层架构 | [`architecture/ARCHITECTURE.md`](architecture/ARCHITECTURE.md) → [`architecture/PLATFORM_KERNEL.md`](architecture/PLATFORM_KERNEL.md) → [`architecture/CAPABILITY_PACKAGE.md`](architecture/CAPABILITY_PACKAGE.md) |
+| 理解分层架构 | [`architecture/ARCHITECTURE.md`](architecture/ARCHITECTURE.md) → [`architecture/CONSTITUTIONAL_SUBSTRATE.md`](architecture/CONSTITUTIONAL_SUBSTRATE.md) → [`architecture/CAPABILITY_PACKAGE.md`](architecture/CAPABILITY_PACKAGE.md) |
 | 理解官方产品 | [`product/PLATFORM_PRODUCT_MODEL.md`](product/PLATFORM_PRODUCT_MODEL.md) → [`design/PLATFORM_UI_DESIGN.md`](design/PLATFORM_UI_DESIGN.md) |
 | 审阅长期合同边界 | [`architecture/CONSTITUTION_V2.md`](architecture/CONSTITUTION_V2.md) → [`spec/CONTRACT_LAYERING_MATRIX.md`](spec/CONTRACT_LAYERING_MATRIX.md) → [`spec/CONTRACT_REGISTRY.md`](spec/CONTRACT_REGISTRY.md) |
-| 接入公开协议 | [`protocol/PROTOCOL_V0.md`](protocol/PROTOCOL_V0.md) → [`spec/KERNEL_V1_CONTRACT.md`](spec/KERNEL_V1_CONTRACT.md) |
+| 接入公开协议 | [`protocol/PUBLIC_PROTOCOL.md`](protocol/PUBLIC_PROTOCOL.md) → [`spec/PUBLIC_CONTRACT.md`](spec/PUBLIC_CONTRACT.md) |
 | 写第一个 Package / Component | [`guides/PACKAGE_AUTHORING_WALKTHROUGH.md`](guides/PACKAGE_AUTHORING_WALKTHROUGH.md) |
 | 安装 Package / Project | [`guides/PACKAGE_INSTALLATION.md`](guides/PACKAGE_INSTALLATION.md) → [`guides/PROJECT_MODEL.md`](guides/PROJECT_MODEL.md) |
 | 管理 API key / secret | [`guides/SECRET_MANAGEMENT.md`](guides/SECRET_MANAGEMENT.md) |

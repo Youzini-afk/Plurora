@@ -23,7 +23,7 @@ Package 可以携带以上多种内容，但 Package 本身不是所有平台语
 - 调用、stream、取消和 effect receipt；
 - 诊断、迁移和 conformance 入口。
 
-没有按 Package ID 开放的私有 API，也没有隐式“官方实现优先”。维护者或签名可以影响来源信任与策略，但不能自动获得运行权威。
+没有按 Package ID 开放的私有 API，也没有隐式“第一方实现优先”。维护者或签名可以影响来源信任与策略，但不能自动获得运行权威。
 
 ## 当前 V1 Manifest
 
@@ -72,7 +72,7 @@ sandbox_policy:
   wall_clock_ms: 30000
 ```
 
-实际字段以 [`../spec/v1/schemas/manifest.schema.json`](../spec/v1/schemas/manifest.schema.json) 为准。未来拆分 Package Envelope、Component Descriptor、Protocol Descriptor 和 Content Root 时，v1 Manifest 通过生成或 legacy adapter 继续可读。
+实际字段以 [`../spec/v1/schemas/manifest.schema.json`](../spec/v1/schemas/manifest.schema.json) 为准。未来拆分 Package Envelope、Component Descriptor、Protocol Descriptor 与 Content Root 时，v1 Manifest 通过显式 versioned reader 与 migration tooling 继续可读。
 
 ## Package Envelope
 
@@ -127,7 +127,7 @@ Capability 由稳定 ID、版本、input/output schema、streaming 与 effect �
 4. distribution 或调用方是否显式选择 provider；
 5. 多个实现仍然歧义时，拒绝并要求选择。
 
-不存在隐式官方优先级。
+不存在隐式 publisher priority。
 
 Capability 调用产生结构化 terminal state；涉及外部效果或非确定性时，产生或引用 EffectReceipt。大输入和输出应使用 ArtifactDescriptor，而不是无限扩张线路 envelope。
 

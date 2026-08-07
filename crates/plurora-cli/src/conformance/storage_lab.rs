@@ -3,7 +3,7 @@
 //! Covers:
 //! 1. Contract shape — no kernel database terms
 //! 2. Backend classes — no secret-bearing backend config
-//! 3. Package state plan — scoped namespace, no official priority
+//! 3. Package state plan — scoped namespace, no publisher priority
 //! 4. Put document preview — no real write
 //! 5. Get document preview — no real read
 //! 6. Query prefix preview — no query execution
@@ -213,7 +213,7 @@ pub(crate) async fn backend_classes_no_secret_config() -> anyhow::Result<()> {
     Ok(())
 }
 
-/// Case 3: Package state plan — namespace scoped to package, no official priority.
+/// Case 3: Package state plan — namespace scoped to package, no publisher priority.
 pub(crate) async fn package_state_plan_scoped() -> anyhow::Result<()> {
     let rt = load_storage_lab().await?;
 

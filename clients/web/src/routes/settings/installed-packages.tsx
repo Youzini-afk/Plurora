@@ -90,7 +90,7 @@ export function InstalledPackagesPanel() {
   }, [rows, filter, search]);
 
   const counts = useMemo(() => {
-    const acc: Record<string, number> = { PROJECT: 0, OFFICIAL: 0, "THIRD-PARTY": 0 };
+    const acc: Record<RowEntry["kind"], number> = { PROJECT: 0, PLURORA: 0, "THIRD-PARTY": 0 };
     for (const p of rows) acc[p.kind] = (acc[p.kind] ?? 0) + 1;
     return acc;
   }, [rows]);

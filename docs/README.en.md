@@ -7,7 +7,7 @@ The documentation is organized by long-term principles, current implementation, 
 ## Newcomer 1 / 2 / 3 path
 
 1. Read [`CHARTER.md`](CHARTER.en.md) → [`architecture/VISION.md`](architecture/VISION.en.md) to understand why the platform exists and what it pursues for the long term.
-2. Read [`architecture/ARCHITECTURE.md`](architecture/ARCHITECTURE.en.md) → [`architecture/PLATFORM_KERNEL.md`](architecture/PLATFORM_KERNEL.en.md) → [`architecture/CAPABILITY_PACKAGE.md`](architecture/CAPABILITY_PACKAGE.en.md) to understand the boundaries among substrate, protocols, components, Host, distributions, and products.
+2. Read [`architecture/ARCHITECTURE.md`](architecture/ARCHITECTURE.en.md) → [`architecture/CONSTITUTIONAL_SUBSTRATE.md`](architecture/CONSTITUTIONAL_SUBSTRATE.en.md) → [`architecture/CAPABILITY_PACKAGE.md`](architecture/CAPABILITY_PACKAGE.en.md) to understand the boundaries among substrate, protocols, components, Host, distributions, and products.
 3. Read [`product/PLATFORM_PRODUCT_MODEL.md`](product/PLATFORM_PRODUCT_MODEL.en.md) and walk through [`guides/PACKAGE_AUTHORING_WALKTHROUGH.md`](guides/PACKAGE_AUTHORING_WALKTHROUGH.en.md) to understand official product responsibility and complete a first Package / Component.
 
 Then enter the relevant guide, spec, or roadmap as needed.
@@ -55,10 +55,10 @@ Then enter the relevant guide, spec, or roadmap as needed.
 | Goal | Read first |
 |---|---|
 | Understand platform goals | [`CHARTER.md`](CHARTER.en.md) → [`architecture/VISION.md`](architecture/VISION.en.md) |
-| Understand layering | [`architecture/ARCHITECTURE.md`](architecture/ARCHITECTURE.en.md) → [`architecture/PLATFORM_KERNEL.md`](architecture/PLATFORM_KERNEL.en.md) → [`architecture/CAPABILITY_PACKAGE.md`](architecture/CAPABILITY_PACKAGE.en.md) |
+| Understand layering | [`architecture/ARCHITECTURE.md`](architecture/ARCHITECTURE.en.md) → [`architecture/CONSTITUTIONAL_SUBSTRATE.md`](architecture/CONSTITUTIONAL_SUBSTRATE.en.md) → [`architecture/CAPABILITY_PACKAGE.md`](architecture/CAPABILITY_PACKAGE.en.md) |
 | Understand the official product | [`product/PLATFORM_PRODUCT_MODEL.md`](product/PLATFORM_PRODUCT_MODEL.en.md) → [`design/PLATFORM_UI_DESIGN.md`](design/PLATFORM_UI_DESIGN.en.md) |
 | Review long-term contract boundaries | [`architecture/CONSTITUTION_V2.md`](architecture/CONSTITUTION_V2.en.md) → [`spec/CONTRACT_LAYERING_MATRIX.md`](spec/CONTRACT_LAYERING_MATRIX.en.md) → [`spec/CONTRACT_REGISTRY.md`](spec/CONTRACT_REGISTRY.en.md) |
-| Use public contracts | [`protocol/PROTOCOL_V0.md`](protocol/PROTOCOL_V0.en.md) → [`spec/KERNEL_V1_CONTRACT.md`](spec/KERNEL_V1_CONTRACT.en.md) |
+| Use public contracts | [`protocol/PUBLIC_PROTOCOL.md`](protocol/PUBLIC_PROTOCOL.en.md) → [`spec/PUBLIC_CONTRACT.md`](spec/PUBLIC_CONTRACT.en.md) |
 | Write a first Package / Component | [`guides/PACKAGE_AUTHORING_WALKTHROUGH.md`](guides/PACKAGE_AUTHORING_WALKTHROUGH.en.md) |
 | Install a Package / Project | [`guides/PACKAGE_INSTALLATION.md`](guides/PACKAGE_INSTALLATION.en.md) → [`guides/PROJECT_MODEL.md`](guides/PROJECT_MODEL.en.md) |
 | Manage API keys / secrets | [`guides/SECRET_MANAGEMENT.md`](guides/SECRET_MANAGEMENT.en.md) |

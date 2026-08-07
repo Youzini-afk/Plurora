@@ -2,7 +2,7 @@
 
 > [English](./EXTERNAL_PROJECT_OPERATING_PLANE.en.md) · [中文](./EXTERNAL_PROJECT_OPERATING_PLANE.md)
 
-External Project Operating Plane 说明 Plurora 不必只接入已经适配清单和能力契约的项目。未适配的 git、npm、本地目录或 archive 项目可以先作为 external project 被平台理解、评估风险、规划、展示和包装。只有稳定的 adapter 或 wrapper 才进入普通 Plurora Package和能力体系。
+External Project Operating Plane 说明 Plurora 不必只接入已经适配清单和能力契约的项目。未适配的 git、npm、本地目录或 archive 项目可以先作为 external project 被平台理解、评估风险、规划、展示和包装。只有稳定的 adapter 或 wrapper 才进入普通 Plurora Package 和能力体系。
 
 安全边界从一个事实出发：install/run 等于执行不可信代码，workflow 与 secret 泄漏都是真实风险。因此未适配项目先进入计划、策略、proposal 和审计边界；只有用户批准且被类型化 executor 约束的操作才产生副作用。
 
@@ -13,7 +13,7 @@ External Project Operating Plane 说明 Plurora 不必只接入已经适配清�
 | Plurora Package | 已适配的能力提供者，有清单、能力、权限、surface 和检查。 | 是 |
 | External Project | 未适配项目引用，例如 git/npm/local/archive。默认不可信。 | 否 |
 | Managed Workspace | External Project 的受控实例、计划或 fixture，包含 source ref、workspace state、entrypoint、patch proposal 和 audit ref。它不是内核对象。 | 否 |
-| Adapter / Wrapper Package | 把外部项目的稳定操作包装成普通 Plurora Package和能力。 | 是 |
+| Adapter / Wrapper Package | 把外部项目的稳定操作包装成普通 Plurora Package 和能力。 | 是 |
 
 这让平台避免退回“所有项目必须先写插件”的旧模式。外部项目可以保持原样。Plurora 围绕它做 intake、workspace plan、风险摘要、项目聚合 UI、patch proposal 和 adapter preview。
 
@@ -36,7 +36,7 @@ managed local copy 会保留 `.gitignore` 等源码元数据，但跳过 VCS 目
 
 ### `plurora/project-intake-lab`
 
-普通官方包，无内核特权。提供以下能力：
+普通第一方 Package，无内核特权。提供以下能力：
 
 - `describe_intake_contract`
 - `inspect_external_project_ref`
@@ -62,7 +62,7 @@ managed local copy 会保留 `.gitignore` 等源码元数据，但跳过 VCS 目
 
 ### `plurora/workspace-lab`
 
-普通官方包，无内核特权。提供以下能力：
+普通第一方 Package，无内核特权。提供以下能力：
 
 - `describe_workspace_contract`
 - `draft_workspace_creation`
@@ -119,12 +119,12 @@ development execute/recover 会在内存操作中携带认证身份，但绝不�
 - 危险动作必须先计划，再通过策略、提案、审批、审计和脱敏边界。
 - 默认不执行 `npm install`、`pip install`、`cargo build`、`make` 或任意 project script。
 - 不继承宿主 `.env`、SSH key、browser profile、home directory 或 raw secrets。
-- Agent 和普通包只能草拟计划、提案和 patch；真实效果必须由已认证 Host 的策略、审批、scratch、验证与审计链完成。
+- Agent 与普通 Package 只能草拟计划、提案和 patch；真实效果必须由已认证 Host 的策略、审批、scratch、验证与审计链完成。
 - Web shell 只走公开协议。
 
 ## 示例
 
-`examples/packages/external-project-adapter-preview/manifest.yaml` 是 adapter preview fixture。它使用 `thirdparty/example-adapter` namespace，通过普通包清单证明外部项目 adapter 应走同一条包路径。它不是发布物，不自动写入用户项目，也不自动执行外部命令。
+`examples/packages/external-project-adapter-preview/manifest.yaml` 是 adapter preview fixture。它使用 `thirdparty/example-adapter` namespace，通过普通 Package Manifest 证明外部项目 adapter 应走同一条包路径。它不是发布物，不自动写入用户项目，也不自动执行外部命令。
 
 可检查：
 
@@ -151,4 +151,4 @@ external intake、受控源码 ChangeSet、verified local/Agent deployment 与�
 - native verified bundle 的人工/工具化应用，以及更深入的 project graph、dependency risk analysis 和受控 adapter / deployment descriptor 引导式创作。
 - target-edge ingress 与应用身份单独设计；任意网络代理和通用远程 shell 仍明确不做。
 
-这些仍应作为普通包和 Host executor 底座推进，不应进入内核 product ontology。
+这些仍应作为普通 Package 与 Host executor 底座推进，不应进入内核 product ontology。

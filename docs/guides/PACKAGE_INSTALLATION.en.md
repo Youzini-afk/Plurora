@@ -26,7 +26,7 @@ This guide covers the install flow, native/external project detection, manifest 
 - Consistency: lockfile plus immutable content-addressed storage.
 - Auditability: user-granted capabilities, network, and secrets are recorded in the lockfile.
 - Consent: newly added or expanded authority prompts the user.
-- No official privilege: installer, git tools, and integrity tools load through ordinary manifests.
+- No first-party privilege: installer, git tools, and integrity tools load through ordinary manifests.
 
 ## User flow
 
