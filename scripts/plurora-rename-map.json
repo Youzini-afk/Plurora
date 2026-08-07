@@ -1,0 +1,826 @@
+{
+  "schema": "plurora.rename-map.v1",
+  "decision": {
+    "brand": "Plurora",
+    "cli": "plurora",
+    "data_dir": "~/.plurora",
+    "env_prefix": "PLURORA_",
+    "repository": "Youzini-afk/Plurora",
+    "compatibility": "none"
+  },
+  "path_moves": {
+    "crates/ygg-core": "crates/plurora-core",
+    "crates/ygg-runtime": "crates/plurora-runtime",
+    "crates/ygg-service": "crates/plurora-service",
+    "crates/ygg-cli": "crates/plurora-cli",
+    "sdk/rust/yg-kernel-sdk": "sdk/rust/plurora-contract-sdk",
+    "sdk/typescript/ygg-agent-adapter": "sdk/typescript/agent-adapter",
+    "clients/web/public/icons/yggdrasil.svg": "clients/web/public/icons/plurora.svg",
+    "clients/web/public/icons/yggdrasil-maskable.svg": "clients/web/public/icons/plurora-maskable.svg"
+  },
+  "identifier_replacements": {
+    "Yggdrasil": "Plurora",
+    "yggdrasil": "plurora",
+    "YGG_": "PLURORA_",
+    "__YGG_RUNTIME__": "__PLURORA_RUNTIME__",
+    "@yggdrasil/": "@plurora/",
+    "ygg-core": "plurora-core",
+    "ygg-runtime": "plurora-runtime",
+    "ygg-service": "plurora-service",
+    "ygg-cli": "plurora-cli",
+    "ygg-desktop": "plurora-desktop",
+    "yg-kernel-sdk": "plurora-contract-sdk",
+    "ygg-tdb-rust-adapter": "plurora-tdb-rust-adapter",
+    "ygg_core": "plurora_core",
+    "ygg_runtime": "plurora_runtime",
+    "ygg_service": "plurora_service",
+    "ygg_cli": "plurora_cli",
+    "urn:yggdrasil:": "urn:plurora:",
+    "application/vnd.yggdrasil.": "application/vnd.plurora.",
+    "yggdrasil.lock.v1": "plurora.lock.v1",
+    "ygg.contract.default/v1": "plurora.contract.default/v1",
+    "ygg.shell.default/v1": "plurora.shell.default/v1",
+    "ygg.shell.default": "plurora.shell.default",
+    "ygg.change/default/v1": "plurora.change/default/v1",
+    "ygg.change": "plurora.change",
+    "ygg.world.bundle/experimental/v1": "plurora.world.bundle/experimental/v1",
+    "ygg.world.bundle": "plurora.world.bundle",
+    "ygg.runtime.": "plurora.runtime.",
+    "x-ygg-": "x-plurora-",
+    "~/.yggdrasil": "~/.plurora",
+    ".yggdrasil-nixpacks": ".plurora-nixpacks",
+    "com.yggdrasil.desktop": "io.github.youzini-afk.plurora"
+  },
+  "cargo_packages": {
+    "ygg-core": "plurora-core",
+    "ygg-runtime": "plurora-runtime",
+    "ygg-service": "plurora-service",
+    "ygg-cli": "plurora-cli",
+    "ygg-desktop": "plurora-desktop",
+    "yg-kernel-sdk": "plurora-contract-sdk",
+    "ygg-tdb-rust-adapter": "plurora-tdb-rust-adapter",
+    "ygg-tdb-rust-adapter-real-crate": "plurora-tdb-rust-adapter-real-crate"
+  },
+  "npm_packages": {
+    "@yggdrasil/web": "@plurora/web",
+    "ygg-desktop": "@plurora/desktop",
+    "@yggdrasil/kernel-sdk": "@plurora/contract-sdk",
+    "@yggdrasil/subprocess": "@plurora/subprocess",
+    "@yggdrasil/agentic-forge": "@plurora/agentic-forge",
+    "@yggdrasil/experience-runtime": "@plurora/experience-runtime",
+    "@yggdrasil/inference-capability": "@plurora/inference-capability",
+    "ygg-agent-adapter": "@plurora/agent-adapter"
+  },
+  "methods": [
+    {
+      "variant": "SessionOpen",
+      "old": "kernel.v1.session.open",
+      "new": "context.open"
+    },
+    {
+      "variant": "SessionClose",
+      "old": "kernel.v1.session.close",
+      "new": "context.close"
+    },
+    {
+      "variant": "SessionFork",
+      "old": "kernel.v1.session.fork",
+      "new": "context.fork"
+    },
+    {
+      "variant": "SessionBranchList",
+      "old": "kernel.v1.session.branch.list",
+      "new": "context.branch.list"
+    },
+    {
+      "variant": "SessionGet",
+      "old": "kernel.v1.session.get",
+      "new": "context.get"
+    },
+    {
+      "variant": "SessionList",
+      "old": "kernel.v1.session.list",
+      "new": "context.list"
+    },
+    {
+      "variant": "EventAppend",
+      "old": "kernel.v1.event.append",
+      "new": "journal.append"
+    },
+    {
+      "variant": "EventList",
+      "old": "kernel.v1.event.list",
+      "new": "journal.list"
+    },
+    {
+      "variant": "EventSubscribe",
+      "old": "kernel.v1.event.subscribe",
+      "new": "journal.subscribe"
+    },
+    {
+      "variant": "PackageLoad",
+      "old": "kernel.v1.package.load",
+      "new": "host.package.load"
+    },
+    {
+      "variant": "PackageUnload",
+      "old": "kernel.v1.package.unload",
+      "new": "host.package.unload"
+    },
+    {
+      "variant": "PackageRestart",
+      "old": "kernel.v1.package.restart",
+      "new": "host.package.restart"
+    },
+    {
+      "variant": "PackageLogs",
+      "old": "kernel.v1.package.logs",
+      "new": "host.package.logs"
+    },
+    {
+      "variant": "PackageList",
+      "old": "kernel.v1.package.list",
+      "new": "host.package.list"
+    },
+    {
+      "variant": "PackageStatus",
+      "old": "kernel.v1.package.status",
+      "new": "host.package.status"
+    },
+    {
+      "variant": "PackageDescribe",
+      "old": "kernel.v1.package.describe",
+      "new": "host.package.describe"
+    },
+    {
+      "variant": "ProjectList",
+      "old": "kernel.v1.project.list",
+      "new": "host.project.list"
+    },
+    {
+      "variant": "ProjectGet",
+      "old": "kernel.v1.project.get",
+      "new": "host.project.get"
+    },
+    {
+      "variant": "ProjectStart",
+      "old": "kernel.v1.project.start",
+      "new": "host.project.start"
+    },
+    {
+      "variant": "ProjectStop",
+      "old": "kernel.v1.project.stop",
+      "new": "host.project.stop"
+    },
+    {
+      "variant": "ProjectStatus",
+      "old": "kernel.v1.project.status",
+      "new": "host.project.status"
+    },
+    {
+      "variant": "TargetList",
+      "old": "kernel.v1.target.list",
+      "new": "host.target.list"
+    },
+    {
+      "variant": "TargetStatus",
+      "old": "kernel.v1.target.status",
+      "new": "host.target.status"
+    },
+    {
+      "variant": "TargetRegister",
+      "old": "kernel.v1.target.register",
+      "new": "host.target.register"
+    },
+    {
+      "variant": "TargetUnregister",
+      "old": "kernel.v1.target.unregister",
+      "new": "host.target.unregister"
+    },
+    {
+      "variant": "ExecStart",
+      "old": "kernel.v1.exec.start",
+      "new": "host.exec.start"
+    },
+    {
+      "variant": "ExecStop",
+      "old": "kernel.v1.exec.stop",
+      "new": "host.exec.stop"
+    },
+    {
+      "variant": "ExecStatus",
+      "old": "kernel.v1.exec.status",
+      "new": "host.exec.status"
+    },
+    {
+      "variant": "ExecLogs",
+      "old": "kernel.v1.exec.logs",
+      "new": "host.exec.logs"
+    },
+    {
+      "variant": "ExecList",
+      "old": "kernel.v1.exec.list",
+      "new": "host.exec.list"
+    },
+    {
+      "variant": "PortLease",
+      "old": "kernel.v1.port.lease",
+      "new": "host.port.lease"
+    },
+    {
+      "variant": "PortRelease",
+      "old": "kernel.v1.port.release",
+      "new": "host.port.release"
+    },
+    {
+      "variant": "PortStatus",
+      "old": "kernel.v1.port.status",
+      "new": "host.port.status"
+    },
+    {
+      "variant": "PortList",
+      "old": "kernel.v1.port.list",
+      "new": "host.port.list"
+    },
+    {
+      "variant": "ProxyRegister",
+      "old": "kernel.v1.proxy.register",
+      "new": "host.proxy.register"
+    },
+    {
+      "variant": "ProxyUnregister",
+      "old": "kernel.v1.proxy.unregister",
+      "new": "host.proxy.unregister"
+    },
+    {
+      "variant": "ProxyStatus",
+      "old": "kernel.v1.proxy.status",
+      "new": "host.proxy.status"
+    },
+    {
+      "variant": "ProxyList",
+      "old": "kernel.v1.proxy.list",
+      "new": "host.proxy.list"
+    },
+    {
+      "variant": "CapabilityDiscover",
+      "old": "kernel.v1.capability.discover",
+      "new": "capability.discover"
+    },
+    {
+      "variant": "CapabilityDescribe",
+      "old": "kernel.v1.capability.describe",
+      "new": "capability.describe"
+    },
+    {
+      "variant": "CapabilityInvoke",
+      "old": "kernel.v1.capability.invoke",
+      "new": "capability.invoke"
+    },
+    {
+      "variant": "CapabilityHandleAttenuate",
+      "old": "kernel.v1.cap.attenuate",
+      "new": "authority.handle.attenuate"
+    },
+    {
+      "variant": "CapabilityHandleRevoke",
+      "old": "kernel.v1.cap.revoke",
+      "new": "authority.handle.revoke"
+    },
+    {
+      "variant": "CapabilityHandleListFor",
+      "old": "kernel.v1.cap.list_for",
+      "new": "authority.handle.list"
+    },
+    {
+      "variant": "CapabilityStream",
+      "old": "kernel.v1.capability.stream",
+      "new": "capability.stream"
+    },
+    {
+      "variant": "CapabilityCancel",
+      "old": "kernel.v1.capability.cancel",
+      "new": "capability.cancel"
+    },
+    {
+      "variant": "ExtensionPointList",
+      "old": "kernel.v1.extension_point.list",
+      "new": "protocol.extension.list"
+    },
+    {
+      "variant": "ExtensionPointDescribe",
+      "old": "kernel.v1.extension_point.describe",
+      "new": "protocol.extension.describe"
+    },
+    {
+      "variant": "HookList",
+      "old": "kernel.v1.hook.list",
+      "new": "protocol.hook.list"
+    },
+    {
+      "variant": "AssetPut",
+      "old": "kernel.v1.asset.put",
+      "new": "object.put"
+    },
+    {
+      "variant": "AssetGet",
+      "old": "kernel.v1.asset.get",
+      "new": "object.get"
+    },
+    {
+      "variant": "AssetList",
+      "old": "kernel.v1.asset.list",
+      "new": "object.list"
+    },
+    {
+      "variant": "ProjectionRegister",
+      "old": "kernel.v1.projection.register",
+      "new": "projection.register"
+    },
+    {
+      "variant": "ProjectionRebuild",
+      "old": "kernel.v1.projection.rebuild",
+      "new": "projection.rebuild"
+    },
+    {
+      "variant": "ProjectionGet",
+      "old": "kernel.v1.projection.get",
+      "new": "projection.get"
+    },
+    {
+      "variant": "ProjectionList",
+      "old": "kernel.v1.projection.list",
+      "new": "projection.list"
+    },
+    {
+      "variant": "HostInfo",
+      "old": "kernel.v1.host.info",
+      "new": "host.info"
+    },
+    {
+      "variant": "HostPing",
+      "old": "kernel.v1.host.ping",
+      "new": "host.ping"
+    },
+    {
+      "variant": "HostDiagnostics",
+      "old": "kernel.v1.host.diagnostics",
+      "new": "host.diagnostics"
+    },
+    {
+      "variant": "HostPrincipal",
+      "old": "kernel.v1.host.principal",
+      "new": "identity.current"
+    },
+    {
+      "variant": "PermissionGrant",
+      "old": "kernel.v1.permission.grant",
+      "new": "authority.grant.create"
+    },
+    {
+      "variant": "PermissionRevoke",
+      "old": "kernel.v1.permission.revoke",
+      "new": "authority.grant.revoke"
+    },
+    {
+      "variant": "PermissionList",
+      "old": "kernel.v1.permission.list",
+      "new": "authority.grant.list"
+    },
+    {
+      "variant": "PermissionAudit",
+      "old": "kernel.v1.permission.audit",
+      "new": "authority.decision.list"
+    },
+    {
+      "variant": "AuditPackage",
+      "old": "kernel.v1.audit.package",
+      "new": "host.package.audit"
+    },
+    {
+      "variant": "ProposalCreate",
+      "old": "kernel.v1.proposal.create",
+      "new": "change.proposal.create"
+    },
+    {
+      "variant": "ProposalGet",
+      "old": "kernel.v1.proposal.get",
+      "new": "change.proposal.get"
+    },
+    {
+      "variant": "ProposalList",
+      "old": "kernel.v1.proposal.list",
+      "new": "change.proposal.list"
+    },
+    {
+      "variant": "ProposalApprove",
+      "old": "kernel.v1.proposal.approve",
+      "new": "change.proposal.approve"
+    },
+    {
+      "variant": "ProposalReject",
+      "old": "kernel.v1.proposal.reject",
+      "new": "change.proposal.reject"
+    },
+    {
+      "variant": "ProposalApply",
+      "old": "kernel.v1.proposal.apply",
+      "new": "change.proposal.apply"
+    },
+    {
+      "variant": "SurfaceResolveBundle",
+      "old": "kernel.v1.surface.resolve_bundle",
+      "new": "host.surface.bundle.resolve"
+    },
+    {
+      "variant": "SurfaceContributionList",
+      "old": "kernel.v1.surface.contribution.list",
+      "new": "shell.contribution.list"
+    },
+    {
+      "variant": "SurfaceContributionDescribe",
+      "old": "kernel.v1.surface.contribution.describe",
+      "new": "shell.contribution.describe"
+    },
+    {
+      "variant": "OutboundAudit",
+      "old": "kernel.v1.outbound.audit",
+      "new": "host.outbound.audit"
+    },
+    {
+      "variant": "OutboundExecute",
+      "old": "kernel.v1.outbound.execute",
+      "new": "host.outbound.execute"
+    },
+    {
+      "variant": "OutboundStream",
+      "old": "kernel.v1.outbound.stream",
+      "new": "host.outbound.stream"
+    },
+    {
+      "variant": "OutboundWebSocketOpen",
+      "old": "kernel.v1.outbound.websocket.open",
+      "new": "host.outbound.websocket.open"
+    },
+    {
+      "variant": "OutboundWebSocketSend",
+      "old": "kernel.v1.outbound.websocket.send",
+      "new": "host.outbound.websocket.send"
+    },
+    {
+      "variant": "OutboundWebSocketClose",
+      "old": "kernel.v1.outbound.websocket.close",
+      "new": "host.outbound.websocket.close"
+    }
+  ],
+  "events": [
+    {
+      "old": "kernel/v1/asset.put",
+      "new": "object/put"
+    },
+    {
+      "old": "kernel/v1/capability.completed",
+      "new": "capability/completed"
+    },
+    {
+      "old": "kernel/v1/capability.failed",
+      "new": "capability/failed"
+    },
+    {
+      "old": "kernel/v1/capability.invoked",
+      "new": "capability/invoked"
+    },
+    {
+      "old": "kernel/v1/deployment.health",
+      "new": "host/deployment.health"
+    },
+    {
+      "old": "kernel/v1/deployment.reconciled",
+      "new": "host/deployment.reconciled"
+    },
+    {
+      "old": "kernel/v1/error",
+      "new": "runtime/error"
+    },
+    {
+      "old": "kernel/v1/exec.completed",
+      "new": "host/exec.completed"
+    },
+    {
+      "old": "kernel/v1/exec.denied",
+      "new": "host/exec.denied"
+    },
+    {
+      "old": "kernel/v1/exec.failed",
+      "new": "host/exec.failed"
+    },
+    {
+      "old": "kernel/v1/exec.request",
+      "new": "host/exec.request"
+    },
+    {
+      "old": "kernel/v1/exec.started",
+      "new": "host/exec.started"
+    },
+    {
+      "old": "kernel/v1/exec.stopped",
+      "new": "host/exec.stopped"
+    },
+    {
+      "old": "kernel/v1/outbound.denied",
+      "new": "host/outbound.denied"
+    },
+    {
+      "old": "kernel/v1/outbound.execute.completed",
+      "new": "host/outbound.execute.completed"
+    },
+    {
+      "old": "kernel/v1/outbound.request",
+      "new": "host/outbound.request"
+    },
+    {
+      "old": "kernel/v1/outbound.stream.completed",
+      "new": "host/outbound.stream.completed"
+    },
+    {
+      "old": "kernel/v1/outbound.websocket.completed",
+      "new": "host/outbound.websocket.completed"
+    },
+    {
+      "old": "kernel/v1/outbound.websocket.error",
+      "new": "host/outbound.websocket.error"
+    },
+    {
+      "old": "kernel/v1/outbound.websocket.frame",
+      "new": "host/outbound.websocket.frame"
+    },
+    {
+      "old": "kernel/v1/outbound.websocket.opened",
+      "new": "host/outbound.websocket.opened"
+    },
+    {
+      "old": "kernel/v1/package.degraded",
+      "new": "host/package.degraded"
+    },
+    {
+      "old": "kernel/v1/package.loaded",
+      "new": "host/package.loaded"
+    },
+    {
+      "old": "kernel/v1/package.loading",
+      "new": "host/package.loading"
+    },
+    {
+      "old": "kernel/v1/package.log",
+      "new": "host/package.log"
+    },
+    {
+      "old": "kernel/v1/package.ready",
+      "new": "host/package.ready"
+    },
+    {
+      "old": "kernel/v1/package.starting",
+      "new": "host/package.starting"
+    },
+    {
+      "old": "kernel/v1/package.stopped",
+      "new": "host/package.stopped"
+    },
+    {
+      "old": "kernel/v1/package.stopping",
+      "new": "host/package.stopping"
+    },
+    {
+      "old": "kernel/v1/package.unloaded",
+      "new": "host/package.unloaded"
+    },
+    {
+      "old": "kernel/v1/permission.denied",
+      "new": "authority/denied"
+    },
+    {
+      "old": "kernel/v1/permission.granted",
+      "new": "authority/grant.created"
+    },
+    {
+      "old": "kernel/v1/permission.revoked",
+      "new": "authority/grant.revoked"
+    },
+    {
+      "old": "kernel/v1/port.denied",
+      "new": "host/port.denied"
+    },
+    {
+      "old": "kernel/v1/port.leased",
+      "new": "host/port.leased"
+    },
+    {
+      "old": "kernel/v1/port.released",
+      "new": "host/port.released"
+    },
+    {
+      "old": "kernel/v1/project.installed",
+      "new": "host/project.installed"
+    },
+    {
+      "old": "kernel/v1/project.started",
+      "new": "host/project.started"
+    },
+    {
+      "old": "kernel/v1/project.stopped",
+      "new": "host/project.stopped"
+    },
+    {
+      "old": "kernel/v1/project.uninstalled",
+      "new": "host/project.uninstalled"
+    },
+    {
+      "old": "kernel/v1/projection.updated",
+      "new": "projection/updated"
+    },
+    {
+      "old": "kernel/v1/proposal.applied",
+      "new": "change/proposal.applied"
+    },
+    {
+      "old": "kernel/v1/proposal.approved",
+      "new": "change/proposal.approved"
+    },
+    {
+      "old": "kernel/v1/proposal.created",
+      "new": "change/proposal.created"
+    },
+    {
+      "old": "kernel/v1/proposal.failed",
+      "new": "change/proposal.failed"
+    },
+    {
+      "old": "kernel/v1/proposal.rejected",
+      "new": "change/proposal.rejected"
+    },
+    {
+      "old": "kernel/v1/proxy.denied",
+      "new": "host/proxy.denied"
+    },
+    {
+      "old": "kernel/v1/proxy.registered",
+      "new": "host/proxy.registered"
+    },
+    {
+      "old": "kernel/v1/proxy.unregistered",
+      "new": "host/proxy.unregistered"
+    },
+    {
+      "old": "kernel/v1/session.closed",
+      "new": "context/closed"
+    },
+    {
+      "old": "kernel/v1/session.forked",
+      "new": "context/forked"
+    },
+    {
+      "old": "kernel/v1/session.opened",
+      "new": "context/opened"
+    },
+    {
+      "old": "kernel/v1/stream.cancelled",
+      "new": "capability/stream.cancelled"
+    },
+    {
+      "old": "kernel/v1/stream.chunk",
+      "new": "capability/stream.chunk"
+    },
+    {
+      "old": "kernel/v1/stream.ended",
+      "new": "capability/stream.ended"
+    },
+    {
+      "old": "kernel/v1/stream.error",
+      "new": "capability/stream.error"
+    },
+    {
+      "old": "kernel/v1/stream.progress",
+      "new": "capability/stream.progress"
+    },
+    {
+      "old": "kernel/v1/stream.started",
+      "new": "capability/stream.started"
+    },
+    {
+      "old": "kernel/v1/stream.timeout",
+      "new": "capability/stream.timeout"
+    }
+  ],
+  "redlines": [
+    {
+      "name": "brand_upper",
+      "literal": "Yggdrasil",
+      "baseline_max": 649
+    },
+    {
+      "name": "brand_lower",
+      "literal": "yggdrasil",
+      "baseline_max": 980
+    },
+    {
+      "name": "npm_scope",
+      "literal": "@yggdrasil",
+      "baseline_max": 44
+    },
+    {
+      "name": "env_prefix",
+      "literal": "YGG_",
+      "baseline_max": 335
+    },
+    {
+      "name": "web_runtime",
+      "literal": "__YGG_RUNTIME__",
+      "baseline_max": 10
+    },
+    {
+      "name": "home_dir",
+      "literal": "~/.yggdrasil",
+      "baseline_max": 84
+    },
+    {
+      "name": "lock_schema",
+      "literal": "yggdrasil.lock",
+      "baseline_max": 19
+    },
+    {
+      "name": "urn",
+      "literal": "urn:yggdrasil",
+      "baseline_max": 113
+    },
+    {
+      "name": "media_type",
+      "literal": "application/vnd.yggdrasil",
+      "baseline_max": 17
+    },
+    {
+      "name": "protocol_prefix",
+      "regex": "\\bygg\\.(?:contract|shell|change|world|runtime)",
+      "baseline_max": 192
+    },
+    {
+      "name": "hyphen_prefix",
+      "regex": "\\bygg-",
+      "baseline_max": 613
+    },
+    {
+      "name": "underscore_prefix",
+      "regex": "\\bygg_",
+      "baseline_max": 1044
+    },
+    {
+      "name": "rust_sdk",
+      "literal": "yg-kernel-sdk",
+      "baseline_max": 16
+    },
+    {
+      "name": "cli_ygg",
+      "regex": "(?<![A-Za-z0-9_])ygg(?![A-Za-z0-9_])",
+      "baseline_max": 1034
+    },
+    {
+      "name": "cli_yg",
+      "regex": "(?<![A-Za-z0-9_])yg(?![A-Za-z0-9_])",
+      "baseline_max": 214
+    },
+    {
+      "name": "kernel_method",
+      "literal": "kernel.v1",
+      "baseline_max": 3298
+    },
+    {
+      "name": "kernel_event",
+      "literal": "kernel/v1",
+      "baseline_max": 1173
+    },
+    {
+      "name": "legacy_adapter",
+      "literal": "LegacyAdapter",
+      "baseline_max": 29
+    },
+    {
+      "name": "legacy_ts",
+      "literal": "legacyKernelV1",
+      "baseline_max": 186
+    },
+    {
+      "name": "legacy_rust",
+      "literal": "legacy_kernel_v1",
+      "baseline_max": 44
+    },
+    {
+      "name": "contract_migrate",
+      "literal": "contract migrate",
+      "baseline_max": 11
+    },
+    {
+      "name": "official_namespace",
+      "literal": "official/",
+      "baseline_max": 2293
+    }
+  ]
+}
