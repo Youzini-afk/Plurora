@@ -76,12 +76,12 @@ Conclusion: TriviumDB/TDB fits as a retrieval and multimodal provider adapter, n
 
 TDB is valuable as a local embedded vector, graph, document, and multimodal hybrid retrieval engine. Plurora events, permissions, proposals, branch lineage, and audit still need the event spine as their substrate.
 
-## `official/tdb-retrieval-lab`
+## `plurora/tdb-retrieval-lab`
 
-New ordinary official package:
+New ordinary first-party Package:
 
 ```text
-packages/official/tdb-retrieval-lab
+packages/plurora/tdb-retrieval-lab
 ```
 
 Capabilities:
@@ -106,9 +106,9 @@ This package remains a replayable contract/plan layer:
 - no filesystem access
 - no raw backend secret saved or returned
 
-Real TDB wiring is handled by `official/tdb-rust-adapter` and `integrations/tdb/rust-adapter-real-crate`; `tdb-retrieval-lab` stays as the default-safe contract/plan layer.
+Real TDB wiring is handled by `plurora/tdb-rust-adapter` and `integrations/tdb/rust-adapter-real-crate`; `tdb-retrieval-lab` stays as the default-safe contract/plan layer.
 
-## `official/tdb-rust-adapter`
+## `plurora/tdb-rust-adapter`
 
 Explicitly loaded ordinary subprocess package:
 
@@ -165,9 +165,9 @@ examples/tdb-provider-profiles/tdb-local.example.json
 Forge Storage Inspector calls through public protocol:
 
 ```text
-official/storage-lab
-official/tdb-retrieval-lab
-official/tdb-rust-adapter (only when explicitly loaded)
+plurora/storage-lab
+plurora/tdb-retrieval-lab
+plurora/tdb-rust-adapter (only when explicitly loaded)
 ```
 
 It displays:
@@ -204,7 +204,7 @@ Common validation commands:
 cargo test --workspace
 cargo run -p plurora-cli -- conformance --tag storage
 cargo run -p plurora-cli -- conformance --tag tdb
-cargo run -p plurora-cli -- package check packages/official/tdb-retrieval-lab/manifest.yaml
+cargo run -p plurora-cli -- package check packages/plurora/tdb-retrieval-lab/manifest.yaml
 cargo run -p plurora-cli -- package check examples/packages/tdb-rust-adapter/manifest.yaml
 cargo check -p plurora-cli --features postgres
 ```

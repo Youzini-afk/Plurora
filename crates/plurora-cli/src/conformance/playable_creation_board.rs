@@ -1,4 +1,4 @@
-//! Conformance tests for `official/playable-creation-board` (Experience Beta 1 + Beta 2).
+//! Conformance tests for `plurora/playable-creation-board` (Experience Beta 1 + Beta 2).
 //!
 //! Covers:
 //! 1. Surface discovery / launch shape
@@ -26,7 +26,7 @@ use serde_json::json;
 use super::fixtures::*;
 use crate::commands::manifest;
 
-const PACKAGE_ID: &str = "official/playable-creation-board";
+const PACKAGE_ID: &str = "plurora/playable-creation-board";
 
 async fn load_playable_creation_board(
 ) -> anyhow::Result<plurora_runtime::Runtime<plurora_runtime::InMemoryEventStore>> {
@@ -34,7 +34,7 @@ async fn load_playable_creation_board(
     runtime
         .load_package(
             manifest::read_manifest(PathBuf::from(
-                "packages/official/playable-creation-board/manifest.yaml",
+                "packages/plurora/playable-creation-board/manifest.yaml",
             ))
             .await?,
         )
@@ -285,7 +285,7 @@ pub(crate) async fn playable_board_bind_agent_run_scoped() -> anyhow::Result<()>
         "bind_agent_run",
         json!({
             "board_id": "board:conf",
-            "agent_package_id": "official/agentic-forge-lab",
+            "agent_package_id": "plurora/agentic-forge-lab",
         }),
     )
     .await?;
@@ -309,7 +309,7 @@ pub(crate) async fn playable_board_candidate_proposal_no_target_mutation() -> an
     runtime
         .load_package(
             manifest::read_manifest(PathBuf::from(
-                "packages/official/agentic-forge-lab/manifest.yaml",
+                "packages/plurora/agentic-forge-lab/manifest.yaml",
             ))
             .await?,
         )
@@ -319,9 +319,9 @@ pub(crate) async fn playable_board_candidate_proposal_no_target_mutation() -> an
     let start_run = runtime
         .invoke_capability(CapabilityInvocationRequest {
             handle: None,
-            capability_id: Some("official/agentic-forge-lab/start_run".to_string()),
+            capability_id: Some("plurora/agentic-forge-lab/start_run".to_string()),
             caller_package_id: None,
-            provider_package_id: Some("official/agentic-forge-lab".to_string()),
+            provider_package_id: Some("plurora/agentic-forge-lab".to_string()),
             version: None,
             session_id: None,
             input: json!({"objective": "modify board module"}),
@@ -333,9 +333,9 @@ pub(crate) async fn playable_board_candidate_proposal_no_target_mutation() -> an
     let cand = runtime
         .invoke_capability(CapabilityInvocationRequest {
             handle: None,
-            capability_id: Some("official/agentic-forge-lab/create_candidate".to_string()),
+            capability_id: Some("plurora/agentic-forge-lab/create_candidate".to_string()),
             caller_package_id: None,
-            provider_package_id: Some("official/agentic-forge-lab".to_string()),
+            provider_package_id: Some("plurora/agentic-forge-lab".to_string()),
             version: None,
             session_id: None,
             input: json!({
@@ -355,9 +355,9 @@ pub(crate) async fn playable_board_candidate_proposal_no_target_mutation() -> an
     let promote = runtime
         .invoke_capability(CapabilityInvocationRequest {
             handle: None,
-            capability_id: Some("official/agentic-forge-lab/draft_promote_proposal".to_string()),
+            capability_id: Some("plurora/agentic-forge-lab/draft_promote_proposal".to_string()),
             caller_package_id: None,
-            provider_package_id: Some("official/agentic-forge-lab".to_string()),
+            provider_package_id: Some("plurora/agentic-forge-lab".to_string()),
             version: None,
             session_id: None,
             input: json!({
@@ -389,7 +389,7 @@ pub(crate) async fn playable_board_reject_approve_fork_proof() -> anyhow::Result
     runtime
         .load_package(
             manifest::read_manifest(PathBuf::from(
-                "packages/official/agentic-forge-lab/manifest.yaml",
+                "packages/plurora/agentic-forge-lab/manifest.yaml",
             ))
             .await?,
         )
@@ -399,9 +399,9 @@ pub(crate) async fn playable_board_reject_approve_fork_proof() -> anyhow::Result
     let start_run = runtime
         .invoke_capability(CapabilityInvocationRequest {
             handle: None,
-            capability_id: Some("official/agentic-forge-lab/start_run".to_string()),
+            capability_id: Some("plurora/agentic-forge-lab/start_run".to_string()),
             caller_package_id: None,
-            provider_package_id: Some("official/agentic-forge-lab".to_string()),
+            provider_package_id: Some("plurora/agentic-forge-lab".to_string()),
             version: None,
             session_id: None,
             input: json!({"objective": "test reject/approve"}),
@@ -412,9 +412,9 @@ pub(crate) async fn playable_board_reject_approve_fork_proof() -> anyhow::Result
     let cand = runtime
         .invoke_capability(CapabilityInvocationRequest {
             handle: None,
-            capability_id: Some("official/agentic-forge-lab/create_candidate".to_string()),
+            capability_id: Some("plurora/agentic-forge-lab/create_candidate".to_string()),
             caller_package_id: None,
-            provider_package_id: Some("official/agentic-forge-lab".to_string()),
+            provider_package_id: Some("plurora/agentic-forge-lab".to_string()),
             version: None,
             session_id: None,
             input: json!({"run_id": run_id, "target_revision": 1}),
@@ -428,9 +428,9 @@ pub(crate) async fn playable_board_reject_approve_fork_proof() -> anyhow::Result
     let promote = runtime
         .invoke_capability(CapabilityInvocationRequest {
             handle: None,
-            capability_id: Some("official/agentic-forge-lab/draft_promote_proposal".to_string()),
+            capability_id: Some("plurora/agentic-forge-lab/draft_promote_proposal".to_string()),
             caller_package_id: None,
-            provider_package_id: Some("official/agentic-forge-lab".to_string()),
+            provider_package_id: Some("plurora/agentic-forge-lab".to_string()),
             version: None,
             session_id: None,
             input: json!({
@@ -452,9 +452,9 @@ pub(crate) async fn playable_board_reject_approve_fork_proof() -> anyhow::Result
     let archive = runtime
         .invoke_capability(CapabilityInvocationRequest {
             handle: None,
-            capability_id: Some("official/agentic-forge-lab/archive_candidate".to_string()),
+            capability_id: Some("plurora/agentic-forge-lab/archive_candidate".to_string()),
             caller_package_id: None,
-            provider_package_id: Some("official/agentic-forge-lab".to_string()),
+            provider_package_id: Some("plurora/agentic-forge-lab".to_string()),
             version: None,
             session_id: None,
             input: json!({"candidate_id": cand_id}),
@@ -470,7 +470,7 @@ pub(crate) async fn playable_board_reject_approve_fork_proof() -> anyhow::Result
 
 /// Case 8: Third-party replacement: no official priority.
 /// bind_agent_run accepts thirdparty/agentic-forge as forge provider.
-pub(crate) async fn playable_board_thirdparty_no_official_priority() -> anyhow::Result<()> {
+pub(crate) async fn playable_board_thirdparty_no_publisher_priority() -> anyhow::Result<()> {
     let runtime = load_playable_creation_board().await?;
 
     // Bind with third-party forge
@@ -491,11 +491,11 @@ pub(crate) async fn playable_board_thirdparty_no_official_priority() -> anyhow::
 
     anyhow::ensure!(binding.output["kind"] == json!("playable_creation_board_agent_run_binding"));
     anyhow::ensure!(binding.output["agent_package_id"] == json!("thirdparty/agentic-forge"));
-    // No official_priority field
+    // No publisher_priority field
     let output_str = serde_json::to_string(&binding.output).unwrap();
     anyhow::ensure!(
-        !output_str.contains("official_priority"),
-        "no official_priority field"
+        !output_str.contains("publisher_priority"),
+        "no publisher_priority field"
     );
     Ok(())
 }

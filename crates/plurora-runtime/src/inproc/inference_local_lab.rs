@@ -1,4 +1,4 @@
-//! Handler for `official/inference-local-lab` capabilities.
+//! Handler for `plurora/inference-local-lab` capabilities.
 //!
 //! Deterministic non-HTTP fake local inference provider proof.
 //! Proves the inference capability seam does not depend on cloud APIs,
@@ -11,7 +11,7 @@ use serde_json::Value;
 
 use super::InprocInvocation;
 
-const PACKAGE_ID: &str = "official/inference-local-lab";
+const PACKAGE_ID: &str = "plurora/inference-local-lab";
 
 // HTTP-shaped field names that must be rejected
 const HTTP_SHAPED_FIELDS: &[&str] = &[
@@ -480,7 +480,7 @@ mod tests {
     #[test]
     fn describe_capabilities_returns_local_transports() {
         let req = make_request(
-            "official/inference-local-lab/describe_capabilities",
+            "plurora/inference-local-lab/describe_capabilities",
             serde_json::json!({}),
         );
         let result = describe_capabilities(&req).unwrap();
@@ -507,7 +507,7 @@ mod tests {
     #[test]
     fn invoke_rejects_http_transport() {
         let req = make_request(
-            "official/inference-local-lab/invoke",
+            "plurora/inference-local-lab/invoke",
             serde_json::json!({"transport_kind": "http", "operation_kind": "generate"}),
         );
         let result = invoke(&req).unwrap();
@@ -520,7 +520,7 @@ mod tests {
     #[test]
     fn invoke_rejects_url_field() {
         let req = make_request(
-            "official/inference-local-lab/invoke",
+            "plurora/inference-local-lab/invoke",
             serde_json::json!({"url": "https://api.example.com", "operation_kind": "generate"}),
         );
         let result = invoke(&req).unwrap();
@@ -533,7 +533,7 @@ mod tests {
     #[test]
     fn invoke_rejects_messages_field() {
         let req = make_request(
-            "official/inference-local-lab/invoke",
+            "plurora/inference-local-lab/invoke",
             serde_json::json!({"messages": [{"role": "user", "content": "hi"}], "operation_kind": "generate"}),
         );
         let result = invoke(&req).unwrap();
@@ -546,7 +546,7 @@ mod tests {
     #[test]
     fn invoke_succeeds_without_http_fields() {
         let req = make_request(
-            "official/inference-local-lab/invoke",
+            "plurora/inference-local-lab/invoke",
             serde_json::json!({"operation_kind": "generate", "operation_id": "op_001"}),
         );
         let result = invoke(&req).unwrap();
@@ -559,7 +559,7 @@ mod tests {
     #[test]
     fn invoke_rejects_raw_secret() {
         let req = make_request(
-            "official/inference-local-lab/invoke",
+            "plurora/inference-local-lab/invoke",
             serde_json::json!({"operation_kind": "generate", "api_key": "rawSecretPlaceholder1234567890ABCDEF"}),
         );
         let result = invoke(&req).unwrap();
@@ -569,7 +569,7 @@ mod tests {
     #[test]
     fn stream_emits_deterministic_frames() {
         let req = make_request(
-            "official/inference-local-lab/stream",
+            "plurora/inference-local-lab/stream",
             serde_json::json!({"invocation_id": "inv_test", "operation_kind": "generate"}),
         );
         let result = stream(&req).unwrap();
@@ -597,7 +597,7 @@ mod tests {
             "cancelled",
         ] {
             let req = make_request(
-                "official/inference-local-lab/explain_error",
+                "plurora/inference-local-lab/explain_error",
                 serde_json::json!({"error_kind": error_kind}),
             );
             let result = explain_error(&req).unwrap();

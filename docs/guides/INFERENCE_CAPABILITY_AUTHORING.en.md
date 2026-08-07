@@ -8,7 +8,7 @@ This guide documents how to author inference capability packages for Plurora. Pl
 
 1. Inference is an ordinary capability, not a kernel primitive. There are no `platform.model.*`, `platform.prompt.*`, `platform.chat.*`, or `platform.embedding.*`.
 2. The request envelope is transport-neutral. It does not contain URL, HTTP header, status code, or OpenAI messages fields.
-3. Cloud adapters are one class of provider, not the platform model abstraction. `official/model-provider-lab` is an ordinary cloud API adapter lab; it does not represent Ygg's model worldview.
+3. Cloud adapters are one class of provider, not the platform model abstraction. `plurora/model-provider-lab` is an ordinary cloud API adapter lab; it does not represent Ygg's model worldview.
 4. `local_process`, `in_memory`, `ipc`, `websocket`, and `http` have equal standing.
 5. Secrets use `secret_ref`. Raw secrets are rejected in every field.
 
@@ -80,7 +80,7 @@ import { createProviderCapabilityManifest } from "@plurora/inference-capability"
 
 // Cloud API provider
 const cloudManifest = createProviderCapabilityManifest({
-  provider_id: "official/model-provider-lab",
+  provider_id: "plurora/model-provider-lab",
   label: "Cloud API Model Provider",
   operation_kinds: ["generate", "embed"],
   transport_kinds: ["http"],
@@ -92,7 +92,7 @@ const cloudManifest = createProviderCapabilityManifest({
 
 // Local process provider
 const localManifest = createProviderCapabilityManifest({
-  provider_id: "official/inference-local-lab",
+  provider_id: "plurora/inference-local-lab",
   label: "Local Process Inference Provider",
   operation_kinds: ["generate"],
   transport_kinds: ["local_process", "in_memory"],

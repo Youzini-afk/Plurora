@@ -14,10 +14,10 @@ use tokio::sync::Mutex;
 
 use crate::commands::{install::OutputFormat, manifest, project, uninstall};
 
-const INSTALL_MANIFEST: &str = "packages/official/install-lab/manifest.yaml";
-const GIT_MANIFEST: &str = "packages/official/git-tools-lab/manifest.yaml";
-const INTEGRITY_MANIFEST: &str = "packages/official/integrity-lab/manifest.yaml";
-const PACKAGE_ID: &str = "official/install-lab";
+const INSTALL_MANIFEST: &str = "packages/plurora/install-lab/manifest.yaml";
+const GIT_MANIFEST: &str = "packages/plurora/git-tools-lab/manifest.yaml";
+const INTEGRITY_MANIFEST: &str = "packages/plurora/integrity-lab/manifest.yaml";
+const PACKAGE_ID: &str = "plurora/install-lab";
 
 static ENV_LOCK: Mutex<()> = Mutex::const_new(());
 
@@ -85,7 +85,7 @@ pub(crate) async fn detect_native_yaml() -> anyhow::Result<()> {
     std::fs::write(tmp.path().join("manifest.yaml"), manifest_yaml())?;
     let out = invoke(
         &rt,
-        "official/install-lab/detect_kind",
+        "plurora/install-lab/detect_kind",
         json!({ "path": tmp.path() }),
     )
     .await?;
@@ -100,7 +100,7 @@ pub(crate) async fn detect_no_yaml() -> anyhow::Result<()> {
     std::fs::write(tmp.path().join("manifest.yaml"), manifest_yaml())?;
     let out = invoke(
         &rt,
-        "official/install-lab/detect_kind",
+        "plurora/install-lab/detect_kind",
         json!({ "path": tmp.path() }),
     )
     .await?;
@@ -115,7 +115,7 @@ pub(crate) async fn detect_invalid_yaml_rejected() -> anyhow::Result<()> {
     std::fs::write(tmp.path().join("project.yaml"), "project: [broken")?;
     let err = invoke(
         &rt,
-        "official/install-lab/detect_kind",
+        "plurora/install-lab/detect_kind",
         json!({ "path": tmp.path() }),
     )
     .await
@@ -131,7 +131,7 @@ pub(crate) async fn register_creates_project_dir() -> anyhow::Result<()> {
     let descriptor = external_descriptor("reg-proj__abc12345", guard.path());
     let out = invoke(
         &rt,
-        "official/install-lab/register_project",
+        "plurora/install-lab/register_project",
         json!({ "descriptor": descriptor, "data_dir": guard.path() }),
     )
     .await?;
@@ -263,7 +263,7 @@ fn external_descriptor(id: &str, root: &Path) -> ProjectDescriptor {
             description: "external test".to_string(),
             project_type: ProjectType::ExternalWorkspace,
             icon: None,
-            entry_surface_id: Some("official/workspace-lab/workspace_view".to_string()),
+            entry_surface_id: Some("plurora/workspace-lab/workspace_view".to_string()),
             packages: vec![],
             optional_packages: vec![],
             required_surfaces: vec![],

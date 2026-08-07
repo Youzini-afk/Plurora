@@ -13,7 +13,7 @@ pub(super) fn project_intake_lab_external_project_operating_plane_alpha_e1_cases
         c!(
             "project_intake.contract_shape",
             [
-                "official",
+                "first_party",
                 "external_project",
                 "project_intake",
                 "no_execution"
@@ -23,7 +23,7 @@ pub(super) fn project_intake_lab_external_project_operating_plane_alpha_e1_cases
         c!(
             "project_intake.source_classification",
             [
-                "official",
+                "first_party",
                 "external_project",
                 "project_intake",
                 "no_execution"
@@ -33,7 +33,7 @@ pub(super) fn project_intake_lab_external_project_operating_plane_alpha_e1_cases
         c!(
             "project_intake.stack_detection_npm_lifecycle",
             [
-                "official",
+                "first_party",
                 "external_project",
                 "project_intake",
                 "no_execution"
@@ -43,7 +43,7 @@ pub(super) fn project_intake_lab_external_project_operating_plane_alpha_e1_cases
         c!(
             "project_intake.workspace_plan_no_execution",
             [
-                "official",
+                "first_party",
                 "external_project",
                 "project_intake",
                 "no_execution"
@@ -53,7 +53,7 @@ pub(super) fn project_intake_lab_external_project_operating_plane_alpha_e1_cases
         c!(
             "project_intake.local_path_rejection",
             [
-                "official",
+                "first_party",
                 "external_project",
                 "project_intake",
                 "no_execution",
@@ -64,7 +64,7 @@ pub(super) fn project_intake_lab_external_project_operating_plane_alpha_e1_cases
         c!(
             "project_intake.adapter_plan_no_execution",
             [
-                "official",
+                "first_party",
                 "external_project",
                 "project_intake",
                 "no_execution"
@@ -74,7 +74,7 @@ pub(super) fn project_intake_lab_external_project_operating_plane_alpha_e1_cases
         c!(
             "project_intake.no_forbidden_namespace",
             [
-                "official",
+                "first_party",
                 "external_project",
                 "project_intake",
                 "no_execution",
@@ -85,7 +85,7 @@ pub(super) fn project_intake_lab_external_project_operating_plane_alpha_e1_cases
         c!(
             "project_intake.no_raw_secrets",
             [
-                "official",
+                "first_party",
                 "external_project",
                 "project_intake",
                 "no_execution",
@@ -103,7 +103,7 @@ pub(super) fn project_intake_lab_e5_external_project_operating_plane_alpha_e5_ad
     c!(
         "project_intake.adapter_manifest_preview_no_write",
         [
-            "official",
+            "first_party",
             "external_project",
             "project_intake",
             "no_execution"
@@ -111,20 +111,20 @@ pub(super) fn project_intake_lab_e5_external_project_operating_plane_alpha_e5_ad
         crate::conformance::project_intake_lab::project_intake_adapter_manifest_preview_no_write
     ),
     c!(
-        "project_intake.rejects_official_adapter_id",
+        "project_intake.rejects_first_party_adapter_id",
         [
-            "official",
+            "first_party",
             "external_project",
             "project_intake",
             "no_execution",
             "secret"
         ],
-        crate::conformance::project_intake_lab::project_intake_rejects_official_adapter_id
+        crate::conformance::project_intake_lab::project_intake_rejects_first_party_adapter_id
     ),
     c!(
         "project_intake.rejects_path_traversal_adapter_id",
         [
-            "official",
+            "first_party",
             "external_project",
             "project_intake",
             "no_execution"
@@ -134,7 +134,7 @@ pub(super) fn project_intake_lab_e5_external_project_operating_plane_alpha_e5_ad
     c!(
         "project_intake.capability_namespace_mismatch_rejected",
         [
-            "official",
+            "first_party",
             "external_project",
             "project_intake",
             "no_execution",
@@ -145,7 +145,7 @@ pub(super) fn project_intake_lab_e5_external_project_operating_plane_alpha_e5_ad
     c!(
         "project_intake.wrapper_preview_no_execution",
         [
-            "official",
+            "first_party",
             "external_project",
             "project_intake",
             "no_execution"
@@ -155,7 +155,7 @@ pub(super) fn project_intake_lab_e5_external_project_operating_plane_alpha_e5_ad
     c!(
         "project_intake.fixture_preview_redacted",
         [
-            "official",
+            "first_party",
             "external_project",
             "project_intake",
             "no_execution",
@@ -166,7 +166,7 @@ pub(super) fn project_intake_lab_e5_external_project_operating_plane_alpha_e5_ad
     c!(
         "project_intake.readiness_checklist_ok",
         [
-            "official",
+            "first_party",
             "external_project",
             "project_intake",
             "no_execution"
@@ -176,7 +176,7 @@ pub(super) fn project_intake_lab_e5_external_project_operating_plane_alpha_e5_ad
     c!(
         "project_intake.e5_no_forbidden_namespace_no_raw_secret",
         [
-            "official",
+            "first_party",
             "external_project",
             "project_intake",
             "no_execution",
@@ -195,7 +195,7 @@ pub(super) fn workspace_lab_external_project_operating_plane_alpha_e2_cases() ->
         c!(
             "workspace_lab.contract_shape",
             [
-                "official",
+                "first_party",
                 "external_project",
                 "workspace_lab",
                 "policy",
@@ -206,7 +206,7 @@ pub(super) fn workspace_lab_external_project_operating_plane_alpha_e2_cases() ->
         c!(
             "workspace_lab.action_taxonomy_deny_default",
             [
-                "official",
+                "first_party",
                 "external_project",
                 "workspace_lab",
                 "policy",
@@ -217,7 +217,7 @@ pub(super) fn workspace_lab_external_project_operating_plane_alpha_e2_cases() ->
         c!(
             "workspace_lab.policy_mismatch_fail_closed",
             [
-                "official",
+                "first_party",
                 "external_project",
                 "workspace_lab",
                 "policy",
@@ -228,7 +228,7 @@ pub(super) fn workspace_lab_external_project_operating_plane_alpha_e2_cases() ->
         c!(
             "workspace_lab.raw_secret_blocked",
             [
-                "official",
+                "first_party",
                 "external_project",
                 "workspace_lab",
                 "policy",
@@ -240,7 +240,7 @@ pub(super) fn workspace_lab_external_project_operating_plane_alpha_e2_cases() ->
         c!(
             "workspace_lab.audit_redacted",
             [
-                "official",
+                "first_party",
                 "external_project",
                 "workspace_lab",
                 "policy",
@@ -251,7 +251,7 @@ pub(super) fn workspace_lab_external_project_operating_plane_alpha_e2_cases() ->
         c!(
             "workspace_lab.no_forbidden_namespace",
             [
-                "official",
+                "first_party",
                 "external_project",
                 "workspace_lab",
                 "policy",
@@ -263,7 +263,7 @@ pub(super) fn workspace_lab_external_project_operating_plane_alpha_e2_cases() ->
         c!(
             "workspace_lab.no_execution",
             [
-                "official",
+                "first_party",
                 "external_project",
                 "workspace_lab",
                 "policy",
@@ -281,7 +281,7 @@ pub(super) fn workspace_lab_e3_external_project_operating_plane_alpha_e3_managed
         c!(
             "workspace_lab.fixture_workspace_creation",
             [
-                "official",
+                "first_party",
                 "external_project",
                 "workspace_lab",
                 "managed_workspace",
@@ -293,7 +293,7 @@ pub(super) fn workspace_lab_e3_external_project_operating_plane_alpha_e3_managed
         c!(
             "workspace_lab.inspect_read_no_filesystem",
             [
-                "official",
+                "first_party",
                 "external_project",
                 "workspace_lab",
                 "managed_workspace",
@@ -305,7 +305,7 @@ pub(super) fn workspace_lab_e3_external_project_operating_plane_alpha_e3_managed
         c!(
             "workspace_lab.run_plan_requires_approval",
             [
-                "official",
+                "first_party",
                 "external_project",
                 "workspace_lab",
                 "managed_workspace",
@@ -317,7 +317,7 @@ pub(super) fn workspace_lab_e3_external_project_operating_plane_alpha_e3_managed
         c!(
             "workspace_lab.fixture_process_result_redacted",
             [
-                "official",
+                "first_party",
                 "external_project",
                 "workspace_lab",
                 "managed_workspace",
@@ -329,7 +329,7 @@ pub(super) fn workspace_lab_e3_external_project_operating_plane_alpha_e3_managed
         c!(
             "workspace_lab.entrypoint_discovery",
             [
-                "official",
+                "first_party",
                 "external_project",
                 "workspace_lab",
                 "managed_workspace",
@@ -341,7 +341,7 @@ pub(super) fn workspace_lab_e3_external_project_operating_plane_alpha_e3_managed
         c!(
             "workspace_lab.patch_draft_proposal",
             [
-                "official",
+                "first_party",
                 "external_project",
                 "workspace_lab",
                 "managed_workspace",
@@ -353,7 +353,7 @@ pub(super) fn workspace_lab_e3_external_project_operating_plane_alpha_e3_managed
         c!(
             "workspace_lab.e3_raw_secret_no_forbidden_namespace",
             [
-                "official",
+                "first_party",
                 "external_project",
                 "workspace_lab",
                 "managed_workspace",
@@ -372,37 +372,37 @@ pub(super) fn integrity_lab_package_installation_foundation_i3_cases() -> Vec<Co
         // --- integrity-lab (Package Installation Foundation I3) ---
         c!(
             "integrity.tree_hash_deterministic",
-            ["official", "integrity", "package_install"],
+            ["first_party", "integrity", "package_install"],
             crate::conformance::integrity_tools::tree_hash_deterministic
         ),
         c!(
             "integrity.tree_hash_excludes_metadata",
-            ["official", "integrity", "package_install"],
+            ["first_party", "integrity", "package_install"],
             crate::conformance::integrity_tools::tree_hash_excludes_metadata
         ),
         c!(
             "integrity.manifest_hash_yaml_json_equivalent",
-            ["official", "integrity", "package_install"],
+            ["first_party", "integrity", "package_install"],
             crate::conformance::integrity_tools::manifest_hash_yaml_json_equivalent
         ),
         c!(
             "integrity.gpg_verify_valid_signature",
-            ["official", "integrity", "package_install"],
+            ["first_party", "integrity", "package_install"],
             crate::conformance::integrity_tools::gpg_verify_valid_signature
         ),
         c!(
             "integrity.gpg_verify_wrong_key_fails",
-            ["official", "integrity", "package_install"],
+            ["first_party", "integrity", "package_install"],
             crate::conformance::integrity_tools::gpg_verify_wrong_key_fails
         ),
         c!(
             "integrity.gpg_verify_invalid_signature_no_panic",
-            ["official", "integrity", "package_install"],
+            ["first_party", "integrity", "package_install"],
             crate::conformance::integrity_tools::gpg_verify_invalid_signature_no_panic
         ),
         c!(
             "integrity.fingerprint_extraction_consistent",
-            ["official", "integrity", "package_install"],
+            ["first_party", "integrity", "package_install"],
             crate::conformance::integrity_tools::fingerprint_extraction_consistent
         ),
     ]
@@ -413,57 +413,57 @@ pub(super) fn secret_store_lab_round_10a_1_phase_b_cases() -> Vec<ConformanceCas
         // --- secret-store-lab (Round 10A.1 Phase B) ---
         c!(
             "secret_store.put_then_has_succeeds",
-            ["official", "secret_store", "secret"],
+            ["first_party", "secret_store", "secret"],
             crate::conformance::secret_store::put_then_has_succeeds
         ),
         c!(
             "secret_store.list_returns_names_not_values",
-            ["official", "secret_store", "secret"],
+            ["first_party", "secret_store", "secret"],
             crate::conformance::secret_store::list_returns_names_not_values
         ),
         c!(
             "secret_store.delete_removes",
-            ["official", "secret_store", "secret"],
+            ["first_party", "secret_store", "secret"],
             crate::conformance::secret_store::delete_removes
         ),
         c!(
             "secret_store.put_invalid_name_rejected",
-            ["official", "secret_store", "secret"],
+            ["first_party", "secret_store", "secret"],
             crate::conformance::secret_store::put_invalid_name_rejected
         ),
         c!(
             "secret_store.put_oversized_value_rejected",
-            ["official", "secret_store", "secret"],
+            ["first_party", "secret_store", "secret"],
             crate::conformance::secret_store::put_oversized_value_rejected
         ),
         c!(
             "secret_store.health_reports_layout",
-            ["official", "secret_store", "secret"],
+            ["first_party", "secret_store", "secret"],
             crate::conformance::secret_store::health_reports_layout
         ),
         c!(
             "secret_store_resolver.resolves_existing",
-            ["official", "secret_store", "secret"],
+            ["first_party", "secret_store", "secret"],
             crate::conformance::secret_store::resolver_resolves_existing
         ),
         c!(
             "secret_store_resolver.missing_name_fails_closed",
-            ["official", "secret_store", "secret"],
+            ["first_party", "secret_store", "secret"],
             crate::conformance::secret_store::resolver_missing_name_fails_closed
         ),
         c!(
             "secret_store_resolver.non_store_ref_rejected",
-            ["official", "secret_store", "secret"],
+            ["first_party", "secret_store", "secret"],
             crate::conformance::secret_store::resolver_non_store_ref_rejected
         ),
         c!(
             "secret_store_resolver.error_does_not_leak_value",
-            ["official", "secret_store", "secret"],
+            ["first_party", "secret_store", "secret"],
             crate::conformance::secret_store::resolver_error_does_not_leak_value
         ),
         c!(
             "secret_store_resolver.host_profile_installs_composite_resolver",
-            ["official", "secret_store", "secret", "host"],
+            ["first_party", "secret_store", "secret", "host"],
             crate::conformance::secret_store::host_profile_installs_composite_resolver
         ),
     ]
@@ -556,27 +556,27 @@ pub(super) fn git_tools_lab_package_installation_foundation_i2_cases() -> Vec<Co
         // --- git-tools-lab (Package Installation Foundation I2) ---
         c!(
             "git_tools.url_validation_https_only",
-            ["official", "git_tools", "install"],
+            ["first_party", "git_tools", "install"],
             crate::conformance::git_tools::url_validation_https_only
         ),
         c!(
             "git_tools.url_validation_no_userinfo",
-            ["official", "git_tools", "install", "secret"],
+            ["first_party", "git_tools", "install", "secret"],
             crate::conformance::git_tools::url_validation_no_userinfo
         ),
         c!(
             "git_tools.path_validation_absolute",
-            ["official", "git_tools", "install"],
+            ["first_party", "git_tools", "install"],
             crate::conformance::git_tools::path_validation_absolute
         ),
         c!(
             "git_tools.path_validation_no_traversal",
-            ["official", "git_tools", "install"],
+            ["first_party", "git_tools", "install"],
             crate::conformance::git_tools::path_validation_no_traversal
         ),
         c!(
             "git_tools.read_signed_tag_unsigned",
-            ["official", "git_tools", "install", "fixture"],
+            ["first_party", "git_tools", "install", "fixture"],
             crate::conformance::git_tools::read_signed_tag_unsigned
         ),
     ]
@@ -587,13 +587,13 @@ pub(super) fn install_lab_package_installation_foundation_i4_cases() -> Vec<Conf
         // --- install-lab (Package Installation Foundation I4) ---
         c!(
             "install_lab.resolve_plan_local_source",
-            ["official", "install", "package_install", "fixture"],
+            ["first_party", "install", "package_install", "fixture"],
             crate::conformance::install_lab::resolve_plan_local_source
         ),
         c!(
             "install_lab.project_root_install_registers_surface_dist",
             [
-                "official",
+                "first_party",
                 "install",
                 "package_install",
                 "project",
@@ -603,68 +603,68 @@ pub(super) fn install_lab_package_installation_foundation_i4_cases() -> Vec<Conf
         ),
         c!(
             "install_lab.resolve_plan_runs_conformance",
-            ["official", "install", "package_install", "fixture"],
+            ["first_party", "install", "package_install", "fixture"],
             crate::conformance::install_lab::resolve_plan_runs_conformance
         ),
         c!(
             "install_lab.resolve_plan_blocks_when_strict",
-            ["official", "install", "package_install", "fixture"],
+            ["first_party", "install", "package_install", "fixture"],
             crate::conformance::install_lab::resolve_plan_blocks_when_strict
         ),
         c!(
             "install_lab.strict_conformance_blocks",
-            ["official", "install", "package_install", "fixture"],
+            ["first_party", "install", "package_install", "fixture"],
             crate::conformance::install_lab::strict_conformance_blocks
         ),
         c!(
             "install_lab.lenient_conformance_warns_not_blocks",
-            ["official", "install", "package_install", "fixture"],
+            ["first_party", "install", "package_install", "fixture"],
             crate::conformance::install_lab::lenient_conformance_warns_not_blocks
         ),
         c!(
             "install_lab.transitive_conformance_propagates",
-            ["official", "install", "package_install", "fixture"],
+            ["first_party", "install", "package_install", "fixture"],
             crate::conformance::install_lab::transitive_conformance_propagates
         ),
         c!(
             "install_lab.resolve_plan_with_transitive",
-            ["official", "install", "package_install", "fixture"],
+            ["first_party", "install", "package_install", "fixture"],
             crate::conformance::install_lab::resolve_plan_with_transitive
         ),
         c!(
             "install_lab.resolve_plan_cycle_detection",
-            ["official", "install", "package_install", "fixture"],
+            ["first_party", "install", "package_install", "fixture"],
             crate::conformance::install_lab::resolve_plan_cycle_detection
         ),
         c!(
             "install_lab.execute_plan_local",
-            ["official", "install", "package_install", "fixture"],
+            ["first_party", "install", "package_install", "fixture"],
             crate::conformance::install_lab::execute_plan_local
         ),
         c!(
             "install_lab.execute_plan_consent_mismatch",
-            ["official", "install", "package_install", "fixture"],
+            ["first_party", "install", "package_install", "fixture"],
             crate::conformance::install_lab::execute_plan_consent_mismatch
         ),
         c!(
             "install_lab.uninstall_removes_from_profile",
-            ["official", "install", "package_install", "fixture"],
+            ["first_party", "install", "package_install", "fixture"],
             crate::conformance::install_lab::uninstall_removes_from_profile
         ),
         c!(
             "install_lab.list_installed_reflects_lockfile",
-            ["official", "install", "package_install", "fixture"],
+            ["first_party", "install", "package_install", "fixture"],
             crate::conformance::install_lab::list_installed_reflects_lockfile
         ),
         c!(
             "install_lab.check_lockfile_drift_detection",
-            ["official", "install", "package_install", "fixture"],
+            ["first_party", "install", "package_install", "fixture"],
             crate::conformance::install_lab::check_lockfile_drift_detection
         ),
         c!(
             "install_lab.check_for_updates_local_dangling_unsupported",
             [
-                "official",
+                "first_party",
                 "install",
                 "package_install",
                 "fixture",
@@ -675,7 +675,7 @@ pub(super) fn install_lab_package_installation_foundation_i4_cases() -> Vec<Conf
         c!(
             "install_lab.check_for_updates_external_project_not_applicable",
             [
-                "official",
+                "first_party",
                 "install",
                 "package_install",
                 "fixture",
@@ -686,7 +686,7 @@ pub(super) fn install_lab_package_installation_foundation_i4_cases() -> Vec<Conf
         c!(
             "install_lab.update_project_local_replaces_dist_and_lockfile",
             [
-                "official",
+                "first_party",
                 "install",
                 "package_install",
                 "fixture",
@@ -697,7 +697,7 @@ pub(super) fn install_lab_package_installation_foundation_i4_cases() -> Vec<Conf
         c!(
             "install_lab.update_project_local_current_noop",
             [
-                "official",
+                "first_party",
                 "install",
                 "package_install",
                 "fixture",
@@ -708,7 +708,7 @@ pub(super) fn install_lab_package_installation_foundation_i4_cases() -> Vec<Conf
         c!(
             "install_lab.update_project_local_force_reinstalls_current",
             [
-                "official",
+                "first_party",
                 "install",
                 "package_install",
                 "fixture",
@@ -719,7 +719,7 @@ pub(super) fn install_lab_package_installation_foundation_i4_cases() -> Vec<Conf
         c!(
             "install_lab.update_project_external_not_applicable",
             [
-                "official",
+                "first_party",
                 "install",
                 "package_install",
                 "fixture",
@@ -730,7 +730,7 @@ pub(super) fn install_lab_package_installation_foundation_i4_cases() -> Vec<Conf
         c!(
             "install_lab.update_project_permission_drift_blocks_before_mutation",
             [
-                "official",
+                "first_party",
                 "install",
                 "package_install",
                 "fixture",

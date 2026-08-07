@@ -2,7 +2,7 @@ schema_version: 1
 id: thirdparty/memory-lab
 version: 0.1.0
 display_name: Community Memory Lab
-description: "Third-party memory package proving official/memory-lab is replaceable: package-owned memory record, retrieval trace, proposal-gated update, correction, forget/redaction, branch-aware view, and provenance — all deterministic, no network, no inference, no platform privilege."
+description: "Third-party memory package proving plurora/memory-lab is replaceable: package-owned memory record, retrieval trace, proposal-gated update, correction, forget/redaction, branch-aware view, and provenance — all deterministic, no network, no inference, no platform privilege."
 entry:
   kind: rust_inproc
   crate_ref: example-thirdparty-agent-runtime
@@ -77,7 +77,7 @@ contributes:
     - id: thirdparty/memory-lab/assistant-action
       slot: assistant_action
       title: Community Memory Lab Assistant
-      description: Draft approval-gated memory updates, corrections, or redaction plans from a community-maintained memory lab fully interchangeable with official/memory-lab.
+      description: Draft approval-gated memory updates, corrections, or redaction plans from a community-maintained memory lab fully interchangeable with plurora/memory-lab.
       capability_id: thirdparty/memory-lab/draft_memory_update
       approval_policy: fork_then_approve
     - id: thirdparty/memory-lab/home-card

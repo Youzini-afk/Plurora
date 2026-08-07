@@ -52,7 +52,7 @@ cargo run -p plurora-cli -- init-package /tmp/plurora-asset-editor \
 - `streaming` — 带 faux frame 生命周期的流式能力（`StreamFrameClient`）。演示 `start`/`chunk`/`end` frame 和 `redaction_state`。不做真实模型推理。使用 `sdk/typescript/secure-execution`。
 - `agent-runtime` — 本地可重放的类 agent 子进程包。包含流式 `run` 能力、`explain-run` 追踪摘要、`draft-proposal` 提案草案、`echo` 能力，以及 `assistant_action` + `forge_panel` surfaces。使用 `StreamFrameClient`（`sdk/typescript/secure-execution`）与 `createTraceEvent`/`createProposalDraft`/`blockRawSecrets`（`sdk/typescript/agent-adapter`）。不做真实模型推理、不出网、不暴露 raw secret。
 - `experience-runtime` — 本地可重放的 experience-runtime 子进程包。包含 `describe-contract`、`create-checkpoint`、`inspect-checkpoint`、`draft-recovery`、`bind-agent-run` 和 `echo` 能力，以及全部四个 experience surfaces。使用 `sdk/typescript/experience-runtime` SDK。不做真实模型推理、不出网、不暴露 raw secret。
-- `playable-board` — 本地可重放的 playable board 子进程包。包含 `launch`、`project_state`、`render_payload`、`record_player_action`、`request_change`、`create_checkpoint` 和 `echo` 能力，以及全部四个 experience surfaces。最接近 `official/playable-creation-board` 形态的第三方创作者模板。不做真实模型推理、不出网、不暴露 raw secret。
+- `playable-board` — 本地可重放的 playable board 子进程包。包含 `launch`、`project_state`、`render_payload`、`record_player_action`、`request_change`、`create_checkpoint` 和 `echo` 能力，以及全部四个 experience surfaces。最接近 `plurora/playable-creation-board` 形态的第三方创作者模板。不做真实模型推理、不出网、不暴露 raw secret。
 - `playable-experience` — 本地可重放的 playable experience 子进程包。包含 `playable-board` 的所有能力外加 `inspect_checkpoint` 和 `draft_recovery`，支持完整的 checkpoint/recovery 生命周期。全部四个 experience surfaces。不做真实模型推理、不出网、不暴露 raw secret。
 
 `--language typescript-experience` 仍作为 legacy shortcut 保留，用于生成完整 experience-shaped package。
@@ -88,7 +88,7 @@ cargo run -p plurora-cli -- package check examples/packages/thirdparty-playable-
 cargo run -p plurora-cli -- composition check examples/compositions/playable-seed-replacement/composition.yaml
 ```
 
-该 package id 是 `thirdparty/playable-seed`，不是 `official/*`。它在没有 official priority 的情况下暴露兼容的 Play/Forging/Assistant/Asset surfaces。
+该 package id 是 `thirdparty/playable-seed`，不是 `plurora/*`。它在没有 official priority 的情况下暴露兼容的 Play/Forging/Assistant/Asset surfaces。
 
 ## 4. 在 host profile 中加载能力包
 
@@ -116,12 +116,12 @@ Forge 现在包含基于 public protocol data 的轻量 authoring panels：
 
 ## 5. 与官方包对比
 
-`packages/official/` 下的官方包是 reference implementations，不是特权路径：
+`packages/plurora/` 下的官方包是 reference implementations，不是特权路径：
 
-- `official/composition-lab` 解释 launch plans 与 surface graphs。
-- `official/asset-lab` preview assets 并草拟 import plans。
-- `official/projection-lab` 解释 projection rebuilds 与 source events。
-- `official/playable-seed` 证明 reference playable package。
+- `plurora/composition-lab` 解释 launch plans 与 surface graphs。
+- `plurora/asset-lab` preview assets 并草拟 import plans。
+- `plurora/projection-lab` 解释 projection rebuilds 与 source events。
+- `plurora/playable-seed` 证明 reference playable package。
 
 只要第三方包暴露兼容的 surfaces 与 capabilities，就应该能替换其中任意一个。
 
@@ -224,7 +224,7 @@ cargo run -p plurora-cli -- init-package /tmp/my-playable-board \
   --template playable-board
 ```
 
-生成一个与 `official/playable-creation-board` 形态一致的包骨架：
+生成一个与 `plurora/playable-creation-board` 形态一致的包骨架：
 
 - 4 个 experience surfaces：`experience_entry`、`play_renderer`、`forge_panel`、`assistant_action`
 - 7 个能力：`launch`、`project_state`、`render_payload`、`record_player_action`、`request_change`、`create_checkpoint`、`echo`
@@ -268,7 +268,7 @@ cargo run -p plurora-cli -- composition check /tmp/my-board-composition/composit
 
 ### 8.4 与官方参考包对比
 
-官方 `official/playable-creation-board` 包拥有相同的 surfaces 和 capabilities。你的第三方包使用相同的公开清单、能力和 surface 路径，没有特权，也没有特殊路由。两者同时加载时，内核不会优先选择官方包。若要在 composition 中替换它，将你的包声明为主要 provider，官方包声明为 `replacement_candidate`。
+官方 `plurora/playable-creation-board` 包拥有相同的 surfaces 和 capabilities。你的第三方包使用相同的公开清单、能力和 surface 路径，没有特权，也没有特殊路由。两者同时加载时，内核不会优先选择官方包。若要在 composition 中替换它，将你的包声明为主要 provider，官方包声明为 `replacement_candidate`。
 
 ### 8.5 更丰富的生命周期：playable-experience template
 

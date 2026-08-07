@@ -611,7 +611,7 @@ mod tests {
     }
 
     #[test]
-    fn official_and_third_party_change_implementations_share_vectors() {
+    fn first_party_and_third_party_change_implementations_share_vectors() {
         let descriptor = protocol_descriptor(CHANGE_PROTOCOL_ID).unwrap();
         let expected = descriptor
             .conformance_vectors

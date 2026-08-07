@@ -132,8 +132,8 @@ pub(crate) async fn run_blank_play_creation_loop<S: EventStore>(
     runtime: &Runtime<S>,
 ) -> Result<BlankLoopResult> {
     for manifest in [
-        "packages/official/assistant-lab/manifest.yaml",
-        "packages/official/blank-experience/manifest.yaml",
+        "packages/plurora/assistant-lab/manifest.yaml",
+        "packages/plurora/blank-experience/manifest.yaml",
     ] {
         runtime
             .load_package(read_manifest(PathBuf::from(manifest)).await?)
@@ -143,8 +143,8 @@ pub(crate) async fn run_blank_play_creation_loop<S: EventStore>(
         .open_session(OpenSessionRequest {
             labels: vec!["play-create".to_string()],
             active_package_set: vec![
-                "official/blank-experience".to_string(),
-                "official/assistant-lab".to_string(),
+                "plurora/blank-experience".to_string(),
+                "plurora/assistant-lab".to_string(),
             ],
             metadata: json!({"surface": "play"}),
         })
@@ -152,7 +152,7 @@ pub(crate) async fn run_blank_play_creation_loop<S: EventStore>(
     let seed = runtime
         .invoke_capability(CapabilityInvocationRequest {
             handle: None,
-            capability_id: Some("official/blank-experience/create_seed".to_string()),
+            capability_id: Some("plurora/blank-experience/create_seed".to_string()),
             caller_package_id: None,
             provider_package_id: None,
             version: None,
@@ -165,7 +165,7 @@ pub(crate) async fn run_blank_play_creation_loop<S: EventStore>(
         .call_protocol(
             &ProtocolContext::host_dev("demo"),
             "authority.grant.create",
-            json!({"principal": assistant, "permission": "capabilities.invoke", "scope": "official/assistant-lab"}),
+            json!({"principal": assistant, "permission": "capabilities.invoke", "scope": "plurora/assistant-lab"}),
         )
         .await
         .map_err(|error| anyhow::anyhow!(error.message))?;
@@ -182,7 +182,7 @@ pub(crate) async fn run_blank_play_creation_loop<S: EventStore>(
         .call_protocol(
             &assistant_context,
             "capability.invoke",
-            json!({"capability_id": "official/assistant-lab/draft_branch_change", "input": {"seed": seed.output, "change": "try a first branch"}}),
+            json!({"capability_id": "plurora/assistant-lab/draft_branch_change", "input": {"seed": seed.output, "change": "try a first branch"}}),
         )
         .await
         .map_err(|error| anyhow::anyhow!(error.message))?;
@@ -199,13 +199,13 @@ pub(crate) async fn run_blank_play_creation_loop<S: EventStore>(
         .await?;
     let asset = runtime
         .put_asset(plurora_runtime::runtime::AssetPutRequest {
-            origin_package_id: Some("official/blank-experience".to_string()),
+            origin_package_id: Some("plurora/blank-experience".to_string()),
             mime: "application/json".to_string(),
             content: serde_json::to_string(&json!({"seed": seed.output, "branch_id": branch.id}))?,
             metadata: json!({"kind": "blank_experience_seed"}),
         })
         .await?;
-    let projection_id = "official/blank-experience/projection/demo".to_string();
+    let projection_id = "plurora/blank-experience/projection/demo".to_string();
     runtime
         .projection_register(plurora_runtime::runtime::ProjectionDefinition {
             id: projection_id.clone(),
@@ -241,16 +241,16 @@ pub(crate) async fn playable_board_demo() -> Result<()> {
 
     // Load required packages
     for manifest_path in [
-        "packages/official/playable-creation-board/manifest.yaml",
-        "packages/official/agentic-forge-lab/manifest.yaml",
-        "packages/official/experience-runtime-lab/manifest.yaml",
+        "packages/plurora/playable-creation-board/manifest.yaml",
+        "packages/plurora/agentic-forge-lab/manifest.yaml",
+        "packages/plurora/experience-runtime-lab/manifest.yaml",
     ] {
         runtime
             .load_package(read_manifest(PathBuf::from(manifest_path)).await?)
             .await?;
     }
 
-    let pkg = "official/playable-creation-board";
+    let pkg = "plurora/playable-creation-board";
 
     // 1. Launch
     let launch = runtime
@@ -427,7 +427,7 @@ pub(crate) async fn playable_board_demo() -> Result<()> {
             session_id: None,
             input: json!({
                 "board_id": "board:demo",
-                "agent_package_id": "official/agentic-forge-lab",
+                "agent_package_id": "plurora/agentic-forge-lab",
             }),
         })
         .await?;
@@ -441,7 +441,7 @@ pub(crate) async fn playable_board_demo() -> Result<()> {
     );
 
     // 6. Agentic forge loop (start_run → export_plan → create_candidate → compare → draft_promote)
-    let forge_pkg = "official/agentic-forge-lab";
+    let forge_pkg = "plurora/agentic-forge-lab";
     let start_run = runtime
         .invoke_capability(CapabilityInvocationRequest {
             handle: None,

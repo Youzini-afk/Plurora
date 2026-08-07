@@ -12,6 +12,6 @@ pnpm = "9"
 purpose = "Creative capability reference extraction"
 
 [public_boundary]
-sdk = "packages/official-integration-kit/sdk"
-client_helpers = "packages/official-integration-kit/client-helpers"
+sdk = "packages/plurora-integration-kit/sdk"
+client_helpers = "packages/plurora-integration-kit/client-helpers"
 internal_shared = "packages/shared is not a Plurora integration boundary"

@@ -28,7 +28,7 @@ Openness means more than visible source code. Plurora also aims for:
 
 - public first-party implementations, protocols, data formats, and extension points;
 - user ability to read, export, back up, migrate, and delete their data;
-- no private API, hidden authority, or irreplaceable routing priority for official implementations;
+- no private API, hidden authority, or irreplaceable routing priority for first-party implementations;
 - replaceable clients, models, agents, components, storage, executors, Hosts, and products;
 - first-class local, self-hosted, and offline use;
 - equal third-party participation without repository-internal knowledge.
@@ -72,9 +72,9 @@ The platform holds user work, history, and configuration; it does not use them a
 
 Every cross-boundary action must answer who received which power over what resource, under which conditions, from where, and until when. A declaration is an upper bound rather than a grant; a credential is not a substitute for resource scope and policy.
 
-### Official implementations have no privilege
+### First-party implementations have no privilege
 
-Official packages, shells, Host profiles, clients, and services use the same registration, authorization, invocation, audit, and migration mechanisms as third parties. Maintainer identity may express responsibility, not implicit authority.
+First-party Packages, shells, Host profiles, clients, and services use the same registration, authorization, invocation, audit, and migration mechanisms as third parties. Maintainer identity may express responsibility, not implicit authority.
 
 ### Public contracts outrank internal convenience
 

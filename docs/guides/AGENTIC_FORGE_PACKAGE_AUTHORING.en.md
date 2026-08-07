@@ -53,7 +53,7 @@ Agents explore on scratch branches. They never modify the target branch directly
 
 ## Tool Bridge Scoped Grants
 
-The capability tool bridge (`official/capability-tool-bridge-lab`) provides:
+The capability tool bridge (`plurora/capability-tool-bridge-lab`) provides:
 
 - `explain_tool_call`: scoped grant summary with branch-aware context. `no_execution=true`, `no_ambient_authority=true`.
 - `record_tool_observation`: accepts untrusted tool output (`untrusted=true`). Large output gets an `asset_ref` recommendation. Raw secrets are blocked.
@@ -85,7 +85,7 @@ Inference failures return explicit kinds and recovery hints:
 Official agentic-forge-lab is an ordinary package. It has no kernel privilege and no routing priority. Third-party packages can replace it:
 
 1. Create a package with equivalent capability shapes (e.g., `thirdparty/agentic-forge`)
-2. Create a composition that declares `replacement_candidates: [official/agentic-forge-lab]`
+2. Create a composition that declares `replacement_candidates: [plurora/agentic-forge-lab]`
 3. Both packages produce package-owned shapes: candidates, proposals, plan graphs, working state
 4. Neither package may directly mutate target branches or perform network
 
@@ -107,7 +107,7 @@ See `examples/packages/thirdparty-agentic-forge/` and `examples/compositions/age
 
 ## Forge Workspace Public Protocol
 
-The forge workspace surfaces (`forge_panel`, `assistant_action`, `home_card`) are public protocol. Any package can contribute to these surface slots — official or third-party. The runtime does not prefer official packages.
+The forge workspace surfaces (`forge_panel`, `assistant_action`, `home_card`) are public protocol. Any package can contribute to these surface slots — official or third-party. The runtime does not prefer first-party Packages.
 
 ## TypeScript SDK
 

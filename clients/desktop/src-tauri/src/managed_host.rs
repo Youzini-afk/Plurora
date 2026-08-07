@@ -256,18 +256,18 @@ fn ensure_desktop_profile(
     app: &App,
     data_dir: &Path,
 ) -> Result<PathBuf, Box<dyn std::error::Error>> {
-    let sources = resolve_official_manifest_sources(app)?;
+    let sources = resolve_first_party_manifest_sources(app)?;
     ensure_desktop_profile_from_sources(data_dir, &sources)
 }
 
-fn resolve_official_manifest_sources(
+fn resolve_first_party_manifest_sources(
     _app: &App,
 ) -> Result<Vec<(String, PathBuf)>, Box<dyn std::error::Error>> {
     #[cfg(debug_assertions)]
-    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../../packages/official");
+    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../../packages/plurora");
 
     #[cfg(not(debug_assertions))]
-    let root = _app.path().resource_dir()?.join("official-packages");
+    let root = _app.path().resource_dir()?.join("plurora-packages");
 
     OFFICIAL_MANIFESTS
         .iter()
@@ -289,7 +289,7 @@ fn ensure_desktop_profile_from_sources(
     data_dir: &Path,
     sources: &[(String, PathBuf)],
 ) -> Result<PathBuf, Box<dyn std::error::Error>> {
-    let managed_packages = data_dir.join("desktop").join("official-packages");
+    let managed_packages = data_dir.join("desktop").join("plurora-packages");
     fs::create_dir_all(&managed_packages)?;
     let mut autoload = Vec::with_capacity(sources.len());
     for (name, source) in sources {
@@ -457,8 +457,8 @@ mod tests {
         fs::create_dir_all(&source_root).unwrap();
         let first = source_root.join("first.yaml");
         let second = source_root.join("second.yaml");
-        fs::write(&first, "id: official/first\n").unwrap();
-        fs::write(&second, "id: official/second\n").unwrap();
+        fs::write(&first, "id: plurora/first\n").unwrap();
+        fs::write(&second, "id: plurora/second\n").unwrap();
         fs::create_dir_all(data_dir.join("profiles")).unwrap();
         fs::write(
             data_dir.join("profiles/desktop.yaml"),

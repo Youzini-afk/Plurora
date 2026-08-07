@@ -250,7 +250,7 @@ granted_network = ["api.example.com"]
 granted_secrets = ["secret_ref:env:API_KEY"]
 
 [[package.requires]]
-id = "official/core"
+id = "plurora/core"
 constraint = ">=1.0.0"
-resolved_to = "official/core@1.0.0"
+resolved_to = "plurora/core@1.0.0"
 ```

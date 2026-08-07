@@ -1,4 +1,4 @@
-//! Conformance tests for `official/sharing-lab` (Experience Beta 6).
+//! Conformance tests for `plurora/sharing-lab` (Experience Beta 6).
 //!
 //! Covers:
 //! 1. Sharing contract shape (9 capabilities, 3 surfaces, ordinary package, red lines)
@@ -20,14 +20,14 @@ use serde_json::json;
 use super::fixtures::*;
 use crate::commands::manifest;
 
-const PACKAGE_ID: &str = "official/sharing-lab";
+const PACKAGE_ID: &str = "plurora/sharing-lab";
 
 async fn load_sharing_lab(
 ) -> anyhow::Result<plurora_runtime::Runtime<plurora_runtime::InMemoryEventStore>> {
     let (_store, runtime) = runtime();
     runtime
         .load_package(
-            manifest::read_manifest(PathBuf::from("packages/official/sharing-lab/manifest.yaml"))
+            manifest::read_manifest(PathBuf::from("packages/plurora/sharing-lab/manifest.yaml"))
                 .await?,
         )
         .await?;
@@ -129,12 +129,12 @@ pub(crate) async fn sharing_export_bundle() -> anyhow::Result<()> {
         json!({
             "composition_id": "test-composition",
             "packages": [
-                {"package_id": "official/playable-seed", "version": "0.1.0"},
-                {"package_id": "official/memory-lab", "version": "0.1.0"},
+                {"package_id": "plurora/playable-seed", "version": "0.1.0"},
+                {"package_id": "plurora/memory-lab", "version": "0.1.0"},
             ],
             "composition_manifest": {
                 "title": "Test Composition",
-                "required_capabilities": ["official/playable-seed/launch"],
+                "required_capabilities": ["plurora/playable-seed/launch"],
             }
         }),
     )
@@ -164,7 +164,7 @@ pub(crate) async fn sharing_import_bundle() -> anyhow::Result<()> {
         json!({
             "bundle_id": "bundle:test:abc",
             "format_version": "1",
-            "packages": [{"package_id": "official/playable-seed", "version": "0.1.0"}],
+            "packages": [{"package_id": "plurora/playable-seed", "version": "0.1.0"}],
             "missing_packages": [],
         }),
     )
@@ -184,7 +184,7 @@ pub(crate) async fn sharing_import_bundle() -> anyhow::Result<()> {
             "bundle_id": "bundle:test:abc",
             "format_version": "1",
             "packages": [],
-            "missing_packages": [{"package_id": "official/missing-pkg", "version": "0.1.0"}],
+            "missing_packages": [{"package_id": "plurora/missing-pkg", "version": "0.1.0"}],
         }),
     )
     .await?;
@@ -247,9 +247,9 @@ pub(crate) async fn sharing_package_set_lockfile() -> anyhow::Result<()> {
         "create_package_set_lockfile",
         json!({
             "packages": [
-                {"package_id": "official/playable-seed", "version": "0.1.0"},
-                {"package_id": "official/memory-lab", "version": "0.1.0"},
-                {"package_id": "official/agentic-forge-lab", "version": "0.2.0"},
+                {"package_id": "plurora/playable-seed", "version": "0.1.0"},
+                {"package_id": "plurora/memory-lab", "version": "0.1.0"},
+                {"package_id": "plurora/agentic-forge-lab", "version": "0.2.0"},
             ]
         }),
     )
@@ -287,11 +287,11 @@ pub(crate) async fn sharing_compatibility_report() -> anyhow::Result<()> {
             "source_ref": "bundle:composition:v1",
             "target_ref": "bundle:composition:v2",
             "source_packages": [
-                {"package_id": "official/playable-seed", "version": "0.1.0"},
-                {"package_id": "official/old-deprecated-pkg", "version": "0.1.0"},
+                {"package_id": "plurora/playable-seed", "version": "0.1.0"},
+                {"package_id": "plurora/old-deprecated-pkg", "version": "0.1.0"},
             ],
             "target_packages": [
-                {"package_id": "official/playable-seed", "version": "0.2.0"},
+                {"package_id": "plurora/playable-seed", "version": "0.2.0"},
             ],
         }),
     )

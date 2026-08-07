@@ -258,14 +258,14 @@ pub(crate) async fn raw_secret_blocked_in_asset_metadata() -> anyhow::Result<()>
     Ok(())
 }
 
-/// Official packages have no secret bypass.
+/// First-party Packages have no secret bypass.
 pub(crate) async fn no_secret_bypass() -> anyhow::Result<()> {
     let (_store, runtime) = runtime();
 
-    // Even an official-looking package cannot bypass secret scanning
+    // Even an first-party-looking package cannot bypass secret scanning
     let denied = runtime
         .put_asset(plurora_runtime::runtime::AssetPutRequest {
-            origin_package_id: Some("official/some-lab".to_string()),
+            origin_package_id: Some("plurora/some-lab".to_string()),
             mime: "application/json".to_string(),
             content: "data".to_string(),
             metadata: json!({"api_key": "sk-abc123def456ghi789jkl012mno345"}),
@@ -273,7 +273,7 @@ pub(crate) async fn no_secret_bypass() -> anyhow::Result<()> {
         .await;
     anyhow::ensure!(
         denied.is_err(),
-        "official package must not bypass secret scanning"
+        "first-party Package must not bypass secret scanning"
     );
 
     Ok(())

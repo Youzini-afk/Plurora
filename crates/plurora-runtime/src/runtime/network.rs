@@ -42,7 +42,7 @@ pub struct NetworkPolicyDecision {
 ///    flat `hosts` list for backward compatibility.
 /// 3. Matches host (exact or glob-style with `*` prefix).
 /// 4. Matches method if the declaration specifies methods.
-/// 5. Official packages have no bypass — they must declare network
+/// 5. First-party Packages have no bypass — they must declare network
 ///    permissions like any other package.
 ///
 /// This is designed for the Ygg-provided network/request helper path,

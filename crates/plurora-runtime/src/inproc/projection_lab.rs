@@ -1,10 +1,10 @@
-//! Handler for `official/projection-lab` capabilities.
+//! Handler for `plurora/projection-lab` capabilities.
 
 use serde_json::Value;
 
 use super::InprocInvocation;
 
-const PACKAGE_ID: &str = "official/projection-lab";
+const PACKAGE_ID: &str = "plurora/projection-lab";
 
 pub fn try_handle(request: &InprocInvocation) -> Option<anyhow::Result<Value>> {
     if request.provider_package_id != PACKAGE_ID {

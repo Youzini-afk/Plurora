@@ -223,7 +223,7 @@ import {
 
 ## 参考实现
 
-- `packages/official/experience-runtime-lab/` — 官方 experience-runtime lab 包
+- `packages/plurora/experience-runtime-lab/` — 官方 experience-runtime lab 包
 - `crates/plurora-runtime/src/inproc/experience_runtime_lab.rs` — 可重放的 in-process handler
 - `sdk/typescript/experience-runtime/` — TypeScript SDK
 - `docs/guides/EXPERIENCE_RUNTIME_AUTHORING.md` — 本文档

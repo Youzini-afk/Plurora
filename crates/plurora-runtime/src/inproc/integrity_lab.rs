@@ -1,4 +1,4 @@
-//! Handler for `official/integrity-lab` capabilities.
+//! Handler for `plurora/integrity-lab` capabilities.
 //!
 //! Provides deterministic SHA-256 hashing plus GPG detached signature
 //! verification for package installation.  Sequoia is LGPL-2.0-or-later, which
@@ -23,7 +23,7 @@ use openpgp::Cert;
 
 use super::InprocInvocation;
 
-const PACKAGE_ID: &str = "official/integrity-lab";
+const PACKAGE_ID: &str = "plurora/integrity-lab";
 
 pub const TREE_HASH_SCHEMA_VERSION: u32 = 2;
 
@@ -67,16 +67,16 @@ pub fn try_handle(request: &InprocInvocation) -> Option<anyhow::Result<Value>> {
     }
 
     match request.capability_id.as_str() {
-        "integrity.compute_tree_hash" | "official/integrity-lab/compute_tree_hash" => {
+        "integrity.compute_tree_hash" | "plurora/integrity-lab/compute_tree_hash" => {
             Some(compute_tree_hash(request))
         }
-        "integrity.compute_manifest_hash" | "official/integrity-lab/compute_manifest_hash" => {
+        "integrity.compute_manifest_hash" | "plurora/integrity-lab/compute_manifest_hash" => {
             Some(compute_manifest_hash(request))
         }
-        "integrity.verify_gpg_signature" | "official/integrity-lab/verify_gpg_signature" => {
+        "integrity.verify_gpg_signature" | "plurora/integrity-lab/verify_gpg_signature" => {
             Some(verify_gpg_signature(request))
         }
-        "integrity.fingerprint_public_key" | "official/integrity-lab/fingerprint_public_key" => {
+        "integrity.fingerprint_public_key" | "plurora/integrity-lab/fingerprint_public_key" => {
             Some(fingerprint_public_key(request))
         }
         _ => None,

@@ -12,7 +12,7 @@ YdlTavern consumes Plurora through the public protocol. It doesn't read Plurora 
 
 ## Why it doesn't live in this repo
 
-Plurora is the platform. Putting a product-grade project — one that talks directly to a specific community and covers a wide compatibility surface — into `packages/official/` would immediately violate the charter: "official packages have no privileges."
+Plurora is the platform. Putting a product-grade project — one that talks directly to a specific community and covers a wide compatibility surface — into `packages/plurora/` would immediately violate the charter: "first-party Packages have no privileges."
 
 YdlTavern is large, full of product decisions, and needs its own repo cadence, issue channels, and release cycle. Those are product concerns, not platform concerns. The two stay separate.
 

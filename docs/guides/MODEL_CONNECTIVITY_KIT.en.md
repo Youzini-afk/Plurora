@@ -6,13 +6,13 @@ Model Connectivity Kit is Plurora’s model connectivity infrastructure. It prep
 
 ## Included packages
 
-- `official/model-connector-lab`
+- `plurora/model-connector-lab`
   - `describe_families`
   - `validate_profile`
   - `mask_secret`
   - `discovery_plan`
   - `compat_report`
-- `official/model-routing-lab`
+- `plurora/model-routing-lab`
   - `define_binding`
   - `resolve_binding`
   - `preview_routes`
@@ -32,12 +32,12 @@ The current capabilities deliberately avoid network calls and inference:
 
 ## Typical flow
 
-1. Describe provider families with `official/model-connector-lab/describe_families`.
-2. Validate a redaction-safe profile with `official/model-connector-lab/validate_profile`.
-3. Generate a model discovery plan with `official/model-connector-lab/discovery_plan`.
-4. Define consumer-slot bindings with `official/model-routing-lab/define_binding`.
-5. Resolve replayable routes with `official/model-routing-lab/resolve_binding`.
-6. Normalize generation-like params with `official/model-routing-lab/params_normalize`.
+1. Describe provider families with `plurora/model-connector-lab/describe_families`.
+2. Validate a redaction-safe profile with `plurora/model-connector-lab/validate_profile`.
+3. Generate a model discovery plan with `plurora/model-connector-lab/discovery_plan`.
+4. Define consumer-slot bindings with `plurora/model-routing-lab/define_binding`.
+5. Resolve replayable routes with `plurora/model-routing-lab/resolve_binding`.
+6. Normalize generation-like params with `plurora/model-routing-lab/params_normalize`.
 
 Persistence should still be done through public asset/proposal protocol operations. The model labs do not gain special write privileges.
 
@@ -47,4 +47,4 @@ Persistence should still be done through public asset/proposal protocol operatio
 
 ## Deferred inference
 
-Real model calls belong to a future package family, likely `official/model-inference-lab`. Before that, Plurora needs clear rules for secret resolution, network permission, request/response audit, streaming/cancel policy, usage accounting, provider errors, and redaction.
+Real model calls belong to a future package family, likely `plurora/model-inference-lab`. Before that, Plurora needs clear rules for secret resolution, network permission, request/response audit, streaming/cancel policy, usage accounting, provider errors, and redaction.

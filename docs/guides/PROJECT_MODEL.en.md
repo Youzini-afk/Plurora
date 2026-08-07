@@ -196,7 +196,7 @@ Status indicators:
 
 Clicking Play calls `host.project.start`, then navigates to the project's `entry_surface`.
 
-The project page includes a platform-side console for bundle, package, recent-event, update, and deployment diagnostics, plus host-plane durable job / revision / recovery state. Update checks and execution use `official/install-lab/check_for_updates` / `update_project` through the public `capability.invoke` path.
+The project page includes a platform-side console for bundle, package, recent-event, update, and deployment diagnostics, plus host-plane durable job / revision / recovery state. Update checks and execution use `plurora/install-lab/check_for_updates` / `update_project` through the public `capability.invoke` path.
 
 ## Play flow
 
@@ -227,7 +227,7 @@ Note: this `sessionId` is then used for:
 If a project needs a Docker HTTP service, it can declare a minimal descriptor under `project.metadata.deployment.docker`. The web project console then shows Deploy / Stop buttons. After user confirmation, the `plurora-service` host broker runs the chain while the browser remains a thin client:
 
 1. `host.port.lease` leases a loopback port.
-2. `official/docker-runtime-lab/start_container` starts the container.
+2. `plurora/docker-runtime-lab/start_container` starts the container.
 3. `host.proxy.register` registers the HTTP/WebSocket reverse-proxy route.
 
 This path is explicit. It never runs automatically when opening a project. See [`DEPLOYMENT_RUNTIME.md`](DEPLOYMENT_RUNTIME.en.md).
@@ -279,7 +279,7 @@ In the future, one composition template can instantiate multiple projects with d
 
 - Present with `type: plurora_native`: install as a native project.
 - A valid package manifest: resolve and install as a package source.
-- No project/package manifest: invoke `official/install-lab/prepare_external_intake` and create an `external_workspace`.
+- No project/package manifest: invoke `plurora/install-lab/prepare_external_intake` and create an `external_workspace`.
 - Present but invalid: fail closed and require descriptor fixes.
 
 An external project defaults to a managed `external_workspace`, copied/fetched into a host workspace isolated by project id and content digest. `--link-local` is local-source-only and explicitly preserves user ownership. Reinstalling the same source/content is idempotent, and intake never generates wrapper code or executes project scripts.

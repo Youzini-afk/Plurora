@@ -521,7 +521,7 @@ def cleanup_docker(routes: set[str], containers: set[str], projects: set[str]) -
 
 def write_profile(path: Path) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    docker_manifest = ROOT / "packages" / "official" / "docker-runtime-lab" / "manifest.yaml"
+    docker_manifest = ROOT / "packages" / "plurora" / "docker-runtime-lab" / "manifest.yaml"
     path.write_text(
         "title: Host operations acceptance\n"
         "event_store:\n"

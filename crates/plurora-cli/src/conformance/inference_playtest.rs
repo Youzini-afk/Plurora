@@ -1,4 +1,4 @@
-//! Conformance tests for `official/inference-playtest-lab` (Phase C4).
+//! Conformance tests for `plurora/inference-playtest-lab` (Phase C4).
 //!
 //! Proves inference is not "prompt -> text response" but participation
 //! in the Plurora session/branch/proposal/inspection/fork creative runtime.
@@ -20,7 +20,7 @@ async fn setup_both_labs() -> anyhow::Result<(
     runtime
         .load_package(
             manifest::read_manifest(PathBuf::from(
-                "packages/official/inference-local-lab/manifest.yaml",
+                "packages/plurora/inference-local-lab/manifest.yaml",
             ))
             .await?,
         )
@@ -28,7 +28,7 @@ async fn setup_both_labs() -> anyhow::Result<(
     runtime
         .load_package(
             manifest::read_manifest(PathBuf::from(
-                "packages/official/inference-playtest-lab/manifest.yaml",
+                "packages/plurora/inference-playtest-lab/manifest.yaml",
             ))
             .await?,
         )
@@ -44,9 +44,9 @@ async fn invoke_inference_local(
     let result = runtime
         .invoke_capability(CapabilityInvocationRequest {
             handle: None,
-            capability_id: Some("official/inference-local-lab/invoke".to_string()),
+            capability_id: Some("plurora/inference-local-lab/invoke".to_string()),
             caller_package_id: None,
-            provider_package_id: Some("official/inference-local-lab".to_string()),
+            provider_package_id: Some("plurora/inference-local-lab".to_string()),
             version: None,
             session_id: None,
             input: json!({
@@ -68,9 +68,9 @@ pub(crate) async fn inference_playtest_draft() -> anyhow::Result<()> {
     let draft = runtime
         .invoke_capability(CapabilityInvocationRequest {
             handle: None,
-            capability_id: Some("official/inference-playtest-lab/draft_proposal".to_string()),
+            capability_id: Some("plurora/inference-playtest-lab/draft_proposal".to_string()),
             caller_package_id: None,
-            provider_package_id: Some("official/inference-playtest-lab".to_string()),
+            provider_package_id: Some("plurora/inference-playtest-lab".to_string()),
             version: None,
             session_id: None,
             input: json!({
@@ -146,9 +146,9 @@ pub(crate) async fn inference_playtest_inspect() -> anyhow::Result<()> {
     let draft = runtime
         .invoke_capability(CapabilityInvocationRequest {
             handle: None,
-            capability_id: Some("official/inference-playtest-lab/draft_proposal".to_string()),
+            capability_id: Some("plurora/inference-playtest-lab/draft_proposal".to_string()),
             caller_package_id: None,
-            provider_package_id: Some("official/inference-playtest-lab".to_string()),
+            provider_package_id: Some("plurora/inference-playtest-lab".to_string()),
             version: None,
             session_id: None,
             input: json!({
@@ -178,9 +178,9 @@ pub(crate) async fn inference_playtest_inspect() -> anyhow::Result<()> {
     let inspection = runtime
         .invoke_capability(CapabilityInvocationRequest {
             handle: None,
-            capability_id: Some("official/inference-playtest-lab/inspect_proposal".to_string()),
+            capability_id: Some("plurora/inference-playtest-lab/inspect_proposal".to_string()),
             caller_package_id: None,
-            provider_package_id: Some("official/inference-playtest-lab".to_string()),
+            provider_package_id: Some("plurora/inference-playtest-lab".to_string()),
             version: None,
             session_id: None,
             input: json!({
@@ -207,7 +207,7 @@ pub(crate) async fn inference_playtest_inspect() -> anyhow::Result<()> {
     );
     anyhow::ensure!(
         inspection.output["provenance"]["source_inference"]["package_id"]
-            == json!("official/inference-local-lab"),
+            == json!("plurora/inference-local-lab"),
         "inspection must preserve source_inference provenance from expected_effects"
     );
 
@@ -222,9 +222,9 @@ pub(crate) async fn inference_playtest_reject_apply_denied() -> anyhow::Result<(
     let draft = runtime
         .invoke_capability(CapabilityInvocationRequest {
             handle: None,
-            capability_id: Some("official/inference-playtest-lab/draft_proposal".to_string()),
+            capability_id: Some("plurora/inference-playtest-lab/draft_proposal".to_string()),
             caller_package_id: None,
-            provider_package_id: Some("official/inference-playtest-lab".to_string()),
+            provider_package_id: Some("plurora/inference-playtest-lab".to_string()),
             version: None,
             session_id: None,
             input: json!({
@@ -287,9 +287,9 @@ pub(crate) async fn inference_playtest_apply_and_branch() -> anyhow::Result<()> 
     let draft = runtime
         .invoke_capability(CapabilityInvocationRequest {
             handle: None,
-            capability_id: Some("official/inference-playtest-lab/draft_proposal".to_string()),
+            capability_id: Some("plurora/inference-playtest-lab/draft_proposal".to_string()),
             caller_package_id: None,
-            provider_package_id: Some("official/inference-playtest-lab".to_string()),
+            provider_package_id: Some("plurora/inference-playtest-lab".to_string()),
             version: None,
             session_id: None,
             input: json!({
@@ -360,9 +360,9 @@ pub(crate) async fn inference_playtest_apply_and_branch() -> anyhow::Result<()> 
     let branch_plan = runtime
         .invoke_capability(CapabilityInvocationRequest {
             handle: None,
-            capability_id: Some("official/inference-playtest-lab/branch_plan".to_string()),
+            capability_id: Some("plurora/inference-playtest-lab/branch_plan".to_string()),
             caller_package_id: None,
-            provider_package_id: Some("official/inference-playtest-lab".to_string()),
+            provider_package_id: Some("plurora/inference-playtest-lab".to_string()),
             version: None,
             session_id: None,
             input: json!({
@@ -403,7 +403,7 @@ pub(crate) async fn inference_playtest_apply_and_branch() -> anyhow::Result<()> 
     );
     anyhow::ensure!(
         branch["metadata"]["source_inference"]["package_id"]
-            == json!("official/inference-local-lab"),
+            == json!("plurora/inference-local-lab"),
         "branch metadata must contain source_inference provenance"
     );
 
@@ -419,9 +419,9 @@ pub(crate) async fn inference_playtest_no_chat_platform_terms() -> anyhow::Resul
     let draft = runtime
         .invoke_capability(CapabilityInvocationRequest {
             handle: None,
-            capability_id: Some("official/inference-playtest-lab/draft_proposal".to_string()),
+            capability_id: Some("plurora/inference-playtest-lab/draft_proposal".to_string()),
             caller_package_id: None,
-            provider_package_id: Some("official/inference-playtest-lab".to_string()),
+            provider_package_id: Some("plurora/inference-playtest-lab".to_string()),
             version: None,
             session_id: None,
             input: json!({
@@ -462,9 +462,9 @@ pub(crate) async fn inference_playtest_no_chat_platform_terms() -> anyhow::Resul
     let flow = runtime
         .invoke_capability(CapabilityInvocationRequest {
             handle: None,
-            capability_id: Some("official/inference-playtest-lab/explain_flow".to_string()),
+            capability_id: Some("plurora/inference-playtest-lab/explain_flow".to_string()),
             caller_package_id: None,
-            provider_package_id: Some("official/inference-playtest-lab".to_string()),
+            provider_package_id: Some("plurora/inference-playtest-lab".to_string()),
             version: None,
             session_id: None,
             input: json!({}),

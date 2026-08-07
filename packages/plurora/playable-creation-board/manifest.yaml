@@ -1,0 +1,135 @@
+schema_version: 1
+id: plurora/playable-creation-board
+version: 0.1.0
+display_name: Plurora Playable Creation Board
+description: Package-owned playable creation board — board/module/constraint/marker state with play→request_change→agentic forge candidate/proposal→inspect/approve/reject→fork/compare→recovery. Deterministic, no-network, no real model inference. Uses package-owned board semantics only.
+license: AGPL-3.0-only
+entry:
+  kind: rust_inproc
+  crate_ref: plurora-foundation
+  symbol: register
+  abi_version: 1
+provides:
+  - id: plurora/playable-creation-board/describe_contract
+    version: 0.1.0
+    input_schema: {}
+    output_schema: {}
+    streaming: false
+    side_effects: []
+  - id: plurora/playable-creation-board/launch
+    version: 0.1.0
+    input_schema: {}
+    output_schema: {}
+    streaming: false
+    side_effects: []
+  - id: plurora/playable-creation-board/project_state
+    version: 0.1.0
+    input_schema: {}
+    output_schema: {}
+    streaming: false
+    side_effects: []
+  - id: plurora/playable-creation-board/render_payload
+    version: 0.1.0
+    input_schema: {}
+    output_schema: {}
+    streaming: false
+    side_effects: []
+  - id: plurora/playable-creation-board/record_player_action
+    version: 0.1.0
+    input_schema: {}
+    output_schema: {}
+    streaming: false
+    side_effects: []
+  - id: plurora/playable-creation-board/request_change
+    version: 0.1.0
+    input_schema: {}
+    output_schema: {}
+    streaming: false
+    side_effects: []
+  - id: plurora/playable-creation-board/create_checkpoint
+    version: 0.1.0
+    input_schema: {}
+    output_schema: {}
+    streaming: false
+    side_effects: []
+  - id: plurora/playable-creation-board/inspect_checkpoint
+    version: 0.1.0
+    input_schema: {}
+    output_schema: {}
+    streaming: false
+    side_effects: []
+  - id: plurora/playable-creation-board/draft_recovery
+    version: 0.1.0
+    input_schema: {}
+    output_schema: {}
+    streaming: false
+    side_effects: []
+  - id: plurora/playable-creation-board/bind_agent_run
+    version: 0.1.0
+    input_schema: {}
+    output_schema: {}
+    streaming: false
+    side_effects: []
+  - id: plurora/playable-creation-board/explain_provenance
+    version: 0.1.0
+    input_schema: {}
+    output_schema: {}
+    streaming: false
+    side_effects: []
+  - id: plurora/playable-creation-board/preview_state_diff
+    version: 0.1.0
+    input_schema: {}
+    output_schema: {}
+    streaming: false
+    side_effects: []
+  - id: plurora/playable-creation-board/describe_asset_provenance
+    version: 0.1.0
+    input_schema: {}
+    output_schema: {}
+    streaming: false
+    side_effects: []
+  - id: plurora/playable-creation-board/summarize_experience_health
+    version: 0.1.0
+    input_schema: {}
+    output_schema: {}
+    streaming: false
+    side_effects: []
+consumes: []
+contributes:
+  schemas: []
+  hooks: []
+  extension_points: []
+  surfaces:
+    - id: plurora/playable-creation-board/entry
+      slot: experience_entry
+      title: Playable Creation Board
+      description: Launch a playable creation board with board/module/constraint/marker state.
+      capability_id: plurora/playable-creation-board/launch
+      activation:
+        launch_capability_id: plurora/playable-creation-board/launch
+        session_template:
+          labels: [playable-creation-board, beta-1]
+      approval_policy: none
+    - id: plurora/playable-creation-board/play-renderer
+      slot: play_renderer
+      title: Playable Creation Board Renderer
+      description: Protocol-visible render payload for the playable creation board.
+      capability_id: plurora/playable-creation-board/render_payload
+    - id: plurora/playable-creation-board/forge-panel
+      slot: forge_panel
+      title: Playable Creation Board Inspector
+      description: Inspect board state, modules, constraints, markers, checkpoints, recovery plans, and agent-run bindings.
+      capability_id: plurora/playable-creation-board/describe_contract
+    - id: plurora/playable-creation-board/assistant-action
+      slot: assistant_action
+      title: Request Board Change
+      description: Draft a user-approved change proposal for the playable creation board via Agentic Forge binding.
+      capability_id: plurora/playable-creation-board/request_change
+      approval_policy: fork_then_approve
+permissions:
+  capabilities:
+    invoke: []
+sandbox_policy:
+  cpu_quota_ms_per_invoke: 5000
+  memory_mb: 128
+  wall_clock_ms: 30000

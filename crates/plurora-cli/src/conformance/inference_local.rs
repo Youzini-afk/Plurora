@@ -1,4 +1,4 @@
-//! Conformance tests for `official/inference-local-lab`.
+//! Conformance tests for `plurora/inference-local-lab`.
 //!
 //! Proves that the inference capability seam does not depend on HTTP,
 //! bearer tokens, JSON provider schemas, or network access.
@@ -16,7 +16,7 @@ pub(crate) async fn inference_local_lab_describe_capabilities() -> anyhow::Resul
     runtime
         .load_package(
             manifest::read_manifest(PathBuf::from(
-                "packages/official/inference-local-lab/manifest.yaml",
+                "packages/plurora/inference-local-lab/manifest.yaml",
             ))
             .await?,
         )
@@ -25,9 +25,9 @@ pub(crate) async fn inference_local_lab_describe_capabilities() -> anyhow::Resul
     let caps = runtime
         .invoke_capability(CapabilityInvocationRequest {
             handle: None,
-            capability_id: Some("official/inference-local-lab/describe_capabilities".to_string()),
+            capability_id: Some("plurora/inference-local-lab/describe_capabilities".to_string()),
             caller_package_id: None,
-            provider_package_id: Some("official/inference-local-lab".to_string()),
+            provider_package_id: Some("plurora/inference-local-lab".to_string()),
             version: None,
             session_id: None,
             input: json!({}),
@@ -87,7 +87,7 @@ pub(crate) async fn inference_local_lab_invoke() -> anyhow::Result<()> {
     runtime
         .load_package(
             manifest::read_manifest(PathBuf::from(
-                "packages/official/inference-local-lab/manifest.yaml",
+                "packages/plurora/inference-local-lab/manifest.yaml",
             ))
             .await?,
         )
@@ -97,9 +97,9 @@ pub(crate) async fn inference_local_lab_invoke() -> anyhow::Result<()> {
     let inv = runtime
         .invoke_capability(CapabilityInvocationRequest {
             handle: None,
-            capability_id: Some("official/inference-local-lab/invoke".to_string()),
+            capability_id: Some("plurora/inference-local-lab/invoke".to_string()),
             caller_package_id: None,
-            provider_package_id: Some("official/inference-local-lab".to_string()),
+            provider_package_id: Some("plurora/inference-local-lab".to_string()),
             version: None,
             session_id: None,
             input: json!({
@@ -149,9 +149,9 @@ pub(crate) async fn inference_local_lab_invoke() -> anyhow::Result<()> {
     let inv_classify = runtime
         .invoke_capability(CapabilityInvocationRequest {
             handle: None,
-            capability_id: Some("official/inference-local-lab/invoke".to_string()),
+            capability_id: Some("plurora/inference-local-lab/invoke".to_string()),
             caller_package_id: None,
-            provider_package_id: Some("official/inference-local-lab".to_string()),
+            provider_package_id: Some("plurora/inference-local-lab".to_string()),
             version: None,
             session_id: None,
             input: json!({
@@ -174,9 +174,9 @@ pub(crate) async fn inference_local_lab_invoke() -> anyhow::Result<()> {
     let inv_transform = runtime
         .invoke_capability(CapabilityInvocationRequest {
             handle: None,
-            capability_id: Some("official/inference-local-lab/invoke".to_string()),
+            capability_id: Some("plurora/inference-local-lab/invoke".to_string()),
             caller_package_id: None,
-            provider_package_id: Some("official/inference-local-lab".to_string()),
+            provider_package_id: Some("plurora/inference-local-lab".to_string()),
             version: None,
             session_id: None,
             input: json!({
@@ -203,7 +203,7 @@ pub(crate) async fn inference_local_lab_invoke_rejects_http() -> anyhow::Result<
     runtime
         .load_package(
             manifest::read_manifest(PathBuf::from(
-                "packages/official/inference-local-lab/manifest.yaml",
+                "packages/plurora/inference-local-lab/manifest.yaml",
             ))
             .await?,
         )
@@ -213,9 +213,9 @@ pub(crate) async fn inference_local_lab_invoke_rejects_http() -> anyhow::Result<
     let inv_http = runtime
         .invoke_capability(CapabilityInvocationRequest {
             handle: None,
-            capability_id: Some("official/inference-local-lab/invoke".to_string()),
+            capability_id: Some("plurora/inference-local-lab/invoke".to_string()),
             caller_package_id: None,
-            provider_package_id: Some("official/inference-local-lab".to_string()),
+            provider_package_id: Some("plurora/inference-local-lab".to_string()),
             version: None,
             session_id: None,
             input: json!({
@@ -237,9 +237,9 @@ pub(crate) async fn inference_local_lab_invoke_rejects_http() -> anyhow::Result<
     let inv_url = runtime
         .invoke_capability(CapabilityInvocationRequest {
             handle: None,
-            capability_id: Some("official/inference-local-lab/invoke".to_string()),
+            capability_id: Some("plurora/inference-local-lab/invoke".to_string()),
             caller_package_id: None,
-            provider_package_id: Some("official/inference-local-lab".to_string()),
+            provider_package_id: Some("plurora/inference-local-lab".to_string()),
             version: None,
             session_id: None,
             input: json!({
@@ -257,9 +257,9 @@ pub(crate) async fn inference_local_lab_invoke_rejects_http() -> anyhow::Result<
     let inv_headers = runtime
         .invoke_capability(CapabilityInvocationRequest {
             handle: None,
-            capability_id: Some("official/inference-local-lab/invoke".to_string()),
+            capability_id: Some("plurora/inference-local-lab/invoke".to_string()),
             caller_package_id: None,
-            provider_package_id: Some("official/inference-local-lab".to_string()),
+            provider_package_id: Some("plurora/inference-local-lab".to_string()),
             version: None,
             session_id: None,
             input: json!({
@@ -277,9 +277,9 @@ pub(crate) async fn inference_local_lab_invoke_rejects_http() -> anyhow::Result<
     let inv_status = runtime
         .invoke_capability(CapabilityInvocationRequest {
             handle: None,
-            capability_id: Some("official/inference-local-lab/invoke".to_string()),
+            capability_id: Some("plurora/inference-local-lab/invoke".to_string()),
             caller_package_id: None,
-            provider_package_id: Some("official/inference-local-lab".to_string()),
+            provider_package_id: Some("plurora/inference-local-lab".to_string()),
             version: None,
             session_id: None,
             input: json!({
@@ -297,9 +297,9 @@ pub(crate) async fn inference_local_lab_invoke_rejects_http() -> anyhow::Result<
     let inv_messages = runtime
         .invoke_capability(CapabilityInvocationRequest {
             handle: None,
-            capability_id: Some("official/inference-local-lab/invoke".to_string()),
+            capability_id: Some("plurora/inference-local-lab/invoke".to_string()),
             caller_package_id: None,
-            provider_package_id: Some("official/inference-local-lab".to_string()),
+            provider_package_id: Some("plurora/inference-local-lab".to_string()),
             version: None,
             session_id: None,
             input: json!({
@@ -317,9 +317,9 @@ pub(crate) async fn inference_local_lab_invoke_rejects_http() -> anyhow::Result<
     let inv_system = runtime
         .invoke_capability(CapabilityInvocationRequest {
             handle: None,
-            capability_id: Some("official/inference-local-lab/invoke".to_string()),
+            capability_id: Some("plurora/inference-local-lab/invoke".to_string()),
             caller_package_id: None,
-            provider_package_id: Some("official/inference-local-lab".to_string()),
+            provider_package_id: Some("plurora/inference-local-lab".to_string()),
             version: None,
             session_id: None,
             input: json!({
@@ -337,9 +337,9 @@ pub(crate) async fn inference_local_lab_invoke_rejects_http() -> anyhow::Result<
     let inv_secret = runtime
         .invoke_capability(CapabilityInvocationRequest {
             handle: None,
-            capability_id: Some("official/inference-local-lab/invoke".to_string()),
+            capability_id: Some("plurora/inference-local-lab/invoke".to_string()),
             caller_package_id: None,
-            provider_package_id: Some("official/inference-local-lab".to_string()),
+            provider_package_id: Some("plurora/inference-local-lab".to_string()),
             version: None,
             session_id: None,
             input: json!({
@@ -361,7 +361,7 @@ pub(crate) async fn inference_local_lab_stream() -> anyhow::Result<()> {
     runtime
         .load_package(
             manifest::read_manifest(PathBuf::from(
-                "packages/official/inference-local-lab/manifest.yaml",
+                "packages/plurora/inference-local-lab/manifest.yaml",
             ))
             .await?,
         )
@@ -370,9 +370,9 @@ pub(crate) async fn inference_local_lab_stream() -> anyhow::Result<()> {
     let stream_result = runtime
         .invoke_capability(CapabilityInvocationRequest {
             handle: None,
-            capability_id: Some("official/inference-local-lab/stream".to_string()),
+            capability_id: Some("plurora/inference-local-lab/stream".to_string()),
             caller_package_id: None,
-            provider_package_id: Some("official/inference-local-lab".to_string()),
+            provider_package_id: Some("plurora/inference-local-lab".to_string()),
             version: None,
             session_id: None,
             input: json!({
@@ -459,7 +459,7 @@ pub(crate) async fn inference_local_lab_explain_error() -> anyhow::Result<()> {
     runtime
         .load_package(
             manifest::read_manifest(PathBuf::from(
-                "packages/official/inference-local-lab/manifest.yaml",
+                "packages/plurora/inference-local-lab/manifest.yaml",
             ))
             .await?,
         )
@@ -478,9 +478,9 @@ pub(crate) async fn inference_local_lab_explain_error() -> anyhow::Result<()> {
         let result = runtime
             .invoke_capability(CapabilityInvocationRequest {
                 handle: None,
-                capability_id: Some("official/inference-local-lab/explain_error".to_string()),
+                capability_id: Some("plurora/inference-local-lab/explain_error".to_string()),
                 caller_package_id: None,
-                provider_package_id: Some("official/inference-local-lab".to_string()),
+                provider_package_id: Some("plurora/inference-local-lab".to_string()),
                 version: None,
                 session_id: None,
                 input: json!({"error_kind": error_kind}),

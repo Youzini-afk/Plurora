@@ -32,7 +32,7 @@ absorption:
     - kernel_agent_methods
     - kernel_model_prompt_memory_methods
     - private_runtime_access
-    - official_agent_priority
+    - first_party_agent_priority
 plurora_mappings:
   agent_run: capability.invoke_or_stream
   cancel: capability.cancel

@@ -25,9 +25,9 @@ pub(super) fn network_cases() -> Vec<ConformanceCase> {
             crate::conformance::network::host_method_mismatch_denied
         ),
         c!(
-            "network.official_no_network_bypass",
+            "network.first_party_no_network_bypass",
             ["network", "outbound"],
-            crate::conformance::network::official_no_network_bypass
+            crate::conformance::network::first_party_no_network_bypass
         ),
         c!(
             "network.audit_no_raw_secrets",

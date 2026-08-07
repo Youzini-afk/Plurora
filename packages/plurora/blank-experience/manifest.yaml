@@ -1,0 +1,47 @@
+schema_version: 1
+id: plurora/blank-experience
+version: 0.1.0
+display_name: Plurora Blank Experience
+description: Minimal play-creation loop fixture package for seed, branch, asset, and projection workflows.
+license: AGPL-3.0-only
+entry:
+  kind: rust_inproc
+  crate_ref: plurora-foundation
+  symbol: register
+  abi_version: 1
+provides:
+  - id: plurora/blank-experience/create_seed
+    version: 0.1.0
+    input_schema: {}
+    output_schema: {}
+    streaming: false
+    side_effects: []
+  - id: plurora/blank-experience/project
+    version: 0.1.0
+    input_schema: {}
+    output_schema: {}
+    streaming: false
+    side_effects: []
+consumes: []
+contributes:
+  schemas: []
+  hooks: []
+  extension_points: []
+  surfaces:
+    - id: plurora/blank-experience/home-card
+      slot: home_card
+      title: Blank Experience
+      description: Start from an empty seed, branch safely, and promote later.
+      capability_id: plurora/blank-experience/create_seed
+    - id: plurora/blank-experience/play-renderer
+      slot: play_renderer
+      title: Blank Play Surface
+      description: Placeholder renderer descriptor for the blank experience.
+      capability_id: plurora/blank-experience/project
+permissions:
+  capabilities:
+    invoke: []
+sandbox_policy:
+  cpu_quota_ms_per_invoke: 5000
+  memory_mb: 128
+  wall_clock_ms: 30000

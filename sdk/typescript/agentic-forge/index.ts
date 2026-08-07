@@ -1013,15 +1013,15 @@ export function runAgenticForgeSelfTest(): SelfTestResult {
   assert(badDiags.length > 0, "plan graph with bad edge has diagnostics");
 
   // Working state
-  const ws = createWorkingState("run_test", "official/agentic-forge-lab");
+  const ws = createWorkingState("run_test", "plurora/agentic-forge-lab");
   assert(ws.run_id === "run_test", "working state run_id");
-  assert(ws.owner_package === "official/agentic-forge-lab", "working state owner");
+  assert(ws.owner_package === "plurora/agentic-forge-lab", "working state owner");
   assert(ws.policy_state.deterministic_mode === true, "working state deterministic mode");
 
   // Candidate shell
-  const cs = createCandidateShell("c1", "run_test", "branch:target:main", "branch:scratch:s1", "official/agentic-forge-lab", "official/agentic-forge-lab/start_run");
+  const cs = createCandidateShell("c1", "run_test", "branch:target:main", "branch:scratch:s1", "plurora/agentic-forge-lab", "plurora/agentic-forge-lab/start_run");
   assert(cs.candidate_id === "c1", "candidate shell id");
-  assert(cs.provenance.package_id === "official/agentic-forge-lab", "candidate provenance");
+  assert(cs.provenance.package_id === "plurora/agentic-forge-lab", "candidate provenance");
 
   // Raw secret blocking
   assert(looksLikeRawSecret("RawSecretExample1234567890abcdefABCDEF123456"), "raw-looking secret detected");
@@ -1057,7 +1057,7 @@ export function runAgenticForgeSelfTest(): SelfTestResult {
   // Full candidate creation
   const cand = createCandidate(
     "c1", "run_test", "branch:target:main", "branch:scratch:s1",
-    "official/agentic-forge-lab", "official/agentic-forge-lab/create_candidate",
+    "plurora/agentic-forge-lab", "plurora/agentic-forge-lab/create_candidate",
     { changed_asset_refs: ["asset:x"], confidence: 0.8, uncertainty: 0.2, target_revision: 1 },
   );
   assert(cand.candidate_id === "c1", "candidate id");
@@ -1094,12 +1094,12 @@ export function runAgenticForgeSelfTest(): SelfTestResult {
 
   // Promote proposal draft
   const draft = createPromoteProposalDraft(
-    cand, "official/agentic-forge-lab", "official/agentic-forge-lab/draft_promote_proposal",
+    cand, "plurora/agentic-forge-lab", "plurora/agentic-forge-lab/draft_promote_proposal",
   );
   assert(draft.requires_user_approval === true, "promote requires approval");
   assert(draft.operations.length > 0, "promote has operations");
   assert(draft.source_candidate === "c1", "promote source candidate");
-  assert(draft.provenance.package_id === "official/agentic-forge-lab", "promote provenance");
+  assert(draft.provenance.package_id === "plurora/agentic-forge-lab", "promote provenance");
 
   // Archived candidate
   const archived = archiveCandidate(cand);
@@ -1213,12 +1213,12 @@ export function runAgenticForgeSelfTest(): SelfTestResult {
 
   // Tool call context
   const ctx = createToolCallContext({
-    requesting_package: "official/agentic-forge-lab",
+    requesting_package: "plurora/agentic-forge-lab",
     run_id: "run_d",
     target_branch_scope: "branch:target:main",
     approval_policy: "fork_then_approve",
   });
-  assert(ctx.requesting_package === "official/agentic-forge-lab", "context has requesting_package");
+  assert(ctx.requesting_package === "plurora/agentic-forge-lab", "context has requesting_package");
   assert(ctx.run_id === "run_d", "context has run_id");
   assert(ctx.approval_policy === "fork_then_approve", "context has approval_policy");
 
@@ -1231,10 +1231,10 @@ export function runAgenticForgeSelfTest(): SelfTestResult {
   assert(fp1.startsWith("tp_"), "tool plan fingerprint prefix");
 
   // Toolchain step creation
-  const step = createToolchainStep(0, "example/echo", "official/pkg-a");
+  const step = createToolchainStep(0, "example/echo", "plurora/pkg-a");
   assert(step.step_index === 0, "step index");
   assert(step.capability_id === "example/echo", "step capability_id");
-  assert(step.provider_package_id === "official/pkg-a", "step provider");
+  assert(step.provider_package_id === "plurora/pkg-a", "step provider");
   assert(step.status === "planned", "step default status is planned");
   assert(step.no_execution === true, "step no_execution");
   assert(step.no_ambient_authority === true, "step no_ambient_authority");

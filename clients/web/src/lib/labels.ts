@@ -700,7 +700,7 @@ export interface LocaleDictionary {
   packagesFilterPlaceholder: string;
   packagesFilterAll: string;
   packagesFilterProjects: string;
-  packagesFilterOfficial: string;
+  packagesFilterPlurora: string;
   packagesFilterThirdParty: string;
   packagesRefreshing: string;
   packagesRefresh: string;
@@ -1181,7 +1181,7 @@ export const labels = {
     projectFrameBundleUnavailable: "Bundle could not be resolved",
     projectFrameLastResolved: "Last resolved",
     projectFrameUpdatesSection: "Updates",
-    projectFrameUpdatesDescription: "Checks use official/install-lab capabilities through capability.invoke.",
+    projectFrameUpdatesDescription: "Checks use plurora/install-lab capabilities through capability.invoke.",
     projectFrameNoUpdateRecords: "No update records returned for this project.",
     projectFramePackagesSection: "Package health",
     projectFramePackagesDescription: "Runtime package state, counts, and redacted failure/log summaries when available.",
@@ -1545,11 +1545,11 @@ export const labels = {
     packagesEyebrowCount: (count) => `Installed packages · ${count} packages`,
     packagesTitle: "Workshop inventory",
     packagesDescription:
-      "Projects, official packages, and dependencies installed in this workshop. Refresh checks upstream sources.",
+      "Projects, Plurora packages, and dependencies installed in this workshop. Refresh checks upstream sources.",
     packagesFilterPlaceholder: "Filter packages…",
     packagesFilterAll: "All",
     packagesFilterProjects: "Projects",
-    packagesFilterOfficial: "Official",
+    packagesFilterPlurora: "Plurora",
     packagesFilterThirdParty: "Third-party",
     packagesRefreshing: "Refreshing inventory…",
     packagesRefresh: "Refresh",
@@ -1658,7 +1658,7 @@ export const labels = {
     aboutChannel: "Channel",
     aboutWhat: "What Plurora is",
     aboutPara1:
-      "Plurora is a kernel and a contract. The kernel hosts your projects in sandboxes. The contract lets any project — official, community, or self-built — participate as a first-class citizen.",
+      "Plurora is a kernel and a contract. The kernel hosts your projects in sandboxes. The contract lets any project — Plurora, community, or self-built — participate as a first-class citizen.",
     aboutPara2:
       "It runs on your machine, with your keys, your files, your network. There is no SaaS account, no central registry, no telemetry. Projects you install live in the local platform data directory and stay there until you remove them.",
     aboutPara3:
@@ -2028,7 +2028,7 @@ export const labels = {
     projectFrameBundleUnavailable: "无法解析 bundle",
     projectFrameLastResolved: "最近解析",
     projectFrameUpdatesSection: "更新",
-    projectFrameUpdatesDescription: "通过 capability.invoke 调用 official/install-lab 能力进行检查。",
+    projectFrameUpdatesDescription: "通过 capability.invoke 调用 plurora/install-lab 能力进行检查。",
     projectFrameNoUpdateRecords: "该项目没有返回更新记录。",
     projectFramePackagesSection: "包健康",
     projectFramePackagesDescription: "运行时包状态、计数，以及可用的脱敏失败/日志摘要。",
@@ -2391,7 +2391,7 @@ export const labels = {
     packagesFilterPlaceholder: "筛选包…",
     packagesFilterAll: "全部",
     packagesFilterProjects: "项目",
-    packagesFilterOfficial: "官方",
+    packagesFilterPlurora: "官方",
     packagesFilterThirdParty: "第三方",
     packagesRefreshing: "正在刷新清单…",
     packagesRefresh: "刷新",

@@ -1758,7 +1758,7 @@ entry:
     fn requires_internal_source_serializes() {
         let mut manifest = base_manifest();
         manifest.requires = vec![PackageDependency {
-            id: "official/core".to_string(),
+            id: "plurora/core".to_string(),
             source: DependencySource::Internal,
             version: String::new(),
             minimum_signed_by: Vec::new(),
@@ -1881,7 +1881,7 @@ entry:
         let mut manifest = base_manifest();
         manifest.requires = vec![
             PackageDependency {
-                id: "official/core".to_string(),
+                id: "plurora/core".to_string(),
                 source: DependencySource::Internal,
                 version: String::new(),
                 minimum_signed_by: Vec::new(),

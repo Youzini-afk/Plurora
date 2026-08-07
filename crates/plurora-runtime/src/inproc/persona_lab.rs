@@ -1,10 +1,10 @@
-//! Handler for `official/persona-lab` capabilities.
+//! Handler for `plurora/persona-lab` capabilities.
 
 use serde_json::Value;
 
 use super::InprocInvocation;
 
-const PACKAGE_ID: &str = "official/persona-lab";
+const PACKAGE_ID: &str = "plurora/persona-lab";
 
 pub fn try_handle(request: &InprocInvocation) -> Option<anyhow::Result<Value>> {
     if request.provider_package_id != PACKAGE_ID {

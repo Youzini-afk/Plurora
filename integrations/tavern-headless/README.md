@@ -10,14 +10,14 @@ TavernHeadless is a reference source for mature headless creative/RP capabilitie
 - regex/text transform behavior;
 - public SDK/OpenAPI update discipline.
 
-Plurora adapts those lessons into general official capability packages:
+Plurora adapts those lessons into general first-party capability packages:
 
-- `official/persona-lab`
-- `official/knowledge-lab`
-- `official/context-lab`
-- `official/text-transform-lab`
-- `official/model-connector-lab`
-- `official/model-routing-lab`
+- `plurora/persona-lab`
+- `plurora/knowledge-lab`
+- `plurora/context-lab`
+- `plurora/text-transform-lab`
+- `plurora/model-connector-lab`
+- `plurora/model-routing-lab`
 
 No product package in this track should be named `tavern-*`. Compatibility fixtures are inputs for validation, not canonical schemas.
 

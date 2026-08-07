@@ -67,7 +67,7 @@ crates/
 clients/web/           official React 19 + Tailwind v4 + Vite Web shell / PWA
 clients/desktop/       Tauri 2.x wrapper + managed Host sidecar
 
-packages/official/     first-party components and experiments via manifests
+packages/plurora/     first-party components and experiments via manifests
 profiles/              distribution / Host component and policy compositions
 examples/              examples, fixtures, and third-party integration samples
 

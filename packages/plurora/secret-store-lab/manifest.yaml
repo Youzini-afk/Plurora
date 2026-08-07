@@ -1,0 +1,89 @@
+schema_version: 1
+id: plurora/secret-store-lab
+version: 0.1.0
+display_name: Secret Store Lab
+description: Local encrypted secret storage for API keys and credentials. Files at ~/.plurora/secrets.dat (age-encrypted).
+license: AGPL-3.0-only
+entry:
+  kind: rust_inproc
+  crate_ref: plurora-secret-store-lab
+  contract: v1
+  symbol: plurora_secret_store_lab
+  abi_version: 1
+provides:
+  - id: plurora/secret-store-lab/put_secret
+    version: 1.0.0
+    input_schema: { type: object }
+    output_schema: { type: object }
+    side_effects:
+      - filesystem.write
+    streaming: false
+  - id: plurora/secret-store-lab/has_secret
+    version: 1.0.0
+    input_schema: { type: object }
+    output_schema: { type: object }
+    side_effects: []
+    streaming: false
+  - id: plurora/secret-store-lab/list_secrets
+    version: 1.0.0
+    input_schema: { type: object }
+    output_schema: { type: object }
+    side_effects: []
+    streaming: false
+  - id: plurora/secret-store-lab/delete_secret
+    version: 1.0.0
+    input_schema: { type: object }
+    output_schema: { type: object }
+    side_effects:
+      - filesystem.write
+    streaming: false
+  - id: plurora/secret-store-lab/health
+    version: 1.0.0
+    input_schema: { type: object }
+    output_schema: { type: object }
+    side_effects: []
+    streaming: false
+  - id: plurora/secret-store-lab/put_project_secret
+    version: 1.0.0
+    input_schema: { type: object }
+    output_schema: { type: object }
+    side_effects:
+      - filesystem.write
+    streaming: false
+  - id: plurora/secret-store-lab/has_project_secret
+    version: 1.0.0
+    input_schema: { type: object }
+    output_schema: { type: object }
+    side_effects: []
+    streaming: false
+  - id: plurora/secret-store-lab/list_project_secrets
+    version: 1.0.0
+    input_schema: { type: object }
+    output_schema: { type: object }
+    side_effects: []
+    streaming: false
+  - id: plurora/secret-store-lab/delete_project_secret
+    version: 1.0.0
+    input_schema: { type: object }
+    output_schema: { type: object }
+    side_effects:
+      - filesystem.write
+    streaming: false
+consumes: []
+contributes:
+  schemas: []
+  hooks: []
+  extension_points: []
+  surfaces: []
+permissions:
+  filesystem:
+    read:
+      - ~/.plurora/
+    write:
+      - ~/.plurora/secrets.dat
+      - ~/.plurora/secret-store.key
+      - ~/.plurora/projects/
+sandbox_policy:
+  cpu_quota_ms_per_invoke: 5000
+  memory_mb: 128
+  wall_clock_ms: 30000

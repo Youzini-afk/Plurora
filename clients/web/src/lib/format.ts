@@ -56,8 +56,8 @@ export function formatGreetingTime(locale: string = "en", now = new Date(), pref
 }
 
 /** Categorize a package_id into one of the inventory kinds for filtering. */
-export function classifyPackageKind(packageId: string): "PROJECT" | "OFFICIAL" | "THIRD-PARTY" {
-  if (packageId.startsWith("official/") || packageId.startsWith("official__")) return "OFFICIAL";
+export function classifyPackageKind(packageId: string): "PROJECT" | "PLURORA" | "THIRD-PARTY" {
+  if (packageId.startsWith("plurora/") || packageId.startsWith("plurora__")) return "PLURORA";
   if (
     packageId.includes("__") ||
     packageId.startsWith("github__") ||

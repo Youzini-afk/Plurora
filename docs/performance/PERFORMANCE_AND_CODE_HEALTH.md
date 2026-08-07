@@ -8,7 +8,7 @@
 
 1. 先测量，再优化。使用 `cargo run -p plurora-cli -- perf baseline`、conformance timing、Web TypeScript diagnostics 和针对性单元测试定位热点。不要凭感觉替换架构。
 2. 优化不得改变平台契约。官方包与第三方包必须继续走同一清单、能力、权限、钩子、schema、脱敏和审计路径。
-3. UI 仍走公开协议。Web shell 不得读取 SQLite、runtime internals，也不得 special-case official packages。
+3. UI 仍走公开协议。Web shell 不得读取 SQLite、runtime internals，也不得 special-case first-party Packages。
 4. 不要用性能名义引入内容本体。不要新增 `platform.agent.*`、`platform.model.*`、`platform.memory.*`、`platform.experience.*`、`platform.sharing.*` 等内容或产品命名空间。
 5. 高级优化必须有测量依据。能力或 surface cache、RawValue、registry helper/codegen、per-domain crates 等，都要由基线或 profiling 显示出实际收益空间。
 
@@ -101,23 +101,23 @@ Storage backend 中立工作新增：
 - `EventStore` trait 文档明确 backend-neutral event spine contract 定位。`append_with_sequence` 是 runtime 推荐 append path；`append` + `next_sequence` 是 low-level/test/admin path；排序语义按会话内 `(session_id, sequence)` 定义。kind-prefix query 是事件语义查询，不是 SQL/index product。契约不引入 SQL、table、vector 或 DSN 概念。
 - In-memory 与 SQLite conformance parity：`storage_backend` tag conformance 用例覆盖基础契约、kind-prefix 等价性、并发 append 无重复、subscription 广播、rehydrate 事件重放语义一致。
 
-`official/storage-lab` 提供 package-scoped storage/data 契约预览：
+`plurora/storage-lab` 提供 package-scoped storage/data 契约预览：
 
-- `official/storage-lab` 作为普通包提供 package-scoped storage/data 契约预览。它证明 storage 是普通 package 层能力，而非 kernel database/sql/vector API。
+- `plurora/storage-lab` 作为普通包提供 package-scoped storage/data 契约预览。它证明 storage 是普通 package 层能力，而非 kernel database/sql/vector API。
 - 合约分层模型：event spine backend / package state store / blob store future / projection index future / retrieval provider future。
 - Backend class 候选只含 capability flags，不含 secret-bearing backend config。
 - Document CRUD preview 输出 write/read/query/delete/snapshot_performed=false，并返回脱敏内容。
 
 Blob/asset store 契约证明新增：
 
-- `official/storage-lab` 新增 blob/asset store 契约证明能力：describe_blob_store_contract、put_blob_preview、get_blob_metadata_preview、export_blob_manifest_preview。
+- `plurora/storage-lab` 新增 blob/asset store 契约证明能力：describe_blob_store_contract、put_blob_preview、get_blob_metadata_preview、export_blob_manifest_preview。
 - Blob 契约输出 content-addressed 类型、backend 候选（local_content_addressed_future / filesystem_backend_future / object_store_future）和红线（no blob content in events / no raw secrets / no filesystem path leak / content address required）。
 - put_blob_preview 输出 content_address。提供 content_hash 时返回规范化 `sha256:`；否则返回确定性 hash。输出还包括 blob_stored=false、filesystem_performed=false、network_performed=false、event_payload_contains_blob=false。它阻断 raw secret、unsafe id 和过大的 inline sample（>4096 chars）。
 - 不实现真实 blob store，不读写文件，不联网，也不把 blob content 放入 event payload。
 
 Projection/index 物化契约证明新增：
 
-- `official/storage-lab` 新增 projection/index 物化契约证明能力：describe_projection_store_contract、plan_projection_materialization、query_projection_preview、migrate_projection_plan_preview。
+- `plurora/storage-lab` 新增 projection/index 物化契约证明能力：describe_projection_store_contract、plan_projection_materialization、query_projection_preview、migrate_projection_plan_preview。
 - Projection 契约输出 backend candidates（event_derived_projection / package_owned_index / sqlite_materialized_view_future / postgres_materialized_view_future）和红线（no_table_exposure / no_sql_exposure / no_secret_backend_config / no_query_product_leakage / projection_derives_from_events_assets_only）。
 - plan_projection_materialization 输出 materialized=false、write_performed=false、backend_selected=false、plan_only=true。阻断 raw secret，校验 projection_id/package_id safe-id。
 - query_projection_preview 输出 query_executed=false、rows_returned=false、preview_shape。不含 SQL、table、collection 或 vector 术语。
@@ -126,7 +126,7 @@ Projection/index 物化契约证明新增：
 
 Retrieval/vector/multimodal provider 契约证明新增：
 
-- `official/storage-lab` 新增 retrieval/vector/multimodal provider 契约证明能力：describe_retrieval_provider_contract、draft_multimodal_index_plan、draft_vector_search_plan、explain_retrieval_backend_fit。
+- `plurora/storage-lab` 新增 retrieval/vector/multimodal provider 契约证明能力：describe_retrieval_provider_contract、draft_multimodal_index_plan、draft_vector_search_plan、explain_retrieval_backend_fit。
 - Retrieval 契约输出 backend candidates（tdb_future / pgvector_future / local_embedding_index_future / remote_vector_provider_future / opensearch_vector_future / redis_vector_future）和红线（no_embedding_generation / no_vector_storage / no_network / no_secret_backend_config / no_kernel_vector_namespace / no_raw_vectors_in_output / no_distance_metric_leakage）。
 - draft_multimodal_index_plan 输出 embedding_generated=false、index_created=false、vectors_stored=false、network_performed=false、plan_only=true。阻断 raw secret，校验 package_id/index_id safe-id，modalities 只允许 text/image/audio/video/structured，asset_refs 上限 64。
 - draft_vector_search_plan 输出 search_executed=false、embedding_generated=false、vectors_loaded=false、plan_only=true。无实际搜索结果。

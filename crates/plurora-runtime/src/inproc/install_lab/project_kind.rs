@@ -29,8 +29,8 @@ pub(super) async fn detect_kind(input: Value) -> Result<Value> {
         SourceDescriptor::Local { path } => detect_project_kind(&path)?,
         SourceDescriptor::Git { url, ref_name } => {
             let resolved = invoke_package_capability(
-                "official/git-tools-lab",
-                "official/git-tools-lab/resolve_ref",
+                "plurora/git-tools-lab",
+                "plurora/git-tools-lab/resolve_ref",
                 json!({ "remote_url": url, "ref": ref_name }),
             )
             .await?;
@@ -38,8 +38,8 @@ pub(super) async fn detect_kind(input: Value) -> Result<Value> {
             let tmp = std::env::temp_dir().join(format!("plurora-detect-kind-{}", Uuid::new_v4()));
             let result = async {
                 invoke_package_capability(
-                    "official/git-tools-lab",
-                    "official/git-tools-lab/fetch_tree",
+                    "plurora/git-tools-lab",
+                    "plurora/git-tools-lab/fetch_tree",
                     json!({
                         "remote_url": url,
                         "commit_sha": commit_sha,

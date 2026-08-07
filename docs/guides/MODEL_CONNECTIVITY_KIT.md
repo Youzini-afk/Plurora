@@ -6,13 +6,13 @@ Model Connectivity Kit 是 Plurora 的模型连接基础设施。它准备 provi
 
 ## 包含的能力包
 
-- `official/model-connector-lab`
+- `plurora/model-connector-lab`
   - `describe_families`
   - `validate_profile`
   - `mask_secret`
   - `discovery_plan`
   - `compat_report`
-- `official/model-routing-lab`
+- `plurora/model-routing-lab`
   - `define_binding`
   - `resolve_binding`
   - `preview_routes`
@@ -32,12 +32,12 @@ Model Connectivity Kit 是 Plurora 的模型连接基础设施。它准备 provi
 
 ## 典型流程
 
-1. 用 `official/model-connector-lab/describe_families` 描述 provider family。
-2. 用 `official/model-connector-lab/validate_profile` 验证脱敏安全的 profile。
-3. 用 `official/model-connector-lab/discovery_plan` 生成模型发现计划。
-4. 用 `official/model-routing-lab/define_binding` 定义 consumer-slot binding。
-5. 用 `official/model-routing-lab/resolve_binding` 解析可重放 route。
-6. 用 `official/model-routing-lab/params_normalize` 归一化 generation-like 参数。
+1. 用 `plurora/model-connector-lab/describe_families` 描述 provider family。
+2. 用 `plurora/model-connector-lab/validate_profile` 验证脱敏安全的 profile。
+3. 用 `plurora/model-connector-lab/discovery_plan` 生成模型发现计划。
+4. 用 `plurora/model-routing-lab/define_binding` 定义 consumer-slot binding。
+5. 用 `plurora/model-routing-lab/resolve_binding` 解析可重放 route。
+6. 用 `plurora/model-routing-lab/params_normalize` 归一化 generation-like 参数。
 
 持久化仍应通过公开资产和提案协议操作。model labs 不获得特殊写权限。
 
@@ -47,4 +47,4 @@ Model Connectivity Kit 是 Plurora 的模型连接基础设施。它准备 provi
 
 ## Deferred inference
 
-真实模型调用属于未来能力包族，可能是 `official/model-inference-lab`。在此之前，Plurora 需要先定义 secret 解析、网络权限、请求/响应审计、流式/取消策略、用量统计、provider 错误和脱敏规则。
+真实模型调用属于未来能力包族，可能是 `plurora/model-inference-lab`。在此之前，Plurora 需要先定义 secret 解析、网络权限、请求/响应审计、流式/取消策略、用量统计、provider 错误和脱敏规则。

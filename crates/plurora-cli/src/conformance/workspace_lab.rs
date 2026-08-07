@@ -1,4 +1,4 @@
-//! Conformance tests for `official/workspace-lab`
+//! Conformance tests for `plurora/workspace-lab`
 //! (External Project Operating Plane Alpha Phase E2 + E3).
 //!
 //! E2 covers:
@@ -27,7 +27,7 @@ use serde_json::json;
 use super::fixtures::*;
 use crate::commands::manifest;
 
-const PACKAGE_ID: &str = "official/workspace-lab";
+const PACKAGE_ID: &str = "plurora/workspace-lab";
 
 async fn load_workspace_lab(
 ) -> anyhow::Result<plurora_runtime::Runtime<plurora_runtime::InMemoryEventStore>> {
@@ -35,7 +35,7 @@ async fn load_workspace_lab(
     runtime
         .load_package(
             manifest::read_manifest(PathBuf::from(
-                "packages/official/workspace-lab/manifest.yaml",
+                "packages/plurora/workspace-lab/manifest.yaml",
             ))
             .await?,
         )

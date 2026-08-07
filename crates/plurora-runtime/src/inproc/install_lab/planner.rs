@@ -431,8 +431,8 @@ async fn resolve_git_package(
     strict_conformance: bool,
 ) -> Result<ResolvedPackages> {
     let resolved = invoke_package_capability(
-        "official/git-tools-lab",
-        "official/git-tools-lab/resolve_ref",
+        "plurora/git-tools-lab",
+        "plurora/git-tools-lab/resolve_ref",
         json!({ "remote_url": url, "ref": ref_name }),
     )
     .await?;
@@ -440,8 +440,8 @@ async fn resolve_git_package(
     let resolved_ref_name = value_str(&resolved, "ref_name")?.to_string();
     let tmp = std::env::temp_dir().join(format!("plurora-git-install-{}", Uuid::new_v4()));
     let fetch = invoke_package_capability(
-        "official/git-tools-lab",
-        "official/git-tools-lab/fetch_tree",
+        "plurora/git-tools-lab",
+        "plurora/git-tools-lab/fetch_tree",
         json!({ "remote_url": url, "commit_sha": commit_sha, "ref_name": resolved_ref_name, "dest_dir": tmp.to_string_lossy() }),
     )
     .await?;
@@ -451,8 +451,8 @@ async fn resolve_git_package(
         let mut signed = false;
         if require_signed {
             let tag = invoke_package_capability(
-                "official/git-tools-lab",
-                "official/git-tools-lab/read_signed_tag",
+                "plurora/git-tools-lab",
+                "plurora/git-tools-lab/read_signed_tag",
                 json!({ "remote_url": url, "tag": ref_name }),
             )
             .await?;

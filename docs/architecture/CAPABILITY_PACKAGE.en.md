@@ -23,7 +23,7 @@ Official Packages, third-party Packages, and different execution forms use the s
 - invocation, streams, cancellation, and effect receipts;
 - diagnostics, migration, and conformance entry points.
 
-There is no private API unlocked by Package ID and no implicit official implementation priority. Maintainers or signatures may affect source trust and policy, but cannot grant runtime authority automatically.
+There is no private API unlocked by Package ID and no implicit first-party implementation priority. Maintainers or signatures may affect source trust and policy, but cannot grant runtime authority automatically.
 
 ## Current V1 Manifest
 

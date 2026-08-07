@@ -7,7 +7,7 @@ This guide explains how to author, replace, and consume long-term memory and kno
 ## Core Principles
 
 1. Memory stays above the substrate. Adopted Protocols, Components, and Products manage records, retrieval, updates, corrections, and redaction plans; Contract V1 distributes implementations through ordinary Packages rather than `platform.memory.*`.
-2. No official priority. `official/memory-lab` is one implementation. Third-party packages like `thirdparty/memory-lab` are fully interchangeable.
+2. No official priority. `plurora/memory-lab` is one implementation. Third-party packages like `thirdparty/memory-lab` are fully interchangeable.
 3. Mutations go through proposals. Memory updates, corrections, and forget/redaction produce proposal drafts or plans. They never directly mutate trusted state or delete records. Consumers must approve before application.
 4. The reference implementation is locally replayable. It does not require network, embedding APIs, or model inference. Third-party packages may add such capabilities through their own outbound/network permissions.
 5. Branch-aware. Memory records are scoped to branches. Retrieval and views can filter by branch reference.
@@ -16,7 +16,7 @@ This guide explains how to author, replace, and consume long-term memory and kno
 
 ## Memory Lab Capability Contract
 
-`official/memory-lab` provides 9 capabilities:
+`plurora/memory-lab` provides 9 capabilities:
 
 | Capability | Purpose | Output Shape |
 |---|---|---|
@@ -108,9 +108,9 @@ The redaction plan is a proposal. The actual deletion/redaction happens only aft
 
 ## Cross-Package Integration
 
-The `official/playable-creation-board` includes optional `memory_refs` in its `request_change` output:
+The `plurora/playable-creation-board` includes optional `memory_refs` in its `request_change` output:
 
-- `memory_package_id`: The memory package to use (default `official/memory-lab`).
+- `memory_package_id`: The memory package to use (default `plurora/memory-lab`).
 - `retrieve_context_plan`: Describes how to retrieve memory context for change planning (optional, the board runs without it).
 - `knowledge_refs`: Optional cross-references to knowledge-lab entries.
 
@@ -118,7 +118,7 @@ This is an optional cross-reference. The board does not depend on memory-lab to 
 
 ## Third-Party Replacement
 
-`thirdparty/memory-lab` proves that `official/memory-lab` has no special priority:
+`thirdparty/memory-lab` proves that `plurora/memory-lab` has no special priority:
 
 - Same 9 capabilities, 3 surfaces.
 - Same output shapes (`memory_record`, `retrieval_trace`, `update_draft`, `correction`, `redaction_plan`, `branch_view`, `provenance`).

@@ -1,0 +1,71 @@
+schema_version: 1
+id: plurora/model-routing-lab
+version: 0.1.0
+display_name: Plurora Model Routing Lab
+description: No-inference consumer-slot binding, deterministic route planning, fallback planning, and parameter normalization.
+license: AGPL-3.0-only
+entry:
+  kind: rust_inproc
+  crate_ref: plurora-foundation
+  symbol: register
+  abi_version: 1
+provides:
+  - id: plurora/model-routing-lab/define_binding
+    version: 0.1.0
+    input_schema: {}
+    output_schema: {}
+    streaming: false
+    side_effects: []
+  - id: plurora/model-routing-lab/resolve_binding
+    version: 0.1.0
+    input_schema: {}
+    output_schema: {}
+    streaming: false
+    side_effects: []
+  - id: plurora/model-routing-lab/preview_routes
+    version: 0.1.0
+    input_schema: {}
+    output_schema: {}
+    streaming: false
+    side_effects: []
+  - id: plurora/model-routing-lab/params_normalize
+    version: 0.1.0
+    input_schema: {}
+    output_schema: {}
+    streaming: false
+    side_effects: []
+  - id: plurora/model-routing-lab/compat_report
+    version: 0.1.0
+    input_schema: {}
+    output_schema: {}
+    streaming: false
+    side_effects: []
+consumes: []
+contributes:
+  schemas: []
+  hooks: []
+  extension_points: []
+  surfaces:
+    - id: plurora/model-routing-lab/home-card
+      slot: home_card
+      title: Model Routing Lab
+      description: Plan model profile routes for package-owned consumer slots without inference.
+      capability_id: plurora/model-routing-lab/preview_routes
+    - id: plurora/model-routing-lab/forge-panel
+      slot: forge_panel
+      title: Model Route Inspector
+      description: Inspect route bindings, selected profiles, explicit fallbacks, and normalized params.
+      capability_id: plurora/model-routing-lab/resolve_binding
+    - id: plurora/model-routing-lab/assistant-action
+      slot: assistant_action
+      title: Draft Model Route Plan
+      description: Prepare approval-gated route binding changes without invoking models.
+      capability_id: plurora/model-routing-lab/define_binding
+      approval_policy: user_approval
+permissions:
+  capabilities:
+    invoke: []
+sandbox_policy:
+  cpu_quota_ms_per_invoke: 5000
+  memory_mb: 128
+  wall_clock_ms: 30000

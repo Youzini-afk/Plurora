@@ -499,10 +499,10 @@ pub(crate) async fn unload_removes_capability() -> anyhow::Result<()> {
     Ok(())
 }
 
-pub(crate) async fn official_no_privilege() -> anyhow::Result<()> {
+pub(crate) async fn first_party_no_privilege() -> anyhow::Result<()> {
     let (_store, runtime) = runtime();
     runtime
-        .load_package(echo_package("official/echo", "example/shared/echo"))
+        .load_package(echo_package("plurora/echo", "example/shared/echo"))
         .await?;
     runtime
         .load_package(echo_package("thirdparty/echo", "example/shared/echo"))
@@ -520,7 +520,7 @@ pub(crate) async fn official_no_privilege() -> anyhow::Result<()> {
         .await;
     anyhow::ensure!(
         denied.is_err(),
-        "official-looking package won ambiguous route"
+        "first-party-looking package won ambiguous route"
     );
     Ok(())
 }

@@ -1,4 +1,4 @@
-//! Conformance tests for `official/tdb-retrieval-lab`.
+//! Conformance tests for `plurora/tdb-retrieval-lab`.
 //!
 //! TDB is treated as a future multimodal retrieval provider adapter, not a
 //! kernel database, event-store replacement, or raw package backend.
@@ -11,7 +11,7 @@ use serde_json::{json, Value};
 use super::fixtures::*;
 use crate::commands::manifest;
 
-const PACKAGE_ID: &str = "official/tdb-retrieval-lab";
+const PACKAGE_ID: &str = "plurora/tdb-retrieval-lab";
 
 fn forbidden_platform_namespace_tokens() -> Vec<String> {
     [
@@ -33,7 +33,7 @@ async fn load_tdb_retrieval_lab(
     runtime
         .load_package(
             manifest::read_manifest(PathBuf::from(
-                "packages/official/tdb-retrieval-lab/manifest.yaml",
+                "packages/plurora/tdb-retrieval-lab/manifest.yaml",
             ))
             .await?,
         )

@@ -2,7 +2,7 @@ use serde_json::{json, Value};
 
 use super::{safety, InprocInvocation};
 
-const PACKAGE_ID: &str = "official/tdb-retrieval-lab";
+const PACKAGE_ID: &str = "plurora/tdb-retrieval-lab";
 
 pub fn try_handle(request: &InprocInvocation) -> Option<anyhow::Result<Value>> {
     if request.provider_package_id != PACKAGE_ID {
@@ -71,9 +71,9 @@ fn describe_contract() -> Value {
             "output": ["index_plan", "query_plan", "provenance", "audit_summary", "future_backend_requirements"]
         },
         "surfaces": {
-            "forge_panel": "official/tdb-retrieval-lab/forge-panel",
-            "assistant_action": "official/tdb-retrieval-lab/assistant-action",
-            "home_card": "official/tdb-retrieval-lab/home-card"
+            "forge_panel": "plurora/tdb-retrieval-lab/forge-panel",
+            "assistant_action": "plurora/tdb-retrieval-lab/assistant-action",
+            "home_card": "plurora/tdb-retrieval-lab/home-card"
         }
     })
 }
@@ -186,9 +186,9 @@ fn inspect_adapter_surface() -> Value {
     json!({
         "kind": "tdb_adapter_surface",
         "surface_ids": [
-            "official/tdb-retrieval-lab/forge-panel",
-            "official/tdb-retrieval-lab/assistant-action",
-            "official/tdb-retrieval-lab/home-card"
+            "plurora/tdb-retrieval-lab/forge-panel",
+            "plurora/tdb-retrieval-lab/assistant-action",
+            "plurora/tdb-retrieval-lab/home-card"
         ],
         "safe_actions": [
             "describe contract",

@@ -10,14 +10,14 @@ use super::fixtures::*;
 /// Proves that a non-official inproc package with a `/preview` capability suffix
 /// does NOT receive `asset_preview` output from the shared common handlers.
 ///
-/// The common handlers are restricted to `official/` packages; a third-party
-/// package routed through the same `official-foundation` inproc entry should
+/// The common handlers are restricted to `plurora/` packages; a third-party
+/// package routed through the same `plurora-foundation` inproc entry should
 /// have its capabilities go unhandled rather than silently served by the
 /// generic fallback.
-pub(crate) async fn non_official_preview_rejected() -> anyhow::Result<()> {
+pub(crate) async fn non_first_party_preview_rejected() -> anyhow::Result<()> {
     let (_store, runtime) = runtime();
-    // Register a non-official package that shares the official-foundation inproc entry
-    // but whose package ID is outside the official/ namespace.
+    // Register a third-party Package that shares the plurora-foundation inproc entry
+    // but whose package ID is outside the plurora/ namespace.
     runtime
         .load_package(plurora_core::PackageManifest {
             schema_version: 1,
@@ -28,7 +28,7 @@ pub(crate) async fn non_official_preview_rejected() -> anyhow::Result<()> {
             author: None,
             license: None,
             entry: EntryDescriptor::v1(PackageEntry::RustInproc {
-                crate_ref: "official-foundation".to_string(),
+                crate_ref: "plurora-foundation".to_string(),
                 symbol: "register".to_string(),
                 abi_version: 1,
             }),
@@ -61,12 +61,12 @@ pub(crate) async fn non_official_preview_rejected() -> anyhow::Result<()> {
         .await;
     anyhow::ensure!(
         result.is_err(),
-        "non-official package with /preview suffix should not succeed (no asset_preview fallback)"
+        "third-party Package with /preview suffix should not succeed (no asset_preview fallback)"
     );
     Ok(())
 }
 
-/// Proves that an unknown/unimplemented inproc capability from an official package
+/// Proves that an unknown/unimplemented inproc capability from an first-party Package
 /// returns an explicit error instead of a generic permissive success.
 ///
 /// Before the package-aware fix, unhandled capabilities fell through to
@@ -74,23 +74,23 @@ pub(crate) async fn non_official_preview_rejected() -> anyhow::Result<()> {
 /// gap is closed: unknown capabilities must fail loudly.
 pub(crate) async fn unknown_inproc_capability_errors() -> anyhow::Result<()> {
     let (_store, runtime) = runtime();
-    // Use an official package that goes through official-foundation inproc entry
+    // Use an first-party Package that goes through plurora-foundation inproc entry
     runtime
         .load_package(plurora_core::PackageManifest {
             schema_version: 1,
-            id: "official/test-unknown-cap".to_string(),
+            id: "plurora/test-unknown-cap".to_string(),
             version: "0.1.0".to_string(),
             display_name: None,
             description: None,
             author: None,
             license: None,
             entry: EntryDescriptor::v1(PackageEntry::RustInproc {
-                crate_ref: "official-foundation".to_string(),
+                crate_ref: "plurora-foundation".to_string(),
                 symbol: "register".to_string(),
                 abi_version: 1,
             }),
             provides: vec![plurora_core::CapabilityDescriptor {
-                id: "official/test-unknown-cap/nonexistent_action".to_string(),
+                id: "plurora/test-unknown-cap/nonexistent_action".to_string(),
                 version: "0.1.0".to_string(),
                 input_schema: serde_json::Value::Null,
                 output_schema: serde_json::Value::Null,
@@ -108,9 +108,9 @@ pub(crate) async fn unknown_inproc_capability_errors() -> anyhow::Result<()> {
     let result = runtime
         .invoke_capability(CapabilityInvocationRequest {
             handle: None,
-            capability_id: Some("official/test-unknown-cap/nonexistent_action".to_string()),
+            capability_id: Some("plurora/test-unknown-cap/nonexistent_action".to_string()),
             caller_package_id: None,
-            provider_package_id: Some("official/test-unknown-cap".to_string()),
+            provider_package_id: Some("plurora/test-unknown-cap".to_string()),
             version: None,
             session_id: None,
             input: json!({}),

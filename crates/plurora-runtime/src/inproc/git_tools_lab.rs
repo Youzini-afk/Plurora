@@ -1,4 +1,4 @@
-//! Handler for `official/git-tools-lab` capabilities.
+//! Handler for `plurora/git-tools-lab` capabilities.
 //!
 //! Pure-Rust git operations used by package installation. All gix operations
 //! are blocking and are executed through `tokio::task::spawn_blocking`.
@@ -17,7 +17,7 @@ use uuid::Uuid;
 
 use super::InprocInvocation;
 
-const PACKAGE_ID: &str = "official/git-tools-lab";
+const PACKAGE_ID: &str = "plurora/git-tools-lab";
 const DEFAULT_MAX_FILES: u64 = 25_000;
 const DEFAULT_MAX_DIRECTORIES: u64 = 25_000;
 const DEFAULT_MAX_TOTAL_BYTES: u64 = 256 * 1024 * 1024;

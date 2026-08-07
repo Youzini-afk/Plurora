@@ -1,0 +1,113 @@
+schema_version: 1
+id: plurora/workspace-lab
+version: 0.1.0
+display_name: Plurora Workspace Lab
+description: Deterministic planning and policy boundary for external project workspaces — describe contracts, explain permissions, and produce auditable action and patch proposals. This ordinary package never executes, reads, or writes a workspace; an approved proposal may be submitted separately to the access-token-protected Host development API.
+license: AGPL-3.0-only
+entry:
+  kind: rust_inproc
+  crate_ref: plurora-foundation
+  symbol: register
+  abi_version: 1
+provides:
+  - id: plurora/workspace-lab/describe_workspace_contract
+    version: 0.1.0
+    input_schema: {}
+    output_schema: {}
+    streaming: false
+    side_effects: []
+  - id: plurora/workspace-lab/draft_workspace_creation
+    version: 0.1.0
+    input_schema: {}
+    output_schema: {}
+    streaming: false
+    side_effects: []
+  - id: plurora/workspace-lab/explain_required_permissions
+    version: 0.1.0
+    input_schema: {}
+    output_schema: {}
+    streaming: false
+    side_effects: []
+  - id: plurora/workspace-lab/request_workspace_action
+    version: 0.1.0
+    input_schema: {}
+    output_schema: {}
+    streaming: false
+    side_effects: []
+  - id: plurora/workspace-lab/summarize_workspace_audit
+    version: 0.1.0
+    input_schema: {}
+    output_schema: {}
+    streaming: false
+    side_effects: []
+  - id: plurora/workspace-lab/create_fixture_workspace
+    version: 0.1.0
+    input_schema: {}
+    output_schema: {}
+    streaming: false
+    side_effects: []
+  - id: plurora/workspace-lab/inspect_workspace
+    version: 0.1.0
+    input_schema: {}
+    output_schema: {}
+    streaming: false
+    side_effects: []
+  - id: plurora/workspace-lab/read_workspace_metadata
+    version: 0.1.0
+    input_schema: {}
+    output_schema: {}
+    streaming: false
+    side_effects: []
+  - id: plurora/workspace-lab/plan_workspace_run
+    version: 0.1.0
+    input_schema: {}
+    output_schema: {}
+    streaming: false
+    side_effects: []
+  - id: plurora/workspace-lab/record_fixture_process_result
+    version: 0.1.0
+    input_schema: {}
+    output_schema: {}
+    streaming: false
+    side_effects: []
+  - id: plurora/workspace-lab/discover_workspace_entrypoints
+    version: 0.1.0
+    input_schema: {}
+    output_schema: {}
+    streaming: false
+    side_effects: []
+  - id: plurora/workspace-lab/draft_workspace_patch
+    version: 0.1.0
+    input_schema: {}
+    output_schema: {}
+    streaming: false
+    side_effects: []
+consumes: []
+contributes:
+  schemas: []
+  hooks: []
+  extension_points: []
+  surfaces:
+    - id: plurora/workspace-lab/forge-panel
+      slot: forge_panel
+      title: Workspace Lab
+      description: Plan, audit, and review workspace actions. Execution, when available, remains a separate Host-controlled ChangeSet workflow.
+      capability_id: plurora/workspace-lab/describe_workspace_contract
+    - id: plurora/workspace-lab/assistant-action
+      slot: assistant_action
+      title: Request Workspace Action
+      description: Draft a workspace action request with policy/audit/proposal gating. This capability never executes the request.
+      capability_id: plurora/workspace-lab/request_workspace_action
+      approval_policy: user_approval
+    - id: plurora/workspace-lab/home-card
+      slot: home_card
+      title: Workspace Lab
+      description: Deterministic workspace planning with no filesystem or execution authority; approved changes use the separate Host API.
+      capability_id: plurora/workspace-lab/describe_workspace_contract
+permissions:
+  capabilities:
+    invoke: []
+sandbox_policy:
+  cpu_quota_ms_per_invoke: 5000
+  memory_mb: 128
+  wall_clock_ms: 30000

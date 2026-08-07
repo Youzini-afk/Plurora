@@ -1,4 +1,4 @@
-//! Conformance tests for `official/experience-runtime-lab` (Experience Beta 0).
+//! Conformance tests for `plurora/experience-runtime-lab` (Experience Beta 0).
 //!
 //! Covers:
 //! - describe_contract shape (surfaces, capabilities, lifecycle states)
@@ -15,7 +15,7 @@ use serde_json::json;
 use super::fixtures::*;
 use crate::commands::manifest;
 
-const PACKAGE_ID: &str = "official/experience-runtime-lab";
+const PACKAGE_ID: &str = "plurora/experience-runtime-lab";
 
 async fn load_experience_runtime_lab(
 ) -> anyhow::Result<plurora_runtime::Runtime<plurora_runtime::InMemoryEventStore>> {
@@ -23,7 +23,7 @@ async fn load_experience_runtime_lab(
     runtime
         .load_package(
             manifest::read_manifest(PathBuf::from(
-                "packages/official/experience-runtime-lab/manifest.yaml",
+                "packages/plurora/experience-runtime-lab/manifest.yaml",
             ))
             .await?,
         )
@@ -489,7 +489,7 @@ pub(crate) async fn experience_runtime_bind_agent_run() -> anyhow::Result<()> {
             session_id: None,
             input: json!({
                 "session_id": "session_bind",
-                "agent_package_id": "official/agentic-forge-lab",
+                "agent_package_id": "plurora/agentic-forge-lab",
                 "target_branch_ref": "branch:target:main",
                 "scratch_branch_ref": "branch:scratch:s1",
             }),

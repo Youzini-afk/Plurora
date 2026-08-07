@@ -1,10 +1,10 @@
-//! Handler for `official/context-lab` capabilities.
+//! Handler for `plurora/context-lab` capabilities.
 
 use serde_json::Value;
 
 use super::InprocInvocation;
 
-const PACKAGE_ID: &str = "official/context-lab";
+const PACKAGE_ID: &str = "plurora/context-lab";
 
 pub fn try_handle(request: &InprocInvocation) -> Option<anyhow::Result<Value>> {
     if request.provider_package_id != PACKAGE_ID {

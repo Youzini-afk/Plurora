@@ -21,7 +21,7 @@
 - 不把 agent 直接写入内核状态。
 - 不让 agent 直接修改可信资产、projection 或会话状态；先生成提案。
 - 不通过工具桥借用其他包的权限。
-- 不自动选择 official provider。
+- 不自动选择 first-party provider。
 - 不在追踪、提案、事件、审计或错误中保存 raw secrets。
 - 不默认提供 bash/read/write/edit 这类 coding-agent 工具。
 
@@ -85,11 +85,11 @@ const plan = await adapter.invokeCapabilityTool(tool, {
 });
 ```
 
-如果多个 provider 暴露同一能力，必须显式选择 `provider_package_id`。不要自动选择第一个 provider，也不要偏向 `official/*`。
+如果多个 provider 暴露同一能力，必须显式选择 `provider_package_id`。不要自动选择第一个 provider，也不要偏向 `plurora/*`。
 
 ## 官方参考包
 
-`official/pi-agent-runtime-lab` 是普通参考包。它提供本地可重放能力：
+`plurora/pi-agent-runtime-lab` 是普通参考包。它提供本地可重放能力：
 
 - run plan
 - trace summary
@@ -98,7 +98,7 @@ const plan = await adapter.invokeCapabilityTool(tool, {
 
 它没有官方特权。它不是真实 agent runtime，也不做模型推理。
 
-`official/capability-tool-bridge-lab` 也是普通包。它只生成工具发现、权限预览和调用计划。它不会代替 agent 调用目标能力，以避免 confused deputy。
+`plurora/capability-tool-bridge-lab` 也是普通包。它只生成工具发现、权限预览和调用计划。它不会代替 agent 调用目标能力，以避免 confused deputy。
 
 ## 第三方替换证明
 

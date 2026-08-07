@@ -107,7 +107,7 @@ Unknown artifact semantics are not an error. Their bytes and descriptors remain 
 - `world_bundle.reexecution_branch`;
 - `world_bundle.shell_independence`.
 
-The current integration fixture uses the `official/playable-creation-board` Package. The suite creates state, a branch, and controlled capability receipts on Host A; imports into an independent SQLite journal plus filesystem CAS on Host B; replays with no original Package; uses an alternative echo-backed implementation on a new branch; and reads the same archive through the headless CLI. The fixture checks compatibility behavior of this Profile without making that Package or the World ontology the center of the platform.
+The current integration fixture uses the `plurora/playable-creation-board` Package. The suite creates state, a branch, and controlled capability receipts on Host A; imports into an independent SQLite journal plus filesystem CAS on Host B; replays with no original Package; uses an alternative echo-backed implementation on a new branch; and reads the same archive through the headless CLI. The fixture checks compatibility behavior of this Profile without making that Package or the World ontology the center of the platform.
 
 ## Current limits
 

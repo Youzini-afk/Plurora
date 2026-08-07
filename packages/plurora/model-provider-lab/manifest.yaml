@@ -1,0 +1,83 @@
+schema_version: 1
+id: plurora/model-provider-lab
+version: 0.1.0
+display_name: Plurora Cloud Provider Adapter Lab
+description: Ordinary cloud API adapter lab for eight provider families. Not the Plurora model abstraction, not an API gateway, and not privileged by the platform. Provides package-local profile validation, cloud request builders, fake/local invoke shapes, stream normalization, and error explanation.
+license: AGPL-3.0-only
+entry:
+  kind: rust_inproc
+  crate_ref: plurora-foundation
+  symbol: register
+  abi_version: 1
+provides:
+  - id: plurora/model-provider-lab/list_supported_families
+    version: 0.1.0
+    input_schema: {}
+    output_schema: {}
+    streaming: false
+    side_effects: []
+  - id: plurora/model-provider-lab/validate_profile
+    version: 0.1.0
+    input_schema: {}
+    output_schema: {}
+    streaming: false
+    side_effects: []
+  - id: plurora/model-provider-lab/normalize_request
+    version: 0.1.0
+    input_schema: {}
+    output_schema: {}
+    streaming: false
+    side_effects: []
+  - id: plurora/model-provider-lab/explain_error
+    version: 0.1.0
+    input_schema: {}
+    output_schema: {}
+    streaming: false
+    side_effects: []
+  - id: plurora/model-provider-lab/echo
+    version: 0.1.0
+    input_schema: {}
+    output_schema: {}
+    streaming: false
+    side_effects: []
+  - id: plurora/model-provider-lab/invoke
+    version: 0.1.0
+    input_schema: {}
+    output_schema: {}
+    streaming: false
+    side_effects: []
+  - id: plurora/model-provider-lab/normalize_stream
+    version: 0.1.0
+    input_schema: {}
+    output_schema: {}
+    streaming: false
+    side_effects: []
+consumes: []
+contributes:
+  schemas: []
+  hooks: []
+  extension_points: []
+  surfaces:
+    - id: plurora/model-provider-lab/home-card
+      slot: home_card
+      title: Cloud Provider Adapter Lab
+      description: Inspect cloud API adapter families, validate profiles, and build adapter-local request shapes without network calls.
+      capability_id: plurora/model-provider-lab/list_supported_families
+    - id: plurora/model-provider-lab/forge-panel
+      slot: forge_panel
+      title: Cloud Provider Adapter Inspector
+      description: Validate cloud provider profiles, build adapter-local request shapes, and explain errors across eight cloud API families.
+      capability_id: plurora/model-provider-lab/validate_profile
+    - id: plurora/model-provider-lab/assistant-action
+      slot: assistant_action
+      title: Draft Cloud Provider Profile Plan
+      description: Prepare approval-gated cloud adapter profile normalization without raw secrets or network.
+      capability_id: plurora/model-provider-lab/normalize_request
+      approval_policy: user_approval
+permissions:
+  capabilities:
+    invoke: []
+sandbox_policy:
+  cpu_quota_ms_per_invoke: 5000
+  memory_mb: 128
+  wall_clock_ms: 30000

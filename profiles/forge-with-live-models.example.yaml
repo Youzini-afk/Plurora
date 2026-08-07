@@ -48,4 +48,4 @@ outbound:
   #   max_concurrent_connections: 8
 
 autoload:
-  - ../packages/official/playable-creation-board/manifest.yaml
+  - ../packages/plurora/playable-creation-board/manifest.yaml

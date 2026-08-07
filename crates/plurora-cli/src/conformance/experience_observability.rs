@@ -1,4 +1,4 @@
-//! Conformance tests for `official/experience-observability-lab` (Experience Beta 3).
+//! Conformance tests for `plurora/experience-observability-lab` (Experience Beta 3).
 //!
 //! Covers:
 //! 1. Observability contract shape (surfaces, capabilities, output shapes)
@@ -20,7 +20,7 @@ use serde_json::json;
 use super::fixtures::*;
 use crate::commands::manifest;
 
-const PACKAGE_ID: &str = "official/experience-observability-lab";
+const PACKAGE_ID: &str = "plurora/experience-observability-lab";
 
 async fn load_experience_observability_lab(
 ) -> anyhow::Result<plurora_runtime::Runtime<plurora_runtime::InMemoryEventStore>> {
@@ -28,7 +28,7 @@ async fn load_experience_observability_lab(
     runtime
         .load_package(
             manifest::read_manifest(PathBuf::from(
-                "packages/official/experience-observability-lab/manifest.yaml",
+                "packages/plurora/experience-observability-lab/manifest.yaml",
             ))
             .await?,
         )
@@ -165,7 +165,7 @@ pub(crate) async fn experience_observability_package_health() -> anyhow::Result<
         &runtime,
         "summarize_package_health",
         json!({
-            "package_id": "official/playable-creation-board",
+            "package_id": "plurora/playable-creation-board",
             "capability_count": 14,
             "error_count": 0,
         }),

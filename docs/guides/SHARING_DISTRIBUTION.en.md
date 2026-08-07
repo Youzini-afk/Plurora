@@ -2,7 +2,7 @@
 
 > [English](./SHARING_DISTRIBUTION.en.md) · [中文](./SHARING_DISTRIBUTION.md)
 
-This document describes shareable, reproducible, and importable composition and Session distribution under the current Contract V1. `official/sharing-lab` is the current ordinary Package and Component implementation; long-term shared meaning may enter an optional Sharing Protocol rather than the constitutional substrate.
+This document describes shareable, reproducible, and importable composition and Session distribution under the current Contract V1. `plurora/sharing-lab` is the current ordinary Package and Component implementation; long-term shared meaning may enter an optional Sharing Protocol rather than the constitutional substrate.
 
 ## Core Principles
 
@@ -14,7 +14,7 @@ This document describes shareable, reproducible, and importable composition and 
 
 ## Sharing Contract
 
-`official/sharing-lab` provides 9 capabilities and 3 surfaces (forge_panel, assistant_action, home_card). The core contract:
+`plurora/sharing-lab` provides 9 capabilities and 3 surfaces (forge_panel, assistant_action, home_card). The core contract:
 
 | Capability | Purpose |
 |---|---|

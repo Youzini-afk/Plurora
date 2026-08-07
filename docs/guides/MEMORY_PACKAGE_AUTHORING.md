@@ -7,7 +7,7 @@
 ## 核心原则
 
 1. Memory 不进入基底。记忆记录、检索、更新、纠正和删改计划由采用的 Protocol、Component 与 Product 管理；当前 V1 通过普通 Package 分发实现，而不是 `platform.memory.*`。
-2. 无官方优先级。`official/memory-lab` 是一种实现。第三方包如 `thirdparty/memory-lab` 完全可互换。
+2. 无官方优先级。`plurora/memory-lab` 是一种实现。第三方包如 `thirdparty/memory-lab` 完全可互换。
 3. 变更要走提案。记忆更新、纠正和遗忘/删改只产出提案草案或计划。它们永不直接修改可信状态或删除记录。消费者必须审批后才能应用。
 4. 参考实现本地可重放。它不要求网络、嵌入 API 或模型推理。第三方包可通过自身出站和网络权限添加此类能力。
 5. 分支感知。记忆记录按分支作用域。检索和视图可按分支引用过滤。
@@ -16,7 +16,7 @@
 
 ## 记忆实验室能力契约
 
-`official/memory-lab` 提供 9 项能力：
+`plurora/memory-lab` 提供 9 项能力：
 
 | 能力 | 用途 | 输出形态 |
 |---|---|---|
@@ -108,9 +108,9 @@
 
 ## 跨包集成
 
-`official/playable-creation-board` 在其 `request_change` 输出中包含可选 `memory_refs`：
+`plurora/playable-creation-board` 在其 `request_change` 输出中包含可选 `memory_refs`：
 
-- `memory_package_id`：使用的记忆包（默认 `official/memory-lab`）。
+- `memory_package_id`：使用的记忆包（默认 `plurora/memory-lab`）。
 - `retrieve_context_plan`：描述如何为变更规划检索记忆上下文（可选，board 无此亦可运行）。
 - `knowledge_refs`：可选的 knowledge-lab 条目交叉引用。
 
@@ -118,7 +118,7 @@
 
 ## 第三方替换
 
-`thirdparty/memory-lab` 证明 `official/memory-lab` 无特殊优先级：
+`thirdparty/memory-lab` 证明 `plurora/memory-lab` 无特殊优先级：
 
 - 相同 9 项能力、3 个 surface。
 - 相同输出形态（`memory_record`、`retrieval_trace`、`update_draft`、`correction`、`redaction_plan`、`branch_view`、`provenance`）。

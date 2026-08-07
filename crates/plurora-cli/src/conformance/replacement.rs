@@ -1,4 +1,4 @@
-//! Conformance cases for Phase H5: proving official seed is replaceable
+//! Conformance cases for Phase H5: proving Plurora seed is replaceable
 //! with a third-party package, no platform privilege or hardcoding required.
 //!
 //! Also covers Phase J6: proving third-party agent runtime is replaceable
@@ -189,16 +189,16 @@ pub(crate) async fn thirdparty_seed_invocation() -> anyhow::Result<()> {
 }
 
 /// Proves that when both an official and a third-party package provide the same
-/// capability ID, the kernel does NOT prefer the official package. The ambiguous
+/// capability ID, the kernel does NOT prefer the first-party Package. The ambiguous
 /// route is rejected, requiring explicit provider selection — same as any other
 /// duplicate-provider scenario.
-pub(crate) async fn ambiguous_no_official_priority() -> anyhow::Result<()> {
+pub(crate) async fn ambiguous_no_publisher_priority() -> anyhow::Result<()> {
     let (_store, runtime) = runtime();
 
-    // Load an official package that provides a shared capability ID
+    // Load an first-party Package that provides a shared capability ID
     runtime
         .load_package(echo_package(
-            "official/replacement-fixture",
+            "plurora/replacement-fixture",
             "shared/playable-seed/launch",
         ))
         .await?;
@@ -224,7 +224,7 @@ pub(crate) async fn ambiguous_no_official_priority() -> anyhow::Result<()> {
         .await;
     anyhow::ensure!(
         denied.is_err(),
-        "ambiguous route should be rejected, official package should NOT win"
+        "ambiguous route should be rejected, first-party Package should NOT win"
     );
 
     // With explicit third-party provider, it should work — proving no official priority

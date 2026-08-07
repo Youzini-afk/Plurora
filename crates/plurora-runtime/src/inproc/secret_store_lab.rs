@@ -1,4 +1,4 @@
-//! Handler for `official/secret-store-lab` capabilities.
+//! Handler for `plurora/secret-store-lab` capabilities.
 
 use anyhow::Result;
 use plurora_core::project::ProjectId;
@@ -12,7 +12,7 @@ use crate::secret_store::{
 
 use super::InprocInvocation;
 
-const PACKAGE_ID: &str = "official/secret-store-lab";
+const PACKAGE_ID: &str = "plurora/secret-store-lab";
 
 #[derive(Debug, Deserialize)]
 struct NameInput {
@@ -44,32 +44,31 @@ pub fn try_handle(request: &InprocInvocation) -> Option<Result<Value>> {
     }
 
     match request.capability_id.as_str() {
-        "secret-store.put_secret" | "official/secret-store-lab/put_secret" => {
+        "secret-store.put_secret" | "plurora/secret-store-lab/put_secret" => {
             Some(put_secret(request.input.clone()))
         }
-        "secret-store.has_secret" | "official/secret-store-lab/has_secret" => {
+        "secret-store.has_secret" | "plurora/secret-store-lab/has_secret" => {
             Some(has_secret(request.input.clone()))
         }
-        "secret-store.list_secrets" | "official/secret-store-lab/list_secrets" => {
+        "secret-store.list_secrets" | "plurora/secret-store-lab/list_secrets" => {
             Some(list_secrets())
         }
-        "secret-store.delete_secret" | "official/secret-store-lab/delete_secret" => {
+        "secret-store.delete_secret" | "plurora/secret-store-lab/delete_secret" => {
             Some(delete_secret(request.input.clone()))
         }
-        "secret-store.put_project_secret" | "official/secret-store-lab/put_project_secret" => {
+        "secret-store.put_project_secret" | "plurora/secret-store-lab/put_project_secret" => {
             Some(put_project_secret(request.input.clone()))
         }
-        "secret-store.has_project_secret" | "official/secret-store-lab/has_project_secret" => {
+        "secret-store.has_project_secret" | "plurora/secret-store-lab/has_project_secret" => {
             Some(has_project_secret(request.input.clone()))
         }
-        "secret-store.list_project_secrets" | "official/secret-store-lab/list_project_secrets" => {
+        "secret-store.list_project_secrets" | "plurora/secret-store-lab/list_project_secrets" => {
             Some(list_project_secrets(request.input.clone()))
         }
-        "secret-store.delete_project_secret"
-        | "official/secret-store-lab/delete_project_secret" => {
+        "secret-store.delete_project_secret" | "plurora/secret-store-lab/delete_project_secret" => {
             Some(delete_project_secret(request.input.clone()))
         }
-        "secret-store.health" | "official/secret-store-lab/health" => Some(health()),
+        "secret-store.health" | "plurora/secret-store-lab/health" => Some(health()),
         _ => None,
     }
 }

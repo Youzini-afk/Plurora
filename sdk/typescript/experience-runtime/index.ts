@@ -780,19 +780,19 @@ export function runExperienceRuntimeSelfTest(): {
 
   // 1. Descriptor creation
   const desc = createExperienceDescriptor({
-    package_id: "official/experience-runtime-lab",
+    package_id: "plurora/experience-runtime-lab",
     surfaces: {
-      experience_entry: "official/experience-runtime-lab/entry",
-      play_renderer: "official/experience-runtime-lab/play",
-      forge_panel: "official/experience-runtime-lab/forge",
-      assistant_action: "official/experience-runtime-lab/assist",
+      experience_entry: "plurora/experience-runtime-lab/entry",
+      play_renderer: "plurora/experience-runtime-lab/play",
+      forge_panel: "plurora/experience-runtime-lab/forge",
+      assistant_action: "plurora/experience-runtime-lab/assist",
     },
     capabilities: {
-      describe_contract: "official/experience-runtime-lab/describe_contract",
-      create_checkpoint: "official/experience-runtime-lab/create_checkpoint",
-      inspect_checkpoint: "official/experience-runtime-lab/inspect_checkpoint",
-      draft_recovery: "official/experience-runtime-lab/draft_recovery",
-      bind_agent_run: "official/experience-runtime-lab/bind_agent_run",
+      describe_contract: "plurora/experience-runtime-lab/describe_contract",
+      create_checkpoint: "plurora/experience-runtime-lab/create_checkpoint",
+      inspect_checkpoint: "plurora/experience-runtime-lab/inspect_checkpoint",
+      draft_recovery: "plurora/experience-runtime-lab/draft_recovery",
+      bind_agent_run: "plurora/experience-runtime-lab/bind_agent_run",
     },
   });
   assert("descriptor kind", desc.kind === "experience_runtime_descriptor");
@@ -812,10 +812,10 @@ export function runExperienceRuntimeSelfTest(): {
 
   // 3. State projection
   const proj = createStateProjection({
-    package_id: "official/experience-runtime-lab",
+    package_id: "plurora/experience-runtime-lab",
     session_id: "session_test",
     state: { health: 100, step_index: 1 },
-    capability_id: "official/experience-runtime-lab/describe_contract",
+    capability_id: "plurora/experience-runtime-lab/describe_contract",
   });
   assert("projection kind", proj.kind === "experience_state_projection");
   assert("projection has state", proj.state.health === 100);
@@ -823,11 +823,11 @@ export function runExperienceRuntimeSelfTest(): {
 
   // 4. Checkpoint
   const cp = createCheckpoint({
-    package_id: "official/experience-runtime-lab",
+    package_id: "plurora/experience-runtime-lab",
     session_id: "session_test",
     state_snapshot: { health: 100, step_index: 5 },
     asset_refs: ["asset:module:seed"],
-    capability_id: "official/experience-runtime-lab/create_checkpoint",
+    capability_id: "plurora/experience-runtime-lab/create_checkpoint",
   });
   assert("checkpoint kind", cp.kind === "experience_checkpoint");
   assert("checkpoint has state", cp.state_snapshot.health === 100);
@@ -841,11 +841,11 @@ export function runExperienceRuntimeSelfTest(): {
 
   // 6. Recovery
   const rec = createRecovery({
-    package_id: "official/experience-runtime-lab",
+    package_id: "plurora/experience-runtime-lab",
     session_id: "session_test",
     failure_kind: "state_corruption",
     last_checkpoint_ref: "checkpoint:123",
-    capability_id: "official/experience-runtime-lab/draft_recovery",
+    capability_id: "plurora/experience-runtime-lab/draft_recovery",
   });
   assert("recovery kind", rec.kind === "experience_recovery");
   assert("recovery has steps", rec.recovery_plan.steps.length > 0);
@@ -854,11 +854,11 @@ export function runExperienceRuntimeSelfTest(): {
 
   // 7. Recovery plan
   const plan = draftRecoveryPlan({
-    package_id: "official/experience-runtime-lab",
+    package_id: "plurora/experience-runtime-lab",
     session_id: "session_test",
     failure_kind: "checkpoint_missing",
     last_checkpoint_ref: null,
-    capability_id: "official/experience-runtime-lab/draft_recovery",
+    capability_id: "plurora/experience-runtime-lab/draft_recovery",
   });
   assert("recovery plan kind", plan.kind === "experience_recovery_plan");
   assert("recovery plan recommended", plan.recommended_strategy === "restart_session");
@@ -867,10 +867,10 @@ export function runExperienceRuntimeSelfTest(): {
 
   // 8. Play surface subscription
   const sub = createPlaySurfaceSubscription({
-    package_id: "official/experience-runtime-lab",
+    package_id: "plurora/experience-runtime-lab",
     session_id: "session_test",
-    surface_id: "official/experience-runtime-lab/play",
-    capability_id: "official/experience-runtime-lab/describe_contract",
+    surface_id: "plurora/experience-runtime-lab/play",
+    capability_id: "plurora/experience-runtime-lab/describe_contract",
   });
   assert("subscription kind", sub.kind === "experience_play_surface_subscription");
   assert("subscription default type", sub.subscription_type === "state_change");
@@ -878,10 +878,10 @@ export function runExperienceRuntimeSelfTest(): {
 
   // 9. Forge binding
   const forge = createForgeBinding({
-    package_id: "official/experience-runtime-lab",
+    package_id: "plurora/experience-runtime-lab",
     session_id: "session_test",
-    surface_id: "official/experience-runtime-lab/forge",
-    capability_id: "official/experience-runtime-lab/describe_contract",
+    surface_id: "plurora/experience-runtime-lab/forge",
+    capability_id: "plurora/experience-runtime-lab/describe_contract",
   });
   assert("forge binding kind", forge.kind === "experience_forge_binding");
   assert("forge binding branch_aware", forge.branch_aware === true);
@@ -889,10 +889,10 @@ export function runExperienceRuntimeSelfTest(): {
 
   // 10. Assist binding
   const assist = createAssistBinding({
-    package_id: "official/experience-runtime-lab",
+    package_id: "plurora/experience-runtime-lab",
     session_id: "session_test",
-    surface_id: "official/experience-runtime-lab/assist",
-    capability_id: "official/experience-runtime-lab/describe_contract",
+    surface_id: "plurora/experience-runtime-lab/assist",
+    capability_id: "plurora/experience-runtime-lab/describe_contract",
   });
   assert("assist binding kind", assist.kind === "experience_assist_binding");
   assert("assist approval_policy", assist.approval_policy === "fork_then_approve");

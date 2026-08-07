@@ -223,7 +223,7 @@ import {
 
 ## Reference Implementation
 
-- `packages/official/experience-runtime-lab/` — Official experience-runtime lab package
+- `packages/plurora/experience-runtime-lab/` — Official experience-runtime lab package
 - `crates/plurora-runtime/src/inproc/experience_runtime_lab.rs` — Replayable in-process handler
 - `sdk/typescript/experience-runtime/` — TypeScript SDK
 - `docs/guides/EXPERIENCE_RUNTIME_AUTHORING.md` — This document

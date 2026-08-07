@@ -6681,7 +6681,7 @@ where
             let output = invoke_docker_runtime_lab(
                 state,
                 &context,
-                "official/docker-runtime-lab/build_image",
+                "plurora/docker-runtime-lab/build_image",
                 verified_build_input,
             )
             .await?;
@@ -6694,7 +6694,7 @@ where
             let cleanup = invoke_docker_runtime_lab(
                 state,
                 &context,
-                "official/docker-runtime-lab/remove_image",
+                "plurora/docker-runtime-lab/remove_image",
                 json!({
                     "approved": true,
                     "project_id": record.project_id.as_str(),
@@ -7244,7 +7244,7 @@ where
     let cleanup = invoke_docker_runtime_lab(
         state,
         &context,
-        "official/docker-runtime-lab/remove_image",
+        "plurora/docker-runtime-lab/remove_image",
         json!({
             "approved": true,
             "project_id": record.project_id.as_str(),

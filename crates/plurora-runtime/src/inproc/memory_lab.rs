@@ -1,4 +1,4 @@
-//! Handler for `official/memory-lab` capabilities.
+//! Handler for `plurora/memory-lab` capabilities.
 //!
 //! Experience Beta 4 — Memory / Knowledge Package Alpha.
 //!
@@ -27,7 +27,7 @@ use serde_json::Value;
 
 use super::InprocInvocation;
 
-const PACKAGE_ID: &str = "official/memory-lab";
+const PACKAGE_ID: &str = "plurora/memory-lab";
 
 // ---------------------------------------------------------------------------
 // Memory record kinds
@@ -164,20 +164,20 @@ fn describe_memory_contract(request: &InprocInvocation) -> anyhow::Result<Value>
         "package_id": request.provider_package_id,
         "package_kind": "ordinary",
         "capabilities": [
-            {"id": "official/memory-lab/describe_memory_contract", "purpose": "describe the memory lab package contract"},
-            {"id": "official/memory-lab/record_memory", "purpose": "record a package-owned memory entry with content_address and provenance"},
-            {"id": "official/memory-lab/retrieve_memory", "purpose": "retrieve memory entries matching a query, deterministic, no embedding/network"},
-            {"id": "official/memory-lab/trace_retrieval", "purpose": "produce a retrieval trace showing how entries were matched"},
-            {"id": "official/memory-lab/draft_memory_update", "purpose": "draft a proposal-gated memory update (add/modify/merge), no direct state mutation"},
-            {"id": "official/memory-lab/apply_memory_correction", "purpose": "produce a correction shape for an existing memory record (proposal-gated)"},
-            {"id": "official/memory-lab/draft_forget_redaction", "purpose": "draft a redaction plan for forgetting memory records, no direct deletion"},
-            {"id": "official/memory-lab/branch_memory_view", "purpose": "produce a branch-aware view of memory records scoped by branch"},
-            {"id": "official/memory-lab/explain_memory_provenance", "purpose": "explain provenance chain of a memory record with content_address per step"},
+            {"id": "plurora/memory-lab/describe_memory_contract", "purpose": "describe the memory lab package contract"},
+            {"id": "plurora/memory-lab/record_memory", "purpose": "record a package-owned memory entry with content_address and provenance"},
+            {"id": "plurora/memory-lab/retrieve_memory", "purpose": "retrieve memory entries matching a query, deterministic, no embedding/network"},
+            {"id": "plurora/memory-lab/trace_retrieval", "purpose": "produce a retrieval trace showing how entries were matched"},
+            {"id": "plurora/memory-lab/draft_memory_update", "purpose": "draft a proposal-gated memory update (add/modify/merge), no direct state mutation"},
+            {"id": "plurora/memory-lab/apply_memory_correction", "purpose": "produce a correction shape for an existing memory record (proposal-gated)"},
+            {"id": "plurora/memory-lab/draft_forget_redaction", "purpose": "draft a redaction plan for forgetting memory records, no direct deletion"},
+            {"id": "plurora/memory-lab/branch_memory_view", "purpose": "produce a branch-aware view of memory records scoped by branch"},
+            {"id": "plurora/memory-lab/explain_memory_provenance", "purpose": "explain provenance chain of a memory record with content_address per step"},
         ],
         "surfaces": {
-            "forge_panel": "official/memory-lab/forge-panel",
-            "assistant_action": "official/memory-lab/assistant-action",
-            "home_card": "official/memory-lab/home-card",
+            "forge_panel": "plurora/memory-lab/forge-panel",
+            "assistant_action": "plurora/memory-lab/assistant-action",
+            "home_card": "plurora/memory-lab/home-card",
         },
         "memory_record_kinds": MEMORY_RECORD_KINDS,
         "retrieval_algorithms": RETRIEVAL_ALGORITHMS,
@@ -744,15 +744,15 @@ mod tests {
 
     #[test]
     fn try_handle_matches_package_id() {
-        let req = make_request("official/memory-lab/describe_memory_contract", json!({}));
+        let req = make_request("plurora/memory-lab/describe_memory_contract", json!({}));
         assert!(try_handle(&req).is_some());
     }
 
     #[test]
     fn try_handle_rejects_wrong_package() {
         let req = InprocInvocation {
-            capability_id: "official/memory-lab/describe_memory_contract".to_string(),
-            provider_package_id: "official/other".to_string(),
+            capability_id: "plurora/memory-lab/describe_memory_contract".to_string(),
+            provider_package_id: "plurora/other".to_string(),
             session_id: None,
             input: json!({}),
         };
@@ -761,7 +761,7 @@ mod tests {
 
     #[test]
     fn describe_contract_has_all_surfaces() {
-        let req = make_request("official/memory-lab/describe_memory_contract", json!({}));
+        let req = make_request("plurora/memory-lab/describe_memory_contract", json!({}));
         let result = try_handle(&req).unwrap().unwrap();
         let surfaces = result["surfaces"].as_object().unwrap();
         assert!(surfaces.contains_key("forge_panel"));
@@ -771,7 +771,7 @@ mod tests {
 
     #[test]
     fn describe_contract_lists_9_capabilities() {
-        let req = make_request("official/memory-lab/describe_memory_contract", json!({}));
+        let req = make_request("plurora/memory-lab/describe_memory_contract", json!({}));
         let result = try_handle(&req).unwrap().unwrap();
         assert_eq!(
             result["capabilities"]
@@ -786,7 +786,7 @@ mod tests {
     #[test]
     fn record_memory_produces_content_address() {
         let req = make_request(
-            "official/memory-lab/record_memory",
+            "plurora/memory-lab/record_memory",
             json!({"key": "test_key", "content": "test content", "kind": "fact"}),
         );
         let result = try_handle(&req).unwrap().unwrap();
@@ -798,7 +798,7 @@ mod tests {
     #[test]
     fn retrieve_memory_keyword_match() {
         let req = make_request(
-            "official/memory-lab/retrieve_memory",
+            "plurora/memory-lab/retrieve_memory",
             json!({
                 "query": "dragon",
                 "records": [
@@ -815,7 +815,7 @@ mod tests {
     #[test]
     fn draft_update_is_proposal_only() {
         let req = make_request(
-            "official/memory-lab/draft_memory_update",
+            "plurora/memory-lab/draft_memory_update",
             json!({"key": "update1", "update_kind": "add_record"}),
         );
         let result = try_handle(&req).unwrap().unwrap();
@@ -827,7 +827,7 @@ mod tests {
     #[test]
     fn forget_produces_redaction_plan_not_deletion() {
         let req = make_request(
-            "official/memory-lab/draft_forget_redaction",
+            "plurora/memory-lab/draft_forget_redaction",
             json!({"target_record_ref": "mem:test:abc123", "reason": "user_request"}),
         );
         let result = try_handle(&req).unwrap().unwrap();
@@ -840,7 +840,7 @@ mod tests {
     #[test]
     fn raw_secret_blocked() {
         let req = make_request(
-            "official/memory-lab/record_memory",
+            "plurora/memory-lab/record_memory",
             json!({"key": "test", "api_key": "RawSecretExample1234567890abcdefABCDEF123456"}),
         );
         let result = try_handle(&req).unwrap().unwrap();
@@ -850,7 +850,7 @@ mod tests {
 
     #[test]
     fn no_forbidden_namespace_in_contract() {
-        let req = make_request("official/memory-lab/describe_memory_contract", json!({}));
+        let req = make_request("plurora/memory-lab/describe_memory_contract", json!({}));
         let result = try_handle(&req).unwrap().unwrap();
         let output_str = serde_json::to_string(&result).unwrap();
         for token in &[
@@ -872,7 +872,7 @@ mod tests {
     #[test]
     fn branch_view_filters_by_branch() {
         let req = make_request(
-            "official/memory-lab/branch_memory_view",
+            "plurora/memory-lab/branch_memory_view",
             json!({
                 "scope": "current_branch",
                 "branch_ref": "branch:feature1",
@@ -890,7 +890,7 @@ mod tests {
     #[test]
     fn provenance_chain_has_content_address() {
         let req = make_request(
-            "official/memory-lab/explain_memory_provenance",
+            "plurora/memory-lab/explain_memory_provenance",
             json!({"record_id": "mem:test:abc"}),
         );
         let result = try_handle(&req).unwrap().unwrap();

@@ -1,4 +1,4 @@
-//! Conformance tests for `official/secret-store-lab`.
+//! Conformance tests for `plurora/secret-store-lab`.
 
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -13,8 +13,8 @@ use super::fixtures::*;
 use crate::cli::HostProfile;
 use crate::commands::{host::runtime_config_from_profile, manifest};
 
-const MANIFEST_PATH: &str = "packages/official/secret-store-lab/manifest.yaml";
-const PACKAGE_ID: &str = "official/secret-store-lab";
+const MANIFEST_PATH: &str = "packages/plurora/secret-store-lab/manifest.yaml";
+const PACKAGE_ID: &str = "plurora/secret-store-lab";
 
 static ENV_LOCK: Mutex<()> = Mutex::const_new(());
 
@@ -79,7 +79,7 @@ pub(crate) async fn put_then_has_succeeds() -> anyhow::Result<()> {
 
     let put = invoke(
         &rt,
-        "official/secret-store-lab/put_secret",
+        "plurora/secret-store-lab/put_secret",
         json!({ "name": "OPENAI_API_KEY", "value": "synthetic-test-value-12345" }),
     )
     .await?;
@@ -88,7 +88,7 @@ pub(crate) async fn put_then_has_succeeds() -> anyhow::Result<()> {
 
     let has = invoke(
         &rt,
-        "official/secret-store-lab/has_secret",
+        "plurora/secret-store-lab/has_secret",
         json!({ "name": "OPENAI_API_KEY" }),
     )
     .await?;
@@ -103,17 +103,17 @@ pub(crate) async fn list_returns_names_not_values() -> anyhow::Result<()> {
 
     invoke(
         &rt,
-        "official/secret-store-lab/put_secret",
+        "plurora/secret-store-lab/put_secret",
         json!({ "name": "KEY_ONE", "value": "synthetic-test-value-one" }),
     )
     .await?;
     invoke(
         &rt,
-        "official/secret-store-lab/put_secret",
+        "plurora/secret-store-lab/put_secret",
         json!({ "name": "KEY_TWO", "value": "synthetic-test-value-two" }),
     )
     .await?;
-    let list = invoke(&rt, "official/secret-store-lab/list_secrets", json!({})).await?;
+    let list = invoke(&rt, "plurora/secret-store-lab/list_secrets", json!({})).await?;
     let text = serde_json::to_string(&list.output)?;
     anyhow::ensure!(text.contains("KEY_ONE"));
     anyhow::ensure!(text.contains("KEY_TWO"));
@@ -129,20 +129,20 @@ pub(crate) async fn delete_removes() -> anyhow::Result<()> {
 
     invoke(
         &rt,
-        "official/secret-store-lab/put_secret",
+        "plurora/secret-store-lab/put_secret",
         json!({ "name": "DELETE_ME", "value": "synthetic-test-value-delete" }),
     )
     .await?;
     let deleted = invoke(
         &rt,
-        "official/secret-store-lab/delete_secret",
+        "plurora/secret-store-lab/delete_secret",
         json!({ "name": "DELETE_ME" }),
     )
     .await?;
     anyhow::ensure!(deleted.output["removed"] == json!(true));
     let has = invoke(
         &rt,
-        "official/secret-store-lab/has_secret",
+        "plurora/secret-store-lab/has_secret",
         json!({ "name": "DELETE_ME" }),
     )
     .await?;
@@ -158,7 +158,7 @@ pub(crate) async fn put_invalid_name_rejected() -> anyhow::Result<()> {
     for name in ["", "HAS SPACE", &"A".repeat(129)] {
         let result = invoke(
             &rt,
-            "official/secret-store-lab/put_secret",
+            "plurora/secret-store-lab/put_secret",
             json!({ "name": name, "value": "synthetic-test-value-invalid" }),
         )
         .await;
@@ -174,7 +174,7 @@ pub(crate) async fn put_oversized_value_rejected() -> anyhow::Result<()> {
 
     let result = invoke(
         &rt,
-        "official/secret-store-lab/put_secret",
+        "plurora/secret-store-lab/put_secret",
         json!({ "name": "TOO_LARGE", "value": "x".repeat(16 * 1024 + 1) }),
     )
     .await;
@@ -187,7 +187,7 @@ pub(crate) async fn health_reports_layout() -> anyhow::Result<()> {
     let _guard = DataDirGuard::new()?;
     let rt = load_secret_store_lab().await?;
 
-    let health = invoke(&rt, "official/secret-store-lab/health", json!({})).await?;
+    let health = invoke(&rt, "plurora/secret-store-lab/health", json!({})).await?;
     anyhow::ensure!(health.output["store_path"]
         .as_str()
         .unwrap_or("")
@@ -202,7 +202,7 @@ pub(crate) async fn resolver_resolves_existing() -> anyhow::Result<()> {
     let rt = load_secret_store_lab().await?;
     invoke(
         &rt,
-        "official/secret-store-lab/put_secret",
+        "plurora/secret-store-lab/put_secret",
         json!({ "name": "RESOLVE_ME", "value": "synthetic-test-value-resolve" }),
     )
     .await?;
@@ -243,7 +243,7 @@ pub(crate) async fn resolver_error_does_not_leak_value() -> anyhow::Result<()> {
     let rt = load_secret_store_lab().await?;
     invoke(
         &rt,
-        "official/secret-store-lab/put_secret",
+        "plurora/secret-store-lab/put_secret",
         json!({ "name": "NO_LEAK", "value": "synthetic-test-value-no-leak" }),
     )
     .await?;

@@ -26,7 +26,7 @@ pub async fn run(args: ListInstalledArgs) -> Result<()> {
     let runtime = load_install_runtime().await?;
     let result = invoke_install_lab(
         &runtime,
-        "official/install-lab/list_installed",
+        "plurora/install-lab/list_installed",
         json!({
             "profile": args.profile,
             "data_dir": data_dir.display().to_string(),

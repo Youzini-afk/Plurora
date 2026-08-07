@@ -1,0 +1,76 @@
+schema_version: 1
+id: plurora/persona-lab
+version: 0.1.0
+display_name: Plurora Persona Lab
+description: Generic persona profile import, normalization, description, fragment rendering, and compatibility diagnostics.
+license: AGPL-3.0-only
+entry:
+  kind: rust_inproc
+  crate_ref: plurora-foundation
+  symbol: register
+  abi_version: 1
+provides:
+  - id: plurora/persona-lab/import_profile
+    version: 0.1.0
+    input_schema: {}
+    output_schema: {}
+    streaming: false
+    side_effects: []
+  - id: plurora/persona-lab/normalize_profile
+    version: 0.1.0
+    input_schema: {}
+    output_schema: {}
+    streaming: false
+    side_effects: []
+  - id: plurora/persona-lab/describe_profile
+    version: 0.1.0
+    input_schema: {}
+    output_schema: {}
+    streaming: false
+    side_effects: []
+  - id: plurora/persona-lab/render_fragment
+    version: 0.1.0
+    input_schema: {}
+    output_schema: {}
+    streaming: false
+    side_effects: []
+  - id: plurora/persona-lab/compat_report
+    version: 0.1.0
+    input_schema: {}
+    output_schema: {}
+    streaming: false
+    side_effects: []
+consumes: []
+contributes:
+  schemas: []
+  hooks: []
+  extension_points: []
+  surfaces:
+    - id: plurora/persona-lab/home-card
+      slot: home_card
+      title: Persona Lab
+      description: Import and normalize persona-like profiles without assuming chat characters.
+      capability_id: plurora/persona-lab/describe_profile
+    - id: plurora/persona-lab/forge-panel
+      slot: forge_panel
+      title: Persona Profile Inspector
+      description: Inspect normalized persona profiles, fragments, provenance, and compatibility diagnostics.
+      capability_id: plurora/persona-lab/describe_profile
+    - id: plurora/persona-lab/asset-editor
+      slot: asset_editor
+      title: Persona Asset Editor
+      description: Draft profile normalization plans and rendered fragments without privileged asset writes.
+      capability_id: plurora/persona-lab/normalize_profile
+    - id: plurora/persona-lab/assistant-action
+      slot: assistant_action
+      title: Draft Persona Profile Change
+      description: Prepare an approval-gated persona profile change proposal.
+      capability_id: plurora/persona-lab/render_fragment
+      approval_policy: user_approval
+permissions:
+  capabilities:
+    invoke: []
+sandbox_policy:
+  cpu_quota_ms_per_invoke: 5000
+  memory_mb: 128
+  wall_clock_ms: 30000

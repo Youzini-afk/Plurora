@@ -1,4 +1,4 @@
-//! Conformance tests for `official/memory-lab` (Experience Beta 4).
+//! Conformance tests for `plurora/memory-lab` (Experience Beta 4).
 //!
 //! Covers:
 //! 1. Memory contract shape (surfaces, capabilities, output shapes, ordinary package)
@@ -20,14 +20,14 @@ use serde_json::json;
 use super::fixtures::*;
 use crate::commands::manifest;
 
-const PACKAGE_ID: &str = "official/memory-lab";
+const PACKAGE_ID: &str = "plurora/memory-lab";
 
 async fn load_memory_lab(
 ) -> anyhow::Result<plurora_runtime::Runtime<plurora_runtime::InMemoryEventStore>> {
     let (_store, runtime) = runtime();
     runtime
         .load_package(
-            manifest::read_manifest(PathBuf::from("packages/official/memory-lab/manifest.yaml"))
+            manifest::read_manifest(PathBuf::from("packages/plurora/memory-lab/manifest.yaml"))
                 .await?,
         )
         .await?;

@@ -1,0 +1,39 @@
+schema_version: 1
+id: plurora/event-tools
+version: 0.1.0
+display_name: Plurora Event Tools
+description: Infrastructure capability package for event summaries and audit-oriented event tooling.
+license: AGPL-3.0-only
+entry:
+  kind: rust_inproc
+  crate_ref: plurora-foundation
+  symbol: register
+  abi_version: 1
+provides:
+  - id: plurora/event-tools/summarize
+    version: 0.1.0
+    input_schema: {}
+    output_schema: {}
+    streaming: false
+    side_effects: []
+consumes: []
+contributes:
+  schemas: []
+  hooks: []
+  extension_points: []
+  surfaces:
+    - id: plurora/event-tools/forge-panel
+      slot: forge_panel
+      title: Event Tools
+      description: Summarize event slices through ordinary capabilities.
+      capability_id: plurora/event-tools/summarize
+permissions:
+  events:
+    read: true
+    append: false
+  capabilities:
+    invoke: []
+sandbox_policy:
+  cpu_quota_ms_per_invoke: 5000
+  memory_mb: 128
+  wall_clock_ms: 30000

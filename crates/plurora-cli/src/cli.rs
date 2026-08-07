@@ -28,7 +28,7 @@ pub enum PackageTemplate {
     /// Playable board template: deterministic/no-network subprocess with launch,
     /// project_state, render_payload, record_player_action, request_change,
     /// create_checkpoint capabilities; all four experience surfaces declared.
-    /// Closest to the official/playable-creation-board shape for third-party creators.
+    /// Closest to the plurora/playable-creation-board shape for third-party creators.
     PlayableBoard,
     /// Playable experience template: deterministic/no-network subprocess with launch,
     /// project_state, render_payload, record_player_action, request_change,

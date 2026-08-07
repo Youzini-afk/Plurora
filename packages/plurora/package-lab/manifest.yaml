@@ -1,0 +1,48 @@
+schema_version: 1
+id: plurora/package-lab
+version: 0.1.0
+display_name: Plurora Package Lab
+description: Infrastructure capability package for host/package behavior exercises. No official privilege.
+license: AGPL-3.0-only
+entry:
+  kind: rust_inproc
+  crate_ref: plurora-foundation
+  symbol: register
+  abi_version: 1
+provides:
+  - id: plurora/package-lab/echo
+    version: 0.1.0
+    input_schema: {}
+    output_schema: {}
+    streaming: false
+    side_effects: []
+  - id: plurora/package-lab/fail
+    version: 0.1.0
+    input_schema: {}
+    output_schema: {}
+    streaming: false
+    side_effects: []
+  - id: plurora/package-lab/describe
+    version: 0.1.0
+    input_schema: {}
+    output_schema: {}
+    streaming: false
+    side_effects: []
+consumes: []
+contributes:
+  schemas: []
+  hooks: []
+  extension_points: []
+  surfaces:
+    - id: plurora/package-lab/home-card
+      slot: home_card
+      title: Package Lab
+      description: Exercise package/capability behavior through the public protocol.
+      capability_id: plurora/package-lab/describe
+permissions:
+  capabilities:
+    invoke: []
+sandbox_policy:
+  cpu_quota_ms_per_invoke: 5000
+  memory_mb: 128
+  wall_clock_ms: 30000

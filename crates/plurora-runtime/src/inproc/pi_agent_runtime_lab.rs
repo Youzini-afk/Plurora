@@ -1,10 +1,10 @@
-//! Handler for `official/pi-agent-runtime-lab` capabilities.
+//! Handler for `plurora/pi-agent-runtime-lab` capabilities.
 
 use serde_json::Value;
 
 use super::InprocInvocation;
 
-const PACKAGE_ID: &str = "official/pi-agent-runtime-lab";
+const PACKAGE_ID: &str = "plurora/pi-agent-runtime-lab";
 
 pub fn try_handle(request: &InprocInvocation) -> Option<anyhow::Result<Value>> {
     if request.provider_package_id != PACKAGE_ID {

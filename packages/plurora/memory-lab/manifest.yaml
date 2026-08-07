@@ -1,0 +1,95 @@
+schema_version: 1
+id: plurora/memory-lab
+version: 0.1.0
+display_name: Plurora Memory Lab
+description: Package-owned long-term memory and knowledge — memory record, retrieval trace, proposal-gated update, correction, forget/redaction, branch-aware view, and provenance. Deterministic, no-network, no inference. Ordinary package capability with no privileged platform access.
+license: AGPL-3.0-only
+entry:
+  kind: rust_inproc
+  crate_ref: plurora-foundation
+  symbol: register
+  abi_version: 1
+provides:
+  - id: plurora/memory-lab/describe_memory_contract
+    version: 0.1.0
+    input_schema: {}
+    output_schema: {}
+    streaming: false
+    side_effects: []
+  - id: plurora/memory-lab/record_memory
+    version: 0.1.0
+    input_schema: {}
+    output_schema: {}
+    streaming: false
+    side_effects: []
+  - id: plurora/memory-lab/retrieve_memory
+    version: 0.1.0
+    input_schema: {}
+    output_schema: {}
+    streaming: false
+    side_effects: []
+  - id: plurora/memory-lab/trace_retrieval
+    version: 0.1.0
+    input_schema: {}
+    output_schema: {}
+    streaming: false
+    side_effects: []
+  - id: plurora/memory-lab/draft_memory_update
+    version: 0.1.0
+    input_schema: {}
+    output_schema: {}
+    streaming: false
+    side_effects: []
+  - id: plurora/memory-lab/apply_memory_correction
+    version: 0.1.0
+    input_schema: {}
+    output_schema: {}
+    streaming: false
+    side_effects: []
+  - id: plurora/memory-lab/draft_forget_redaction
+    version: 0.1.0
+    input_schema: {}
+    output_schema: {}
+    streaming: false
+    side_effects: []
+  - id: plurora/memory-lab/branch_memory_view
+    version: 0.1.0
+    input_schema: {}
+    output_schema: {}
+    streaming: false
+    side_effects: []
+  - id: plurora/memory-lab/explain_memory_provenance
+    version: 0.1.0
+    input_schema: {}
+    output_schema: {}
+    streaming: false
+    side_effects: []
+consumes: []
+contributes:
+  schemas: []
+  hooks: []
+  extension_points: []
+  surfaces:
+    - id: plurora/memory-lab/forge-panel
+      slot: forge_panel
+      title: Memory Lab Inspector
+      description: Inspect package-owned memory records, retrieval traces, update drafts, corrections, redaction plans, branch views, and provenance.
+      capability_id: plurora/memory-lab/describe_memory_contract
+    - id: plurora/memory-lab/assistant-action
+      slot: assistant_action
+      title: Draft Memory Change
+      description: Draft approval-gated memory updates, corrections, or forget/redaction plans.
+      capability_id: plurora/memory-lab/draft_memory_update
+      approval_policy: user_approval
+    - id: plurora/memory-lab/home-card
+      slot: home_card
+      title: Memory Lab
+      description: Package-owned memory record and retrieval without kernel memory or privileged access.
+      capability_id: plurora/memory-lab/record_memory
+permissions:
+  capabilities:
+    invoke: []
+sandbox_policy:
+  cpu_quota_ms_per_invoke: 5000
+  memory_mb: 128
+  wall_clock_ms: 30000

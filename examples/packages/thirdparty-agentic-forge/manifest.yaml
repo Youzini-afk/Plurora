@@ -2,7 +2,7 @@ schema_version: 1
 id: thirdparty/agentic-forge
 version: 0.1.0
 display_name: Community Agentic Forge
-description: "Third-party agentic forge package proving official/agentic-forge-lab is replaceable: package-owned run lifecycle, plan graph, scratch branch candidates, promote proposals, inference fallback, and tool bridge scoped grants — all deterministic, no network, no platform privilege."
+description: "Third-party agentic forge package proving plurora/agentic-forge-lab is replaceable: package-owned run lifecycle, plan graph, scratch branch candidates, promote proposals, inference fallback, and tool bridge scoped grants — all deterministic, no network, no platform privilege."
 entry:
   kind: rust_inproc
   crate_ref: example-thirdparty-agent-runtime

@@ -2,7 +2,7 @@
 
 > [English](./README.en.md) · [中文](./README.md)
 
-这些示例演示 `official/model-provider-lab` 与 `sdk/typescript/model-provider-adapter` 可接受的 provider profile 形态。它们只包含 `secret_ref`，不包含真实 API key。
+这些示例演示 `plurora/model-provider-lab` 与 `sdk/typescript/model-provider-adapter` 可接受的 provider profile 形态。它们只包含 `secret_ref`，不包含真实 API key。
 
 示例用途：
 

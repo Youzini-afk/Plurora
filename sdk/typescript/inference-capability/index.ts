@@ -1204,7 +1204,7 @@ export function runInferenceCapabilitySelfTest(): {
 
   // Cloud API manifest
   const cloudManifest = createProviderCapabilityManifest({
-    provider_id: "official/model-provider-lab",
+    provider_id: "plurora/model-provider-lab",
     label: "Cloud API Model Provider",
     description: "Cloud API adapter for model inference",
     operation_kinds: ["generate", "embed", "classify"],
@@ -1218,7 +1218,7 @@ export function runInferenceCapabilitySelfTest(): {
     resource_constraints: { max_concurrent: 8 },
     supported_resource_hints: ["max_output_units", "temperature", "latency_preference"],
   });
-  assert(cloudManifest.provider_id === "official/model-provider-lab", "cloud manifest: provider_id");
+  assert(cloudManifest.provider_id === "plurora/model-provider-lab", "cloud manifest: provider_id");
   assert(cloudManifest.runtime_kind === "cloud_api", "cloud manifest: runtime_kind=cloud_api");
   assert(cloudManifest.secrets_required === true, "cloud manifest: secrets_required");
   assert(cloudManifest.network_required === true, "cloud manifest: network_required");
@@ -1228,7 +1228,7 @@ export function runInferenceCapabilitySelfTest(): {
 
   // Local process manifest
   const localManifest = createProviderCapabilityManifest({
-    provider_id: "official/inference-local-lab",
+    provider_id: "plurora/inference-local-lab",
     label: "Local Process Inference Provider",
     operation_kinds: ["generate"],
     input_modalities: ["text"],

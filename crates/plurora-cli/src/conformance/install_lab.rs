@@ -9,10 +9,10 @@ use tempfile::TempDir;
 use super::fixtures::*;
 use crate::commands::manifest;
 
-const INSTALL_MANIFEST: &str = "packages/official/install-lab/manifest.yaml";
-const GIT_MANIFEST: &str = "packages/official/git-tools-lab/manifest.yaml";
-const INTEGRITY_MANIFEST: &str = "packages/official/integrity-lab/manifest.yaml";
-const PACKAGE_ID: &str = "official/install-lab";
+const INSTALL_MANIFEST: &str = "packages/plurora/install-lab/manifest.yaml";
+const GIT_MANIFEST: &str = "packages/plurora/git-tools-lab/manifest.yaml";
+const INTEGRITY_MANIFEST: &str = "packages/plurora/integrity-lab/manifest.yaml";
+const PACKAGE_ID: &str = "plurora/install-lab";
 
 async fn load_install_lab(
 ) -> anyhow::Result<plurora_runtime::Runtime<plurora_runtime::InMemoryEventStore>> {
@@ -49,7 +49,7 @@ pub(crate) async fn resolve_plan_local_source() -> anyhow::Result<()> {
     let pkg = fixture_path("pkg-local");
     let out = invoke(
         &rt,
-        "official/install-lab/resolve_plan",
+        "plurora/install-lab/resolve_plan",
         json!({ "root_url": pkg }),
     )
     .await?;
@@ -84,7 +84,7 @@ pub(crate) async fn resolve_plan_runs_conformance() -> anyhow::Result<()> {
     let pkg = fixture_path("pkg-local");
     let out = invoke(
         &rt,
-        "official/install-lab/resolve_plan",
+        "plurora/install-lab/resolve_plan",
         json!({ "root_url": pkg }),
     )
     .await?;
@@ -105,7 +105,7 @@ pub(crate) async fn resolve_plan_blocks_when_strict() -> anyhow::Result<()> {
     let rt = load_install_lab().await?;
     let err = invoke(
         &rt,
-        "official/install-lab/resolve_plan",
+        "plurora/install-lab/resolve_plan",
         json!({
             "root_url": fixture_path("pkg-broken-manifest"),
             "strict_conformance": true,
@@ -124,7 +124,7 @@ pub(crate) async fn strict_conformance_blocks() -> anyhow::Result<()> {
     let rt = load_install_lab().await?;
     let err = invoke(
         &rt,
-        "official/install-lab/resolve_plan",
+        "plurora/install-lab/resolve_plan",
         json!({
             "root_url": fixture_path("pkg-broken-manifest"),
             "strict_conformance": true,
@@ -139,7 +139,7 @@ pub(crate) async fn strict_conformance_blocks() -> anyhow::Result<()> {
 
     let out = invoke(
         &rt,
-        "official/install-lab/resolve_plan",
+        "plurora/install-lab/resolve_plan",
         json!({
             "root_url": fixture_path("pkg-broken-manifest"),
             "strict_conformance": false,
@@ -155,7 +155,7 @@ pub(crate) async fn lenient_conformance_warns_not_blocks() -> anyhow::Result<()>
     let rt = load_install_lab().await?;
     let out = invoke(
         &rt,
-        "official/install-lab/resolve_plan",
+        "plurora/install-lab/resolve_plan",
         json!({
             "root_url": fixture_path("pkg-broken-manifest"),
             "strict_conformance": false,
@@ -171,7 +171,7 @@ pub(crate) async fn transitive_conformance_propagates() -> anyhow::Result<()> {
     let rt = load_install_lab().await?;
     let out = invoke(
         &rt,
-        "official/install-lab/resolve_plan",
+        "plurora/install-lab/resolve_plan",
         json!({
             "root_url": fixture_path("pkg-a-broken-dep"),
             "strict_conformance": false,
@@ -198,7 +198,7 @@ pub(crate) async fn resolve_plan_with_transitive() -> anyhow::Result<()> {
     let rt = load_install_lab().await?;
     let out = invoke(
         &rt,
-        "official/install-lab/resolve_plan",
+        "plurora/install-lab/resolve_plan",
         json!({ "root_url": fixture_path("pkg-a") }),
     )
     .await?;
@@ -218,7 +218,7 @@ pub(crate) async fn resolve_plan_cycle_detection() -> anyhow::Result<()> {
     let rt = load_install_lab().await?;
     let err = invoke(
         &rt,
-        "official/install-lab/resolve_plan",
+        "plurora/install-lab/resolve_plan",
         json!({ "root_url": fixture_path("pkg-cycle-a") }),
     )
     .await
@@ -232,7 +232,7 @@ pub(crate) async fn project_root_install_registers_surface_dist() -> anyhow::Res
     let tmp = TempDir::new()?;
     let out = invoke(
         &rt,
-        "official/install-lab/resolve_plan",
+        "plurora/install-lab/resolve_plan",
         json!({ "root_url": fixture_path("project-root") }),
     )
     .await?;
@@ -274,7 +274,7 @@ pub(crate) async fn project_root_install_registers_surface_dist() -> anyhow::Res
     anyhow::ensure!(profile.contains("packages/surface/manifest.yaml"));
     let checked = invoke(
         &rt,
-        "official/install-lab/check_lockfile",
+        "plurora/install-lab/check_lockfile",
         json!({ "data_dir": tmp.path() }),
     )
     .await?;
@@ -291,7 +291,7 @@ pub(crate) async fn project_root_install_registers_surface_dist() -> anyhow::Res
     fs::write(&lockfile_path, toml::to_string_pretty(&pin_drift)?)?;
     let checked = invoke(
         &rt,
-        "official/install-lab/check_lockfile",
+        "plurora/install-lab/check_lockfile",
         json!({ "data_dir": tmp.path() }),
     )
     .await?;
@@ -314,7 +314,7 @@ pub(crate) async fn project_root_install_registers_surface_dist() -> anyhow::Res
     )?;
     let checked = invoke(
         &rt,
-        "official/install-lab/check_lockfile",
+        "plurora/install-lab/check_lockfile",
         json!({ "data_dir": tmp.path() }),
     )
     .await?;
@@ -360,7 +360,7 @@ pub(crate) async fn execute_plan_local() -> anyhow::Result<()> {
     lockfile.package[0].component_pins[0].digest = format!("sha256:{}", "e".repeat(64));
     let replanned = invoke(
         &rt,
-        "official/install-lab/resolve_plan",
+        "plurora/install-lab/resolve_plan",
         json!({
             "root_url": fixture_path("pkg-local"),
             "lockfile": toml::to_string_pretty(&lockfile)?,
@@ -393,7 +393,7 @@ pub(crate) async fn execute_plan_consent_mismatch() -> anyhow::Result<()> {
     );
     let err = invoke(
         &rt,
-        "official/install-lab/execute_plan",
+        "plurora/install-lab/execute_plan",
         Value::Object(input),
     )
     .await
@@ -409,7 +409,7 @@ pub(crate) async fn uninstall_removes_from_profile() -> anyhow::Result<()> {
     execute_with_full_consent(&rt, plan, tmp.path()).await?;
     let out = invoke(
         &rt,
-        "official/install-lab/uninstall",
+        "plurora/install-lab/uninstall",
         json!({ "package_id": "fixture/pkg-local", "data_dir": tmp.path() }),
     )
     .await?;
@@ -421,7 +421,7 @@ pub(crate) async fn uninstall_removes_from_profile() -> anyhow::Result<()> {
     execute_with_full_consent(&rt, plan, tmp.path()).await?;
     let out = invoke(
         &rt,
-        "official/install-lab/uninstall",
+        "plurora/install-lab/uninstall",
         json!({ "project_id": "fixture-project__abc12345", "data_dir": tmp.path() }),
     )
     .await?;
@@ -448,7 +448,7 @@ pub(crate) async fn list_installed_reflects_lockfile() -> anyhow::Result<()> {
     execute_with_full_consent(&rt, plan, tmp.path()).await?;
     let out = invoke(
         &rt,
-        "official/install-lab/list_installed",
+        "plurora/install-lab/list_installed",
         json!({ "data_dir": tmp.path() }),
     )
     .await?;
@@ -472,7 +472,7 @@ pub(crate) async fn check_lockfile_drift_detection() -> anyhow::Result<()> {
     fs::write(store.join("tamper.txt"), "changed")?;
     let checked = invoke(
         &rt,
-        "official/install-lab/check_lockfile",
+        "plurora/install-lab/check_lockfile",
         json!({ "data_dir": tmp.path() }),
     )
     .await?;
@@ -497,7 +497,7 @@ pub(crate) async fn check_for_updates_local_dangling_unsupported() -> anyhow::Re
     let plan = take_plan(
         invoke(
             &rt,
-            "official/install-lab/resolve_plan",
+            "plurora/install-lab/resolve_plan",
             json!({ "root_url": source }),
         )
         .await?,
@@ -511,7 +511,7 @@ pub(crate) async fn check_for_updates_local_dangling_unsupported() -> anyhow::Re
 
     let current = invoke(
         &rt,
-        "official/install-lab/check_for_updates",
+        "plurora/install-lab/check_for_updates",
         json!({ "data_dir": tmp.path(), "package_id": "fixture/update-local" }),
     )
     .await?;
@@ -520,7 +520,7 @@ pub(crate) async fn check_for_updates_local_dangling_unsupported() -> anyhow::Re
     fs::write(source.join("content.txt"), "two")?;
     let changed = invoke(
         &rt,
-        "official/install-lab/check_for_updates",
+        "plurora/install-lab/check_for_updates",
         json!({ "data_dir": tmp.path(), "package_id": "fixture/update-local" }),
     )
     .await?;
@@ -533,7 +533,7 @@ pub(crate) async fn check_for_updates_local_dangling_unsupported() -> anyhow::Re
     fs::write(&lock_path, toml::to_string_pretty(&lock)?)?;
     let missing_source_path = invoke(
         &rt,
-        "official/install-lab/check_for_updates",
+        "plurora/install-lab/check_for_updates",
         json!({ "data_dir": tmp.path(), "package_id": "fixture/update-local" }),
     )
     .await?;
@@ -551,7 +551,7 @@ pub(crate) async fn check_for_updates_local_dangling_unsupported() -> anyhow::Re
     fs::remove_dir_all(&store)?;
     let dangling = invoke(
         &rt,
-        "official/install-lab/check_for_updates",
+        "plurora/install-lab/check_for_updates",
         json!({ "data_dir": tmp.path(), "package_id": "fixture/update-local" }),
     )
     .await?;
@@ -559,14 +559,14 @@ pub(crate) async fn check_for_updates_local_dangling_unsupported() -> anyhow::Re
     anyhow::ensure!(dangling.output["results"][0]["dangling"] == json!(true));
 
     let mut lock: plurora_core::Lockfile = toml::from_str(&fs::read_to_string(&lock_path)?)?;
-    lock.package[0].id = "official/internal-fixture".to_string();
+    lock.package[0].id = "plurora/internal-fixture".to_string();
     lock.package[0].source = plurora_core::LockSource::Internal;
     lock.package[0].manifest_relative_path = None;
     fs::write(&lock_path, toml::to_string_pretty(&lock)?)?;
     let unsupported = invoke(
         &rt,
-        "official/install-lab/check_for_updates",
-        json!({ "data_dir": tmp.path(), "package_id": "official/internal-fixture" }),
+        "plurora/install-lab/check_for_updates",
+        json!({ "data_dir": tmp.path(), "package_id": "plurora/internal-fixture" }),
     )
     .await?;
     anyhow::ensure!(unsupported.output["results"][0]["status"] == json!("not_applicable"));
@@ -593,7 +593,7 @@ pub(crate) async fn check_for_updates_external_project_not_applicable() -> anyho
 
     let checked = invoke(
         &rt,
-        "official/install-lab/check_for_updates",
+        "plurora/install-lab/check_for_updates",
         json!({ "data_dir": tmp.path(), "project_id": project_id }),
     )
     .await?;
@@ -615,7 +615,7 @@ pub(crate) async fn update_project_local_replaces_dist_and_lockfile() -> anyhow:
     let plan = take_plan(
         invoke(
             &rt,
-            "official/install-lab/resolve_plan",
+            "plurora/install-lab/resolve_plan",
             json!({ "root_url": source }),
         )
         .await?,
@@ -638,7 +638,7 @@ pub(crate) async fn update_project_local_replaces_dist_and_lockfile() -> anyhow:
     )?;
     let updated = invoke(
         &rt,
-        "official/install-lab/update_project",
+        "plurora/install-lab/update_project",
         json!({ "data_dir": tmp.path(), "project_id": "fixture-project__abc12345" }),
     )
     .await?;
@@ -678,7 +678,7 @@ pub(crate) async fn update_project_local_current_noop() -> anyhow::Result<()> {
     let plan = take_plan(
         invoke(
             &rt,
-            "official/install-lab/resolve_plan",
+            "plurora/install-lab/resolve_plan",
             json!({ "root_url": source }),
         )
         .await?,
@@ -687,7 +687,7 @@ pub(crate) async fn update_project_local_current_noop() -> anyhow::Result<()> {
     let before = fs::read_to_string(tmp.path().join("profiles/default.lock.toml"))?;
     let out = invoke(
         &rt,
-        "official/install-lab/update_project",
+        "plurora/install-lab/update_project",
         json!({ "data_dir": tmp.path(), "project_id": "fixture-project__abc12345" }),
     )
     .await?;
@@ -705,7 +705,7 @@ pub(crate) async fn update_project_local_force_reinstalls_current() -> anyhow::R
     let plan = take_plan(
         invoke(
             &rt,
-            "official/install-lab/resolve_plan",
+            "plurora/install-lab/resolve_plan",
             json!({ "root_url": source }),
         )
         .await?,
@@ -713,7 +713,7 @@ pub(crate) async fn update_project_local_force_reinstalls_current() -> anyhow::R
     execute_with_full_consent(&rt, plan, tmp.path()).await?;
     let out = invoke(
         &rt,
-        "official/install-lab/update_project",
+        "plurora/install-lab/update_project",
         json!({ "data_dir": tmp.path(), "project_id": "fixture-project__abc12345", "force": true }),
     )
     .await?;
@@ -744,7 +744,7 @@ pub(crate) async fn update_project_external_not_applicable() -> anyhow::Result<(
     )?;
     let out = invoke(
         &rt,
-        "official/install-lab/update_project",
+        "plurora/install-lab/update_project",
         json!({ "data_dir": tmp.path(), "project_id": project_id }),
     )
     .await?;
@@ -766,7 +766,7 @@ pub(crate) async fn update_project_permission_drift_blocks_before_mutation() -> 
     let plan = take_plan(
         invoke(
             &rt,
-            "official/install-lab/resolve_plan",
+            "plurora/install-lab/resolve_plan",
             json!({ "root_url": source }),
         )
         .await?,
@@ -777,12 +777,12 @@ pub(crate) async fn update_project_permission_drift_blocks_before_mutation() -> 
 
     fs::write(
         source.join("manifest.yaml"),
-        "schema_version: 1\nid: fixture/perm-update\nversion: 0.1.0\nentry:\n  kind: rust_inproc\n  crate_ref: fixture\n  contract: v1\n  symbol: register\n  abi_version: 1\nprovides: []\npermissions:\n  capabilities:\n    invoke:\n      - official/other/*\n",
+        "schema_version: 1\nid: fixture/perm-update\nversion: 0.1.0\nentry:\n  kind: rust_inproc\n  crate_ref: fixture\n  contract: v1\n  symbol: register\n  abi_version: 1\nprovides: []\npermissions:\n  capabilities:\n    invoke:\n      - plurora/other/*\n",
     )?;
     fs::write(source.join("content.txt"), "two")?;
     let err = invoke(
         &rt,
-        "official/install-lab/update_project",
+        "plurora/install-lab/update_project",
         json!({ "data_dir": tmp.path(), "package_id": "fixture/perm-update" }),
     )
     .await
@@ -803,7 +803,7 @@ async fn plan_for(
     take_plan(
         invoke(
             runtime,
-            "official/install-lab/resolve_plan",
+            "plurora/install-lab/resolve_plan",
             json!({ "root_url": fixture_path(fixture) }),
         )
         .await?,
@@ -838,7 +838,7 @@ async fn execute_with_full_consent(
     );
     invoke(
         runtime,
-        "official/install-lab/execute_plan",
+        "plurora/install-lab/execute_plan",
         Value::Object(input),
     )
     .await

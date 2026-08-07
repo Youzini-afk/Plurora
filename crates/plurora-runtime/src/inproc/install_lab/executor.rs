@@ -62,8 +62,8 @@ pub(super) async fn execute_plan(input: Value, _session_id: Option<&str>) -> Res
                         .context("git package missing commit_sha")?;
                     let ref_name = pkg.ref_name.as_deref().unwrap_or(commit);
                     invoke_package_capability(
-                        "official/git-tools-lab",
-                        "official/git-tools-lab/fetch_tree",
+                        "plurora/git-tools-lab",
+                        "plurora/git-tools-lab/fetch_tree",
                         json!({ "remote_url": url, "commit_sha": commit, "ref_name": ref_name, "dest_dir": staging.to_string_lossy() }),
                     )
                     .await?;
@@ -700,8 +700,8 @@ pub(super) async fn invoke_package_capability(
 
 pub(super) async fn compute_manifest_hash(path: &Path) -> Result<String> {
     let output = invoke_package_capability(
-        "official/integrity-lab",
-        "official/integrity-lab/compute_manifest_hash",
+        "plurora/integrity-lab",
+        "plurora/integrity-lab/compute_manifest_hash",
         json!({ "manifest_path": path.to_string_lossy() }),
     )
     .await?;
@@ -736,8 +736,8 @@ fn surface_bundle_path_from_manifest(manifest_path: &Path, bundle: &str) -> Resu
 
 pub(super) async fn compute_tree_hash(path: &Path) -> Result<String> {
     let output = invoke_package_capability(
-        "official/integrity-lab",
-        "official/integrity-lab/compute_tree_hash",
+        "plurora/integrity-lab",
+        "plurora/integrity-lab/compute_tree_hash",
         json!({ "dir": path.to_string_lossy() }),
     )
     .await?;
@@ -746,8 +746,8 @@ pub(super) async fn compute_tree_hash(path: &Path) -> Result<String> {
 
 pub(super) async fn compute_external_tree_hash(path: &Path) -> Result<String> {
     let output = invoke_package_capability(
-        "official/integrity-lab",
-        "official/integrity-lab/compute_tree_hash",
+        "plurora/integrity-lab",
+        "plurora/integrity-lab/compute_tree_hash",
         json!({
             "dir": path.to_string_lossy(),
             "profile": "external_workspace_v1",

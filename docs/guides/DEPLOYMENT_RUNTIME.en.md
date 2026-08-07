@@ -22,7 +22,7 @@ Docker, git, installation, secret storage, workspaces, and adapters are not kern
 - `LocalExecExecutor` trait: defaults to `DenyAllLocalExecExecutor`; profiles may opt into `LiveLocalExecExecutor`.
 - `LiveLocalExecExecutor`: accepts argv arrays only, never shell strings. cwd, env, logs, timeout, and kill behavior are host-controlled.
 - `plurora-service` reverse proxy: `/p/<route_id>/...` remains available inside Host authentication. A route gets an additional unauthenticated `<slug>.apps.example.com/` virtual host only when it explicitly selects `public` and `PLURORA_APP_BASE_DOMAIN=apps.example.com` or `--app-base-domain apps.example.com` is configured, allowing a community app to own `/`. Both entry modes can only point at active loopback port leases. Redirects are disabled, dangerous response headers are stripped or rewritten, response bodies are bounded, and HTTP + WebSocket are supported.
-- `official/docker-runtime-lab`: an ordinary official capability package using `bollard` to manage Docker containers. It fails closed when Docker is unavailable; real Docker smoke requires opt-in.
+- `plurora/docker-runtime-lab`: an ordinary first-party capability package using `bollard` to manage Docker containers. It fails closed when Docker is unavailable; real Docker smoke requires opt-in.
 - Target drivers: built-in `local` and enrolled Agents use the same durable operation, artifact-transfer, declarative-verifier, deployment apply/stop, and receipt model. Agent upstreams remain loopback-only and return to the Host proxy through an authenticated tunnel bound to target/route/lease/epochs.
 - Web project console: shows target / exec / port / proxy diagnostics plus host-plane active revision, recovery state, revision history, and recent jobs. If a project declares deployment metadata, the user explicitly chooses Host-authenticated or public route exposure before Deploy / Stop or Build & Deploy, recover, or rollback. The Development area can also move a verified ChangeSet through private preview, separate deployment approval, activation, and interrupted-operation reconciliation. Host-authenticated is the default.
 - Persistence and replay: exec / port / proxy registry mutations are written to the event log and replayed to rebuild registries on host restart.
@@ -95,7 +95,7 @@ The Deploy button in the project console never runs automatically. After user co
 
 1. The host re-validates the request (client fields are not trusted).
 2. `host.port.lease`: lease a loopback port.
-3. `capability.invoke` → `official/docker-runtime-lab/start_container`: start the Docker container with `approved: true`, `host_port`, and `port_lease_id`.
+3. `capability.invoke` → `plurora/docker-runtime-lab/start_container`: start the Docker container with `approved: true`, `host_port`, and `port_lease_id`.
 4. `host.proxy.register`: bind the route and explicit `route_access` to that port lease (registered with `ready=false`).
 5. Readiness probe: TCP-connect to the loopback port (with an optional health_path HTTP probe). The route is flipped to `ready=true` and success returned only if the probe passes within a bounded timeout.
 
@@ -132,7 +132,7 @@ Build & Deploy uses `POST /host/v1/build-deploy`. By default it returns immediat
 1. Validate source URL, strategy, runtime env, runtime mounts, and user approvals.
 2. Clone into the project workspace through `git-tools-lab`. The project and workspace ancestors must be real directories under the canonical data root; selected-tree materialization fails closed above 100,000 files, 100,000 directories, or 1 GiB. Unsupported tree modes such as submodule entries, absolute/root-escaping symlinks, and symlink entries on platforms that cannot preserve them fail explicitly. The current transport still performs a temporary bare fetch, so these tree limits do not yet constitute a repository-download budget.
 3. If strategy is `nixpacks`, generate Dockerfile / context first.
-4. Call `official/docker-runtime-lab/build_image` and label the image with `project_id`, `build_id`, `source_commit`, `strategy`, and `build_descriptor_hash`.
+4. Call `plurora/docker-runtime-lab/build_image` and label the image with `project_id`, `build_id`, `source_commit`, `strategy`, and `build_descriptor_hash`.
 5. If the project already has an active revision, clean up its container, route, and lease after the new image has built. The old revision remains the durable active pointer until the replacement commits, so replacement failure becomes an explicit recovery-required state.
 6. Enter the normal deploy chain: port lease → container start → proxy register → readiness probe.
 7. After readiness succeeds, append the revision activation event before moving in-memory state to Ready. If the journal commit fails, roll back the new deployment.

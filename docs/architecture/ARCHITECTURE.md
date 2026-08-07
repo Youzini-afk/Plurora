@@ -191,7 +191,7 @@ crates/plurora-service   HTTP / RPC / SSE 与 Host service 边界
 crates/plurora-cli       CLI、Host、脚手架、contract 与 conformance 工具
 clients/web          官方 React Web Shell / PWA
 clients/desktop      Tauri wrapper + managed Host sidecar
-packages/official    通过普通清单加载的第一方组件与实验能力
+packages/plurora    通过普通清单加载的第一方组件与实验能力
 sdk/                 生成合同 SDK 与领域 SDK
 profiles/            发行版 / Host 的组件与策略组合
 examples/            示例、fixture 与第三方接入样例

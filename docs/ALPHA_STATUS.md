@@ -11,7 +11,7 @@
 - **Conformance：** 473 个具名 CLI 用例通过，外加 crate / service 单元测试；161 个 v1 schema（80 methods + 59 events + 22 top-level）通过校验。
 - **章程纪律：** 内核对内容无意见；官方包没有特权；公开协议是唯一入口；入口形态平等；能力句柄、bindings 注入、Path A / Path B、conformance kit 与生成 SDK 已落地；可信路径阻断 raw secret，全部走 manifest 声明的 `secret_ref`；权限授权可重新水化；网络声明带审计与脱敏；通用流式与取消生命周期；外发执行有边界，默认全拒；公开 HTTPS 出站走同样的 host policy / 审计 / 脱敏边界；一元、SSE/NDJSON/raw 流和 WebSocket 三个原语都有完成审计事件。
 - **代码健康：** CLI、运行时各域行为、协议分发、in-process 处理器、事件存储——都已按域拆分，不再继续往单文件里堆。
-- **人测底座：** 安装 warning 与 schema 形状已稳定；原生项目安装链路从 source → store → nested manifests/profile autoload → project registry → project dist → 受保护的 `/surface-bundles/projects/<project_id>/...` → 短期 sandbox asset lease；`surface_bundle` 是 static、non-executing 入口；`dist/` 已进入 `tree_hash`，store schema 迁移会清掉旧 store，install/update/uninstall 后会回收孤立 store；`official/install-lab` 提供 `check_for_updates` / `update_project`，CLI `plurora update` 与 Web 项目控制台都通过它更新；Surface bridge 已收敛 allowlist、stream ownership、诊断脱敏、secret 输入清理、CSP/CORS 加固与 typed `allowed_capability_ids`；桌面端管理 loopback Host sidecar，Web shell 可安装为 PWA；自托管部署底座包含统一 local/Agent target driver、target / exec / port / proxy、HTTP/WebSocket 反代、显式 Deploy broker、默认私有/显式公开 route、共享 Host/project/target 客户端 context，以及 Verified ChangeSet → private preview → 独立部署审批 → activation → reconcile/recover/rollback。可撤销 scoped device pairing 让手机通过同一 Host API 控制项目、部署与 ChangeSet；Web/Desktop/PWA 复用同一 client core，远程 CLI 通过同一 Bearer/public Host 边界完成 project/target 操作以及 ChangeSet 的草拟、审阅、批准/拒绝、执行、导出和恢复完整生命周期。
+- **人测底座：** 安装 warning 与 schema 形状已稳定；原生项目安装链路从 source → store → nested manifests/profile autoload → project registry → project dist → 受保护的 `/surface-bundles/projects/<project_id>/...` → 短期 sandbox asset lease；`surface_bundle` 是 static、non-executing 入口；`dist/` 已进入 `tree_hash`，store schema 迁移会清掉旧 store，install/update/uninstall 后会回收孤立 store；`plurora/install-lab` 提供 `check_for_updates` / `update_project`，CLI `plurora update` 与 Web 项目控制台都通过它更新；Surface bridge 已收敛 allowlist、stream ownership、诊断脱敏、secret 输入清理、CSP/CORS 加固与 typed `allowed_capability_ids`；桌面端管理 loopback Host sidecar，Web shell 可安装为 PWA；自托管部署底座包含统一 local/Agent target driver、target / exec / port / proxy、HTTP/WebSocket 反代、显式 Deploy broker、默认私有/显式公开 route、共享 Host/project/target 客户端 context，以及 Verified ChangeSet → private preview → 独立部署审批 → activation → reconcile/recover/rollback。可撤销 scoped device pairing 让手机通过同一 Host API 控制项目、部署与 ChangeSet；Web/Desktop/PWA 复用同一 client core，远程 CLI 通过同一 Bearer/public Host 边界完成 project/target 操作以及 ChangeSet 的草拟、审阅、批准/拒绝、执行、导出和恢复完整生命周期。
 
 当前已经形成较大的可运行面，但平台和官方产品都不等于“完成”。后续建设同时关注开放性、多样性、先进执行与协议能力、长期数据演化，以及普通用户和创作者的完整体验。
 
@@ -23,7 +23,7 @@
 - Experimental EffectReceipt 与 Change primitives 已落地：capability/outbound/stream/WebSocket/exec terminal path 生成内容寻址 receipt；历史重放不调用 executor，capability re-execute 创建新 branch 与 parent-linked receipt；旧 Proposal lifecycle 作为 Intent/ChangeSet/PolicyDecision/Commit adapter 继续兼容。
 - Experimental Protocol Commons 注册表已落地：`host.info` 发布 Change、Shell Default 与 World Bundle 描述符；显式协议/Profile 协商先于 dispatch；不支持的 major 以结构化原因拒绝；protocol、implementation 与 package conformance 使用独立可执行报告。
 - Package envelope 与 component identity 已分离：显式 component/behavior digest 在重新打包后保持稳定；runtime 与 effect evidence 携带 component trust/边界数据；composition lock 分离 component/profile/content pin；`contract:none` 明确报告为不可移植 Foreign Capsule。
-- Experimental World Bundle 已落地，并由 `official/playable-creation-board` 的跨 Host conformance fixture 覆盖：canonical archive descriptor 保留原始 v1 envelope 与完整 SHA-256 closure；全新 SQLite/filesystem Host 保持 object、lineage 与 receipt；historical replay 不调用 executor；替代实现生成 child branch/head；headless CLI 无需 Web Shell 状态即可读取同一 archive。
+- Experimental World Bundle 已落地，并由 `plurora/playable-creation-board` 的跨 Host conformance fixture 覆盖：canonical archive descriptor 保留原始 v1 envelope 与完整 SHA-256 closure；全新 SQLite/filesystem Host 保持 object、lineage 与 receipt；historical replay 不调用 executor；替代实现生成 child branch/head；headless CLI 无需 Web Shell 状态即可读取同一 archive。
 - 用 JSON Schema 子集校验能力 I/O 与能力包声明的事件 payload。
 - Contract V1 身份 union 继续保持 `host_admin`、`host_dev`、`package`、`human`、`assistant`、`anonymous`。配对设备在远程 RPC 边界使用 fail-closed 的 `anonymous` V1 sentinel，并通过 Host 建立的 authority envelope 保留 grant、delegation 与资源约束；旧 runtime 忽略新 envelope 时只会拒绝而不会扩大权限。脱敏 Host 控制面审计仍以逻辑 `host_device` 记录设备；human 与 assistant 身份支持作用域授权。
 - 审计事件：`authority/grant.created|revoked`、`authority/denied`、`host/package.*` 生命周期与 `change/proposal.*` 生命周期；Contract V1 之外另有脱敏的 `host/control/v1/authority.decision` Host 控制面授权判定日志。
@@ -79,9 +79,9 @@
 |---|---|
 | `manifest.requires` 字段 | implemented |
 | Lockfile schema (`plurora.lock.v1`) | implemented |
-| `official/git-tools-lab`（基于 gix） | implemented |
-| `official/integrity-lab`（sequoia GPG + sha256） | implemented |
-| `official/install-lab` 编排器 | implemented |
+| `plurora/git-tools-lab`（基于 gix） | implemented |
+| `plurora/integrity-lab`（sequoia GPG + sha256） | implemented |
+| `plurora/install-lab` 编排器 | implemented |
 | `plurora install` / `uninstall` / `list-installed` / `update` / `lockfile` CLI | implemented |
 | `~/.plurora` 文件系统约定 | implemented |
 | 交互式同意提示 | implemented |
@@ -92,10 +92,10 @@
 | `dist/` 纳入 `tree_hash` | implemented |
 | store schema 迁移清理旧 store | implemented |
 | 孤立 store GC（安装 / 更新 / 卸载后） | implemented |
-| `official/install-lab/check_for_updates` | implemented |
-| `official/install-lab/update_project` | implemented |
-| `official/secret-store-lab` 加密存储 | implemented |
-| `official/docker-runtime-lab`（Docker 容器生命周期，bollard） | implemented |
+| `plurora/install-lab/check_for_updates` | implemented |
+| `plurora/install-lab/update_project` | implemented |
+| `plurora/secret-store-lab` 加密存储 | implemented |
+| `plurora/docker-runtime-lab`（Docker 容器生命周期，bollard） | implemented |
 | `StoreSecretResolver` + `CompositeSecretResolver` | implemented |
 | age (X25519) 加密 + 0600 文件权限 | implemented |
 | OS keyring 集成 | deferred（libdbus-sys 系统依赖） |
@@ -157,12 +157,12 @@
 
 ## 官方能力包
 
-全部是普通能力包，没有内核特权。位于 `packages/official/`，通过普通清单加载。
+全部是普通能力包，没有内核特权。位于 `packages/plurora/`，通过普通清单加载。
 
 **平台基础**
 
 - `package-lab`、`schema-tools`、`event-tools`、`composition-lab`、`asset-lab`、`projection-lab`、`assistant-lab`。
-- 包安装基础：`official/git-tools-lab`、`official/integrity-lab` 与 `official/install-lab`。Git tree fetch 默认执行有界 materialization，并对 pack 下载做可计量、可中断的预算控制；直接调用者也不能关闭两类硬上限。
+- 包安装基础：`plurora/git-tools-lab`、`plurora/integrity-lab` 与 `plurora/install-lab`。Git tree fetch 默认执行有界 materialization，并对 pack 下载做可计量、可中断的预算控制；直接调用者也不能关闭两类硬上限。
 
 **创作能力族**
 
@@ -236,13 +236,13 @@ Forge profile (`profiles/forge-alpha.yaml`) 会自动加载这些包以及示例
 
 - **Home：** 项目货架（卡片网格 + 状态 pill + Hero + utility strip + 活动 timeline + 工坊工具 bento），数据来自 `host.project.list`，磁盘用量来自项目 `storage_summary`。Home 也消费结构化 shell descriptor：平台内置 quick actions 保留，包贡献的 `quick_action` / `workshop_card` / schema-versioned `home_card` 作为发现入口进入平台渲染器；包 action 首批只提示发现，不绕过 proposal / permission / audit。`⌘N` 打开 Install 模态。
 - **Settings：** 六个面板都接真实数据。
-  - API Connections —— `official/secret-store-lab/{list,put,delete}_secret` + health。UI 永远不读 raw secret 值，secret-edit modal 关闭时清掉输入态。
+  - API Connections —— `plurora/secret-store-lab/{list,put,delete}_secret` + health。UI 永远不读 raw secret 值，secret-edit modal 关闭时清掉输入态。
   - Installed Packages —— `host.package.list` + 项目标记 + Cmd/Ctrl+F focus。
   - Profiles —— `host.diagnostics`（active profile、packages_loaded、network allowlist）。
   - Storage —— storage area summary + 真实 event store kind（sqlite/postgres/memory），不在 Web UI 暴露 host 绝对路径。
   - Host Access —— 当前 root / device 身份、action scope、项目/目标资源选择器、委托链、HTTPS pairing link、pending 邀请、设备期限与级联 grant 撤销；默认邀请只选择 `observe`。
   - About —— 平台身份、license、links、致谢。
-- **Install / Update 流程：** Install modal 通过 `capability.invoke` 调用 `official/install-lab` 的 `resolve_plan` / `detect_kind` / `execute_plan`；原生项目走快速通道，外部项目进入 wrap-vs-workspace wizard。项目控制台展示 bundle / package / event 诊断，并通过 `check_for_updates` / `update_project` 提供更新入口。没有 `host.install.*`。
+- **Install / Update 流程：** Install modal 通过 `capability.invoke` 调用 `plurora/install-lab` 的 `resolve_plan` / `detect_kind` / `execute_plan`；原生项目走快速通道，外部项目进入 wrap-vs-workspace wizard。项目控制台展示 bundle / package / event 诊断，并通过 `check_for_updates` / `update_project` 提供更新入口。没有 `host.install.*`。
 - **Project Frame：** Home 以独立 `/project/<id>` 标签页打开项目；项目页没有平台顶栏或返回按钮，只用全屏 sandbox iframe 挂载项目自有前端。关闭标签页不停止项目；项目页用 `⌘ .` / `Ctrl .` 停止当前项目。
 - **Failure Modal：** Deep Rust accent stripe、诊断 / 影响双列、redacted stderr 日志面板（含 Copy log）、Restart / Stop-and-uninstall / Close 三选项；数据来自 `host.package.list/status/logs`，不复制 raw log。
 - **Toast 系统：** 5 个 variant（info/success/warning/error/progress），右下队列，`prefers-reduced-motion` 自动收敛。
@@ -274,7 +274,7 @@ Forge profile (`profiles/forge-alpha.yaml`) 会自动加载这些包以及示例
 - `crates/plurora-cli/src/schema_export/` 负责 v1 schema 导出；`src/bin/export-schemas.rs` 只是薄入口。生成文件仍只来自 exporter，不手改 SDK 或 schema。
 - `crates/plurora-runtime/src/runtime/` 按 session、events、packages、capabilities、hooks、permissions、assets、branches、projections、proposals 分模块；`runtime/protocol_dispatch.rs` 只保留 public router，具体 public protocol 处理器在 `runtime/protocol/` 下按 domain 拆分。`runtime/mod.rs` 保持公开 `Runtime<S>` API。
 - 协议方法的元数据与分发共享 `PlatformMethod` 这一份事实来源，并有注册表 / 分发的一致性单测。
-- `crates/plurora-runtime/src/inproc/` 把官方包行为按域拆开；`official/install-lab` 已拆成 `install_lab/` 子模块（types/source/planner/executor/layout/project_kind/fs_copy），公共 helper 走 provider package + 本地能力名路由，不再用 suffix-only 兜底。
+- `crates/plurora-runtime/src/inproc/` 把官方包行为按域拆开；`plurora/install-lab` 已拆成 `install_lab/` 子模块（types/source/planner/executor/layout/project_kind/fs_copy），公共 helper 走 provider package + 本地能力名路由，不再用 suffix-only 兜底。
 - `clients/web` 的 Home 与 Install flow 已拆成 page shell + hooks/helpers/step components；UI 继续只走公开协议，不读本地文件系统或 runtime 私有状态。
 
 这些拆分不改变行为，只是让后续新增能力包、conformance、handler 与 UI flow 时仍然可审查。

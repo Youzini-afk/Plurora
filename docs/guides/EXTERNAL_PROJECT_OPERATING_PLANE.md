@@ -19,9 +19,9 @@ External Project Operating Plane 说明 Plurora 不必只接入已经适配清�
 
 ## 已实现包
 
-### `official/install-lab` 的 external intake
+### `plurora/install-lab` 的 external intake
 
-`plurora install` 现在先检测项目类型，再决定是否解析包清单。没有 `project.yaml` / package manifest 的本地目录和 git source 不再因为“缺少 manifest”而提前失败，而是调用 `official/install-lab/prepare_external_intake` 生成一个零包、可审计的 `external_workspace` 安装计划。
+`plurora install` 现在先检测项目类型，再决定是否解析包清单。没有 `project.yaml` / package manifest 的本地目录和 git source 不再因为“缺少 manifest”而提前失败，而是调用 `plurora/install-lab/prepare_external_intake` 生成一个零包、可审计的 `external_workspace` 安装计划。
 
 当前支持两种明确所有权：
 
@@ -34,7 +34,7 @@ managed local copy 会保留 `.gitignore` 等源码元数据，但跳过 VCS 目
 
 这一步只 materialize 源码和写项目 descriptor，不运行 install/build/test/script，不把 external project 注册成 capability provider。`--wrap-as-adapter` 也不再生成一个并不存在的假 manifest；真实 adapter authoring 留给带 ChangeSet 审批的后续开发流程。
 
-### `official/project-intake-lab`
+### `plurora/project-intake-lab`
 
 普通官方包，无内核特权。提供以下能力：
 
@@ -56,11 +56,11 @@ managed local copy 会保留 `.gitignore` 等源码元数据，但跳过 VCS 目
 - 不 clone、不 install、不 run、不联网、不读本地文件系统。
 - 阻断 raw secret、path traversal、home path 和敏感绝对本地路径。
 - 检测 npm 生命周期脚本：`preinstall`、`install`、`postinstall`、`prepare`、`prepublish` 等会标记为 `executes_code` / `requires_approval`。
-- Adapter preview 必须使用普通 third-party package id。不允许 `official/`，也不允许 path traversal 或 unsafe chars。
+- Adapter preview 必须使用普通 third-party package id。不允许 `plurora/`，也不允许 path traversal 或 unsafe chars。
 - 能力 id 必须属于 adapter package namespace。
 - 只生成清单、wrapper、fixture 和 readiness preview。不写文件、不执行、不发布。
 
-### `official/workspace-lab`
+### `plurora/workspace-lab`
 
 普通官方包，无内核特权。提供以下能力：
 
@@ -87,7 +87,7 @@ managed local copy 会保留 `.gitignore` 等源码元数据，但跳过 VCS 目
 
 ### Host 开发控制平面
 
-规划包与真实变更执行现在是两条不同的权限路径。`official/workspace-lab` 继续只生成确定性的计划和 patch proposal；获批的源码变更由 access-token 保护的 `/host/v1/projects/:project_id/changes` API 接收，并沿 `Intent -> ChangeSet -> PolicyDecision -> ChangeCommit -> EffectReceipt` 留下 durable 因果链。审批和执行是两个请求，批准对象包含精确 operations、验证方式、所需 authority 和预期效果，批准后不能替换内容。
+规划包与真实变更执行现在是两条不同的权限路径。`plurora/workspace-lab` 继续只生成确定性的计划和 patch proposal；获批的源码变更由 access-token 保护的 `/host/v1/projects/:project_id/changes` API 接收，并沿 `Intent -> ChangeSet -> PolicyDecision -> ChangeCommit -> EffectReceipt` 留下 durable 因果链。审批和执行是两个请求，批准对象包含精确 operations、验证方式、所需 authority 和预期效果，批准后不能替换内容。
 
 首版只支持有界 `file_write` / `file_delete`，先复制到 Host-owned scratch，再做静态验证或受限 Dockerfile build。Docker 默认无网络，不支持任意 host command、Nixpacks scratch build、build secret 或 host mount。完整设计见 [`../architecture/HOST_DEVELOPMENT_CONTROL_PLANE.md`](../architecture/HOST_DEVELOPMENT_CONTROL_PLANE.md)。
 
@@ -129,8 +129,8 @@ development execute/recover 会在内存操作中携带认证身份，但绝不�
 可检查：
 
 ```bash
-cargo run -p plurora-cli -- package check packages/official/project-intake-lab/manifest.yaml
-cargo run -p plurora-cli -- package check packages/official/workspace-lab/manifest.yaml
+cargo run -p plurora-cli -- package check packages/plurora/project-intake-lab/manifest.yaml
+cargo run -p plurora-cli -- package check packages/plurora/workspace-lab/manifest.yaml
 cargo run -p plurora-cli -- package check examples/packages/external-project-adapter-preview/manifest.yaml
 cargo run -p plurora-cli -- conformance --tag project_intake
 cargo run -p plurora-cli -- conformance --tag workspace_lab

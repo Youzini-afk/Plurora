@@ -1,0 +1,51 @@
+schema_version: 1
+id: plurora/assistant-lab
+version: 0.1.0
+display_name: Plurora Assistant Lab
+description: Protocol-bound assistant package that produces explanations, suggestions, and branch proposals without private kernel access.
+license: AGPL-3.0-only
+entry:
+  kind: rust_inproc
+  crate_ref: plurora-foundation
+  symbol: register
+  abi_version: 1
+provides:
+  - id: plurora/assistant-lab/explain
+    version: 0.1.0
+    input_schema: {}
+    output_schema: {}
+    streaming: false
+    side_effects: []
+  - id: plurora/assistant-lab/suggest
+    version: 0.1.0
+    input_schema: {}
+    output_schema: {}
+    streaming: false
+    side_effects: []
+  - id: plurora/assistant-lab/draft_branch_change
+    version: 0.1.0
+    input_schema: {}
+    output_schema: {}
+    streaming: false
+    side_effects: []
+consumes: []
+contributes:
+  schemas: []
+  hooks: []
+  extension_points: []
+  surfaces:
+    - id: plurora/assistant-lab/assistant-action
+      slot: assistant_action
+      title: Assistant Lab
+      description: Draft protocol-bound proposals for play-creation workflows.
+      capability_id: plurora/assistant-lab/draft_branch_change
+permissions:
+  events:
+    read: true
+    append: false
+  capabilities:
+    invoke: []
+sandbox_policy:
+  cpu_quota_ms_per_invoke: 5000
+  memory_mb: 128
+  wall_clock_ms: 30000

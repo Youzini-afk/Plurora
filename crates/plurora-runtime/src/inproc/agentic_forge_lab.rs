@@ -1,4 +1,4 @@
-//! Handler for `official/agentic-forge-lab` capabilities.
+//! Handler for `plurora/agentic-forge-lab` capabilities.
 //!
 //! Phase A of Agentic Forge Beta: package-owned agent run lifecycle,
 //! working state, plan graph contract. Deterministic, no-network,
@@ -17,7 +17,7 @@ use serde_json::Value;
 
 use super::InprocInvocation;
 
-const PACKAGE_ID: &str = "official/agentic-forge-lab";
+const PACKAGE_ID: &str = "plurora/agentic-forge-lab";
 
 // ---------------------------------------------------------------------------
 // Lifecycle states
@@ -180,21 +180,21 @@ fn describe_contract(request: &InprocInvocation) -> anyhow::Result<Value> {
         "package_id": request.provider_package_id,
         "package_kind": "ordinary",
         "capabilities": [
-            {"id": "official/agentic-forge-lab/describe_contract", "purpose": "describe the agentic forge package contract"},
-            {"id": "official/agentic-forge-lab/start_run", "purpose": "start a deterministic agent run with plan graph and working state"},
-            {"id": "official/agentic-forge-lab/inspect_run", "purpose": "inspect an existing run's working state and lifecycle"},
-            {"id": "official/agentic-forge-lab/cancel_run", "purpose": "cancel a running or paused run"},
-            {"id": "official/agentic-forge-lab/summarize_run", "purpose": "produce an observability summary of a run"},
-            {"id": "official/agentic-forge-lab/export_plan_graph", "purpose": "export the plan graph artifact of a run"},
-            {"id": "official/agentic-forge-lab/create_candidate", "purpose": "create a branch-aware candidate from a scratch branch, never write target"},
-            {"id": "official/agentic-forge-lab/compare_candidate", "purpose": "compare scratch vs target branch diff summary with stale detection"},
-            {"id": "official/agentic-forge-lab/draft_promote_proposal", "purpose": "draft a promote proposal without direct target mutation; stale target blocked"},
-            {"id": "official/agentic-forge-lab/archive_candidate", "purpose": "archive a candidate without modifying target branch"},
-            {"id": "official/agentic-forge-lab/explain_branch_policy", "purpose": "explain the scratch/target branch policy and promote constraints"},
-            {"id": "official/agentic-forge-lab/run_inference_node", "purpose": "run an inference node with deterministic/recorded/cloud_adapter_plan provider; produces candidate/proposal seeds only"},
-            {"id": "official/agentic-forge-lab/replay_inference_node", "purpose": "replay a recorded inference output; mismatch flagged, never silently passed"},
-            {"id": "official/agentic-forge-lab/validate_inference_output", "purpose": "validate inference output action allowlist; reject privilege_escalation/auto_promote/secret_request/target_branch_write/unknown_action"},
-            {"id": "official/agentic-forge-lab/explain_inference_failure", "purpose": "explain inference failure taxonomy with recovery hints"},
+            {"id": "plurora/agentic-forge-lab/describe_contract", "purpose": "describe the agentic forge package contract"},
+            {"id": "plurora/agentic-forge-lab/start_run", "purpose": "start a deterministic agent run with plan graph and working state"},
+            {"id": "plurora/agentic-forge-lab/inspect_run", "purpose": "inspect an existing run's working state and lifecycle"},
+            {"id": "plurora/agentic-forge-lab/cancel_run", "purpose": "cancel a running or paused run"},
+            {"id": "plurora/agentic-forge-lab/summarize_run", "purpose": "produce an observability summary of a run"},
+            {"id": "plurora/agentic-forge-lab/export_plan_graph", "purpose": "export the plan graph artifact of a run"},
+            {"id": "plurora/agentic-forge-lab/create_candidate", "purpose": "create a branch-aware candidate from a scratch branch, never write target"},
+            {"id": "plurora/agentic-forge-lab/compare_candidate", "purpose": "compare scratch vs target branch diff summary with stale detection"},
+            {"id": "plurora/agentic-forge-lab/draft_promote_proposal", "purpose": "draft a promote proposal without direct target mutation; stale target blocked"},
+            {"id": "plurora/agentic-forge-lab/archive_candidate", "purpose": "archive a candidate without modifying target branch"},
+            {"id": "plurora/agentic-forge-lab/explain_branch_policy", "purpose": "explain the scratch/target branch policy and promote constraints"},
+            {"id": "plurora/agentic-forge-lab/run_inference_node", "purpose": "run an inference node with deterministic/recorded/cloud_adapter_plan provider; produces candidate/proposal seeds only"},
+            {"id": "plurora/agentic-forge-lab/replay_inference_node", "purpose": "replay a recorded inference output; mismatch flagged, never silently passed"},
+            {"id": "plurora/agentic-forge-lab/validate_inference_output", "purpose": "validate inference output action allowlist; reject privilege_escalation/auto_promote/secret_request/target_branch_write/unknown_action"},
+            {"id": "plurora/agentic-forge-lab/explain_inference_failure", "purpose": "explain inference failure taxonomy with recovery hints"},
         ],
         "lifecycle_states": LIFECYCLE_STATES,
         "candidate_states": CANDIDATE_STATES,
@@ -1072,15 +1072,15 @@ mod tests {
 
     #[test]
     fn try_handle_matches_package_id() {
-        let req = make_request("official/agentic-forge-lab/describe_contract", json!({}));
+        let req = make_request("plurora/agentic-forge-lab/describe_contract", json!({}));
         assert!(try_handle(&req).is_some());
     }
 
     #[test]
     fn try_handle_rejects_wrong_package() {
         let req = InprocInvocation {
-            capability_id: "official/agentic-forge-lab/describe_contract".to_string(),
-            provider_package_id: "official/other".to_string(),
+            capability_id: "plurora/agentic-forge-lab/describe_contract".to_string(),
+            provider_package_id: "plurora/other".to_string(),
             session_id: None,
             input: json!({}),
         };
@@ -1089,7 +1089,7 @@ mod tests {
 
     #[test]
     fn describe_contract_returns_lifecycle_states() {
-        let req = make_request("official/agentic-forge-lab/describe_contract", json!({}));
+        let req = make_request("plurora/agentic-forge-lab/describe_contract", json!({}));
         let result = try_handle(&req).unwrap().unwrap();
         let states = result["lifecycle_states"].as_array().unwrap();
         assert_eq!(states.len(), 9);
@@ -1100,7 +1100,7 @@ mod tests {
     #[test]
     fn start_run_returns_plan_graph_and_working_state() {
         let req = make_request(
-            "official/agentic-forge-lab/start_run",
+            "plurora/agentic-forge-lab/start_run",
             json!({"objective": "test run"}),
         );
         let result = try_handle(&req).unwrap().unwrap();
@@ -1114,7 +1114,7 @@ mod tests {
     #[test]
     fn start_run_blocks_raw_secret() {
         let req = make_request(
-            "official/agentic-forge-lab/start_run",
+            "plurora/agentic-forge-lab/start_run",
             json!({"objective": "test", "api_key": "RawSecretExample1234567890abcdefABCDEF123456"}),
         );
         let result = try_handle(&req).unwrap().unwrap();
@@ -1125,7 +1125,7 @@ mod tests {
     #[test]
     fn start_run_blocks_bearer_secret() {
         let req = make_request(
-            "official/agentic-forge-lab/start_run",
+            "plurora/agentic-forge-lab/start_run",
             json!({"objective": "test", "token": "Bearer abc123"}),
         );
         let result = try_handle(&req).unwrap().unwrap();
@@ -1135,7 +1135,7 @@ mod tests {
     #[test]
     fn start_run_accepts_secret_ref() {
         let req = make_request(
-            "official/agentic-forge-lab/start_run",
+            "plurora/agentic-forge-lab/start_run",
             json!({"objective": "test", "api_key": "secret_ref:env:MY_KEY"}),
         );
         let result = try_handle(&req).unwrap().unwrap();
@@ -1146,7 +1146,7 @@ mod tests {
     #[test]
     fn cancel_run_sets_cancelled_state() {
         let req = make_request(
-            "official/agentic-forge-lab/cancel_run",
+            "plurora/agentic-forge-lab/cancel_run",
             json!({"run_id": "run_test", "lifecycle_state": "running"}),
         );
         let result = try_handle(&req).unwrap().unwrap();
@@ -1157,7 +1157,7 @@ mod tests {
     #[test]
     fn summarize_run_returns_observability() {
         let req = make_request(
-            "official/agentic-forge-lab/summarize_run",
+            "plurora/agentic-forge-lab/summarize_run",
             json!({"run_id": "run_test", "trace_events": [{"a": 1}, {"b": 2}]}),
         );
         let result = try_handle(&req).unwrap().unwrap();
@@ -1168,7 +1168,7 @@ mod tests {
     #[test]
     fn export_plan_graph_returns_nodes_edges() {
         let req = make_request(
-            "official/agentic-forge-lab/export_plan_graph",
+            "plurora/agentic-forge-lab/export_plan_graph",
             json!({"run_id": "run_test"}),
         );
         let result = try_handle(&req).unwrap().unwrap();
@@ -1180,7 +1180,7 @@ mod tests {
     #[test]
     fn no_platform_agent_namespace_in_output() {
         let req = make_request(
-            "official/agentic-forge-lab/start_run",
+            "plurora/agentic-forge-lab/start_run",
             json!({"objective": "test"}),
         );
         let result = try_handle(&req).unwrap().unwrap();
@@ -1227,7 +1227,7 @@ mod tests {
     #[test]
     fn create_candidate_returns_branch_aware_candidate() {
         let req = make_request(
-            "official/agentic-forge-lab/create_candidate",
+            "plurora/agentic-forge-lab/create_candidate",
             json!({
                 "run_id": "run_test",
                 "target_branch_ref": "branch:target:main",
@@ -1257,7 +1257,7 @@ mod tests {
     fn compare_candidate_reports_diff_and_stale() {
         // Matching revisions → stale=false
         let req = make_request(
-            "official/agentic-forge-lab/compare_candidate",
+            "plurora/agentic-forge-lab/compare_candidate",
             json!({
                 "candidate_id": "cand_test",
                 "target_revision": 1,
@@ -1270,7 +1270,7 @@ mod tests {
 
         // Mismatched revisions → stale=true
         let req_stale = make_request(
-            "official/agentic-forge-lab/compare_candidate",
+            "plurora/agentic-forge-lab/compare_candidate",
             json!({
                 "candidate_id": "cand_test",
                 "target_revision": 1,
@@ -1286,7 +1286,7 @@ mod tests {
     #[test]
     fn draft_promote_proposal_returns_proposal_draft() {
         let req = make_request(
-            "official/agentic-forge-lab/draft_promote_proposal",
+            "plurora/agentic-forge-lab/draft_promote_proposal",
             json!({
                 "candidate_id": "cand_test",
                 "run_id": "run_test",
@@ -1313,7 +1313,7 @@ mod tests {
     #[test]
     fn draft_promote_blocked_on_stale_target() {
         let req = make_request(
-            "official/agentic-forge-lab/draft_promote_proposal",
+            "plurora/agentic-forge-lab/draft_promote_proposal",
             json!({
                 "candidate_id": "cand_test",
                 "run_id": "run_test",
@@ -1330,7 +1330,7 @@ mod tests {
     #[test]
     fn archive_candidate_sets_archived_status() {
         let req = make_request(
-            "official/agentic-forge-lab/archive_candidate",
+            "plurora/agentic-forge-lab/archive_candidate",
             json!({
                 "candidate_id": "cand_test",
                 "status": "draft",
@@ -1344,10 +1344,7 @@ mod tests {
 
     #[test]
     fn explain_branch_policy_returns_policy() {
-        let req = make_request(
-            "official/agentic-forge-lab/explain_branch_policy",
-            json!({}),
-        );
+        let req = make_request("plurora/agentic-forge-lab/explain_branch_policy", json!({}));
         let result = try_handle(&req).unwrap().unwrap();
         assert_eq!(result["kind"], json!("agentic_forge_branch_policy"));
         assert_eq!(result["policy"]["promote_requires_proposal"], json!(true));
@@ -1357,7 +1354,7 @@ mod tests {
     #[test]
     fn start_run_includes_scratch_branch_policy() {
         let req = make_request(
-            "official/agentic-forge-lab/start_run",
+            "plurora/agentic-forge-lab/start_run",
             json!({"objective": "branch test"}),
         );
         let result = try_handle(&req).unwrap().unwrap();
@@ -1378,7 +1375,7 @@ mod tests {
     #[test]
     fn create_candidate_blocks_raw_secret() {
         let req = make_request(
-            "official/agentic-forge-lab/create_candidate",
+            "plurora/agentic-forge-lab/create_candidate",
             json!({
                 "run_id": "run_test",
                 "api_key": "RawSecretExample1234567890abcdefABCDEF123456",
@@ -1392,7 +1389,7 @@ mod tests {
     #[test]
     fn draft_promote_blocks_raw_secret() {
         let req = make_request(
-            "official/agentic-forge-lab/draft_promote_proposal",
+            "plurora/agentic-forge-lab/draft_promote_proposal",
             json!({
                 "candidate_id": "cand_test",
                 "run_id": "run_test",
@@ -1415,11 +1412,11 @@ mod tests {
     #[test]
     fn no_platform_namespace_in_phase_b_outputs() {
         for cap in &[
-            "official/agentic-forge-lab/create_candidate",
-            "official/agentic-forge-lab/compare_candidate",
-            "official/agentic-forge-lab/draft_promote_proposal",
-            "official/agentic-forge-lab/archive_candidate",
-            "official/agentic-forge-lab/explain_branch_policy",
+            "plurora/agentic-forge-lab/create_candidate",
+            "plurora/agentic-forge-lab/compare_candidate",
+            "plurora/agentic-forge-lab/draft_promote_proposal",
+            "plurora/agentic-forge-lab/archive_candidate",
+            "plurora/agentic-forge-lab/explain_branch_policy",
         ] {
             let req = make_request(
                 cap,
@@ -1457,7 +1454,7 @@ mod tests {
     #[test]
     fn run_inference_node_deterministic_produces_candidate_seed() {
         let req = make_request(
-            "official/agentic-forge-lab/run_inference_node",
+            "plurora/agentic-forge-lab/run_inference_node",
             json!({
                 "run_id": "run_inf",
                 "node_id": "node_infer_1",
@@ -1483,7 +1480,7 @@ mod tests {
     #[test]
     fn run_inference_node_objective_with_proposal_produces_proposal_seed() {
         let req = make_request(
-            "official/agentic-forge-lab/run_inference_node",
+            "plurora/agentic-forge-lab/run_inference_node",
             json!({
                 "run_id": "run_inf",
                 "node_id": "node_infer_2",
@@ -1501,7 +1498,7 @@ mod tests {
     #[test]
     fn run_inference_node_cloud_adapter_returns_needs_host_policy() {
         let req = make_request(
-            "official/agentic-forge-lab/run_inference_node",
+            "plurora/agentic-forge-lab/run_inference_node",
             json!({
                 "run_id": "run_cloud",
                 "node_id": "node_infer_cloud",
@@ -1518,7 +1515,7 @@ mod tests {
     #[test]
     fn run_inference_node_rejects_invalid_provider() {
         let req = make_request(
-            "official/agentic-forge-lab/run_inference_node",
+            "plurora/agentic-forge-lab/run_inference_node",
             json!({
                 "run_id": "run_bad",
                 "provider_kind": "cloud_real",
@@ -1532,7 +1529,7 @@ mod tests {
     #[test]
     fn run_inference_node_blocks_raw_secret() {
         let req = make_request(
-            "official/agentic-forge-lab/run_inference_node",
+            "plurora/agentic-forge-lab/run_inference_node",
             json!({
                 "run_id": "run_inf",
                 "api_key": "RawSecretExample1234567890abcdefABCDEF123456",
@@ -1552,7 +1549,7 @@ mod tests {
         });
         let expected_fp = format!("fp_{}", deterministic_id(&input));
         let req = make_request(
-            "official/agentic-forge-lab/replay_inference_node",
+            "plurora/agentic-forge-lab/replay_inference_node",
             json!({
                 "run_id": "run_replay",
                 "node_id": "node_infer_1",
@@ -1567,7 +1564,7 @@ mod tests {
     #[test]
     fn replay_inference_node_mismatch_flagged() {
         let req = make_request(
-            "official/agentic-forge-lab/replay_inference_node",
+            "plurora/agentic-forge-lab/replay_inference_node",
             json!({
                 "run_id": "run_replay",
                 "node_id": "node_infer_1",
@@ -1584,7 +1581,7 @@ mod tests {
     fn validate_inference_output_accepts_allowed_actions() {
         for action in ALLOWED_INFERENCE_ACTIONS {
             let req = make_request(
-                "official/agentic-forge-lab/validate_inference_output",
+                "plurora/agentic-forge-lab/validate_inference_output",
                 json!({
                     "action": action,
                 }),
@@ -1604,7 +1601,7 @@ mod tests {
     fn validate_inference_output_rejects_forbidden_actions() {
         for action in FORBIDDEN_INFERENCE_ACTIONS {
             let req = make_request(
-                "official/agentic-forge-lab/validate_inference_output",
+                "plurora/agentic-forge-lab/validate_inference_output",
                 json!({
                     "action": action,
                 }),
@@ -1623,7 +1620,7 @@ mod tests {
     #[test]
     fn validate_inference_output_rejects_unknown_action() {
         let req = make_request(
-            "official/agentic-forge-lab/validate_inference_output",
+            "plurora/agentic-forge-lab/validate_inference_output",
             json!({
                 "action": "arbitrary_exec",
             }),
@@ -1637,7 +1634,7 @@ mod tests {
     fn explain_inference_failure_returns_recovery_hints() {
         for kind in INFERENCE_FAILURE_KINDS {
             let req = make_request(
-                "official/agentic-forge-lab/explain_inference_failure",
+                "plurora/agentic-forge-lab/explain_inference_failure",
                 json!({
                     "failure_kind": kind,
                 }),
@@ -1659,7 +1656,7 @@ mod tests {
     #[test]
     fn explain_inference_failure_unknown_kind() {
         let req = make_request(
-            "official/agentic-forge-lab/explain_inference_failure",
+            "plurora/agentic-forge-lab/explain_inference_failure",
             json!({
                 "failure_kind": "unknown_error",
             }),
@@ -1671,10 +1668,10 @@ mod tests {
     #[test]
     fn no_platform_namespace_in_phase_c_outputs() {
         for cap in &[
-            "official/agentic-forge-lab/run_inference_node",
-            "official/agentic-forge-lab/replay_inference_node",
-            "official/agentic-forge-lab/validate_inference_output",
-            "official/agentic-forge-lab/explain_inference_failure",
+            "plurora/agentic-forge-lab/run_inference_node",
+            "plurora/agentic-forge-lab/replay_inference_node",
+            "plurora/agentic-forge-lab/validate_inference_output",
+            "plurora/agentic-forge-lab/explain_inference_failure",
         ] {
             let req = make_request(
                 cap,
@@ -1707,7 +1704,7 @@ mod tests {
 
     #[test]
     fn describe_contract_includes_phase_c_fields() {
-        let req = make_request("official/agentic-forge-lab/describe_contract", json!({}));
+        let req = make_request("plurora/agentic-forge-lab/describe_contract", json!({}));
         let result = try_handle(&req).unwrap().unwrap();
         assert!(
             result["plan_node_kinds"].is_array(),
@@ -1735,7 +1732,7 @@ mod tests {
     #[test]
     fn local_fake_provider_sets_inference_performed() {
         let req = make_request(
-            "official/agentic-forge-lab/run_inference_node",
+            "plurora/agentic-forge-lab/run_inference_node",
             json!({
                 "run_id": "run_local",
                 "node_id": "node_infer_local",

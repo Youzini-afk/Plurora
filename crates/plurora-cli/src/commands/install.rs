@@ -12,11 +12,11 @@ use crate::install::consent::{approve_all, prompt_for_consent};
 use crate::install::default_data_dir;
 use crate::install::url_parser::{parse_install_url, InstallSource};
 
-const INSTALL_PACKAGE_ID: &str = "official/install-lab";
+const INSTALL_PACKAGE_ID: &str = "plurora/install-lab";
 const OFFICIAL_MANIFESTS: [&str; 3] = [
-    "packages/official/git-tools-lab/manifest.yaml",
-    "packages/official/integrity-lab/manifest.yaml",
-    "packages/official/install-lab/manifest.yaml",
+    "packages/plurora/git-tools-lab/manifest.yaml",
+    "packages/plurora/integrity-lab/manifest.yaml",
+    "packages/plurora/install-lab/manifest.yaml",
 ];
 
 #[derive(Args, Debug)]
@@ -80,7 +80,7 @@ pub async fn run(args: InstallArgs) -> Result<()> {
     let runtime = load_install_runtime().await?;
     let detected = invoke_install_lab(
         &runtime,
-        "official/install-lab/detect_kind",
+        "plurora/install-lab/detect_kind",
         json!({
             "path": install_url.url_for_resolver(),
             "root_ref": install_url.ref_or_default(),
@@ -153,7 +153,7 @@ pub async fn run(args: InstallArgs) -> Result<()> {
         prompt_for_consent(&plan, existing_lockfile.as_deref())?
     };
 
-    let result = invoke_install_lab(&runtime, "official/install-lab/execute_plan", {
+    let result = invoke_install_lab(&runtime, "plurora/install-lab/execute_plan", {
         let mut input = serde_json::Map::with_capacity(5);
         input.insert("plan".to_string(), plan);
         input.insert("consent".to_string(), consent);
@@ -198,7 +198,7 @@ async fn resolve_package_plan(
 ) -> Result<Value> {
     let mut resolved = invoke_install_lab(
         runtime,
-        "official/install-lab/resolve_plan",
+        "plurora/install-lab/resolve_plan",
         json!({
             "root_url": install_url.url_for_resolver(),
             "root_ref": install_url.ref_or_default(),
@@ -223,7 +223,7 @@ async fn prepare_external_plan(
 ) -> Result<Value> {
     let mut prepared = invoke_install_lab(
         runtime,
-        "official/install-lab/prepare_external_intake",
+        "plurora/install-lab/prepare_external_intake",
         json!({
             "source": install_url.url_for_resolver(),
             "root_ref": install_url.ref_or_default(),

@@ -1,4 +1,4 @@
-//! Handler for `official/playable-creation-board` capabilities.
+//! Handler for `plurora/playable-creation-board` capabilities.
 //!
 //! Experience Beta 1 — First Real Playable Vertical Slice.
 //!
@@ -20,7 +20,7 @@ use serde_json::Value;
 
 use super::InprocInvocation;
 
-const PACKAGE_ID: &str = "official/playable-creation-board";
+const PACKAGE_ID: &str = "plurora/playable-creation-board";
 
 // ---------------------------------------------------------------------------
 // Board lifecycle states
@@ -176,26 +176,26 @@ fn describe_contract(request: &InprocInvocation) -> anyhow::Result<Value> {
         "package_id": request.provider_package_id,
         "package_kind": "ordinary",
         "capabilities": [
-            {"id": "official/playable-creation-board/describe_contract", "purpose": "describe the playable creation board package contract"},
-            {"id": "official/playable-creation-board/launch", "purpose": "launch a playable creation board with board/module/constraint/marker state"},
-            {"id": "official/playable-creation-board/project_state", "purpose": "project the current board state as a package-owned opaque state snapshot"},
-            {"id": "official/playable-creation-board/render_payload", "purpose": "produce a protocol-visible render payload for the board"},
-            {"id": "official/playable-creation-board/record_player_action", "purpose": "record a player action producing content_address/state_snapshot_asset_ref/projection_ref/sequence/provenance"},
-            {"id": "official/playable-creation-board/request_change", "purpose": "produce a structured agent objective, allowed_change_kinds, risk/budget, and bindable refs for agentic forge"},
-            {"id": "official/playable-creation-board/create_checkpoint", "purpose": "create a deterministic board checkpoint asset with content_address and state_snapshot_asset_ref"},
-            {"id": "official/playable-creation-board/inspect_checkpoint", "purpose": "inspect a board checkpoint's shape and validity"},
-            {"id": "official/playable-creation-board/draft_recovery", "purpose": "draft a recovery plan for a failed board session"},
-            {"id": "official/playable-creation-board/bind_agent_run", "purpose": "bind an agentic forge run to the board session with scoped branch binding"},
-            {"id": "official/playable-creation-board/explain_provenance", "purpose": "explain causal chain with content_address and provenance graph fields"},
-            {"id": "official/playable-creation-board/preview_state_diff", "purpose": "preview branch-aware state diff between snapshots"},
-            {"id": "official/playable-creation-board/describe_asset_provenance", "purpose": "describe asset provenance graph with source/derived/disclosure metadata"},
-            {"id": "official/playable-creation-board/summarize_experience_health", "purpose": "summarize board experience health with observability refs"},
+            {"id": "plurora/playable-creation-board/describe_contract", "purpose": "describe the playable creation board package contract"},
+            {"id": "plurora/playable-creation-board/launch", "purpose": "launch a playable creation board with board/module/constraint/marker state"},
+            {"id": "plurora/playable-creation-board/project_state", "purpose": "project the current board state as a package-owned opaque state snapshot"},
+            {"id": "plurora/playable-creation-board/render_payload", "purpose": "produce a protocol-visible render payload for the board"},
+            {"id": "plurora/playable-creation-board/record_player_action", "purpose": "record a player action producing content_address/state_snapshot_asset_ref/projection_ref/sequence/provenance"},
+            {"id": "plurora/playable-creation-board/request_change", "purpose": "produce a structured agent objective, allowed_change_kinds, risk/budget, and bindable refs for agentic forge"},
+            {"id": "plurora/playable-creation-board/create_checkpoint", "purpose": "create a deterministic board checkpoint asset with content_address and state_snapshot_asset_ref"},
+            {"id": "plurora/playable-creation-board/inspect_checkpoint", "purpose": "inspect a board checkpoint's shape and validity"},
+            {"id": "plurora/playable-creation-board/draft_recovery", "purpose": "draft a recovery plan for a failed board session"},
+            {"id": "plurora/playable-creation-board/bind_agent_run", "purpose": "bind an agentic forge run to the board session with scoped branch binding"},
+            {"id": "plurora/playable-creation-board/explain_provenance", "purpose": "explain causal chain with content_address and provenance graph fields"},
+            {"id": "plurora/playable-creation-board/preview_state_diff", "purpose": "preview branch-aware state diff between snapshots"},
+            {"id": "plurora/playable-creation-board/describe_asset_provenance", "purpose": "describe asset provenance graph with source/derived/disclosure metadata"},
+            {"id": "plurora/playable-creation-board/summarize_experience_health", "purpose": "summarize board experience health with observability refs"},
         ],
         "surfaces": {
-            "experience_entry": "official/playable-creation-board/entry",
-            "play_renderer": "official/playable-creation-board/play-renderer",
-            "forge_panel": "official/playable-creation-board/forge-panel",
-            "assistant_action": "official/playable-creation-board/assistant-action",
+            "experience_entry": "plurora/playable-creation-board/entry",
+            "play_renderer": "plurora/playable-creation-board/play-renderer",
+            "forge_panel": "plurora/playable-creation-board/forge-panel",
+            "assistant_action": "plurora/playable-creation-board/assistant-action",
         },
         "lifecycle_states": BOARD_LIFECYCLE_STATES,
         "player_action_kinds": PLAYER_ACTION_KINDS,
@@ -291,9 +291,9 @@ fn launch(request: &InprocInvocation) -> anyhow::Result<Value> {
             "constraints": constraints,
             "markers": markers,
         },
-        "render_capability_id": "official/playable-creation-board/render_payload",
-        "forge_panel_id": "official/playable-creation-board/forge-panel",
-        "assistant_action_id": "official/playable-creation-board/assistant-action",
+        "render_capability_id": "plurora/playable-creation-board/render_payload",
+        "forge_panel_id": "plurora/playable-creation-board/forge-panel",
+        "assistant_action_id": "plurora/playable-creation-board/assistant-action",
         "inference_performed": false,
         "network_performed": false,
         "provenance": {
@@ -524,9 +524,9 @@ fn request_change(request: &InprocInvocation) -> anyhow::Result<Value> {
             "memory_package_id": request.input
                 .get("memory_package_id")
                 .and_then(Value::as_str)
-                .unwrap_or("official/memory-lab"),
+                .unwrap_or("plurora/memory-lab"),
             "retrieve_context_plan": {
-                "capability_id": "official/memory-lab/retrieve_memory",
+                "capability_id": "plurora/memory-lab/retrieve_memory",
                 "optional": true,
                 "description": "Optional memory context retrieval for board change planning; board does not depend on memory-lab to operate",
             },
@@ -537,11 +537,11 @@ fn request_change(request: &InprocInvocation) -> anyhow::Result<Value> {
             "forge_package_id": request.input
                 .get("forge_package_id")
                 .and_then(Value::as_str)
-                .unwrap_or("official/agentic-forge-lab"),
+                .unwrap_or("plurora/agentic-forge-lab"),
             "run_capabilities": [
-                "official/agentic-forge-lab/start_run",
-                "official/agentic-forge-lab/create_candidate",
-                "official/agentic-forge-lab/draft_promote_proposal"
+                "plurora/agentic-forge-lab/start_run",
+                "plurora/agentic-forge-lab/create_candidate",
+                "plurora/agentic-forge-lab/draft_promote_proposal"
             ],
             "scoped_to_branch": true,
         },
@@ -862,7 +862,7 @@ fn bind_agent_run(request: &InprocInvocation) -> anyhow::Result<Value> {
         .input
         .get("agent_package_id")
         .and_then(Value::as_str)
-        .unwrap_or("official/agentic-forge-lab");
+        .unwrap_or("plurora/agentic-forge-lab");
     let target_branch_ref = request
         .input
         .get("target_branch_ref")
@@ -880,9 +880,9 @@ fn bind_agent_run(request: &InprocInvocation) -> anyhow::Result<Value> {
             .get("run_capabilities")
             .cloned()
             .unwrap_or(serde_json::json!([
-                "official/agentic-forge-lab/start_run",
-                "official/agentic-forge-lab/create_candidate",
-                "official/agentic-forge-lab/draft_promote_proposal"
+                "plurora/agentic-forge-lab/start_run",
+                "plurora/agentic-forge-lab/create_candidate",
+                "plurora/agentic-forge-lab/draft_promote_proposal"
             ]));
 
     Ok(serde_json::json!({
@@ -895,29 +895,29 @@ fn bind_agent_run(request: &InprocInvocation) -> anyhow::Result<Value> {
         "target_branch_ref": target_branch_ref,
         "scratch_branch_ref": scratch_branch_ref,
         "forge_panel_binding": {
-            "surface_id": "official/playable-creation-board/forge-panel",
+            "surface_id": "plurora/playable-creation-board/forge-panel",
             "inspect_capabilities": [
-                "official/playable-creation-board/describe_contract",
-                "official/playable-creation-board/inspect_checkpoint",
-                "official/playable-creation-board/explain_provenance"
+                "plurora/playable-creation-board/describe_contract",
+                "plurora/playable-creation-board/inspect_checkpoint",
+                "plurora/playable-creation-board/explain_provenance"
             ],
             "proposal_capabilities": [
-                "official/playable-creation-board/request_change",
-                "official/playable-creation-board/draft_recovery"
+                "plurora/playable-creation-board/request_change",
+                "plurora/playable-creation-board/draft_recovery"
             ],
             "branch_aware": true,
         },
         "assist_binding": {
-            "surface_id": "official/playable-creation-board/assistant-action",
+            "surface_id": "plurora/playable-creation-board/assistant-action",
             "action_capabilities": [
-                "official/playable-creation-board/request_change",
-                "official/playable-creation-board/draft_recovery",
-                "official/playable-creation-board/bind_agent_run"
+                "plurora/playable-creation-board/request_change",
+                "plurora/playable-creation-board/draft_recovery",
+                "plurora/playable-creation-board/bind_agent_run"
             ],
             "approval_policy": "fork_then_approve",
         },
         "play_subscription": {
-            "surface_id": "official/playable-creation-board/play-renderer",
+            "surface_id": "plurora/playable-creation-board/play-renderer",
             "subscription_type": "board_state_change",
         },
         "inference_performed": false,
@@ -1249,9 +1249,9 @@ fn summarize_experience_health(request: &InprocInvocation) -> anyhow::Result<Val
 
     // Link to observability package (ref, not invoke)
     let observability_ref = serde_json::json!({
-        "package_id": "official/experience-observability-lab",
-        "session_health_capability": "official/experience-observability-lab/summarize_session_health",
-        "failure_breadcrumbs_capability": "official/experience-observability-lab/list_failure_breadcrumbs",
+        "package_id": "plurora/experience-observability-lab",
+        "session_health_capability": "plurora/experience-observability-lab/summarize_session_health",
+        "failure_breadcrumbs_capability": "plurora/experience-observability-lab/list_failure_breadcrumbs",
     });
 
     Ok(serde_json::json!({
@@ -1294,7 +1294,7 @@ mod tests {
     #[test]
     fn try_handle_matches_package_id() {
         let req = make_request(
-            "official/playable-creation-board/describe_contract",
+            "plurora/playable-creation-board/describe_contract",
             json!({}),
         );
         assert!(try_handle(&req).is_some());
@@ -1303,8 +1303,8 @@ mod tests {
     #[test]
     fn try_handle_rejects_wrong_package() {
         let req = InprocInvocation {
-            capability_id: "official/playable-creation-board/describe_contract".to_string(),
-            provider_package_id: "official/other".to_string(),
+            capability_id: "plurora/playable-creation-board/describe_contract".to_string(),
+            provider_package_id: "plurora/other".to_string(),
             session_id: None,
             input: json!({}),
         };
@@ -1314,7 +1314,7 @@ mod tests {
     #[test]
     fn describe_contract_has_all_surfaces() {
         let req = make_request(
-            "official/playable-creation-board/describe_contract",
+            "plurora/playable-creation-board/describe_contract",
             json!({}),
         );
         let result = try_handle(&req).unwrap().unwrap();
@@ -1328,7 +1328,7 @@ mod tests {
     #[test]
     fn describe_contract_lists_14_capabilities() {
         let req = make_request(
-            "official/playable-creation-board/describe_contract",
+            "plurora/playable-creation-board/describe_contract",
             json!({}),
         );
         let result = try_handle(&req).unwrap().unwrap();
@@ -1345,7 +1345,7 @@ mod tests {
     #[test]
     fn launch_returns_board_id() {
         let req = make_request(
-            "official/playable-creation-board/launch",
+            "plurora/playable-creation-board/launch",
             json!({
                 "board_id": "board:test",
                 "title": "Test Board",
@@ -1360,7 +1360,7 @@ mod tests {
     #[test]
     fn record_player_action_returns_state_delta() {
         let req = make_request(
-            "official/playable-creation-board/record_player_action",
+            "plurora/playable-creation-board/record_player_action",
             json!({
                 "board_id": "board:test",
                 "action_kind": "place_marker",
@@ -1381,7 +1381,7 @@ mod tests {
     #[test]
     fn request_change_returns_agent_objective() {
         let req = make_request(
-            "official/playable-creation-board/request_change",
+            "plurora/playable-creation-board/request_change",
             json!({
                 "board_id": "board:test",
                 "objective": "add a new module to the board",
@@ -1405,7 +1405,7 @@ mod tests {
     #[test]
     fn create_checkpoint_returns_deterministic() {
         let req = make_request(
-            "official/playable-creation-board/create_checkpoint",
+            "plurora/playable-creation-board/create_checkpoint",
             json!({"board_id": "board:test", "state_snapshot": {"modules": 3}, "sequence": 2}),
         );
         let result = try_handle(&req).unwrap().unwrap();
@@ -1418,7 +1418,7 @@ mod tests {
     #[test]
     fn draft_recovery_returns_plan() {
         let req = make_request(
-            "official/playable-creation-board/draft_recovery",
+            "plurora/playable-creation-board/draft_recovery",
             json!({"board_id": "board:test", "failure_kind": "constraint_violation", "last_checkpoint_ref": "cp:1"}),
         );
         let result = try_handle(&req).unwrap().unwrap();
@@ -1435,8 +1435,8 @@ mod tests {
     #[test]
     fn bind_agent_run_returns_scoped_binding() {
         let req = make_request(
-            "official/playable-creation-board/bind_agent_run",
-            json!({"board_id": "board:test", "agent_package_id": "official/agentic-forge-lab"}),
+            "plurora/playable-creation-board/bind_agent_run",
+            json!({"board_id": "board:test", "agent_package_id": "plurora/agentic-forge-lab"}),
         );
         let result = try_handle(&req).unwrap().unwrap();
         assert_eq!(
@@ -1454,7 +1454,7 @@ mod tests {
     #[test]
     fn explain_provenance_returns_causal_chain() {
         let req = make_request(
-            "official/playable-creation-board/explain_provenance",
+            "plurora/playable-creation-board/explain_provenance",
             json!({"board_id": "board:test", "action_id": "action:board:test:1"}),
         );
         let result = try_handle(&req).unwrap().unwrap();
@@ -1471,7 +1471,7 @@ mod tests {
     #[test]
     fn create_checkpoint_blocks_raw_secret() {
         let req = make_request(
-            "official/playable-creation-board/create_checkpoint",
+            "plurora/playable-creation-board/create_checkpoint",
             json!({"board_id": "test", "api_key": "RawSecretExample1234567890abcdefABCDEF123456"}),
         );
         let result = try_handle(&req).unwrap().unwrap();
@@ -1485,7 +1485,7 @@ mod tests {
     #[test]
     fn record_player_action_blocks_raw_secret() {
         let req = make_request(
-            "official/playable-creation-board/record_player_action",
+            "plurora/playable-creation-board/record_player_action",
             json!({"board_id": "test", "token": "Bearer abc123"}),
         );
         let result = try_handle(&req).unwrap().unwrap();
@@ -1498,17 +1498,17 @@ mod tests {
     #[test]
     fn no_forbidden_platform_namespace_in_output() {
         let caps = [
-            "official/playable-creation-board/describe_contract",
-            "official/playable-creation-board/launch",
-            "official/playable-creation-board/project_state",
-            "official/playable-creation-board/render_payload",
-            "official/playable-creation-board/record_player_action",
-            "official/playable-creation-board/request_change",
-            "official/playable-creation-board/create_checkpoint",
-            "official/playable-creation-board/inspect_checkpoint",
-            "official/playable-creation-board/draft_recovery",
-            "official/playable-creation-board/bind_agent_run",
-            "official/playable-creation-board/explain_provenance",
+            "plurora/playable-creation-board/describe_contract",
+            "plurora/playable-creation-board/launch",
+            "plurora/playable-creation-board/project_state",
+            "plurora/playable-creation-board/render_payload",
+            "plurora/playable-creation-board/record_player_action",
+            "plurora/playable-creation-board/request_change",
+            "plurora/playable-creation-board/create_checkpoint",
+            "plurora/playable-creation-board/inspect_checkpoint",
+            "plurora/playable-creation-board/draft_recovery",
+            "plurora/playable-creation-board/bind_agent_run",
+            "plurora/playable-creation-board/explain_provenance",
         ];
         let forbidden = [
             "platform.experience.",
@@ -1555,7 +1555,7 @@ mod tests {
     #[test]
     fn no_chat_or_conversation_terminology_in_output() {
         let req = make_request(
-            "official/playable-creation-board/request_change",
+            "plurora/playable-creation-board/request_change",
             json!({
                 "board_id": "board:test",
                 "objective": "add module",
@@ -1576,7 +1576,7 @@ mod tests {
     #[test]
     fn record_player_action_includes_content_address() {
         let req = make_request(
-            "official/playable-creation-board/record_player_action",
+            "plurora/playable-creation-board/record_player_action",
             json!({
                 "board_id": "board:b2",
                 "action_kind": "place_marker",
@@ -1607,7 +1607,7 @@ mod tests {
     #[test]
     fn create_checkpoint_includes_content_address() {
         let req = make_request(
-            "official/playable-creation-board/create_checkpoint",
+            "plurora/playable-creation-board/create_checkpoint",
             json!({
                 "board_id": "board:b2",
                 "state_snapshot": {"markers": 1},
@@ -1635,7 +1635,7 @@ mod tests {
     #[test]
     fn explain_provenance_includes_content_address_and_graph() {
         let req = make_request(
-            "official/playable-creation-board/explain_provenance",
+            "plurora/playable-creation-board/explain_provenance",
             json!({
                 "board_id": "board:b2",
                 "action_id": "action:board:b2:1",
@@ -1667,7 +1667,7 @@ mod tests {
     #[test]
     fn preview_state_diff_returns_branch_aware_shape() {
         let req = make_request(
-            "official/playable-creation-board/preview_state_diff",
+            "plurora/playable-creation-board/preview_state_diff",
             json!({
                 "board_id": "board:b2",
                 "before_snapshot_ref": "asset:state_snapshot:board:b2:1",
@@ -1690,7 +1690,7 @@ mod tests {
     #[test]
     fn describe_asset_provenance_returns_graph() {
         let req = make_request(
-            "official/playable-creation-board/describe_asset_provenance",
+            "plurora/playable-creation-board/describe_asset_provenance",
             json!({
                 "board_id": "board:b2",
                 "asset_ref": "asset:state_delta:board:b2:1",
@@ -1730,7 +1730,7 @@ mod tests {
     #[test]
     fn preview_state_diff_blocks_raw_secret() {
         let req = make_request(
-            "official/playable-creation-board/preview_state_diff",
+            "plurora/playable-creation-board/preview_state_diff",
             json!({
                 "board_id": "board:b2",
                 "api_key": "RawSecretExample1234567890abcdefABCDEF123456",
@@ -1747,7 +1747,7 @@ mod tests {
     #[test]
     fn describe_asset_provenance_blocks_raw_secret() {
         let req = make_request(
-            "official/playable-creation-board/describe_asset_provenance",
+            "plurora/playable-creation-board/describe_asset_provenance",
             json!({
                 "board_id": "board:b2",
                 "token": "Bearer abc123",
@@ -1764,8 +1764,8 @@ mod tests {
     #[test]
     fn no_forbidden_platform_namespace_in_beta2_output() {
         let beta2_caps = [
-            "official/playable-creation-board/preview_state_diff",
-            "official/playable-creation-board/describe_asset_provenance",
+            "plurora/playable-creation-board/preview_state_diff",
+            "plurora/playable-creation-board/describe_asset_provenance",
         ];
         let forbidden = [
             "platform.experience.",

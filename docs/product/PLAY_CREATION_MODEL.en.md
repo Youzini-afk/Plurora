@@ -65,7 +65,7 @@ These opinions constrain products that choose the profile, not other Plurora pro
 
 A document tool, ordinary Web service, IDE, automation system, multiplayer world, or headless agent runtime may ignore the play-creation profile completely. It can still share Plurora identity, authority, objects, invocation, components, Hosts, and protocol evolution.
 
-Likewise, YdlTavern, world simulations, external game engines, and other experiences may adopt all, part, or none of this profile. Official implementations receive no implicit priority.
+Likewise, YdlTavern, world simulations, external game engines, and other experiences may adopt all, part, or none of this profile. First-party implementations receive no implicit priority.
 
 ## Construction boundary
 

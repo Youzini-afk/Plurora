@@ -1,4 +1,4 @@
-//! Conformance tests for `official/integrity-lab`.
+//! Conformance tests for `plurora/integrity-lab`.
 
 use std::fs;
 use std::io::Write;
@@ -20,7 +20,7 @@ use openpgp::serialize::SerializeInto;
 use super::fixtures::*;
 use crate::commands::manifest;
 
-const PACKAGE_ID: &str = "official/integrity-lab";
+const PACKAGE_ID: &str = "plurora/integrity-lab";
 
 async fn load_integrity_lab(
 ) -> anyhow::Result<plurora_runtime::Runtime<plurora_runtime::InMemoryEventStore>> {
@@ -28,7 +28,7 @@ async fn load_integrity_lab(
     runtime
         .load_package(
             manifest::read_manifest(PathBuf::from(
-                "packages/official/integrity-lab/manifest.yaml",
+                "packages/plurora/integrity-lab/manifest.yaml",
             ))
             .await?,
         )
@@ -63,13 +63,13 @@ pub(crate) async fn tree_hash_deterministic() -> anyhow::Result<()> {
 
     let first = invoke(
         &rt,
-        "official/integrity-lab/compute_tree_hash",
+        "plurora/integrity-lab/compute_tree_hash",
         json!({ "dir": tmp.path().to_string_lossy() }),
     )
     .await?;
     let second = invoke(
         &rt,
-        "official/integrity-lab/compute_tree_hash",
+        "plurora/integrity-lab/compute_tree_hash",
         json!({ "dir": tmp.path().to_string_lossy() }),
     )
     .await?;
@@ -91,7 +91,7 @@ pub(crate) async fn tree_hash_excludes_metadata() -> anyhow::Result<()> {
 
     let before = invoke(
         &rt,
-        "official/integrity-lab/compute_tree_hash",
+        "plurora/integrity-lab/compute_tree_hash",
         json!({ "dir": tmp.path().to_string_lossy() }),
     )
     .await?;
@@ -100,7 +100,7 @@ pub(crate) async fn tree_hash_excludes_metadata() -> anyhow::Result<()> {
     write_file(&tmp.path().join("target/build.log"), b"ignored\n")?;
     let after = invoke(
         &rt,
-        "official/integrity-lab/compute_tree_hash",
+        "plurora/integrity-lab/compute_tree_hash",
         json!({ "dir": tmp.path().to_string_lossy() }),
     )
     .await?;
@@ -126,13 +126,13 @@ pub(crate) async fn manifest_hash_yaml_json_equivalent() -> anyhow::Result<()> {
 
     let yaml_hash = invoke(
         &rt,
-        "official/integrity-lab/compute_manifest_hash",
+        "plurora/integrity-lab/compute_manifest_hash",
         json!({ "manifest_path": yaml.to_string_lossy() }),
     )
     .await?;
     let json_hash = invoke(
         &rt,
-        "official/integrity-lab/compute_manifest_hash",
+        "plurora/integrity-lab/compute_manifest_hash",
         json!({ "manifest_path": json_path.to_string_lossy() }),
     )
     .await?;
@@ -150,7 +150,7 @@ pub(crate) async fn gpg_verify_valid_signature() -> anyhow::Result<()> {
     let fixture = gpg_fixture("Alice Fixture <alice.integrity@example.test>")?;
     let result = invoke(
         &rt,
-        "official/integrity-lab/verify_gpg_signature",
+        "plurora/integrity-lab/verify_gpg_signature",
         fixture.input_with_key(&fixture.public_key),
     )
     .await?;
@@ -169,7 +169,7 @@ pub(crate) async fn gpg_verify_wrong_key_fails() -> anyhow::Result<()> {
 
     let result = invoke(
         &rt,
-        "official/integrity-lab/verify_gpg_signature",
+        "plurora/integrity-lab/verify_gpg_signature",
         signed_by_a.input_with_key(&key_b.public_key),
     )
     .await?;
@@ -184,7 +184,7 @@ pub(crate) async fn gpg_verify_invalid_signature_no_panic() -> anyhow::Result<()
     let fixture = gpg_fixture("Alice Fixture <alice.integrity@example.test>")?;
     let result = invoke(
         &rt,
-        "official/integrity-lab/verify_gpg_signature",
+        "plurora/integrity-lab/verify_gpg_signature",
         json!({
             "data": BASE64.encode(&fixture.data),
             "signature": "-----BEGIN PGP SIGNATURE-----\ncorrupt\n-----END PGP SIGNATURE-----\n",
@@ -206,7 +206,7 @@ pub(crate) async fn fingerprint_extraction_consistent() -> anyhow::Result<()> {
     let fixture = gpg_fixture("Alice Fixture <alice.integrity@example.test>")?;
     let result = invoke(
         &rt,
-        "official/integrity-lab/fingerprint_public_key",
+        "plurora/integrity-lab/fingerprint_public_key",
         json!({ "public_key": fixture.public_key }),
     )
     .await?;

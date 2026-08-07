@@ -1,44 +1,44 @@
 reference: TavernHeadless
 policy: >-
   Use TavernHeadless as a reference corpus for mature headless creative/RP workflows.
-  Adapt useful behavior into Plurora-native official packages. Do not introduce
+  Adapt useful behavior into Plurora-native first-party Packages. Do not introduce
   tavern-* product packages or kernel-level content ontology.
 
 subsystems:
   packages/adapters-sillytavern/src/parsers/character-parser.ts:
-    plurora_package: official/persona-lab
+    plurora_package: plurora/persona-lab
     status: adapted
     notes: Character card import becomes generic persona profile import with unknown-field diagnostics.
   packages/adapters-sillytavern/src/serializers/character-serializer.ts:
-    plurora_package: official/persona-lab
+    plurora_package: plurora/persona-lab
     status: adapter_only
     notes: Export is explicit and may be lossy; persona profile remains canonical for Plurora package behavior.
   packages/adapters-sillytavern/src/parsers/worldbook-parser.ts:
-    plurora_package: official/knowledge-lab
+    plurora_package: plurora/knowledge-lab
     status: adapted
     notes: Worldbook entries become structured knowledge entries and activation hints.
   packages/adapters-sillytavern/src/worldbook/trigger-engine.ts:
-    plurora_package: official/knowledge-lab
+    plurora_package: plurora/knowledge-lab
     status: adapted
     notes: Keyword/selective matching becomes deterministic match_entries with trace output.
   packages/adapters-sillytavern/src/parsers/preset-parser.ts:
-    plurora_package: official/context-lab
+    plurora_package: plurora/context-lab
     status: adapted
     notes: Prompt order and preset concepts become generic context layer planning and diagnostics.
   packages/adapters-sillytavern/src/compat-assembler.ts:
-    plurora_package: official/context-lab
+    plurora_package: plurora/context-lab
     status: adapted
     notes: Compat assembly informs context_preview; chat message output is not canonical.
   packages/core/src/prompt:
-    plurora_package: official/context-lab
+    plurora_package: plurora/context-lab
     status: adapted
     notes: Prompt IR, traces, source selection, and budget pruning inform generic context block assembly.
   packages/adapters-sillytavern/src/parsers/regex-parser.ts:
-    plurora_package: official/text-transform-lab
+    plurora_package: plurora/text-transform-lab
     status: adapted
     notes: Regex profiles become text transform rule imports with diagnostics.
   packages/adapters-sillytavern/src/regex/regex-engine.ts:
-    plurora_package: official/text-transform-lab
+    plurora_package: plurora/text-transform-lab
     status: adapted
     notes: Placement/channel/depth filters become deterministic transform traces.
   packages/core/src/variables:

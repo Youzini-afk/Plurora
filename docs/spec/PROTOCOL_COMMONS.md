@@ -82,7 +82,7 @@ Change 协议引用增量的 Intent、ChangeSet、PolicyDecision、Commit 和 Ef
 
 `plurora.world.bundle/experimental/v1` 定义可移植性条件，但不会把 `World` 加入 substrate。描述符引用 EventEnvelope、ArtifactDescriptor、EffectReceipt，以及具体的 [`WORLD_BUNDLE.md`](WORLD_BUNDLE.md) archive/head/journal schema。
 
-五个必需向量覆盖引用闭包、跨 Host 导入、离线回放、新分支重执行和 Shell 独立性。当前 `official/playable-creation-board` integration fixture 已覆盖这些向量，因此 `plurora.runtime.world-bundle` 注册了第一个 production implementation claim；该声明描述当前实现覆盖，不代表 World Bundle 是平台唯一内容 Profile。
+五个必需向量覆盖引用闭包、跨 Host 导入、离线回放、新分支重执行和 Shell 独立性。当前 `plurora/playable-creation-board` integration fixture 已覆盖这些向量，因此 `plurora.runtime.world-bundle` 注册了第一个 production implementation claim；该声明描述当前实现覆盖，不代表 World Bundle 是平台唯一内容 Profile。
 
 ## World Bundle 生命周期
 

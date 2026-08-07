@@ -63,7 +63,7 @@
 - 默认 bash/read/write/edit tools。
 - kernel agent/model/prompt/memory methods。
 - private runtime access。
-- official package priority。
+- first-party Package priority。
 - raw prompt/response/secret persistence。
 
 ## Ygg 映射

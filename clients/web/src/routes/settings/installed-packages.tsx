@@ -26,7 +26,7 @@ interface RowEntry {
   name: string;
   packageId: string;
   version: string;
-  kind: "PROJECT" | "OFFICIAL" | "THIRD-PARTY";
+  kind: "PROJECT" | "PLURORA" | "THIRD-PARTY";
   state: PackageRecord["state"];
   capabilityCount: number;
   hookCount: number;
@@ -34,7 +34,7 @@ interface RowEntry {
   isProject: boolean;
 }
 
-const FILTER_TABS = ["all", "PROJECT", "OFFICIAL", "THIRD-PARTY"] as const;
+const FILTER_TABS = ["all", "PROJECT", "PLURORA", "THIRD-PARTY"] as const;
 
 type FilterId = (typeof FILTER_TABS)[number];
 
@@ -168,8 +168,8 @@ export function InstalledPackagesPanel() {
                 ? t("packagesFilterAll")
                 : tab === "PROJECT"
                   ? t("packagesFilterProjects")
-                  : tab === "OFFICIAL"
-                    ? t("packagesFilterOfficial")
+                  : tab === "PLURORA"
+                    ? t("packagesFilterPlurora")
                     : t("packagesFilterThirdParty");
             return (
               <button
@@ -271,7 +271,7 @@ export function InstalledPackagesPanel() {
                     className={
                       entry.kind === "PROJECT"
                         ? "text-aged-brass"
-                        : entry.kind === "OFFICIAL"
+                        : entry.kind === "PLURORA"
                           ? "text-steel-secondary"
                           : "text-muted-tone"
                     }

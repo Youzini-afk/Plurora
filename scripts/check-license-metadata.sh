@@ -19,7 +19,7 @@ require_exact_line clients/desktop/src-tauri/Cargo.toml 'license = "AGPL-3.0-onl
 require_exact_line integrations/tdb/rust-adapter/Cargo.toml 'license = "AGPL-3.0-only"'
 require_exact_line integrations/tdb/rust-adapter-real-crate/Cargo.toml 'license = "AGPL-3.0-only"'
 
-for manifest in packages/official/*/manifest.yaml; do
+for manifest in packages/plurora/*/manifest.yaml; do
   require_exact_line "$manifest" "license: $expected"
 done
 

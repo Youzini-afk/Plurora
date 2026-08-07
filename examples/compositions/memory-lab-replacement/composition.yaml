@@ -2,7 +2,7 @@ id: example/memory-lab-replacement
 version: 0.1.0
 entry_surface_id: thirdparty/memory-lab/home-card
 title: "Memory Lab Replacement Composition"
-description: "Proves that a third-party memory-lab replacement satisfies the same surface/capability/record/retrieve/trace/update/correction/redaction/branch_view/provenance shape as official/memory-lab."
+description: "Proves that a third-party memory-lab replacement satisfies the same surface/capability/record/retrieve/trace/update/correction/redaction/branch_view/provenance shape as plurora/memory-lab."
 packages:
   - ../../packages/thirdparty-memory-lab/manifest.yaml
 required_surfaces:
@@ -22,10 +22,10 @@ required_capabilities:
 permission_expectations:
   - capabilities.invoke
 replacement_candidates:
-  - official/memory-lab
+  - plurora/memory-lab
 compatibility_notes:
-  - "Third-party replacement exposes equivalent surface slots to official/memory-lab"
-  - "No platform privilege or official namespace required"
+  - "Third-party replacement exposes equivalent surface slots to plurora/memory-lab"
+  - "No platform privilege or Plurora publisher namespace required"
   - "Official memory-lab is a replacement candidate only — no routing priority"
   - "Both packages produce package-owned shapes: memory_record, retrieval_trace, update_draft, correction, redaction_plan, branch_view, provenance"
   - "Neither package may directly mutate trusted state or perform network/inference"

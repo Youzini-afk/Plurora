@@ -19,9 +19,9 @@ This avoids the old plugin-host trap. An external project can remain unchanged w
 
 ## Implemented packages
 
-### External intake in `official/install-lab`
+### External intake in `plurora/install-lab`
 
-`plurora install` now detects project kind before attempting package-manifest resolution. A local directory or git source without `project.yaml` / a package manifest no longer fails early with “manifest missing.” Instead, it invokes `official/install-lab/prepare_external_intake` to produce an auditable, zero-package `external_workspace` install plan.
+`plurora install` now detects project kind before attempting package-manifest resolution. A local directory or git source without `project.yaml` / a package manifest no longer fails early with “manifest missing.” Instead, it invokes `plurora/install-lab/prepare_external_intake` to produce an auditable, zero-package `external_workspace` install plan.
 
 Two ownership modes are explicit:
 
@@ -34,9 +34,9 @@ Project IDs combine a safe slug with a 96-bit source-identity hash, so same-name
 
 This step only materializes source and writes a project descriptor. It never runs install/build/test/scripts and never registers the external project as a capability provider. `--wrap-as-adapter` also no longer fabricates a manifest path that does not exist; real adapter authoring is reserved for the later ChangeSet-approved development flow.
 
-### `official/project-intake-lab`
+### `plurora/project-intake-lab`
 
-Ordinary official package, no kernel privilege. It exposes these capabilities:
+Ordinary first-party Package, no kernel privilege. It exposes these capabilities:
 
 - `describe_intake_contract`
 - `inspect_external_project_ref`
@@ -56,13 +56,13 @@ Capability boundaries:
 - No clone, no install, no run, no network, no local filesystem read.
 - Blocks raw secrets, path traversal, home paths, and sensitive absolute local paths.
 - Detects npm lifecycle scripts (`preinstall`, `install`, `postinstall`, `prepare`, `prepublish`) as `executes_code` / `requires_approval`.
-- Adapter previews must use ordinary third-party package ids, never `official/`, and reject path traversal or unsafe characters.
+- Adapter previews must use ordinary third-party package ids, never `plurora/`, and reject path traversal or unsafe characters.
 - Capability ids must belong to the adapter package namespace.
 - Produces manifest/wrapper/fixture/readiness previews only. No file write, execution, or publishing.
 
-### `official/workspace-lab`
+### `plurora/workspace-lab`
 
-Ordinary official package, no kernel privilege. It exposes 12 capabilities:
+Ordinary first-party Package, no kernel privilege. It exposes 12 capabilities:
 
 - `describe_workspace_contract`
 - `draft_workspace_creation`
@@ -87,7 +87,7 @@ Capability boundaries:
 
 ### Host development control plane
 
-Planning packages and real change execution now follow separate authority paths. `official/workspace-lab` continues to emit deterministic plans and patch proposals only. Approved source changes enter through the access-token-protected `/host/v1/projects/:project_id/changes` API and leave a durable `Intent -> ChangeSet -> PolicyDecision -> ChangeCommit -> EffectReceipt` causal chain. Approval and execution are separate requests. Approval covers exact operations, verification, required authority, and expected effects; content cannot be replaced afterward.
+Planning packages and real change execution now follow separate authority paths. `plurora/workspace-lab` continues to emit deterministic plans and patch proposals only. Approved source changes enter through the access-token-protected `/host/v1/projects/:project_id/changes` API and leave a durable `Intent -> ChangeSet -> PolicyDecision -> ChangeCommit -> EffectReceipt` causal chain. Approval and execution are separate requests. Approval covers exact operations, verification, required authority, and expected effects; content cannot be replaced afterward.
 
 The first version accepts bounded `file_write` / `file_delete` operations only, copies into Host-owned scratch, and performs static validation or a constrained Dockerfile build. Docker defaults to no network and provides no arbitrary host command, scratch Nixpacks build, build secret, or host mount. See [`../architecture/HOST_DEVELOPMENT_CONTROL_PLANE.en.md`](../architecture/HOST_DEVELOPMENT_CONTROL_PLANE.en.md) for the complete boundary.
 
@@ -129,8 +129,8 @@ Development execute/recover carries the authenticated identity, but never its cr
 Check it with:
 
 ```bash
-cargo run -p plurora-cli -- package check packages/official/project-intake-lab/manifest.yaml
-cargo run -p plurora-cli -- package check packages/official/workspace-lab/manifest.yaml
+cargo run -p plurora-cli -- package check packages/plurora/project-intake-lab/manifest.yaml
+cargo run -p plurora-cli -- package check packages/plurora/workspace-lab/manifest.yaml
 cargo run -p plurora-cli -- package check examples/packages/external-project-adapter-preview/manifest.yaml
 cargo run -p plurora-cli -- conformance --tag project_intake
 cargo run -p plurora-cli -- conformance --tag workspace_lab

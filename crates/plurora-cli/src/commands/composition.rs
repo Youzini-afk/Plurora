@@ -36,13 +36,13 @@ required_surfaces:
 # optional_packages:
   # - ../extras/optional-package/manifest.yaml
 # required_capabilities:
-  # - official/composition-lab/launch_plan
+  # - plurora/composition-lab/launch_plan
 # default_activation:
   # auto_launch: true
 # permission_expectations:
   # - capabilities.invoke
 # replacement_candidates:
-  # - official/experience-alt
+  # - plurora/experience-alt
 # compatibility_notes:
   # - "Requires kernel v0.1.0 or later"
 "#

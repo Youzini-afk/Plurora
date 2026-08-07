@@ -1,4 +1,4 @@
-//! Handler for `official/workspace-lab` capabilities.
+//! Handler for `plurora/workspace-lab` capabilities.
 //!
 //! External Project Operating Plane Alpha Phase E2 + E3 —
 //! Workspace Action Policy Boundary + Managed Workspace Deterministic Proof.
@@ -46,7 +46,7 @@ use serde_json::Value;
 use super::safety;
 use super::InprocInvocation;
 
-const PACKAGE_ID: &str = "official/workspace-lab";
+const PACKAGE_ID: &str = "plurora/workspace-lab";
 
 // ---------------------------------------------------------------------------
 // Action taxonomy
@@ -292,23 +292,23 @@ fn describe_workspace_contract(request: &InprocInvocation) -> anyhow::Result<Val
         "package_id": request.provider_package_id,
         "package_kind": "ordinary",
         "capabilities": [
-            {"id": "official/workspace-lab/describe_workspace_contract", "purpose": "describe the workspace lab contract and action taxonomy"},
-            {"id": "official/workspace-lab/draft_workspace_creation", "purpose": "draft a plan-only workspace creation proposal, no direct workspace creation"},
-            {"id": "official/workspace-lab/explain_required_permissions", "purpose": "explain permissions required for workspace actions"},
-            {"id": "official/workspace-lab/request_workspace_action", "purpose": "request a workspace action with deny-by-default policy; no real execution"},
-            {"id": "official/workspace-lab/summarize_workspace_audit", "purpose": "produce deterministic redacted audit summary; no raw env/logs/commands/secrets"},
-            {"id": "official/workspace-lab/create_fixture_workspace", "purpose": "generate deterministic fixture workspace descriptor; no real creation, no filesystem"},
-            {"id": "official/workspace-lab/inspect_workspace", "purpose": "return fixture workspace descriptor; no filesystem read"},
-            {"id": "official/workspace-lab/read_workspace_metadata", "purpose": "return deterministic fixture metadata; no filesystem read"},
-            {"id": "official/workspace-lab/plan_workspace_run", "purpose": "generate run plan; all actions require_approval, executor_invoked=false"},
-            {"id": "official/workspace-lab/record_fixture_process_result", "purpose": "record caller-provided fixture result shape; no real process"},
-            {"id": "official/workspace-lab/discover_workspace_entrypoints", "purpose": "generate entrypoint candidates from metadata/scripts/stack_hint"},
-            {"id": "official/workspace-lab/draft_workspace_patch", "purpose": "generate patch proposal shape; no file writes, requires_approval=true"},
+            {"id": "plurora/workspace-lab/describe_workspace_contract", "purpose": "describe the workspace lab contract and action taxonomy"},
+            {"id": "plurora/workspace-lab/draft_workspace_creation", "purpose": "draft a plan-only workspace creation proposal, no direct workspace creation"},
+            {"id": "plurora/workspace-lab/explain_required_permissions", "purpose": "explain permissions required for workspace actions"},
+            {"id": "plurora/workspace-lab/request_workspace_action", "purpose": "request a workspace action with deny-by-default policy; no real execution"},
+            {"id": "plurora/workspace-lab/summarize_workspace_audit", "purpose": "produce deterministic redacted audit summary; no raw env/logs/commands/secrets"},
+            {"id": "plurora/workspace-lab/create_fixture_workspace", "purpose": "generate deterministic fixture workspace descriptor; no real creation, no filesystem"},
+            {"id": "plurora/workspace-lab/inspect_workspace", "purpose": "return fixture workspace descriptor; no filesystem read"},
+            {"id": "plurora/workspace-lab/read_workspace_metadata", "purpose": "return deterministic fixture metadata; no filesystem read"},
+            {"id": "plurora/workspace-lab/plan_workspace_run", "purpose": "generate run plan; all actions require_approval, executor_invoked=false"},
+            {"id": "plurora/workspace-lab/record_fixture_process_result", "purpose": "record caller-provided fixture result shape; no real process"},
+            {"id": "plurora/workspace-lab/discover_workspace_entrypoints", "purpose": "generate entrypoint candidates from metadata/scripts/stack_hint"},
+            {"id": "plurora/workspace-lab/draft_workspace_patch", "purpose": "generate patch proposal shape; no file writes, requires_approval=true"},
         ],
         "surfaces": {
-            "forge_panel": "official/workspace-lab/forge-panel",
-            "assistant_action": "official/workspace-lab/assistant-action",
-            "home_card": "official/workspace-lab/home-card",
+            "forge_panel": "plurora/workspace-lab/forge-panel",
+            "assistant_action": "plurora/workspace-lab/assistant-action",
+            "home_card": "plurora/workspace-lab/home-card",
         },
         "action_taxonomy": action_entries,
         "policy_defaults": {
@@ -1501,7 +1501,7 @@ mod tests {
     #[test]
     fn try_handle_matches_package_id() {
         let req = make_request(
-            "official/workspace-lab/describe_workspace_contract",
+            "plurora/workspace-lab/describe_workspace_contract",
             json!({}),
         );
         assert!(try_handle(&req).is_some());
@@ -1510,8 +1510,8 @@ mod tests {
     #[test]
     fn try_handle_rejects_wrong_package() {
         let req = InprocInvocation {
-            capability_id: "official/workspace-lab/describe_workspace_contract".to_string(),
-            provider_package_id: "official/other".to_string(),
+            capability_id: "plurora/workspace-lab/describe_workspace_contract".to_string(),
+            provider_package_id: "plurora/other".to_string(),
             session_id: None,
             input: json!({}),
         };
@@ -1521,7 +1521,7 @@ mod tests {
     #[test]
     fn describe_contract_has_all_surfaces() {
         let req = make_request(
-            "official/workspace-lab/describe_workspace_contract",
+            "plurora/workspace-lab/describe_workspace_contract",
             json!({}),
         );
         let result = try_handle(&req).unwrap().unwrap();
@@ -1534,7 +1534,7 @@ mod tests {
     #[test]
     fn describe_contract_lists_12_capabilities() {
         let req = make_request(
-            "official/workspace-lab/describe_workspace_contract",
+            "plurora/workspace-lab/describe_workspace_contract",
             json!({}),
         );
         let result = try_handle(&req).unwrap().unwrap();
@@ -1551,7 +1551,7 @@ mod tests {
     #[test]
     fn describe_contract_lists_10_action_taxonomy_entries() {
         let req = make_request(
-            "official/workspace-lab/describe_workspace_contract",
+            "plurora/workspace-lab/describe_workspace_contract",
             json!({}),
         );
         let result = try_handle(&req).unwrap().unwrap();
@@ -1568,7 +1568,7 @@ mod tests {
     #[test]
     fn describe_contract_deny_by_default() {
         let req = make_request(
-            "official/workspace-lab/describe_workspace_contract",
+            "plurora/workspace-lab/describe_workspace_contract",
             json!({}),
         );
         let result = try_handle(&req).unwrap().unwrap();
@@ -1586,7 +1586,7 @@ mod tests {
     #[test]
     fn describe_contract_managed_workspace_defaults() {
         let req = make_request(
-            "official/workspace-lab/describe_workspace_contract",
+            "plurora/workspace-lab/describe_workspace_contract",
             json!({}),
         );
         let result = try_handle(&req).unwrap().unwrap();
@@ -1603,7 +1603,7 @@ mod tests {
     #[test]
     fn draft_creation_is_plan_only() {
         let req = make_request(
-            "official/workspace-lab/draft_workspace_creation",
+            "plurora/workspace-lab/draft_workspace_creation",
             json!({"workspace_ref": "ws-001", "source_ref": "https://example.com/project.git"}),
         );
         let result = try_handle(&req).unwrap().unwrap();
@@ -1617,7 +1617,7 @@ mod tests {
     #[test]
     fn request_action_denied_by_default() {
         let req = make_request(
-            "official/workspace-lab/request_workspace_action",
+            "plurora/workspace-lab/request_workspace_action",
             json!({"action": "clone_project", "workspace_ref": "ws-001"}),
         );
         let result = try_handle(&req).unwrap().unwrap();
@@ -1631,7 +1631,7 @@ mod tests {
     #[test]
     fn request_action_unknown_action_denied() {
         let req = make_request(
-            "official/workspace-lab/request_workspace_action",
+            "plurora/workspace-lab/request_workspace_action",
             json!({"action": "hack_the_planet", "workspace_ref": "ws-001"}),
         );
         let result = try_handle(&req).unwrap().unwrap();
@@ -1642,7 +1642,7 @@ mod tests {
     #[test]
     fn request_action_policy_mismatch_fail_closed() {
         let req = make_request(
-            "official/workspace-lab/request_workspace_action",
+            "plurora/workspace-lab/request_workspace_action",
             json!({"action": "install_dependencies", "workspace_ref": "ws-001", "policy": "allow"}),
         );
         let result = try_handle(&req).unwrap().unwrap();
@@ -1653,7 +1653,7 @@ mod tests {
     #[test]
     fn request_action_approval_token_not_honored() {
         let req = make_request(
-            "official/workspace-lab/request_workspace_action",
+            "plurora/workspace-lab/request_workspace_action",
             json!({"action": "clone_project", "workspace_ref": "ws-001", "approval_token": "fake-token-12345"}),
         );
         let result = try_handle(&req).unwrap().unwrap();
@@ -1667,7 +1667,7 @@ mod tests {
     #[test]
     fn raw_secret_blocked() {
         let req = make_request(
-            "official/workspace-lab/request_workspace_action",
+            "plurora/workspace-lab/request_workspace_action",
             json!({"action": "clone_project", "workspace_ref": "ws-001", "api_key": "RawSecretExample1234567890abcdefABCDEF123456"}),
         );
         let result = try_handle(&req).unwrap().unwrap();
@@ -1678,7 +1678,7 @@ mod tests {
     #[test]
     fn audit_summary_redacted() {
         let req = make_request(
-            "official/workspace-lab/summarize_workspace_audit",
+            "plurora/workspace-lab/summarize_workspace_audit",
             json!({
                 "workspace_ref": "ws-001",
                 "action_history": [
@@ -1707,7 +1707,7 @@ mod tests {
     #[test]
     fn audit_summary_raw_secret_redacted() {
         let req = make_request(
-            "official/workspace-lab/summarize_workspace_audit",
+            "plurora/workspace-lab/summarize_workspace_audit",
             json!({
                 "workspace_ref": "ws-001",
                 "action_history": [
@@ -1727,7 +1727,7 @@ mod tests {
     #[test]
     fn no_forbidden_namespace_in_contract() {
         let req = make_request(
-            "official/workspace-lab/describe_workspace_contract",
+            "plurora/workspace-lab/describe_workspace_contract",
             json!({}),
         );
         let result = try_handle(&req).unwrap().unwrap();
@@ -1756,7 +1756,7 @@ mod tests {
         ];
         for cap in &caps {
             let req = make_request(
-                &format!("official/workspace-lab/{}", cap),
+                &format!("plurora/workspace-lab/{}", cap),
                 json!({"workspace_ref": "ws-001", "action": "read_metadata"}),
             );
             let result = try_handle(&req).unwrap().unwrap();
@@ -1787,7 +1787,7 @@ mod tests {
         ];
         for cap in &caps {
             let req = make_request(
-                &format!("official/workspace-lab/{}", cap),
+                &format!("plurora/workspace-lab/{}", cap),
                 json!({"workspace_ref": "ws-001", "action": "clone_project"}),
             );
             let result = try_handle(&req).unwrap().unwrap();
@@ -1875,7 +1875,7 @@ mod tests {
     #[test]
     fn explain_permissions_for_single_action() {
         let req = make_request(
-            "official/workspace-lab/explain_required_permissions",
+            "plurora/workspace-lab/explain_required_permissions",
             json!({"action": "clone_project"}),
         );
         let result = try_handle(&req).unwrap().unwrap();
@@ -1888,7 +1888,7 @@ mod tests {
     #[test]
     fn explain_permissions_for_unknown_action() {
         let req = make_request(
-            "official/workspace-lab/explain_required_permissions",
+            "plurora/workspace-lab/explain_required_permissions",
             json!({"action": "teleport"}),
         );
         let result = try_handle(&req).unwrap().unwrap();
@@ -1899,7 +1899,7 @@ mod tests {
     #[test]
     fn explain_permissions_all_when_no_action() {
         let req = make_request(
-            "official/workspace-lab/explain_required_permissions",
+            "plurora/workspace-lab/explain_required_permissions",
             json!({}),
         );
         let result = try_handle(&req).unwrap().unwrap();
@@ -1915,7 +1915,7 @@ mod tests {
     #[test]
     fn create_fixture_workspace_basic() {
         let req = make_request(
-            "official/workspace-lab/create_fixture_workspace",
+            "plurora/workspace-lab/create_fixture_workspace",
             json!({"workspace_ref": "ws-fixture-1", "source_ref": "https://example.com/project.git", "stack_hint": "node"}),
         );
         let result = try_handle(&req).unwrap().unwrap();
@@ -1933,7 +1933,7 @@ mod tests {
     #[test]
     fn create_fixture_workspace_no_execution() {
         let req = make_request(
-            "official/workspace-lab/create_fixture_workspace",
+            "plurora/workspace-lab/create_fixture_workspace",
             json!({"workspace_ref": "ws-fixture-1", "source_ref": "https://example.com/project.git", "stack_hint": "node"}),
         );
         let result = try_handle(&req).unwrap().unwrap();
@@ -1949,7 +1949,7 @@ mod tests {
     #[test]
     fn create_fixture_workspace_real_creation_requires() {
         let req = make_request(
-            "official/workspace-lab/create_fixture_workspace",
+            "plurora/workspace-lab/create_fixture_workspace",
             json!({"workspace_ref": "ws-fixture-1"}),
         );
         let result = try_handle(&req).unwrap().unwrap();
@@ -1962,7 +1962,7 @@ mod tests {
     #[test]
     fn create_fixture_workspace_unsafe_path_rejected() {
         let req = make_request(
-            "official/workspace-lab/create_fixture_workspace",
+            "plurora/workspace-lab/create_fixture_workspace",
             json!({"workspace_ref": "ws-fixture-1", "source_ref": "../../../etc/passwd"}),
         );
         let result = try_handle(&req).unwrap().unwrap();
@@ -1973,7 +1973,7 @@ mod tests {
     #[test]
     fn create_fixture_workspace_raw_secret_blocked() {
         let req = make_request(
-            "official/workspace-lab/create_fixture_workspace",
+            "plurora/workspace-lab/create_fixture_workspace",
             json!({"workspace_ref": "ws-fixture-1", "api_key": "RawSecretExample1234567890abcdefABCDEF123456"}),
         );
         let result = try_handle(&req).unwrap().unwrap();
@@ -1984,7 +1984,7 @@ mod tests {
     #[test]
     fn inspect_workspace_returns_fixture() {
         let req = make_request(
-            "official/workspace-lab/inspect_workspace",
+            "plurora/workspace-lab/inspect_workspace",
             json!({"workspace_ref": "ws-1"}),
         );
         let result = try_handle(&req).unwrap().unwrap();
@@ -1996,7 +1996,7 @@ mod tests {
     #[test]
     fn inspect_workspace_no_filesystem() {
         let req = make_request(
-            "official/workspace-lab/inspect_workspace",
+            "plurora/workspace-lab/inspect_workspace",
             json!({"workspace_ref": "ws-1", "workspace_descriptor": {"managed_workspace_kind": "fixture", "source_kind": "git"}}),
         );
         let result = try_handle(&req).unwrap().unwrap();
@@ -2007,7 +2007,7 @@ mod tests {
     #[test]
     fn read_workspace_metadata_returns_fixture() {
         let req = make_request(
-            "official/workspace-lab/read_workspace_metadata",
+            "plurora/workspace-lab/read_workspace_metadata",
             json!({"workspace_ref": "ws-1", "metadata": {"version": "1.0.0", "stack": "node"}}),
         );
         let result = try_handle(&req).unwrap().unwrap();
@@ -2019,7 +2019,7 @@ mod tests {
     #[test]
     fn read_workspace_metadata_no_filesystem() {
         let req = make_request(
-            "official/workspace-lab/read_workspace_metadata",
+            "plurora/workspace-lab/read_workspace_metadata",
             json!({"workspace_ref": "ws-1"}),
         );
         let result = try_handle(&req).unwrap().unwrap();
@@ -2031,7 +2031,7 @@ mod tests {
     #[test]
     fn plan_workspace_run_requires_approval() {
         let req = make_request(
-            "official/workspace-lab/plan_workspace_run",
+            "plurora/workspace-lab/plan_workspace_run",
             json!({"workspace_ref": "ws-1", "scripts": [{"name": "build", "executes_code": true}]}),
         );
         let result = try_handle(&req).unwrap().unwrap();
@@ -2049,7 +2049,7 @@ mod tests {
     #[test]
     fn plan_workspace_run_all_steps_require_approval() {
         let req = make_request(
-            "official/workspace-lab/plan_workspace_run",
+            "plurora/workspace-lab/plan_workspace_run",
             json!({"workspace_ref": "ws-1", "scripts": [{"name": "install", "executes_code": true}, {"name": "test", "executes_code": true}], "entrypoints": [{"name": "main", "executes_code": true}]}),
         );
         let result = try_handle(&req).unwrap().unwrap();
@@ -2061,7 +2061,7 @@ mod tests {
     #[test]
     fn record_fixture_process_result_no_real_process() {
         let req = make_request(
-            "official/workspace-lab/record_fixture_process_result",
+            "plurora/workspace-lab/record_fixture_process_result",
             json!({"workspace_ref": "ws-1", "process_ref": "proc-1", "exit_code": 0, "duration_ms": 1500, "status": "success"}),
         );
         let result = try_handle(&req).unwrap().unwrap();
@@ -2076,7 +2076,7 @@ mod tests {
     #[test]
     fn record_fixture_process_result_redacted() {
         let req = make_request(
-            "official/workspace-lab/record_fixture_process_result",
+            "plurora/workspace-lab/record_fixture_process_result",
             json!({"workspace_ref": "ws-1", "process_ref": "proc-1", "exit_code": 1, "raw_stdout": "sensitive output", "raw_stderr": "error output", "raw_command": "rm -rf /"}),
         );
         let result = try_handle(&req).unwrap().unwrap();
@@ -2091,7 +2091,7 @@ mod tests {
     #[test]
     fn discover_workspace_entrypoints_deterministic() {
         let req = make_request(
-            "official/workspace-lab/discover_workspace_entrypoints",
+            "plurora/workspace-lab/discover_workspace_entrypoints",
             json!({"workspace_ref": "ws-1", "stack_hint": "node"}),
         );
         let result = try_handle(&req).unwrap().unwrap();
@@ -2113,7 +2113,7 @@ mod tests {
     #[test]
     fn discover_workspace_entrypoints_with_scripts() {
         let req = make_request(
-            "official/workspace-lab/discover_workspace_entrypoints",
+            "plurora/workspace-lab/discover_workspace_entrypoints",
             json!({"workspace_ref": "ws-1", "stack_hint": "node", "scripts": [{"name": "custom-script", "executes_code": true}]}),
         );
         let result = try_handle(&req).unwrap().unwrap();
@@ -2130,7 +2130,7 @@ mod tests {
     #[test]
     fn draft_workspace_patch_proposal_only() {
         let req = make_request(
-            "official/workspace-lab/draft_workspace_patch",
+            "plurora/workspace-lab/draft_workspace_patch",
             json!({"workspace_ref": "ws-1", "target_files": ["src/main.rs", "Cargo.toml"], "description": "fix typo", "patch_kind": "modification"}),
         );
         let result = try_handle(&req).unwrap().unwrap();
@@ -2147,7 +2147,7 @@ mod tests {
     #[test]
     fn draft_workspace_patch_no_write() {
         let req = make_request(
-            "official/workspace-lab/draft_workspace_patch",
+            "plurora/workspace-lab/draft_workspace_patch",
             json!({"workspace_ref": "ws-1", "target_files": ["src/main.rs"]}),
         );
         let result = try_handle(&req).unwrap().unwrap();
@@ -2159,7 +2159,7 @@ mod tests {
     #[test]
     fn draft_workspace_patch_unsafe_path_rejected() {
         let req = make_request(
-            "official/workspace-lab/draft_workspace_patch",
+            "plurora/workspace-lab/draft_workspace_patch",
             json!({"workspace_ref": "ws-1", "target_files": ["../../../etc/passwd", "src/safe.rs"]}),
         );
         let result = try_handle(&req).unwrap().unwrap();
@@ -2174,7 +2174,7 @@ mod tests {
     #[test]
     fn draft_workspace_patch_raw_secret_blocked() {
         let req = make_request(
-            "official/workspace-lab/draft_workspace_patch",
+            "plurora/workspace-lab/draft_workspace_patch",
             json!({"workspace_ref": "ws-1", "target_files": ["src/main.rs"], "api_key": "RawSecretExample1234567890abcdefABCDEF123456"}),
         );
         let result = try_handle(&req).unwrap().unwrap();
@@ -2196,7 +2196,7 @@ mod tests {
             ("unknown", "unknown"),
         ] {
             let req = make_request(
-                "official/workspace-lab/create_fixture_workspace",
+                "plurora/workspace-lab/create_fixture_workspace",
                 json!({"workspace_ref": "ws-1", "stack_hint": hint}),
             );
             let result = try_handle(&req).unwrap().unwrap();

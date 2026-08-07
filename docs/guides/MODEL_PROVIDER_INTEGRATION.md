@@ -6,7 +6,7 @@
 
 ## Scope：cloud adapter，不是平台抽象
 
-`official/model-provider-lab` 是 cloud API adapter lab：
+`plurora/model-provider-lab` 是 cloud API adapter lab：
 
 - 它不是 Plurora 的模型抽象。
 - 它不是 LiteLLM / OneAPI compatible gateway。
@@ -15,7 +15,7 @@
 - OpenAI、Anthropic、Gemini、OpenRouter、DeepSeek、xAI、Fireworks 的 schema 是 adapter 内部细节，不是平台公共协议。
 - `normalize_request` 是 cloud adapter 内部 request builder helper，不是 Plurora canonical inference request。
 
-如果你要编写与传输无关的推理包，请看 [`INFERENCE_CAPABILITY_AUTHORING.md`](./INFERENCE_CAPABILITY_AUTHORING.md)。如果你要证明非 HTTP、本地或自托管 seam，请参考 `official/inference-local-lab`。
+如果你要编写与传输无关的推理包，请看 [`INFERENCE_CAPABILITY_AUTHORING.md`](./INFERENCE_CAPABILITY_AUTHORING.md)。如果你要证明非 HTTP、本地或自托管 seam，请参考 `plurora/inference-local-lab`。
 
 ## 当前交付
 
@@ -23,11 +23,11 @@
 
 - `integrations/model-providers/` 保存 provider research ledger、provider matrix、流式兼容笔记和错误分类。
 - `sdk/typescript/model-provider-adapter` 提供纯 TypeScript cloud adapter，用于 provider profile、adapter-local request builder、错误分类和流式事件解析。它不出网、不做计费、不访问私有 runtime。
-- `official/model-provider-lab` 是普通官方 cloud adapter 能力包，覆盖 OpenAI、Anthropic、Gemini、OpenAI-compatible、OpenRouter、DeepSeek、xAI、Fireworks 等 cloud provider family。
-- `official/model-provider-lab` 能力包括：`list_supported_families`、`validate_profile`、`normalize_request`、`invoke`、`normalize_stream`、`explain_error`、`echo`。
+- `plurora/model-provider-lab` 是普通官方 cloud adapter 能力包，覆盖 OpenAI、Anthropic、Gemini、OpenAI-compatible、OpenRouter、DeepSeek、xAI、Fireworks 等 cloud provider family。
+- `plurora/model-provider-lab` 能力包括：`list_supported_families`、`validate_profile`、`normalize_request`、`invoke`、`normalize_stream`、`explain_error`、`echo`。
 - `invoke` 保留 fake/local provider adapter path。它产出 provider 形状的 response 和可审计 `outbound_request_shape`，用于默认检查和 adapter 形状验证。
 - Host 侧已有 content-free `OutboundExecutor` boundary，默认拒绝。它包含 fake executor、loopback live HTTP executor 和 hostile 检查。这证明 request shape 可以走 host policy/audit 边界，但不声称 OS 级拦截子进程任意联网。
-- `host.outbound.execute` 是公开出站协议，ordinary packages 和 official packages 必须走同一路径；package principal 来自 protocol context，不能 spoof 其他 package。
+- `host.outbound.execute` 是公开出站协议，ordinary packages 和 first-party Packages 必须走同一路径；package principal 来自 protocol context，不能 spoof 其他 package。
 - `EnvSecretResolver` 支持 host-owned `secret_ref:env:NAME` allowlist；raw secret 只在 host 内部短暂存在，不进入 event、log、audit 或 response。
 - `LiveHttpOutboundExecutor` 使用 `reqwest + rustls`，默认关闭。它只允许 HTTPS，redirect fail-closed，timeout 必须配置。response/audit 只保留脱敏形状。Loopback 检查用 `allow_insecure_loopback_for_tests=true`，不依赖公网。
 - `secret_headers` 支持 host-side header 注入（例如 Authorization bearer、x-api-key、x-goog-api-key）；缺失/无效 secret fail-closed。`static_headers` 只允许少量非 secret provider/version/format headers（anthropic-version、content-type、accept、http-referer、x-title），并阻止 Authorization/x-api-key/Cookie 等 secret-bearing 或 host-owned headers。
@@ -106,7 +106,7 @@ OpenAI-compatible 是 adapter family，不是 Plurora 的唯一模型世界观�
 
 ### `invoke`
 
-`official/model-provider-lab/invoke` 本身仍然是 fake/local adapter path。真实网络调用不通过官方包私有 runtime access；它必须由 ordinary package 使用公开 `host.outbound.execute`，由 host policy、secret resolver 和 outbound executor 控制。
+`plurora/model-provider-lab/invoke` 本身仍然是 fake/local adapter path。真实网络调用不通过官方包私有 runtime access；它必须由 ordinary package 使用公开 `host.outbound.execute`，由 host policy、secret resolver 和 outbound executor 控制。
 
 输出必须保持：
 
@@ -199,8 +199,8 @@ PLURORA_LIVE_MODEL_TESTS=1 DEEPSEEK_API_KEY=... cargo run -p plurora-cli -- conf
 ## 与 `inference-capability` / `inference-local-lab` 的关系
 
 - `sdk/typescript/inference-capability`：与传输无关的推理信封、流式帧、错误分类和 provider capability manifest helper；不要求 URL/header/status code/OpenAI messages。
-- `official/inference-local-lab`：可重放的非 HTTP fake local provider proof；证明 inference seam 不依赖 HTTP、Bearer、JSON provider schema 或网络。
-- `official/model-provider-lab`：cloud API adapter lab；用于现实云 API 接入，不定义平台抽象。
+- `plurora/inference-local-lab`：可重放的非 HTTP fake local provider proof；证明 inference seam 不依赖 HTTP、Bearer、JSON provider schema 或网络。
+- `plurora/model-provider-lab`：cloud API adapter lab；用于现实云 API 接入，不定义平台抽象。
 
 三者的依赖方向是：与传输无关的契约 → cloud/local adapter packages。内核不导入、不知道、不硬编码这些 provider 语义。
 
@@ -218,7 +218,7 @@ PLURORA_LIVE_MODEL_TESTS=1 DEEPSEEK_API_KEY=... cargo run -p plurora-cli -- conf
 ```bash
 cargo test --workspace
 cargo run -p plurora-cli -- conformance
-cargo run -p plurora-cli -- package check packages/official/model-provider-lab/manifest.yaml
+cargo run -p plurora-cli -- package check packages/plurora/model-provider-lab/manifest.yaml
 tsc -p clients/web/tsconfig.json --noEmit
 ```
 

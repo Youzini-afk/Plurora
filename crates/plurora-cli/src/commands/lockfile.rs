@@ -25,7 +25,7 @@ pub async fn run(args: LockfileArgs) -> Result<()> {
     let runtime = load_install_runtime().await?;
     let result = invoke_install_lab(
         &runtime,
-        "official/install-lab/check_lockfile",
+        "plurora/install-lab/check_lockfile",
         json!({
             "profile": args.profile,
             "data_dir": data_dir.display().to_string(),

@@ -11,7 +11,7 @@ Plurora 仓库中的第一方源代码以 GNU Affero General Public License v3.0
 - Rust workspace、CLI、Host、service 与运行时；
 - Web shell 与 Desktop wrapper；
 - 仓库内维护的 Rust / TypeScript SDK；
-- `packages/official/` 下的官方能力包；
+- `packages/plurora/` 下的官方能力包；
 - 仓库内维护的构建、验证和发布脚本。
 
 除非另有书面约定，向这些第一方部分提交的贡献按同一许可证进入仓库。

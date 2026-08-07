@@ -107,7 +107,7 @@ plurora world-bundle import <archive.json> --data-dir <fresh-dir> [--json]
 - `world_bundle.reexecution_branch`；
 - `world_bundle.shell_independence`。
 
-当前 integration fixture 使用 `official/playable-creation-board` Package。测试在 Host A 创建状态、branch 和受控 capability receipt；在 Host B 的独立 SQLite journal 与 filesystem CAS 中导入；不加载原始 Package 完成回放；在新分支使用 echo-backed 替代实现；最后由 headless CLI 读取同一个 archive。该 fixture 检查此 Profile 的兼容行为，不把该 Package 或 World 本体提升为平台中心。
+当前 integration fixture 使用 `plurora/playable-creation-board` Package。测试在 Host A 创建状态、branch 和受控 capability receipt；在 Host B 的独立 SQLite journal 与 filesystem CAS 中导入；不加载原始 Package 完成回放；在新分支使用 echo-backed 替代实现；最后由 headless CLI 读取同一个 archive。该 fixture 检查此 Profile 的兼容行为，不把该 Package 或 World 本体提升为平台中心。
 
 ## 当前限制
 

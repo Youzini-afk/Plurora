@@ -6,27 +6,27 @@ policy: >-
 
 subsystems:
   packages/core/src/llm/provider-registry.ts:
-    plurora_package: official/model-connector-lab
+    plurora_package: plurora/model-connector-lab
     status: adapted
     notes: Provider families and factory metadata become static provider family descriptors.
   packages/core/src/llm/types.ts:
-    plurora_package: official/model-connector-lab
+    plurora_package: plurora/model-connector-lab
     status: adapted
     notes: Provider config and generation params inform profile validation and route params normalization.
   apps/api/src/lib/llm-provider-discovery.ts:
-    plurora_package: official/model-connector-lab
+    plurora_package: plurora/model-connector-lab
     status: adapted
     notes: Live probes become no-network discovery plans and compatibility reports in the current scope.
   apps/api/src/routes/llm-profiles.ts:
-    plurora_package: official/model-connector-lab
+    plurora_package: plurora/model-connector-lab
     status: adapted
     notes: Profile CRUD informs profile schema, secret references, and redaction-safe display.
   apps/api/src/routes/llm-instances.ts:
-    plurora_package: official/model-routing-lab
+    plurora_package: plurora/model-routing-lab
     status: adapted
     notes: Instance slots become generic consumer-slot bindings with deterministic route plans.
-  packages/official-integration-kit/sdk/src/resources/llm-shared.ts:
-    plurora_package: official/model-connector-lab
+  packages/plurora-integration-kit/sdk/src/resources/llm-shared.ts:
+    plurora_package: plurora/model-connector-lab
     status: adapted
     notes: Provider enum informs initial provider families.
   packages/core/src/llm/llm-service.ts:
@@ -34,6 +34,6 @@ subsystems:
     status: deferred
     notes: generateText/streamText, timeouts, usage, and providerOptions wait for network/secret/audit policy.
   packages/core/src/llm/__tests__:
-    plurora_package: official/model-connector-lab
+    plurora_package: plurora/model-connector-lab
     status: adapted
     notes: Provider registry tests inform conformance fixtures and compatibility reports.

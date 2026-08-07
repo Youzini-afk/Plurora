@@ -11,7 +11,7 @@ Plurora currently has a SQLite-backed append-only event log, but the platform co
 3. Blob / asset store: large objects should enter the platform through content address, hash, size, mime, and provenance. Blob content should not be embedded into event payloads.
 4. Projection / index materialization: projections/indexes are package-owned views derived from events/assets. They can plan materialization, query preview, and migration plans without exposing tables, SQL, or query-product semantics.
 5. Retrieval / vector / multimodal providers: TDB, pgvector, OpenSearch, Redis Vector, local embedding indexes, and remote retrieval services are provider slots. TDB now has an opt-in Rust adapter proof, but retrieval remains a package/provider-layer ability. It does not replace the event log, audit, proposal lifecycle, or branch lineage.
-6. Forge observability: the web shell uses public protocol calls to `official/storage-lab` to display contract summaries. It does not read SQLite, PostgreSQL, TDB, filesystem state, or runtime internals.
+6. Forge observability: the web shell uses public protocol calls to `plurora/storage-lab` to display contract summaries. It does not read SQLite, PostgreSQL, TDB, filesystem state, or runtime internals.
 
 ## Red lines
 
@@ -23,9 +23,9 @@ Plurora currently has a SQLite-backed append-only event log, but the platform co
 - TDB is a future multimodal retrieval provider slot, not the kernel database.
 - Retrieval/vector/multimodal search must not replace append-only events, audit, proposal lifecycle, or branch/fork/replay.
 
-## `official/storage-lab`
+## `plurora/storage-lab`
 
-`official/storage-lab` is an ordinary manifest-loaded package proving that storage/data contracts can be expressed as capabilities instead of kernel database namespaces.
+`plurora/storage-lab` is an ordinary manifest-loaded package proving that storage/data contracts can be expressed as capabilities instead of kernel database namespaces.
 
 Capability groups:
 
@@ -48,7 +48,7 @@ All of these capabilities are replayable previews or plans:
 
 ## Forge Storage Inspector
 
-`clients/web/src/storage/storage-inspector.ts` calls `official/storage-lab` through public protocol and shows the following in Forge:
+`clients/web/src/storage/storage-inspector.ts` calls `plurora/storage-lab` through public protocol and shows the following in Forge:
 
 - event spine and backend class summaries
 - package-scoped state plan
@@ -66,7 +66,7 @@ Common validation commands:
 ```bash
 cargo test --workspace
 cargo run -p plurora-cli -- conformance --tag storage
-cargo run -p plurora-cli -- package check packages/official/storage-lab/manifest.yaml
+cargo run -p plurora-cli -- package check packages/plurora/storage-lab/manifest.yaml
 ```
 
 ## Next steps

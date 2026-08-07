@@ -1,4 +1,4 @@
-//! Conformance tests for `official/agentic-forge-lab` (Agentic Forge Beta).
+//! Conformance tests for `plurora/agentic-forge-lab` (Agentic Forge Beta).
 //!
 //! Phase A: describe_contract, start_run plan graph/working state,
 //! inspect/cancel/summarize, raw-secret blocking, no kernel agent namespace.
@@ -29,7 +29,7 @@ use serde_json::json;
 use super::fixtures::*;
 use crate::commands::manifest;
 
-const PACKAGE_ID: &str = "official/agentic-forge-lab";
+const PACKAGE_ID: &str = "plurora/agentic-forge-lab";
 
 async fn load_forge_lab(
 ) -> anyhow::Result<plurora_runtime::Runtime<plurora_runtime::InMemoryEventStore>> {
@@ -37,7 +37,7 @@ async fn load_forge_lab(
     runtime
         .load_package(
             manifest::read_manifest(PathBuf::from(
-                "packages/official/agentic-forge-lab/manifest.yaml",
+                "packages/plurora/agentic-forge-lab/manifest.yaml",
             ))
             .await?,
         )
@@ -1184,7 +1184,7 @@ pub(crate) async fn agentic_forge_inference_failure_taxonomy() -> anyhow::Result
 // Phase D conformance cases (via capability-tool-bridge-lab)
 // ---------------------------------------------------------------------------
 
-const TOOL_BRIDGE_ID: &str = "official/capability-tool-bridge-lab";
+const TOOL_BRIDGE_ID: &str = "plurora/capability-tool-bridge-lab";
 
 async fn load_tool_bridge(
 ) -> anyhow::Result<plurora_runtime::Runtime<plurora_runtime::InMemoryEventStore>> {
@@ -1192,7 +1192,7 @@ async fn load_tool_bridge(
     runtime
         .load_package(
             manifest::read_manifest(PathBuf::from(
-                "packages/official/capability-tool-bridge-lab/manifest.yaml",
+                "packages/plurora/capability-tool-bridge-lab/manifest.yaml",
             ))
             .await?,
         )
@@ -1215,8 +1215,8 @@ pub(crate) async fn agentic_forge_explain_tool_call_scoped() -> anyhow::Result<(
             session_id: None,
             input: json!({
                 "capability_id": "example/echo",
-                "provider_package_id": "official/pkg-a",
-                "requesting_package": "official/agentic-forge-lab",
+                "provider_package_id": "plurora/pkg-a",
+                "requesting_package": "plurora/agentic-forge-lab",
                 "run_id": "run_conf_d",
                 "plan_node_id": "node_infer_1",
                 "target_branch_scope": "branch:target:main",
@@ -1245,7 +1245,7 @@ pub(crate) async fn agentic_forge_explain_tool_call_scoped() -> anyhow::Result<(
     );
     anyhow::ensure!(
         result.output["tool_call_context"]["requesting_package"]
-            == json!("official/agentic-forge-lab"),
+            == json!("plurora/agentic-forge-lab"),
         "tool_call_context must include requesting_package"
     );
     anyhow::ensure!(
@@ -1277,7 +1277,7 @@ pub(crate) async fn agentic_forge_record_observation_untrusted() -> anyhow::Resu
             input: json!({
                 "run_id": "run_obs_conf",
                 "plan_node_id": "node_1",
-                "provider_package_id": "official/pkg-a",
+                "provider_package_id": "plurora/pkg-a",
                 "tool_output": {"result": "hello world"},
             }),
         })
@@ -1496,7 +1496,7 @@ pub(crate) async fn agentic_forge_plan_toolchain_requires_provider() -> anyhow::
                 "steps": [
                     {
                         "capability_id": "example/echo",
-                        "provider_package_id": "official/pkg-a",
+                        "provider_package_id": "plurora/pkg-a",
                         "nested_delegation": true,
                         "explicit_delegation": false,
                     }
@@ -1528,7 +1528,7 @@ pub(crate) async fn agentic_forge_plan_toolchain_requires_provider() -> anyhow::
                 "steps": [
                     {
                         "capability_id": "example/echo",
-                        "provider_package_id": "official/pkg-a",
+                        "provider_package_id": "plurora/pkg-a",
                         "grant_scope": ["capabilities.invoke"],
                         "approval_policy": "fork_then_approve",
                     }
@@ -1563,7 +1563,7 @@ pub(crate) async fn agentic_forge_plan_toolchain_requires_provider() -> anyhow::
                 "steps": [
                     {
                         "capability_id": "example/write",
-                        "provider_package_id": "official/pkg-a",
+                        "provider_package_id": "plurora/pkg-a",
                         "target_branch_write": true,
                         "grant_scope": [],
                     }
@@ -1615,12 +1615,12 @@ pub(crate) async fn agentic_forge_thirdparty_replacement_shape() -> anyhow::Resu
 
     // No official priority: official is a candidate, not auto-selected
     let candidates = comp["replacement_candidates"].as_sequence().unwrap();
-    let has_official = candidates
+    let has_first_party = candidates
         .iter()
-        .any(|c| c.as_str() == Some("official/agentic-forge-lab"));
+        .any(|c| c.as_str() == Some("plurora/agentic-forge-lab"));
     anyhow::ensure!(
-        has_official,
-        "official/agentic-forge-lab must appear as replacement candidate"
+        has_first_party,
+        "plurora/agentic-forge-lab must appear as replacement candidate"
     );
     // Official is just a candidate — no priority field
     anyhow::ensure!(
@@ -1647,12 +1647,12 @@ pub(crate) async fn agentic_forge_thirdparty_replacement_shape() -> anyhow::Resu
 
 /// Phase F case 2: no official priority — both official and thirdparty descriptors
 /// are ordinary packages; describe_contract confirms no_platform_privilege.
-pub(crate) async fn agentic_forge_no_official_priority() -> anyhow::Result<()> {
+pub(crate) async fn agentic_forge_no_publisher_priority() -> anyhow::Result<()> {
     let (_store, runtime) = runtime();
     runtime
         .load_package(
             manifest::read_manifest(PathBuf::from(
-                "packages/official/agentic-forge-lab/manifest.yaml",
+                "packages/plurora/agentic-forge-lab/manifest.yaml",
             ))
             .await?,
         )
@@ -1661,16 +1661,16 @@ pub(crate) async fn agentic_forge_no_official_priority() -> anyhow::Result<()> {
     let desc = runtime
         .invoke_capability(CapabilityInvocationRequest {
             handle: None,
-            capability_id: Some("official/agentic-forge-lab/describe_contract".to_string()),
+            capability_id: Some("plurora/agentic-forge-lab/describe_contract".to_string()),
             caller_package_id: None,
-            provider_package_id: Some("official/agentic-forge-lab".to_string()),
+            provider_package_id: Some("plurora/agentic-forge-lab".to_string()),
             version: None,
             session_id: None,
             input: json!({}),
         })
         .await?;
 
-    // Official package must not claim any platform privilege
+    // First-party Package must not claim any platform privilege
     let output_str = serde_json::to_string(&desc.output).unwrap_or_default();
     let has_platform_priv = output_str.contains("platform.agent.")
         || output_str.contains("platform.model.")
@@ -1697,8 +1697,8 @@ pub(crate) async fn agentic_forge_no_official_priority() -> anyhow::Result<()> {
         "third-party manifest must not have platform_privilege field"
     );
     anyhow::ensure!(
-        tp_manifest.get("official_priority").is_none(),
-        "third-party manifest must not have official_priority field"
+        tp_manifest.get("publisher_priority").is_none(),
+        "third-party manifest must not have publisher_priority field"
     );
 
     Ok(())
@@ -1711,7 +1711,7 @@ pub(crate) async fn agentic_forge_hostile_injection_secret_blocked() -> anyhow::
     runtime
         .load_package(
             manifest::read_manifest(PathBuf::from(
-                "packages/official/agentic-forge-lab/manifest.yaml",
+                "packages/plurora/agentic-forge-lab/manifest.yaml",
             ))
             .await?,
         )
@@ -1719,7 +1719,7 @@ pub(crate) async fn agentic_forge_hostile_injection_secret_blocked() -> anyhow::
     runtime
         .load_package(
             manifest::read_manifest(PathBuf::from(
-                "packages/official/capability-tool-bridge-lab/manifest.yaml",
+                "packages/plurora/capability-tool-bridge-lab/manifest.yaml",
             ))
             .await?,
         )
@@ -1729,9 +1729,9 @@ pub(crate) async fn agentic_forge_hostile_injection_secret_blocked() -> anyhow::
     let secret_run = runtime
         .invoke_capability(CapabilityInvocationRequest {
             handle: None,
-            capability_id: Some("official/agentic-forge-lab/start_run".to_string()),
+            capability_id: Some("plurora/agentic-forge-lab/start_run".to_string()),
             caller_package_id: None,
-            provider_package_id: Some("official/agentic-forge-lab".to_string()),
+            provider_package_id: Some("plurora/agentic-forge-lab".to_string()),
             version: None,
             session_id: None,
             input: json!({
@@ -1750,10 +1750,10 @@ pub(crate) async fn agentic_forge_hostile_injection_secret_blocked() -> anyhow::
         .invoke_capability(CapabilityInvocationRequest {
             handle: None,
             capability_id: Some(
-                "official/capability-tool-bridge-lab/record_tool_observation".to_string(),
+                "plurora/capability-tool-bridge-lab/record_tool_observation".to_string(),
             ),
             caller_package_id: None,
-            provider_package_id: Some("official/capability-tool-bridge-lab".to_string()),
+            provider_package_id: Some("plurora/capability-tool-bridge-lab".to_string()),
             version: None,
             session_id: None,
             input: json!({
@@ -1773,10 +1773,10 @@ pub(crate) async fn agentic_forge_hostile_injection_secret_blocked() -> anyhow::
         .invoke_capability(CapabilityInvocationRequest {
             handle: None,
             capability_id: Some(
-                "official/capability-tool-bridge-lab/summarize_tool_risk".to_string(),
+                "plurora/capability-tool-bridge-lab/summarize_tool_risk".to_string(),
             ),
             caller_package_id: None,
-            provider_package_id: Some("official/capability-tool-bridge-lab".to_string()),
+            provider_package_id: Some("plurora/capability-tool-bridge-lab".to_string()),
             version: None,
             session_id: None,
             input: json!({
@@ -1796,9 +1796,9 @@ pub(crate) async fn agentic_forge_hostile_injection_secret_blocked() -> anyhow::
     let priv_escalation = runtime
         .invoke_capability(CapabilityInvocationRequest {
             handle: None,
-            capability_id: Some("official/agentic-forge-lab/validate_inference_output".to_string()),
+            capability_id: Some("plurora/agentic-forge-lab/validate_inference_output".to_string()),
             caller_package_id: None,
-            provider_package_id: Some("official/agentic-forge-lab".to_string()),
+            provider_package_id: Some("plurora/agentic-forge-lab".to_string()),
             version: None,
             session_id: None,
             input: json!({
@@ -1821,7 +1821,7 @@ pub(crate) async fn agentic_forge_budget_deadline_contract() -> anyhow::Result<(
     runtime
         .load_package(
             manifest::read_manifest(PathBuf::from(
-                "packages/official/agentic-forge-lab/manifest.yaml",
+                "packages/plurora/agentic-forge-lab/manifest.yaml",
             ))
             .await?,
         )
@@ -1831,9 +1831,9 @@ pub(crate) async fn agentic_forge_budget_deadline_contract() -> anyhow::Result<(
     let desc = runtime
         .invoke_capability(CapabilityInvocationRequest {
             handle: None,
-            capability_id: Some("official/agentic-forge-lab/describe_contract".to_string()),
+            capability_id: Some("plurora/agentic-forge-lab/describe_contract".to_string()),
             caller_package_id: None,
-            provider_package_id: Some("official/agentic-forge-lab".to_string()),
+            provider_package_id: Some("plurora/agentic-forge-lab".to_string()),
             version: None,
             session_id: None,
             input: json!({}),
@@ -1854,9 +1854,9 @@ pub(crate) async fn agentic_forge_budget_deadline_contract() -> anyhow::Result<(
     let with_budget = runtime
         .invoke_capability(CapabilityInvocationRequest {
             handle: None,
-            capability_id: Some("official/agentic-forge-lab/start_run".to_string()),
+            capability_id: Some("plurora/agentic-forge-lab/start_run".to_string()),
             caller_package_id: None,
-            provider_package_id: Some("official/agentic-forge-lab".to_string()),
+            provider_package_id: Some("plurora/agentic-forge-lab".to_string()),
             version: None,
             session_id: None,
             input: json!({
@@ -1876,9 +1876,9 @@ pub(crate) async fn agentic_forge_budget_deadline_contract() -> anyhow::Result<(
     let cancel = runtime
         .invoke_capability(CapabilityInvocationRequest {
             handle: None,
-            capability_id: Some("official/agentic-forge-lab/cancel_run".to_string()),
+            capability_id: Some("plurora/agentic-forge-lab/cancel_run".to_string()),
             caller_package_id: None,
-            provider_package_id: Some("official/agentic-forge-lab".to_string()),
+            provider_package_id: Some("plurora/agentic-forge-lab".to_string()),
             version: None,
             session_id: None,
             input: json!({
@@ -1917,7 +1917,7 @@ pub(crate) async fn agentic_forge_cross_package_replay_consistency() -> anyhow::
     runtime
         .load_package(
             manifest::read_manifest(PathBuf::from(
-                "packages/official/agentic-forge-lab/manifest.yaml",
+                "packages/plurora/agentic-forge-lab/manifest.yaml",
             ))
             .await?,
         )
@@ -1925,7 +1925,7 @@ pub(crate) async fn agentic_forge_cross_package_replay_consistency() -> anyhow::
     runtime
         .load_package(
             manifest::read_manifest(PathBuf::from(
-                "packages/official/capability-tool-bridge-lab/manifest.yaml",
+                "packages/plurora/capability-tool-bridge-lab/manifest.yaml",
             ))
             .await?,
         )
@@ -1935,9 +1935,9 @@ pub(crate) async fn agentic_forge_cross_package_replay_consistency() -> anyhow::
     let af_replay = runtime
         .invoke_capability(CapabilityInvocationRequest {
             handle: None,
-            capability_id: Some("official/agentic-forge-lab/replay_inference_node".to_string()),
+            capability_id: Some("plurora/agentic-forge-lab/replay_inference_node".to_string()),
             caller_package_id: None,
-            provider_package_id: Some("official/agentic-forge-lab".to_string()),
+            provider_package_id: Some("plurora/agentic-forge-lab".to_string()),
             version: None,
             session_id: None,
             input: json!({
@@ -1961,9 +1961,9 @@ pub(crate) async fn agentic_forge_cross_package_replay_consistency() -> anyhow::
     let tb_replay = runtime
         .invoke_capability(CapabilityInvocationRequest {
             handle: None,
-            capability_id: Some("official/capability-tool-bridge-lab/replay_tool_plan".to_string()),
+            capability_id: Some("plurora/capability-tool-bridge-lab/replay_tool_plan".to_string()),
             caller_package_id: None,
-            provider_package_id: Some("official/capability-tool-bridge-lab".to_string()),
+            provider_package_id: Some("plurora/capability-tool-bridge-lab".to_string()),
             version: None,
             session_id: None,
             input: json!({

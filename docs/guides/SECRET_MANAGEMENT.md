@@ -71,7 +71,7 @@ secret_refs:
 
 - 适用：桌面端、长期使用、产品级 UX。
 - 优点：用户在 UI 内粘贴一次即可，加密落盘；下次启动自动可用。
-- 缺点：需 `official/secret-store-lab` 加载。
+- 缺点：需 `plurora/secret-store-lab` 加载。
 
 示例：
 
@@ -148,7 +148,7 @@ YdlTavern 的 API Connections 抽屉支持粘贴 + 保存：
 1. 选 provider（OpenAI / Anthropic / Gemini 等）。
 2. 粘贴 API key。
 3. 点保存。
-4. UI 调用 `official/secret-store-lab/put_secret`。
+4. UI 调用 `plurora/secret-store-lab/put_secret`。
 5. UI 自动设置该 profile 的 `secretRef` 为 `secret_ref:store:OPENAI_API_KEY`。
 6. 后续调用只携带引用，不携带 raw key。
 
@@ -171,7 +171,7 @@ plurora conformance --case secret_store
 {
   "method": "capability.invoke",
   "params": {
-    "capability_id": "official/secret-store-lab/put_secret",
+    "capability_id": "plurora/secret-store-lab/put_secret",
     "input": { "name": "OPENAI_API_KEY", "value": "sk-..." }
   }
 }
@@ -294,7 +294,7 @@ provider adapter 构造请求 shape；宿主 outbound executor 在最后一刻�
 - `crates/plurora-runtime/src/secret.rs` — `HostSecretResolver` / `EnvSecretResolver` / `StoreSecretResolver` / `ProjectSecretResolver` / `CompositeSecretResolver`。
 - `crates/plurora-runtime/src/secret_store.rs` — 共享加密文件 load/save。
 - `crates/plurora-runtime/src/inproc/secret_store_lab.rs` — 能力实现。
-- `packages/official/secret-store-lab/manifest.yaml` — 包清单。
+- `packages/plurora/secret-store-lab/manifest.yaml` — 包清单。
 
 ## 当前限制
 

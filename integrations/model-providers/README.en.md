@@ -6,7 +6,7 @@
 
 ## Scope
 
-This ledger treats model-provider integration as an ordinary capability-package problem with cloud-provider-level complexity. Its goal is to help ordinary Plurora packages such as `official/model-provider-lab` safely integrate real provider APIs, not to build a relay gateway, billing system, channel admin backend, or platform model proxy.
+This ledger treats model-provider integration as an ordinary capability-package problem with cloud-provider-level complexity. Its goal is to help ordinary Plurora packages such as `plurora/model-provider-lab` safely integrate real provider APIs, not to build a relay gateway, billing system, channel admin backend, or platform model proxy.
 
 Model providers are not kernel ontology. Provider profiles, model catalogs, prompt/messages schemas, usage/cost, and error mapping belong in package output, diagnostics, or outbound audit metadata. Real egress must pass through a host-enforced outbound boundary or an equivalent fake/local executor. Default conformance uses fake executors/local mocks, not live API keys or external network. Manual live calls must be opt-in, use `secret_ref`, network allowlists, and redacted audit, and must not be CI/release gates.
 
@@ -66,4 +66,4 @@ Request normalization should stay in the package/SDK layer: generation params, h
 
 ## Boundaries
 
-Model integration is an ordinary capability-package capability, such as `official/model-provider-lab`, `model-connector-lab`, and `model-routing-lab`; it is not kernel ontology. Plurora does not add `platform.model.*`, `platform.prompt.*`, `platform.chat.*`, or `platform.embedding.*`, does not host user balances or a platform master API key, does not act as a relay, does not provide channel admin, and gives official provider packages no implicit network, secret, routing, or UI privilege.
+Model integration is an ordinary capability-package capability, such as `plurora/model-provider-lab`, `model-connector-lab`, and `model-routing-lab`; it is not kernel ontology. Plurora does not add `platform.model.*`, `platform.prompt.*`, `platform.chat.*`, or `platform.embedding.*`, does not host user balances or a platform master API key, does not act as a relay, does not provide channel admin, and gives first-party provider packages no implicit network, secret, routing, or UI privilege.

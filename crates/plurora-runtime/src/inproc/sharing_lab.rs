@@ -1,4 +1,4 @@
-//! Handler for `official/sharing-lab` capabilities.
+//! Handler for `plurora/sharing-lab` capabilities.
 //!
 //! Experience Beta 6 — Sharing / Distribution Alpha.
 //!
@@ -24,7 +24,7 @@ use serde_json::Value;
 
 use super::InprocInvocation;
 
-const PACKAGE_ID: &str = "official/sharing-lab";
+const PACKAGE_ID: &str = "plurora/sharing-lab";
 
 // ---------------------------------------------------------------------------
 // Bundle format versions
@@ -179,20 +179,20 @@ fn describe_sharing_contract(request: &InprocInvocation) -> anyhow::Result<Value
         "package_id": request.provider_package_id,
         "package_kind": "ordinary",
         "capabilities": [
-            {"id": "official/sharing-lab/describe_sharing_contract", "purpose": "describe the sharing lab package contract"},
-            {"id": "official/sharing-lab/export_composition_bundle", "purpose": "export a composition as a self-contained bundle with manifest, lockfile, and disclosure metadata"},
-            {"id": "official/sharing-lab/import_composition_bundle", "purpose": "import a composition bundle, validating shape, compatibility, and no-raw-secrets constraints"},
-            {"id": "official/sharing-lab/create_branch_session_bundle", "purpose": "create a branch/session bundle manifest for sharing a specific session state"},
-            {"id": "official/sharing-lab/create_package_set_lockfile", "purpose": "create a package-set lockfile pinning exact package versions and content addresses"},
-            {"id": "official/sharing-lab/compatibility_report", "purpose": "produce a compatibility/migration report between two bundle versions or package sets"},
-            {"id": "official/sharing-lab/ai_disclosure_bundle", "purpose": "produce AI disclosure metadata bundle for composition or session content"},
-            {"id": "official/sharing-lab/read_only_share_manifest", "purpose": "create a read-only shared session manifest proof — local/file-level, no remote service"},
-            {"id": "official/sharing-lab/async_fork_share_plan", "purpose": "create an async fork sharing plan — local proof for deferred/async session fork sharing"},
+            {"id": "plurora/sharing-lab/describe_sharing_contract", "purpose": "describe the sharing lab package contract"},
+            {"id": "plurora/sharing-lab/export_composition_bundle", "purpose": "export a composition as a self-contained bundle with manifest, lockfile, and disclosure metadata"},
+            {"id": "plurora/sharing-lab/import_composition_bundle", "purpose": "import a composition bundle, validating shape, compatibility, and no-raw-secrets constraints"},
+            {"id": "plurora/sharing-lab/create_branch_session_bundle", "purpose": "create a branch/session bundle manifest for sharing a specific session state"},
+            {"id": "plurora/sharing-lab/create_package_set_lockfile", "purpose": "create a package-set lockfile pinning exact package versions and content addresses"},
+            {"id": "plurora/sharing-lab/compatibility_report", "purpose": "produce a compatibility/migration report between two bundle versions or package sets"},
+            {"id": "plurora/sharing-lab/ai_disclosure_bundle", "purpose": "produce AI disclosure metadata bundle for composition or session content"},
+            {"id": "plurora/sharing-lab/read_only_share_manifest", "purpose": "create a read-only shared session manifest proof — local/file-level, no remote service"},
+            {"id": "plurora/sharing-lab/async_fork_share_plan", "purpose": "create an async fork sharing plan — local proof for deferred/async session fork sharing"},
         ],
         "surfaces": {
-            "forge_panel": "official/sharing-lab/forge-panel",
-            "assistant_action": "official/sharing-lab/assistant-action",
-            "home_card": "official/sharing-lab/home-card",
+            "forge_panel": "plurora/sharing-lab/forge-panel",
+            "assistant_action": "plurora/sharing-lab/assistant-action",
+            "home_card": "plurora/sharing-lab/home-card",
         },
         "sharing_contract_kinds": SHARING_CONTRACT_KINDS,
         "compat_status_kinds": COMPAT_STATUS_KINDS,
@@ -862,15 +862,15 @@ mod tests {
 
     #[test]
     fn try_handle_matches_package_id() {
-        let req = make_request("official/sharing-lab/describe_sharing_contract", json!({}));
+        let req = make_request("plurora/sharing-lab/describe_sharing_contract", json!({}));
         assert!(try_handle(&req).is_some());
     }
 
     #[test]
     fn try_handle_rejects_wrong_package() {
         let req = InprocInvocation {
-            capability_id: "official/sharing-lab/describe_sharing_contract".to_string(),
-            provider_package_id: "official/other".to_string(),
+            capability_id: "plurora/sharing-lab/describe_sharing_contract".to_string(),
+            provider_package_id: "plurora/other".to_string(),
             session_id: None,
             input: json!({}),
         };
@@ -879,7 +879,7 @@ mod tests {
 
     #[test]
     fn describe_contract_has_all_surfaces() {
-        let req = make_request("official/sharing-lab/describe_sharing_contract", json!({}));
+        let req = make_request("plurora/sharing-lab/describe_sharing_contract", json!({}));
         let result = try_handle(&req).unwrap().unwrap();
         let surfaces = result["surfaces"].as_object().unwrap();
         assert!(surfaces.contains_key("forge_panel"));
@@ -889,7 +889,7 @@ mod tests {
 
     #[test]
     fn describe_contract_lists_9_capabilities() {
-        let req = make_request("official/sharing-lab/describe_sharing_contract", json!({}));
+        let req = make_request("plurora/sharing-lab/describe_sharing_contract", json!({}));
         let result = try_handle(&req).unwrap().unwrap();
         assert_eq!(
             result["capabilities"]
@@ -903,7 +903,7 @@ mod tests {
 
     #[test]
     fn describe_contract_has_red_lines() {
-        let req = make_request("official/sharing-lab/describe_sharing_contract", json!({}));
+        let req = make_request("plurora/sharing-lab/describe_sharing_contract", json!({}));
         let result = try_handle(&req).unwrap().unwrap();
         assert_eq!(result["red_lines"]["no_marketplace"], json!(true));
         assert_eq!(result["red_lines"]["no_billing"], json!(true));
@@ -915,12 +915,12 @@ mod tests {
     #[test]
     fn export_bundle_produces_composition_bundle() {
         let req = make_request(
-            "official/sharing-lab/export_composition_bundle",
+            "plurora/sharing-lab/export_composition_bundle",
             json!({
                 "composition_id": "test-comp",
                 "packages": [
-                    {"package_id": "official/playable-seed", "version": "0.1.0"},
-                    {"package_id": "official/memory-lab", "version": "0.1.0"},
+                    {"package_id": "plurora/playable-seed", "version": "0.1.0"},
+                    {"package_id": "plurora/memory-lab", "version": "0.1.0"},
                 ]
             }),
         );
@@ -936,7 +936,7 @@ mod tests {
     #[test]
     fn export_bundle_blocks_raw_secret() {
         let req = make_request(
-            "official/sharing-lab/export_composition_bundle",
+            "plurora/sharing-lab/export_composition_bundle",
             json!({"composition_id": "test", "api_key": "RawSecretExample1234567890abcdefABCDEF123456"}),
         );
         let result = try_handle(&req).unwrap().unwrap();
@@ -947,7 +947,7 @@ mod tests {
     #[test]
     fn export_bundle_blocks_marketplace_fields() {
         let req = make_request(
-            "official/sharing-lab/export_composition_bundle",
+            "plurora/sharing-lab/export_composition_bundle",
             json!({"composition_id": "test", "marketplace_id": "mp-123"}),
         );
         let result = try_handle(&req).unwrap().unwrap();
@@ -957,12 +957,12 @@ mod tests {
     #[test]
     fn import_bundle_validates_shape() {
         let req = make_request(
-            "official/sharing-lab/import_composition_bundle",
+            "plurora/sharing-lab/import_composition_bundle",
             json!({
                 "bundle_id": "bundle:test:abc",
                 "format_version": "1",
-                "packages": [{"package_id": "official/playable-seed", "version": "0.1.0"}],
-                "missing_packages": [{"package_id": "official/missing-pkg", "version": "0.1.0"}],
+                "packages": [{"package_id": "plurora/playable-seed", "version": "0.1.0"}],
+                "missing_packages": [{"package_id": "plurora/missing-pkg", "version": "0.1.0"}],
             }),
         );
         let result = try_handle(&req).unwrap().unwrap();
@@ -977,7 +977,7 @@ mod tests {
     #[test]
     fn import_bundle_blocks_raw_secret() {
         let req = make_request(
-            "official/sharing-lab/import_composition_bundle",
+            "plurora/sharing-lab/import_composition_bundle",
             json!({"bundle_id": "test", "token": "RawSecretExample1234567890abcdefABCDEF123456"}),
         );
         let result = try_handle(&req).unwrap().unwrap();
@@ -987,7 +987,7 @@ mod tests {
     #[test]
     fn branch_session_bundle_produces_shape() {
         let req = make_request(
-            "official/sharing-lab/create_branch_session_bundle",
+            "plurora/sharing-lab/create_branch_session_bundle",
             json!({"session_id": "sess:1", "branch_ref": "branch:main", "sequence": 42}),
         );
         let result = try_handle(&req).unwrap().unwrap();
@@ -1000,11 +1000,11 @@ mod tests {
     #[test]
     fn package_set_lockfile_pins_versions() {
         let req = make_request(
-            "official/sharing-lab/create_package_set_lockfile",
+            "plurora/sharing-lab/create_package_set_lockfile",
             json!({
                 "packages": [
-                    {"package_id": "official/playable-seed", "version": "0.1.0"},
-                    {"package_id": "official/memory-lab", "version": "0.1.0"},
+                    {"package_id": "plurora/playable-seed", "version": "0.1.0"},
+                    {"package_id": "plurora/memory-lab", "version": "0.1.0"},
                 ]
             }),
         );
@@ -1021,16 +1021,16 @@ mod tests {
     #[test]
     fn compatibility_report_detects_incompatibility() {
         let req = make_request(
-            "official/sharing-lab/compatibility_report",
+            "plurora/sharing-lab/compatibility_report",
             json!({
                 "source_ref": "bundle:v1",
                 "target_ref": "bundle:v2",
                 "source_packages": [
-                    {"package_id": "official/playable-seed", "version": "0.1.0"},
-                    {"package_id": "official/old-pkg", "version": "0.1.0"},
+                    {"package_id": "plurora/playable-seed", "version": "0.1.0"},
+                    {"package_id": "plurora/old-pkg", "version": "0.1.0"},
                 ],
                 "target_packages": [
-                    {"package_id": "official/playable-seed", "version": "0.2.0"},
+                    {"package_id": "plurora/playable-seed", "version": "0.2.0"},
                 ],
             }),
         );
@@ -1044,7 +1044,7 @@ mod tests {
     #[test]
     fn ai_disclosure_bundle_produces_items() {
         let req = make_request(
-            "official/sharing-lab/ai_disclosure_bundle",
+            "plurora/sharing-lab/ai_disclosure_bundle",
             json!({
                 "content_refs": ["asset:1", "asset:2"],
                 "default_disclosure_kind": "ai_generated",
@@ -1060,7 +1060,7 @@ mod tests {
     #[test]
     fn read_only_share_manifest_is_local() {
         let req = make_request(
-            "official/sharing-lab/read_only_share_manifest",
+            "plurora/sharing-lab/read_only_share_manifest",
             json!({"session_ref": "sess:1", "sequence": 10}),
         );
         let result = try_handle(&req).unwrap().unwrap();
@@ -1073,7 +1073,7 @@ mod tests {
     #[test]
     fn async_fork_share_plan_is_local() {
         let req = make_request(
-            "official/sharing-lab/async_fork_share_plan",
+            "plurora/sharing-lab/async_fork_share_plan",
             json!({"source_session": "sess:1", "target_session": "sess:2", "fork_intent": "explore"}),
         );
         let result = try_handle(&req).unwrap().unwrap();
@@ -1111,7 +1111,7 @@ mod tests {
 
         for cap in &caps {
             let req = make_request(
-                &format!("official/sharing-lab/{}", cap),
+                &format!("plurora/sharing-lab/{}", cap),
                 json!({"test": "ns_check"}),
             );
             let result = try_handle(&req).unwrap().unwrap();

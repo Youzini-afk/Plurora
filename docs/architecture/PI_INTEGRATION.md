@@ -50,9 +50,9 @@ Agent 基础设施必须复用现有公开原语：
 
 - `sdk/typescript/agent-adapter` 把 Ygg capability 映射为 pi-style tool；
 - `sdk/typescript/agentic-forge` 提供包拥有的 run lifecycle、plan graph、working state 和 candidate helper；
-- `official/pi-agent-runtime-lab` 提供默认不联网的参考 agent 包；
-- `official/capability-tool-bridge-lab` 负责 capability discovery、permission preview、显式 provider 选择和受控调用；
-- `official/agentic-forge-lab` 提供 scratch branch、candidate、compare、promote 和 replay；
+- `plurora/pi-agent-runtime-lab` 提供默认不联网的参考 agent 包；
+- `plurora/capability-tool-bridge-lab` 负责 capability discovery、permission preview、显式 provider 选择和受控调用；
+- `plurora/agentic-forge-lab` 提供 scratch branch、candidate、compare、promote 和 replay；
 - 第三方 replacement fixture 检查这些官方实现没有隐式优先级。
 
 真实模型出站已经由独立的 model/inference 包和 Host outbound boundary 提供。Agent 包可以在 manifest 权限、capability binding 和用户/Host policy 允许时消费这些能力，但不能直接读取 raw API key、绕过 network declaration，或把 prompt/response 写入未脱敏审计。

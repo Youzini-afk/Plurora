@@ -2,7 +2,7 @@
 
 > [English](./PACKAGE_AUTHORING_WALKTHROUGH.en.md) · [中文](./PACKAGE_AUTHORING_WALKTHROUGH.md)
 
-This walkthrough creates a third-party package. It appears in Home, contributes Forge and assistant surfaces, passes local checks, and can be composed with other packages. It deliberately uses the same public manifest, capability, and surface path as official packages.
+This walkthrough creates a third-party package. It appears in Home, contributes Forge and assistant surfaces, passes local checks, and can be composed with other packages. It deliberately uses the same public manifest, capability, and surface path as first-party Packages.
 
 ## 1. Generate a package
 
@@ -52,7 +52,7 @@ Available templates are:
 - `streaming` — streaming capability with faux frame lifecycle (`StreamFrameClient`). Demonstrates `start`/`chunk`/`end` frames and `redaction_state`. No real model inference. Uses `sdk/typescript/secure-execution`.
 - `agent-runtime` — locally replayable agent-like subprocess package. Includes streaming `run` capability, `explain-run` trace summary, `draft-proposal` approval-gated proposal, `echo` capability, and `assistant_action` + `forge_panel` surfaces. Uses `StreamFrameClient` (`sdk/typescript/secure-execution`) and `createTraceEvent`/`createProposalDraft`/`blockRawSecrets` (`sdk/typescript/agent-adapter`). No real model inference, no network calls, no raw secrets.
 - `experience-runtime` — locally replayable experience-runtime subprocess package. Includes `describe-contract`, `create-checkpoint`, `inspect-checkpoint`, `draft-recovery`, `bind-agent-run`, and `echo` capabilities, plus all four experience surfaces. Uses the `sdk/typescript/experience-runtime` SDK. No real model inference, no network calls, no raw secrets.
-- `playable-board` — locally replayable playable board subprocess package. Includes `launch`, `project_state`, `render_payload`, `record_player_action`, `request_change`, `create_checkpoint`, and `echo` capabilities, plus all four experience surfaces. Closest to the `official/playable-creation-board` shape for third-party creators. No real model inference, no network calls, no raw secrets.
+- `playable-board` — locally replayable playable board subprocess package. Includes `launch`, `project_state`, `render_payload`, `record_player_action`, `request_change`, `create_checkpoint`, and `echo` capabilities, plus all four experience surfaces. Closest to the `plurora/playable-creation-board` shape for third-party creators. No real model inference, no network calls, no raw secrets.
 - `playable-experience` — locally replayable playable experience subprocess package. Includes all `playable-board` capabilities plus `inspect_checkpoint` and `draft_recovery` for full checkpoint/recovery lifecycle. All four experience surfaces. No real model inference, no network calls, no raw secrets.
 
 `--language typescript-experience` remains supported as a legacy shortcut for a full experience-shaped package.
@@ -88,7 +88,7 @@ cargo run -p plurora-cli -- package check examples/packages/thirdparty-playable-
 cargo run -p plurora-cli -- composition check examples/compositions/playable-seed-replacement/composition.yaml
 ```
 
-The package id is `thirdparty/playable-seed`, not `official/*`, and it exposes compatible Play/Forging/Assistant/Asset surfaces without official priority.
+The package id is `thirdparty/playable-seed`, not `plurora/*`, and it exposes compatible Play/Forging/Assistant/Asset surfaces without official priority.
 
 ## 4. Load the package in a host profile
 
@@ -114,14 +114,14 @@ Forge now includes lightweight authoring panels over public protocol data:
 - authoring diagnostics for packages, capabilities, surfaces, assets, projections, and entry surfaces;
 - copy-ready CLI command guidance for templates, package checks, fixture runs, reloads, and compositions.
 
-## 5. Compare with official packages
+## 5. Compare with first-party Packages
 
-Official packages under `packages/official/` are reference implementations, not privileged routes:
+First-party Packages under `packages/plurora/` are reference implementations, not privileged routes:
 
-- `official/composition-lab` explains launch plans and surface graphs.
-- `official/asset-lab` previews assets and drafts import plans.
-- `official/projection-lab` explains projection rebuilds and source events.
-- `official/playable-seed` proves a reference playable package.
+- `plurora/composition-lab` explains launch plans and surface graphs.
+- `plurora/asset-lab` previews assets and drafts import plans.
+- `plurora/projection-lab` explains projection rebuilds and source events.
+- `plurora/playable-seed` proves a reference playable package.
 
 A third-party package should be able to replace any of these when it exposes compatible surfaces and capabilities.
 
@@ -224,7 +224,7 @@ cargo run -p plurora-cli -- init-package /tmp/my-playable-board \
   --template playable-board
 ```
 
-This generates a package skeleton that mirrors the `official/playable-creation-board` shape:
+This generates a package skeleton that mirrors the `plurora/playable-creation-board` shape:
 
 - 4 experience surfaces: `experience_entry`, `play_renderer`, `forge_panel`, `assistant_action`
 - 7 capabilities: `launch`, `project_state`, `render_payload`, `record_player_action`, `request_change`, `create_checkpoint`, `echo`
@@ -268,7 +268,7 @@ cargo run -p plurora-cli -- composition check /tmp/my-board-composition/composit
 
 ### 8.4 Compare with the official reference
 
-The official `official/playable-creation-board` package has the same surfaces and capabilities. Your third-party package uses the same public manifest, capability, and surface path. It has no privilege and no special routing. When both are loaded, the kernel does not prefer the official package. If you want to replace it in a composition, declare your package as the primary provider and the official package as a `replacement_candidate`.
+The official `plurora/playable-creation-board` package has the same surfaces and capabilities. Your third-party package uses the same public manifest, capability, and surface path. It has no privilege and no special routing. When both are loaded, the kernel does not prefer the first-party Package. If you want to replace it in a composition, declare your package as the primary provider and the first-party Package as a `replacement_candidate`.
 
 ### 8.5 For a richer lifecycle: playable-experience template
 

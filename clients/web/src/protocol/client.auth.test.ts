@@ -206,7 +206,7 @@ globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
             ? { kind: "docker_runtime_lab_container_stopped", container_id: "container-1", docker_performed: true }
             : {
                 plan: {
-                  root_id: "official/test-project",
+                  root_id: "plurora/test-project",
                   packages: [],
                   permissions_summary: {
                     new_capabilities: [],
@@ -300,7 +300,7 @@ globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
   }
 
   if (body?.method === "shell.contribution.describe") {
-    return Response.json({ id: body.id, result: { package_id: "official/test", entry_kind: "in_process", package_state: "loaded", surface: { id: body.params.surface_id, slot: "experience_entry", kind: "module", source: "bundle.mjs" } } });
+    return Response.json({ id: body.id, result: { package_id: "plurora/test", entry_kind: "in_process", package_state: "loaded", surface: { id: body.params.surface_id, slot: "experience_entry", kind: "module", source: "bundle.mjs" } } });
   }
 
   if (body?.method === "host.surface.bundle.resolve") {
@@ -316,15 +316,15 @@ await new PluroraProtocolClient("http://host.test", "valid-token").resolveInstal
 
 const sessionOpenRequest = capturedRequests[0] as { method?: string; params?: Record<string, unknown> };
 assertEqual(sessionOpenRequest.method, "context.open");
-assertDeepEqual(sessionOpenRequest.params?.active_package_set, ["official/install-lab"]);
-assertDeepEqual(sessionOpenRequest.params?.labels, ["install", "official/install-lab"]);
+assertDeepEqual(sessionOpenRequest.params?.active_package_set, ["plurora/install-lab"]);
+assertDeepEqual(sessionOpenRequest.params?.labels, ["install", "plurora/install-lab"]);
 
 capturedRequests.length = 0;
 await new PluroraProtocolClient("http://host.test", "valid-token").uninstallProject("youzini-afk__YdlTavern__d2a47e5c");
 const uninstallInvoke = capturedRequests.find(
   (request) => (request as { method?: string }).method === "capability.invoke",
 ) as { params?: Record<string, unknown> };
-assertEqual(uninstallInvoke.params?.capability_id, "official/install-lab/uninstall");
+assertEqual(uninstallInvoke.params?.capability_id, "plurora/install-lab/uninstall");
 assertDeepEqual(uninstallInvoke.params?.input, {
   project_id: "youzini-afk__YdlTavern__d2a47e5c",
   profile: "default",
@@ -336,7 +336,7 @@ await new PluroraProtocolClient("http://host.test", "valid-token").checkProjectU
 const updateCheckInvoke = capturedRequests.find(
   (request) => (request as { method?: string }).method === "capability.invoke",
 ) as { params?: Record<string, unknown> };
-assertEqual(updateCheckInvoke.params?.capability_id, "official/install-lab/check_for_updates");
+assertEqual(updateCheckInvoke.params?.capability_id, "plurora/install-lab/check_for_updates");
 assertDeepEqual(updateCheckInvoke.params?.input, {
   project_id: "youzini-afk__YdlTavern__d2a47e5c",
   profile: "default",
@@ -347,7 +347,7 @@ await new PluroraProtocolClient("http://host.test", "valid-token").updateProject
 const updateInvoke = capturedRequests.find(
   (request) => (request as { method?: string }).method === "capability.invoke",
 ) as { params?: Record<string, unknown> };
-assertEqual(updateInvoke.params?.capability_id, "official/install-lab/update_project");
+assertEqual(updateInvoke.params?.capability_id, "plurora/install-lab/update_project");
 assertDeepEqual(updateInvoke.params?.input, {
   project_id: "youzini-afk__YdlTavern__d2a47e5c",
   profile: "default",
@@ -412,11 +412,11 @@ await protocolClient.stopDockerContainer({
 });
 const dockerSessionOpen = capturedRequests.filter((request) => (request as { method?: string }).method === "context.open") as Array<{ params?: Record<string, unknown> }>;
 const dockerInvokes = capturedRequests.filter((request) => (request as { method?: string }).method === "capability.invoke") as Array<{ params?: Record<string, unknown> }>;
-assertDeepEqual(dockerSessionOpen[0].params?.active_package_set, ["official/docker-runtime-lab"]);
-assertDeepEqual(dockerSessionOpen[0].params?.labels, ["deploy", "official/docker-runtime-lab"]);
-assertEqual(dockerInvokes[0].params?.provider_package_id, "official/docker-runtime-lab");
-assertEqual(dockerInvokes[0].params?.capability_id, "official/docker-runtime-lab/start_container");
-assertEqual(dockerInvokes[1].params?.capability_id, "official/docker-runtime-lab/stop_container");
+assertDeepEqual(dockerSessionOpen[0].params?.active_package_set, ["plurora/docker-runtime-lab"]);
+assertDeepEqual(dockerSessionOpen[0].params?.labels, ["deploy", "plurora/docker-runtime-lab"]);
+assertEqual(dockerInvokes[0].params?.provider_package_id, "plurora/docker-runtime-lab");
+assertEqual(dockerInvokes[0].params?.capability_id, "plurora/docker-runtime-lab/start_container");
+assertEqual(dockerInvokes[1].params?.capability_id, "plurora/docker-runtime-lab/stop_container");
 
 capturedFetches.length = 0;
 await protocolClient.deployProject({
@@ -539,8 +539,8 @@ await protocolClient.listProjects();
 await protocolClient.projections();
 await protocolClient.proposals();
 await protocolClient.surfaceContributions();
-await protocolClient.describeSurface("official/test.entry");
-const remoteBundle = await resolveSurfaceBundle(protocolClient, "official/test.entry");
+await protocolClient.describeSurface("plurora/test.entry");
+const remoteBundle = await resolveSurfaceBundle(protocolClient, "plurora/test.entry");
 assertEqual(remoteBundle.bundleUrl, "http://host.test/surface-bundles/test/bundle.mjs");
 assertDeepEqual(capturedRequests.map((request) => (request as { method?: string }).method), [
   "host.project.list",

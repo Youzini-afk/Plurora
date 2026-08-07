@@ -11,7 +11,7 @@ Plurora 目前有 SQLite-backed append-only event log，但平台契约不能绑
 3. Blob / asset store：大对象应通过 content address、hash、size、mime 和来源进入平台。blob content 不应塞进 event payload。
 4. Projection / index materialization：projection/index 是 event/assets 派生的 package-owned view。它可以计划 materialization、query preview 和 migration plan，但不暴露 table、SQL 或 query product。
 5. Retrieval / vector / multimodal providers：TDB、pgvector、OpenSearch、Redis Vector、本地 embedding index 和远端检索服务都是 provider slots。TDB 已有 opt-in Rust adapter proof，但检索仍是 package/provider 层能力，不替代 event log、audit、proposal lifecycle 或 branch lineage。
-6. Forge observability：Web shell 只通过公开协议调用 `official/storage-lab` 展示契约摘要，不读 SQLite、PostgreSQL、TDB、文件系统或 runtime internals。
+6. Forge observability：Web shell 只通过公开协议调用 `plurora/storage-lab` 展示契约摘要，不读 SQLite、PostgreSQL、TDB、文件系统或 runtime internals。
 
 ## 红线
 
@@ -23,9 +23,9 @@ Plurora 目前有 SQLite-backed append-only event log，但平台契约不能绑
 - TDB 是 future multimodal retrieval provider slot，不是 kernel database。
 - Retrieval/vector/multimodal search 不能替代 append-only events、audit、proposal lifecycle 或 branch/fork/replay。
 
-## `official/storage-lab`
+## `plurora/storage-lab`
 
-`official/storage-lab` 是普通 manifest-loaded package，用来证明 storage/data contract 可以通过能力包表达，而不是进入内核 database namespace。
+`plurora/storage-lab` 是普通 manifest-loaded package，用来证明 storage/data contract 可以通过能力包表达，而不是进入内核 database namespace。
 
 能力分组：
 
@@ -48,7 +48,7 @@ Plurora 目前有 SQLite-backed append-only event log，但平台契约不能绑
 
 ## Forge Storage Inspector
 
-`clients/web/src/storage/storage-inspector.ts` 通过公开协议调用 `official/storage-lab`，在 Forge 中展示：
+`clients/web/src/storage/storage-inspector.ts` 通过公开协议调用 `plurora/storage-lab`，在 Forge 中展示：
 
 - event spine 与 backend class 摘要
 - package-scoped state plan
@@ -66,7 +66,7 @@ Assistant drawer 也提供轻量 storage lane。它只展示 contract/readiness�
 ```bash
 cargo test --workspace
 cargo run -p plurora-cli -- conformance --tag storage
-cargo run -p plurora-cli -- package check packages/official/storage-lab/manifest.yaml
+cargo run -p plurora-cli -- package check packages/plurora/storage-lab/manifest.yaml
 ```
 
 ## 下一步

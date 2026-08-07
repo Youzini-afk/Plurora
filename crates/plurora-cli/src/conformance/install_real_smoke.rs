@@ -1,7 +1,7 @@
 //! Opt-in real GitHub smoke test for package-install git connectivity.
 //!
 //! Gated behind `PLURORA_GIT_INSTALL_REAL_TESTS=1` (default skipped). This case
-//! exercises the real `official/git-tools-lab` remote paths against a small
+//! exercises the real `plurora/git-tools-lab` remote paths against a small
 //! public GitHub repository without adding a default network dependency to the
 //! conformance suite.
 
@@ -14,8 +14,8 @@ use serde_json::{json, Value};
 use super::fixtures::runtime;
 use crate::commands::manifest;
 
-const GIT_MANIFEST: &str = "packages/official/git-tools-lab/manifest.yaml";
-const PACKAGE_ID: &str = "official/git-tools-lab";
+const GIT_MANIFEST: &str = "packages/plurora/git-tools-lab/manifest.yaml";
+const PACKAGE_ID: &str = "plurora/git-tools-lab";
 const REMOTE_URL: &str = "https://github.com/octocat/Hello-World";
 const REF_NAME: &str = "master";
 
@@ -32,7 +32,7 @@ pub(crate) async fn real_github_smoke() -> anyhow::Result<()> {
 
     let resolved = invoke(
         &runtime,
-        "official/git-tools-lab/resolve_ref",
+        "plurora/git-tools-lab/resolve_ref",
         json!({ "remote_url": REMOTE_URL, "ref": REF_NAME }),
     )
     .await?;
@@ -48,7 +48,7 @@ pub(crate) async fn real_github_smoke() -> anyhow::Result<()> {
 
     let refs = invoke(
         &runtime,
-        "official/git-tools-lab/fetch_refs",
+        "plurora/git-tools-lab/fetch_refs",
         json!({ "remote_url": REMOTE_URL }),
     )
     .await?;

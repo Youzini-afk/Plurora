@@ -169,9 +169,9 @@ pub(super) fn inproc_cases() -> Vec<ConformanceCase> {
     vec![
         // --- inproc ---
         c!(
-            "inproc.non_official_preview_rejected",
+            "inproc.non_first_party_preview_rejected",
             ["runtime"],
-            crate::conformance::inproc::non_official_preview_rejected
+            crate::conformance::inproc::non_first_party_preview_rejected
         ),
         c!(
             "inproc.unknown_capability_errors",

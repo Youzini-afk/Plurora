@@ -8,7 +8,7 @@
 
 1. 推理是普通能力，不是内核原语。没有 `platform.model.*`、`platform.prompt.*`、`platform.chat.*` 或 `platform.embedding.*`。
 2. 请求信封与传输无关。它不包含 URL、HTTP header、status code 或 OpenAI messages 字段。
-3. Cloud adapter 是一类 provider，不是平台模型抽象。`official/model-provider-lab` 是普通 cloud API adapter lab，不代表 Ygg 的模型世界观。
+3. Cloud adapter 是一类 provider，不是平台模型抽象。`plurora/model-provider-lab` 是普通 cloud API adapter lab，不代表 Ygg 的模型世界观。
 4. `local_process`、`in_memory`、`ipc`、`websocket` 与 `http` 平权。
 5. Secrets 用 `secret_ref`。Raw secret 在任何字段都不被接受。
 
@@ -80,7 +80,7 @@ import { createProviderCapabilityManifest } from "@plurora/inference-capability"
 
 // Cloud API provider
 const cloudManifest = createProviderCapabilityManifest({
-  provider_id: "official/model-provider-lab",
+  provider_id: "plurora/model-provider-lab",
   label: "Cloud API Model Provider",
   operation_kinds: ["generate", "embed"],
   transport_kinds: ["http"],
@@ -92,7 +92,7 @@ const cloudManifest = createProviderCapabilityManifest({
 
 // Local process provider
 const localManifest = createProviderCapabilityManifest({
-  provider_id: "official/inference-local-lab",
+  provider_id: "plurora/inference-local-lab",
   label: "Local Process Inference Provider",
   operation_kinds: ["generate"],
   transport_kinds: ["local_process", "in_memory"],

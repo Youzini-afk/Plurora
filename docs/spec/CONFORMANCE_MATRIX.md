@@ -95,7 +95,7 @@ Surface/static bundle 与 bridge 还覆盖以下稳定断言：
 | surface bundle freshness | `dist/` 参与 `tree_hash`，只改 bundle 会触发更新 | implemented |
 | store schema migration | store schema bump 会清掉旧 store，避免旧 hash 复用 | implemented |
 | orphan store GC | install/update/uninstall 后清理无 lockfile/profile 引用的 store | implemented |
-| project updates | `official/install-lab/check_for_updates` 与 `update_project` 支撑 CLI 与 Web 更新入口 | implemented |
+| project updates | `plurora/install-lab/check_for_updates` 与 `update_project` 支撑 CLI 与 Web 更新入口 | implemented |
 
 
 | 领域 | 用例 | 状态 |
@@ -172,36 +172,36 @@ Surface/static bundle 与 bridge 还覆盖以下稳定断言：
 | host | diagnostics 报告包/capability/hook | implemented |
 | host | profile 自动加载配置的包 | implemented |
 | surfaces | 包贡献的类型化 surface 描述符可以列出、描述和过滤 | implemented |
-| official packages | 基础包无特权加载和调用 | implemented |
-| official packages | composition-lab 以无特权方式暴露 launch-plan、surface-graph 与 compat-report capabilities，支持 v2 descriptor 诊断 | implemented |
-| official packages | asset-lab 以无特权方式 preview assets 并生成需要审批的 import plans | implemented |
-| official packages | projection-lab 以无特权方式生成 rebuild plans 并解释 source events | implemented |
-| official packages | playable-seed 暴露 reference entry/play/Forge/assistant surfaces 以及需要审批的 edits | implemented |
-| official packages | persona-lab 以无 kernel ontology 的方式 import 并 render persona profiles，且带 provenance | implemented |
-| official packages | knowledge-lab normalize collections、match entries，并返回 plan-only injection output | implemented |
-| official packages | context-lab 组装 generic blocks，包含 budget omissions 与 template rendering | implemented |
-| official packages | text-transform-lab preview deterministic text transforms，包含 trace 与 validation diagnostics | implemented |
-| official packages | model-connector-lab validate profiles、拒绝 raw secrets，并返回 no-network discovery plans | implemented |
-| official packages | model-provider-lab 作为 cloud API adapter lab 列出八家 cloud provider families、validate profiles 拒绝 raw secret、package-local normalize_request 覆盖八家 dialects/endpoints、explain errors（401/429/529）、output 含 network_performed:false/inference_performed:false、无 raw secret echo；它不是平台模型抽象 | implemented |
-| official packages | model-provider-lab cloud adapter invoke 全部八家 provider（OpenAI chat/responses、Anthropic messages、Gemini generateContent、OpenAI-compatible chat、OpenRouter chat/responses、DeepSeek chat、xAI chat/responses、Fireworks chat/responses；fake/local、outbound_request_shape 可审计、raw credential rejected、openai_compatible 缺 base_url 或 http base_url 拒绝、unsupported family diagnostic、executor_kind fake_local、live_call_supported false） | implemented |
-| official packages | model-provider-lab cloud adapter normalize_stream 八家 provider stream normalization（delta SSE、semantic SSE、typed chunk stream → StreamFrameEnvelope frames：start/chunk/progress/end/error/cancelled/timeout；terminal_frame_consistent；provider event 输入归一化；raw secret 不 echo；unsupported family empty frames + terminal_frame_consistent false） | implemented |
+| first-party Packages | 基础包无特权加载和调用 | implemented |
+| first-party Packages | composition-lab 以无特权方式暴露 launch-plan、surface-graph 与 compat-report capabilities，支持 v2 descriptor 诊断 | implemented |
+| first-party Packages | asset-lab 以无特权方式 preview assets 并生成需要审批的 import plans | implemented |
+| first-party Packages | projection-lab 以无特权方式生成 rebuild plans 并解释 source events | implemented |
+| first-party Packages | playable-seed 暴露 reference entry/play/Forge/assistant surfaces 以及需要审批的 edits | implemented |
+| first-party Packages | persona-lab 以无 kernel ontology 的方式 import 并 render persona profiles，且带 provenance | implemented |
+| first-party Packages | knowledge-lab normalize collections、match entries，并返回 plan-only injection output | implemented |
+| first-party Packages | context-lab 组装 generic blocks，包含 budget omissions 与 template rendering | implemented |
+| first-party Packages | text-transform-lab preview deterministic text transforms，包含 trace 与 validation diagnostics | implemented |
+| first-party Packages | model-connector-lab validate profiles、拒绝 raw secrets，并返回 no-network discovery plans | implemented |
+| first-party Packages | model-provider-lab 作为 cloud API adapter lab 列出八家 cloud provider families、validate profiles 拒绝 raw secret、package-local normalize_request 覆盖八家 dialects/endpoints、explain errors（401/429/529）、output 含 network_performed:false/inference_performed:false、无 raw secret echo；它不是平台模型抽象 | implemented |
+| first-party Packages | model-provider-lab cloud adapter invoke 全部八家 provider（OpenAI chat/responses、Anthropic messages、Gemini generateContent、OpenAI-compatible chat、OpenRouter chat/responses、DeepSeek chat、xAI chat/responses、Fireworks chat/responses；fake/local、outbound_request_shape 可审计、raw credential rejected、openai_compatible 缺 base_url 或 http base_url 拒绝、unsupported family diagnostic、executor_kind fake_local、live_call_supported false） | implemented |
+| first-party Packages | model-provider-lab cloud adapter normalize_stream 八家 provider stream normalization（delta SSE、semantic SSE、typed chunk stream → StreamFrameEnvelope frames：start/chunk/progress/end/error/cancelled/timeout；terminal_frame_consistent；provider event 输入归一化；raw secret 不 echo；unsupported family empty frames + terminal_frame_consistent false） | implemented |
 | outbound | model provider outbound shape fake executor（三 provider host/method/path/secret_ref shape 通过 outbound boundary、call_count=3、executor_kind Fake） | implemented |
-| official packages | model-routing-lab resolve deterministic route plans，包含 explicit fallbacks 与 normalized params | implemented |
-| official packages | pi-agent-runtime-lab 生成 no-inference/no-network run plans、approval-gated proposals、trace summaries，且 surfaces 可发现 | implemented |
-| official packages | capability-tool-bridge-lab 标记 ambiguous provider rejected、explicit third-party provider 可用、official 不优先、missing provider rejected、denied preview 报告 missing permission、raw secret unsafe_blocked | implemented |
-| official packages | inference-local-lab describe_capabilities 不需要 network/secret，transports include in_memory/local_process，operation_kinds include generate/classify/transform | implemented |
-| official packages | inference-local-lab invoke non-HTTP succeeds，无 URL/header/status/messages 字段，network_performed=false，transport_performed=in_memory_fake | implemented |
-| official packages | inference-local-lab invoke rejects http transport、HTTP-shaped 字段（url/header/status_code）、messages-shaped 字段（messages/system/user/assistant）、raw secret | implemented |
-| official packages | inference-local-lab stream emits deterministic start/chunk/progress/end frames，无 URL/header/status/provider_schema | implemented |
-| official packages | inference-local-lab explain_error 覆盖 local/resource 错误类（local_process_failed/local_resource_exhausted/local_model_not_loaded/local_inference_error/timeout/cancelled） | implemented |
-| official packages | inference-playtest-lab draft_proposal 产 proposal_draft，含 requires_user_approval=true、asset.put、source_inference provenance、无 raw secret、不是 chat message | implemented |
-| official packages | inference-playtest-lab inspect_proposal 返回 risk/operations/permissions/provenance summary，不 apply | implemented |
-| official packages | inference-playtest-lab 被拒绝的 proposal 不能 apply | implemented |
-| official packages | inference-playtest-lab approve/apply 成功，asset 被写入，branch_plan + fork 创建 branch，branch metadata 包含 proposal/source inference provenance | implemented |
-| official packages | inference-playtest-lab 输出不含 messages/prompt/chat/platform.model 等术语 | implemented |
+| first-party Packages | model-routing-lab resolve deterministic route plans，包含 explicit fallbacks 与 normalized params | implemented |
+| first-party Packages | pi-agent-runtime-lab 生成 no-inference/no-network run plans、approval-gated proposals、trace summaries，且 surfaces 可发现 | implemented |
+| first-party Packages | capability-tool-bridge-lab 标记 ambiguous provider rejected、explicit third-party provider 可用、official 不优先、missing provider rejected、denied preview 报告 missing permission、raw secret unsafe_blocked | implemented |
+| first-party Packages | inference-local-lab describe_capabilities 不需要 network/secret，transports include in_memory/local_process，operation_kinds include generate/classify/transform | implemented |
+| first-party Packages | inference-local-lab invoke non-HTTP succeeds，无 URL/header/status/messages 字段，network_performed=false，transport_performed=in_memory_fake | implemented |
+| first-party Packages | inference-local-lab invoke rejects http transport、HTTP-shaped 字段（url/header/status_code）、messages-shaped 字段（messages/system/user/assistant）、raw secret | implemented |
+| first-party Packages | inference-local-lab stream emits deterministic start/chunk/progress/end frames，无 URL/header/status/provider_schema | implemented |
+| first-party Packages | inference-local-lab explain_error 覆盖 local/resource 错误类（local_process_failed/local_resource_exhausted/local_model_not_loaded/local_inference_error/timeout/cancelled） | implemented |
+| first-party Packages | inference-playtest-lab draft_proposal 产 proposal_draft，含 requires_user_approval=true、asset.put、source_inference provenance、无 raw secret、不是 chat message | implemented |
+| first-party Packages | inference-playtest-lab inspect_proposal 返回 risk/operations/permissions/provenance summary，不 apply | implemented |
+| first-party Packages | inference-playtest-lab 被拒绝的 proposal 不能 apply | implemented |
+| first-party Packages | inference-playtest-lab approve/apply 成功，asset 被写入，branch_plan + fork 创建 branch，branch metadata 包含 proposal/source inference provenance | implemented |
+| first-party Packages | inference-playtest-lab 输出不含 messages/prompt/chat/platform.model 等术语 | implemented |
 | in-process packages | non-official `/preview` suffix 不会获得 official asset-lab fallback 行为 | implemented |
 | in-process packages | unknown registered in-process capability loud fail，而不是返回 generic fallback success | implemented |
-| official packages | assistant-lab 通过授权返回需要审批的 proposal | implemented |
+| first-party Packages | assistant-lab 通过授权返回需要审批的 proposal | implemented |
 | play-creation | 空白循环演练 assistant proposal、branch、asset、projection | implemented |
 | proposals | 已批准的 proposal 可以执行通用 asset/projection 操作 | implemented |
 | proposals | 被拒绝或未批准的 proposal 不能执行 | implemented |
@@ -211,7 +211,7 @@ Surface/static bundle 与 bridge 还覆盖以下稳定断言：
 | package authoring | 生成的 experience 包 surface 通过本地 conformance | implemented |
 | composition | 本地 composition 描述符验证包提供的 surface | implemented |
 | composition | composition 描述符 v2：required capabilities 通过、optional 缺失仅警告、required 缺失失败 | implemented |
-| official packages | composition-lab v2 诊断返回 surface/capability/permission/replacement 字段与 compat-report | implemented |
+| first-party Packages | composition-lab v2 诊断返回 surface/capability/permission/replacement 字段与 compat-report | implemented |
 | replacement | 第三方 playable-seed surface 通过 shell.contribution.list 可发现 | implemented |
 | replacement | 第三方 playable-seed 能力调用通过正常路由工作 | implemented |
 | replacement | 歧义的 official+thirdparty 等效能力拒绝路由，无官方优先 | implemented |
@@ -284,36 +284,36 @@ Surface/static bundle 与 bridge 还覆盖以下稳定断言：
 | stream | OpenRouter mid-stream error normalization：error object after HTTP 200 → error frame with mid_stream_error provider_event | implemented |
 | outbound | provider quirks sanitized fixtures：integrations/model-providers/fixtures/*.json 不含真实 key 或 provider-looking raw key，scan 无 findings | implemented |
 | outbound | static_headers OpenRouter safe：http-referer/x-title 在 allowlist 上，非 secret-bearing；Authorization/x-api-key 仍被阻止 | implemented |
-| official packages | experience-observability-lab describe_observability 返回 8 项能力、3 个 surface、output shapes，无 forbidden namespace | implemented |
-| official packages | experience-observability-lab summarize_session_health 从协议可见引用派生状态，不读 SQLite | implemented |
-| official packages | experience-observability-lab summarize_package_health 从协议可见引用返回 package health | implemented |
-| official packages | experience-observability-lab summarize_agent_run_health 从协议可见引用返回 agent run health | implemented |
-| official packages | experience-observability-lab trace_proposal_causality 返回因果链，每步含 content_address | implemented |
-| official packages | experience-observability-lab summarize_cost_latency 从 outbound audit 引用返回 cost/latency summary，无 raw secret | implemented |
-| official packages | experience-observability-lab list_failure_breadcrumbs 从协议可见 event 引用返回 failure breadcrumbs | implemented |
-| official packages | experience-observability-lab summarize_guardrails 从协议可见 audit 引用返回 guardrail/audit summary | implemented |
-| official packages | experience-observability-lab 任何输出不含 platform.observability.* / platform.experience.* namespace | implemented |
-| official packages | experience-observability-lab 所有能力输入阻断 raw secret | implemented |
-| official packages | memory-lab describe_memory_contract 返回 9 项能力、3 个 surface、output shapes，无 forbidden namespace | implemented |
-| official packages | memory-lab record_memory 产出 memory_record 含 content_address / branch_ref / knowledge_refs | implemented |
-| official packages | memory-lab retrieve_memory 确定性关键词匹配，branch-aware 过滤，无 embedding/network | implemented |
-| official packages | memory-lab trace_retrieval 产出确定性 retrieval trace | implemented |
-| official packages | memory-lab draft_memory_update 仅产出 proposal/update draft，不直接改持久状态，requires_user_approval=true | implemented |
-| official packages | memory-lab apply_memory_correction 产出 correction shape，proposal-gated | implemented |
-| official packages | memory-lab draft_forget_redaction 产出 redaction plan，不直接删除 | implemented |
-| official packages | memory-lab branch_memory_view 按 branch 过滤记忆记录 | implemented |
-| official packages | memory-lab 任何输出不含 platform.memory.* / platform.experience.* namespace | implemented |
-| official packages | memory-lab 所有能力输入阻断 raw secret | implemented |
-| official packages | sharing-lab describe_sharing_contract 返回 9 项能力、3 个 surface、output shapes、red lines，无 forbidden namespace | implemented |
-| official packages | sharing-lab export_composition_bundle 产出含 manifest/lockfile/disclosure 的自包含 bundle，no marketplace/billing fields | implemented |
-| official packages | sharing-lab import_composition_bundle 验证 bundle 形状/兼容性/no raw secrets，plan-only | implemented |
-| official packages | sharing-lab create_branch_session_bundle 产出 branch/session bundle manifest 含 content_address 和 AI disclosure | implemented |
-| official packages | sharing-lab create_package_set_lockfile 锁定包版本和 content_address | implemented |
-| official packages | sharing-lab compatibility_report 对比两个 bundle 版本，deterministic 比较，检测 incompatibilities | implemented |
-| official packages | sharing-lab ai_disclosure_bundle 产出 AI disclosure metadata，标记内容来源 | implemented |
-| official packages | sharing-lab read_only_share_manifest 只读共享 session manifest，local_file proof，no remote service | implemented |
-| official packages | sharing-lab async_fork_share_plan 异步 fork 分享计划，draft/plan-only/requires_user_approval | implemented |
-| official packages | sharing-lab 无 marketplace/billing/signing 字段，无 raw secrets，无 platform.sharing/marketplace/billing namespace | implemented |
+| first-party Packages | experience-observability-lab describe_observability 返回 8 项能力、3 个 surface、output shapes，无 forbidden namespace | implemented |
+| first-party Packages | experience-observability-lab summarize_session_health 从协议可见引用派生状态，不读 SQLite | implemented |
+| first-party Packages | experience-observability-lab summarize_package_health 从协议可见引用返回 package health | implemented |
+| first-party Packages | experience-observability-lab summarize_agent_run_health 从协议可见引用返回 agent run health | implemented |
+| first-party Packages | experience-observability-lab trace_proposal_causality 返回因果链，每步含 content_address | implemented |
+| first-party Packages | experience-observability-lab summarize_cost_latency 从 outbound audit 引用返回 cost/latency summary，无 raw secret | implemented |
+| first-party Packages | experience-observability-lab list_failure_breadcrumbs 从协议可见 event 引用返回 failure breadcrumbs | implemented |
+| first-party Packages | experience-observability-lab summarize_guardrails 从协议可见 audit 引用返回 guardrail/audit summary | implemented |
+| first-party Packages | experience-observability-lab 任何输出不含 platform.observability.* / platform.experience.* namespace | implemented |
+| first-party Packages | experience-observability-lab 所有能力输入阻断 raw secret | implemented |
+| first-party Packages | memory-lab describe_memory_contract 返回 9 项能力、3 个 surface、output shapes，无 forbidden namespace | implemented |
+| first-party Packages | memory-lab record_memory 产出 memory_record 含 content_address / branch_ref / knowledge_refs | implemented |
+| first-party Packages | memory-lab retrieve_memory 确定性关键词匹配，branch-aware 过滤，无 embedding/network | implemented |
+| first-party Packages | memory-lab trace_retrieval 产出确定性 retrieval trace | implemented |
+| first-party Packages | memory-lab draft_memory_update 仅产出 proposal/update draft，不直接改持久状态，requires_user_approval=true | implemented |
+| first-party Packages | memory-lab apply_memory_correction 产出 correction shape，proposal-gated | implemented |
+| first-party Packages | memory-lab draft_forget_redaction 产出 redaction plan，不直接删除 | implemented |
+| first-party Packages | memory-lab branch_memory_view 按 branch 过滤记忆记录 | implemented |
+| first-party Packages | memory-lab 任何输出不含 platform.memory.* / platform.experience.* namespace | implemented |
+| first-party Packages | memory-lab 所有能力输入阻断 raw secret | implemented |
+| first-party Packages | sharing-lab describe_sharing_contract 返回 9 项能力、3 个 surface、output shapes、red lines，无 forbidden namespace | implemented |
+| first-party Packages | sharing-lab export_composition_bundle 产出含 manifest/lockfile/disclosure 的自包含 bundle，no marketplace/billing fields | implemented |
+| first-party Packages | sharing-lab import_composition_bundle 验证 bundle 形状/兼容性/no raw secrets，plan-only | implemented |
+| first-party Packages | sharing-lab create_branch_session_bundle 产出 branch/session bundle manifest 含 content_address 和 AI disclosure | implemented |
+| first-party Packages | sharing-lab create_package_set_lockfile 锁定包版本和 content_address | implemented |
+| first-party Packages | sharing-lab compatibility_report 对比两个 bundle 版本，deterministic 比较，检测 incompatibilities | implemented |
+| first-party Packages | sharing-lab ai_disclosure_bundle 产出 AI disclosure metadata，标记内容来源 | implemented |
+| first-party Packages | sharing-lab read_only_share_manifest 只读共享 session manifest，local_file proof，no remote service | implemented |
+| first-party Packages | sharing-lab async_fork_share_plan 异步 fork 分享计划，draft/plan-only/requires_user_approval | implemented |
+| first-party Packages | sharing-lab 无 marketplace/billing/signing 字段，无 raw secrets，无 platform.sharing/marketplace/billing namespace | implemented |
 | storage backend | in-memory EventStore 满足 append/list/range/next_sequence 基础契约 | implemented |
 | storage backend | SQLite EventStore 满足 append/list/range/next_sequence 基础契约 | implemented |
 | storage backend | in-memory 与 SQLite kind-prefix 查询结果语义一致 | implemented |
@@ -394,7 +394,7 @@ Surface/static bundle 与 bridge 还覆盖以下稳定断言：
 | schema | capability input schema 拒绝无效输入 | implemented |
 | schema | capability 输出 schema 拒绝无效输出 | implemented in runtime path |
 | schema | 声明了 schema 时 event payload schema 拒绝无效 payload | implemented |
-| official equality | `official/...` 包没有特殊路由或权限 | implemented |
+| official equality | `plurora/...` 包没有特殊路由或权限 | implemented |
 | official equality | 内核在未加载任何官方包时启动且 conformance 通过 | implemented |
 
 ## CLI 目标输出
@@ -414,7 +414,7 @@ package.unload_removes_capabilities        PASS
 capability.invoke_rust_inproc              PASS
 capability.ambiguous_provider_denied       PASS
 capability.explicit_provider_selected      PASS
-official.no_privilege                      PASS
+first_party.no_privilege                      PASS
 schema.capability_input_rejects_invalid    PASS
 schema.event_payload_rejects_invalid       PASS
 protocol.structured_permission_error       PASS
@@ -440,8 +440,8 @@ package.restart_subprocess                 PASS
 host.diagnostics                           PASS
 host.profile_autoload                      PASS
 surface.contribution_list                  PASS
-official.foundation_packages               PASS
-official.assistant_lab_proposal            PASS
+first_party.foundation_packages               PASS
+first_party.assistant_lab_proposal            PASS
 play_creation.blank_loop                   PASS
 proposal.lifecycle_apply                   PASS
 proposal.reject_and_apply_denied           PASS
@@ -465,37 +465,37 @@ package.generated_typescript_subprocess_conformance PASS
 package.generated_experience_template      PASS
 composition.check_descriptor               PASS
 composition.check_descriptor_v2             PASS
-official.composition_lab                   PASS
-official.composition_lab_diagnostics       PASS
-official.asset_lab                         PASS
-official.projection_lab                    PASS
-official.playable_seed                     PASS
-official.persona_lab                       PASS
-official.knowledge_lab                     PASS
-official.context_lab                       PASS
-official.text_transform_lab                PASS
-official.model_connector_lab               PASS
-official.model_provider_lab                 PASS
-official.model_provider_lab_invoke_core       PASS
-official.model_provider_lab_normalize_stream  PASS
-official.model_routing_lab                 PASS
-official.pi_agent_runtime_lab              PASS
-official.capability_tool_bridge_lab         PASS
-official.inference_local_lab_describe_capabilities PASS
-official.inference_local_lab_invoke          PASS
-official.inference_local_lab_invoke_rejects_http PASS
-official.inference_local_lab_stream          PASS
-official.inference_local_lab_explain_error   PASS
-official.inference_playtest_lab_draft         PASS
-official.inference_playtest_lab_inspect       PASS
-official.inference_playtest_lab_reject_apply_denied PASS
-official.inference_playtest_lab_apply_and_branch PASS
+first_party.composition_lab                   PASS
+first_party.composition_lab_diagnostics       PASS
+first_party.asset_lab                         PASS
+first_party.projection_lab                    PASS
+first_party.playable_seed                     PASS
+first_party.persona_lab                       PASS
+first_party.knowledge_lab                     PASS
+first_party.context_lab                       PASS
+first_party.text_transform_lab                PASS
+first_party.model_connector_lab               PASS
+first_party.model_provider_lab                 PASS
+first_party.model_provider_lab_invoke_core       PASS
+first_party.model_provider_lab_normalize_stream  PASS
+first_party.model_routing_lab                 PASS
+first_party.pi_agent_runtime_lab              PASS
+first_party.capability_tool_bridge_lab         PASS
+first_party.inference_local_lab_describe_capabilities PASS
+first_party.inference_local_lab_invoke          PASS
+first_party.inference_local_lab_invoke_rejects_http PASS
+first_party.inference_local_lab_stream          PASS
+first_party.inference_local_lab_explain_error   PASS
+first_party.inference_playtest_lab_draft         PASS
+first_party.inference_playtest_lab_inspect       PASS
+first_party.inference_playtest_lab_reject_apply_denied PASS
+first_party.inference_playtest_lab_apply_and_branch PASS
 plurora.inference_playtest_lab_no_chat_platform_terms PASS
-inproc.non_official_preview_rejected       PASS
+inproc.non_first_party_preview_rejected       PASS
 inproc.unknown_capability_errors           PASS
 replacement.thirdparty_seed_surfaces         PASS
 replacement.thirdparty_seed_invocation       PASS
-replacement.ambiguous_no_official_priority   PASS
+replacement.ambiguous_no_publisher_priority   PASS
 replacement.composition_thirdparty           PASS
 replacement.thirdparty_agent_runtime_surfaces   PASS
 replacement.thirdparty_agent_runtime_invocation PASS
@@ -504,14 +504,14 @@ substrate.permission_grant_rehydrate         PASS
 secret.ref_validation                        PASS
 secret.raw_blocked_in_proposal               PASS
 secret.raw_blocked_in_asset_metadata         PASS
-official.no_secret_bypass                    PASS
+first_party.no_secret_bypass                    PASS
 secret.env_resolver_allowed                  PASS
 secret.env_resolver_denied                   PASS
 secret.env_resolver_missing_no_leak          PASS
 network.no_permission_denied                  PASS
 network.allowlisted_host_method_allowed       PASS
 network.host_method_mismatch_denied           PASS
-network.official_no_network_bypass            PASS
+network.first_party_no_network_bypass            PASS
 network.audit_no_raw_secrets                  PASS
 network.policy_pure_function                  PASS
 outbound.no_permission_executor_not_called      PASS
@@ -579,8 +579,8 @@ agentic_forge.record_observation_untrusted_large_output_redaction PASS
 agentic_forge.tool_risk_injection_exfiltration_outbound    PASS
 agentic_forge.replay_tool_plan_mismatch_flagged             PASS
 agentic_forge.plan_toolchain_requires_explicit_provider_nested_delegation_blocked PASS
-agentic_forge.thirdparty_replacement_shape_no_official_priority PASS
-agentic_forge.no_official_priority_ordinary_package PASS
+agentic_forge.thirdparty_replacement_shape_no_publisher_priority PASS
+agentic_forge.no_publisher_priority_ordinary_package PASS
 agentic_forge.hostile_injection_secret_blocked_cross_package PASS
 agentic_forge.budget_deadline_contract_cancellation_consistent PASS
 agentic_forge.cross_package_replay_mismatch_flagged PASS
@@ -591,7 +591,7 @@ playable_board.request_change_no_chat PASS
 playable_board.bind_agent_run_scoped PASS
 playable_board.candidate_proposal_no_target_mutation PASS
 playable_board.reject_approve_fork_proof PASS
-playable_board.thirdparty_no_official_priority PASS
+playable_board.thirdparty_no_publisher_priority PASS
 playable_board.no_forbidden_namespace PASS
 playable_board.no_raw_secrets PASS
 playable_board.content_address_stable PASS
@@ -600,9 +600,9 @@ playable_board.provenance_graph PASS
 playable_board.state_diff_preview PASS
 playable_board.describe_asset_provenance PASS
 playable_board.beta2_no_raw_secrets PASS
-official.asset_lab_content_address PASS
-official.asset_lab_provenance_graph PASS
-official.projection_lab_state_snapshot PASS
+first_party.asset_lab_content_address PASS
+first_party.asset_lab_provenance_graph PASS
+first_party.projection_lab_state_snapshot PASS
 experience_observability.contract_shape PASS
 experience_observability.session_health PASS
 experience_observability.package_health PASS

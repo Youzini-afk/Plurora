@@ -65,7 +65,7 @@ pub async fn run(args: UpdateArgs) -> Result<()> {
     if args.check_only {
         let checked = invoke_install_lab(
             &runtime,
-            "official/install-lab/check_for_updates",
+            "plurora/install-lab/check_for_updates",
             input.clone(),
         )
         .await?
@@ -90,7 +90,7 @@ pub async fn run(args: UpdateArgs) -> Result<()> {
     }
 
     input["force"] = json!(args.force);
-    let output = invoke_install_lab(&runtime, "official/install-lab/update_project", input)
+    let output = invoke_install_lab(&runtime, "plurora/install-lab/update_project", input)
         .await?
         .output;
     print_update_project_result(&output);

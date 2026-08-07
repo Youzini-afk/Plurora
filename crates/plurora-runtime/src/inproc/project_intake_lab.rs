@@ -1,4 +1,4 @@
-//! Handler for `official/project-intake-lab` capabilities.
+//! Handler for `plurora/project-intake-lab` capabilities.
 //!
 //! External Project Operating Plane Alpha Phase E1 + E5 — Project Intake Lab.
 //!
@@ -29,7 +29,7 @@ use serde_json::Value;
 use super::safety;
 use super::InprocInvocation;
 
-const PACKAGE_ID: &str = "official/project-intake-lab";
+const PACKAGE_ID: &str = "plurora/project-intake-lab";
 
 // ---------------------------------------------------------------------------
 // Source kinds
@@ -160,22 +160,22 @@ fn describe_intake_contract(request: &InprocInvocation) -> anyhow::Result<Value>
         "package_id": request.provider_package_id,
         "package_kind": "ordinary",
         "capabilities": [
-            {"id": "official/project-intake-lab/describe_intake_contract", "purpose": "describe the project intake lab contract"},
-            {"id": "official/project-intake-lab/inspect_external_project_ref", "purpose": "classify an external project source ref without clone/install/run"},
-            {"id": "official/project-intake-lab/detect_project_stack_from_metadata", "purpose": "detect project stack from metadata files without filesystem access"},
-            {"id": "official/project-intake-lab/draft_workspace_plan", "purpose": "draft a plan-only workspace plan, no direct workspace creation"},
-            {"id": "official/project-intake-lab/draft_security_risk_summary", "purpose": "draft security risk summary from metadata, no filesystem scan"},
-            {"id": "official/project-intake-lab/list_candidate_entrypoints", "purpose": "list candidate entrypoints with risk annotations, no execution"},
-            {"id": "official/project-intake-lab/draft_adapter_plan", "purpose": "draft plan-only adapter plan, no direct adapter creation"},
-            {"id": "official/project-intake-lab/generate_adapter_manifest_preview", "purpose": "generate adapter package manifest preview without file write"},
-            {"id": "official/project-intake-lab/generate_subprocess_wrapper_preview", "purpose": "generate subprocess wrapper code preview without file write or execution"},
-            {"id": "official/project-intake-lab/generate_adapter_fixture_preview", "purpose": "generate adapter package fixture input/output sample, redacted"},
-            {"id": "official/project-intake-lab/check_adapter_readiness", "purpose": "produce readiness checklist for adapter package"},
+            {"id": "plurora/project-intake-lab/describe_intake_contract", "purpose": "describe the project intake lab contract"},
+            {"id": "plurora/project-intake-lab/inspect_external_project_ref", "purpose": "classify an external project source ref without clone/install/run"},
+            {"id": "plurora/project-intake-lab/detect_project_stack_from_metadata", "purpose": "detect project stack from metadata files without filesystem access"},
+            {"id": "plurora/project-intake-lab/draft_workspace_plan", "purpose": "draft a plan-only workspace plan, no direct workspace creation"},
+            {"id": "plurora/project-intake-lab/draft_security_risk_summary", "purpose": "draft security risk summary from metadata, no filesystem scan"},
+            {"id": "plurora/project-intake-lab/list_candidate_entrypoints", "purpose": "list candidate entrypoints with risk annotations, no execution"},
+            {"id": "plurora/project-intake-lab/draft_adapter_plan", "purpose": "draft plan-only adapter plan, no direct adapter creation"},
+            {"id": "plurora/project-intake-lab/generate_adapter_manifest_preview", "purpose": "generate adapter package manifest preview without file write"},
+            {"id": "plurora/project-intake-lab/generate_subprocess_wrapper_preview", "purpose": "generate subprocess wrapper code preview without file write or execution"},
+            {"id": "plurora/project-intake-lab/generate_adapter_fixture_preview", "purpose": "generate adapter package fixture input/output sample, redacted"},
+            {"id": "plurora/project-intake-lab/check_adapter_readiness", "purpose": "produce readiness checklist for adapter package"},
         ],
         "surfaces": {
-            "forge_panel": "official/project-intake-lab/forge-panel",
-            "assistant_action": "official/project-intake-lab/assistant-action",
-            "home_card": "official/project-intake-lab/home-card",
+            "forge_panel": "plurora/project-intake-lab/forge-panel",
+            "assistant_action": "plurora/project-intake-lab/assistant-action",
+            "home_card": "plurora/project-intake-lab/home-card",
         },
         "source_kinds": SOURCE_KINDS,
         "stack_kinds": STACK_KINDS,
@@ -807,8 +807,8 @@ fn contains_forbidden_namespace(value: &Value) -> bool {
 // ---------------------------------------------------------------------------
 
 fn is_unsafe_adapter_package_id(id: &str) -> bool {
-    // Must not be official/ — prevents impersonation of official packages
-    if id.starts_with("official/") {
+    // Must not be plurora/ — prevents impersonation of first-party Packages
+    if id.starts_with("plurora/") {
         return true;
     }
     // Must not contain path traversal
@@ -884,7 +884,7 @@ fn generate_adapter_manifest_preview(request: &InprocInvocation) -> anyhow::Resu
         return Ok(serde_json::json!({
             "kind": "project_intake_rejected",
             "redaction_state": "unsafe_blocked",
-            "reason": "adapter_package_id must not be official/ and must not contain path traversal or unsafe characters",
+            "reason": "adapter_package_id must not be plurora/ and must not contain path traversal or unsafe characters",
             "inference_performed": false,
             "network_performed": false,
             "execution_performed": false,
@@ -1024,7 +1024,7 @@ fn generate_subprocess_wrapper_preview(request: &InprocInvocation) -> anyhow::Re
         return Ok(serde_json::json!({
             "kind": "project_intake_rejected",
             "redaction_state": "unsafe_blocked",
-            "reason": "adapter_package_id must not be official/ and must not contain path traversal or unsafe characters",
+            "reason": "adapter_package_id must not be plurora/ and must not contain path traversal or unsafe characters",
             "inference_performed": false,
             "network_performed": false,
             "execution_performed": false,
@@ -1150,7 +1150,7 @@ fn generate_adapter_fixture_preview(request: &InprocInvocation) -> anyhow::Resul
         return Ok(serde_json::json!({
             "kind": "project_intake_rejected",
             "redaction_state": "unsafe_blocked",
-            "reason": "adapter_package_id must not be official/ and must not contain path traversal or unsafe characters",
+            "reason": "adapter_package_id must not be plurora/ and must not contain path traversal or unsafe characters",
             "inference_performed": false,
             "network_performed": false,
             "execution_performed": false,
@@ -1266,7 +1266,7 @@ fn check_adapter_readiness(request: &InprocInvocation) -> anyhow::Result<Value> 
     checklist.push(serde_json::json!({
         "item": "capability_namespace_ok",
         "status": capability_namespace_ok,
-        "detail": if capability_namespace_ok { "adapter package id is not official/ and capability belongs to adapter namespace" } else { "adapter_package_id must not be official/ and must not contain path traversal; capability must belong to adapter namespace" }
+        "detail": if capability_namespace_ok { "adapter package id is not plurora/ and capability belongs to adapter namespace" } else { "adapter_package_id must not be plurora/ and must not contain path traversal; capability must belong to adapter namespace" }
     }));
 
     // surface coverage
@@ -1396,7 +1396,7 @@ mod tests {
     #[test]
     fn try_handle_matches_package_id() {
         let req = make_request(
-            "official/project-intake-lab/describe_intake_contract",
+            "plurora/project-intake-lab/describe_intake_contract",
             json!({}),
         );
         assert!(try_handle(&req).is_some());
@@ -1405,8 +1405,8 @@ mod tests {
     #[test]
     fn try_handle_rejects_wrong_package() {
         let req = InprocInvocation {
-            capability_id: "official/project-intake-lab/describe_intake_contract".to_string(),
-            provider_package_id: "official/other".to_string(),
+            capability_id: "plurora/project-intake-lab/describe_intake_contract".to_string(),
+            provider_package_id: "plurora/other".to_string(),
             session_id: None,
             input: json!({}),
         };
@@ -1416,7 +1416,7 @@ mod tests {
     #[test]
     fn describe_contract_has_all_surfaces() {
         let req = make_request(
-            "official/project-intake-lab/describe_intake_contract",
+            "plurora/project-intake-lab/describe_intake_contract",
             json!({}),
         );
         let result = try_handle(&req).unwrap().unwrap();
@@ -1429,7 +1429,7 @@ mod tests {
     #[test]
     fn describe_contract_lists_11_capabilities() {
         let req = make_request(
-            "official/project-intake-lab/describe_intake_contract",
+            "plurora/project-intake-lab/describe_intake_contract",
             json!({}),
         );
         let result = try_handle(&req).unwrap().unwrap();
@@ -1446,7 +1446,7 @@ mod tests {
     #[test]
     fn inspect_classifies_git() {
         let req = make_request(
-            "official/project-intake-lab/inspect_external_project_ref",
+            "plurora/project-intake-lab/inspect_external_project_ref",
             json!({"source_ref": "https://github.com/example/project.git"}),
         );
         let result = try_handle(&req).unwrap().unwrap();
@@ -1456,7 +1456,7 @@ mod tests {
     #[test]
     fn inspect_classifies_npm() {
         let req = make_request(
-            "official/project-intake-lab/inspect_external_project_ref",
+            "plurora/project-intake-lab/inspect_external_project_ref",
             json!({"source_ref": "npm:lodash"}),
         );
         let result = try_handle(&req).unwrap().unwrap();
@@ -1466,7 +1466,7 @@ mod tests {
     #[test]
     fn inspect_classifies_local() {
         let req = make_request(
-            "official/project-intake-lab/inspect_external_project_ref",
+            "plurora/project-intake-lab/inspect_external_project_ref",
             json!({"source_ref": "./my-project"}),
         );
         let result = try_handle(&req).unwrap().unwrap();
@@ -1477,7 +1477,7 @@ mod tests {
     #[test]
     fn inspect_rejects_unsafe_path_traversal() {
         let req = make_request(
-            "official/project-intake-lab/inspect_external_project_ref",
+            "plurora/project-intake-lab/inspect_external_project_ref",
             json!({"source_ref": "../../etc/passwd"}),
         );
         let result = try_handle(&req).unwrap().unwrap();
@@ -1487,7 +1487,7 @@ mod tests {
     #[test]
     fn inspect_rejects_home_path() {
         let req = make_request(
-            "official/project-intake-lab/inspect_external_project_ref",
+            "plurora/project-intake-lab/inspect_external_project_ref",
             json!({"source_ref": "~/secret-project"}),
         );
         let result = try_handle(&req).unwrap().unwrap();
@@ -1497,7 +1497,7 @@ mod tests {
     #[test]
     fn inspect_rejects_absolute_sensitive_path() {
         let req = make_request(
-            "official/project-intake-lab/inspect_external_project_ref",
+            "plurora/project-intake-lab/inspect_external_project_ref",
             json!({"source_ref": "/etc/shadow"}),
         );
         let result = try_handle(&req).unwrap().unwrap();
@@ -1507,7 +1507,7 @@ mod tests {
     #[test]
     fn detect_stack_node() {
         let req = make_request(
-            "official/project-intake-lab/detect_project_stack_from_metadata",
+            "plurora/project-intake-lab/detect_project_stack_from_metadata",
             json!({"metadata": {"package_json": {"name": "test", "scripts": {"start": "node index.js"}}}}),
         );
         let result = try_handle(&req).unwrap().unwrap();
@@ -1520,7 +1520,7 @@ mod tests {
     #[test]
     fn detect_stack_node_with_lifecycle_scripts() {
         let req = make_request(
-            "official/project-intake-lab/detect_project_stack_from_metadata",
+            "plurora/project-intake-lab/detect_project_stack_from_metadata",
             json!({"metadata": {"package_json": {"name": "test", "scripts": {"preinstall": "echo hi", "postinstall": "echo bye", "start": "node index.js"}}}}),
         );
         let result = try_handle(&req).unwrap().unwrap();
@@ -1536,7 +1536,7 @@ mod tests {
     #[test]
     fn detect_stack_rust() {
         let req = make_request(
-            "official/project-intake-lab/detect_project_stack_from_metadata",
+            "plurora/project-intake-lab/detect_project_stack_from_metadata",
             json!({"metadata": {"cargo_toml": {"name": "test"}}}),
         );
         let result = try_handle(&req).unwrap().unwrap();
@@ -1546,7 +1546,7 @@ mod tests {
     #[test]
     fn detect_stack_python() {
         let req = make_request(
-            "official/project-intake-lab/detect_project_stack_from_metadata",
+            "plurora/project-intake-lab/detect_project_stack_from_metadata",
             json!({"metadata": {"pyproject": {"name": "test"}}}),
         );
         let result = try_handle(&req).unwrap().unwrap();
@@ -1556,7 +1556,7 @@ mod tests {
     #[test]
     fn detect_stack_unknown() {
         let req = make_request(
-            "official/project-intake-lab/detect_project_stack_from_metadata",
+            "plurora/project-intake-lab/detect_project_stack_from_metadata",
             json!({"metadata": {}}),
         );
         let result = try_handle(&req).unwrap().unwrap();
@@ -1566,7 +1566,7 @@ mod tests {
     #[test]
     fn workspace_plan_is_plan_only() {
         let req = make_request(
-            "official/project-intake-lab/draft_workspace_plan",
+            "plurora/project-intake-lab/draft_workspace_plan",
             json!({"source_ref": "https://github.com/example/project.git", "source_kind": "git"}),
         );
         let result = try_handle(&req).unwrap().unwrap();
@@ -1578,7 +1578,7 @@ mod tests {
     #[test]
     fn workspace_plan_rejects_unsafe_local_path() {
         let req = make_request(
-            "official/project-intake-lab/draft_workspace_plan",
+            "plurora/project-intake-lab/draft_workspace_plan",
             json!({"source_ref": "~/secret-project", "source_kind": "local"}),
         );
         let result = try_handle(&req).unwrap().unwrap();
@@ -1589,7 +1589,7 @@ mod tests {
     #[test]
     fn adapter_plan_is_plan_only() {
         let req = make_request(
-            "official/project-intake-lab/draft_adapter_plan",
+            "plurora/project-intake-lab/draft_adapter_plan",
             json!({"source_ref": "./my-project", "source_kind": "local"}),
         );
         let result = try_handle(&req).unwrap().unwrap();
@@ -1601,7 +1601,7 @@ mod tests {
     #[test]
     fn raw_secret_blocked() {
         let req = make_request(
-            "official/project-intake-lab/inspect_external_project_ref",
+            "plurora/project-intake-lab/inspect_external_project_ref",
             json!({"source_ref": "test", "api_key": "RawSecretExample1234567890abcdefABCDEF123456"}),
         );
         let result = try_handle(&req).unwrap().unwrap();
@@ -1612,7 +1612,7 @@ mod tests {
     #[test]
     fn no_forbidden_namespace_in_contract() {
         let req = make_request(
-            "official/project-intake-lab/describe_intake_contract",
+            "plurora/project-intake-lab/describe_intake_contract",
             json!({}),
         );
         let result = try_handle(&req).unwrap().unwrap();
@@ -1632,7 +1632,7 @@ mod tests {
     #[test]
     fn candidate_entrypoints_require_approval() {
         let req = make_request(
-            "official/project-intake-lab/list_candidate_entrypoints",
+            "plurora/project-intake-lab/list_candidate_entrypoints",
             json!({"metadata": {"package_json": {"name": "test", "main": "index.js", "scripts": {"start": "node index.js"}}}}),
         );
         let result = try_handle(&req).unwrap().unwrap();
@@ -1665,7 +1665,7 @@ mod tests {
             "check_adapter_readiness",
         ];
         for cap in &caps {
-            let req = make_request(&format!("official/project-intake-lab/{}", cap), json!({}));
+            let req = make_request(&format!("plurora/project-intake-lab/{}", cap), json!({}));
             let result = try_handle(&req).unwrap().unwrap();
             assert_eq!(
                 result["execution_performed"],
@@ -1733,7 +1733,7 @@ mod tests {
     #[test]
     fn generate_adapter_manifest_preview_basic() {
         let req = make_request(
-            "official/project-intake-lab/generate_adapter_manifest_preview",
+            "plurora/project-intake-lab/generate_adapter_manifest_preview",
             json!({
                 "source_ref": "./my-project",
                 "source_kind": "local",
@@ -1752,12 +1752,12 @@ mod tests {
     }
 
     #[test]
-    fn adapter_manifest_rejects_official_id() {
+    fn adapter_manifest_rejects_first_party_id() {
         let req = make_request(
-            "official/project-intake-lab/generate_adapter_manifest_preview",
+            "plurora/project-intake-lab/generate_adapter_manifest_preview",
             json!({
                 "source_ref": "./test",
-                "adapter_package_id": "official/fake-adapter",
+                "adapter_package_id": "plurora/fake-adapter",
                 "capability_name": "invoke"
             }),
         );
@@ -1769,7 +1769,7 @@ mod tests {
     #[test]
     fn adapter_manifest_rejects_path_traversal_id() {
         let req = make_request(
-            "official/project-intake-lab/generate_adapter_manifest_preview",
+            "plurora/project-intake-lab/generate_adapter_manifest_preview",
             json!({
                 "source_ref": "./test",
                 "adapter_package_id": "thirdparty/../evil",
@@ -1783,7 +1783,7 @@ mod tests {
     #[test]
     fn adapter_manifest_rejects_unsafe_chars_id() {
         let req = make_request(
-            "official/project-intake-lab/generate_adapter_manifest_preview",
+            "plurora/project-intake-lab/generate_adapter_manifest_preview",
             json!({
                 "source_ref": "./test",
                 "adapter_package_id": "thirdparty/evil;rm-rf",
@@ -1797,7 +1797,7 @@ mod tests {
     #[test]
     fn adapter_manifest_rejects_capability_namespace_mismatch() {
         let req = make_request(
-            "official/project-intake-lab/generate_adapter_manifest_preview",
+            "plurora/project-intake-lab/generate_adapter_manifest_preview",
             json!({
                 "source_ref": "./test",
                 "adapter_package_id": "thirdparty/my-adapter",
@@ -1811,7 +1811,7 @@ mod tests {
     #[test]
     fn subprocess_wrapper_preview_no_execution() {
         let req = make_request(
-            "official/project-intake-lab/generate_subprocess_wrapper_preview",
+            "plurora/project-intake-lab/generate_subprocess_wrapper_preview",
             json!({
                 "source_ref": "./my-project",
                 "source_kind": "local",
@@ -1838,7 +1838,7 @@ mod tests {
     #[test]
     fn subprocess_wrapper_python_preview() {
         let req = make_request(
-            "official/project-intake-lab/generate_subprocess_wrapper_preview",
+            "plurora/project-intake-lab/generate_subprocess_wrapper_preview",
             json!({
                 "source_ref": "./my-project",
                 "source_kind": "local",
@@ -1853,12 +1853,12 @@ mod tests {
     }
 
     #[test]
-    fn subprocess_wrapper_rejects_official_id() {
+    fn subprocess_wrapper_rejects_first_party_id() {
         let req = make_request(
-            "official/project-intake-lab/generate_subprocess_wrapper_preview",
+            "plurora/project-intake-lab/generate_subprocess_wrapper_preview",
             json!({
                 "source_ref": "./test",
-                "adapter_package_id": "official/evil",
+                "adapter_package_id": "plurora/evil",
                 "capability_name": "invoke"
             }),
         );
@@ -1869,7 +1869,7 @@ mod tests {
     #[test]
     fn fixture_preview_redacted() {
         let req = make_request(
-            "official/project-intake-lab/generate_adapter_fixture_preview",
+            "plurora/project-intake-lab/generate_adapter_fixture_preview",
             json!({
                 "adapter_package_id": "thirdparty/my-adapter",
                 "capability_name": "invoke"
@@ -1890,11 +1890,11 @@ mod tests {
     }
 
     #[test]
-    fn fixture_preview_rejects_official_id() {
+    fn fixture_preview_rejects_first_party_id() {
         let req = make_request(
-            "official/project-intake-lab/generate_adapter_fixture_preview",
+            "plurora/project-intake-lab/generate_adapter_fixture_preview",
             json!({
-                "adapter_package_id": "official/evil",
+                "adapter_package_id": "plurora/evil",
                 "capability_name": "invoke"
             }),
         );
@@ -1905,7 +1905,7 @@ mod tests {
     #[test]
     fn check_adapter_readiness_ok() {
         let req = make_request(
-            "official/project-intake-lab/check_adapter_readiness",
+            "plurora/project-intake-lab/check_adapter_readiness",
             json!({
                 "adapter_package_id": "thirdparty/my-adapter",
                 "capability_name": "invoke",
@@ -1927,11 +1927,11 @@ mod tests {
     }
 
     #[test]
-    fn check_adapter_readiness_rejects_official_id() {
+    fn check_adapter_readiness_rejects_first_party_id() {
         let req = make_request(
-            "official/project-intake-lab/check_adapter_readiness",
+            "plurora/project-intake-lab/check_adapter_readiness",
             json!({
-                "adapter_package_id": "official/evil",
+                "adapter_package_id": "plurora/evil",
                 "capability_name": "invoke"
             }),
         );
@@ -1944,7 +1944,7 @@ mod tests {
     #[test]
     fn check_adapter_readiness_rejects_raw_secret() {
         let req = make_request(
-            "official/project-intake-lab/check_adapter_readiness",
+            "plurora/project-intake-lab/check_adapter_readiness",
             json!({
                 "adapter_package_id": "thirdparty/my-adapter",
                 "capability_name": "invoke",
@@ -1958,7 +1958,7 @@ mod tests {
     #[test]
     fn adapter_manifest_no_forbidden_namespace() {
         let req = make_request(
-            "official/project-intake-lab/generate_adapter_manifest_preview",
+            "plurora/project-intake-lab/generate_adapter_manifest_preview",
             json!({
                 "source_ref": "./test",
                 "adapter_package_id": "thirdparty/my-adapter",
@@ -1977,7 +1977,7 @@ mod tests {
     #[test]
     fn wrapper_no_forbidden_namespace() {
         let req = make_request(
-            "official/project-intake-lab/generate_subprocess_wrapper_preview",
+            "plurora/project-intake-lab/generate_subprocess_wrapper_preview",
             json!({
                 "source_ref": "./test",
                 "adapter_package_id": "thirdparty/my-adapter",
@@ -1994,7 +1994,7 @@ mod tests {
     #[test]
     fn fixture_no_forbidden_namespace() {
         let req = make_request(
-            "official/project-intake-lab/generate_adapter_fixture_preview",
+            "plurora/project-intake-lab/generate_adapter_fixture_preview",
             json!({
                 "adapter_package_id": "thirdparty/my-adapter",
                 "capability_name": "invoke"
@@ -2010,7 +2010,7 @@ mod tests {
     #[test]
     fn readiness_no_forbidden_namespace() {
         let req = make_request(
-            "official/project-intake-lab/check_adapter_readiness",
+            "plurora/project-intake-lab/check_adapter_readiness",
             json!({
                 "adapter_package_id": "thirdparty/my-adapter",
                 "capability_name": "invoke"

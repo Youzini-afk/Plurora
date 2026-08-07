@@ -1,0 +1,71 @@
+schema_version: 1
+id: plurora/projection-lab
+version: 0.1.0
+display_name: Plurora Projection Lab
+description: Generic projection inspection and rebuild planning helpers for event-derived state.
+license: AGPL-3.0-only
+entry:
+  kind: rust_inproc
+  crate_ref: plurora-foundation
+  symbol: register
+  abi_version: 1
+provides:
+  - id: plurora/projection-lab/describe
+    version: 0.1.0
+    input_schema: {}
+    output_schema: {}
+    streaming: false
+    side_effects: []
+  - id: plurora/projection-lab/diff
+    version: 0.1.0
+    input_schema: {}
+    output_schema: {}
+    streaming: false
+    side_effects: []
+  - id: plurora/projection-lab/rebuild_plan
+    version: 0.1.0
+    input_schema: {}
+    output_schema: {}
+    streaming: false
+    side_effects: []
+  - id: plurora/projection-lab/explain_source_events
+    version: 0.1.0
+    input_schema: {}
+    output_schema: {}
+    streaming: false
+    side_effects: []
+  - id: plurora/projection-lab/state_snapshot
+    version: 0.1.0
+    input_schema: {}
+    output_schema: {}
+    streaming: false
+    side_effects: []
+consumes: []
+contributes:
+  schemas: []
+  hooks: []
+  extension_points: []
+  surfaces:
+    - id: plurora/projection-lab/home-card
+      slot: home_card
+      title: Projection Lab
+      description: Inspect event-derived projection definitions, snapshots, diffs, and rebuild plans.
+      capability_id: plurora/projection-lab/describe
+    - id: plurora/projection-lab/forge-panel
+      slot: forge_panel
+      title: Projection Inspector
+      description: Generic Forge panel for projection snapshots and source event explanations.
+      capability_id: plurora/projection-lab/describe
+    - id: plurora/projection-lab/assistant-action
+      slot: assistant_action
+      title: Explain Projection Rebuild
+      description: Draft a rebuild plan and source-event explanation before user-approved mutation.
+      capability_id: plurora/projection-lab/rebuild_plan
+      approval_policy: user_approval
+permissions:
+  capabilities:
+    invoke: []
+sandbox_policy:
+  cpu_quota_ms_per_invoke: 5000
+  memory_mb: 128
+  wall_clock_ms: 30000

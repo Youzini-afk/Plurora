@@ -9,30 +9,30 @@
     "description": "A reference composition demonstrating the playable-creation-board experience with agentic-forge and memory support.",
     "packages": {
       "required": [
-        "official/playable-creation-board",
-        "official/agentic-forge-lab",
-        "official/blank-experience"
+        "plurora/playable-creation-board",
+        "plurora/agentic-forge-lab",
+        "plurora/blank-experience"
       ],
       "optional": [
-        "official/memory-lab",
-        "official/experience-observability-lab",
-        "official/experience-runtime-lab"
+        "plurora/memory-lab",
+        "plurora/experience-observability-lab",
+        "plurora/experience-runtime-lab"
       ]
     },
     "required_capabilities": [
-      "official/playable-creation-board/launch",
-      "official/playable-creation-board/record_player_action"
+      "plurora/playable-creation-board/launch",
+      "plurora/playable-creation-board/record_player_action"
     ],
-    "entry_surface_id": "official/playable-creation-board/experience-entry",
+    "entry_surface_id": "plurora/playable-creation-board/experience-entry",
     "replacement_candidates": [
       {
-        "for": "official/agentic-forge-lab",
+        "for": "plurora/agentic-forge-lab",
         "candidate": "thirdparty/agentic-forge"
       }
     ],
     "compatibility_notes": [
-      "official/memory-lab is optional; board runs without it but loses memory cross-references",
-      "official/experience-observability-lab adds observability panels to Forge"
+      "plurora/memory-lab is optional; board runs without it but loses memory cross-references",
+      "plurora/experience-observability-lab adds observability panels to Forge"
     ]
   },
   "package_set_lockfile": {
@@ -40,32 +40,32 @@
     "format_version": "1",
     "packages": [
       {
-        "package_id": "official/playable-creation-board",
+        "package_id": "plurora/playable-creation-board",
         "version": "0.1.0",
         "content_address": "sha256:ea9c2de79d9c6a4fd71c9d7b8898f5b66ba4897446710ecfe7721a720a9f8bb4"
       },
       {
-        "package_id": "official/agentic-forge-lab",
+        "package_id": "plurora/agentic-forge-lab",
         "version": "0.1.0",
         "content_address": "sha256:e762e4366de6e4551570608345030f8b2b00b4f9011156b2cdf7a785f2600866"
       },
       {
-        "package_id": "official/blank-experience",
+        "package_id": "plurora/blank-experience",
         "version": "0.1.0",
         "content_address": "sha256:b5474e65ac4934d01a063f0b32ec5b7d4476a88e04b7a46785e29ba93a036dea"
       },
       {
-        "package_id": "official/memory-lab",
+        "package_id": "plurora/memory-lab",
         "version": "0.1.0",
         "content_address": "sha256:5d39096943b63602b8d0e6cc68a8a72d8c894f566f7513eede80b859a5894892"
       },
       {
-        "package_id": "official/experience-observability-lab",
+        "package_id": "plurora/experience-observability-lab",
         "version": "0.1.0",
         "content_address": "sha256:098a1f4bf3d92b3e25ec7138790fe298d97f5e64ffa18242b655f897c8c75b4a"
       },
       {
-        "package_id": "official/experience-runtime-lab",
+        "package_id": "plurora/experience-runtime-lab",
         "version": "0.1.0",
         "content_address": "sha256:6c57a188bd5edce11d6d06e4862523c9fd365e4cb5bcc94b2c63bf015c5c3169"
       }
@@ -84,17 +84,17 @@
     "disclosure_id": "ai-disclosure:bundle:playable-creation-board-composition",
     "items": [
       {
-        "content_ref": "official/playable-creation-board",
+        "content_ref": "plurora/playable-creation-board",
         "disclosure_kind": "ai_assisted",
         "description": "Playable creation board package — AI-assisted design and human-authored game logic"
       },
       {
-        "content_ref": "official/agentic-forge-lab",
+        "content_ref": "plurora/agentic-forge-lab",
         "disclosure_kind": "ai_generated",
         "description": "Agentic forge lab — deterministic AI agent run lifecycle contract"
       },
       {
-        "content_ref": "official/memory-lab",
+        "content_ref": "plurora/memory-lab",
         "disclosure_kind": "ai_assisted",
         "description": "Memory lab — AI-assisted memory record and retrieval design"
       },

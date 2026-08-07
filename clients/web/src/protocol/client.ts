@@ -200,8 +200,8 @@ export interface ProjectUpdateResult {
   store_gc?: unknown;
 }
 
-const INSTALL_LAB_PROVIDER = "official/install-lab";
-const DOCKER_RUNTIME_LAB_PROVIDER = "official/docker-runtime-lab";
+const INSTALL_LAB_PROVIDER = "plurora/install-lab";
+const DOCKER_RUNTIME_LAB_PROVIDER = "plurora/docker-runtime-lab";
 const INSTALL_LAB_CAPABILITIES = {
   resolvePlan: `${INSTALL_LAB_PROVIDER}/resolve_plan`,
   detectKind: `${INSTALL_LAB_PROVIDER}/detect_kind`,
@@ -1193,7 +1193,7 @@ export class PluroraProtocolClient {
   }
 
   private async invokeInstallLab<TOutput>(capabilityId: string, input: unknown): Promise<TOutput> {
-    const session = await this.openSession(["install", "official/install-lab"], {
+    const session = await this.openSession(["install", "plurora/install-lab"], {
       source: "clients/web",
       capability_id: capabilityId,
     }, [INSTALL_LAB_PROVIDER]);
@@ -1202,7 +1202,7 @@ export class PluroraProtocolClient {
   }
 
   private async invokeDockerRuntimeLab<TOutput>(capabilityId: string, input: unknown): Promise<TOutput> {
-    const session = await this.openSession(["deploy", "official/docker-runtime-lab"], {
+    const session = await this.openSession(["deploy", "plurora/docker-runtime-lab"], {
       source: "clients/web",
       capability_id: capabilityId,
     }, [DOCKER_RUNTIME_LAB_PROVIDER]);
@@ -1478,7 +1478,7 @@ export class PluroraProtocolClient {
   }
 
   /* ────────────────────────────────────────────────────────────────
-     Secret store — wraps `official/secret-store-lab` capabilities.
+     Secret store — wraps `plurora/secret-store-lab` capabilities.
      The host injects raw values via secret_ref; the UI never reads
      raw secret values.
      ──────────────────────────────────────────────────────────────── */
@@ -1492,24 +1492,24 @@ export class PluroraProtocolClient {
       exists: boolean;
       secret_count: number;
       key_source: string;
-    }>("official/secret-store-lab/health", {})).output;
+    }>("plurora/secret-store-lab/health", {})).output;
   }
 
   async listSecrets(projectId?: string): Promise<string[]> {
     if (projectId) {
-      const result = (await this.invokeCapability<{ names: string[] }>("official/secret-store-lab/list_project_secrets", {
+      const result = (await this.invokeCapability<{ names: string[] }>("plurora/secret-store-lab/list_project_secrets", {
         project_id: projectId,
       })).output;
       return result.names ?? [];
     }
-    const result = (await this.invokeCapability<{ names: string[] }>("official/secret-store-lab/list_secrets", {})).output;
+    const result = (await this.invokeCapability<{ names: string[] }>("plurora/secret-store-lab/list_secrets", {})).output;
     return result.names ?? [];
   }
 
   async putSecret(name: string, value: string, projectId?: string): Promise<{ created: boolean }> {
     const capability = projectId
-      ? "official/secret-store-lab/put_project_secret"
-      : "official/secret-store-lab/put_secret";
+      ? "plurora/secret-store-lab/put_project_secret"
+      : "plurora/secret-store-lab/put_secret";
     const params = projectId ? { project_id: projectId, name, value } : { name, value };
     const result = (await this.invokeCapability<{ created: boolean }>(capability, params)).output;
     return { created: result.created };
@@ -1517,8 +1517,8 @@ export class PluroraProtocolClient {
 
   async deleteSecret(name: string, projectId?: string): Promise<{ removed: boolean }> {
     const capability = projectId
-      ? "official/secret-store-lab/delete_project_secret"
-      : "official/secret-store-lab/delete_secret";
+      ? "plurora/secret-store-lab/delete_project_secret"
+      : "plurora/secret-store-lab/delete_secret";
     const params = projectId ? { project_id: projectId, name } : { name };
     const result = (await this.invokeCapability<{ removed: boolean }>(capability, params)).output;
     return { removed: result.removed };

@@ -141,7 +141,7 @@ Before moving an upper-layer need downward, ask:
 
 1. Is it an opinion of this product, or shared meaning needed by multiple independent products?
 2. Does it belong in a competitive protocol, a Host machine operation, or a mechanism that truly cannot move above the substrate?
-3. Would moving it downward reduce lock-in, or freeze the current official implementation into platform law?
+3. Would moving it downward reduce lock-in, or freeze the current first-party implementation into platform law?
 4. Are versioning, migration, unknown-data preservation, and old-client compatibility defined?
 
 The default answer is not “everything becomes a package.” It stays in the highest layer that owns its meaning and lifecycle.
@@ -192,7 +192,7 @@ crates/plurora-service   HTTP / RPC / SSE and Host service boundary
 crates/plurora-cli       CLI, Host, scaffolding, contract, conformance tooling
 clients/web          official React Web shell / PWA
 clients/desktop      Tauri wrapper + managed Host sidecar
-packages/official    first-party components and experiments via manifests
+packages/plurora    first-party components and experiments via manifests
 sdk/                 generated contract SDKs and domain SDKs
 profiles/            distribution / Host component and policy compositions
 examples/            examples, fixtures, and third-party integration samples

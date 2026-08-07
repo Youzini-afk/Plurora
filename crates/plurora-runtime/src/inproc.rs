@@ -226,16 +226,16 @@ impl InprocPackageCatalog {
             Arc::new(BindingsInprocPackage::default()),
         );
         entries.insert(
-            entry_key("official-foundation", "register"),
-            Arc::new(OfficialFoundationPackage),
+            entry_key("plurora-foundation", "register"),
+            Arc::new(FirstPartyFoundationPackage),
         );
         entries.insert(
-            entry_key("official-install-lab", "official_install_lab"),
-            Arc::new(OfficialFoundationPackage),
+            entry_key("plurora-install-lab", "plurora_install_lab"),
+            Arc::new(FirstPartyFoundationPackage),
         );
         entries.insert(
-            entry_key("official-secret-store-lab", "official_secret_store_lab"),
-            Arc::new(OfficialFoundationPackage),
+            entry_key("plurora-secret-store-lab", "plurora_secret_store_lab"),
+            Arc::new(FirstPartyFoundationPackage),
         );
         entries.insert(
             entry_key("example-thirdparty-agent-runtime", "register"),
@@ -302,54 +302,54 @@ impl InprocPackage for HookInprocPackage {
     }
 }
 
-/// Dispatch an official package invocation using provider-package indexed dispatch.
+/// Dispatch an first-party Package invocation using provider-package indexed dispatch.
 ///
-/// Each `official/*` package is dispatched directly based on `provider_package_id`,
+/// Each `plurora/*` package is dispatched directly based on `provider_package_id`,
 /// falling through to `common::try_handle` when the specific handler returns `None`
-/// or when the package_id is an unknown official package.
-/// Non-official packages are never served by `common::try_handle`.
-async fn dispatch_official(mut request: InprocInvocation) -> anyhow::Result<Value> {
+/// or when the package_id is an unknown first-party Package.
+/// Third-party Packages are never served by `common::try_handle`.
+async fn dispatch_first_party(mut request: InprocInvocation) -> anyhow::Result<Value> {
     // Try the package-specific handler first, then fall through to common
     // namespace-scoped handlers if the specific handler doesn't match.
-    if request.provider_package_id == "official/install-lab" {
+    if request.provider_package_id == "plurora/install-lab" {
         if let Some(result) = install_lab::try_handle(&mut request).await {
             return result;
         }
     }
 
     let specific_result = match request.provider_package_id.as_str() {
-        "official/persona-lab" => persona_lab::try_handle(&request),
-        "official/knowledge-lab" => knowledge_lab::try_handle(&request),
-        "official/context-lab" => context_lab::try_handle(&request),
-        "official/docker-runtime-lab" => docker_runtime_lab::try_handle(&request),
-        "official/text-transform-lab" => text_transform_lab::try_handle(&request),
-        "official/model-connector-lab" => model_connector_lab::try_handle(&request),
-        "official/model-provider-lab" => model_provider_lab::try_handle(&request),
-        "official/model-routing-lab" => model_routing_lab::try_handle(&request),
-        "official/pi-agent-runtime-lab" => pi_agent_runtime_lab::try_handle(&request),
-        "official/agentic-forge-lab" => agentic_forge_lab::try_handle(&request),
+        "plurora/persona-lab" => persona_lab::try_handle(&request),
+        "plurora/knowledge-lab" => knowledge_lab::try_handle(&request),
+        "plurora/context-lab" => context_lab::try_handle(&request),
+        "plurora/docker-runtime-lab" => docker_runtime_lab::try_handle(&request),
+        "plurora/text-transform-lab" => text_transform_lab::try_handle(&request),
+        "plurora/model-connector-lab" => model_connector_lab::try_handle(&request),
+        "plurora/model-provider-lab" => model_provider_lab::try_handle(&request),
+        "plurora/model-routing-lab" => model_routing_lab::try_handle(&request),
+        "plurora/pi-agent-runtime-lab" => pi_agent_runtime_lab::try_handle(&request),
+        "plurora/agentic-forge-lab" => agentic_forge_lab::try_handle(&request),
         // projection-lab /diff must be tried before the generic /diff
-        "official/projection-lab" => projection_lab::try_handle(&request),
+        "plurora/projection-lab" => projection_lab::try_handle(&request),
         // playable-seed handlers checked before generic capability suffixes
-        "official/playable-seed" => playable_seed::try_handle(&request),
+        "plurora/playable-seed" => playable_seed::try_handle(&request),
         // capability-tool-bridge-lab handlers checked before generic capability suffixes
-        "official/capability-tool-bridge-lab" => capability_tool_bridge_lab::try_handle(&request),
-        "official/inference-local-lab" => inference_local_lab::try_handle(&request),
-        "official/inference-playtest-lab" => inference_playtest_lab::try_handle(&request),
-        "official/experience-runtime-lab" => experience_runtime_lab::try_handle(&request),
-        "official/playable-creation-board" => playable_creation_board::try_handle(&request),
-        "official/memory-lab" => memory_lab::try_handle(&request),
-        "official/experience-observability-lab" => {
+        "plurora/capability-tool-bridge-lab" => capability_tool_bridge_lab::try_handle(&request),
+        "plurora/inference-local-lab" => inference_local_lab::try_handle(&request),
+        "plurora/inference-playtest-lab" => inference_playtest_lab::try_handle(&request),
+        "plurora/experience-runtime-lab" => experience_runtime_lab::try_handle(&request),
+        "plurora/playable-creation-board" => playable_creation_board::try_handle(&request),
+        "plurora/memory-lab" => memory_lab::try_handle(&request),
+        "plurora/experience-observability-lab" => {
             experience_observability_lab::try_handle(&request)
         }
-        "official/sharing-lab" => sharing_lab::try_handle(&request),
-        "official/storage-lab" => storage_lab::try_handle(&request),
-        "official/tdb-retrieval-lab" => tdb_retrieval_lab::try_handle(&request),
-        "official/project-intake-lab" => project_intake_lab::try_handle(&request),
-        "official/workspace-lab" => workspace_lab::try_handle(&request),
-        "official/git-tools-lab" => git_tools_lab::try_handle(&request),
-        "official/integrity-lab" => integrity_lab::try_handle(&request),
-        "official/secret-store-lab" => secret_store_lab::try_handle(&request),
+        "plurora/sharing-lab" => sharing_lab::try_handle(&request),
+        "plurora/storage-lab" => storage_lab::try_handle(&request),
+        "plurora/tdb-retrieval-lab" => tdb_retrieval_lab::try_handle(&request),
+        "plurora/project-intake-lab" => project_intake_lab::try_handle(&request),
+        "plurora/workspace-lab" => workspace_lab::try_handle(&request),
+        "plurora/git-tools-lab" => git_tools_lab::try_handle(&request),
+        "plurora/integrity-lab" => integrity_lab::try_handle(&request),
+        "plurora/secret-store-lab" => secret_store_lab::try_handle(&request),
         _ => None,
     };
 
@@ -357,8 +357,8 @@ async fn dispatch_official(mut request: InprocInvocation) -> anyhow::Result<Valu
         return result;
     }
 
-    // Fall through to common namespace-scoped handlers for any official package.
-    // Non-official packages are rejected by common::try_handle (it checks the prefix).
+    // Fall through to common namespace-scoped handlers for any first-party Package.
+    // Third-party Packages are rejected by common::try_handle (it checks the prefix).
     if let Some(result) = common::try_handle(&mut request) {
         return result;
     }
@@ -367,12 +367,12 @@ async fn dispatch_official(mut request: InprocInvocation) -> anyhow::Result<Valu
     common::unhandled_capability(&request)
 }
 
-struct OfficialFoundationPackage;
+struct FirstPartyFoundationPackage;
 
 #[async_trait]
-impl InprocPackage for OfficialFoundationPackage {
+impl InprocPackage for FirstPartyFoundationPackage {
     async fn invoke(&self, request: InprocInvocation) -> anyhow::Result<Value> {
-        dispatch_official(request).await
+        dispatch_first_party(request).await
     }
 }
 

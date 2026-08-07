@@ -2,7 +2,7 @@ schema_version: 1
 id: thirdparty/playable-seed
 version: 0.1.0
 display_name: Community Playable Seed
-description: "Third-party playable package proving official seed is replaceable: launch, render, Forge inspection, assistant proposals, and asset editing without platform privilege or official namespace."
+description: "Third-party playable package proving Plurora seed is replaceable: launch, render, Forge inspection, assistant proposals, and asset editing without platform privilege or Plurora publisher namespace."
 entry:
   kind: rust_inproc
   crate_ref: example-echo-rust-inproc
@@ -54,7 +54,7 @@ contributes:
     - id: thirdparty/playable-seed/entry
       slot: experience_entry
       title: Community Seed
-      description: Launch a community-maintained playable seed that is fully interchangeable with the official seed.
+      description: Launch a community-maintained playable seed that is fully interchangeable with the Plurora seed.
       capability_id: thirdparty/playable-seed/launch
       activation:
         launch_capability_id: thirdparty/playable-seed/launch

@@ -250,7 +250,7 @@ pub(crate) async fn creator_loop_experience_surface_warnings() -> anyhow::Result
 /// experience packages (experience_entry surface present).
 pub(crate) async fn creator_loop_missing_checkpoint_warning() -> anyhow::Result<()> {
     // Load the playable-creation-board which has checkpoint capability
-    let manifest_path = PathBuf::from("packages/official/playable-creation-board/manifest.yaml");
+    let manifest_path = PathBuf::from("packages/plurora/playable-creation-board/manifest.yaml");
     let manifest = manifest::read_manifest(manifest_path.clone()).await?;
     // Verify it has create_checkpoint — this package should NOT warn
     let has_checkpoint = manifest
@@ -428,13 +428,13 @@ compatibility_notes:
 /// Case 8: Walkthrough reference — playable-creation-board package check
 /// output is verifiable and contains expected diagnostic fields.
 pub(crate) async fn creator_loop_walkthrough_reference() -> anyhow::Result<()> {
-    let manifest_path = PathBuf::from("packages/official/playable-creation-board/manifest.yaml");
+    let manifest_path = PathBuf::from("packages/plurora/playable-creation-board/manifest.yaml");
     let manifest = manifest::read_manifest(manifest_path.clone()).await?;
 
     // Verify key playable-creation-board properties for walkthrough
     anyhow::ensure!(
-        manifest.id == "official/playable-creation-board",
-        "manifest id should be official/playable-creation-board"
+        manifest.id == "plurora/playable-creation-board",
+        "manifest id should be plurora/playable-creation-board"
     );
 
     // 4 surfaces
@@ -497,7 +497,7 @@ pub(crate) async fn creator_loop_thirdparty_no_privilege() -> anyhow::Result<()>
 
     let manifest = manifest::read_manifest(tp_manifest_path).await?;
 
-    // Verify it has experience surfaces like the official seed
+    // Verify it has experience surfaces like the Plurora seed
     anyhow::ensure!(
         !manifest.contributes.surfaces.is_empty(),
         "thirdparty/playable-seed must have surfaces"

@@ -119,7 +119,7 @@ Complete request/response schemas live under `docs/spec/v1/schemas/methods/`. Me
 | `host.outbound.stream` | partial | Manifest-gated SSE/NDJSON/raw streaming outbound with terminal completion receipts. |
 | `platform.outbound.websocket.*` | partial | Manifest-gated WSS open/send/close; connection lifecycle and event coverage continue to harden. |
 
-Git installation is not a kernel transport; future support belongs in the ordinary official capability package `official/git-tools-lab` using `host.outbound.execute` plus `permissions.filesystem.write`.
+Git installation is not a kernel transport; future support belongs in the ordinary first-party capability package `plurora/git-tools-lab` using `host.outbound.execute` plus `permissions.filesystem.write`.
 
 ### `platform.target.*` / `exec.*` / `port.*` / `proxy.*` (17)
 
@@ -315,7 +315,7 @@ A manifest declares package identity, entry, contract mode, provided capabilitie
 
 ```yaml
 requires:
-  - id: official/model-provider-lab
+  - id: plurora/model-provider-lab
     source:
       kind: git
       url: https://example.com/plurora/model-provider-lab.git
@@ -325,7 +325,7 @@ requires:
       - "0123456789ABCDEF0123456789ABCDEF01234567"
 ```
 
-Actual install and resolution are handled by `official/install-lab`; the kernel does not participate in dependency resolution.
+Actual install and resolution are handled by `plurora/install-lab`; the kernel does not participate in dependency resolution.
 See [`docs/guides/PACKAGE_INSTALLATION.md`](../guides/PACKAGE_INSTALLATION.en.md).
 
 The manifest is audit and handle-minting input, not runtime authority. Runtime authority is expressed through bindings and capability handles.

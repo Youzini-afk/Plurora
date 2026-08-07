@@ -22,7 +22,7 @@ Docker、git、安装、secret store、workspace、adapter 都不是内核概念
 - `LocalExecExecutor` trait：默认 `DenyAllLocalExecExecutor`，profile 显式开启后可用 `LiveLocalExecExecutor`。
 - `LiveLocalExecExecutor`：只接受 argv 数组，不接受 shell 字符串；cwd、env、日志、超时、kill 都由 host 控制。
 - `plurora-service` 反代：`/p/<route_id>/...` 继续保留并位于 Host 认证内；如果 route 显式选择 `public`，且设置 `PLURORA_APP_BASE_DOMAIN=apps.example.com` 或 `--app-base-domain apps.example.com`，才会额外启用 `<slug>.apps.example.com/` 免 Host 认证虚拟主机，让社区应用拥有根路径 `/`。两种入口都只指向 active loopback port lease；禁 redirect；剥离或重写危险 header；限制响应体；支持 HTTP 与 WebSocket。
-- `official/docker-runtime-lab`：普通官方能力包，使用 `bollard` 管理 Docker 容器。默认无 Docker 时 fail-closed；真实 Docker smoke 需要显式 opt-in。
+- `plurora/docker-runtime-lab`：普通官方能力包，使用 `bollard` 管理 Docker 容器。默认无 Docker 时 fail-closed；真实 Docker smoke 需要显式 opt-in。
 - Target driver：内置 `local` 与 enrolled Agent 使用相同的 durable operation、artifact transfer、declarative verifier、deployment apply/stop 和 receipt 模型；Agent 上游仍只绑定 loopback，并经 target/route/lease/epoch 约束的认证 tunnel 回到 Host proxy。
 - Web 项目控制台：显示 target / exec / port / proxy 诊断，以及 host-plane 的活动修订、恢复状态、修订历史和最近任务。若项目声明部署描述符，用户可显式选择 Host 认证或公开 route，再点击 Deploy / Stop、启动 Build & Deploy、恢复或回滚；Development 区还可把已验证 ChangeSet 送入 private preview、独立部署审批、activation 和中断对账。默认保持 Host 认证。
 - 持久化与回放：exec / port / proxy 注册表的变更都写进事件日志，host 重启时回放重建。
@@ -95,7 +95,7 @@ volume 可以指向任意宿主路径，但必须逐条批准。默认建议只�
 
 1. host 侧重新校验请求（不信任客户端字段）。
 2. `host.port.lease`：向 host 租 loopback 端口。
-3. `capability.invoke` → `official/docker-runtime-lab/start_container`：启动 Docker 容器，传入 `approved: true`、`host_port` 与 `port_lease_id`。
+3. `capability.invoke` → `plurora/docker-runtime-lab/start_container`：启动 Docker 容器，传入 `approved: true`、`host_port` 与 `port_lease_id`。
 4. `host.proxy.register`：把 route 与显式 `route_access` 绑定到刚租到的 port lease（此时 `ready=false`）。
 5. readiness probe：对 loopback 端口做 TCP 连接（带可选 health_path 的 HTTP 探测），有界超时内成功才把 route 翻成 `ready=true` 并返回成功。
 
@@ -132,7 +132,7 @@ Build & Deploy 使用 `POST /host/v1/build-deploy`。默认立即返回 `job_id`
 1. 校验源码 URL、策略、runtime env、runtime mounts 和用户批准。
 2. 通过 `git-tools-lab` 克隆到项目工作区；project/workspace 祖先必须是 canonical data root 下的真实目录，选定 tree 的 materialization 超过 100,000 个文件、100,000 个目录或 1 GiB 时 fail-closed。submodule entry、绝对/逃逸根目录的 symlink，以及无法保留 symlink 的平台上的 symlink entry 都会明确失败。当前 transport 仍会执行临时 bare fetch，因此这些 tree 上限尚不能视为 repository download budget。
 3. 若策略为 `nixpacks`，先生成 Dockerfile / context。
-4. 调用 `official/docker-runtime-lab/build_image` 构建镜像，打上 `project_id`、`build_id`、`source_commit`、`strategy`、`build_descriptor_hash` 等 label。
+4. 调用 `plurora/docker-runtime-lab/build_image` 构建镜像，打上 `project_id`、`build_id`、`source_commit`、`strategy`、`build_descriptor_hash` 等 label。
 5. 如果项目已有活动修订，构建完成后先清理旧容器、route 和 lease；旧修订在新修订提交前仍是 durable active pointer，因而替换失败会明确进入“需要恢复”状态。
 6. 进入普通部署链路：port lease → 容器启动 → proxy 注册 → readiness probe。
 7. readiness 成功后先原子追加修订激活事件，再把内存状态翻成 Ready；事件提交失败会回滚新部署。

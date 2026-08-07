@@ -179,8 +179,8 @@ async fn prepare_git_source(
 ) -> Result<MaterializedExternalSource> {
     ensure_persistable_git_source(url)?;
     let resolved = invoke_package_capability(
-        "official/git-tools-lab",
-        "official/git-tools-lab/resolve_ref",
+        "plurora/git-tools-lab",
+        "plurora/git-tools-lab/resolve_ref",
         json!({ "remote_url": url, "ref": ref_name }),
     )
     .await?;
@@ -195,8 +195,8 @@ async fn prepare_git_source(
     let staging = create_staging_dir(&project_root)?;
     let result = async {
         invoke_package_capability(
-            "official/git-tools-lab",
-            "official/git-tools-lab/fetch_tree",
+            "plurora/git-tools-lab",
+            "plurora/git-tools-lab/fetch_tree",
             json!({
                 "remote_url": url,
                 "commit_sha": commit_sha,

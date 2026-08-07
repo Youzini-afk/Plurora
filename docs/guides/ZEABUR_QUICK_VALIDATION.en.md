@@ -70,7 +70,7 @@ curl http://127.0.0.1:8080/healthz
 - Quick validation only; this does not replace packaged desktop distribution.
 - The access token is quick-validation auth only, not production-grade session auth.
 - Surface bundles/assets reach the sandbox through short-lived read-only leases; never embed secrets in them.
-- No new official package namespace or install model is introduced by this adapter.
+- No new first-party Package namespace or install model is introduced by this adapter.
 - Use a throwaway `/data` volume for public validation and delete it after testing.
 - Do not enter real API keys or sensitive secrets on a public quick-validation URL.
 - The bundled web app is static; local development hot reload still uses the existing Vite workflow.

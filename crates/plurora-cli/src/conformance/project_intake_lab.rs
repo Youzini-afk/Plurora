@@ -1,4 +1,4 @@
-//! Conformance tests for `official/project-intake-lab` (External Project Operating Plane Alpha Phase E1 + E5).
+//! Conformance tests for `plurora/project-intake-lab` (External Project Operating Plane Alpha Phase E1 + E5).
 //!
 //! Covers:
 //! 1. Intake contract shape (11 capabilities, 3 surfaces, ordinary package, no execution)
@@ -26,7 +26,7 @@ use serde_json::json;
 use super::fixtures::*;
 use crate::commands::manifest;
 
-const PACKAGE_ID: &str = "official/project-intake-lab";
+const PACKAGE_ID: &str = "plurora/project-intake-lab";
 
 async fn load_project_intake_lab(
 ) -> anyhow::Result<plurora_runtime::Runtime<plurora_runtime::InMemoryEventStore>> {
@@ -34,7 +34,7 @@ async fn load_project_intake_lab(
     runtime
         .load_package(
             manifest::read_manifest(PathBuf::from(
-                "packages/official/project-intake-lab/manifest.yaml",
+                "packages/plurora/project-intake-lab/manifest.yaml",
             ))
             .await?,
         )
@@ -492,7 +492,7 @@ pub(crate) async fn project_intake_adapter_manifest_preview_no_write() -> anyhow
 }
 
 /// Case 10 (E5): Rejects official adapter package id.
-pub(crate) async fn project_intake_rejects_official_adapter_id() -> anyhow::Result<()> {
+pub(crate) async fn project_intake_rejects_first_party_adapter_id() -> anyhow::Result<()> {
     let rt = load_project_intake_lab().await?;
 
     let result = invoke(
@@ -500,7 +500,7 @@ pub(crate) async fn project_intake_rejects_official_adapter_id() -> anyhow::Resu
         "generate_adapter_manifest_preview",
         json!({
             "source_ref": "./test",
-            "adapter_package_id": "official/fake-adapter",
+            "adapter_package_id": "plurora/fake-adapter",
             "capability_name": "invoke"
         }),
     )

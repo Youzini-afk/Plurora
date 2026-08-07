@@ -1,8 +1,8 @@
-//! Generic/foundation capability handlers shared across official packages.
+//! Generic/foundation capability handlers shared across first-party Packages.
 //!
 //! These handlers match on `(provider_package_id, local_capability_name)` pairs,
 //! requiring the capability_id to be under the provider_package_id namespace.
-//! Only `official/` packages are served by these handlers; non-official packages
+//! Only `plurora/` packages are served by these handlers; third-party Packages
 //! are rejected to prevent accidental fallback behavior.
 
 use serde_json::Value;
@@ -15,7 +15,7 @@ use super::InprocInvocation;
 /// Returns `None` when `capability_id` does not start with
 /// `"<provider_package_id>/"`.
 ///
-/// Example: provider `official/asset-lab`, capability `official/asset-lab/preview`
+/// Example: provider `plurora/asset-lab`, capability `plurora/asset-lab/preview`
 ///          => local name `preview`.
 fn extract_local_name<'a>(capability_id: &'a str, provider_package_id: &str) -> Option<&'a str> {
     if !capability_id.starts_with(provider_package_id) {
@@ -29,8 +29,8 @@ fn extract_local_name<'a>(capability_id: &'a str, provider_package_id: &str) -> 
 }
 
 pub fn try_handle(request: &mut InprocInvocation) -> Option<anyhow::Result<Value>> {
-    // Only serve official/ packages through the shared handlers.
-    if !request.provider_package_id.starts_with("official/") {
+    // Only serve plurora/ packages through the shared handlers.
+    if !request.provider_package_id.starts_with("plurora/") {
         return None;
     }
 
@@ -39,7 +39,7 @@ pub fn try_handle(request: &mut InprocInvocation) -> Option<anyhow::Result<Value
     match local_name {
         "echo" => Some(Ok(request.input.clone())),
         "fail" => Some(Err(anyhow::anyhow!(
-            "official package-lab requested failure"
+            "first-party Package-lab requested failure"
         ))),
         "describe" => Some(describe(request)),
         "validate" => Some(validate()),
@@ -519,11 +519,11 @@ mod tests {
     #[test]
     fn extract_local_name_matches_namespace() {
         assert_eq!(
-            extract_local_name("official/asset-lab/preview", "official/asset-lab"),
+            extract_local_name("plurora/asset-lab/preview", "plurora/asset-lab"),
             Some("preview")
         );
         assert_eq!(
-            extract_local_name("official/package-lab/echo", "official/package-lab"),
+            extract_local_name("plurora/package-lab/echo", "plurora/package-lab"),
             Some("echo")
         );
     }
@@ -531,31 +531,31 @@ mod tests {
     #[test]
     fn extract_local_name_rejects_wrong_namespace() {
         assert_eq!(
-            extract_local_name("thirdparty/pkg/preview", "official/asset-lab"),
+            extract_local_name("thirdparty/pkg/preview", "plurora/asset-lab"),
             None
         );
         assert_eq!(
-            extract_local_name("official/asset-lab/preview", "official/other"),
+            extract_local_name("plurora/asset-lab/preview", "plurora/other"),
             None
         );
     }
 
     #[test]
     fn extract_local_name_rejects_partial_prefix() {
-        // "official/asset" is a prefix of "official/asset-lab" but not a valid namespace
+        // "plurora/asset" is a prefix of "plurora/asset-lab" but not a valid namespace
         assert_eq!(
-            extract_local_name("official/asset-lab/preview", "official/asset"),
+            extract_local_name("plurora/asset-lab/preview", "plurora/asset"),
             None
         );
     }
 
     #[test]
     fn try_handle_official_preview() {
-        let mut request = make_request("official/asset-lab", "official/asset-lab/preview");
+        let mut request = make_request("plurora/asset-lab", "plurora/asset-lab/preview");
         let result = try_handle(&mut request);
         assert!(
             result.is_some(),
-            "official package preview should be handled"
+            "first-party Package preview should be handled"
         );
         let output = result.unwrap().unwrap();
         assert_eq!(output["kind"], "asset_preview");
@@ -564,8 +564,8 @@ mod tests {
     #[test]
     fn draft_branch_change_preserves_nested_input_without_reserializing() {
         let mut request = make_request(
-            "official/assistant-lab",
-            "official/assistant-lab/draft_branch_change",
+            "plurora/assistant-lab",
+            "plurora/assistant-lab/draft_branch_change",
         );
         request.input = serde_json::json!({
             "seed": {
@@ -583,17 +583,17 @@ mod tests {
     }
 
     #[test]
-    fn try_handle_rejects_non_official() {
+    fn try_handle_rejects_non_first_party() {
         let mut request = make_request("thirdparty/pkg", "thirdparty/pkg/preview");
         assert!(
             try_handle(&mut request).is_none(),
-            "non-official package should not be handled by common"
+            "third-party Package should not be handled by common"
         );
     }
 
     #[test]
     fn try_handle_rejects_wrong_namespace() {
-        let mut request = make_request("official/other", "official/asset-lab/preview");
+        let mut request = make_request("plurora/other", "plurora/asset-lab/preview");
         assert!(
             try_handle(&mut request).is_none(),
             "wrong namespace should not be handled"
@@ -602,7 +602,7 @@ mod tests {
 
     #[test]
     fn try_handle_unknown_local_name_returns_none() {
-        let mut request = make_request("official/package-lab", "official/package-lab/nonexistent");
+        let mut request = make_request("plurora/package-lab", "plurora/package-lab/nonexistent");
         assert!(
             try_handle(&mut request).is_none(),
             "unknown local name should return None"
@@ -611,7 +611,7 @@ mod tests {
 
     #[test]
     fn unhandled_capability_returns_error() {
-        let request = make_request("official/package-lab", "official/package-lab/unknown");
+        let request = make_request("plurora/package-lab", "plurora/package-lab/unknown");
         let result = unhandled_capability(&request);
         assert!(
             result.is_err(),

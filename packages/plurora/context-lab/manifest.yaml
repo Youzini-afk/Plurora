@@ -1,0 +1,71 @@
+schema_version: 1
+id: plurora/context-lab
+version: 0.1.0
+display_name: Plurora Context Lab
+description: Generic bounded context assembly, layer inspection, budget planning, template rendering, and assembly explanation.
+license: AGPL-3.0-only
+entry:
+  kind: rust_inproc
+  crate_ref: plurora-foundation
+  symbol: register
+  abi_version: 1
+provides:
+  - id: plurora/context-lab/assemble_preview
+    version: 0.1.0
+    input_schema: {}
+    output_schema: {}
+    streaming: false
+    side_effects: []
+  - id: plurora/context-lab/inspect_layers
+    version: 0.1.0
+    input_schema: {}
+    output_schema: {}
+    streaming: false
+    side_effects: []
+  - id: plurora/context-lab/budget_plan
+    version: 0.1.0
+    input_schema: {}
+    output_schema: {}
+    streaming: false
+    side_effects: []
+  - id: plurora/context-lab/render_template
+    version: 0.1.0
+    input_schema: {}
+    output_schema: {}
+    streaming: false
+    side_effects: []
+  - id: plurora/context-lab/explain_assembly
+    version: 0.1.0
+    input_schema: {}
+    output_schema: {}
+    streaming: false
+    side_effects: []
+consumes: []
+contributes:
+  schemas: []
+  hooks: []
+  extension_points: []
+  surfaces:
+    - id: plurora/context-lab/home-card
+      slot: home_card
+      title: Context Lab
+      description: Assemble bounded context blocks for package consumers without model calls or chat ontology.
+      capability_id: plurora/context-lab/assemble_preview
+    - id: plurora/context-lab/forge-panel
+      slot: forge_panel
+      title: Context Assembly Inspector
+      description: Inspect included/omitted sources, budget accounting, layers, and provenance.
+      capability_id: plurora/context-lab/inspect_layers
+    - id: plurora/context-lab/assistant-action
+      slot: assistant_action
+      title: Draft Context Assembly Plan
+      description: Explain or propose context assembly changes through approval-gated plans.
+      capability_id: plurora/context-lab/explain_assembly
+      approval_policy: user_approval
+permissions:
+  capabilities:
+    invoke: []
+sandbox_policy:
+  cpu_quota_ms_per_invoke: 5000
+  memory_mb: 128
+  wall_clock_ms: 30000

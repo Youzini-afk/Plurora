@@ -1,0 +1,118 @@
+schema_version: 1
+id: plurora/docker-runtime-lab
+version: 0.1.0
+display_name: Plurora Docker Runtime Lab
+description: Ordinary package for approved Docker container lifecycle operations using host-provided port lease and proxy route metadata. The Host/runtime owns port leases and proxy registration; this package never invokes HostAdmin-only port/proxy capabilities and blocks privileged mode, host networking, bind mounts, arbitrary env, and secret injection.
+license: AGPL-3.0-only
+entry:
+  kind: rust_inproc
+  crate_ref: plurora-foundation
+  symbol: register
+  abi_version: 1
+provides:
+  - id: plurora/docker-runtime-lab/describe_contract
+    version: 0.1.0
+    input_schema: {}
+    output_schema: {}
+    streaming: false
+    side_effects: []
+  - id: plurora/docker-runtime-lab/validate_spec
+    version: 0.1.0
+    input_schema: {}
+    output_schema: {}
+    streaming: false
+    side_effects: []
+  - id: plurora/docker-runtime-lab/plan_container
+    version: 0.1.0
+    input_schema: {}
+    output_schema: {}
+    streaming: false
+    side_effects: []
+  - id: plurora/docker-runtime-lab/build_image
+    version: 0.1.0
+    input_schema: {}
+    output_schema: {}
+    streaming: false
+    side_effects:
+      - docker_image_build
+  - id: plurora/docker-runtime-lab/remove_image
+    version: 0.1.0
+    input_schema: {}
+    output_schema: {}
+    streaming: false
+    side_effects:
+      - docker_image_remove
+  - id: plurora/docker-runtime-lab/start_container
+    version: 0.1.0
+    input_schema: {}
+    output_schema: {}
+    streaming: false
+    side_effects:
+      - docker_container_create
+      - docker_container_start
+  - id: plurora/docker-runtime-lab/status
+    version: 0.1.0
+    input_schema: {}
+    output_schema: {}
+    streaming: false
+    side_effects:
+      - docker_container_inspect
+  - id: plurora/docker-runtime-lab/logs
+    version: 0.1.0
+    input_schema: {}
+    output_schema: {}
+    streaming: false
+    side_effects:
+      - docker_container_logs
+  - id: plurora/docker-runtime-lab/stop_container
+    version: 0.1.0
+    input_schema: {}
+    output_schema: {}
+    streaming: false
+    side_effects:
+      - docker_container_stop
+      - docker_container_remove
+consumes: []
+contributes:
+  schemas: []
+  hooks: []
+  extension_points: []
+  surfaces:
+    - id: plurora/docker-runtime-lab/home-card
+      slot: home_card
+      title: Docker Runtime Lab
+      description: Approved Docker container lifecycle with host-owned port lease/proxy metadata and strict no-privileged/no-host-network/no-bind-mount policy.
+      capability_id: plurora/docker-runtime-lab/describe_contract
+      metadata:
+        shell_schema_version: 1
+        title:
+          en: Docker runtime
+          zh-CN: Docker 运行时
+        description:
+          en: Start approved loopback-bound containers through host-owned ports and proxy routes.
+          zh-CN: 通过宿主拥有的端口和代理路由启动已批准的本地容器。
+        icon_hint: cube
+        order: 70
+    - id: plurora/docker-runtime-lab/workshop-card
+      slot: workshop_card
+      title: Docker Runtime Lab
+      description: Validate and plan safe container bindings before host-approved Docker start/stop actions.
+      capability_id: plurora/docker-runtime-lab/plan_container
+      metadata:
+        shell_schema_version: 1
+        title:
+          en: Docker runtime
+          zh-CN: Docker 运行时
+        description:
+          en: Validate and plan safe container bindings before host-approved Docker actions.
+          zh-CN: 在宿主批准 Docker 操作前校验并规划安全的容器绑定。
+        icon_hint: cube
+        order: 70
+        category: tool
+permissions:
+  capabilities:
+    invoke: []
+  sandbox_policy:
+    cpu_quota_ms_per_invoke: 5000
+    memory_mb: 128
+    wall_clock_ms: 30000

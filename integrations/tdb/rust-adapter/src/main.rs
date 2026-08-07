@@ -2,7 +2,7 @@ use std::io::{self, BufRead, Write};
 
 use serde_json::{json, Value};
 
-const PACKAGE_ID: &str = "official/tdb-rust-adapter";
+const PACKAGE_ID: &str = "plurora/tdb-rust-adapter";
 const PROTOCOL_VERSION: &str = "0.1.0";
 
 fn main() {
@@ -50,7 +50,7 @@ fn handle_line(line: &str) -> Value {
 }
 
 fn invoke(capability_id: &str, input: Value) -> Result<Value, String> {
-    let local = capability_id.strip_prefix("official/tdb-rust-adapter/").unwrap_or(capability_id);
+    let local = capability_id.strip_prefix("plurora/tdb-rust-adapter/").unwrap_or(capability_id);
     match local {
         "describe_real_tdb_adapter" => Ok(describe_adapter()),
         "run_real_tdb_smoke" => run_real_tdb_smoke(input),
@@ -74,8 +74,8 @@ fn describe_adapter() -> Value {
         },
         "real_feature": "real-tdb",
         "capabilities": [
-            "official/tdb-rust-adapter/describe_real_tdb_adapter",
-            "official/tdb-rust-adapter/run_real_tdb_smoke"
+            "plurora/tdb-rust-adapter/describe_real_tdb_adapter",
+            "plurora/tdb-rust-adapter/run_real_tdb_smoke"
         ],
         "red_lines": [
             "not_platform_database",

@@ -1,4 +1,4 @@
-//! Conformance tests for `official/storage-lab` (Storage Backend Neutrality Alpha S2 + S3 + S4 + S5).
+//! Conformance tests for `plurora/storage-lab` (Storage Backend Neutrality Alpha S2 + S3 + S4 + S5).
 //!
 //! Covers:
 //! 1. Contract shape — no kernel database terms
@@ -38,7 +38,7 @@ use serde_json::json;
 use super::fixtures::*;
 use crate::commands::manifest;
 
-const PACKAGE_ID: &str = "official/storage-lab";
+const PACKAGE_ID: &str = "plurora/storage-lab";
 
 fn forbidden_platform_namespace_tokens() -> Vec<String> {
     [
@@ -61,7 +61,7 @@ async fn load_storage_lab(
     let (_store, runtime) = runtime();
     runtime
         .load_package(
-            manifest::read_manifest(PathBuf::from("packages/official/storage-lab/manifest.yaml"))
+            manifest::read_manifest(PathBuf::from("packages/plurora/storage-lab/manifest.yaml"))
                 .await?,
         )
         .await?;

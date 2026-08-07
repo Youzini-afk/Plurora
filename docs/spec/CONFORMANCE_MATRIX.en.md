@@ -95,7 +95,7 @@ Surface/static bundle and bridge coverage also includes these stable assertions:
 | surface-bundle freshness | `dist/` participates in `tree_hash`, so bundle-only changes trigger updates | implemented |
 | store schema migration | a store schema bump clears old store entries so stale hashes are not reused | implemented |
 | orphan store GC | install/update/uninstall remove store entries no longer referenced by lockfiles/profiles | implemented |
-| project updates | `official/install-lab/check_for_updates` and `update_project` power CLI and web update entries | implemented |
+| project updates | `plurora/install-lab/check_for_updates` and `update_project` power CLI and web update entries | implemented |
 
 
 | Area | Case | Status |
@@ -140,7 +140,7 @@ Surface/static bundle and bridge coverage also includes these stable assertions:
 | secret refs | `secret_ref:`, `secretRef:`, `secret-ref:`, `host:` reference pattern validation | implemented |
 | secret refs | raw secret in proposal payload is rejected | implemented |
 | secret refs | raw secret in asset metadata is rejected | implemented |
-| secret refs | official package has no secret-scanning bypass | implemented |
+| secret refs | first-party Package has no secret-scanning bypass | implemented |
 | env resolver | `EnvSecretResolver` allows resolution when env name is in allowlist (`secret_ref:env`, `secretRef:env`, `secret-ref:env`, `host:env`) | implemented |
 | env resolver | `EnvSecretResolver` denies resolution when env name is not in allowlist; non-env vault and `host:<key>` rejected | implemented |
 | env resolver | `EnvSecretResolver` missing env var returns typed error without leaking raw value | implemented |
@@ -172,36 +172,36 @@ Surface/static bundle and bridge coverage also includes these stable assertions:
 | host | diagnostics reports packages/capabilities/hooks | implemented |
 | host | profile autoload loads configured packages | implemented |
 | surfaces | package-contributed typed surface descriptors can be listed, described, and filtered | implemented |
-| official packages | foundation packages load and invoke without privilege | implemented |
-| official packages | composition-lab exposes launch-plan, surface-graph, and compat-report capabilities with v2 descriptor diagnostics without privilege | implemented |
-| official packages | asset-lab previews assets and drafts approval-gated import plans without privilege | implemented |
-| official packages | projection-lab drafts rebuild plans and explains source events without privilege | implemented |
-| official packages | playable-seed exposes reference entry/play/Forge/assistant surfaces and approval-gated edits | implemented |
-| official packages | persona-lab imports and renders persona profiles with provenance without kernel ontology | implemented |
-| official packages | knowledge-lab normalizes collections, matches entries, and returns plan-only injection output | implemented |
-| official packages | context-lab assembles generic blocks with budget omissions and template rendering | implemented |
-| official packages | text-transform-lab previews deterministic text transforms with trace and validation diagnostics | implemented |
-| official packages | model-connector-lab validates profiles, rejects raw secrets, and returns no-network discovery plans | implemented |
-| official packages | model-provider-lab as cloud API adapter lab lists eight cloud provider families, validates profiles rejecting raw secrets, package-local normalize_request covers eight dialects/endpoints, explains errors (401/429/529), outputs network_performed:false/inference_performed:false, no raw secret echoed; it is not the platform model abstraction | implemented |
-| official packages | model-provider-lab cloud adapter invoke all eight provider families (OpenAI chat/responses, Anthropic messages, Gemini generateContent, OpenAI-compatible chat, OpenRouter chat/responses, DeepSeek chat, xAI chat/responses, Fireworks chat/responses; fake/local, auditable outbound_request_shape, raw credential rejected, openai_compatible missing/http base_url rejected, unsupported family diagnostic, executor_kind fake_local, live_call_supported false) | implemented |
-| official packages | model-provider-lab cloud adapter normalize_stream eight families stream normalization (delta SSE, semantic SSE, typed chunk stream → StreamFrameEnvelope frames: start/chunk/progress/end/error/cancelled/timeout; terminal_frame_consistent; provider event input normalization; no raw secret echo; unsupported family empty frames + terminal_frame_consistent false) | implemented |
+| first-party Packages | foundation packages load and invoke without privilege | implemented |
+| first-party Packages | composition-lab exposes launch-plan, surface-graph, and compat-report capabilities with v2 descriptor diagnostics without privilege | implemented |
+| first-party Packages | asset-lab previews assets and drafts approval-gated import plans without privilege | implemented |
+| first-party Packages | projection-lab drafts rebuild plans and explains source events without privilege | implemented |
+| first-party Packages | playable-seed exposes reference entry/play/Forge/assistant surfaces and approval-gated edits | implemented |
+| first-party Packages | persona-lab imports and renders persona profiles with provenance without kernel ontology | implemented |
+| first-party Packages | knowledge-lab normalizes collections, matches entries, and returns plan-only injection output | implemented |
+| first-party Packages | context-lab assembles generic blocks with budget omissions and template rendering | implemented |
+| first-party Packages | text-transform-lab previews deterministic text transforms with trace and validation diagnostics | implemented |
+| first-party Packages | model-connector-lab validates profiles, rejects raw secrets, and returns no-network discovery plans | implemented |
+| first-party Packages | model-provider-lab as cloud API adapter lab lists eight cloud provider families, validates profiles rejecting raw secrets, package-local normalize_request covers eight dialects/endpoints, explains errors (401/429/529), outputs network_performed:false/inference_performed:false, no raw secret echoed; it is not the platform model abstraction | implemented |
+| first-party Packages | model-provider-lab cloud adapter invoke all eight provider families (OpenAI chat/responses, Anthropic messages, Gemini generateContent, OpenAI-compatible chat, OpenRouter chat/responses, DeepSeek chat, xAI chat/responses, Fireworks chat/responses; fake/local, auditable outbound_request_shape, raw credential rejected, openai_compatible missing/http base_url rejected, unsupported family diagnostic, executor_kind fake_local, live_call_supported false) | implemented |
+| first-party Packages | model-provider-lab cloud adapter normalize_stream eight families stream normalization (delta SSE, semantic SSE, typed chunk stream → StreamFrameEnvelope frames: start/chunk/progress/end/error/cancelled/timeout; terminal_frame_consistent; provider event input normalization; no raw secret echo; unsupported family empty frames + terminal_frame_consistent false) | implemented |
 | outbound | model provider outbound shape fake executor (three-provider host/method/path/secret_ref shapes pass outbound boundary, call_count=3, executor_kind Fake) | implemented |
-| official packages | model-routing-lab resolves deterministic route plans with explicit fallbacks and normalized params | implemented |
-| official packages | pi-agent-runtime-lab produces no-inference/no-network run plans, approval-gated proposals, trace summaries, and discoverable surfaces | implemented |
-| official packages | capability-tool-bridge-lab marks ambiguous provider rejected, explicit third-party provider available, official not preferred, missing provider rejected, denied preview reports missing permission, raw secret unsafe_blocked | implemented |
-| official packages | inference-local-lab describe_capabilities: no network/secret required, transports include in_memory/local_process, operation_kinds include generate/classify/transform | implemented |
-| official packages | inference-local-lab invoke non-HTTP succeeds with no URL/header/status/messages fields, network_performed=false, transport_performed=in_memory_fake | implemented |
-| official packages | inference-local-lab invoke rejects http transport, HTTP-shaped fields (url/header/status_code), messages-shaped fields (messages/system/user/assistant), raw secret | implemented |
-| official packages | inference-local-lab stream emits deterministic start/chunk/progress/end frames, no URL/header/status/provider_schema | implemented |
-| official packages | inference-local-lab explain_error covers local/resource error classes (local_process_failed/local_resource_exhausted/local_model_not_loaded/local_inference_error/timeout/cancelled) | implemented |
-| official packages | inference-playtest-lab draft_proposal produces proposal_draft with requires_user_approval=true, asset.put, source_inference provenance, no raw secret, not a chat message | implemented |
-| official packages | inference-playtest-lab inspect_proposal returns risk/operations/permissions/provenance summary without applying | implemented |
-| official packages | inference-playtest-lab rejected proposal cannot apply | implemented |
-| official packages | inference-playtest-lab approve/apply succeeds, asset written, branch_plan + fork creates branch with proposal/source inference provenance | implemented |
-| official packages | inference-playtest-lab output contains no messages/prompt/chat/platform.model terms | implemented |
+| first-party Packages | model-routing-lab resolves deterministic route plans with explicit fallbacks and normalized params | implemented |
+| first-party Packages | pi-agent-runtime-lab produces no-inference/no-network run plans, approval-gated proposals, trace summaries, and discoverable surfaces | implemented |
+| first-party Packages | capability-tool-bridge-lab marks ambiguous provider rejected, explicit third-party provider available, official not preferred, missing provider rejected, denied preview reports missing permission, raw secret unsafe_blocked | implemented |
+| first-party Packages | inference-local-lab describe_capabilities: no network/secret required, transports include in_memory/local_process, operation_kinds include generate/classify/transform | implemented |
+| first-party Packages | inference-local-lab invoke non-HTTP succeeds with no URL/header/status/messages fields, network_performed=false, transport_performed=in_memory_fake | implemented |
+| first-party Packages | inference-local-lab invoke rejects http transport, HTTP-shaped fields (url/header/status_code), messages-shaped fields (messages/system/user/assistant), raw secret | implemented |
+| first-party Packages | inference-local-lab stream emits deterministic start/chunk/progress/end frames, no URL/header/status/provider_schema | implemented |
+| first-party Packages | inference-local-lab explain_error covers local/resource error classes (local_process_failed/local_resource_exhausted/local_model_not_loaded/local_inference_error/timeout/cancelled) | implemented |
+| first-party Packages | inference-playtest-lab draft_proposal produces proposal_draft with requires_user_approval=true, asset.put, source_inference provenance, no raw secret, not a chat message | implemented |
+| first-party Packages | inference-playtest-lab inspect_proposal returns risk/operations/permissions/provenance summary without applying | implemented |
+| first-party Packages | inference-playtest-lab rejected proposal cannot apply | implemented |
+| first-party Packages | inference-playtest-lab approve/apply succeeds, asset written, branch_plan + fork creates branch with proposal/source inference provenance | implemented |
+| first-party Packages | inference-playtest-lab output contains no messages/prompt/chat/platform.model terms | implemented |
 | in-process packages | non-official `/preview` suffix does not receive official asset-lab fallback behavior | implemented |
 | in-process packages | unknown registered in-process capability fails loudly instead of returning generic fallback success | implemented |
-| official packages | assistant-lab returns approval-gated proposals through grants | implemented |
+| first-party Packages | assistant-lab returns approval-gated proposals through grants | implemented |
 | play-creation | blank loop exercises assistant proposal, branch, asset, projection | implemented |
 | proposals | approved proposals can apply generic asset/projection operations | implemented |
 | proposals | rejected or unapproved proposals cannot apply | implemented |
@@ -211,7 +211,7 @@ Surface/static bundle and bridge coverage also includes these stable assertions:
 | package authoring | generated experience package surfaces pass local conformance | implemented |
 | composition | local composition descriptor validates package-provided surfaces | implemented |
 | composition | composition descriptor v2: required capabilities pass, optional missing warns, required missing fails | implemented |
-| official packages | composition-lab v2 diagnostics return surface/capability/permission/replacement fields and compat-report | implemented |
+| first-party Packages | composition-lab v2 diagnostics return surface/capability/permission/replacement fields and compat-report | implemented |
 | replacement | third-party playable-seed surfaces discoverable through shell.contribution.list | implemented |
 | replacement | third-party playable-seed capability invocation works through normal routing | implemented |
 | replacement | ambiguous official+thirdparty equivalent capability rejects route without official priority | implemented |
@@ -222,7 +222,7 @@ Surface/static bundle and bridge coverage also includes these stable assertions:
 | network | package without network permission denied outbound, produces outbound.denied audit | implemented |
 | network | allowlisted host+method allowed, produces redacted outbound.request audit | implemented |
 | network | host/method mismatch denied | implemented |
-| network | official package has no network bypass | implemented |
+| network | first-party Package has no network bypass | implemented |
 | network | audit records contain no raw secrets/bodies, only secret_ref and redaction_state | implemented |
 | network | check_network_policy pure function tests | implemented |
 | outbound | no permission executor not called — denied request never reaches executor | implemented |
@@ -284,36 +284,36 @@ Surface/static bundle and bridge coverage also includes these stable assertions:
 | stream | OpenRouter mid-stream error normalization: error object after HTTP 200 → error frame with mid_stream_error provider_event | implemented |
 | outbound | provider quirks sanitized fixtures: integrations/model-providers/fixtures/*.json contain no real keys or provider-looking raw keys, scan finds nothing | implemented |
 | outbound | static_headers OpenRouter safe: http-referer/x-title on allowlist, not secret-bearing; Authorization/x-api-key still blocked | implemented |
-| official packages | experience-observability-lab describe_observability returns 8 capabilities, 3 surfaces, output shapes, no forbidden namespace | implemented |
-| official packages | experience-observability-lab summarize_session_health derives status from protocol-visible refs, no SQLite reads | implemented |
-| official packages | experience-observability-lab summarize_package_health returns package health from protocol-visible refs | implemented |
-| official packages | experience-observability-lab summarize_agent_run_health returns agent run health from protocol-visible refs | implemented |
-| official packages | experience-observability-lab trace_proposal_causality returns causal chain with content_address per step | implemented |
-| official packages | experience-observability-lab summarize_cost_latency returns cost/latency summary from outbound audit refs, no raw secrets | implemented |
-| official packages | experience-observability-lab list_failure_breadcrumbs returns breadcrumbs from protocol-visible event refs | implemented |
-| official packages | experience-observability-lab summarize_guardrails returns guardrail/audit summary from protocol-visible audit refs | implemented |
-| official packages | experience-observability-lab no platform.observability.* / platform.experience.* namespace in any output | implemented |
-| official packages | experience-observability-lab raw secret blocked in all capability inputs | implemented |
-| official packages | memory-lab describe_memory_contract returns 9 capabilities, 3 surfaces, output shapes, no forbidden namespace | implemented |
-| official packages | memory-lab record_memory produces memory_record with content_address / branch_ref / knowledge_refs | implemented |
-| official packages | memory-lab retrieve_memory deterministic keyword match, branch-aware filtering, no embedding/network | implemented |
-| official packages | memory-lab trace_retrieval produces deterministic retrieval trace | implemented |
-| official packages | memory-lab draft_memory_update produces proposal/update draft only, no direct state mutation, requires_user_approval=true | implemented |
-| official packages | memory-lab apply_memory_correction produces correction shape, proposal-gated | implemented |
-| official packages | memory-lab draft_forget_redaction produces redaction plan, not deletion | implemented |
-| official packages | memory-lab branch_memory_view filters memory records by branch | implemented |
-| official packages | memory-lab no output contains platform.memory.* / platform.experience.* namespace | implemented |
-| official packages | memory-lab raw secret blocked in all capability inputs | implemented |
-| official packages | sharing-lab describe_sharing_contract returns 9 capabilities, 3 surfaces, output shapes, red lines, no forbidden namespace | implemented |
-| official packages | sharing-lab export_composition_bundle produces self-contained bundle with manifest/lockfile/disclosure, no marketplace/billing fields | implemented |
-| official packages | sharing-lab import_composition_bundle validates bundle shape/compatibility/no raw secrets, plan-only | implemented |
-| official packages | sharing-lab create_branch_session_bundle produces branch/session bundle manifest with content_address and AI disclosure | implemented |
-| official packages | sharing-lab create_package_set_lockfile pins package versions and content addresses | implemented |
-| official packages | sharing-lab compatibility_report compares two bundle versions, deterministic, detects incompatibilities | implemented |
-| official packages | sharing-lab ai_disclosure_bundle produces AI disclosure metadata marking content provenance | implemented |
-| official packages | sharing-lab read_only_share_manifest read-only shared session manifest, local_file proof, no remote service | implemented |
-| official packages | sharing-lab async_fork_share_plan async fork sharing plan, draft/plan-only/requires_user_approval | implemented |
-| official packages | sharing-lab no marketplace/billing/signing fields, no raw secrets, no platform.sharing/marketplace/billing namespace | implemented |
+| first-party Packages | experience-observability-lab describe_observability returns 8 capabilities, 3 surfaces, output shapes, no forbidden namespace | implemented |
+| first-party Packages | experience-observability-lab summarize_session_health derives status from protocol-visible refs, no SQLite reads | implemented |
+| first-party Packages | experience-observability-lab summarize_package_health returns package health from protocol-visible refs | implemented |
+| first-party Packages | experience-observability-lab summarize_agent_run_health returns agent run health from protocol-visible refs | implemented |
+| first-party Packages | experience-observability-lab trace_proposal_causality returns causal chain with content_address per step | implemented |
+| first-party Packages | experience-observability-lab summarize_cost_latency returns cost/latency summary from outbound audit refs, no raw secrets | implemented |
+| first-party Packages | experience-observability-lab list_failure_breadcrumbs returns breadcrumbs from protocol-visible event refs | implemented |
+| first-party Packages | experience-observability-lab summarize_guardrails returns guardrail/audit summary from protocol-visible audit refs | implemented |
+| first-party Packages | experience-observability-lab no platform.observability.* / platform.experience.* namespace in any output | implemented |
+| first-party Packages | experience-observability-lab raw secret blocked in all capability inputs | implemented |
+| first-party Packages | memory-lab describe_memory_contract returns 9 capabilities, 3 surfaces, output shapes, no forbidden namespace | implemented |
+| first-party Packages | memory-lab record_memory produces memory_record with content_address / branch_ref / knowledge_refs | implemented |
+| first-party Packages | memory-lab retrieve_memory deterministic keyword match, branch-aware filtering, no embedding/network | implemented |
+| first-party Packages | memory-lab trace_retrieval produces deterministic retrieval trace | implemented |
+| first-party Packages | memory-lab draft_memory_update produces proposal/update draft only, no direct state mutation, requires_user_approval=true | implemented |
+| first-party Packages | memory-lab apply_memory_correction produces correction shape, proposal-gated | implemented |
+| first-party Packages | memory-lab draft_forget_redaction produces redaction plan, not deletion | implemented |
+| first-party Packages | memory-lab branch_memory_view filters memory records by branch | implemented |
+| first-party Packages | memory-lab no output contains platform.memory.* / platform.experience.* namespace | implemented |
+| first-party Packages | memory-lab raw secret blocked in all capability inputs | implemented |
+| first-party Packages | sharing-lab describe_sharing_contract returns 9 capabilities, 3 surfaces, output shapes, red lines, no forbidden namespace | implemented |
+| first-party Packages | sharing-lab export_composition_bundle produces self-contained bundle with manifest/lockfile/disclosure, no marketplace/billing fields | implemented |
+| first-party Packages | sharing-lab import_composition_bundle validates bundle shape/compatibility/no raw secrets, plan-only | implemented |
+| first-party Packages | sharing-lab create_branch_session_bundle produces branch/session bundle manifest with content_address and AI disclosure | implemented |
+| first-party Packages | sharing-lab create_package_set_lockfile pins package versions and content addresses | implemented |
+| first-party Packages | sharing-lab compatibility_report compares two bundle versions, deterministic, detects incompatibilities | implemented |
+| first-party Packages | sharing-lab ai_disclosure_bundle produces AI disclosure metadata marking content provenance | implemented |
+| first-party Packages | sharing-lab read_only_share_manifest read-only shared session manifest, local_file proof, no remote service | implemented |
+| first-party Packages | sharing-lab async_fork_share_plan async fork sharing plan, draft/plan-only/requires_user_approval | implemented |
+| first-party Packages | sharing-lab no marketplace/billing/signing fields, no raw secrets, no platform.sharing/marketplace/billing namespace | implemented |
 | storage backend | in-memory EventStore satisfies append/list/range/next_sequence basic contract | implemented |
 | storage backend | SQLite EventStore satisfies append/list/range/next_sequence basic contract | implemented |
 | storage backend | in-memory and SQLite kind-prefix query results are semantically identical | implemented |
@@ -403,8 +403,8 @@ Surface/static bundle and bridge coverage also includes these stable assertions:
 | schema | capability input schema rejects invalid input | implemented |
 | schema | capability output schema rejects invalid output | implemented in runtime path |
 | schema | event payload schema rejects invalid payload when schema is declared | implemented |
-| official equality | an `official/...` package has no special routing or permissions | implemented |
-| official equality | kernel starts and conformance passes with no official packages loaded | implemented |
+| official equality | an `plurora/...` package has no special routing or permissions | implemented |
+| official equality | kernel starts and conformance passes with no first-party Packages loaded | implemented |
 
 ## CLI target output
 
@@ -423,7 +423,7 @@ package.unload_removes_capabilities        PASS
 capability.invoke_rust_inproc              PASS
 capability.ambiguous_provider_denied       PASS
 capability.explicit_provider_selected      PASS
-official.no_privilege                      PASS
+first_party.no_privilege                      PASS
 schema.capability_input_rejects_invalid    PASS
 schema.event_payload_rejects_invalid       PASS
 protocol.structured_permission_error       PASS
@@ -449,8 +449,8 @@ package.restart_subprocess                 PASS
 host.diagnostics                           PASS
 host.profile_autoload                      PASS
 surface.contribution_list                  PASS
-official.foundation_packages               PASS
-official.assistant_lab_proposal            PASS
+first_party.foundation_packages               PASS
+first_party.assistant_lab_proposal            PASS
 play_creation.blank_loop                   PASS
 proposal.lifecycle_apply                   PASS
 proposal.reject_and_apply_denied           PASS
@@ -474,37 +474,37 @@ package.generated_typescript_subprocess_conformance PASS
 package.generated_experience_template      PASS
 composition.check_descriptor               PASS
 composition.check_descriptor_v2             PASS
-official.composition_lab                    PASS
-official.composition_lab_diagnostics         PASS
-official.asset_lab                         PASS
-official.projection_lab                    PASS
-official.playable_seed                     PASS
-official.persona_lab                       PASS
-official.knowledge_lab                     PASS
-official.context_lab                       PASS
-official.text_transform_lab                PASS
-official.model_connector_lab               PASS
-official.model_provider_lab                 PASS
-official.model_provider_lab_invoke_core       PASS
-official.model_provider_lab_normalize_stream  PASS
-official.model_routing_lab                 PASS
-official.pi_agent_runtime_lab              PASS
-official.capability_tool_bridge_lab         PASS
-official.inference_local_lab_describe_capabilities PASS
-official.inference_local_lab_invoke          PASS
-official.inference_local_lab_invoke_rejects_http PASS
-official.inference_local_lab_stream          PASS
-official.inference_local_lab_explain_error   PASS
-official.inference_playtest_lab_draft         PASS
-official.inference_playtest_lab_inspect       PASS
-official.inference_playtest_lab_reject_apply_denied PASS
-official.inference_playtest_lab_apply_and_branch PASS
+first_party.composition_lab                    PASS
+first_party.composition_lab_diagnostics         PASS
+first_party.asset_lab                         PASS
+first_party.projection_lab                    PASS
+first_party.playable_seed                     PASS
+first_party.persona_lab                       PASS
+first_party.knowledge_lab                     PASS
+first_party.context_lab                       PASS
+first_party.text_transform_lab                PASS
+first_party.model_connector_lab               PASS
+first_party.model_provider_lab                 PASS
+first_party.model_provider_lab_invoke_core       PASS
+first_party.model_provider_lab_normalize_stream  PASS
+first_party.model_routing_lab                 PASS
+first_party.pi_agent_runtime_lab              PASS
+first_party.capability_tool_bridge_lab         PASS
+first_party.inference_local_lab_describe_capabilities PASS
+first_party.inference_local_lab_invoke          PASS
+first_party.inference_local_lab_invoke_rejects_http PASS
+first_party.inference_local_lab_stream          PASS
+first_party.inference_local_lab_explain_error   PASS
+first_party.inference_playtest_lab_draft         PASS
+first_party.inference_playtest_lab_inspect       PASS
+first_party.inference_playtest_lab_reject_apply_denied PASS
+first_party.inference_playtest_lab_apply_and_branch PASS
 plurora.inference_playtest_lab_no_chat_platform_terms PASS
-inproc.non_official_preview_rejected       PASS
+inproc.non_first_party_preview_rejected       PASS
 inproc.unknown_capability_errors           PASS
 replacement.thirdparty_seed_surfaces         PASS
 replacement.thirdparty_seed_invocation       PASS
-replacement.ambiguous_no_official_priority   PASS
+replacement.ambiguous_no_publisher_priority   PASS
 replacement.composition_thirdparty           PASS
 replacement.thirdparty_agent_runtime_surfaces   PASS
 replacement.thirdparty_agent_runtime_invocation PASS
@@ -513,14 +513,14 @@ substrate.permission_grant_rehydrate          PASS
 secret.ref_validation                        PASS
 secret.raw_blocked_in_proposal               PASS
 secret.raw_blocked_in_asset_metadata         PASS
-official.no_secret_bypass                    PASS
+first_party.no_secret_bypass                    PASS
 secret.env_resolver_allowed                  PASS
 secret.env_resolver_denied                   PASS
 secret.env_resolver_missing_no_leak          PASS
 network.no_permission_denied                  PASS
 network.allowlisted_host_method_allowed       PASS
 network.host_method_mismatch_denied           PASS
-network.official_no_network_bypass            PASS
+network.first_party_no_network_bypass            PASS
 network.audit_no_raw_secrets                  PASS
 network.policy_pure_function                  PASS
 outbound.no_permission_executor_not_called      PASS
@@ -588,8 +588,8 @@ agentic_forge.record_observation_untrusted_large_output_redaction PASS
 agentic_forge.tool_risk_injection_exfiltration_outbound    PASS
 agentic_forge.replay_tool_plan_mismatch_flagged             PASS
 agentic_forge.plan_toolchain_requires_explicit_provider_nested_delegation_blocked PASS
-agentic_forge.thirdparty_replacement_shape_no_official_priority PASS
-agentic_forge.no_official_priority_ordinary_package PASS
+agentic_forge.thirdparty_replacement_shape_no_publisher_priority PASS
+agentic_forge.no_publisher_priority_ordinary_package PASS
 agentic_forge.hostile_injection_secret_blocked_cross_package PASS
 agentic_forge.budget_deadline_contract_cancellation_consistent PASS
 agentic_forge.cross_package_replay_mismatch_flagged PASS
@@ -600,7 +600,7 @@ playable_board.request_change_no_chat PASS
 playable_board.bind_agent_run_scoped PASS
 playable_board.candidate_proposal_no_target_mutation PASS
 playable_board.reject_approve_fork_proof PASS
-playable_board.thirdparty_no_official_priority PASS
+playable_board.thirdparty_no_publisher_priority PASS
 playable_board.no_forbidden_namespace PASS
 playable_board.no_raw_secrets PASS
 playable_board.content_address_stable PASS
@@ -609,9 +609,9 @@ playable_board.provenance_graph PASS
 playable_board.state_diff_preview PASS
 playable_board.describe_asset_provenance PASS
 playable_board.beta2_no_raw_secrets PASS
-official.asset_lab_content_address PASS
-official.asset_lab_provenance_graph PASS
-official.projection_lab_state_snapshot PASS
+first_party.asset_lab_content_address PASS
+first_party.asset_lab_provenance_graph PASS
+first_party.projection_lab_state_snapshot PASS
 experience_observability.contract_shape PASS
 experience_observability.session_health PASS
 experience_observability.package_health PASS

@@ -17,8 +17,8 @@ Plurora 的安装系统让用户从 GitHub 或本地路径安装能力包和项�
 ## 设计原则
 
 - 内核不知道 git。
-- git 通过 `official/git-tools-lab`（能力包）走 `host.outbound.execute` 边界。
-- 安装编排在 `official/install-lab`（能力包）中，不在 kernel。
+- git 通过 `plurora/git-tools-lab`（能力包）走 `host.outbound.execute` 边界。
+- 安装编排在 `plurora/install-lab`（能力包）中，不在 kernel。
 - 默认拒绝：HTTPS-only，拒绝 `ssh://`、`git://`、`file://`。
 - 默认拒绝：URL 不能含 username/password。
 - 完整性：每个包记录 commit、tree hash、manifest hash。
@@ -138,7 +138,7 @@ plurora list-installed --profile alpha --data-dir /tmp/plurora-alpha
 
 ```yaml
 requires:
-  - id: "official/composition-lab"
+  - id: "plurora/composition-lab"
     source:
       kind: internal
     version: ">=1.0.0"
@@ -343,7 +343,7 @@ plurora update third-party/cool-tool
 plurora update --project-id my-project__abc12345 --check-only
 ```
 
-CLI 更新通过 `official/install-lab/update_project`；`--check-only` 调 `official/install-lab/check_for_updates`。
+CLI 更新通过 `plurora/install-lab/update_project`；`--check-only` 调 `plurora/install-lab/check_for_updates`。
 更新会检查上游 ref，解析新计划，并重新执行完整性、签名、conformance 和同意检查。
 如果权限没有变化，用户不需要重复确认旧授权。
 如果新增网络、secret 或 capability 权限，必须重新同意。

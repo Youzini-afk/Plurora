@@ -183,7 +183,7 @@ Before adding substrate responsibility, explain:
 
 1. why an ordinary protocol, component, or Host cannot implement it safely;
 2. whether it is independent of a specific product, UI, workflow, or content ontology;
-3. whether it increases user freedom and replaceability rather than locking in the current official implementation;
+3. whether it increases user freedom and replaceability rather than locking in the current first-party implementation;
 4. its error, cancellation, resource-limit, audit, and migration semantics;
 5. how it remains compatible with existing v1 data and clients.
 

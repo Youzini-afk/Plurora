@@ -21,9 +21,9 @@ pub(crate) async fn subprocess_adapter_shell_invokes_disabled_smoke() -> anyhow:
     let described = runtime
         .invoke_capability(CapabilityInvocationRequest {
             handle: None,
-            capability_id: Some("official/tdb-rust-adapter/describe_real_tdb_adapter".to_string()),
+            capability_id: Some("plurora/tdb-rust-adapter/describe_real_tdb_adapter".to_string()),
             caller_package_id: None,
-            provider_package_id: Some("official/tdb-rust-adapter".to_string()),
+            provider_package_id: Some("plurora/tdb-rust-adapter".to_string()),
             version: None,
             session_id: None,
             input: json!({}),
@@ -36,9 +36,9 @@ pub(crate) async fn subprocess_adapter_shell_invokes_disabled_smoke() -> anyhow:
     let smoke = runtime
         .invoke_capability(CapabilityInvocationRequest {
             handle: None,
-            capability_id: Some("official/tdb-rust-adapter/run_real_tdb_smoke".to_string()),
+            capability_id: Some("plurora/tdb-rust-adapter/run_real_tdb_smoke".to_string()),
             caller_package_id: None,
-            provider_package_id: Some("official/tdb-rust-adapter".to_string()),
+            provider_package_id: Some("plurora/tdb-rust-adapter".to_string()),
             version: None,
             session_id: None,
             input: json!({}),
@@ -63,9 +63,9 @@ pub(crate) async fn subprocess_adapter_rejects_secret_and_raw_path() -> anyhow::
         let denied = runtime
             .invoke_capability(CapabilityInvocationRequest {
                 handle: None,
-                capability_id: Some("official/tdb-rust-adapter/run_real_tdb_smoke".to_string()),
+                capability_id: Some("plurora/tdb-rust-adapter/run_real_tdb_smoke".to_string()),
                 caller_package_id: None,
-                provider_package_id: Some("official/tdb-rust-adapter".to_string()),
+                provider_package_id: Some("plurora/tdb-rust-adapter".to_string()),
                 version: None,
                 session_id: None,
                 input,

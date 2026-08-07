@@ -1,10 +1,10 @@
-//! Handler for `official/model-connector-lab` capabilities.
+//! Handler for `plurora/model-connector-lab` capabilities.
 
 use serde_json::Value;
 
 use super::InprocInvocation;
 
-const PACKAGE_ID: &str = "official/model-connector-lab";
+const PACKAGE_ID: &str = "plurora/model-connector-lab";
 
 pub fn try_handle(request: &InprocInvocation) -> Option<anyhow::Result<Value>> {
     if request.provider_package_id != PACKAGE_ID {

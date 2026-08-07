@@ -4,7 +4,7 @@
 //! - Packages without network permission are denied outbound requests.
 //! - Allowlisted host+method requests are allowed with redacted audit.
 //! - Host/method mismatches are denied.
-//! - Official packages have no network bypass.
+//! - First-party Packages have no network bypass.
 //! - Audit records never contain raw secrets/bodies — only secret_ref and redaction_state.
 //! - M3: Denied requests never reach the executor (call count stays 0).
 //! - M3: Policy/executor request mismatches are rejected before executor call.
@@ -267,21 +267,21 @@ pub(crate) async fn host_method_mismatch_denied() -> anyhow::Result<()> {
     Ok(())
 }
 
-/// Official package has no network bypass.
-pub(crate) async fn official_no_network_bypass() -> anyhow::Result<()> {
+/// First-party Package has no network bypass.
+pub(crate) async fn first_party_no_network_bypass() -> anyhow::Result<()> {
     let (_store, runtime) = runtime();
     // Load an "official" package with no network permission
     runtime
-        .load_package(network_package("official/no-net-lab", vec![], vec![]))
+        .load_package(network_package("plurora/no-net-lab", vec![], vec![]))
         .await?;
 
     let result = runtime
         .check_and_audit_outbound(OutboundRequest {
             principal: ProtocolPrincipal::Package {
-                package_id: "official/no-net-lab".to_string(),
+                package_id: "plurora/no-net-lab".to_string(),
             },
-            package_id: "official/no-net-lab".to_string(),
-            capability_id: "official/no-net-lab/fetch".to_string(),
+            package_id: "plurora/no-net-lab".to_string(),
+            capability_id: "plurora/no-net-lab/fetch".to_string(),
             destination_host: "api.example.com".to_string(),
             method: "GET".to_string(),
             purpose: None,
@@ -292,7 +292,7 @@ pub(crate) async fn official_no_network_bypass() -> anyhow::Result<()> {
 
     anyhow::ensure!(
         result.is_err(),
-        "official package must not bypass network permission"
+        "first-party Package must not bypass network permission"
     );
     Ok(())
 }

@@ -19,8 +19,8 @@ use tempfile::TempDir;
 use super::fixtures::{echo_package, runtime};
 use crate::commands::{manifest, world_bundle as world_bundle_command};
 
-const PLAYABLE_BOARD_PACKAGE_ID: &str = "official/playable-creation-board";
-const PLAYABLE_BOARD_CAPABILITY_ID: &str = "official/playable-creation-board/record_player_action";
+const PLAYABLE_BOARD_PACKAGE_ID: &str = "plurora/playable-creation-board";
+const PLAYABLE_BOARD_CAPABILITY_ID: &str = "plurora/playable-creation-board/record_player_action";
 const UNKNOWN_ARTIFACT_TYPE_URI: &str = "urn:example:opaque-board-extension:v1";
 
 struct PortableBoardFixture {
@@ -343,7 +343,7 @@ pub(crate) async fn shell_independence() -> anyhow::Result<()> {
 
 async fn portable_board_fixture() -> anyhow::Result<PortableBoardFixture> {
     let (_store, host_a) = runtime();
-    let manifest_path = PathBuf::from("packages/official/playable-creation-board/manifest.yaml");
+    let manifest_path = PathBuf::from("packages/plurora/playable-creation-board/manifest.yaml");
     let package_manifest = manifest::read_manifest(manifest_path).await?;
     host_a.load_package(package_manifest.clone()).await?;
 
@@ -354,7 +354,7 @@ async fn portable_board_fixture() -> anyhow::Result<PortableBoardFixture> {
                 "portable".to_string(),
             ],
             active_package_set: vec![PLAYABLE_BOARD_PACKAGE_ID.to_string()],
-            metadata: json!({"world_id":"official/playable-creation-board/portable-world"}),
+            metadata: json!({"world_id":"plurora/playable-creation-board/portable-world"}),
         })
         .await?;
     let first = invoke_board_action(&host_a, &parent.id, 1, "place_marker").await?;
@@ -415,7 +415,7 @@ async fn portable_board_fixture() -> anyhow::Result<PortableBoardFixture> {
     let source_sessions = vec![parent.id, branch.child_session_id];
     let archive = host_a
         .export_world_bundle(WorldBundleExportRequest {
-            world_id: "official/playable-creation-board/portable-world".to_string(),
+            world_id: "plurora/playable-creation-board/portable-world".to_string(),
             state_root,
             journal_selections: source_sessions
                 .iter()

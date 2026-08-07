@@ -2,7 +2,7 @@ id: example/playable-seed-replacement
 version: 0.1.0
 entry_surface_id: thirdparty/playable-seed/entry
 title: "Playable Seed Replacement Composition"
-description: "Proves that a third-party playable-seed replacement satisfies the same surface/capability shape as the official seed."
+description: "Proves that a third-party playable-seed replacement satisfies the same surface/capability shape as the Plurora seed."
 packages:
   - ../../packages/thirdparty-playable-seed/manifest.yaml
 required_surfaces:
@@ -20,7 +20,7 @@ required_capabilities:
 permission_expectations:
   - capabilities.invoke
 replacement_candidates:
-  - official/playable-seed
+  - plurora/playable-seed
 compatibility_notes:
-  - "Third-party replacement exposes equivalent surface slots to official/playable-seed"
-  - "No platform privilege or official namespace required"
+  - "Third-party replacement exposes equivalent surface slots to plurora/playable-seed"
+  - "No platform privilege or Plurora publisher namespace required"

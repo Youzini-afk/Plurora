@@ -76,12 +76,12 @@ integrations/tdb/TRIVIUMDB_REVIEW.md
 
 原因是 TDB 的强项是本地嵌入式向量、图、文档和多模态混合检索。Plurora 的事件、权限、提案、分支 lineage 和审计仍应由 event spine 承担。
 
-## `official/tdb-retrieval-lab`
+## `plurora/tdb-retrieval-lab`
 
 新增普通官方包：
 
 ```text
-packages/official/tdb-retrieval-lab
+packages/plurora/tdb-retrieval-lab
 ```
 
 能力：
@@ -106,9 +106,9 @@ describe_real_tdb_opt_in_seam
 - 不读写文件
 - 不保存或输出 raw backend secret
 
-真实 TDB 接线由 `official/tdb-rust-adapter` 与 `integrations/tdb/rust-adapter-real-crate` 承担。`tdb-retrieval-lab` 保持为默认安全的 contract/plan 层。
+真实 TDB 接线由 `plurora/tdb-rust-adapter` 与 `integrations/tdb/rust-adapter-real-crate` 承担。`tdb-retrieval-lab` 保持为默认安全的 contract/plan 层。
 
-## `official/tdb-rust-adapter`
+## `plurora/tdb-rust-adapter`
 
 新增显式加载的普通 subprocess package：
 
@@ -165,9 +165,9 @@ examples/tdb-provider-profiles/tdb-local.example.json
 Forge Storage Inspector 通过 public protocol 调用：
 
 ```text
-official/storage-lab
-official/tdb-retrieval-lab
-official/tdb-rust-adapter（仅显式加载时）
+plurora/storage-lab
+plurora/tdb-retrieval-lab
+plurora/tdb-rust-adapter（仅显式加载时）
 ```
 
 展示：
@@ -204,7 +204,7 @@ platform.embedding.*
 cargo test --workspace
 cargo run -p plurora-cli -- conformance --tag storage
 cargo run -p plurora-cli -- conformance --tag tdb
-cargo run -p plurora-cli -- package check packages/official/tdb-retrieval-lab/manifest.yaml
+cargo run -p plurora-cli -- package check packages/plurora/tdb-retrieval-lab/manifest.yaml
 cargo run -p plurora-cli -- package check examples/packages/tdb-rust-adapter/manifest.yaml
 cargo check -p plurora-cli --features postgres
 ```

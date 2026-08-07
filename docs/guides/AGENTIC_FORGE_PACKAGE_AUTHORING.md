@@ -53,7 +53,7 @@ Agent 在 scratch 分支上探索。它永远不直接修改目标分支。
 
 ## Tool Bridge Scoped Grants
 
-Capability tool bridge（`official/capability-tool-bridge-lab`）提供：
+Capability tool bridge（`plurora/capability-tool-bridge-lab`）提供：
 
 - `explain_tool_call`：有范围的授权摘要，包含分支上下文。`no_execution=true`、`no_ambient_authority=true`。
 - `record_tool_observation`：接受不可信工具输出（`untrusted=true`）。大输出会给出 `asset_ref` 建议。Raw secret 会被阻断。
@@ -85,7 +85,7 @@ Capability tool bridge（`official/capability-tool-bridge-lab`）提供：
 Official agentic-forge-lab 是普通包。它没有内核特权，也没有路由优先级。第三方包可以替换它：
 
 1. 创建具有等价能力形状的包（如 `thirdparty/agentic-forge`）
-2. 创建声明 `replacement_candidates: [official/agentic-forge-lab]` 的 composition
+2. 创建声明 `replacement_candidates: [plurora/agentic-forge-lab]` 的 composition
 3. 两个包都产生包拥有的形状：候选结果、提案、计划图和工作状态
 4. 两个包都不能直接修改目标分支或执行网络
 

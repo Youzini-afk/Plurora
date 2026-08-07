@@ -6,7 +6,7 @@
 
 ## Scope
 
-本台账把模型 provider 接入视为 cloud provider 级别的普通能力包复杂度样本。目标是帮助 Plurora 的 `official/model-provider-lab` 等普通能力包安全接入真实 provider API，而不是构建中转站、计费系统、渠道后台或平台模型网关。
+本台账把模型 provider 接入视为 cloud provider 级别的普通能力包复杂度样本。目标是帮助 Plurora 的 `plurora/model-provider-lab` 等普通能力包安全接入真实 provider API，而不是构建中转站、计费系统、渠道后台或平台模型网关。
 
 模型 provider 不是 kernel ontology。Provider profile、模型列表、prompt/messages schema、usage/cost 和错误映射都属于 package output、diagnostics 或 outbound audit metadata。真实出网必须走 host-enforced outbound boundary 或等价 fake/local executor；默认 conformance 使用 fake executor/local mock，不依赖真实 API key 或外网。手动真实调用必须 opt-in，使用 `secret_ref`、network allowlist 和 redacted audit，并且不作为 CI/release gate。
 
@@ -66,4 +66,4 @@ Request normalization 应留在 package/SDK 层：generation params、history no
 
 ## Boundaries
 
-模型接入是普通能力包能力，例如 `official/model-provider-lab`、`model-connector-lab` 与 `model-routing-lab`，不是 kernel ontology。Plurora 不新增 `platform.model.*`、`platform.prompt.*`、`platform.chat.*`、`platform.embedding.*`，不托管用户金额或平台代理 API key，不做中转站，不提供 channel admin，也不给官方 provider 包任何隐式 network、secret、routing 或 UI 特权。
+模型接入是普通能力包能力，例如 `plurora/model-provider-lab`、`model-connector-lab` 与 `model-routing-lab`，不是 kernel ontology。Plurora 不新增 `platform.model.*`、`platform.prompt.*`、`platform.chat.*`、`platform.embedding.*`，不托管用户金额或平台代理 API key，不做中转站，不提供 channel admin，也不给官方 provider 包任何隐式 network、secret、routing 或 UI 特权。

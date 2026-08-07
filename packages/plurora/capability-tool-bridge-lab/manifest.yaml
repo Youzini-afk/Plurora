@@ -1,0 +1,101 @@
+schema_version: 1
+id: plurora/capability-tool-bridge-lab
+version: 0.1.0
+display_name: Plurora Capability Tool Bridge Lab
+description: Discover capabilities, preview permissions, resolve explicit provider selection, and draft invocation/streaming plans through capability.invoke/stream without privileged runtime access.
+license: AGPL-3.0-only
+entry:
+  kind: rust_inproc
+  crate_ref: plurora-foundation
+  symbol: register
+  abi_version: 1
+provides:
+  - id: plurora/capability-tool-bridge-lab/discover_tools
+    version: 0.1.0
+    input_schema: {}
+    output_schema: {}
+    streaming: false
+    side_effects: []
+  - id: plurora/capability-tool-bridge-lab/preview_tool_permissions
+    version: 0.1.0
+    input_schema: {}
+    output_schema: {}
+    streaming: false
+    side_effects: []
+  - id: plurora/capability-tool-bridge-lab/invoke_tool
+    version: 0.1.0
+    input_schema: {}
+    output_schema: {}
+    streaming: false
+    side_effects: []
+  - id: plurora/capability-tool-bridge-lab/stream_tool
+    version: 0.1.0
+    input_schema: {}
+    output_schema: {}
+    streaming: false
+    side_effects: []
+  - id: plurora/capability-tool-bridge-lab/explain_tool_call
+    version: 0.1.0
+    input_schema: {}
+    output_schema: {}
+    streaming: false
+    side_effects: []
+  - id: plurora/capability-tool-bridge-lab/record_tool_observation
+    version: 0.1.0
+    input_schema: {}
+    output_schema: {}
+    streaming: false
+    side_effects: []
+  - id: plurora/capability-tool-bridge-lab/summarize_tool_risk
+    version: 0.1.0
+    input_schema: {}
+    output_schema: {}
+    streaming: false
+    side_effects: []
+  - id: plurora/capability-tool-bridge-lab/replay_tool_plan
+    version: 0.1.0
+    input_schema: {}
+    output_schema: {}
+    streaming: false
+    side_effects: []
+  - id: plurora/capability-tool-bridge-lab/plan_toolchain
+    version: 0.1.0
+    input_schema: {}
+    output_schema: {}
+    streaming: false
+    side_effects: []
+  - id: plurora/capability-tool-bridge-lab/echo
+    version: 0.1.0
+    input_schema: {}
+    output_schema: {}
+    streaming: false
+    side_effects: []
+consumes: []
+contributes:
+  schemas: []
+  hooks: []
+  extension_points: []
+  surfaces:
+    - id: plurora/capability-tool-bridge-lab/forge-panel
+      slot: forge_panel
+      title: Tool Bridge Inspector
+      description: Inspect tool-bridge discovery plans, permission previews, and invocation diagnostics without privileged access.
+      capability_id: plurora/capability-tool-bridge-lab/discover_tools
+    - id: plurora/capability-tool-bridge-lab/assistant-action
+      slot: assistant_action
+      title: Draft Tool Bridge Plan
+      description: Prepare an approval-gated tool invocation or streaming plan through explicit provider selection.
+      capability_id: plurora/capability-tool-bridge-lab/invoke_tool
+      approval_policy: user_approval
+    - id: plurora/capability-tool-bridge-lab/home-card
+      slot: home_card
+      title: Capability Tool Bridge
+      description: Discover available capabilities and preview tool permissions without model inference or network.
+      capability_id: plurora/capability-tool-bridge-lab/discover_tools
+permissions:
+  capabilities:
+    invoke: []
+sandbox_policy:
+  cpu_quota_ms_per_invoke: 5000
+  memory_mb: 128
+  wall_clock_ms: 30000

@@ -57,7 +57,7 @@ The shell talks to the Host exclusively through published boundaries:
 
 There is no SQLite access and no private runtime call. Shell-owned features that
 call platform utility packages still go through ordinary `capability.invoke`
-paths; no official package receives a privileged side channel.
+paths; no first-party Package receives a privileged side channel.
 
 ---
 
@@ -188,14 +188,14 @@ mode for legibility on bark backgrounds.
 | ---- | ------ |
 | Home — projects | `host.project.list` + per-project `storage_summary` |
 | Home — shell contributions | `shell.contribution.list` filtered to `quick_action`, `workshop_card`, and schema-versioned `home_card` |
-| Settings — API Connections | `official/secret-store-lab/{list,put,delete}_secret` + `health` |
+| Settings — API Connections | `plurora/secret-store-lab/{list,put,delete}_secret` + `health` |
 | Settings — Installed Packages | `host.package.list` + `host.project.list` (project flag) |
 | Settings — Profiles | `host.diagnostics` (active profile, packages_loaded, allowlist) |
 | Settings — Storage | storage-area summary + event store kind |
 | Settings — Host Access | `/host/v1/access*` identity, pairing, grant, and revoke APIs |
 | Project tab | `host.project.get/start/stop` + `host.surface.bundle.resolve` |
-| Project deployment | `platform.port.*` + `platform.proxy.*` + `official/docker-runtime-lab/{start_container,stop_container}` |
-| Install Modal | `official/install-lab/{resolve_plan,detect_kind,execute_plan}` through `capability.invoke` |
+| Project deployment | `platform.port.*` + `platform.proxy.*` + `plurora/docker-runtime-lab/{start_container,stop_container}` |
+| Install Modal | `plurora/install-lab/{resolve_plan,detect_kind,execute_plan}` through `capability.invoke` |
 | Failure Modal | `host.package.list/status/logs` redacted failure summaries |
 
 All async views show a shimmer skeleton during load and an `EmptyState` with a
@@ -216,7 +216,7 @@ must still cross proposal, permission, and audit boundaries.
 
 Project deployment is also explicit. If a project exposes
 `project.metadata.deployment.docker`, the project console shows Deploy / Stop
-controls. Deploy leases a loopback port, invokes `official/docker-runtime-lab`,
+controls. Deploy leases a loopback port, invokes `plurora/docker-runtime-lab`,
 then registers a reverse-proxy route. Route exposure defaults to
 `host_authenticated`; the user must explicitly select `public` before a vhost
 can bypass Host identity. `host.project.start` does not deploy

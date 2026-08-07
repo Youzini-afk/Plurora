@@ -8,7 +8,7 @@ This is the long-term guide for performance and code health. It replaces the tem
 
 1. Measure before optimizing. Use `cargo run -p plurora-cli -- perf baseline`, conformance timing, Web TypeScript diagnostics, and focused tests before changing architecture.
 2. Optimization must not change the platform contract. Official and third-party packages must keep sharing the same manifest, capability, permission, hook, schema, redaction, and audit path.
-3. UI stays on the public protocol. The web shell must not read SQLite, runtime internals, or special-case official packages.
+3. UI stays on the public protocol. The web shell must not read SQLite, runtime internals, or special-case first-party Packages.
 4. Do not introduce content ontology in the name of performance. Do not add `platform.agent.*`, `platform.model.*`, `platform.memory.*`, `platform.experience.*`, `platform.sharing.*`, or similar product/content namespaces.
 5. Advanced optimization needs evidence. Capability or surface caches, RawValue, registry helpers/codegen, per-domain crates, and similar changes require baseline or profiling evidence.
 
@@ -42,7 +42,7 @@ tsc -p clients/web/tsconfig.json --noEmit
 `cargo run -p plurora-cli -- perf baseline` currently covers:
 
 - Rust in-process capability invocation.
-- Ordinary official package capability invocation.
+- Ordinary first-party Package capability invocation.
 - Subprocess echo invocation when Python is available.
 - In-memory event store append/list/range.
 - Scale scenarios: 1k / 10k / 100k events.
@@ -101,23 +101,23 @@ Storage backend neutrality work added:
 - `EventStore` trait documentation clarifies backend-neutral event spine contract positioning. `append_with_sequence` is the runtime-recommended append path; `append` + `next_sequence` is the low-level/test/admin path; ordering semantics are per-session `(session_id, sequence)`. Kind-prefix queries are event-semantic queries, not SQL/index product APIs. The contract has no SQL, table, vector, or DSN concepts.
 - In-memory and SQLite conformance parity: `storage_backend` tag conformance cases cover the basic contract, kind-prefix equivalence, concurrent append without duplicates, subscription broadcast, and rehydrate event replay semantics.
 
-`official/storage-lab` provides a package-scoped storage/data contract preview:
+`plurora/storage-lab` provides a package-scoped storage/data contract preview:
 
-- `official/storage-lab` is an ordinary package that previews package-scoped storage/data contracts. It proves storage is a package-layer capability, not a kernel database/sql/vector API.
+- `plurora/storage-lab` is an ordinary package that previews package-scoped storage/data contracts. It proves storage is a package-layer capability, not a kernel database/sql/vector API.
 - Layered contract model: event spine backend / package state store / blob store future / projection index future / retrieval provider future.
 - Backend class candidates contain capability flags only, no secret-bearing backend config.
 - Document CRUD preview outputs write/read/query/delete/snapshot_performed=false with redacted content.
 
 Blob/asset store contract proofs added:
 
-- `official/storage-lab` adds blob/asset store contract proof capabilities: describe_blob_store_contract, put_blob_preview, get_blob_metadata_preview, export_blob_manifest_preview.
+- `plurora/storage-lab` adds blob/asset store contract proof capabilities: describe_blob_store_contract, put_blob_preview, get_blob_metadata_preview, export_blob_manifest_preview.
 - Blob contract outputs content-addressed type, backend candidates (local_content_addressed_future / filesystem_backend_future / object_store_future), red lines (no blob content in events / no raw secrets / no filesystem path leak / content address required).
 - put_blob_preview outputs content_address. It returns normalized `sha256:` when content_hash is provided, and a deterministic hash otherwise. It also outputs blob_stored=false, filesystem_performed=false, network_performed=false, event_payload_contains_blob=false. It blocks raw secret, unsafe id, and oversized inline sample (>4096 chars).
 - No real blob store implementation, no filesystem reads/writes, no network, no blob content in event payloads.
 
 Projection/index materialization contract proofs added:
 
-- `official/storage-lab` adds projection/index materialization contract proof capabilities: describe_projection_store_contract, plan_projection_materialization, query_projection_preview, migrate_projection_plan_preview.
+- `plurora/storage-lab` adds projection/index materialization contract proof capabilities: describe_projection_store_contract, plan_projection_materialization, query_projection_preview, migrate_projection_plan_preview.
 - Projection contract outputs backend candidates (event_derived_projection / package_owned_index / sqlite_materialized_view_future / postgres_materialized_view_future), red lines (no_table_exposure / no_sql_exposure / no_secret_backend_config / no_query_product_leakage / projection_derives_from_events_assets_only).
 - plan_projection_materialization outputs materialized=false, write_performed=false, backend_selected=false, plan_only=true. Blocks raw secret, validates projection_id/package_id safe-id.
 - query_projection_preview outputs query_executed=false, rows_returned=false, preview_shape. No SQL/table/collection/vector terms.
@@ -126,7 +126,7 @@ Projection/index materialization contract proofs added:
 
 Retrieval/vector/multimodal provider contract proofs added:
 
-- `official/storage-lab` adds retrieval/vector/multimodal provider contract proof capabilities: describe_retrieval_provider_contract, draft_multimodal_index_plan, draft_vector_search_plan, explain_retrieval_backend_fit.
+- `plurora/storage-lab` adds retrieval/vector/multimodal provider contract proof capabilities: describe_retrieval_provider_contract, draft_multimodal_index_plan, draft_vector_search_plan, explain_retrieval_backend_fit.
 - Retrieval contract outputs backend candidates (tdb_future / pgvector_future / local_embedding_index_future / remote_vector_provider_future / opensearch_vector_future / redis_vector_future), red lines (no_embedding_generation / no_vector_storage / no_network / no_secret_backend_config / no_kernel_vector_namespace / no_raw_vectors_in_output / no_distance_metric_leakage).
 - draft_multimodal_index_plan outputs embedding_generated=false, index_created=false, vectors_stored=false, network_performed=false, plan_only=true. Blocks raw secret, validates package_id/index_id safe-id, modalities allow text/image/audio/video/structured only, asset_refs capped at 64.
 - draft_vector_search_plan outputs search_executed=false, embedding_generated=false, vectors_loaded=false, plan_only=true. No actual search results.

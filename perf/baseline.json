@@ -28,7 +28,7 @@
       "notes": []
     },
     {
-      "scenario_id": "official_capability_invoke",
+      "scenario_id": "first_party_capability_invoke",
       "iterations": 30,
       "total_ms": 1.2131979999999998,
       "avg_ms": 0.040439933333333324,
@@ -40,7 +40,7 @@
       "memory_rss_mb_delta": 0.01171875,
       "status": "ok",
       "notes": [
-        "official/composition-lab/describe"
+        "plurora/composition-lab/describe"
       ]
     },
     {

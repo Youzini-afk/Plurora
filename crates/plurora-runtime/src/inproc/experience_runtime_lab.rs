@@ -1,4 +1,4 @@
-//! Handler for `official/experience-runtime-lab` capabilities.
+//! Handler for `plurora/experience-runtime-lab` capabilities.
 //!
 //! Experience Beta 0 — Thin Experience Runtime Contract.
 //!
@@ -13,7 +13,7 @@ use serde_json::Value;
 
 use super::InprocInvocation;
 
-const PACKAGE_ID: &str = "official/experience-runtime-lab";
+const PACKAGE_ID: &str = "plurora/experience-runtime-lab";
 
 // ---------------------------------------------------------------------------
 // Lifecycle states
@@ -104,17 +104,17 @@ fn describe_contract(request: &InprocInvocation) -> anyhow::Result<Value> {
         "package_id": request.provider_package_id,
         "package_kind": "ordinary",
         "capabilities": [
-            {"id": "official/experience-runtime-lab/describe_contract", "purpose": "describe the experience runtime package contract"},
-            {"id": "official/experience-runtime-lab/create_checkpoint", "purpose": "create a deterministic experience checkpoint asset"},
-            {"id": "official/experience-runtime-lab/inspect_checkpoint", "purpose": "inspect a checkpoint's shape and validity"},
-            {"id": "official/experience-runtime-lab/draft_recovery", "purpose": "draft a recovery plan for a failed experience session"},
-            {"id": "official/experience-runtime-lab/bind_agent_run", "purpose": "bind an agentic forge run to an experience session"},
+            {"id": "plurora/experience-runtime-lab/describe_contract", "purpose": "describe the experience runtime package contract"},
+            {"id": "plurora/experience-runtime-lab/create_checkpoint", "purpose": "create a deterministic experience checkpoint asset"},
+            {"id": "plurora/experience-runtime-lab/inspect_checkpoint", "purpose": "inspect a checkpoint's shape and validity"},
+            {"id": "plurora/experience-runtime-lab/draft_recovery", "purpose": "draft a recovery plan for a failed experience session"},
+            {"id": "plurora/experience-runtime-lab/bind_agent_run", "purpose": "bind an agentic forge run to an experience session"},
         ],
         "surfaces": {
-            "experience_entry": "official/experience-runtime-lab/entry",
-            "play_renderer": "official/experience-runtime-lab/play",
-            "forge_panel": "official/experience-runtime-lab/forge",
-            "assistant_action": "official/experience-runtime-lab/assist",
+            "experience_entry": "plurora/experience-runtime-lab/entry",
+            "play_renderer": "plurora/experience-runtime-lab/play",
+            "forge_panel": "plurora/experience-runtime-lab/forge",
+            "assistant_action": "plurora/experience-runtime-lab/assist",
         },
         "lifecycle_states": LIFECYCLE_STATES,
         "checkpoint_formats": CHECKPOINT_FORMATS,
@@ -438,7 +438,7 @@ fn bind_agent_run(request: &InprocInvocation) -> anyhow::Result<Value> {
         .input
         .get("agent_package_id")
         .and_then(Value::as_str)
-        .unwrap_or("official/agentic-forge-lab");
+        .unwrap_or("plurora/agentic-forge-lab");
     let target_branch_ref = request
         .input
         .get("target_branch_ref")
@@ -456,9 +456,9 @@ fn bind_agent_run(request: &InprocInvocation) -> anyhow::Result<Value> {
             .get("run_capabilities")
             .cloned()
             .unwrap_or(serde_json::json!([
-                "official/agentic-forge-lab/start_run",
-                "official/agentic-forge-lab/create_candidate",
-                "official/agentic-forge-lab/draft_promote_proposal"
+                "plurora/agentic-forge-lab/start_run",
+                "plurora/agentic-forge-lab/create_candidate",
+                "plurora/agentic-forge-lab/draft_promote_proposal"
             ]));
 
     Ok(serde_json::json!({
@@ -471,26 +471,26 @@ fn bind_agent_run(request: &InprocInvocation) -> anyhow::Result<Value> {
         "target_branch_ref": target_branch_ref,
         "scratch_branch_ref": scratch_branch_ref,
         "forge_panel_binding": {
-            "surface_id": "official/experience-runtime-lab/forge",
+            "surface_id": "plurora/experience-runtime-lab/forge",
             "inspect_capabilities": [
-                "official/experience-runtime-lab/describe_contract",
-                "official/experience-runtime-lab/inspect_checkpoint"
+                "plurora/experience-runtime-lab/describe_contract",
+                "plurora/experience-runtime-lab/inspect_checkpoint"
             ],
             "proposal_capabilities": [
-                "official/experience-runtime-lab/draft_recovery"
+                "plurora/experience-runtime-lab/draft_recovery"
             ],
             "branch_aware": true,
         },
         "assist_binding": {
-            "surface_id": "official/experience-runtime-lab/assist",
+            "surface_id": "plurora/experience-runtime-lab/assist",
             "action_capabilities": [
-                "official/experience-runtime-lab/draft_recovery",
-                "official/experience-runtime-lab/bind_agent_run"
+                "plurora/experience-runtime-lab/draft_recovery",
+                "plurora/experience-runtime-lab/bind_agent_run"
             ],
             "approval_policy": "fork_then_approve",
         },
         "play_subscription": {
-            "surface_id": "official/experience-runtime-lab/play",
+            "surface_id": "plurora/experience-runtime-lab/play",
             "subscription_type": "state_change",
         },
         "inference_performed": false,
@@ -523,7 +523,7 @@ mod tests {
     #[test]
     fn try_handle_matches_package_id() {
         let req = make_request(
-            "official/experience-runtime-lab/describe_contract",
+            "plurora/experience-runtime-lab/describe_contract",
             json!({}),
         );
         assert!(try_handle(&req).is_some());
@@ -532,8 +532,8 @@ mod tests {
     #[test]
     fn try_handle_rejects_wrong_package() {
         let req = InprocInvocation {
-            capability_id: "official/experience-runtime-lab/describe_contract".to_string(),
-            provider_package_id: "official/other".to_string(),
+            capability_id: "plurora/experience-runtime-lab/describe_contract".to_string(),
+            provider_package_id: "plurora/other".to_string(),
             session_id: None,
             input: json!({}),
         };
@@ -543,7 +543,7 @@ mod tests {
     #[test]
     fn describe_contract_returns_lifecycle_states() {
         let req = make_request(
-            "official/experience-runtime-lab/describe_contract",
+            "plurora/experience-runtime-lab/describe_contract",
             json!({}),
         );
         let result = try_handle(&req).unwrap().unwrap();
@@ -556,7 +556,7 @@ mod tests {
     #[test]
     fn describe_contract_has_surfaces() {
         let req = make_request(
-            "official/experience-runtime-lab/describe_contract",
+            "plurora/experience-runtime-lab/describe_contract",
             json!({}),
         );
         let result = try_handle(&req).unwrap().unwrap();
@@ -570,7 +570,7 @@ mod tests {
     #[test]
     fn create_checkpoint_returns_deterministic() {
         let req = make_request(
-            "official/experience-runtime-lab/create_checkpoint",
+            "plurora/experience-runtime-lab/create_checkpoint",
             json!({"session_id": "session_test", "state_snapshot": {"health": 100}, "asset_refs": ["asset:module:seed"]}),
         );
         let result = try_handle(&req).unwrap().unwrap();
@@ -583,7 +583,7 @@ mod tests {
     #[test]
     fn create_checkpoint_blocks_raw_secret() {
         let req = make_request(
-            "official/experience-runtime-lab/create_checkpoint",
+            "plurora/experience-runtime-lab/create_checkpoint",
             json!({"session_id": "test", "api_key": "RawSecretExample1234567890abcdefABCDEF123456"}),
         );
         let result = try_handle(&req).unwrap().unwrap();
@@ -594,7 +594,7 @@ mod tests {
     #[test]
     fn inspect_checkpoint_valid() {
         let req = make_request(
-            "official/experience-runtime-lab/inspect_checkpoint",
+            "plurora/experience-runtime-lab/inspect_checkpoint",
             json!({"checkpoint_id": "cp:1", "session_id": "s:1", "state_snapshot": {"x": 1}, "format": "snapshot", "sequence": 1}),
         );
         let result = try_handle(&req).unwrap().unwrap();
@@ -605,7 +605,7 @@ mod tests {
     #[test]
     fn draft_recovery_returns_plan() {
         let req = make_request(
-            "official/experience-runtime-lab/draft_recovery",
+            "plurora/experience-runtime-lab/draft_recovery",
             json!({"session_id": "session_test", "failure_kind": "state_corruption", "last_checkpoint_ref": "cp:1"}),
         );
         let result = try_handle(&req).unwrap().unwrap();
@@ -620,7 +620,7 @@ mod tests {
     #[test]
     fn draft_recovery_no_checkpoint_recommends_restart() {
         let req = make_request(
-            "official/experience-runtime-lab/draft_recovery",
+            "plurora/experience-runtime-lab/draft_recovery",
             json!({"session_id": "session_test", "failure_kind": "checkpoint_missing"}),
         );
         let result = try_handle(&req).unwrap().unwrap();
@@ -630,8 +630,8 @@ mod tests {
     #[test]
     fn bind_agent_run_returns_binding() {
         let req = make_request(
-            "official/experience-runtime-lab/bind_agent_run",
-            json!({"session_id": "session_test", "agent_package_id": "official/agentic-forge-lab"}),
+            "plurora/experience-runtime-lab/bind_agent_run",
+            json!({"session_id": "session_test", "agent_package_id": "plurora/agentic-forge-lab"}),
         );
         let result = try_handle(&req).unwrap().unwrap();
         assert_eq!(result["kind"], json!("experience_agent_run_binding"));
@@ -642,11 +642,11 @@ mod tests {
     #[test]
     fn no_platform_experience_namespace_in_output() {
         let caps = [
-            "official/experience-runtime-lab/describe_contract",
-            "official/experience-runtime-lab/create_checkpoint",
-            "official/experience-runtime-lab/inspect_checkpoint",
-            "official/experience-runtime-lab/draft_recovery",
-            "official/experience-runtime-lab/bind_agent_run",
+            "plurora/experience-runtime-lab/describe_contract",
+            "plurora/experience-runtime-lab/create_checkpoint",
+            "plurora/experience-runtime-lab/inspect_checkpoint",
+            "plurora/experience-runtime-lab/draft_recovery",
+            "plurora/experience-runtime-lab/bind_agent_run",
         ];
         for cap in &caps {
             let req = make_request(cap, json!({"session_id": "test"}));

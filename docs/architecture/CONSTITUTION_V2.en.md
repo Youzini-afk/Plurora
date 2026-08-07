@@ -36,7 +36,7 @@ A manifest declaration is an upper bound request, not runtime authority. Actual 
 
 Every cross-boundary action must answer: who, over which resource, under which conditions, with what authority, derived from where, and until when.
 
-### 2. Official implementations have no privilege
+### 2. First-party implementations have no privilege
 
 Official components, protocol implementations, and shell profiles use the same registration, authorization, invocation, audit, and conformance mechanisms as third parties. Official identity may express maintenance responsibility; it cannot imply authority or routing priority.
 

@@ -1,4 +1,4 @@
-//! Handler for `official/experience-observability-lab` capabilities.
+//! Handler for `plurora/experience-observability-lab` capabilities.
 //!
 //! Experience Beta 3 — Experience Observability (backend/package part).
 //!
@@ -24,7 +24,7 @@ use serde_json::Value;
 
 use super::InprocInvocation;
 
-const PACKAGE_ID: &str = "official/experience-observability-lab";
+const PACKAGE_ID: &str = "plurora/experience-observability-lab";
 
 // ---------------------------------------------------------------------------
 // Session health statuses
@@ -154,19 +154,19 @@ fn describe_observability(request: &InprocInvocation) -> anyhow::Result<Value> {
         "package_id": request.provider_package_id,
         "package_kind": "ordinary",
         "capabilities": [
-            {"id": "official/experience-observability-lab/describe_observability", "purpose": "describe the observability package contract"},
-            {"id": "official/experience-observability-lab/summarize_session_health", "purpose": "summarize the health of a session from protocol-visible refs"},
-            {"id": "official/experience-observability-lab/summarize_package_health", "purpose": "summarize the health of packages in a session from protocol-visible refs"},
-            {"id": "official/experience-observability-lab/summarize_agent_run_health", "purpose": "summarize the health of agent runs from protocol-visible refs"},
-            {"id": "official/experience-observability-lab/trace_proposal_causality", "purpose": "trace causal chain from proposal to contributing events"},
-            {"id": "official/experience-observability-lab/summarize_cost_latency", "purpose": "summarize cost and latency from outbound audit refs"},
-            {"id": "official/experience-observability-lab/list_failure_breadcrumbs", "purpose": "list failure breadcrumbs from protocol-visible event refs"},
-            {"id": "official/experience-observability-lab/summarize_guardrails", "purpose": "summarize guardrail/audit findings from protocol-visible refs"},
+            {"id": "plurora/experience-observability-lab/describe_observability", "purpose": "describe the observability package contract"},
+            {"id": "plurora/experience-observability-lab/summarize_session_health", "purpose": "summarize the health of a session from protocol-visible refs"},
+            {"id": "plurora/experience-observability-lab/summarize_package_health", "purpose": "summarize the health of packages in a session from protocol-visible refs"},
+            {"id": "plurora/experience-observability-lab/summarize_agent_run_health", "purpose": "summarize the health of agent runs from protocol-visible refs"},
+            {"id": "plurora/experience-observability-lab/trace_proposal_causality", "purpose": "trace causal chain from proposal to contributing events"},
+            {"id": "plurora/experience-observability-lab/summarize_cost_latency", "purpose": "summarize cost and latency from outbound audit refs"},
+            {"id": "plurora/experience-observability-lab/list_failure_breadcrumbs", "purpose": "list failure breadcrumbs from protocol-visible event refs"},
+            {"id": "plurora/experience-observability-lab/summarize_guardrails", "purpose": "summarize guardrail/audit findings from protocol-visible refs"},
         ],
         "surfaces": {
-            "forge_panel": "official/experience-observability-lab/forge-panel",
-            "assistant_action": "official/experience-observability-lab/assistant-action",
-            "home_card": "official/experience-observability-lab/home-card",
+            "forge_panel": "plurora/experience-observability-lab/forge-panel",
+            "assistant_action": "plurora/experience-observability-lab/assistant-action",
+            "home_card": "plurora/experience-observability-lab/home-card",
         },
         "session_health_statuses": SESSION_HEALTH_STATUSES,
         "package_health_statuses": PACKAGE_HEALTH_STATUSES,
@@ -302,7 +302,7 @@ fn summarize_package_health(request: &InprocInvocation) -> anyhow::Result<Value>
         .input
         .get("package_id")
         .and_then(Value::as_str)
-        .unwrap_or("official/unknown");
+        .unwrap_or("plurora/unknown");
 
     let capability_count = request
         .input
@@ -738,7 +738,7 @@ mod tests {
     #[test]
     fn try_handle_matches_package_id() {
         let req = make_request(
-            "official/experience-observability-lab/describe_observability",
+            "plurora/experience-observability-lab/describe_observability",
             json!({}),
         );
         assert!(try_handle(&req).is_some());
@@ -747,9 +747,9 @@ mod tests {
     #[test]
     fn try_handle_rejects_wrong_package() {
         let req = InprocInvocation {
-            capability_id: "official/experience-observability-lab/describe_observability"
+            capability_id: "plurora/experience-observability-lab/describe_observability"
                 .to_string(),
-            provider_package_id: "official/other".to_string(),
+            provider_package_id: "plurora/other".to_string(),
             session_id: None,
             input: json!({}),
         };
@@ -759,7 +759,7 @@ mod tests {
     #[test]
     fn describe_observability_has_all_surfaces() {
         let req = make_request(
-            "official/experience-observability-lab/describe_observability",
+            "plurora/experience-observability-lab/describe_observability",
             json!({}),
         );
         let result = try_handle(&req).unwrap().unwrap();
@@ -772,7 +772,7 @@ mod tests {
     #[test]
     fn describe_observability_lists_8_capabilities() {
         let req = make_request(
-            "official/experience-observability-lab/describe_observability",
+            "plurora/experience-observability-lab/describe_observability",
             json!({}),
         );
         let result = try_handle(&req).unwrap().unwrap();
@@ -789,7 +789,7 @@ mod tests {
     #[test]
     fn session_health_default_is_healthy() {
         let req = make_request(
-            "official/experience-observability-lab/summarize_session_health",
+            "plurora/experience-observability-lab/summarize_session_health",
             json!({"session_id": "s1", "event_count": 10}),
         );
         let result = try_handle(&req).unwrap().unwrap();
@@ -800,7 +800,7 @@ mod tests {
     #[test]
     fn session_health_with_failures_is_degraded() {
         let req = make_request(
-            "official/experience-observability-lab/summarize_session_health",
+            "plurora/experience-observability-lab/summarize_session_health",
             json!({"session_id": "s2", "event_count": 10, "failure_count": 2}),
         );
         let result = try_handle(&req).unwrap().unwrap();
@@ -810,7 +810,7 @@ mod tests {
     #[test]
     fn raw_secret_blocked() {
         let req = make_request(
-            "official/experience-observability-lab/summarize_session_health",
+            "plurora/experience-observability-lab/summarize_session_health",
             json!({"session_id": "s3", "api_key": "RawSecretExample1234567890abcdefABCDEF123456"}),
         );
         let result = try_handle(&req).unwrap().unwrap();
@@ -821,7 +821,7 @@ mod tests {
     #[test]
     fn no_forbidden_namespace_in_describe() {
         let req = make_request(
-            "official/experience-observability-lab/describe_observability",
+            "plurora/experience-observability-lab/describe_observability",
             json!({}),
         );
         let result = try_handle(&req).unwrap().unwrap();
@@ -846,7 +846,7 @@ mod tests {
     #[test]
     fn proposal_causality_chain_has_content_address() {
         let req = make_request(
-            "official/experience-observability-lab/trace_proposal_causality",
+            "plurora/experience-observability-lab/trace_proposal_causality",
             json!({"proposal_id": "p1"}),
         );
         let result = try_handle(&req).unwrap().unwrap();

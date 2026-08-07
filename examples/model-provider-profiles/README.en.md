@@ -2,7 +2,7 @@
 
 > [English](./README.en.md) · [中文](./README.md)
 
-These examples show provider profile shapes accepted by `official/model-provider-lab` and `sdk/typescript/model-provider-adapter`. They only contain `secret_ref` values and no real API keys.
+These examples show provider profile shapes accepted by `plurora/model-provider-lab` and `sdk/typescript/model-provider-adapter`. They only contain `secret_ref` values and no real API keys.
 
 Use them as:
 

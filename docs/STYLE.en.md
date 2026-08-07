@@ -55,7 +55,7 @@ A one-time implementation plan may live in `docs/roadmap/`, but is deleted on co
 - the official distribution may be opinionated but identifies its organization as a replaceable product choice;
 - a Product Profile may constrain participants that adopt it but is not mandatory ontology for every product;
 - when a product need motivates lower-layer work, documentation identifies whether the result belongs to a Protocol, Host, or a substrate mechanism that truly cannot move upward;
-- convenience of the current official implementation is not a reason to enter the substrate.
+- convenience of the current first-party implementation is not a reason to enter the substrate.
 
 ## Proper role of tests and conformance
 

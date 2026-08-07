@@ -1,7 +1,7 @@
 schema_version: 1
-id: official/tdb-rust-adapter
+id: plurora/tdb-rust-adapter
 version: 0.1.0
-display_name: Official TDB Rust Adapter
+display_name: Plurora TDB Rust Adapter
 description: Opt-in subprocess adapter shell for real TriviumDB Rust API integration. Default build is safe and does not link or open TriviumDB; real proof is feature-gated.
 entry:
   kind: subprocess
@@ -14,13 +14,13 @@ entry:
     - --
   transport: json_rpc_stdio
 provides:
-  - id: official/tdb-rust-adapter/describe_real_tdb_adapter
+  - id: plurora/tdb-rust-adapter/describe_real_tdb_adapter
     version: 0.1.0
     input_schema: {}
     output_schema: {}
     streaming: false
     side_effects: []
-  - id: official/tdb-rust-adapter/run_real_tdb_smoke
+  - id: plurora/tdb-rust-adapter/run_real_tdb_smoke
     version: 0.1.0
     input_schema: {}
     output_schema: {}
@@ -32,11 +32,11 @@ contributes:
   hooks: []
   extension_points: []
   surfaces:
-    - id: official/tdb-rust-adapter/forge-panel
+    - id: plurora/tdb-rust-adapter/forge-panel
       slot: forge_panel
       title: Real TDB Rust Adapter
       description: Inspect the opt-in real TriviumDB Rust adapter shell without opening a backend.
-      capability_id: official/tdb-rust-adapter/describe_real_tdb_adapter
+      capability_id: plurora/tdb-rust-adapter/describe_real_tdb_adapter
 permissions: {}
 sandbox_policy:
   cpu_quota_ms_per_invoke: 30000

@@ -4,12 +4,12 @@
 
 Creative Capability Kit turns mature headless creative and RP workflows into general capability packages. These packages follow Plurora's public protocol and manifest rules.
 
-TavernHeadless informs the edge cases. The official packages are not `tavern-*` wrappers:
+TavernHeadless informs the edge cases. The first-party Packages are not `tavern-*` wrappers:
 
-- `official/persona-lab` handles persona-like structured profiles.
-- `official/knowledge-lab` handles structured knowledge collections and match traces.
-- `official/context-lab` handles bounded context block assembly and budget diagnostics.
-- `official/text-transform-lab` handles replayable text transform previews and pipeline explanations.
+- `plurora/persona-lab` handles persona-like structured profiles.
+- `plurora/knowledge-lab` handles structured knowledge collections and match traces.
+- `plurora/context-lab` handles bounded context block assembly and budget diagnostics.
+- `plurora/text-transform-lab` handles replayable text transform previews and pipeline explanations.
 
 ## Rules
 
@@ -32,11 +32,11 @@ The decision vocabulary is:
 
 ## Typical flow
 
-1. Import a profile-like payload with `official/persona-lab/import_profile`.
-2. Import a knowledge collection with `official/knowledge-lab/import_collection`.
-3. Match knowledge entries with `official/knowledge-lab/match_entries`.
-4. Assemble generic context blocks with `official/context-lab/assemble_preview`.
-5. Preview deterministic transforms with `official/text-transform-lab/apply_preview`.
+1. Import a profile-like payload with `plurora/persona-lab/import_profile`.
+2. Import a knowledge collection with `plurora/knowledge-lab/import_collection`.
+3. Match knowledge entries with `plurora/knowledge-lab/match_entries`.
+4. Assemble generic context blocks with `plurora/context-lab/assemble_preview`.
+5. Preview deterministic transforms with `plurora/text-transform-lab/apply_preview`.
 6. If persistence is desired, create an approval-gated proposal that writes assets or rebuilds projections through public protocol.
 
 The flow is intentionally package-level. A third-party package can replace any official lab by exposing compatible capabilities and surfaces.

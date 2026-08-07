@@ -1,0 +1,59 @@
+schema_version: 1
+id: plurora/inference-local-lab
+version: 0.1.0
+display_name: Plurora Inference Local Lab
+description: Deterministic non-HTTP fake local inference provider proof. Proves the inference capability seam does not depend on cloud APIs, HTTP, bearer tokens, JSON provider schemas, or network access.
+license: AGPL-3.0-only
+entry:
+  kind: rust_inproc
+  crate_ref: plurora-foundation
+  symbol: register
+  abi_version: 1
+provides:
+  - id: plurora/inference-local-lab/describe_capabilities
+    version: 0.1.0
+    input_schema: {}
+    output_schema: {}
+    streaming: false
+    side_effects: []
+  - id: plurora/inference-local-lab/invoke
+    version: 0.1.0
+    input_schema: {}
+    output_schema: {}
+    streaming: false
+    side_effects: []
+  - id: plurora/inference-local-lab/stream
+    version: 0.1.0
+    input_schema: {}
+    output_schema: {}
+    streaming: true
+    side_effects: []
+  - id: plurora/inference-local-lab/explain_error
+    version: 0.1.0
+    input_schema: {}
+    output_schema: {}
+    streaming: false
+    side_effects: []
+consumes: []
+contributes:
+  schemas: []
+  hooks: []
+  extension_points: []
+  surfaces:
+    - id: plurora/inference-local-lab/home-card
+      slot: home_card
+      title: Inference Local Lab
+      description: Explore deterministic non-HTTP inference capabilities without network or secrets.
+      capability_id: plurora/inference-local-lab/describe_capabilities
+    - id: plurora/inference-local-lab/forge-panel
+      slot: forge_panel
+      title: Local Inference Inspector
+      description: Inspect transport-neutral inference operations, deterministic invoke and stream proofs.
+      capability_id: plurora/inference-local-lab/describe_capabilities
+permissions:
+  capabilities:
+    invoke: []
+sandbox_policy:
+  cpu_quota_ms_per_invoke: 5000
+  memory_mb: 128
+  wall_clock_ms: 30000

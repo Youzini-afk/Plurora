@@ -66,7 +66,7 @@ crates/
 clients/web/           官方 React 19 + Tailwind v4 + Vite Web Shell / PWA
 clients/desktop/       Tauri 2.x wrapper + managed Host sidecar
 
-packages/official/     通过普通 Manifest 加载的第一方组件与实验能力
+packages/plurora/     通过普通 Manifest 加载的第一方组件与实验能力
 profiles/              发行版 / Host 的组件与策略组合
 examples/              示例、fixture 与第三方接入样例
 

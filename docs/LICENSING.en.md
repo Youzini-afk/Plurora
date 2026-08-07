@@ -11,7 +11,7 @@ The following parts consistently use `AGPL-3.0-only`:
 - the Rust workspace, CLI, Host, service, and runtime;
 - the Web shell and Desktop wrapper;
 - repository-maintained Rust and TypeScript SDKs;
-- official capability packages under `packages/official/`;
+- first-party capability packages under `packages/plurora/`;
 - repository-maintained build, verification, and release scripts.
 
 Unless separately agreed in writing, contributions to these first-party parts enter the repository under the same license.
@@ -38,4 +38,4 @@ CI runs:
 bash scripts/check-license-metadata.sh
 ```
 
-The check keeps first-party Cargo/npm metadata, root-package lockfile records, and official capability-package manifests on `AGPL-3.0-only`, preventing future license drift.
+The check keeps first-party Cargo/npm metadata, root-package lockfile records, and first-party capability-package manifests on `AGPL-3.0-only`, preventing future license drift.

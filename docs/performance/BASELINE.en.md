@@ -45,7 +45,7 @@ All scenarios avoid real network or provider dependencies. Inputs are fixed so d
 | scenario_id | Description |
 |---|---|
 | `inproc_echo_invoke` | Rust inproc package echo capability invocation. Uses `examples/packages/echo-rust-inproc/manifest.yaml`. |
-| `official_capability_invoke` | Official package capability invocation. Uses `official/composition-lab/describe`. |
+| `first_party_capability_invoke` | First-party Package capability invocation. Uses `plurora/composition-lab/describe`. |
 | `event_store_append_list_range` | In-memory event store batch append (100 events), full list, range query. |
 | `event_store_append_list_range_1k` | In-memory event store atomic append (1,000 events), full list, kind-prefix query. |
 | `event_store_append_list_range_10k` | In-memory event store atomic append (10,000 events), full list, kind-prefix query. |

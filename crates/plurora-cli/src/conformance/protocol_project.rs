@@ -22,7 +22,7 @@ fn descriptor(id: &str) -> ProjectDescriptor {
             description: "protocol project test".to_string(),
             project_type: ProjectType::ExternalWorkspace,
             icon: None,
-            entry_surface_id: Some("official/workspace-lab/workspace_view".to_string()),
+            entry_surface_id: Some("plurora/workspace-lab/workspace_view".to_string()),
             packages: vec![],
             optional_packages: vec![],
             required_surfaces: vec![],
@@ -383,7 +383,7 @@ pub(crate) async fn surface_resolve_via_installed_project() -> anyhow::Result<()
     )?;
     fs::write(
         project_dir.join("dist/styles/surface.css"),
-        ".official-surface{color:red}",
+        ".plurora-surface{color:red}",
     )?;
     fs::write(
         project_dir.join("dist/styles/mobile.css"),
@@ -397,7 +397,7 @@ pub(crate) async fn surface_resolve_via_installed_project() -> anyhow::Result<()
         .call_protocol(
             &ProtocolContext::host_dev("conformance"),
             "host.surface.bundle.resolve",
-            json!({"surface_id":"official/workspace-lab/workspace_view"}),
+            json!({"surface_id":"plurora/workspace-lab/workspace_view"}),
         )
         .await
         .map_err(|error| anyhow::anyhow!(error.message))?;
@@ -411,7 +411,7 @@ pub(crate) async fn surface_resolve_via_installed_project() -> anyhow::Result<()
         .as_str()
         .unwrap_or_default()
         .contains("?v="));
-    anyhow::ensure!(value["wrapper_class"] == json!("official-surface"));
+    anyhow::ensure!(value["wrapper_class"] == json!("plurora-surface"));
     let stylesheets = value["stylesheets"]
         .as_array()
         .ok_or_else(|| anyhow::anyhow!("stylesheets missing"))?;

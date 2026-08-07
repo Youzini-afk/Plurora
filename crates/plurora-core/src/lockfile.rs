@@ -289,15 +289,15 @@ mod tests {
         let mut lockfile = Lockfile::new("default", "sha256:profile");
         let mut entry = git_entry();
         entry.requires = vec![LockRequirement {
-            id: "official/core".to_string(),
+            id: "plurora/core".to_string(),
             constraint: ">=1.0.0".to_string(),
-            resolved_to: "official/core@1.0.0".to_string(),
+            resolved_to: "plurora/core@1.0.0".to_string(),
         }];
         lockfile.package.push(entry);
         let toml = toml::to_string(&lockfile).expect("serialize toml");
         let decoded: Lockfile = toml::from_str(&toml).expect("deserialize toml");
         assert_eq!(decoded.package[0].requires.len(), 1);
-        assert_eq!(decoded.package[0].requires[0].id, "official/core");
+        assert_eq!(decoded.package[0].requires[0].id, "plurora/core");
         decoded.validate().expect("valid transitive lockfile");
     }
 

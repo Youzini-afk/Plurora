@@ -40,7 +40,7 @@ pub async fn run(args: UninstallArgs) -> Result<()> {
     let runtime = load_install_runtime().await?;
     let result = invoke_install_lab(
         &runtime,
-        "official/install-lab/uninstall",
+        "plurora/install-lab/uninstall",
         json!({
             "package_id": args.package_id,
             "project_id": project_descriptor

@@ -8,7 +8,7 @@ use serde_json::json;
 use super::fixtures::*;
 use crate::commands::manifest;
 
-const MANIFEST_PATH: &str = "packages/official/git-tools-lab/manifest.yaml";
+const MANIFEST_PATH: &str = "packages/plurora/git-tools-lab/manifest.yaml";
 
 pub(crate) async fn url_validation_https_only() -> anyhow::Result<()> {
     let (_store, runtime) = runtime();
@@ -22,7 +22,7 @@ pub(crate) async fn url_validation_https_only() -> anyhow::Result<()> {
     ] {
         let result = invoke(
             &runtime,
-            "official/git-tools-lab/fetch_refs",
+            "plurora/git-tools-lab/fetch_refs",
             json!({ "remote_url": remote_url }),
         )
         .await;
@@ -38,7 +38,7 @@ pub(crate) async fn url_validation_no_userinfo() -> anyhow::Result<()> {
         .await?;
     let result = invoke(
         &runtime,
-        "official/git-tools-lab/fetch_refs",
+        "plurora/git-tools-lab/fetch_refs",
         json!({ "remote_url": "https://user:pass@example.com/repo.git" }),
     )
     .await;
@@ -53,7 +53,7 @@ pub(crate) async fn path_validation_absolute() -> anyhow::Result<()> {
         .await?;
     let result = invoke(
         &runtime,
-        "official/git-tools-lab/fetch_tree",
+        "plurora/git-tools-lab/fetch_tree",
         json!({
             "remote_url": "https://example.com/repo.git",
             "commit_sha": "0123456789abcdef0123456789abcdef01234567",
@@ -72,7 +72,7 @@ pub(crate) async fn path_validation_no_traversal() -> anyhow::Result<()> {
         .await?;
     let result = invoke(
         &runtime,
-        "official/git-tools-lab/fetch_tree",
+        "plurora/git-tools-lab/fetch_tree",
         json!({
             "remote_url": "https://example.com/repo.git",
             "commit_sha": "0123456789abcdef0123456789abcdef01234567",
@@ -106,7 +106,7 @@ pub(crate) async fn read_signed_tag_unsigned() -> anyhow::Result<()> {
         .await?;
     let output = invoke(
         &runtime,
-        "official/git-tools-lab/read_signed_tag",
+        "plurora/git-tools-lab/read_signed_tag",
         json!({
             "remote_url": format!("file://{}", repo.display()),
             "tag": "lightweight-fixture"
@@ -130,7 +130,7 @@ async fn invoke(
             handle: None,
             capability_id: Some(capability_id.to_string()),
             caller_package_id: None,
-            provider_package_id: Some("official/git-tools-lab".to_string()),
+            provider_package_id: Some("plurora/git-tools-lab".to_string()),
             version: None,
             session_id: None,
             input,

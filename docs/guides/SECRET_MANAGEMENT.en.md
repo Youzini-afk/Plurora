@@ -12,7 +12,7 @@ Plurora references secrets through `secret_ref`. The host resolves those referen
 - Missing, denied, or malformed references fail closed.
 - Error messages do not leak values.
 - A `secret_ref` is runtime authority input, not a container for raw secrets.
-- Official packages have no special privilege; they also need ordinary manifest declarations for secret use.
+- First-party Packages have no special privilege; they also need ordinary manifest declarations for secret use.
 
 ## `secret_ref` format
 
@@ -71,7 +71,7 @@ Reads `~/.plurora/secrets.dat` encrypted with age. The master key lives in `~/.p
 
 - Use for: desktop use, long-lived local use, product-grade UX.
 - Advantages: users paste once in the UI; the value is encrypted on disk and available on the next start.
-- Tradeoffs: requires `official/secret-store-lab` to be loaded.
+- Tradeoffs: requires `plurora/secret-store-lab` to be loaded.
 
 Example:
 
@@ -148,7 +148,7 @@ YdlTavern's API Connections drawer supports paste + save:
 1. Choose a provider (OpenAI / Anthropic / Gemini, etc.).
 2. Paste the API key.
 3. Press save.
-4. The UI calls `official/secret-store-lab/put_secret`.
+4. The UI calls `plurora/secret-store-lab/put_secret`.
 5. The UI sets the profile `secretRef` to `secret_ref:store:OPENAI_API_KEY`.
 6. Later calls carry only the reference, never the raw key.
 
@@ -171,7 +171,7 @@ Any capability package can invoke:
 {
   "method": "capability.invoke",
   "params": {
-    "capability_id": "official/secret-store-lab/put_secret",
+    "capability_id": "plurora/secret-store-lab/put_secret",
     "input": { "name": "OPENAI_API_KEY", "value": "sk-..." }
   }
 }
@@ -294,7 +294,7 @@ The resolution order is therefore: project store → fallback policy → platfor
 - `crates/plurora-runtime/src/secret.rs` — `HostSecretResolver` / `EnvSecretResolver` / `StoreSecretResolver` / `ProjectSecretResolver` / `CompositeSecretResolver`.
 - `crates/plurora-runtime/src/secret_store.rs` — shared encrypted file load/save.
 - `crates/plurora-runtime/src/inproc/secret_store_lab.rs` — capability implementation.
-- `packages/official/secret-store-lab/manifest.yaml` — package manifest.
+- `packages/plurora/secret-store-lab/manifest.yaml` — package manifest.
 
 ## Current limits
 

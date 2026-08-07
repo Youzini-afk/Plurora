@@ -1,10 +1,10 @@
-//! Handler for `official/playable-seed` capabilities.
+//! Handler for `plurora/playable-seed` capabilities.
 
 use serde_json::Value;
 
 use super::InprocInvocation;
 
-const PACKAGE_ID: &str = "official/playable-seed";
+const PACKAGE_ID: &str = "plurora/playable-seed";
 
 pub fn try_handle(request: &InprocInvocation) -> Option<anyhow::Result<Value>> {
     if request.provider_package_id != PACKAGE_ID {
@@ -38,8 +38,8 @@ fn launch(request: &InprocInvocation) -> anyhow::Result<Value> {
     Ok(serde_json::json!({
         "kind": "playable_seed_launch",
         "title": request.input.get("title").and_then(Value::as_str).unwrap_or("Playable Seed"),
-        "render_capability_id": "official/playable-seed/render_payload",
-        "forge_panel_id": "official/playable-seed/forge-panel",
+        "render_capability_id": "plurora/playable-seed/render_payload",
+        "forge_panel_id": "plurora/playable-seed/forge-panel",
     }))
 }
 

@@ -6,10 +6,10 @@ Creative Capability Kit 把成熟的无界面创作和 RP 流程整理成通用�
 
 TavernHeadless 提供边界案例参考。但这些官方包不是 `tavern-*` wrapper：
 
-- `official/persona-lab` 处理类似 persona 的结构化 profile。
-- `official/knowledge-lab` 处理结构化知识集合和匹配追踪。
-- `official/context-lab` 处理有边界的上下文块组装和预算诊断。
-- `official/text-transform-lab` 处理可重放的文本转换预览和管线说明。
+- `plurora/persona-lab` 处理类似 persona 的结构化 profile。
+- `plurora/knowledge-lab` 处理结构化知识集合和匹配追踪。
+- `plurora/context-lab` 处理有边界的上下文块组装和预算诊断。
+- `plurora/text-transform-lab` 处理可重放的文本转换预览和管线说明。
 
 ## 规则
 
@@ -32,11 +32,11 @@ TavernHeadless 提供边界案例参考。但这些官方包不是 `tavern-*` wr
 
 ## 典型流程
 
-1. 用 `official/persona-lab/import_profile` 导入类似 profile 的载荷。
-2. 用 `official/knowledge-lab/import_collection` 导入知识集合。
-3. 用 `official/knowledge-lab/match_entries` 匹配知识条目。
-4. 用 `official/context-lab/assemble_preview` 组装通用上下文块。
-5. 用 `official/text-transform-lab/apply_preview` 预览可重放的转换。
+1. 用 `plurora/persona-lab/import_profile` 导入类似 profile 的载荷。
+2. 用 `plurora/knowledge-lab/import_collection` 导入知识集合。
+3. 用 `plurora/knowledge-lab/match_entries` 匹配知识条目。
+4. 用 `plurora/context-lab/assemble_preview` 组装通用上下文块。
+5. 用 `plurora/text-transform-lab/apply_preview` 预览可重放的转换。
 6. 如果需要持久化，通过公开协议创建需审批的提案，写入资产或重建 projection。
 
 这条流程刻意停留在包层。第三方包只要暴露兼容能力和 surface，就可以替换任意官方 lab。

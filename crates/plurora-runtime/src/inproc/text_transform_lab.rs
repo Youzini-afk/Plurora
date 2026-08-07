@@ -1,10 +1,10 @@
-//! Handler for `official/text-transform-lab` capabilities.
+//! Handler for `plurora/text-transform-lab` capabilities.
 
 use serde_json::Value;
 
 use super::InprocInvocation;
 
-const PACKAGE_ID: &str = "official/text-transform-lab";
+const PACKAGE_ID: &str = "plurora/text-transform-lab";
 
 pub fn try_handle(request: &InprocInvocation) -> Option<anyhow::Result<Value>> {
     if request.provider_package_id != PACKAGE_ID {

@@ -101,7 +101,7 @@ const DEPLOYMENT_WORKSPACE_MAX_FILES: u64 = 100_000;
 const DEPLOYMENT_WORKSPACE_MAX_DIRECTORIES: u64 = 100_000;
 const DEPLOYMENT_WORKSPACE_MAX_BYTES: u64 = 1024 * 1024 * 1024;
 const DEPLOYMENT_GIT_DOWNLOAD_MAX_BYTES: u64 = 2 * 1024 * 1024 * 1024;
-const DOCKER_RUNTIME_PACKAGE_ID: &str = "official/docker-runtime-lab";
+const DOCKER_RUNTIME_PACKAGE_ID: &str = "plurora/docker-runtime-lab";
 const BUILD_DEPLOY_MAX_GLOBAL_ACTIVE: usize = 2;
 const BUILD_DEPLOY_MAX_PER_PROJECT_ACTIVE: usize = 1;
 const BUILD_DEPLOY_MAX_RETAINED_JOBS: usize = 128;
@@ -3111,7 +3111,7 @@ where
         let output = invoke_docker_runtime_lab(
             &state,
             &context,
-            "official/docker-runtime-lab/list_managed",
+            "plurora/docker-runtime-lab/list_managed",
             serde_json::json!({}),
         )
         .await
@@ -3180,7 +3180,7 @@ where
     let start_output = match invoke_docker_runtime_lab(
         &state,
         &context,
-        "official/docker-runtime-lab/start_container",
+        "plurora/docker-runtime-lab/start_container",
         serde_json::json!({
             "image": &request.image,
             "container_port": request.container_port,
@@ -3881,7 +3881,7 @@ where
     let build_output = invoke_docker_runtime_lab(
         state,
         &context,
-        "official/docker-runtime-lab/build_image",
+        "plurora/docker-runtime-lab/build_image",
         serde_json::json!({
             "approved": true,
             "strategy": strategy,
@@ -4476,7 +4476,7 @@ where
     match invoke_docker_runtime_lab(
         state,
         context,
-        "official/docker-runtime-lab/list_managed",
+        "plurora/docker-runtime-lab/list_managed",
         serde_json::json!({}),
     )
     .await
@@ -4503,7 +4503,7 @@ where
         match invoke_docker_runtime_lab(
             state,
             context,
-            "official/docker-runtime-lab/stop_container",
+            "plurora/docker-runtime-lab/stop_container",
             serde_json::json!({
                 "approved": true,
                 "container_id": container.container,
@@ -5134,7 +5134,7 @@ where
         "capability.invoke",
         serde_json::json!({
             "capability_id": capability_id,
-            "provider_package_id": "official/docker-runtime-lab",
+            "provider_package_id": "plurora/docker-runtime-lab",
             "input": input,
         }),
     )
@@ -5169,7 +5169,7 @@ where
     let resolved = invoke_git_tools_lab(
         state,
         context,
-        "official/git-tools-lab/resolve_ref",
+        "plurora/git-tools-lab/resolve_ref",
         invocation.resolve_ref_params,
     )
     .await?;
@@ -5190,7 +5190,7 @@ where
         let output = invoke_git_tools_lab(
             state,
             context,
-            "official/git-tools-lab/fetch_tree",
+            "plurora/git-tools-lab/fetch_tree",
             fetch_params,
         )
         .await?;
@@ -5242,7 +5242,7 @@ where
         "capability.invoke",
         serde_json::json!({
             "capability_id": capability_id,
-            "provider_package_id": "official/git-tools-lab",
+            "provider_package_id": "plurora/git-tools-lab",
             "input": input,
         }),
     )
@@ -5786,7 +5786,7 @@ async fn cleanup_candidate_after_unknown_start<S>(
     let managed = invoke_docker_runtime_lab(
         state,
         &context,
-        "official/docker-runtime-lab/list_managed",
+        "plurora/docker-runtime-lab/list_managed",
         serde_json::json!({}),
     )
     .await;
@@ -5849,7 +5849,7 @@ where
         match invoke_docker_runtime_lab(
             state,
             context,
-            "official/docker-runtime-lab/stop_container",
+            "plurora/docker-runtime-lab/stop_container",
             serde_json::json!({
                 "approved": true,
                 "container_id": container_id,

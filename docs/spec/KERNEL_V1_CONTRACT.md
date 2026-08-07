@@ -119,7 +119,7 @@ v1 契约支持两种参与方式：
 | `host.outbound.stream` | partial | 受约束 SSE/NDJSON/raw 流式出站；terminal completion 产生 receipt。 |
 | `platform.outbound.websocket.*` | partial | 受约束 WSS open/send/close；连接生命周期与事件覆盖仍在加固。 |
 
-Git 安装不是内核传输；未来由普通官方能力包 `official/git-tools-lab` 通过 `host.outbound.execute` 与 `permissions.filesystem.write` 实现。
+Git 安装不是内核传输；未来由普通官方能力包 `plurora/git-tools-lab` 通过 `host.outbound.execute` 与 `permissions.filesystem.write` 实现。
 
 ### `platform.target.*` / `exec.*` / `port.*` / `proxy.*`（17）
 
@@ -315,7 +315,7 @@ Manifest 声明 package 身份、entry、contract mode、提供的能力、消�
 
 ```yaml
 requires:
-  - id: official/model-provider-lab
+  - id: plurora/model-provider-lab
     source:
       kind: git
       url: https://example.com/plurora/model-provider-lab.git
@@ -325,7 +325,7 @@ requires:
       - "0123456789ABCDEF0123456789ABCDEF01234567"
 ```
 
-实际安装/解析由 `official/install-lab` 负责，内核不参与依赖解析。
+实际安装/解析由 `plurora/install-lab` 负责，内核不参与依赖解析。
 详见 [`docs/guides/PACKAGE_INSTALLATION.md`](../guides/PACKAGE_INSTALLATION.md)。
 
 Manifest 是审核与句柄铸造输入，不是运行时权威本身。运行时权威必须通过 bindings 和 capability handles 表达。

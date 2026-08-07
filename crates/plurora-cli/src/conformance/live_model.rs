@@ -387,7 +387,7 @@ pub(crate) async fn stream_sse_normalize_deepseek_canary() -> anyhow::Result<()>
     runtime
         .load_package(
             manifest::read_manifest(std::path::PathBuf::from(
-                "packages/official/model-provider-lab/manifest.yaml",
+                "packages/plurora/model-provider-lab/manifest.yaml",
             ))
             .await?,
         )
@@ -397,9 +397,9 @@ pub(crate) async fn stream_sse_normalize_deepseek_canary() -> anyhow::Result<()>
     let result = runtime
         .invoke_capability(CapabilityInvocationRequest {
             handle: None,
-            capability_id: Some("official/model-provider-lab/normalize_stream".to_string()),
+            capability_id: Some("plurora/model-provider-lab/normalize_stream".to_string()),
             caller_package_id: None,
-            provider_package_id: Some("official/model-provider-lab".to_string()),
+            provider_package_id: Some("plurora/model-provider-lab".to_string()),
             version: None,
             session_id: None,
             input: json!({
@@ -688,7 +688,7 @@ pub(crate) async fn canary_deepseek_profile_shape() -> anyhow::Result<()> {
     runtime
         .load_package(
             manifest::read_manifest(std::path::PathBuf::from(
-                "packages/official/model-provider-lab/manifest.yaml",
+                "packages/plurora/model-provider-lab/manifest.yaml",
             ))
             .await?,
         )
@@ -698,9 +698,9 @@ pub(crate) async fn canary_deepseek_profile_shape() -> anyhow::Result<()> {
     let result = runtime
         .invoke_capability(CapabilityInvocationRequest {
             handle: None,
-            capability_id: Some("official/model-provider-lab/normalize_request".to_string()),
+            capability_id: Some("plurora/model-provider-lab/normalize_request".to_string()),
             caller_package_id: None,
-            provider_package_id: Some("official/model-provider-lab".to_string()),
+            provider_package_id: Some("plurora/model-provider-lab".to_string()),
             version: None,
             session_id: None,
             input: json!({
@@ -1550,7 +1550,7 @@ pub(crate) async fn provider_normalize_request_alignment() -> anyhow::Result<()>
     runtime
         .load_package(
             manifest::read_manifest(std::path::PathBuf::from(
-                "packages/official/model-provider-lab/manifest.yaml",
+                "packages/plurora/model-provider-lab/manifest.yaml",
             ))
             .await?,
         )
@@ -1560,9 +1560,9 @@ pub(crate) async fn provider_normalize_request_alignment() -> anyhow::Result<()>
     let openai_result = runtime
         .invoke_capability(CapabilityInvocationRequest {
             handle: None,
-            capability_id: Some("official/model-provider-lab/normalize_request".to_string()),
+            capability_id: Some("plurora/model-provider-lab/normalize_request".to_string()),
             caller_package_id: None,
-            provider_package_id: Some("official/model-provider-lab".to_string()),
+            provider_package_id: Some("plurora/model-provider-lab".to_string()),
             version: None,
             session_id: None,
             input: json!({
@@ -1606,9 +1606,9 @@ pub(crate) async fn provider_normalize_request_alignment() -> anyhow::Result<()>
     let openai_resp_result = runtime
         .invoke_capability(CapabilityInvocationRequest {
             handle: None,
-            capability_id: Some("official/model-provider-lab/normalize_request".to_string()),
+            capability_id: Some("plurora/model-provider-lab/normalize_request".to_string()),
             caller_package_id: None,
-            provider_package_id: Some("official/model-provider-lab".to_string()),
+            provider_package_id: Some("plurora/model-provider-lab".to_string()),
             version: None,
             session_id: None,
             input: json!({
@@ -1644,9 +1644,9 @@ pub(crate) async fn provider_normalize_request_alignment() -> anyhow::Result<()>
     let anthropic_result = runtime
         .invoke_capability(CapabilityInvocationRequest {
             handle: None,
-            capability_id: Some("official/model-provider-lab/normalize_request".to_string()),
+            capability_id: Some("plurora/model-provider-lab/normalize_request".to_string()),
             caller_package_id: None,
-            provider_package_id: Some("official/model-provider-lab".to_string()),
+            provider_package_id: Some("plurora/model-provider-lab".to_string()),
             version: None,
             session_id: None,
             input: json!({
@@ -1703,9 +1703,9 @@ pub(crate) async fn provider_normalize_request_alignment() -> anyhow::Result<()>
     let gemini_result = runtime
         .invoke_capability(CapabilityInvocationRequest {
             handle: None,
-            capability_id: Some("official/model-provider-lab/normalize_request".to_string()),
+            capability_id: Some("plurora/model-provider-lab/normalize_request".to_string()),
             caller_package_id: None,
-            provider_package_id: Some("official/model-provider-lab".to_string()),
+            provider_package_id: Some("plurora/model-provider-lab".to_string()),
             version: None,
             session_id: None,
             input: json!({
@@ -2529,7 +2529,7 @@ pub(crate) async fn deepseek_reasoning_stream() -> anyhow::Result<()> {
     runtime
         .load_package(
             manifest::read_manifest(std::path::PathBuf::from(
-                "packages/official/model-provider-lab/manifest.yaml",
+                "packages/plurora/model-provider-lab/manifest.yaml",
             ))
             .await?,
         )
@@ -2539,9 +2539,9 @@ pub(crate) async fn deepseek_reasoning_stream() -> anyhow::Result<()> {
     let result = runtime
         .invoke_capability(CapabilityInvocationRequest {
             handle: None,
-            capability_id: Some("official/model-provider-lab/normalize_stream".to_string()),
+            capability_id: Some("plurora/model-provider-lab/normalize_stream".to_string()),
             caller_package_id: None,
-            provider_package_id: Some("official/model-provider-lab".to_string()),
+            provider_package_id: Some("plurora/model-provider-lab".to_string()),
             version: None,
             session_id: None,
             input: json!({
@@ -2675,7 +2675,7 @@ pub(crate) async fn openrouter_midstream_error() -> anyhow::Result<()> {
     runtime
         .load_package(
             manifest::read_manifest(std::path::PathBuf::from(
-                "packages/official/model-provider-lab/manifest.yaml",
+                "packages/plurora/model-provider-lab/manifest.yaml",
             ))
             .await?,
         )
@@ -2684,9 +2684,9 @@ pub(crate) async fn openrouter_midstream_error() -> anyhow::Result<()> {
     let result = runtime
         .invoke_capability(CapabilityInvocationRequest {
             handle: None,
-            capability_id: Some("official/model-provider-lab/normalize_stream".to_string()),
+            capability_id: Some("plurora/model-provider-lab/normalize_stream".to_string()),
             caller_package_id: None,
-            provider_package_id: Some("official/model-provider-lab".to_string()),
+            provider_package_id: Some("plurora/model-provider-lab".to_string()),
             version: None,
             session_id: None,
             input: json!({

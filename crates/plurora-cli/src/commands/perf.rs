@@ -393,45 +393,45 @@ where
     })
 }
 
-async fn scenario_official_capability_invoke(iterations: u32, warmup: u32) -> ScenarioResult {
-    let manifest_path = manifest_path("packages/official/composition-lab/manifest.yaml");
+async fn scenario_first_party_capability_invoke(iterations: u32, warmup: u32) -> ScenarioResult {
+    let manifest_path = manifest_path("packages/plurora/composition-lab/manifest.yaml");
     let manifest = match read_manifest(manifest_path).await {
         Ok(m) => m,
-        Err(e) => return error_result("official_capability_invoke", iterations, e),
+        Err(e) => return error_result("first_party_capability_invoke", iterations, e),
     };
     let store = Arc::new(InMemoryEventStore::default());
     let runtime = Runtime::new(store, RuntimeConfig::default());
     if let Err(e) = runtime.load_package(manifest).await {
-        return error_result("official_capability_invoke", iterations, e);
+        return error_result("first_party_capability_invoke", iterations, e);
     }
 
     for _ in 0..warmup {
-        if let Err(e) = scenario_official_capability_invoke_sample(&runtime) {
-            return error_result("official_capability_invoke", iterations, e);
+        if let Err(e) = scenario_first_party_capability_invoke_sample(&runtime) {
+            return error_result("first_party_capability_invoke", iterations, e);
         }
     }
 
     let before_rss = read_rss_mb();
     let mut durations = Vec::with_capacity(iterations as usize);
     for _ in 0..iterations {
-        match scenario_official_capability_invoke_sample(&runtime) {
+        match scenario_first_party_capability_invoke_sample(&runtime) {
             Ok(ms) => durations.push(ms),
-            Err(e) => return error_result("official_capability_invoke", iterations, e),
+            Err(e) => return error_result("first_party_capability_invoke", iterations, e),
         }
     }
     let memory_delta = rss_delta(before_rss, read_rss_mb());
     build_result(
-        "official_capability_invoke",
+        "first_party_capability_invoke",
         iterations,
         &durations,
         "ok",
-        vec!["official/composition-lab/describe".to_string()],
+        vec!["plurora/composition-lab/describe".to_string()],
         memory_delta,
         false,
     )
 }
 
-fn scenario_official_capability_invoke_sample<S>(runtime: &Runtime<S>) -> Result<f64>
+fn scenario_first_party_capability_invoke_sample<S>(runtime: &Runtime<S>) -> Result<f64>
 where
     S: EventStore,
 {
@@ -440,7 +440,7 @@ where
         runtime
             .invoke_capability(CapabilityInvocationRequest {
                 handle: None,
-                capability_id: Some("official/composition-lab/describe".to_string()),
+                capability_id: Some("plurora/composition-lab/describe".to_string()),
                 caller_package_id: None,
                 provider_package_id: None,
                 version: None,
@@ -1336,8 +1336,8 @@ async fn run_scenarios(iterations: u32, warmup: u32) -> Vec<ScenarioResult> {
     // 1. Inproc echo invoke
     results.push(scenario_inproc_echo_invoke(iterations, warmup).await);
 
-    // 2. Official capability invoke
-    results.push(scenario_official_capability_invoke(iterations, warmup).await);
+    // 2. First-party capability invoke
+    results.push(scenario_first_party_capability_invoke(iterations, warmup).await);
 
     // 3. Event store append/list/range (100 events)
     results.push(scenario_event_store_append_list_range(iterations, warmup).await);

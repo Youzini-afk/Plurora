@@ -2,7 +2,7 @@
 
 > [English](./SHARING_DISTRIBUTION.en.md) · [中文](./SHARING_DISTRIBUTION.md)
 
-本文档说明当前 Contract V1 中可分享、可复现、可导入的 composition 和 Session 分发能力。`official/sharing-lab` 是当前普通 Package / Component 实现；长期共享语义可以进入可选 Sharing Protocol，而不是宪法基底。
+本文档说明当前 Contract V1 中可分享、可复现、可导入的 composition 和 Session 分发能力。`plurora/sharing-lab` 是当前普通 Package / Component 实现；长期共享语义可以进入可选 Sharing Protocol，而不是宪法基底。
 
 ## 核心原则
 
@@ -14,7 +14,7 @@
 
 ## 分享契约
 
-`official/sharing-lab` 提供 9 项能力和 3 个 surface（forge_panel、assistant_action、home_card）。核心契约如下：
+`plurora/sharing-lab` 提供 9 项能力和 3 个 surface（forge_panel、assistant_action、home_card）。核心契约如下：
 
 | 能力 | 用途 |
 |---|---|

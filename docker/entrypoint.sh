@@ -24,10 +24,10 @@ DEFAULT_PROFILE_SENTINEL="$PROFILE_DIR/.zeabur-default-profile-v2"
 
 mkdir -p "$PROFILE_DIR" "$PLURORA_DATA_DIR/projects" "$PLURORA_DATA_DIR/store" "$PLURORA_DATA_DIR/cache" "$PLURORA_DATA_DIR/keys"
 
-REQUIRED_MANIFESTS="/app/packages/official/git-tools-lab/manifest.yaml
-/app/packages/official/integrity-lab/manifest.yaml
-/app/packages/official/install-lab/manifest.yaml
-/app/packages/official/secret-store-lab/manifest.yaml"
+REQUIRED_MANIFESTS="/app/packages/plurora/git-tools-lab/manifest.yaml
+/app/packages/plurora/integrity-lab/manifest.yaml
+/app/packages/plurora/install-lab/manifest.yaml
+/app/packages/plurora/secret-store-lab/manifest.yaml"
 
 if [ "${PLURORA_PROFILE_RESET:-0}" = "1" ]; then
   echo "PLURORA_PROFILE_RESET=1; replacing $PROFILE_PATH" >&2
@@ -53,10 +53,10 @@ event_store:
 secret_resolver:
   store_enabled: true
 autoload:
-  - /app/packages/official/git-tools-lab/manifest.yaml
-  - /app/packages/official/integrity-lab/manifest.yaml
-  - /app/packages/official/install-lab/manifest.yaml
-  - /app/packages/official/secret-store-lab/manifest.yaml
+  - /app/packages/plurora/git-tools-lab/manifest.yaml
+  - /app/packages/plurora/integrity-lab/manifest.yaml
+  - /app/packages/plurora/install-lab/manifest.yaml
+  - /app/packages/plurora/secret-store-lab/manifest.yaml
 EOF
   if [ "$PLURORA_PROFILE" = "default" ]; then
     touch "$DEFAULT_PROFILE_SENTINEL"

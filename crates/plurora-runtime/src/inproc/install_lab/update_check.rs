@@ -155,8 +155,8 @@ async fn check_git_entry(entry: &LockEntry, mut record: UpdateCheckRecord) -> Up
     };
     let ref_name = entry.r#ref.as_deref().unwrap_or("HEAD");
     match invoke_package_capability(
-        "official/git-tools-lab",
-        "official/git-tools-lab/resolve_ref",
+        "plurora/git-tools-lab",
+        "plurora/git-tools-lab/resolve_ref",
         json!({ "remote_url": url, "ref": ref_name }),
     )
     .await
@@ -461,11 +461,11 @@ mod tests {
         );
         runtime
             .load_package(package_manifest(
-                "official/integrity-lab",
-                "official-foundation",
+                "plurora/integrity-lab",
+                "plurora-foundation",
                 "register",
                 vec![CapabilityDescriptor {
-                    id: "official/integrity-lab/compute_tree_hash".to_string(),
+                    id: "plurora/integrity-lab/compute_tree_hash".to_string(),
                     version: "1.0.0".to_string(),
                     input_schema: json!({}),
                     output_schema: json!({}),
@@ -480,12 +480,12 @@ mod tests {
         permissions
             .capabilities
             .invoke
-            .push("official/integrity-lab/*".to_string());
+            .push("plurora/integrity-lab/*".to_string());
         runtime
             .load_package(package_manifest(
-                "official/install-lab",
-                "official-install-lab",
-                "official_install_lab",
+                "plurora/install-lab",
+                "plurora-install-lab",
+                "plurora_install_lab",
                 Vec::new(),
                 permissions,
             ))
@@ -667,7 +667,7 @@ mod tests {
         fs::create_dir_all(&store)?;
         write_lockfile(
             &data,
-            lock_entry("official/internal", LockSource::Internal, hash('i'), &store),
+            lock_entry("plurora/internal", LockSource::Internal, hash('i'), &store),
         )?;
 
         let checked = check_for_updates(json!({ "data_dir": data })).await?;

@@ -17,8 +17,8 @@ This guide covers the install flow, native/external project detection, manifest 
 ## Design principles
 
 - The kernel does not know git.
-- Git is handled by `official/git-tools-lab` as a capability package over the `host.outbound.execute` boundary.
-- Install orchestration lives in `official/install-lab`, not in the kernel.
+- Git is handled by `plurora/git-tools-lab` as a capability package over the `host.outbound.execute` boundary.
+- Install orchestration lives in `plurora/install-lab`, not in the kernel.
 - Default deny: HTTPS-only; reject `ssh://`, `git://`, and `file://`.
 - Default deny: URLs must not contain username/password.
 - Integrity: every package records commit, tree hash, and manifest hash.
@@ -138,7 +138,7 @@ Packages declare dependencies in `manifest.yaml`:
 
 ```yaml
 requires:
-  - id: "official/composition-lab"
+  - id: "plurora/composition-lab"
     source:
       kind: internal
     version: ">=1.0.0"
@@ -343,7 +343,7 @@ plurora update third-party/cool-tool
 plurora update --project-id my-project__abc12345 --check-only
 ```
 
-CLI update routes through `official/install-lab/update_project`; `--check-only` calls `official/install-lab/check_for_updates`.
+CLI update routes through `plurora/install-lab/update_project`; `--check-only` calls `plurora/install-lab/check_for_updates`.
 Update checks upstream refs, resolves a new plan, and reruns integrity, signature, conformance, and consent checks.
 If authority does not change, the user does not repeat old approvals.
 If network, secret, or capability authority expands, new consent is required.

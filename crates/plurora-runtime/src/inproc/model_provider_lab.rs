@@ -1,4 +1,4 @@
-//! Handler for `official/model-provider-lab` capabilities.
+//! Handler for `plurora/model-provider-lab` capabilities.
 //!
 //! No-network, no-inference provider family metadata, profile validation,
 //! request normalization, fake/local invoke, stream normalization, and error
@@ -16,7 +16,7 @@ use serde_json::Value;
 
 use super::InprocInvocation;
 
-const PACKAGE_ID: &str = "official/model-provider-lab";
+const PACKAGE_ID: &str = "plurora/model-provider-lab";
 
 const SUPPORTED_FAMILIES: &[&str] = &[
     "openai",

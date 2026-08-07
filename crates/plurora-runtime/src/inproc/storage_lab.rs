@@ -1,4 +1,4 @@
-//! Handler for `official/storage-lab` capabilities.
+//! Handler for `plurora/storage-lab` capabilities.
 //!
 //! Storage Backend Neutrality Alpha Phase S5 — Retrieval / Vector / Multimodal Provider Contract.
 //!
@@ -31,7 +31,7 @@ use serde_json::Value;
 use super::safety;
 use super::InprocInvocation;
 
-const PACKAGE_ID: &str = "official/storage-lab";
+const PACKAGE_ID: &str = "plurora/storage-lab";
 
 // ---------------------------------------------------------------------------
 // Storage contract layers
@@ -234,31 +234,31 @@ fn describe_storage_contract(request: &InprocInvocation) -> anyhow::Result<Value
         "package_id": request.provider_package_id,
         "package_kind": "ordinary",
         "capabilities": [
-            {"id": "official/storage-lab/describe_storage_contract", "purpose": "describe the storage lab package contract and layered model"},
-            {"id": "official/storage-lab/describe_backend_classes", "purpose": "describe backend class candidates with capability flags only"},
-            {"id": "official/storage-lab/plan_package_state_store", "purpose": "produce a package-scoped state store plan with namespace, quota hints, and backend candidates"},
-            {"id": "official/storage-lab/put_document_preview", "purpose": "preview a document put operation without performing real storage"},
-            {"id": "official/storage-lab/get_document_preview", "purpose": "preview a document get operation without performing real storage"},
-            {"id": "official/storage-lab/query_document_prefix_preview", "purpose": "preview a prefix query without executing real storage queries"},
-            {"id": "official/storage-lab/delete_document_tombstone_preview", "purpose": "preview a document tombstone delete without performing real deletion"},
-            {"id": "official/storage-lab/export_store_snapshot_preview", "purpose": "preview a store snapshot export with redacted output"},
-            {"id": "official/storage-lab/describe_blob_store_contract", "purpose": "describe blob/asset store contract with backend candidates and red lines"},
-            {"id": "official/storage-lab/put_blob_preview", "purpose": "preview a blob put with content-addressed hash, no real blob storage"},
-            {"id": "official/storage-lab/get_blob_metadata_preview", "purpose": "preview blob metadata retrieval without returning blob content"},
-            {"id": "official/storage-lab/export_blob_manifest_preview", "purpose": "preview a blob manifest export with refs only, no content"},
-            {"id": "official/storage-lab/describe_projection_store_contract", "purpose": "describe projection/index store contract with backend candidates and red lines"},
-            {"id": "official/storage-lab/plan_projection_materialization", "purpose": "plan-only projection materialization with backend candidates, no real DB table or index creation"},
-            {"id": "official/storage-lab/query_projection_preview", "purpose": "preview projection query shape without executing real queries"},
-            {"id": "official/storage-lab/migrate_projection_plan_preview", "purpose": "preview projection migration plan without applying data rewrites"},
-            {"id": "official/storage-lab/describe_retrieval_provider_contract", "purpose": "describe retrieval/vector/multimodal provider contract with backend candidates and red lines; no embedding generation, no vector storage, no network"},
-            {"id": "official/storage-lab/draft_multimodal_index_plan", "purpose": "draft a multimodal index plan with modality flags and asset refs; plan-only, no embedding generation, no index creation, no vector storage"},
-            {"id": "official/storage-lab/draft_vector_search_plan", "purpose": "draft a vector search plan with query kind and top-k; plan-only, no search execution, no embedding generation, no vector loading"},
-            {"id": "official/storage-lab/explain_retrieval_backend_fit", "purpose": "explain retrieval backend fit matrix for a workload hint; no secret-bearing backend config, TDB only as future provider slot"},
+            {"id": "plurora/storage-lab/describe_storage_contract", "purpose": "describe the storage lab package contract and layered model"},
+            {"id": "plurora/storage-lab/describe_backend_classes", "purpose": "describe backend class candidates with capability flags only"},
+            {"id": "plurora/storage-lab/plan_package_state_store", "purpose": "produce a package-scoped state store plan with namespace, quota hints, and backend candidates"},
+            {"id": "plurora/storage-lab/put_document_preview", "purpose": "preview a document put operation without performing real storage"},
+            {"id": "plurora/storage-lab/get_document_preview", "purpose": "preview a document get operation without performing real storage"},
+            {"id": "plurora/storage-lab/query_document_prefix_preview", "purpose": "preview a prefix query without executing real storage queries"},
+            {"id": "plurora/storage-lab/delete_document_tombstone_preview", "purpose": "preview a document tombstone delete without performing real deletion"},
+            {"id": "plurora/storage-lab/export_store_snapshot_preview", "purpose": "preview a store snapshot export with redacted output"},
+            {"id": "plurora/storage-lab/describe_blob_store_contract", "purpose": "describe blob/asset store contract with backend candidates and red lines"},
+            {"id": "plurora/storage-lab/put_blob_preview", "purpose": "preview a blob put with content-addressed hash, no real blob storage"},
+            {"id": "plurora/storage-lab/get_blob_metadata_preview", "purpose": "preview blob metadata retrieval without returning blob content"},
+            {"id": "plurora/storage-lab/export_blob_manifest_preview", "purpose": "preview a blob manifest export with refs only, no content"},
+            {"id": "plurora/storage-lab/describe_projection_store_contract", "purpose": "describe projection/index store contract with backend candidates and red lines"},
+            {"id": "plurora/storage-lab/plan_projection_materialization", "purpose": "plan-only projection materialization with backend candidates, no real DB table or index creation"},
+            {"id": "plurora/storage-lab/query_projection_preview", "purpose": "preview projection query shape without executing real queries"},
+            {"id": "plurora/storage-lab/migrate_projection_plan_preview", "purpose": "preview projection migration plan without applying data rewrites"},
+            {"id": "plurora/storage-lab/describe_retrieval_provider_contract", "purpose": "describe retrieval/vector/multimodal provider contract with backend candidates and red lines; no embedding generation, no vector storage, no network"},
+            {"id": "plurora/storage-lab/draft_multimodal_index_plan", "purpose": "draft a multimodal index plan with modality flags and asset refs; plan-only, no embedding generation, no index creation, no vector storage"},
+            {"id": "plurora/storage-lab/draft_vector_search_plan", "purpose": "draft a vector search plan with query kind and top-k; plan-only, no search execution, no embedding generation, no vector loading"},
+            {"id": "plurora/storage-lab/explain_retrieval_backend_fit", "purpose": "explain retrieval backend fit matrix for a workload hint; no secret-bearing backend config, TDB only as future provider slot"},
         ],
         "surfaces": {
-            "forge_panel": "official/storage-lab/forge-panel",
-            "assistant_action": "official/storage-lab/assistant-action",
-            "home_card": "official/storage-lab/home-card",
+            "forge_panel": "plurora/storage-lab/forge-panel",
+            "assistant_action": "plurora/storage-lab/assistant-action",
+            "home_card": "plurora/storage-lab/home-card",
         },
         "layers": STORAGE_CONTRACT_LAYERS,
         "layer_descriptions": {
@@ -1677,15 +1677,15 @@ mod tests {
 
     #[test]
     fn try_handle_matches_package_id() {
-        let req = make_request("official/storage-lab/describe_storage_contract", json!({}));
+        let req = make_request("plurora/storage-lab/describe_storage_contract", json!({}));
         assert!(try_handle(&req).is_some());
     }
 
     #[test]
     fn try_handle_rejects_wrong_package() {
         let req = InprocInvocation {
-            capability_id: "official/storage-lab/describe_storage_contract".to_string(),
-            provider_package_id: "official/other".to_string(),
+            capability_id: "plurora/storage-lab/describe_storage_contract".to_string(),
+            provider_package_id: "plurora/other".to_string(),
             session_id: None,
             input: json!({}),
         };
@@ -1694,7 +1694,7 @@ mod tests {
 
     #[test]
     fn describe_contract_has_all_surfaces() {
-        let req = make_request("official/storage-lab/describe_storage_contract", json!({}));
+        let req = make_request("plurora/storage-lab/describe_storage_contract", json!({}));
         let result = try_handle(&req).unwrap().unwrap();
         let surfaces = result["surfaces"].as_object().unwrap();
         assert!(surfaces.contains_key("forge_panel"));
@@ -1704,7 +1704,7 @@ mod tests {
 
     #[test]
     fn describe_contract_lists_20_capabilities() {
-        let req = make_request("official/storage-lab/describe_storage_contract", json!({}));
+        let req = make_request("plurora/storage-lab/describe_storage_contract", json!({}));
         let result = try_handle(&req).unwrap().unwrap();
         assert_eq!(
             result["capabilities"]
@@ -1718,7 +1718,7 @@ mod tests {
 
     #[test]
     fn describe_contract_lists_layers() {
-        let req = make_request("official/storage-lab/describe_storage_contract", json!({}));
+        let req = make_request("plurora/storage-lab/describe_storage_contract", json!({}));
         let result = try_handle(&req).unwrap().unwrap();
         let layers = result["layers"].as_array().unwrap();
         assert!(layers.len() >= 5, "must list at least 5 layers");
@@ -1726,7 +1726,7 @@ mod tests {
 
     #[test]
     fn no_forbidden_namespace_in_contract() {
-        let req = make_request("official/storage-lab/describe_storage_contract", json!({}));
+        let req = make_request("plurora/storage-lab/describe_storage_contract", json!({}));
         let result = try_handle(&req).unwrap().unwrap();
         let output_str = serde_json::to_string(&result).unwrap();
         for token in forbidden_namespace_tokens() {
@@ -1736,7 +1736,7 @@ mod tests {
 
     #[test]
     fn backend_classes_no_secret_config() {
-        let req = make_request("official/storage-lab/describe_backend_classes", json!({}));
+        let req = make_request("plurora/storage-lab/describe_backend_classes", json!({}));
         let result = try_handle(&req).unwrap().unwrap();
         let output_str = serde_json::to_string(&result).unwrap();
         // No secret-bearing backend config in output
@@ -1786,7 +1786,7 @@ mod tests {
     #[test]
     fn plan_rejects_empty_package_id() {
         let req = make_request(
-            "official/storage-lab/plan_package_state_store",
+            "plurora/storage-lab/plan_package_state_store",
             json!({"package_id": "", "store_id": "test"}),
         );
         let result = try_handle(&req).unwrap().unwrap();
@@ -1796,7 +1796,7 @@ mod tests {
     #[test]
     fn plan_rejects_path_traversal_package_id() {
         let req = make_request(
-            "official/storage-lab/plan_package_state_store",
+            "plurora/storage-lab/plan_package_state_store",
             json!({"package_id": "../etc/passwd", "store_id": "test"}),
         );
         let result = try_handle(&req).unwrap().unwrap();
@@ -1806,7 +1806,7 @@ mod tests {
     #[test]
     fn plan_namespace_belongs_to_package() {
         let req = make_request(
-            "official/storage-lab/plan_package_state_store",
+            "plurora/storage-lab/plan_package_state_store",
             json!({"package_id": "my-pkg", "store_id": "data"}),
         );
         let result = try_handle(&req).unwrap().unwrap();
@@ -1820,7 +1820,7 @@ mod tests {
     #[test]
     fn put_document_preview_no_write() {
         let req = make_request(
-            "official/storage-lab/put_document_preview",
+            "plurora/storage-lab/put_document_preview",
             json!({"document_id": "doc1", "store_id": "default", "content": {"key": "value"}}),
         );
         let result = try_handle(&req).unwrap().unwrap();
@@ -1832,7 +1832,7 @@ mod tests {
     #[test]
     fn get_document_preview_no_read() {
         let req = make_request(
-            "official/storage-lab/get_document_preview",
+            "plurora/storage-lab/get_document_preview",
             json!({"document_id": "doc1", "store_id": "default"}),
         );
         let result = try_handle(&req).unwrap().unwrap();
@@ -1843,7 +1843,7 @@ mod tests {
     #[test]
     fn query_prefix_preview_no_query() {
         let req = make_request(
-            "official/storage-lab/query_document_prefix_preview",
+            "plurora/storage-lab/query_document_prefix_preview",
             json!({"prefix": "my-pkg/doc", "store_id": "default"}),
         );
         let result = try_handle(&req).unwrap().unwrap();
@@ -1854,7 +1854,7 @@ mod tests {
     #[test]
     fn delete_tombstone_preview_no_delete() {
         let req = make_request(
-            "official/storage-lab/delete_document_tombstone_preview",
+            "plurora/storage-lab/delete_document_tombstone_preview",
             json!({"document_id": "doc1", "store_id": "default"}),
         );
         let result = try_handle(&req).unwrap().unwrap();
@@ -1865,7 +1865,7 @@ mod tests {
     #[test]
     fn export_snapshot_preview_redacted() {
         let req = make_request(
-            "official/storage-lab/export_store_snapshot_preview",
+            "plurora/storage-lab/export_store_snapshot_preview",
             json!({"store_id": "default"}),
         );
         let result = try_handle(&req).unwrap().unwrap();
@@ -1877,7 +1877,7 @@ mod tests {
     #[test]
     fn raw_secret_rejected() {
         let req = make_request(
-            "official/storage-lab/put_document_preview",
+            "plurora/storage-lab/put_document_preview",
             json!({"document_id": "doc1", "token_field": "RawSecretExample1234567890abcdefABCDEF123456"}),
         );
         let result = try_handle(&req).unwrap().unwrap();
@@ -1888,7 +1888,7 @@ mod tests {
     #[test]
     fn unsafe_id_rejected() {
         let req = make_request(
-            "official/storage-lab/get_document_preview",
+            "plurora/storage-lab/get_document_preview",
             json!({"document_id": "../../../etc/passwd", "store_id": "default"}),
         );
         let result = try_handle(&req).unwrap().unwrap();
@@ -1900,7 +1900,7 @@ mod tests {
     #[test]
     fn describe_blob_store_contract_shape() {
         let req = make_request(
-            "official/storage-lab/describe_blob_store_contract",
+            "plurora/storage-lab/describe_blob_store_contract",
             json!({}),
         );
         let result = try_handle(&req).unwrap().unwrap();
@@ -1924,7 +1924,7 @@ mod tests {
     #[test]
     fn put_blob_preview_content_address_deterministic() {
         let req = make_request(
-            "official/storage-lab/put_blob_preview",
+            "plurora/storage-lab/put_blob_preview",
             json!({
                 "package_id": "my-pkg",
                 "blob_id": "asset/image-1",
@@ -1946,7 +1946,7 @@ mod tests {
     #[test]
     fn put_blob_preview_no_storage_no_content_event() {
         let req = make_request(
-            "official/storage-lab/put_blob_preview",
+            "plurora/storage-lab/put_blob_preview",
             json!({
                 "package_id": "my-pkg",
                 "blob_id": "doc/readme",
@@ -1963,7 +1963,7 @@ mod tests {
     #[test]
     fn get_blob_metadata_preview_no_content() {
         let req = make_request(
-            "official/storage-lab/get_blob_metadata_preview",
+            "plurora/storage-lab/get_blob_metadata_preview",
             json!({"blob_id": "my-pkg/asset/image-1"}),
         );
         let result = try_handle(&req).unwrap().unwrap();
@@ -1975,7 +1975,7 @@ mod tests {
     #[test]
     fn export_blob_manifest_refs_only() {
         let req = make_request(
-            "official/storage-lab/export_blob_manifest_preview",
+            "plurora/storage-lab/export_blob_manifest_preview",
             json!({"package_id": "my-pkg"}),
         );
         let result = try_handle(&req).unwrap().unwrap();
@@ -1988,7 +1988,7 @@ mod tests {
     fn blob_raw_secret_and_unsafe_id_rejected() {
         // Raw secret in put_blob_preview
         let req = make_request(
-            "official/storage-lab/put_blob_preview",
+            "plurora/storage-lab/put_blob_preview",
             json!({
                 "package_id": "my-pkg",
                 "blob_id": "doc/1",
@@ -2000,7 +2000,7 @@ mod tests {
 
         // Unsafe blob_id (path traversal)
         let req2 = make_request(
-            "official/storage-lab/put_blob_preview",
+            "plurora/storage-lab/put_blob_preview",
             json!({
                 "package_id": "my-pkg",
                 "blob_id": "../../etc/passwd",
@@ -2012,7 +2012,7 @@ mod tests {
         // Oversized content_sample
         let big_sample = "x".repeat(5000);
         let req3 = make_request(
-            "official/storage-lab/put_blob_preview",
+            "plurora/storage-lab/put_blob_preview",
             json!({
                 "package_id": "my-pkg",
                 "blob_id": "doc/1",
@@ -2027,7 +2027,7 @@ mod tests {
     fn put_blob_preview_sha256_prefix_preserved() {
         // Already has sha256: prefix — should be preserved as-is
         let req = make_request(
-            "official/storage-lab/put_blob_preview",
+            "plurora/storage-lab/put_blob_preview",
             json!({
                 "package_id": "my-pkg",
                 "blob_id": "asset/hash-test",
@@ -2042,7 +2042,7 @@ mod tests {
     #[test]
     fn blob_no_forbidden_namespace() {
         let req = make_request(
-            "official/storage-lab/describe_blob_store_contract",
+            "plurora/storage-lab/describe_blob_store_contract",
             json!({}),
         );
         let result = try_handle(&req).unwrap().unwrap();
@@ -2057,7 +2057,7 @@ mod tests {
     #[test]
     fn describe_projection_store_contract_shape() {
         let req = make_request(
-            "official/storage-lab/describe_projection_store_contract",
+            "plurora/storage-lab/describe_projection_store_contract",
             json!({}),
         );
         let result = try_handle(&req).unwrap().unwrap();
@@ -2082,7 +2082,7 @@ mod tests {
     #[test]
     fn plan_projection_materialization_plan_only() {
         let req = make_request(
-            "official/storage-lab/plan_projection_materialization",
+            "plurora/storage-lab/plan_projection_materialization",
             json!({
                 "package_id": "my-pkg",
                 "projection_id": "my-pkg/projection/board-state",
@@ -2103,7 +2103,7 @@ mod tests {
     #[test]
     fn query_projection_preview_no_execution() {
         let req = make_request(
-            "official/storage-lab/query_projection_preview",
+            "plurora/storage-lab/query_projection_preview",
             json!({
                 "projection_ref": "my-pkg/projection/board-state",
                 "filter_preview": {"board_id": "abc"},
@@ -2120,7 +2120,7 @@ mod tests {
     #[test]
     fn migrate_projection_plan_no_rewrite() {
         let req = make_request(
-            "official/storage-lab/migrate_projection_plan_preview",
+            "plurora/storage-lab/migrate_projection_plan_preview",
             json!({
                 "projection_id": "my-pkg/projection/board-state",
                 "from_version": "1",
@@ -2138,7 +2138,7 @@ mod tests {
     #[test]
     fn projection_rejects_raw_secret() {
         let req = make_request(
-            "official/storage-lab/plan_projection_materialization",
+            "plurora/storage-lab/plan_projection_materialization",
             json!({
                 "package_id": "my-pkg",
                 "projection_id": "my-pkg/projection/test",
@@ -2153,7 +2153,7 @@ mod tests {
     #[test]
     fn projection_no_db_table_leakage() {
         let req = make_request(
-            "official/storage-lab/describe_projection_store_contract",
+            "plurora/storage-lab/describe_projection_store_contract",
             json!({}),
         );
         let result = try_handle(&req).unwrap().unwrap();
@@ -2199,7 +2199,7 @@ mod tests {
     fn projection_plan_rejects_empty_and_unsafe_ids() {
         // Empty projection_id
         let req = make_request(
-            "official/storage-lab/plan_projection_materialization",
+            "plurora/storage-lab/plan_projection_materialization",
             json!({
                 "package_id": "my-pkg",
                 "projection_id": "",
@@ -2210,7 +2210,7 @@ mod tests {
 
         // Unsafe projection_id (path traversal)
         let req2 = make_request(
-            "official/storage-lab/plan_projection_materialization",
+            "plurora/storage-lab/plan_projection_materialization",
             json!({
                 "package_id": "my-pkg",
                 "projection_id": "../../etc/passwd",
@@ -2221,7 +2221,7 @@ mod tests {
 
         // Empty package_id
         let req3 = make_request(
-            "official/storage-lab/plan_projection_materialization",
+            "plurora/storage-lab/plan_projection_materialization",
             json!({
                 "package_id": "",
                 "projection_id": "my-pkg/proj/1",
@@ -2235,7 +2235,7 @@ mod tests {
     fn projection_migration_rejects_empty_and_unsafe_projection_id() {
         // Empty projection_id
         let req = make_request(
-            "official/storage-lab/migrate_projection_plan_preview",
+            "plurora/storage-lab/migrate_projection_plan_preview",
             json!({
                 "projection_id": "",
             }),
@@ -2245,7 +2245,7 @@ mod tests {
 
         // Unsafe projection_id
         let req2 = make_request(
-            "official/storage-lab/migrate_projection_plan_preview",
+            "plurora/storage-lab/migrate_projection_plan_preview",
             json!({
                 "projection_id": "../../../etc/passwd",
             }),
@@ -2257,7 +2257,7 @@ mod tests {
     #[test]
     fn projection_query_rejects_unsafe_ref() {
         let req = make_request(
-            "official/storage-lab/query_projection_preview",
+            "plurora/storage-lab/query_projection_preview",
             json!({
                 "projection_ref": "../../etc/passwd",
             }),
@@ -2270,7 +2270,7 @@ mod tests {
     fn projection_query_and_migration_reject_raw_secret() {
         // Raw secret in query_projection_preview
         let req = make_request(
-            "official/storage-lab/query_projection_preview",
+            "plurora/storage-lab/query_projection_preview",
             json!({
                 "projection_ref": "my-pkg/proj/1",
                 "token": "Bearer RawSecretExample1234567890abcdefABCDEF123456",
@@ -2281,7 +2281,7 @@ mod tests {
 
         // Raw secret in migrate_projection_plan_preview
         let req2 = make_request(
-            "official/storage-lab/migrate_projection_plan_preview",
+            "plurora/storage-lab/migrate_projection_plan_preview",
             json!({
                 "projection_id": "my-pkg/proj/1",
                 "token_field": "RawSecretExample1234567890abcdefABCDEF123456",
@@ -2296,7 +2296,7 @@ mod tests {
     #[test]
     fn retrieval_contract_shape() {
         let req = make_request(
-            "official/storage-lab/describe_retrieval_provider_contract",
+            "plurora/storage-lab/describe_retrieval_provider_contract",
             json!({}),
         );
         let result = try_handle(&req).unwrap().unwrap();
@@ -2328,7 +2328,7 @@ mod tests {
     #[test]
     fn multimodal_index_plan_no_embedding_no_storage() {
         let req = make_request(
-            "official/storage-lab/draft_multimodal_index_plan",
+            "plurora/storage-lab/draft_multimodal_index_plan",
             json!({
                 "package_id": "my-pkg",
                 "index_id": "my-pkg/index/multimodal-assets",
@@ -2354,7 +2354,7 @@ mod tests {
     fn multimodal_index_rejects_invalid_modality_or_too_many_refs() {
         // Invalid modality
         let req = make_request(
-            "official/storage-lab/draft_multimodal_index_plan",
+            "plurora/storage-lab/draft_multimodal_index_plan",
             json!({
                 "package_id": "my-pkg",
                 "index_id": "my-pkg/index/1",
@@ -2368,7 +2368,7 @@ mod tests {
         // Too many asset_refs
         let many_refs: Vec<String> = (0..70).map(|i| format!("my-pkg/asset/{}", i)).collect();
         let req2 = make_request(
-            "official/storage-lab/draft_multimodal_index_plan",
+            "plurora/storage-lab/draft_multimodal_index_plan",
             json!({
                 "package_id": "my-pkg",
                 "index_id": "my-pkg/index/1",
@@ -2381,7 +2381,7 @@ mod tests {
 
         // Empty modalities
         let req3 = make_request(
-            "official/storage-lab/draft_multimodal_index_plan",
+            "plurora/storage-lab/draft_multimodal_index_plan",
             json!({
                 "package_id": "my-pkg",
                 "index_id": "my-pkg/index/1",
@@ -2394,7 +2394,7 @@ mod tests {
 
         // Empty package_id
         let req4 = make_request(
-            "official/storage-lab/draft_multimodal_index_plan",
+            "plurora/storage-lab/draft_multimodal_index_plan",
             json!({
                 "package_id": "",
                 "index_id": "my-pkg/index/1",
@@ -2406,7 +2406,7 @@ mod tests {
 
         // Unsafe index_id
         let req5 = make_request(
-            "official/storage-lab/draft_multimodal_index_plan",
+            "plurora/storage-lab/draft_multimodal_index_plan",
             json!({
                 "package_id": "my-pkg",
                 "index_id": "../../etc/passwd",
@@ -2420,7 +2420,7 @@ mod tests {
     #[test]
     fn vector_search_plan_no_execution() {
         let req = make_request(
-            "official/storage-lab/draft_vector_search_plan",
+            "plurora/storage-lab/draft_vector_search_plan",
             json!({
                 "index_ref": "my-pkg/index/multimodal-assets",
                 "query_kind": "similarity",
@@ -2444,7 +2444,7 @@ mod tests {
     #[test]
     fn backend_fit_mentions_tdb_future_only() {
         let req = make_request(
-            "official/storage-lab/explain_retrieval_backend_fit",
+            "plurora/storage-lab/explain_retrieval_backend_fit",
             json!({
                 "workload_hint": "multimodal",
             }),
@@ -2491,7 +2491,7 @@ mod tests {
     fn retrieval_rejects_raw_secret() {
         // Raw secret in draft_multimodal_index_plan
         let req = make_request(
-            "official/storage-lab/draft_multimodal_index_plan",
+            "plurora/storage-lab/draft_multimodal_index_plan",
             json!({
                 "package_id": "my-pkg",
                 "index_id": "my-pkg/index/1",
@@ -2505,7 +2505,7 @@ mod tests {
 
         // Raw secret in draft_vector_search_plan
         let req2 = make_request(
-            "official/storage-lab/draft_vector_search_plan",
+            "plurora/storage-lab/draft_vector_search_plan",
             json!({
                 "index_ref": "my-pkg/index/1",
                 "token": "Bearer RawSecretExample1234567890abcdefABCDEF123456",
@@ -2516,7 +2516,7 @@ mod tests {
 
         // Raw secret in explain_retrieval_backend_fit
         let req3 = make_request(
-            "official/storage-lab/explain_retrieval_backend_fit",
+            "plurora/storage-lab/explain_retrieval_backend_fit",
             json!({
                 "workload_hint": "general",
                 "secret": "RawSecretExample1234567890abcdefABCDEF123456",
@@ -2529,7 +2529,7 @@ mod tests {
     #[test]
     fn retrieval_no_platform_vector_namespace_or_secret_config() {
         let req = make_request(
-            "official/storage-lab/describe_retrieval_provider_contract",
+            "plurora/storage-lab/describe_retrieval_provider_contract",
             json!({}),
         );
         let result = try_handle(&req).unwrap().unwrap();

@@ -3,13 +3,13 @@
     "externalBin": ["binaries/plurora-host"],
     "resources": {
       "../../web/dist/": "web/",
-      "../../../packages/official/docker-runtime-lab/manifest.yaml": "official-packages/docker-runtime-lab/manifest.yaml",
-      "../../../packages/official/git-tools-lab/manifest.yaml": "official-packages/git-tools-lab/manifest.yaml",
-      "../../../packages/official/install-lab/manifest.yaml": "official-packages/install-lab/manifest.yaml",
-      "../../../packages/official/integrity-lab/manifest.yaml": "official-packages/integrity-lab/manifest.yaml",
-      "../../../packages/official/project-intake-lab/manifest.yaml": "official-packages/project-intake-lab/manifest.yaml",
-      "../../../packages/official/secret-store-lab/manifest.yaml": "official-packages/secret-store-lab/manifest.yaml",
-      "../../../packages/official/workspace-lab/manifest.yaml": "official-packages/workspace-lab/manifest.yaml"
+      "../../../packages/plurora/docker-runtime-lab/manifest.yaml": "plurora-packages/docker-runtime-lab/manifest.yaml",
+      "../../../packages/plurora/git-tools-lab/manifest.yaml": "plurora-packages/git-tools-lab/manifest.yaml",
+      "../../../packages/plurora/install-lab/manifest.yaml": "plurora-packages/install-lab/manifest.yaml",
+      "../../../packages/plurora/integrity-lab/manifest.yaml": "plurora-packages/integrity-lab/manifest.yaml",
+      "../../../packages/plurora/project-intake-lab/manifest.yaml": "plurora-packages/project-intake-lab/manifest.yaml",
+      "../../../packages/plurora/secret-store-lab/manifest.yaml": "plurora-packages/secret-store-lab/manifest.yaml",
+      "../../../packages/plurora/workspace-lab/manifest.yaml": "plurora-packages/workspace-lab/manifest.yaml"
     }
   }
 }

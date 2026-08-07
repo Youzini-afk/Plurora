@@ -1,0 +1,71 @@
+schema_version: 1
+id: plurora/knowledge-lab
+version: 0.1.0
+display_name: Plurora Knowledge Lab
+description: Generic structured knowledge collection normalization, matching, injection planning, and diagnostics.
+license: AGPL-3.0-only
+entry:
+  kind: rust_inproc
+  crate_ref: plurora-foundation
+  symbol: register
+  abi_version: 1
+provides:
+  - id: plurora/knowledge-lab/import_collection
+    version: 0.1.0
+    input_schema: {}
+    output_schema: {}
+    streaming: false
+    side_effects: []
+  - id: plurora/knowledge-lab/normalize_entries
+    version: 0.1.0
+    input_schema: {}
+    output_schema: {}
+    streaming: false
+    side_effects: []
+  - id: plurora/knowledge-lab/match_entries
+    version: 0.1.0
+    input_schema: {}
+    output_schema: {}
+    streaming: false
+    side_effects: []
+  - id: plurora/knowledge-lab/injection_plan
+    version: 0.1.0
+    input_schema: {}
+    output_schema: {}
+    streaming: false
+    side_effects: []
+  - id: plurora/knowledge-lab/compat_report
+    version: 0.1.0
+    input_schema: {}
+    output_schema: {}
+    streaming: false
+    side_effects: []
+consumes: []
+contributes:
+  schemas: []
+  hooks: []
+  extension_points: []
+  surfaces:
+    - id: plurora/knowledge-lab/home-card
+      slot: home_card
+      title: Knowledge Lab
+      description: Normalize and match structured knowledge without making lorebooks canonical.
+      capability_id: plurora/knowledge-lab/import_collection
+    - id: plurora/knowledge-lab/forge-panel
+      slot: forge_panel
+      title: Knowledge Collection Inspector
+      description: Inspect knowledge entries, deterministic match traces, and injection plans.
+      capability_id: plurora/knowledge-lab/match_entries
+    - id: plurora/knowledge-lab/assistant-action
+      slot: assistant_action
+      title: Draft Knowledge Injection Plan
+      description: Prepare an approval-gated knowledge plan or compatibility report.
+      capability_id: plurora/knowledge-lab/injection_plan
+      approval_policy: user_approval
+permissions:
+  capabilities:
+    invoke: []
+sandbox_policy:
+  cpu_quota_ms_per_invoke: 5000
+  memory_mb: 128
+  wall_clock_ms: 30000

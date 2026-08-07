@@ -25,10 +25,10 @@ RUN apt-get update \
 
 COPY --from=rust-build /src/target/release/plurora /usr/local/bin/plurora
 COPY --from=web-build /src/clients/web/dist /app/public
-COPY packages/official/git-tools-lab /app/packages/official/git-tools-lab
-COPY packages/official/integrity-lab /app/packages/official/integrity-lab
-COPY packages/official/install-lab /app/packages/official/install-lab
-COPY packages/official/secret-store-lab /app/packages/official/secret-store-lab
+COPY packages/plurora/git-tools-lab /app/packages/plurora/git-tools-lab
+COPY packages/plurora/integrity-lab /app/packages/plurora/integrity-lab
+COPY packages/plurora/install-lab /app/packages/plurora/install-lab
+COPY packages/plurora/secret-store-lab /app/packages/plurora/secret-store-lab
 COPY docker/entrypoint.sh /usr/local/bin/plurora-zeabur-entrypoint
 RUN chmod +x /usr/local/bin/plurora-zeabur-entrypoint \
   && chown -R plurora:plurora /app

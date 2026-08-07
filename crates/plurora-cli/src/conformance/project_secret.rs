@@ -22,8 +22,8 @@ use tokio::sync::Mutex;
 
 use crate::commands::manifest;
 
-const MANIFEST_PATH: &str = "packages/official/secret-store-lab/manifest.yaml";
-const SECRET_STORE_PACKAGE_ID: &str = "official/secret-store-lab";
+const MANIFEST_PATH: &str = "packages/plurora/secret-store-lab/manifest.yaml";
+const SECRET_STORE_PACKAGE_ID: &str = "plurora/secret-store-lab";
 
 static ENV_LOCK: Mutex<()> = Mutex::const_new(());
 
@@ -223,7 +223,7 @@ pub(crate) async fn put_then_resolve_via_project_ref() -> anyhow::Result<()> {
         .register(project("proj-put-resolve", true, vec![]))?;
     invoke_lab(
         &rt,
-        "official/secret-store-lab/put_project_secret",
+        "plurora/secret-store-lab/put_project_secret",
         json!({ "project_id": "proj-put-resolve", "name": "API_KEY", "value": "synthetic-project-value" }),
     )
     .await?;
@@ -245,7 +245,7 @@ pub(crate) async fn fallback_to_platform_when_missing() -> anyhow::Result<()> {
         .register(project("proj-fallback", true, vec![]))?;
     invoke_lab(
         &rt,
-        "official/secret-store-lab/put_secret",
+        "plurora/secret-store-lab/put_secret",
         json!({ "name": "API_KEY", "value": "synthetic-platform-value" }),
     )
     .await?;
@@ -285,7 +285,7 @@ pub(crate) async fn require_per_project_blocks_fallback() -> anyhow::Result<()> 
     ))?;
     invoke_lab(
         &rt,
-        "official/secret-store-lab/put_secret",
+        "plurora/secret-store-lab/put_secret",
         json!({ "name": "API_KEY", "value": "synthetic-platform-value" }),
     )
     .await?;
@@ -311,13 +311,13 @@ pub(crate) async fn isolation_between_projects() -> anyhow::Result<()> {
         .register(project("proj-two", true, vec![]))?;
     invoke_lab(
         &rt,
-        "official/secret-store-lab/put_project_secret",
+        "plurora/secret-store-lab/put_project_secret",
         json!({ "project_id": "proj-one", "name": "API_KEY", "value": "value-one" }),
     )
     .await?;
     invoke_lab(
         &rt,
-        "official/secret-store-lab/put_project_secret",
+        "plurora/secret-store-lab/put_project_secret",
         json!({ "project_id": "proj-two", "name": "API_KEY", "value": "value-two" }),
     )
     .await?;
@@ -349,7 +349,7 @@ pub(crate) async fn no_session_context_fails_closed() -> anyhow::Result<()> {
     .await?;
     invoke_lab(
         &rt,
-        "official/secret-store-lab/put_project_secret",
+        "plurora/secret-store-lab/put_project_secret",
         json!({ "project_id": "proj-no-session", "name": "API_KEY", "value": "synthetic-project-value" }),
     )
     .await?;
@@ -374,19 +374,19 @@ pub(crate) async fn list_returns_names_not_values() -> anyhow::Result<()> {
     load_secret_store_lab(&rt).await?;
     invoke_lab(
         &rt,
-        "official/secret-store-lab/put_project_secret",
+        "plurora/secret-store-lab/put_project_secret",
         json!({ "project_id": "proj-list", "name": "KEY_ONE", "value": "project-secret-one" }),
     )
     .await?;
     invoke_lab(
         &rt,
-        "official/secret-store-lab/put_project_secret",
+        "plurora/secret-store-lab/put_project_secret",
         json!({ "project_id": "proj-list", "name": "KEY_TWO", "value": "project-secret-two" }),
     )
     .await?;
     let list = invoke_lab(
         &rt,
-        "official/secret-store-lab/list_project_secrets",
+        "plurora/secret-store-lab/list_project_secrets",
         json!({ "project_id": "proj-list" }),
     )
     .await?;

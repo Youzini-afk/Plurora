@@ -1,11 +1,11 @@
 id: example/playable-creation-board-agentic-forge-replacement
 version: 0.1.0
-entry_surface_id: official/playable-creation-board/entry
+entry_surface_id: plurora/playable-creation-board/entry
 title: "Playable Creation Board Agentic Forge Replacement Composition"
-description: "Proves that a third-party agentic-forge can replace official/agentic-forge-lab when bound by official/playable-creation-board. The board package remains unchanged; only the forge provider is swapped."
+description: "Proves that a third-party agentic-forge can replace plurora/agentic-forge-lab when bound by plurora/playable-creation-board. The board package remains unchanged; only the forge provider is swapped."
 packages:
-  - ../../../packages/official/playable-creation-board/manifest.yaml
-  - ../../../packages/official/experience-runtime-lab/manifest.yaml
+  - ../../../packages/plurora/playable-creation-board/manifest.yaml
+  - ../../../packages/plurora/experience-runtime-lab/manifest.yaml
   - ../../../examples/packages/thirdparty-agentic-forge/manifest.yaml
 required_surfaces:
   - experience_entry
@@ -13,13 +13,13 @@ required_surfaces:
   - forge_panel
   - assistant_action
 required_capabilities:
-  - official/playable-creation-board/launch
-  - official/playable-creation-board/record_player_action
-  - official/playable-creation-board/request_change
-  - official/playable-creation-board/create_checkpoint
-  - official/playable-creation-board/draft_recovery
-  - official/playable-creation-board/bind_agent_run
-  - official/playable-creation-board/explain_provenance
+  - plurora/playable-creation-board/launch
+  - plurora/playable-creation-board/record_player_action
+  - plurora/playable-creation-board/request_change
+  - plurora/playable-creation-board/create_checkpoint
+  - plurora/playable-creation-board/draft_recovery
+  - plurora/playable-creation-board/bind_agent_run
+  - plurora/playable-creation-board/explain_provenance
   - thirdparty/agentic-forge/describe_contract
   - thirdparty/agentic-forge/start_run
   - thirdparty/agentic-forge/create_candidate
@@ -27,10 +27,10 @@ required_capabilities:
 permission_expectations:
   - capabilities.invoke
 replacement_candidates:
-  - official/agentic-forge-lab
+  - plurora/agentic-forge-lab
 compatibility_notes:
-  - "Third-party agentic-forge provides equivalent forge_panel/assistant_action surface slots to official/agentic-forge-lab"
-  - "official/playable-creation-board binds_agent_run accepts any agentic-forge provider; no official priority"
-  - "No platform privilege or official namespace required for forge binding"
+  - "Third-party agentic-forge provides equivalent forge_panel/assistant_action surface slots to plurora/agentic-forge-lab"
+  - "plurora/playable-creation-board binds_agent_run accepts any agentic-forge provider; no official priority"
+  - "No platform privilege or Plurora publisher namespace required for forge binding"
   - "Both forge packages produce package-owned shapes: candidates, proposals, plan graphs, working state"
   - "Neither forge package may directly mutate target branches or perform network"

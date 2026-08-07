@@ -1,4 +1,4 @@
-//! Handler for `official/docker-runtime-lab` capabilities.
+//! Handler for `plurora/docker-runtime-lab` capabilities.
 //!
 //! Docker Runtime Lab is an ordinary package. It performs Docker container
 //! lifecycle actions only after host-provided approval and metadata are present.
@@ -32,7 +32,7 @@ use super::InprocInvocation;
 use crate::object_store::sha256_digest;
 use crate::runtime::{DeploymentReconcileSource, ManagedContainerReport};
 
-const PACKAGE_ID: &str = "official/docker-runtime-lab";
+const PACKAGE_ID: &str = "plurora/docker-runtime-lab";
 const BIND_HOST: &str = "127.0.0.1";
 const DEFAULT_TAIL: u32 = 200;
 const DEFAULT_MAX_BYTES: usize = 65_536;
@@ -159,16 +159,16 @@ fn describe_contract(request: &InprocInvocation) -> anyhow::Result<Value> {
         "package_id": PACKAGE_ID,
         "package_kind": "ordinary",
         "capabilities": [
-            {"id": "official/docker-runtime-lab/describe_contract", "docker_performed": false},
-            {"id": "official/docker-runtime-lab/validate_spec", "docker_performed": false},
-            {"id": "official/docker-runtime-lab/plan_container", "docker_performed": false},
-            {"id": "official/docker-runtime-lab/build_image", "docker_performed": true, "requires_approved_true": true, "strategies": ["dockerfile", "nixpacks"], "experimental_strategies": ["nixpacks"], "network_modes": ["none", "bridge"], "development_scratch_default_network": "none"},
-            {"id": "official/docker-runtime-lab/remove_image", "docker_performed": true, "requires_approved_true": true, "label_guarded": true},
-            {"id": "official/docker-runtime-lab/start_container", "docker_performed": true, "requires_approved_true": true},
-            {"id": "official/docker-runtime-lab/status", "docker_performed": true, "ownership_label_guarded": true},
-            {"id": "official/docker-runtime-lab/logs", "docker_performed": true, "bounded": true, "redacted": true, "ownership_label_guarded": true},
-            {"id": "official/docker-runtime-lab/stop_container", "docker_performed": true, "requires_approved_true": true, "ownership_label_guarded": true},
-            {"id": "official/docker-runtime-lab/list_managed", "docker_performed": true, "label_filter": "managed-by=plurora"}
+            {"id": "plurora/docker-runtime-lab/describe_contract", "docker_performed": false},
+            {"id": "plurora/docker-runtime-lab/validate_spec", "docker_performed": false},
+            {"id": "plurora/docker-runtime-lab/plan_container", "docker_performed": false},
+            {"id": "plurora/docker-runtime-lab/build_image", "docker_performed": true, "requires_approved_true": true, "strategies": ["dockerfile", "nixpacks"], "experimental_strategies": ["nixpacks"], "network_modes": ["none", "bridge"], "development_scratch_default_network": "none"},
+            {"id": "plurora/docker-runtime-lab/remove_image", "docker_performed": true, "requires_approved_true": true, "label_guarded": true},
+            {"id": "plurora/docker-runtime-lab/start_container", "docker_performed": true, "requires_approved_true": true},
+            {"id": "plurora/docker-runtime-lab/status", "docker_performed": true, "ownership_label_guarded": true},
+            {"id": "plurora/docker-runtime-lab/logs", "docker_performed": true, "bounded": true, "redacted": true, "ownership_label_guarded": true},
+            {"id": "plurora/docker-runtime-lab/stop_container", "docker_performed": true, "requires_approved_true": true, "ownership_label_guarded": true},
+            {"id": "plurora/docker-runtime-lab/list_managed", "docker_performed": true, "label_filter": "managed-by=plurora"}
         ],
         "host_owned_resources": {
             "port_lease": true,

@@ -85,7 +85,7 @@ pub(super) fn storage_lab_storage_backend_neutrality_alpha_s2_cases() -> Vec<Con
         // --- storage-lab (Storage Backend Neutrality Alpha S2) ---
         c!(
             "storage_lab.contract_shape_no_platform_database_terms",
-            ["storage_lab", "storage", "official"],
+            ["storage_lab", "storage", "first_party"],
             crate::conformance::storage_lab::contract_shape_no_platform_database_terms
         ),
         c!(
@@ -250,7 +250,7 @@ pub(super) fn storage_lab_s5_retrieval_vector_multimodal_provider_contract_cases
         ),
         c!(
             "tdb_retrieval_lab.contract_shape",
-            ["tdb", "retrieval", "storage", "official"],
+            ["tdb", "retrieval", "storage", "first_party"],
             crate::conformance::tdb_retrieval_lab::contract_shape
         ),
         c!(

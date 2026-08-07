@@ -1,6 +1,6 @@
 {
   "profile_kind": "tdb_retrieval_provider_opt_in_example",
-  "provider_package_id": "official/tdb-retrieval-lab",
+  "provider_package_id": "plurora/tdb-retrieval-lab",
   "mode": "subprocess_adapter_package_preferred",
   "backend_ref": "host:path:TDB_RETRIEVAL_STORE",
   "dimension": 1536,

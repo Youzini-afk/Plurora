@@ -1,4 +1,4 @@
-//! Handler for `official/inference-playtest-lab` capabilities.
+//! Handler for `plurora/inference-playtest-lab` capabilities.
 //!
 //! Ygg-native inference proposal vertical slice. Proves inference is not
 //! "prompt -> text response", but ordinary package participation in
@@ -12,7 +12,7 @@ use serde_json::Value;
 
 use super::InprocInvocation;
 
-const PACKAGE_ID: &str = "official/inference-playtest-lab";
+const PACKAGE_ID: &str = "plurora/inference-playtest-lab";
 
 // Secret-looking field names that must be rejected
 const SECRET_FIELD_NAMES: &[&str] = &[
@@ -100,7 +100,7 @@ fn draft_proposal(request: &InprocInvocation) -> anyhow::Result<Value> {
     })];
 
     let source_inference = serde_json::json!({
-        "package_id": "official/inference-local-lab",
+        "package_id": "plurora/inference-local-lab",
         "operation_kind": inference_result.get("operation_kind").and_then(Value::as_str).unwrap_or("generate"),
         "operation_id": inference_result.get("operation_id").and_then(Value::as_str).unwrap_or("unknown"),
         "inference_result_kind": inference_result.get("kind").and_then(Value::as_str).unwrap_or("unknown"),
@@ -374,7 +374,7 @@ mod tests {
     #[test]
     fn draft_proposal_basic() {
         let req = make_request(
-            "official/inference-playtest-lab/draft_proposal",
+            "plurora/inference-playtest-lab/draft_proposal",
             serde_json::json!({
                 "session_id": "ses_test",
                 "inference_result": {
@@ -401,7 +401,7 @@ mod tests {
         // Must have source_inference provenance
         assert_eq!(
             result["source_inference"]["package_id"],
-            "official/inference-local-lab"
+            "plurora/inference-local-lab"
         );
         assert_eq!(result["source_inference"]["network_performed"], false);
         // Must NOT contain chat/message/prompt fields
@@ -414,7 +414,7 @@ mod tests {
     #[test]
     fn draft_proposal_rejects_raw_secret() {
         let req = make_request(
-            "official/inference-playtest-lab/draft_proposal",
+            "plurora/inference-playtest-lab/draft_proposal",
             serde_json::json!({
                 "session_id": "ses_test",
                 "api_key": "rawSecretPlaceholder1234567890ABCDEF",
@@ -427,14 +427,14 @@ mod tests {
     #[test]
     fn inspect_proposal_basic() {
         let req = make_request(
-            "official/inference-playtest-lab/inspect_proposal",
+            "plurora/inference-playtest-lab/inspect_proposal",
             serde_json::json!({
                 "proposal": {
                     "id": "prp_test",
                     "status": "created",
                     "operations": [{"op": "asset.put", "payload": {"content": "{}"}}],
                     "required_permissions": ["assets.write"],
-                    "source_inference": {"package_id": "official/inference-local-lab"},
+                    "source_inference": {"package_id": "plurora/inference-local-lab"},
                 },
             }),
         );
@@ -443,19 +443,18 @@ mod tests {
         assert_eq!(result["proposal_id"], "prp_test");
         assert_eq!(result["risk"], "low");
         assert!(
-            result["provenance"]["source_inference"]["package_id"]
-                == "official/inference-local-lab"
+            result["provenance"]["source_inference"]["package_id"] == "plurora/inference-local-lab"
         );
     }
 
     #[test]
     fn branch_plan_basic() {
         let req = make_request(
-            "official/inference-playtest-lab/branch_plan",
+            "plurora/inference-playtest-lab/branch_plan",
             serde_json::json!({
                 "session_id": "ses_test",
                 "proposal_id": "prp_test",
-                "source_inference": {"package_id": "official/inference-local-lab"},
+                "source_inference": {"package_id": "plurora/inference-local-lab"},
             }),
         );
         let result = branch_plan(&req).unwrap();
@@ -463,14 +462,14 @@ mod tests {
         assert_eq!(result["fork_metadata"]["proposal_id"], "prp_test");
         assert_eq!(
             result["fork_metadata"]["source_inference"]["package_id"],
-            "official/inference-local-lab"
+            "plurora/inference-local-lab"
         );
     }
 
     #[test]
     fn explain_flow_basic() {
         let req = make_request(
-            "official/inference-playtest-lab/explain_flow",
+            "plurora/inference-playtest-lab/explain_flow",
             serde_json::json!({}),
         );
         let result = explain_flow(&req).unwrap();

@@ -6,7 +6,7 @@ This guide documents Plurora's cloud model provider adapter integration path. It
 
 ## Scope: cloud adapter, not platform abstraction
 
-`official/model-provider-lab` is a cloud API adapter lab:
+`plurora/model-provider-lab` is a cloud API adapter lab:
 
 - It is not the Plurora model abstraction.
 - It is not a LiteLLM / OneAPI compatible gateway.
@@ -15,7 +15,7 @@ This guide documents Plurora's cloud model provider adapter integration path. It
 - OpenAI, Anthropic, Gemini, OpenRouter, DeepSeek, xAI, and Fireworks schemas are adapter-local details, not platform public protocol.
 - `normalize_request` is a cloud-adapter-local request builder helper, not the Plurora canonical inference request.
 
-For transport-neutral inference packages, read [`INFERENCE_CAPABILITY_AUTHORING.md`](./INFERENCE_CAPABILITY_AUTHORING.en.md). For the non-HTTP / local / self-host seam proof, see `official/inference-local-lab`.
+For transport-neutral inference packages, read [`INFERENCE_CAPABILITY_AUTHORING.md`](./INFERENCE_CAPABILITY_AUTHORING.en.md). For the non-HTTP / local / self-host seam proof, see `plurora/inference-local-lab`.
 
 ## Current delivery
 
@@ -23,11 +23,11 @@ The current delivery includes:
 
 - `integrations/model-providers/` stores the provider research ledger, provider matrix, stream compatibility notes, and error taxonomy.
 - `sdk/typescript/model-provider-adapter` provides a pure TypeScript cloud adapter for provider profiles, adapter-local request builders, error classification, and stream event parsing. It does not go online, do billing, or access private runtime APIs.
-- `official/model-provider-lab` is an ordinary official cloud adapter capability package covering OpenAI, Anthropic, Gemini, OpenAI-compatible, OpenRouter, DeepSeek, xAI, Fireworks, and related cloud provider families.
-- `official/model-provider-lab` exposes `list_supported_families`, `validate_profile`, `normalize_request`, `invoke`, `normalize_stream`, `explain_error`, and `echo`.
+- `plurora/model-provider-lab` is an ordinary official cloud adapter capability package covering OpenAI, Anthropic, Gemini, OpenAI-compatible, OpenRouter, DeepSeek, xAI, Fireworks, and related cloud provider families.
+- `plurora/model-provider-lab` exposes `list_supported_families`, `validate_profile`, `normalize_request`, `invoke`, `normalize_stream`, `explain_error`, and `echo`.
 - `invoke` remains a fake/local provider adapter path for default validation and adapter-shape checks. It returns provider-shaped responses and auditable `outbound_request_shape`.
 - The host has a content-free `OutboundExecutor` boundary. It defaults to deny-all and has fake executor, loopback live HTTP executor, and hostile validation coverage. This proves request shapes can flow through host policy/audit boundaries, but it does not claim OS-level interception of arbitrary subprocess networking.
-- `host.outbound.execute` is the public outbound protocol. Ordinary and official packages must use the same path; the package principal comes from protocol context and cannot spoof another package.
+- `host.outbound.execute` is the public outbound protocol. Ordinary and first-party Packages must use the same path; the package principal comes from protocol context and cannot spoof another package.
 - `EnvSecretResolver` supports host-owned `secret_ref:env:NAME` allowlists. Raw secrets only exist briefly inside the host and never enter events, logs, audits, or responses.
 - `LiveHttpOutboundExecutor` uses `reqwest + rustls`, is disabled by default, enforces HTTPS-only, fails closed on redirects, requires timeouts, and records only redacted response/audit shapes. Loopback conformance uses `allow_insecure_loopback_for_tests=true` and does not depend on public internet.
 - `secret_headers` provides host-side header injection (for example Authorization bearer, x-api-key, and x-goog-api-key). Missing/invalid secrets fail closed. `static_headers` accepts only a tiny set of non-secret provider/version/format headers (anthropic-version, content-type, accept, http-referer, x-title) and blocks Authorization/x-api-key/Cookie and host-owned headers.
@@ -106,7 +106,7 @@ Examples:
 
 ### `invoke`
 
-`official/model-provider-lab/invoke` itself remains the fake/local adapter path. Real network calls do not use private official-package runtime access; they must be made by ordinary packages through public `host.outbound.execute`, under host policy, secret resolution, and outbound execution.
+`plurora/model-provider-lab/invoke` itself remains the fake/local adapter path. Real network calls do not use private official-package runtime access; they must be made by ordinary packages through public `host.outbound.execute`, under host policy, secret resolution, and outbound execution.
 
 Outputs must keep:
 
@@ -119,7 +119,7 @@ Outputs must keep:
 }
 ```
 
-This preserves replayable adapter testing and default validation. It also prevents the official provider package from gaining private outbound privileges unavailable to third parties.
+This preserves replayable adapter testing and default validation. It also prevents the first-party provider package from gaining private outbound privileges unavailable to third parties.
 
 ### `host.outbound.execute`
 
@@ -186,7 +186,7 @@ Default validation does not require public internet access. Manual/live provider
 5. audits record only host, method, purpose, secret_refs, usage/cost/error metadata, and redaction state;
 6. streams map to the content-free frame lifecycle;
 7. cancel/timeout are not swallowed by provider adapters;
-8. third-party provider packages can replace official packages without official priority.
+8. third-party provider packages can replace first-party Packages without official priority.
 
 The optional real DeepSeek smoke path only runs when explicitly enabled:
 
@@ -199,8 +199,8 @@ Default CI / default conformance never accesses public internet.
 ## Relationship to `inference-capability` / `inference-local-lab`
 
 - `sdk/typescript/inference-capability`: transport-neutral inference envelope, stream frame, error taxonomy, and provider capability manifest helpers; does not require URL/header/status-code/OpenAI messages fields.
-- `official/inference-local-lab`: deterministic non-HTTP fake local provider proof; proves the inference seam does not depend on HTTP, bearer tokens, JSON provider schemas, or network.
-- `official/model-provider-lab`: cloud API adapter lab for realistic cloud provider integration; not the platform abstraction.
+- `plurora/inference-local-lab`: deterministic non-HTTP fake local provider proof; proves the inference seam does not depend on HTTP, bearer tokens, JSON provider schemas, or network.
+- `plurora/model-provider-lab`: cloud API adapter lab for realistic cloud provider integration; not the platform abstraction.
 
 The dependency direction is: transport-neutral contract → cloud/local adapter packages. The kernel does not import, know, or hardcode these provider semantics.
 
@@ -211,15 +211,15 @@ The dependency direction is: transport-neutral contract → cloud/local adapter 
 - `platform.model.*`, `platform.prompt.*`, `platform.chat.*`, or `platform.embedding.*`.
 - Treating OpenAI-compatible as the only model protocol.
 - Treating `normalize_request` as the platform canonical request.
-- Letting official packages bypass manifest, permission, secret, network, or audit boundaries.
+- Letting first-party Packages bypass manifest, permission, secret, network, or audit boundaries.
 
 ## Validation
 
 ```bash
 cargo test --workspace
 cargo run -p plurora-cli -- conformance
-cargo run -p plurora-cli -- package check packages/official/model-provider-lab/manifest.yaml
+cargo run -p plurora-cli -- package check packages/plurora/model-provider-lab/manifest.yaml
 tsc -p clients/web/tsconfig.json --noEmit
 ```
 
-Current validation can cover `official.model_provider_lab`, `official.model_provider_lab_invoke_core`, `official.model_provider_lab_normalize_stream`, `official.inference_local_lab_*`, public `host.outbound.execute`, secret header injection, live loopback provider shapes, provider quirk fixtures, non-HTTP inference seam proof, and outbound policy checks.
+Current validation can cover `first_party.model_provider_lab`, `first_party.model_provider_lab_invoke_core`, `first_party.model_provider_lab_normalize_stream`, `first_party.inference_local_lab_*`, public `host.outbound.execute`, secret header injection, live loopback provider shapes, provider quirk fixtures, non-HTTP inference seam proof, and outbound policy checks.

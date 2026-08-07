@@ -383,7 +383,7 @@ serveSubprocessPackage({{
         kind: "experience_agent_run_binding",
         package_id: "{id}",
         session_id: input.session_id ?? "session_default",
-        agent_package_id: input.agent_package_id ?? "official/agentic-forge-lab",
+        agent_package_id: input.agent_package_id ?? "plurora/agentic-forge-lab",
         scoped_to_branch: true,
         target_branch_ref: input.target_branch_ref ?? "branch:target:default",
         scratch_branch_ref: input.scratch_branch_ref ?? "branch:scratch:default",

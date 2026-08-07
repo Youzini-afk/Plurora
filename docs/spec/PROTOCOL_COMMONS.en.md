@@ -4,7 +4,7 @@
 
 Status: Experimental, descriptor schema version 1.
 
-The Protocol Commons is the registry for shared semantics. A JSON shape alone is not a protocol: every registered protocol also names its lifecycle, error and cancellation model, authority boundary, behavioral vectors, compatibility profiles, migrations, and implementations. Registry entries do not receive routing priority, and an official provider is evaluated by the same vector set as any third-party provider.
+The Protocol Commons is the registry for shared semantics. A JSON shape alone is not a protocol: every registered protocol also names its lifecycle, error and cancellation model, authority boundary, behavioral vectors, compatibility profiles, migrations, and implementations. Registry entries do not receive routing priority, and an first-party provider is evaluated by the same vector set as any third-party provider.
 
 ## Descriptor
 
@@ -50,7 +50,7 @@ Protocol conformance and implementation/package conformance are different report
 - `ImplementationConformanceReport` additionally identifies the implementation and provider while retaining the same vector identifiers.
 - `PackageConformanceReport` continues to assess the distribution envelope, declarations, handshake, permissions, streaming, and handle lifecycle.
 
-The registry rejects implementation claims that omit a required vector, invent a vector outside the protocol descriptor, name an unknown profile, or claim a different protocol version. The Change descriptor includes an official runtime implementation and a test-only third-party reference claim; both are bound to the same four required vector IDs. `test_only` prevents that fixture from being presented as a portable production implementation.
+The registry rejects implementation claims that omit a required vector, invent a vector outside the protocol descriptor, name an unknown profile, or claim a different protocol version. The Change descriptor includes an Plurora runtime implementation and a test-only third-party reference claim; both are bound to the same four required vector IDs. `test_only` prevents that fixture from being presented as a portable production implementation.
 
 The reports are executable independently:
 
@@ -82,7 +82,7 @@ The current lifecycle and bridge error model are documented in [`SURFACE_HOSTING
 
 `plurora.world.bundle/experimental/v1` defines portability conditions without adding `World` to the substrate. Its descriptor references event envelopes, artifact descriptors, effect receipts, and the concrete [`WORLD_BUNDLE.md`](WORLD_BUNDLE.en.md) archive/head/journal schemas.
 
-The required vectors cover reference closure, cross-Host import, offline replay, re-execution on a new branch, and shell independence. The current `official/playable-creation-board` integration fixture covers those vectors, so `plurora.runtime.world-bundle` registers the first production implementation claim. That claim describes current implementation coverage; it does not make World Bundle the platform's only content profile.
+The required vectors cover reference closure, cross-Host import, offline replay, re-execution on a new branch, and shell independence. The current `plurora/playable-creation-board` integration fixture covers those vectors, so `plurora.runtime.world-bundle` registers the first production implementation claim. That claim describes current implementation coverage; it does not make World Bundle the platform's only content profile.
 
 ## World Bundle lifecycle
 
