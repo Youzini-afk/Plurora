@@ -40,7 +40,7 @@ They load through ordinary manifests, provide ordinary capabilities, and contrib
 
 `official/model-connector-lab` validates provider profiles, masks secret references, and drafts discovery plans without network calls or inference.
 
-`official/model-provider-lab` is a cloud API adapter lab, not the Yggdrasil model abstraction. It builds adapter-local request shapes across eight cloud families (OpenAI, Anthropic, Gemini, OpenAI-compatible, OpenRouter, DeepSeek, xAI, Fireworks), validates profiles rejecting raw secrets, provides fake/local invoke for all eight families with auditable outbound request shapes, normalizes provider stream events (delta SSE, semantic SSE, typed chunk stream) into StreamFrameEnvelope frames, and explains provider errors, all without private kernel privilege.
+`official/model-provider-lab` is a cloud API adapter lab, not the Plurora model abstraction. It builds adapter-local request shapes across eight cloud families (OpenAI, Anthropic, Gemini, OpenAI-compatible, OpenRouter, DeepSeek, xAI, Fireworks), validates profiles rejecting raw secrets, provides fake/local invoke for all eight families with auditable outbound request shapes, normalizes provider stream events (delta SSE, semantic SSE, typed chunk stream) into StreamFrameEnvelope frames, and explains provider errors, all without private kernel privilege.
 
 `official/model-routing-lab` resolves package-owned consumer slots to static model profile route plans with explicit fallbacks and normalized params, without inference.
 

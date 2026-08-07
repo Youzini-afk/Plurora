@@ -6,7 +6,7 @@ Project 是当前官方 Host 与发行版用于组织可安装、可运行实例
 拥有稳定 ID、入口、状态、数据、secret policy 和生命周期，可以独立运行，也可以与
 其他 Project 并存。
 
-Project 很重要，但不是 Yggdrasil 上所有产品必须采用的永久根对象。World、Document、
+Project 很重要，但不是 Plurora 上所有产品必须采用的永久根对象。World、Document、
 Service、Workspace、Collection 或其他协议对象可以保持自己的身份；当官方 Home 需要
 管理它们时，可以通过 adapter 或产品映射与 Project 关联。
 
@@ -28,9 +28,9 @@ Project 生命周期；第三方客户端可以使用这些方法，也可以构
 
 ## Steam 类比
 
-| Steam | Yggdrasil |
+| Steam | Plurora |
 |---|---|
-| Steam 客户端 | Yggdrasil 平台 |
+| Steam 客户端 | Plurora 平台 |
 | 游戏库 | Home 屏幕 |
 | 游戏卡片 | 项目卡片 |
 | 游戏存档目录 | per-project 数据目录 |
@@ -42,9 +42,9 @@ Project 生命周期；第三方客户端可以使用这些方法，也可以构
 
 三种 `project.type` 区分项目来源。
 
-### yggdrasil_native
+### plurora_native
 
-仓库根目录有 `project.yaml`，引用 Yggdrasil 能力包。这是为 Yggdrasil 设计的项目，
+仓库根目录有 `project.yaml`，引用 Plurora 能力包。这是为 Plurora 设计的项目，
 是首选形式。
 
 ```yaml
@@ -53,7 +53,7 @@ project:
   id: my-project__abc12345
   title: My Project
   description: 一段简介
-  type: yggdrasil_native
+  type: plurora_native
   entry_surface_id: my-namespace/play
   packages:
     - packages/foo/manifest.yaml
@@ -81,7 +81,7 @@ project:
 | `id` | 稳定 project id，用于目录、CLI、Home card。 |
 | `title` | 给用户看的项目名。 |
 | `description` | Home card 和详情页展示。 |
-| `type` | `yggdrasil_native` / `external_wrapped` / `external_workspace`。 |
+| `type` | `plurora_native` / `external_wrapped` / `external_workspace`。 |
 | `entry_surface_id` | 点 Play 后进入的 surface contribution id。 |
 | `packages` | 必装 package manifest 路径。 |
 | `optional_packages` | 可选 package manifest 路径。 |
@@ -95,7 +95,7 @@ project:
 ## 项目目录结构
 
 ```text
-~/.yggdrasil/projects/<project_id>/
+~/.plurora/projects/<project_id>/
 ├── project.yaml          # ProjectDescriptor 副本
 ├── secrets.dat           # age 加密的项目 secret store
 ├── sessions/             # 项目级 session 数据
@@ -106,13 +106,13 @@ project:
 managed external workspace 独立存放在：
 
 ```text
-~/.yggdrasil/workspaces/external/<project_id>/<content_digest>/
+~/.plurora/workspaces/external/<project_id>/<content_digest>/
 ```
 
 `project.yaml` 中的 `workspace_ownership` 决定卸载权限：`managed` 路径必须位于上述 host-owned 根内才可归档/删除；`linked_local` 永远保留用户源目录。
 
 文件权限：0700 目录，0600 文件（Unix）。
-加密：同一份 master key（位于 `~/.yggdrasil/secret-store.key` 或 OS keyring）。
+加密：同一份 master key（位于 `~/.plurora/secret-store.key` 或 OS keyring）。
 
 ## 软隔离 + 平台回退
 
@@ -137,20 +137,20 @@ secret_policy:
 ## 生命周期
 
 ```text
-yg install <url>
+plurora install <url>
   ↓ (检测 project.yaml / 走 wizard)
 Installed (注册到 ProjectRegistry, 可见于 Home)
-  ↓ yg project start (or Home 点 Play)
+  ↓ plurora project start (or Home 点 Play)
 Starting → Running
-  ↓ yg project stop
+  ↓ plurora project stop
 Stopping → Stopped
-  ↓ yg uninstall
+  ↓ plurora uninstall
 (询问保留数据)
-  ├─ Keep: 项目数据移到 ~/.yggdrasil/projects/.archived/<id>/；managed workspace 同步归档
+  ├─ Keep: 项目数据移到 ~/.plurora/projects/.archived/<id>/；managed workspace 同步归档
   └─ Delete: 删除项目数据和经过 containment 校验的 managed workspace
 ```
 
-linked-local source 不属于 Yggdrasil，上述两种卸载选择都不会修改它。
+linked-local source 不属于 Plurora，上述两种卸载选择都不会修改它。
 
 任何状态都可以失败 → Failed。
 
@@ -158,25 +158,25 @@ linked-local source 不属于 Yggdrasil，上述两种卸载选择都不会修�
 
 ```bash
 # 安装项目
-yg install github.com/user/repo
-yg install github.com/user/repo --workspace-only    # 外部项目: 工作区
-yg install ./existing-source --link-local           # 本地外部项目: 保留用户所有权
-yg install github.com/user/repo --wrap-as-adapter   # 当前 fail-closed；不生成假 manifest
+plurora install github.com/user/repo
+plurora install github.com/user/repo --workspace-only    # 外部项目: 工作区
+plurora install ./existing-source --link-local           # 本地外部项目: 保留用户所有权
+plurora install github.com/user/repo --wrap-as-adapter   # 当前 fail-closed；不生成假 manifest
 
 # 查看项目
-yg project list
-yg project info <id>
-yg project status <id>
+plurora project list
+plurora project info <id>
+plurora project status <id>
 
 # 控制
-yg project start <id>
-yg project stop <id>
-yg update --project-id <id> [--check-only]
+plurora project start <id>
+plurora project stop <id>
+plurora update --project-id <id> [--check-only]
 
 # 卸载
-yg uninstall <id>                # 交互式问数据怎么办
-yg uninstall <id> --keep-data    # 保留 (移到 .archived)
-yg uninstall <id> --delete-data  # 立即删除
+plurora uninstall <id>                # 交互式问数据怎么办
+plurora uninstall <id> --keep-data    # 保留 (移到 .archived)
+plurora uninstall <id> --delete-data  # 立即删除
 ```
 
 ## Home 屏幕
@@ -231,7 +231,7 @@ Home 点 Play 后，Web shell 与 host 走固定的公开协议序列：
 
 `project.start` 不启动外部进程。它只打开项目 session，并把项目标记为 Running。
 
-若项目需要启动 Docker HTTP 服务，可以在 `project.metadata.deployment.docker` 声明最小部署描述符。Web 项目控制台会显示 Deploy / Stop 按钮，用户确认后由 `ygg-service` host broker 串联；浏览器只是瘦客户端：
+若项目需要启动 Docker HTTP 服务，可以在 `project.metadata.deployment.docker` 声明最小部署描述符。Web 项目控制台会显示 Deploy / Stop 按钮，用户确认后由 `plurora-service` host broker 串联；浏览器只是瘦客户端：
 
 1. `kernel.v1.port.lease` 租 loopback 端口。
 2. `official/docker-runtime-lab/start_container` 启动容器。
@@ -274,18 +274,18 @@ kernel/v1/project.uninstalled
 | Composition (现有) | Project (新) |
 |---|---|
 | 静态 package-set 描述符 | 运行时实例 + 状态 |
-| `ygg composition check` 校验 | `yg project list/start/stop` |
+| `plurora composition check` 校验 | `plurora project list/start/stop` |
 | 用于 share/import bundles | 用于 Home + 安装 lifecycle |
-| `ygg-cli` 内部类型 | `ygg-core` 公开类型 |
+| `plurora-cli` 内部类型 | `plurora-core` 公开类型 |
 
 未来一个 composition 模板可以实例化为多个项目（不同 id，同一个包集）。当前
 版本不强求这一点 —— 一个项目通常就是一个 composition 的具体实例。
 
 ## 安装检测
 
-`yg install <url>` 先检测来源与项目类型，再决定是否解析 package manifest。
+`plurora install <url>` 先检测来源与项目类型，再决定是否解析 package manifest。
 
-- 有且 `type: yggdrasil_native`：按原生项目安装。
+- 有且 `type: plurora_native`：按原生项目安装。
 - 有合法 package manifest：按包来源解析安装。
 - 没有 project/package manifest：调用 `official/install-lab/prepare_external_intake`，建立 `external_workspace`。
 - 有但解析失败：fail-closed，要求修正 descriptor。

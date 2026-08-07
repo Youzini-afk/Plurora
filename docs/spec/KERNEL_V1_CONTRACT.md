@@ -2,7 +2,7 @@
 
 > [English](./KERNEL_V1_CONTRACT.en.md) · [中文](./KERNEL_V1_CONTRACT.md)
 
-本文档是 Yggdrasil 当前平台契约的 v1 版本规范。它定义现行公开边界：方法、事件、错误码、能力句柄、清单声明、schema 与 conformance 期望。任何参与方都可以通过此契约调用平台；任何实现都必须满足相同的 schema 与行为 conformance。`kernel.v1.*` 是兼容名称，不自动等同于长期宪法基底。
+本文档是 Plurora 当前平台契约的 v1 版本规范。它定义现行公开边界：方法、事件、错误码、能力句柄、清单声明、schema 与 conformance 期望。任何参与方都可以通过此契约调用平台；任何实现都必须满足相同的 schema 与行为 conformance。`kernel.v1.*` 是兼容名称，不自动等同于长期宪法基底。
 
 v1 的设计目标不是把某种内容形态写进核心机制，而是让组件、安全执行、审计、SDK 与第三方客户端拥有稳定边界。角色、世界、提示词、模型、消息、记忆等内容语义属于相应协议、组件或产品，不属于宪法基底。
 
@@ -167,7 +167,7 @@ Git 安装不是内核传输；未来由普通官方能力包 `official/git-tool
 
 | 方法 | 状态 | 契约 |
 |---|---:|---|
-| `kernel.v1.audit.package` | partial | 报告 package declared vs used authority，供 `yg audit --package <id>` 使用；实际使用追踪仍在扩展。 |
+| `kernel.v1.audit.package` | partial | 报告 package declared vs used authority，供 `plurora audit --package <id>` 使用；实际使用追踪仍在扩展。 |
 
 ### Surface / extension point / hook（6）
 
@@ -239,7 +239,7 @@ Bindings 必须只包含调用方被授予的权威。路径 B 包不会收到 v
 
 ## 效应审计
 
-`yg audit --package <id>` 和 `kernel.v1.audit.package` 报告 declared vs used authority 差异。审计输入来自：
+`plurora audit --package <id>` 和 `kernel.v1.audit.package` 报告 declared vs used authority 差异。审计输入来自：
 
 1. manifest 声明的 permissions、capabilities、secret_refs、network hosts；
 2. 内核铸造与衰减的 capability handles；
@@ -254,7 +254,7 @@ Bindings 必须只包含调用方被授予的权威。路径 B 包不会收到 v
 第三方包可以运行：
 
 ```bash
-yg conformance package --contract v1 --path <package>
+plurora conformance package --contract v1 --path <package>
 ```
 
 kit 包含 8 个验收检查：manifest parse、contract mode、entry support、bindings/handshake、capability declarations、permission declarations、audit visibility、fixture invocation。输出 PASS/FAIL/SKIP/WARNING 与合规百分比。路径 A 包需要通过适用检查；路径 B 包会跳过能力/权限相关检查，但仍必须自包含、生命周期可观测。
@@ -265,8 +265,8 @@ kit 包含 8 个验收检查：manifest parse、contract mode、entry support、
 
 `docs/spec/v1/schemas/` 是单一可信源。SDK 通过三个发行渠道获得：
 
-- npm：`@yggdrasil/kernel-sdk`（`sdk/typescript/kernel-sdk/`）。
-- 工作空间路径：`file:../yggdrasil/sdk/typescript/kernel-sdk`。
+- npm：`@plurora/contract-sdk`（`sdk/typescript/contract-sdk/`）。
+- 工作空间路径：`file:../plurora/sdk/typescript/contract-sdk`。
 - 自行生成：读取 `docs/spec/v1/schemas/`，使用任意 codegen 工具。
 
 更多信息见 [`../../sdk/README.md`](../../sdk/README.md)。
@@ -285,7 +285,7 @@ v1 仅允许 additive 变更：新增可选字段、新增方法、新增事件�
 - 错误码：[`v1/ERROR_CODES.md`](v1/ERROR_CODES.md)。
 - 事件 registry：[`v1/EVENT_KIND_REGISTRY.md`](v1/EVENT_KIND_REGISTRY.md)。
 
-161 个 schema 必须通过 `cargo run -p ygg-cli --bin validate-schemas`。
+161 个 schema 必须通过 `cargo run -p plurora-cli --bin validate-schemas`。
 
 ## 内容无关不变量
 
@@ -318,7 +318,7 @@ requires:
   - id: official/model-provider-lab
     source:
       kind: git
-      url: https://example.com/yggdrasil/model-provider-lab.git
+      url: https://example.com/plurora/model-provider-lab.git
       ref: v1.2.3
     version: "^1.2"
     minimum_signed_by:
@@ -439,7 +439,7 @@ secret_ref:project:OPENAI_API_KEY # resolved via project store, then policy fall
 
 Project-backed references resolve from the active project store first, then fall back to platform store when `secret_policy.fallback_to_platform` allows it and the key is not listed in `require_per_project`.
 
-store-backed references are resolved via the `StoreSecretResolver` against an age-encrypted file at `~/.yggdrasil/secrets.dat`. See [`docs/guides/SECRET_MANAGEMENT.md`](../guides/SECRET_MANAGEMENT.md).
+store-backed references are resolved via the `StoreSecretResolver` against an age-encrypted file at `~/.plurora/secrets.dat`. See [`docs/guides/SECRET_MANAGEMENT.md`](../guides/SECRET_MANAGEMENT.md).
 
 未声明 secret_ref、解析失败、resolver deny、raw secret 出现在受保护 payload 中，都必须 fail closed。
 
@@ -514,13 +514,13 @@ Host operator 应能通过公开方法或 CLI 看见：
 发布 v1 兼容 host 前，应运行：
 
 ```bash
-cargo test -p ygg-core
-cargo test -p ygg-runtime
-cargo test -p ygg-cli
-cargo run -p ygg-cli -- conformance
-cargo run -p ygg-cli --bin export-schemas
-cargo run -p ygg-cli --bin validate-schemas
-cargo run -p ygg-cli --bin generate-sdks
+cargo test -p plurora-core
+cargo test -p plurora-runtime
+cargo test -p plurora-cli
+cargo run -p plurora-cli -- conformance
+cargo run -p plurora-cli --bin export-schemas
+cargo run -p plurora-cli --bin validate-schemas
+cargo run -p plurora-cli --bin generate-sdks
 ```
 
 并对示例路径 A / 路径 B 包运行 package conformance。

@@ -2,7 +2,7 @@
 
 > [English](./NEXT_STEPS.en.md) · [中文](./NEXT_STEPS.md)
 
-Yggdrasil does not move forward by expanding around one product, example, or workflow, and it does not invent features to complete a proof exercise. Construction direction comes from the five long-term goals in the charter: openness, plurality, advanced capability, longevity, and usability.
+Plurora does not move forward by expanding around one product, example, or workflow, and it does not invent features to complete a proof exercise. Construction direction comes from the five long-term goals in the charter: openness, plurality, advanced capability, longevity, and usability.
 
 These directions progress in parallel. Phase numbers would create a false linear order. Every concrete task should belong to a clear user lifecycle, architecture layer, and long-term responsibility.
 
@@ -129,7 +129,7 @@ The current implementation snapshot is in [`../ALPHA_STATUS.md`](../ALPHA_STATUS
 
 ## Things that are explicitly not the center of the platform
 
-These may continue to be built, but none defines Yggdrasil's only direction:
+These may continue to be built, but none defines Plurora's only direction:
 
 - a Project workflow;
 - play-creation, Tavern, worlds, or chat;

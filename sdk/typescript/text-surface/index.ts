@@ -1,5 +1,5 @@
 /**
- * Yggdrasil text-surface SDK — Pure TypeScript helpers for third-party UIs.
+ * Plurora text-surface SDK — Pure TypeScript helpers for third-party UIs.
  *
  * This module provides reusable text-surface primitives that third-party web
  * clients can import without depending on `clients/web` private modules.

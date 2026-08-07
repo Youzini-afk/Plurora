@@ -2,7 +2,7 @@
 
 > [English](./STORAGE_BACKEND_NEUTRALITY.en.md) · [中文](./STORAGE_BACKEND_NEUTRALITY.md)
 
-Yggdrasil currently has a SQLite-backed append-only event log, but the platform contract must not be tied to SQLite. SQLite, PostgreSQL, TDB, object stores, and vector/multimodal retrieval systems belong behind backend/provider seams, not in kernel ontology or public protocol database products.
+Plurora currently has a SQLite-backed append-only event log, but the platform contract must not be tied to SQLite. SQLite, PostgreSQL, TDB, object stores, and vector/multimodal retrieval systems belong behind backend/provider seams, not in kernel ontology or public protocol database products.
 
 ## Layered model
 
@@ -65,13 +65,13 @@ Common validation commands:
 
 ```bash
 cargo test --workspace
-cargo run -p ygg-cli -- conformance --tag storage
-cargo run -p ygg-cli -- package check packages/official/storage-lab/manifest.yaml
+cargo run -p plurora-cli -- conformance --tag storage
+cargo run -p plurora-cli -- package check packages/official/storage-lab/manifest.yaml
 ```
 
 ## Next steps
 
-PostgreSQL + TDB integration has completed the first opt-in backend/provider proof. Before adding more retrieval/vector backends, Yggdrasil should add:
+PostgreSQL + TDB integration has completed the first opt-in backend/provider proof. Before adding more retrieval/vector backends, Plurora should add:
 
 - backend selection / host policy
 - migration/export/import contracts

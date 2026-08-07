@@ -5,7 +5,7 @@ display_name: Echo Remote Preview Example
 description: Manifest-only preview for the remote entry form.
 entry:
   kind: remote
-  endpoint: https://example.invalid/ygg/echo
+  endpoint: https://example.invalid/plurora/echo
   auth:
     scheme: none
     config: null

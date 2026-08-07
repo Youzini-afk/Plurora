@@ -1,0 +1,763 @@
+use super::{case, ConformanceCase};
+
+macro_rules! c {
+    ($id:expr, [$($tag:expr),*], $func:path) => {
+        case($id, &[$($tag),*], || Box::pin($func()))
+    };
+}
+
+pub(super) fn core_cases() -> Vec<ConformanceCase> {
+    vec![
+        // --- core ---
+        c!(
+            "session.open_empty",
+            ["runtime", "session"],
+            crate::conformance::core::session_open
+        ),
+        c!(
+            "event.append_authorized",
+            ["runtime", "event"],
+            crate::conformance::core::event_append_authorized
+        ),
+        c!(
+            "event.append_without_permission_denied",
+            ["runtime", "event"],
+            crate::conformance::core::event_append_without_permission_denied
+        ),
+        c!(
+            "event.kernel_namespace_denied",
+            ["runtime", "event"],
+            crate::conformance::core::kernel_namespace_denied
+        ),
+        c!(
+            "event.read_without_permission_denied",
+            ["runtime", "event"],
+            crate::conformance::core::event_read_without_permission_denied
+        ),
+        c!(
+            "event.closed_session_rejects_append",
+            ["runtime", "event"],
+            crate::conformance::core::closed_session_rejects_append
+        ),
+        c!(
+            "event.range_replay",
+            ["runtime", "event"],
+            crate::conformance::core::event_range_replay
+        ),
+        c!(
+            "capability.invoke_rust_inproc",
+            ["runtime", "capability"],
+            crate::conformance::core::capability_invoke
+        ),
+        c!(
+            "capability.handle_invoke",
+            ["runtime", "capability", "handle"],
+            crate::conformance::core::capability_handle_invoke
+        ),
+        c!(
+            "capability.handle_attenuate_invoke",
+            ["runtime", "capability", "handle"],
+            crate::conformance::core::capability_handle_attenuate_invoke
+        ),
+        c!(
+            "capability.handle_revoke_blocks_invoke",
+            ["runtime", "capability", "handle"],
+            crate::conformance::core::capability_handle_revoke_blocks_invoke
+        ),
+        c!(
+            "capability.auto_mint_legacy_invoke",
+            ["runtime", "capability", "handle"],
+            crate::conformance::core::capability_auto_mint_legacy_invoke
+        ),
+        c!(
+            "capability.invoke_events_completed",
+            ["runtime", "capability", "audit"],
+            crate::conformance::core::capability_invoke_events_completed
+        ),
+        c!(
+            "capability.invoke_events_failed",
+            ["runtime", "capability", "audit"],
+            crate::conformance::core::capability_invoke_events_failed
+        ),
+        c!(
+            "package.audit_report",
+            ["runtime", "audit"],
+            crate::conformance::audit::package_audit_report
+        ),
+        c!(
+            "deployment_hub.requires_host_principal",
+            ["runtime", "deployment_hub", "permission"],
+            crate::conformance::protocol::deployment_hub_requires_host_principal
+        ),
+        c!(
+            "deployment_hub.port_lease_loopback",
+            ["runtime", "deployment_hub", "port"],
+            crate::conformance::protocol::deployment_hub_port_lease_loopback
+        ),
+        c!(
+            "deployment_hub.proxy_requires_matching_lease_port",
+            ["runtime", "deployment_hub", "proxy"],
+            crate::conformance::protocol::deployment_hub_proxy_requires_matching_lease_port
+        ),
+        c!(
+            "deployment_hub.exec_stop_receipt",
+            ["runtime", "deployment_hub", "exec", "receipt"],
+            crate::conformance::protocol::deployment_hub_exec_stop_receipt
+        ),
+        c!(
+            "deployment_hub.exec_terminal_is_observed_once",
+            ["runtime", "deployment_hub", "exec", "receipt", "rehydrate"],
+            crate::conformance::protocol::deployment_hub_exec_terminal_is_observed_once
+        ),
+        c!(
+            "deployment_hub.exec_denial_is_deduplicated",
+            ["runtime", "deployment_hub", "exec", "receipt", "rehydrate"],
+            crate::conformance::protocol::deployment_hub_exec_denial_is_deduplicated
+        ),
+        c!(
+            "deployment.sqlite_rehydrate",
+            ["deployment", "deployment_hub", "sqlite", "slow"],
+            crate::conformance::protocol::deployment_sqlite_rehydrate
+        ),
+        c!(
+            "deployment.reconcile_empty_cleans_stale",
+            ["deployment", "deployment_hub", "reconcile"],
+            crate::conformance::protocol::deployment_reconcile_empty_cleans_stale
+        ),
+        c!(
+            "deployment.reconcile_promotes_live_container",
+            ["deployment", "deployment_hub", "reconcile"],
+            crate::conformance::protocol::deployment_reconcile_promotes_live_container
+        ),
+        c!(
+            "deployment.reconcile_exec_always_failed",
+            ["deployment", "deployment_hub", "reconcile"],
+            crate::conformance::protocol::deployment_reconcile_exec_always_failed
+        ),
+        c!(
+            "capability.ambiguous_provider_denied",
+            ["runtime", "capability"],
+            crate::conformance::core::ambiguous_provider_denied
+        ),
+        c!(
+            "capability.explicit_provider_selected",
+            ["runtime", "capability"],
+            crate::conformance::core::explicit_provider_selected
+        ),
+        c!(
+            "package.unload_removes_capability",
+            ["runtime", "package"],
+            crate::conformance::core::unload_removes_capability
+        ),
+        c!(
+            "official.no_privilege",
+            ["official"],
+            crate::conformance::core::official_no_privilege
+        ),
+        c!(
+            "schema.capability_input_rejects_invalid",
+            ["runtime", "schema"],
+            crate::conformance::core::capability_schema_rejects_invalid
+        ),
+        c!(
+            "schema.event_payload_rejects_invalid",
+            ["runtime", "schema"],
+            crate::conformance::core::event_schema_rejects_invalid
+        ),
+    ]
+}
+
+pub(super) fn permissions_cases() -> Vec<ConformanceCase> {
+    vec![
+        // --- permissions ---
+        c!(
+            "protocol.structured_permission_error",
+            ["protocol", "permission"],
+            crate::conformance::permissions::structured_permission_error
+        ),
+        c!(
+            "permission.grant_revoke_audit",
+            ["runtime", "permission"],
+            crate::conformance::permissions::permission_grant_revoke_audit
+        ),
+        c!(
+            "permission.assistant_capability_grant",
+            ["runtime", "permission"],
+            crate::conformance::permissions::assistant_capability_grant
+        ),
+        c!(
+            "principal.package_cannot_self_assert_writer",
+            ["runtime", "permission"],
+            crate::conformance::permissions::principal_cannot_self_assert_writer
+        ),
+        c!(
+            "principal.package_cannot_self_assert_capability_caller",
+            ["runtime", "permission"],
+            crate::conformance::permissions::principal_cannot_self_assert_capability_caller
+        ),
+    ]
+}
+
+pub(super) fn host_cases() -> Vec<ConformanceCase> {
+    vec![
+        // --- host ---
+        c!(
+            "host.diagnostics",
+            ["runtime", "host"],
+            crate::conformance::core::host_diagnostics
+        ),
+        c!(
+            "host.profile_autoload",
+            ["runtime", "host", "slow"],
+            crate::conformance::core::host_profile_autoload
+        ),
+    ]
+}
+
+pub(super) fn surfaces_cases() -> Vec<ConformanceCase> {
+    vec![
+        // --- surfaces ---
+        c!(
+            "surface.contribution_list",
+            ["surface", "shell:plurora.shell.default/v1"],
+            crate::conformance::surfaces::contribution_list
+        ),
+        c!(
+            "surface.shell_descriptor_metadata_validation",
+            [
+                "surface",
+                "manifest",
+                "package",
+                "shell:plurora.shell.default/v1"
+            ],
+            crate::conformance::surfaces::shell_descriptor_metadata_validation
+        ),
+    ]
+}
+
+pub(super) fn proposals_cases() -> Vec<ConformanceCase> {
+    vec![
+        // --- proposals ---
+        c!(
+            "proposal.lifecycle_apply",
+            ["runtime", "proposal"],
+            crate::conformance::proposals::lifecycle_apply
+        ),
+        c!(
+            "proposal.reject_and_apply_denied",
+            ["runtime", "proposal"],
+            crate::conformance::proposals::reject_and_apply_denied
+        ),
+        c!(
+            "proposal.authority_is_enforced",
+            ["runtime", "proposal", "permission"],
+            crate::conformance::proposals::authority_is_enforced
+        ),
+        c!(
+            "proposal.preflight_failure_is_structured",
+            ["runtime", "proposal", "receipt"],
+            crate::conformance::proposals::preflight_failure_is_structured
+        ),
+    ]
+}
+
+pub(super) fn asset_cases() -> Vec<ConformanceCase> {
+    vec![
+        // --- asset ---
+        c!(
+            "asset.put_get_list",
+            ["runtime", "asset"],
+            crate::conformance::core::asset_put_get_list
+        ),
+        c!(
+            "asset.legacy_fnv_migration",
+            ["runtime", "asset", "migration"],
+            crate::conformance::artifact_store::asset_legacy_fnv_migration
+        ),
+        c!(
+            "object_store.portability_integrity",
+            ["runtime", "asset", "object_store"],
+            crate::conformance::artifact_store::object_store_portability_integrity
+        ),
+    ]
+}
+
+pub(super) fn session_fork_cases() -> Vec<ConformanceCase> {
+    vec![
+        // --- session fork ---
+        c!(
+            "session.fork_branch",
+            ["runtime", "session"],
+            crate::conformance::core::session_fork_branch
+        ),
+    ]
+}
+
+pub(super) fn projection_cases() -> Vec<ConformanceCase> {
+    vec![
+        // --- projection ---
+        c!(
+            "projection.rebuild",
+            ["runtime", "projection"],
+            crate::conformance::core::projection_rebuild
+        ),
+    ]
+}
+
+pub(super) fn substrate_cases() -> Vec<ConformanceCase> {
+    vec![
+        // --- substrate ---
+        c!(
+            "substrate.sqlite_rehydrate",
+            ["substrate", "slow"],
+            crate::conformance::substrate::sqlite_rehydrate
+        ),
+    ]
+}
+
+pub(super) fn protocol_cases() -> Vec<ConformanceCase> {
+    vec![
+        // --- protocol ---
+        c!(
+            "protocol.call_host_info",
+            ["protocol"],
+            crate::conformance::protocol::call_host_info
+        ),
+        c!(
+            "protocol.commons_advertised",
+            ["protocol", "commons", "registry", "protocol:registry"],
+            crate::conformance::protocol::protocol_commons_advertised
+        ),
+        c!(
+            "protocol.major_mismatch_rejected",
+            [
+                "protocol",
+                "commons",
+                "version",
+                "compatibility",
+                "protocol:plurora.change"
+            ],
+            crate::conformance::protocol::protocol_major_mismatch_rejected
+        ),
+        c!(
+            "protocol.legacy_adapter_is_explicit",
+            [
+                "protocol",
+                "commons",
+                "legacy",
+                "adapter",
+                "protocol:plurora.change"
+            ],
+            crate::conformance::protocol::protocol_legacy_adapter_is_explicit
+        ),
+        c!(
+            "protocol.reports_are_separate",
+            [
+                "protocol",
+                "commons",
+                "conformance",
+                "protocol:plurora.change"
+            ],
+            crate::conformance::protocol::protocol_and_implementation_reports_are_separate
+        ),
+        c!(
+            "protocol.alias_equivalent",
+            ["protocol", "legacy", "alias", "protocol:plurora.contract"],
+            crate::conformance::protocol::alias_equivalent
+        ),
+        c!(
+            "protocol.legacy_adapter_lifecycle",
+            ["protocol", "legacy", "adapter", "protocol:plurora.contract"],
+            crate::conformance::protocol::legacy_adapter_lifecycle
+        ),
+        c!(
+            "protocol.layered_namespace_smoke",
+            [
+                "protocol",
+                "canonical",
+                "cli-smoke",
+                "protocol:plurora.contract"
+            ],
+            crate::conformance::protocol::layered_namespace_smoke
+        ),
+        c!(
+            "protocol.unsupported_version_rejected",
+            ["protocol", "version", "compatibility"],
+            crate::conformance::protocol::unsupported_version_rejected
+        ),
+        c!(
+            "protocol.no_silent_downgrade",
+            ["protocol", "version", "compatibility"],
+            crate::conformance::protocol::no_silent_downgrade
+        ),
+        c!(
+            "protocol.call_capability_in_process",
+            ["protocol"],
+            crate::conformance::protocol::call_capability_in_process
+        ),
+        c!(
+            "protocol.project_list_returns_registered_projects",
+            ["protocol", "project"],
+            crate::conformance::protocol_project::project_list_returns_registered_projects
+        ),
+        c!(
+            "protocol.project_get_returns_full_descriptor",
+            ["protocol", "project"],
+            crate::conformance::protocol_project::project_get_returns_full_descriptor
+        ),
+        c!(
+            "protocol.project_start_transitions_state",
+            ["protocol", "project"],
+            crate::conformance::protocol_project::project_start_transitions_state
+        ),
+        c!(
+            "project.start_returns_session_id",
+            ["protocol", "project", "session"],
+            crate::conformance::protocol_project::project_start_returns_session_id
+        ),
+        c!(
+            "project.start_idempotent_returns_existing_session",
+            ["protocol", "project", "session"],
+            crate::conformance::protocol_project::project_start_idempotent_returns_existing_session
+        ),
+        c!(
+            "project.session_metadata_carries_project_id",
+            ["protocol", "project", "session"],
+            crate::conformance::protocol_project::project_session_metadata_carries_project_id
+        ),
+        c!(
+            "project.stop_closes_session",
+            ["protocol", "project", "session"],
+            crate::conformance::protocol_project::project_stop_closes_session
+        ),
+        c!(
+            "project.get_returns_running_session_id",
+            ["protocol", "project", "session"],
+            crate::conformance::protocol_project::project_get_returns_running_session_id
+        ),
+        c!(
+            "protocol.project_methods_require_admin_principal",
+            ["protocol", "project", "permission"],
+            crate::conformance::protocol_project::project_methods_require_admin_principal
+        ),
+        c!(
+            "protocol.project_lifecycle_event_emitted_on_start",
+            ["protocol", "project", "event"],
+            crate::conformance::protocol_project::project_lifecycle_event_emitted_on_start
+        ),
+        c!(
+            "surface.resolve_via_dev_path",
+            ["protocol", "surface"],
+            crate::conformance::protocol_project::surface_resolve_via_dev_path
+        ),
+        c!(
+            "surface.resolve_via_installed_project",
+            ["protocol", "surface", "project"],
+            crate::conformance::protocol_project::surface_resolve_via_installed_project
+        ),
+        c!(
+            "surface.resolve_unknown_fails",
+            ["protocol", "surface"],
+            crate::conformance::protocol_project::surface_resolve_unknown_fails
+        ),
+        c!(
+            "surface.resolve_admin_principal_required",
+            ["protocol", "surface", "permission"],
+            crate::conformance::protocol_project::surface_resolve_admin_principal_required
+        ),
+    ]
+}
+
+pub(super) fn world_bundle_cases() -> Vec<ConformanceCase> {
+    vec![
+        c!(
+            "world_bundle.reference_closure",
+            [
+                "protocol",
+                "portability",
+                "world_bundle",
+                "protocol:plurora.world.bundle"
+            ],
+            crate::conformance::world_bundle::reference_closure
+        ),
+        c!(
+            "world_bundle.cross_host_import",
+            [
+                "protocol",
+                "portability",
+                "world_bundle",
+                "sqlite",
+                "protocol:plurora.world.bundle"
+            ],
+            crate::conformance::world_bundle::cross_host_import
+        ),
+        c!(
+            "world_bundle.offline_replay",
+            [
+                "protocol",
+                "portability",
+                "world_bundle",
+                "receipt",
+                "protocol:plurora.world.bundle"
+            ],
+            crate::conformance::world_bundle::offline_replay
+        ),
+        c!(
+            "world_bundle.reexecution_branch",
+            [
+                "protocol",
+                "portability",
+                "world_bundle",
+                "branch",
+                "protocol:plurora.world.bundle"
+            ],
+            crate::conformance::world_bundle::reexecution_branch
+        ),
+        c!(
+            "world_bundle.shell_independence",
+            [
+                "protocol",
+                "portability",
+                "world_bundle",
+                "cli-smoke",
+                "protocol:plurora.world.bundle",
+                "shell:plurora.shell.default/v1"
+            ],
+            crate::conformance::world_bundle::shell_independence
+        ),
+    ]
+}
+
+pub(super) fn hooks_cases() -> Vec<ConformanceCase> {
+    vec![
+        // --- hooks ---
+        c!(
+            "hook.ordering_stable",
+            ["runtime", "hook"],
+            crate::conformance::hooks::ordering_stable
+        ),
+        c!(
+            "hook.veto_blocks_event_append",
+            ["runtime", "hook"],
+            crate::conformance::hooks::veto_blocks_event_append
+        ),
+        c!(
+            "hook.metadata_mutation_allowed",
+            ["runtime", "hook"],
+            crate::conformance::hooks::metadata_mutation_allowed
+        ),
+        c!(
+            "hook.package_owned_handler",
+            ["runtime", "hook"],
+            crate::conformance::hooks::package_owned_handler
+        ),
+        c!(
+            "hook.unload_removes_subscription",
+            ["runtime", "hook"],
+            crate::conformance::hooks::unload_removes_subscription
+        ),
+    ]
+}
+
+pub(super) fn composition_cases() -> Vec<ConformanceCase> {
+    vec![
+        // --- composition ---
+        c!(
+            "composition.check_descriptor",
+            ["composition"],
+            crate::conformance::generated::composition_descriptor
+        ),
+        c!(
+            "composition.check_descriptor_v2",
+            ["composition"],
+            crate::conformance::generated::composition_descriptor_v2
+        ),
+        c!(
+            "composition.component_identity_independent_of_package_envelope",
+            ["composition", "phase7"],
+            crate::conformance::generated::component_identity_independent_of_package_envelope
+        ),
+        c!(
+            "composition.component_replacement_preserves_content_roots",
+            ["composition", "phase7"],
+            crate::conformance::generated::component_replacement_preserves_content_roots
+        ),
+        c!(
+            "composition.contract_none_is_foreign_capsule",
+            ["composition", "phase7"],
+            crate::conformance::generated::contract_none_is_foreign_capsule
+        ),
+        c!(
+            "official.composition_lab",
+            ["official", "composition", "slow"],
+            crate::conformance::official_labs::composition_lab
+        ),
+        c!(
+            "official.composition_lab_diagnostics",
+            ["official", "composition", "slow"],
+            crate::conformance::official_labs::composition_lab_diagnostics
+        ),
+        c!(
+            "official.asset_lab",
+            ["official", "slow"],
+            crate::conformance::official_labs::asset_lab
+        ),
+        c!(
+            "official.projection_lab",
+            ["official", "slow"],
+            crate::conformance::official_labs::projection_lab
+        ),
+        c!(
+            "official.playable_seed",
+            ["official", "slow"],
+            crate::conformance::official_labs::playable_seed
+        ),
+        c!(
+            "official.persona_lab",
+            ["official", "slow"],
+            crate::conformance::official_labs::persona_lab
+        ),
+        c!(
+            "official.knowledge_lab",
+            ["official", "slow"],
+            crate::conformance::official_labs::knowledge_lab
+        ),
+        c!(
+            "official.context_lab",
+            ["official", "slow"],
+            crate::conformance::official_labs::context_lab
+        ),
+        c!(
+            "official.text_transform_lab",
+            ["official", "slow"],
+            crate::conformance::official_labs::text_transform_lab
+        ),
+        c!(
+            "official.model_connector_lab",
+            ["official", "slow"],
+            crate::conformance::official_labs::model_connector_lab
+        ),
+        c!(
+            "official.model_provider_lab",
+            ["official", "slow"],
+            crate::conformance::official_labs::model_provider_lab
+        ),
+        c!(
+            "official.model_provider_lab_invoke_core",
+            ["official", "slow"],
+            crate::conformance::official_labs::model_provider_lab_invoke_core
+        ),
+        c!(
+            "official.model_provider_lab_normalize_stream",
+            ["official", "slow"],
+            crate::conformance::official_labs::model_provider_lab_normalize_stream
+        ),
+        c!(
+            "official.model_routing_lab",
+            ["official", "slow"],
+            crate::conformance::official_labs::model_routing_lab
+        ),
+        c!(
+            "official.pi_agent_runtime_lab",
+            ["official", "agentic", "slow"],
+            crate::conformance::official_labs::pi_agent_runtime_lab
+        ),
+        c!(
+            "official.capability_tool_bridge_lab",
+            ["official", "agentic", "slow"],
+            crate::conformance::official_labs::capability_tool_bridge_lab
+        ),
+    ]
+}
+
+pub(super) fn replacement_cases() -> Vec<ConformanceCase> {
+    vec![
+        // --- replacement ---
+        c!(
+            "replacement.thirdparty_seed_surfaces",
+            ["replacement"],
+            crate::conformance::replacement::thirdparty_seed_surfaces
+        ),
+        c!(
+            "replacement.thirdparty_seed_invocation",
+            ["replacement"],
+            crate::conformance::replacement::thirdparty_seed_invocation
+        ),
+        c!(
+            "replacement.ambiguous_no_official_priority",
+            ["replacement"],
+            crate::conformance::replacement::ambiguous_no_official_priority
+        ),
+        c!(
+            "replacement.composition_thirdparty",
+            ["replacement", "composition"],
+            crate::conformance::replacement::composition_thirdparty
+        ),
+        c!(
+            "replacement.thirdparty_agent_runtime_surfaces",
+            ["replacement", "agentic"],
+            crate::conformance::replacement::thirdparty_agent_runtime_surfaces
+        ),
+        c!(
+            "replacement.thirdparty_agent_runtime_invocation",
+            ["replacement", "agentic"],
+            crate::conformance::replacement::thirdparty_agent_runtime_invocation
+        ),
+        c!(
+            "replacement.composition_agent_runtime_replacement",
+            ["replacement", "agentic", "composition"],
+            crate::conformance::replacement::composition_agent_runtime_replacement
+        ),
+    ]
+}
+
+pub(super) fn secret_conformance_cases() -> Vec<ConformanceCase> {
+    vec![
+        // --- secret conformance ---
+        c!(
+            "substrate.permission_grant_rehydrate",
+            ["substrate", "secret"],
+            crate::conformance::secret_conformance::permission_grant_rehydrate
+        ),
+        c!(
+            "secret.ref_validation",
+            ["secret"],
+            crate::conformance::secret_conformance::secret_ref_validation
+        ),
+        c!(
+            "secret.raw_blocked_in_proposal",
+            ["secret"],
+            crate::conformance::secret_conformance::raw_secret_blocked_in_proposal
+        ),
+        c!(
+            "secret.effect_receipt_redacts_raw_fields",
+            ["secret", "receipt", "runtime"],
+            crate::conformance::secret_conformance::effect_receipt_redacts_raw_secret_fields
+        ),
+        c!(
+            "secret.raw_blocked_in_asset_metadata",
+            ["secret"],
+            crate::conformance::secret_conformance::raw_secret_blocked_in_asset_metadata
+        ),
+        c!(
+            "official.no_secret_bypass",
+            ["official", "secret"],
+            crate::conformance::secret_conformance::no_secret_bypass
+        ),
+        c!(
+            "secret.env_resolver_allowed",
+            ["secret"],
+            crate::conformance::secret_conformance::env_resolver_allowed
+        ),
+        c!(
+            "secret.env_resolver_denied",
+            ["secret"],
+            crate::conformance::secret_conformance::env_resolver_denied
+        ),
+        c!(
+            "secret.env_resolver_missing_no_leak",
+            ["secret"],
+            crate::conformance::secret_conformance::env_resolver_missing_no_leak
+        ),
+    ]
+}

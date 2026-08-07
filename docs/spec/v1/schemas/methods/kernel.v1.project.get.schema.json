@@ -163,7 +163,7 @@
         },
         "packages": {
           "default": [],
-          "description": "Package manifest paths used by this project. For yggdrasil_native: typically packages/* paths For external_wrapped: the adapter package For external_workspace: empty or workspace tooling",
+          "description": "Package manifest paths used by this project. For plurora_native: typically packages/* paths For external_wrapped: the adapter package For external_workspace: empty or workspace tooling",
           "items": {
             "type": "string"
           },
@@ -220,9 +220,9 @@
     "ProjectType": {
       "oneOf": [
         {
-          "description": "Native Yggdrasil project: has project.yaml at repo root, manifest references Yggdrasil packages.",
+          "description": "Native Plurora project: has project.yaml at repo root, manifest references Plurora packages.",
           "enum": [
-            "yggdrasil_native"
+            "plurora_native"
           ],
           "type": "string"
         },
@@ -419,10 +419,10 @@
       "type": "string"
     }
   },
-  "$id": "https://yggdrasil.dev/spec/v1/methods/kernel.v1.project.get.schema.json",
+  "$id": "https://plurora.dev/spec/v1/methods/kernel.v1.project.get.schema.json",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": false,
-  "description": "Yggdrasil public kernel method kernel.v1.project.get.",
+  "description": "Plurora public kernel method kernel.v1.project.get.",
   "properties": {
     "errors": {
       "$ref": "#/$defs/Errors"
@@ -443,7 +443,7 @@
   ],
   "title": "kernel.v1.project.get",
   "type": "object",
-  "x-yggdrasil-contract": {
+  "x-plurora-contract": {
     "aliases": [
       {
         "canonical_id": "host.project.get",
@@ -457,13 +457,13 @@
     ],
     "canonical_id": "host.project.get",
     "implementation_status": "implemented",
-    "introduced_in": "ygg.contract.default/v1@0.2.0",
+    "introduced_in": "plurora.contract.default/v1@0.2.0",
     "maturity": "experimental",
     "owner_layer": "host",
     "request_adapter": "identity",
-    "request_schema": "https://yggdrasil.dev/spec/v1/methods/kernel.v1.project.get.schema.json#/$defs/Params",
+    "request_schema": "https://plurora.dev/spec/v1/methods/kernel.v1.project.get.schema.json#/$defs/Params",
     "response_adapter": "identity",
-    "response_schema": "https://yggdrasil.dev/spec/v1/methods/kernel.v1.project.get.schema.json#/$defs/Result",
+    "response_schema": "https://plurora.dev/spec/v1/methods/kernel.v1.project.get.schema.json#/$defs/Result",
     "streaming": false
   }
 }

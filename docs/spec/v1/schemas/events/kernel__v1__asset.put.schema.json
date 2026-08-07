@@ -87,7 +87,7 @@
       "type": "object"
     }
   },
-  "$id": "https://yggdrasil.dev/spec/v1/events/kernel__v1__asset.put.schema.json",
+  "$id": "https://plurora.dev/spec/v1/events/kernel__v1__asset.put.schema.json",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "description": "Payload schema for event kind kernel/v1/asset.put.",
   "properties": {

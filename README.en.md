@@ -1,10 +1,10 @@
-# Yggdrasil
+# Plurora
 
 > [English](./README.en.md) · [中文](./README.md)
 
 **An open digital platform for people, AI, and software to create and operate together.**
 
-Yggdrasil enables applications, tools, services, worlds, games, agents, creative environments, and forms not yet named to be created, composed, run, inspected, modified, moved, and replaced. The platform provides trusted common ground without prescribing what upper layers must become.
+Plurora enables applications, tools, services, worlds, games, agents, creative environments, and forms not yet named to be created, composed, run, inspected, modified, moved, and replaced. The platform provides trusted common ground without prescribing what upper layers must become.
 
 ```text
 ┌──────────────────────────────────────────────────────────┐
@@ -24,7 +24,7 @@ backup, and diagnostics.
 
 ## What we are building
 
-Yggdrasil pursues five long-term goals:
+Plurora pursues five long-term goals:
 
 - **Open:** public source, protocols, data, and extension points; user export, migration, and deletion; no private official APIs.
 - **Plural:** no single application form, workflow, shell, model, component, or content ontology.
@@ -36,7 +36,7 @@ See [`docs/CHARTER.md`](docs/CHARTER.en.md) for the principles and [`docs/archit
 
 ## Platform and official product
 
-Yggdrasil is more than a kernel and is not identical to the official Web/Desktop product. The current official distribution uses Home, Settings, Project frames, Console, and contributed surfaces to provide a local managed Host, remote Hosts, installation, operation, creation, deployment, authority, and data management.
+Plurora is more than a kernel and is not identical to the official Web/Desktop product. The current official distribution uses Home, Settings, Project frames, Console, and contributed surfaces to provide a local managed Host, remote Hosts, installation, operation, creation, deployment, authority, and data management.
 
 Those are evolving default product choices rather than permanent ontology for the whole platform:
 
@@ -59,10 +59,10 @@ See [`docs/ALPHA_STATUS.md`](docs/ALPHA_STATUS.en.md) for implemented, partial, 
 
 ```text
 crates/
-  ygg-core/            current core types, schemas, identity, events, contracts
-  ygg-runtime/         runtime, component execution, dispatch, some Host work
-  ygg-service/         HTTP / RPC / SSE and Host service boundary
-  ygg-cli/             CLI, Host, scaffolding, contract, conformance tooling
+  plurora-core/            current core types, schemas, identity, events, contracts
+  plurora-runtime/         runtime, component execution, dispatch, some Host work
+  plurora-service/         HTTP / RPC / SSE and Host service boundary
+  plurora-cli/             CLI, Host, scaffolding, contract, conformance tooling
 
 clients/web/           official React 19 + Tailwind v4 + Vite Web shell / PWA
 clients/desktop/       Tauri 2.x wrapper + managed Host sidecar
@@ -84,7 +84,7 @@ The directory layout describes the current implementation; crate names alone do 
 Start a Host:
 
 ```bash
-cargo run -p ygg-cli -- host serve \
+cargo run -p plurora-cli -- host serve \
   --http 127.0.0.1:8787 \
   --profile profiles/forge-alpha.yaml
 ```
@@ -100,26 +100,26 @@ Run tests and conformance:
 
 ```bash
 cargo test --workspace
-cargo run -p ygg-cli -- conformance
+cargo run -p plurora-cli -- conformance
 ```
 
 Install and manage Packages and Projects:
 
 ```bash
-yg install github.com/user/yggdrasil-package#v1.2.0
-yg list-installed
-yg project list
-yg project start <project-id>
-yg project stop <project-id>
-yg uninstall <package-id-or-project-id>
-yg update [<package-id>|--project-id <project-id>] [--check-only]
-yg lockfile --check
+plurora install github.com/user/plurora-package#v1.2.0
+plurora list-installed
+plurora project list
+plurora project start <project-id>
+plurora project stop <project-id>
+plurora uninstall <package-id-or-project-id>
+plurora update [<package-id>|--project-id <project-id>] [--check-only]
+plurora lockfile --check
 ```
 
 Run the blank play-creation example through public contracts:
 
 ```bash
-cargo run -p ygg-cli -- play-create-demo
+cargo run -p plurora-cli -- play-create-demo
 ```
 
 See [`docs/guides/PACKAGE_AUTHORING_WALKTHROUGH.md`](docs/guides/PACKAGE_AUTHORING_WALKTHROUGH.en.md) for more commands and component-authoring flow.
@@ -144,7 +144,7 @@ Major documents are available in English and Simplified Chinese and link to the 
 | Review construction direction | [`docs/roadmap/NEXT_STEPS.md`](docs/roadmap/NEXT_STEPS.en.md) |
 | Write documentation | [`docs/STYLE.md`](docs/STYLE.en.md) |
 
-## Forms that can grow on Yggdrasil
+## Forms that can grow on Plurora
 
 Chat, world simulation, Tavern, game-engine bridges, IDEs, ordinary Web services, agent runtimes, document tools, node editors, and marketplaces may all become products, protocols, components, or distributions on the platform. None is the platform's only center, and none gains hidden authority by being official.
 
@@ -152,4 +152,4 @@ YdlTavern is an independent integration project; see [`docs/tavern/TAVERN_COMPAT
 
 ## License
 
-Yggdrasil is licensed under the GNU Affero General Public License v3.0 only (`AGPL-3.0-only`). See [`LICENSE`](LICENSE). The boundary among first-party code, external dependencies, and third-party content is documented in [`docs/LICENSING.md`](docs/LICENSING.en.md).
+Plurora is licensed under the GNU Affero General Public License v3.0 only (`AGPL-3.0-only`). See [`LICENSE`](LICENSE). The boundary among first-party code, external dependencies, and third-party content is documented in [`docs/LICENSING.md`](docs/LICENSING.en.md).

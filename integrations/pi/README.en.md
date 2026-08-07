@@ -2,7 +2,7 @@
 
 > 中文默认说明见 [`README.md`](./README.md).
 
-This directory records how Yggdrasil studies and absorbs [pi](https://github.com/earendil-works/pi) without turning pi into the kernel, protocol, or an official privileged path.
+This directory records how Plurora studies and absorbs [pi](https://github.com/earendil-works/pi) without turning pi into the kernel, protocol, or an official privileged path.
 
 ## Upstream snapshot
 

@@ -7,7 +7,7 @@ This walkthrough creates a third-party package. It appears in Home, contributes 
 ## 1. Generate a package
 
 ```bash
-cargo run -p ygg-cli -- init-package /tmp/ygg-seed-package \
+cargo run -p plurora-cli -- init-package /tmp/plurora-seed-package \
   --id example/seed-package \
   --entry subprocess \
   --language typescript \
@@ -26,13 +26,13 @@ The generated manifest includes:
 For narrower packages, select another template:
 
 ```bash
-cargo run -p ygg-cli -- init-package /tmp/ygg-assist \
+cargo run -p plurora-cli -- init-package /tmp/plurora-assist \
   --id example/assist \
   --entry subprocess \
   --language typescript \
   --template assistant-action
 
-cargo run -p ygg-cli -- init-package /tmp/ygg-asset-editor \
+cargo run -p plurora-cli -- init-package /tmp/plurora-asset-editor \
   --id example/asset-editor \
   --entry subprocess \
   --language python \
@@ -50,7 +50,7 @@ Available templates are:
 - `full-surface` — all authoring/play surface slots.
 - `networked` — networked capability with declared network permissions (`host`, `methods`, `purpose`), `secret_ref` usage, and outbound audit helper. It embeds no raw secrets and has no implicit network access. Demonstrates `NetworkDeclaration` and `OutboundAuditHelper` from `sdk/typescript/secure-execution`.
 - `streaming` — streaming capability with faux frame lifecycle (`StreamFrameClient`). Demonstrates `start`/`chunk`/`end` frames and `redaction_state`. No real model inference. Uses `sdk/typescript/secure-execution`.
-- `agent-runtime` — locally replayable agent-like subprocess package. Includes streaming `run` capability, `explain-run` trace summary, `draft-proposal` approval-gated proposal, `echo` capability, and `assistant_action` + `forge_panel` surfaces. Uses `StreamFrameClient` (`sdk/typescript/secure-execution`) and `createTraceEvent`/`createProposalDraft`/`blockRawSecrets` (`sdk/typescript/ygg-agent-adapter`). No real model inference, no network calls, no raw secrets.
+- `agent-runtime` — locally replayable agent-like subprocess package. Includes streaming `run` capability, `explain-run` trace summary, `draft-proposal` approval-gated proposal, `echo` capability, and `assistant_action` + `forge_panel` surfaces. Uses `StreamFrameClient` (`sdk/typescript/secure-execution`) and `createTraceEvent`/`createProposalDraft`/`blockRawSecrets` (`sdk/typescript/agent-adapter`). No real model inference, no network calls, no raw secrets.
 - `experience-runtime` — locally replayable experience-runtime subprocess package. Includes `describe-contract`, `create-checkpoint`, `inspect-checkpoint`, `draft-recovery`, `bind-agent-run`, and `echo` capabilities, plus all four experience surfaces. Uses the `sdk/typescript/experience-runtime` SDK. No real model inference, no network calls, no raw secrets.
 - `playable-board` — locally replayable playable board subprocess package. Includes `launch`, `project_state`, `render_payload`, `record_player_action`, `request_change`, `create_checkpoint`, and `echo` capabilities, plus all four experience surfaces. Closest to the `official/playable-creation-board` shape for third-party creators. No real model inference, no network calls, no raw secrets.
 - `playable-experience` — locally replayable playable experience subprocess package. Includes all `playable-board` capabilities plus `inspect_checkpoint` and `draft_recovery` for full checkpoint/recovery lifecycle. All four experience surfaces. No real model inference, no network calls, no raw secrets.
@@ -60,10 +60,10 @@ Available templates are:
 ## 2. Validate the package locally
 
 ```bash
-cargo run -p ygg-cli -- package check /tmp/ygg-seed-package/manifest.yaml
-cargo run -p ygg-cli -- package conformance /tmp/ygg-seed-package/manifest.yaml
-cargo run -p ygg-cli -- package run-fixture /tmp/ygg-seed-package/manifest.yaml
-cargo run -p ygg-cli -- package reload /tmp/ygg-seed-package/manifest.yaml
+cargo run -p plurora-cli -- package check /tmp/plurora-seed-package/manifest.yaml
+cargo run -p plurora-cli -- package conformance /tmp/plurora-seed-package/manifest.yaml
+cargo run -p plurora-cli -- package run-fixture /tmp/plurora-seed-package/manifest.yaml
+cargo run -p plurora-cli -- package reload /tmp/plurora-seed-package/manifest.yaml
 ```
 
 These commands only inspect the manifest and invoke the package through the ordinary capability path. They do not grant private host access.
@@ -73,8 +73,8 @@ These commands only inspect the manifest and invoke the package through the ordi
 ## 3. Create a composition descriptor
 
 ```bash
-cargo run -p ygg-cli -- init-composition /tmp/ygg-seed-composition --id example/seed-package
-cargo run -p ygg-cli -- composition check /tmp/ygg-seed-composition/composition.yaml
+cargo run -p plurora-cli -- init-composition /tmp/plurora-seed-composition --id example/seed-package
+cargo run -p plurora-cli -- composition check /tmp/plurora-seed-composition/composition.yaml
 ```
 
 A composition descriptor says which packages provide the launchable entry and which surface slots must be present. It is not a kernel `game` or `experience` type.
@@ -84,8 +84,8 @@ Composition descriptor v2 fields can also declare optional packages, required ca
 For a replacement proof, inspect the included third-party example:
 
 ```bash
-cargo run -p ygg-cli -- package check examples/packages/thirdparty-playable-seed/manifest.yaml
-cargo run -p ygg-cli -- composition check examples/compositions/playable-seed-replacement/composition.yaml
+cargo run -p plurora-cli -- package check examples/packages/thirdparty-playable-seed/manifest.yaml
+cargo run -p plurora-cli -- composition check examples/compositions/playable-seed-replacement/composition.yaml
 ```
 
 The package id is `thirdparty/playable-seed`, not `official/*`, and it exposes compatible Play/Forging/Assistant/Asset surfaces without official priority.
@@ -96,13 +96,13 @@ Add the package manifest to a host profile, for example:
 
 ```yaml
 autoload:
-  - /tmp/ygg-seed-package/manifest.yaml
+  - /tmp/plurora-seed-package/manifest.yaml
 ```
 
 Then run:
 
 ```bash
-cargo run -p ygg-cli -- host serve --http 127.0.0.1:8787 --profile profiles/forge-alpha.yaml
+cargo run -p plurora-cli -- host serve --http 127.0.0.1:8787 --profile profiles/forge-alpha.yaml
 ```
 
 Home discovers the package through `kernel.v1.surface.contribution.list`. Forge discovers panels through the same protocol. The UI does not receive private runtime handles.
@@ -201,8 +201,8 @@ const endFrame = client.end();
 For packages that want to prove their readiness to work with the secure execution substrate (secret refs, network permissions, streaming) without making real network calls or performing model inference, see the included examples:
 
 ```bash
-cargo run -p ygg-cli -- package check examples/packages/faux-model-readiness/manifest.yaml
-cargo run -p ygg-cli -- package check examples/packages/faux-agent-readiness/manifest.yaml
+cargo run -p plurora-cli -- package check examples/packages/faux-model-readiness/manifest.yaml
+cargo run -p plurora-cli -- package check examples/packages/faux-agent-readiness/manifest.yaml
 ```
 
 - `example/faux-model-readiness` declares network permissions, uses `secret_ref` for credentials, returns discovery plans (not real API responses), and produces faux streaming frames. No real inference or network calls.
@@ -212,12 +212,12 @@ These packages prove the substrate shape without coupling to any specific model 
 
 ## 8. Playable package walkthrough — from template to playable
 
-This walkthrough shows how a new creator can go from a template to a playable package in under a day, using only docs, templates, and Forge — without reading Yggdrasil source code.
+This walkthrough shows how a new creator can go from a template to a playable package in under a day, using only docs, templates, and Forge — without reading Plurora source code.
 
 ### 8.1 Generate a playable board package
 
 ```bash
-cargo run -p ygg-cli -- init-package /tmp/my-playable-board \
+cargo run -p plurora-cli -- init-package /tmp/my-playable-board \
   --id thirdparty/my-playable-board \
   --entry subprocess \
   --language typescript \
@@ -234,10 +234,10 @@ This generates a package skeleton that mirrors the `official/playable-creation-b
 ### 8.2 Validate locally
 
 ```bash
-cargo run -p ygg-cli -- package check /tmp/my-playable-board/manifest.yaml
-cargo run -p ygg-cli -- package conformance /tmp/my-playable-board/manifest.yaml
-cargo run -p ygg-cli -- package run-fixture /tmp/my-playable-board/manifest.yaml
-cargo run -p ygg-cli -- package reload /tmp/my-playable-board/manifest.yaml
+cargo run -p plurora-cli -- package check /tmp/my-playable-board/manifest.yaml
+cargo run -p plurora-cli -- package conformance /tmp/my-playable-board/manifest.yaml
+cargo run -p plurora-cli -- package run-fixture /tmp/my-playable-board/manifest.yaml
+cargo run -p plurora-cli -- package reload /tmp/my-playable-board/manifest.yaml
 ```
 
 `package check` now prints creator-facing diagnostics:
@@ -254,8 +254,8 @@ cargo run -p ygg-cli -- package reload /tmp/my-playable-board/manifest.yaml
 ### 8.3 Compose with other packages
 
 ```bash
-cargo run -p ygg-cli -- init-composition /tmp/my-board-composition --id thirdparty/my-playable-board
-cargo run -p ygg-cli -- composition check /tmp/my-board-composition/composition.yaml
+cargo run -p plurora-cli -- init-composition /tmp/my-board-composition --id thirdparty/my-playable-board
+cargo run -p plurora-cli -- composition check /tmp/my-board-composition/composition.yaml
 ```
 
 `composition check` now prints experience-specific diagnostics:
@@ -275,7 +275,7 @@ The official `official/playable-creation-board` package has the same surfaces an
 If your experience needs checkpoint inspection and recovery planning (save/restore mid-session, recover from failures), use the `playable-experience` template instead:
 
 ```bash
-cargo run -p ygg-cli -- init-package /tmp/my-playable-experience \
+cargo run -p plurora-cli -- init-package /tmp/my-playable-experience \
   --id thirdparty/my-playable-experience \
   --entry subprocess \
   --language typescript \

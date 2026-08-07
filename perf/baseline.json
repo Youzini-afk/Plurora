@@ -1,5 +1,5 @@
 {
-  "schema": "yggdrasil.bench.v1",
+  "schema": "plurora.bench.v1",
   "created_at": 1779644599,
   "git": {
     "commit": "df925ce95c743368add991ed1a5a03bd0d2a9fb7",
@@ -282,7 +282,7 @@
   "meta": {
     "iterations": 30,
     "warmup": 3,
-    "tool": "ygg-cli perf baseline",
+    "tool": "plurora-cli perf baseline",
     "version": "0.1.0",
     "note": "developer-machine reference, not CI budget; no-network/deterministic",
     "ok_count": 16,

@@ -10,10 +10,10 @@
 
 | Primitive | Type URI / schema |
 | --- | --- |
-| `Intent` | `urn:yggdrasil:intent:v1` / [`intent.schema.json`](v1/schemas/intent.schema.json) |
-| `ChangeSet` | `urn:yggdrasil:change-set:v1` / [`change-set.schema.json`](v1/schemas/change-set.schema.json) |
-| `PolicyDecision` | `urn:yggdrasil:policy-decision:v1` / [`policy-decision.schema.json`](v1/schemas/policy-decision.schema.json) |
-| `ChangeCommit` | `urn:yggdrasil:change-commit:v1` / [`commit.schema.json`](v1/schemas/commit.schema.json) |
+| `Intent` | `urn:plurora:intent:v1` / [`intent.schema.json`](v1/schemas/intent.schema.json) |
+| `ChangeSet` | `urn:plurora:change-set:v1` / [`change-set.schema.json`](v1/schemas/change-set.schema.json) |
+| `PolicyDecision` | `urn:plurora:policy-decision:v1` / [`policy-decision.schema.json`](v1/schemas/policy-decision.schema.json) |
+| `ChangeCommit` | `urn:plurora:change-commit:v1` / [`commit.schema.json`](v1/schemas/commit.schema.json) |
 
 `ChangeOperation` 保持开放的 `op`、`target`、`input_refs` 和 `payload` 结构；kernel 不维护封闭的领域操作枚举。
 

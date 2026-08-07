@@ -1,4 +1,4 @@
-# Yggdrasil Model Provider Adapter SDK
+# Plurora Model Provider Adapter SDK
 
 纯 TypeScript 的 model provider adapter，让能力包能描述、验证、归一化 OpenAI / Anthropic / Gemini / OpenAI-compatible / OpenRouter / DeepSeek / xAI / Fireworks 的 API 差异，而不依赖私有 runtime、不做真实 HTTP 调用、不做计费/中转、不新增 `kernel.v1.model.*`。
 

@@ -2,7 +2,7 @@
 
 > [English](./EXPERIENCE_RUNTIME_AUTHORING.en.md) · [中文](./EXPERIENCE_RUNTIME_AUTHORING.md)
 
-本指南说明如何创建、检查、checkpoint、恢复和替换 Yggdrasil 中的 experience-runtime 包。
+本指南说明如何创建、检查、checkpoint、恢复和替换 Plurora 中的 experience-runtime 包。
 
 ## 概述
 
@@ -17,7 +17,7 @@
 ## 生成 experience-runtime 包
 
 ```bash
-ygg init-package ./my-experience \
+plurora init-package ./my-experience \
   --id example/my-experience \
   --entry subprocess \
   --language typescript \
@@ -224,7 +224,7 @@ import {
 ## 参考实现
 
 - `packages/official/experience-runtime-lab/` — 官方 experience-runtime lab 包
-- `crates/ygg-runtime/src/inproc/experience_runtime_lab.rs` — 可重放的 in-process handler
+- `crates/plurora-runtime/src/inproc/experience_runtime_lab.rs` — 可重放的 in-process handler
 - `sdk/typescript/experience-runtime/` — TypeScript SDK
 - `docs/guides/EXPERIENCE_RUNTIME_AUTHORING.md` — 本文档
 

@@ -31,16 +31,17 @@ const packageFiles = [
   "clients/web/package.json",
   "clients/desktop/package.json",
   "sdk/typescript/agentic-forge/package.json",
+  "sdk/typescript/agent-adapter/package.json",
   "sdk/typescript/experience-runtime/package.json",
   "sdk/typescript/inference-capability/package.json",
-  "sdk/typescript/kernel-sdk/package.json",
+  "sdk/typescript/contract-sdk/package.json",
   "sdk/typescript/subprocess/package.json",
 ];
 const lockFiles = [
   "clients/web/package-lock.json",
   "clients/desktop/package-lock.json",
   "sdk/typescript/experience-runtime/package-lock.json",
-  "sdk/typescript/kernel-sdk/package-lock.json",
+  "sdk/typescript/contract-sdk/package-lock.json",
   "sdk/typescript/subprocess/package-lock.json",
 ];
 

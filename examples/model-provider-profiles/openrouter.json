@@ -4,7 +4,7 @@
   "credential": "secret_ref:env:OPENROUTER_API_KEY",
   "baseUrl": "https://openrouter.ai/api/v1",
   "headers": {
-    "HTTP-Referer": "https://yggdrasil.example.local",
-    "X-OpenRouter-Title": "Yggdrasil local profile example"
+    "HTTP-Referer": "https://plurora.example.local",
+    "X-OpenRouter-Title": "Plurora local profile example"
   }
 }

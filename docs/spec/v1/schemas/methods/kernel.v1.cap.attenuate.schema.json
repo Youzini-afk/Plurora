@@ -169,10 +169,10 @@
       "type": "object"
     }
   },
-  "$id": "https://yggdrasil.dev/spec/v1/methods/kernel.v1.cap.attenuate.schema.json",
+  "$id": "https://plurora.dev/spec/v1/methods/kernel.v1.cap.attenuate.schema.json",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": false,
-  "description": "Yggdrasil public kernel method kernel.v1.cap.attenuate.",
+  "description": "Plurora public kernel method kernel.v1.cap.attenuate.",
   "properties": {
     "errors": {
       "$ref": "#/$defs/Errors"
@@ -193,7 +193,7 @@
   ],
   "title": "kernel.v1.cap.attenuate",
   "type": "object",
-  "x-yggdrasil-contract": {
+  "x-plurora-contract": {
     "aliases": [],
     "canonical_id": "kernel.v1.cap.attenuate",
     "implementation_status": "partial",
@@ -201,9 +201,9 @@
     "maturity": "experimental",
     "owner_layer": "substrate",
     "request_adapter": "identity",
-    "request_schema": "https://yggdrasil.dev/spec/v1/methods/kernel.v1.cap.attenuate.schema.json#/$defs/Params",
+    "request_schema": "https://plurora.dev/spec/v1/methods/kernel.v1.cap.attenuate.schema.json#/$defs/Params",
     "response_adapter": "identity",
-    "response_schema": "https://yggdrasil.dev/spec/v1/methods/kernel.v1.cap.attenuate.schema.json#/$defs/Result",
+    "response_schema": "https://plurora.dev/spec/v1/methods/kernel.v1.cap.attenuate.schema.json#/$defs/Result",
     "streaming": false
   }
 }

@@ -9,7 +9,7 @@ export function AboutPanel() {
     <>
       <header className="mb-8">
         <Eyebrow>{t("aboutEyebrow")}</Eyebrow>
-        <PageTitle className="mt-3">Yggdrasil</PageTitle>
+        <PageTitle className="mt-3">Plurora</PageTitle>
         <p className="mt-3 text-[15px] text-steel-secondary">{t("aboutSubtitle")}</p>
       </header>
 
@@ -90,7 +90,7 @@ export function AboutPanel() {
                 {t("aboutLicenseBody")}
               </p>
               <a
-                href="https://github.com/Youzini-afk/Yggdrasil/blob/main/LICENSE"
+                href="https://github.com/Youzini-afk/Plurora/blob/main/LICENSE"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="mt-3 inline-block text-[12px] font-medium text-charcoal-ink underline underline-offset-4 decoration-1 hover:decoration-aged-brass"
@@ -105,11 +105,11 @@ export function AboutPanel() {
               <EyebrowSm>{t("aboutLinks")}</EyebrowSm>
               <ul className="mt-3 divide-y divide-whisper-border">
                 {[
-                  { Icon: GithubLogo, label: t("aboutSourceCode"), href: "https://github.com/Youzini-afk/Yggdrasil" },
-                  { Icon: BookOpen, label: t("aboutDocumentation"), href: "https://github.com/Youzini-afk/Yggdrasil/tree/main/docs" },
-                  { Icon: Bug, label: t("aboutReportIssue"), href: "https://github.com/Youzini-afk/Yggdrasil/issues" },
+                  { Icon: GithubLogo, label: t("aboutSourceCode"), href: "https://github.com/Youzini-afk/Plurora" },
+                  { Icon: BookOpen, label: t("aboutDocumentation"), href: "https://github.com/Youzini-afk/Plurora/tree/main/docs" },
+                  { Icon: Bug, label: t("aboutReportIssue"), href: "https://github.com/Youzini-afk/Plurora/issues" },
                   { Icon: ChatCircle, label: t("aboutCommunity"), href: "#" },
-                  { Icon: Newspaper, label: t("aboutChangelog"), href: "https://github.com/Youzini-afk/Yggdrasil/blob/main/CHANGELOG.md" },
+                  { Icon: Newspaper, label: t("aboutChangelog"), href: "https://github.com/Youzini-afk/Plurora/blob/main/CHANGELOG.md" },
                 ].map(({ Icon, label, href }) => (
                   <li key={label}>
                     <a

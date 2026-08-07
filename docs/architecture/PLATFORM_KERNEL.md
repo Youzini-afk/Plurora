@@ -4,10 +4,10 @@
 
 本文区分两件事：
 
-1. Yggdrasil 长期应保持极小的 **Constitutional Substrate**；
+1. Plurora 长期应保持极小的 **Constitutional Substrate**；
 2. 当前 Contract V1 中名为 kernel 的实现边界。
 
-二者目前并不完全重合。现有 `ygg-core` / `ygg-runtime` 为了提供可运行平台，还承载了一部分 Host、协议和 Shell 职责。长期目标不是否定现有代码，而是在保持兼容、迁移和数据可读的前提下，让职责回到正确层。
+二者目前并不完全重合。现有 `plurora-core` / `plurora-runtime` 为了提供可运行平台，还承载了一部分 Host、协议和 Shell 职责。长期目标不是否定现有代码，而是在保持兼容、迁移和数据可读的前提下，让职责回到正确层。
 
 ## 宪法基底拥有的机制
 

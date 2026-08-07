@@ -26,7 +26,7 @@ function plan(projectType?: string): InstallPlan {
 }
 
 const source: InstallSource = {
-  root_url: "https://github.com/Youzini-afk/Yggdrasil-Tavern",
+  root_url: "https://github.com/Youzini-afk/Plurora-Tavern",
   root_ref: "HEAD",
 };
 
@@ -37,7 +37,7 @@ const source: InstallSource = {
     {
       async resolveInstallPlan() {
         resolveCalls += 1;
-        return plan("yggdrasil_native");
+        return plan("plurora_native");
       },
       async detectInstallKind(): Promise<InstallDetectedKind> {
         detectCalls += 1;

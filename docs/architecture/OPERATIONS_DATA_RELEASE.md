@@ -2,15 +2,15 @@
 
 > [English](./OPERATIONS_DATA_RELEASE.en.md) · [中文](./OPERATIONS_DATA_RELEASE.md)
 
-状态：**运行安全基线已实现，剩余加固项继续受本文约束**。本文定义 Yggdrasil Host 承载真实项目和远程 target 时必须满足的数据、健康、诊断、升级和发行底线。
+状态：**运行安全基线已实现，剩余加固项继续受本文约束**。本文定义 Plurora Host 承载真实项目和远程 target 时必须满足的数据、健康、诊断、升级和发行底线。
 
 ## 当前实现状态
 
 已经实现：
 
 - Install Lab 的 store schema 不匹配不再删除数据；旧 store 被原子移动到带版本和随机后缀的保留目录，新 store 再初始化当前 marker。
-- `ygg host backup` 对位于 data dir 内、使用相对路径的 SQLite Host profile 创建离线目录快照。命令先取得持久 Host 控制面租约，排除显式 `cache`，使用 SQLite online backup API，并为所有文件写 SHA-256 manifest；原始 secret、key、objects、projects、profiles、journals 均在同一租约边界内复制。
-- `ygg host restore` 只接受不存在的新 data dir；它拒绝路径穿越、符号链接、重复项和 checksum/schema 不一致，在 staging 中完成验证与 SQLite integrity check 后才原子切换。
+- `plurora host backup` 对位于 data dir 内、使用相对路径的 SQLite Host profile 创建离线目录快照。命令先取得持久 Host 控制面租约，排除显式 `cache`，使用 SQLite online backup API，并为所有文件写 SHA-256 manifest；原始 secret、key、objects、projects、profiles、journals 均在同一租约边界内复制。
+- `plurora host restore` 只接受不存在的新 data dir；它拒绝路径穿越、符号链接、重复项和 checksum/schema 不一致，在 staging 中完成验证与 SQLite integrity check 后才原子切换。
 - `/livez`、`/health`、`/healthz` 是兼容 liveness；`/readyz` 返回无资源标识的结构化状态。event store 或 Host 控制面租约失败返回 `503/unready`，单个 durable deployment 不健康返回 `200/degraded`。
 - `host.diagnostics` 现在包含 Host 版本和 runtime 聚合计数，不额外公开 project/route/lease 标识。
 - tag release 显式复用完整 CI workflow，严格验证 tag/commit/Cargo/npm/Tauri 版本一致，再执行平台构建。每个平台产出 SHA-256 清单、SPDX SBOM，并通过 GitHub OIDC/Sigstore artifact attestation 记录 provenance 和 SBOM；只有 build job 获得发行权限。

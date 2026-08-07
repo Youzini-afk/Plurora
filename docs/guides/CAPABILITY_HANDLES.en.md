@@ -27,7 +27,7 @@ The handle pattern is common in capability-security systems, including:
 - SES / object-capability attenuated references;
 - browser platform handles that cannot be forged directly.
 
-Yggdrasil uses it to make least authority, attenuation, revocation, and audit the normal path.
+Plurora uses it to make least authority, attenuation, revocation, and audit the normal path.
 
 ## String declaration vs runtime authority
 
@@ -130,7 +130,7 @@ Network and secrets use the same model:
 
 ## How effect audit consumes handles
 
-`kernel.v1.audit.package` and `yg audit --package <id>` merge three data sets:
+`kernel.v1.audit.package` and `plurora audit --package <id>` merge three data sets:
 
 1. declared: manifest capabilities, permissions, network, and secret_refs;
 2. granted: handles minted, attenuated, revoked, and expired by the kernel;
@@ -175,7 +175,7 @@ New calls must fail. In-flight streaming calls follow cancel/termination policy 
 ## Operator checklist
 
 - Check that manifest permissions correspond to necessary features.
-- Run `yg audit --package <id>` for declared vs used authority.
+- Run `plurora audit --package <id>` for declared vs used authority.
 - Periodically inspect live handle counts for long-running packages.
 - Revoke handles that are no longer needed instead of waiting for package unload.
 - Use shorter leases for network and secret handles.
@@ -199,7 +199,7 @@ New calls must fail. In-flight streaming calls follow cancel/termination policy 
 4. Subprocess handshake receives bindings.
 5. SDK uses the handle to call the provider.
 6. Kernel writes `capability.invoked` and `capability.completed`.
-7. `yg audit` shows declared, granted, and used authority match.
+7. `plurora audit` shows declared, granted, and used authority match.
 
 ## References
 

@@ -1,6 +1,6 @@
 # Pretext Reference Ledger
 
-This directory records how Yggdrasil studies [Pretext](https://github.com/chenglou/pretext) without adopting Pretext into the kernel, package protocol, or product ontology.
+This directory records how Plurora studies [Pretext](https://github.com/chenglou/pretext) without adopting Pretext into the kernel, package protocol, or product ontology.
 
 ## What Pretext is
 
@@ -35,7 +35,7 @@ const { height, lineCount } = layout(prepared, 320, 20)
 
 - Markdown engine, kernel content runtime, or package protocol feature. Pretext is a layout primitive; it does not parse markup.
 - Full rich-text inline formatting engine (CSS inline formatting, nested trees, font-optical-sizing, font-feature-settings).
-- Server-side rendering commitment today (Pretext may add it later; Yggdrasil will evaluate when available).
+- Server-side rendering commitment today (Pretext may add it later; Plurora will evaluate when available).
 - Typography final design system. The text surface proof is about measurement stability, not visual polish.
 
 ## Risks and constraints
@@ -53,7 +53,7 @@ When Pretext changes:
 1. Compare the current upstream commit with `upstream.lock.toml`.
 2. Review changed API paths against `ui-map.yaml`.
 3. Decide for each change: `adapted`, `adapter_only`, `deferred`, or `rejected`.
-4. Add or update compact fixtures only when they protect a Yggdrasil-native behavior.
+4. Add or update compact fixtures only when they protect a Plurora-native behavior.
 5. Run `tsc -p clients/web/tsconfig.json --noEmit` before changing claims.
 
 The goal is not to wrap Pretext as a kernel feature. The goal is to prove that client-side streaming text surfaces can be stable, measurable, and resize-safe before committing to a dependency.

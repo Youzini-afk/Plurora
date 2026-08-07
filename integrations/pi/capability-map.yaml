@@ -27,13 +27,13 @@ absorption:
     - streaming_inference
     - multi_agent_orchestration
   rejected:
-    - pi_coding_agent_as_ygg_shell
+    - pi_coding_agent_as_plurora_shell
     - default_bash_read_write_edit_tools
     - kernel_agent_methods
     - kernel_model_prompt_memory_methods
     - private_runtime_access
     - official_agent_priority
-ygg_mappings:
+plurora_mappings:
   agent_run: kernel.v1.capability.invoke_or_stream
   cancel: kernel.v1.capability.cancel
   tool_discovery: kernel.v1.capability.discover_describe
@@ -43,6 +43,6 @@ ygg_mappings:
   state: package_owned_assets_projections_or_capabilities
   ui: surface_contributions_public_protocol
 j1_adapter_sdk:
-  module: sdk/typescript/ygg-agent-adapter
+  module: sdk/typescript/agent-adapter
   status: delivered
   description: "J1 adapter SDK — capability-to-tool mapping, invoke/stream, trace, proposal, permission/provider diagnostics, raw-secret blocking. Pure TS, no private runtime dependency."

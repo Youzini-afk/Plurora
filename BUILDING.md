@@ -1,10 +1,10 @@
-# Building Yggdrasil
+# Building Plurora
 
-Yggdrasil is licensed under AGPL-3.0-only. See [LICENSE](./LICENSE) for terms.
+Plurora is licensed under AGPL-3.0-only. See [LICENSE](./LICENSE) for terms.
 
 ## Source
 
-- Repository: https://github.com/Youzini-afk/Yggdrasil
+- Repository: https://github.com/Youzini-afk/Plurora
 - Tag a release: `git tag v0.1.0 && git push --tags`
 
 ## Prerequisites
@@ -43,7 +43,7 @@ cargo build --release
 ```
 
 Outputs:
-- `target/release/ygg` — host CLI
+- `target/release/plurora` — host CLI
 
 ### Web client
 ```bash
@@ -68,7 +68,7 @@ Outputs installers in `clients/desktop/src-tauri/target/release/bundle/`:
 
 ```bash
 # Terminal 1: host serve
-cargo run -p ygg-cli -- host serve --http 127.0.0.1:8787 --profile profiles/forge-alpha.yaml
+cargo run -p plurora-cli -- host serve --http 127.0.0.1:8787 --profile profiles/forge-alpha.yaml
 
 # Terminal 2: web dev server
 npm run dev --prefix clients/web

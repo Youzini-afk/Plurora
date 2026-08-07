@@ -8,5 +8,5 @@ export interface ShortcutEntry {
 }
 
 export const SHORTCUTS: ShortcutEntry[] = [
-  { url: "https://github.com/Youzini-afk/Yggdrasil-Tavern", tag: "native" },
+  { url: "https://github.com/Youzini-afk/Plurora-Tavern", tag: "native" },
 ];

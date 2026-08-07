@@ -2,7 +2,7 @@
 
 > [English](./AGENT_PACKAGE_AUTHORING.en.md) · [中文](./AGENT_PACKAGE_AUTHORING.md)
 
-本文说明如何在 Yggdrasil 当前 Contract V1 中，用普通 Package / Component 实现类 agent 能力。Agent 的共享语义可以由可选 Protocol / Profile 定义，具体运行状态由 Component 或 Product 拥有；它不是宪法基底服务。
+本文说明如何在 Plurora 当前 Contract V1 中，用普通 Package / Component 实现类 agent 能力。Agent 的共享语义可以由可选 Protocol / Profile 定义，具体运行状态由 Component 或 Product 拥有；它不是宪法基底服务。
 
 ## 你应该使用什么
 
@@ -30,7 +30,7 @@
 生成本地可重放的 agent runtime 包：
 
 ```bash
-cargo run -p ygg-cli -- init-package /tmp/ygg-agent \
+cargo run -p plurora-cli -- init-package /tmp/plurora-agent \
   --id example/agent-runtime \
   --entry subprocess \
   --language typescript \
@@ -49,13 +49,13 @@ cargo run -p ygg-cli -- init-package /tmp/ygg-agent \
 验证生成包：
 
 ```bash
-cargo run -p ygg-cli -- package check /tmp/ygg-agent/manifest.yaml
-cargo run -p ygg-cli -- package conformance /tmp/ygg-agent/manifest.yaml
+cargo run -p plurora-cli -- package check /tmp/plurora-agent/manifest.yaml
+cargo run -p plurora-cli -- package conformance /tmp/plurora-agent/manifest.yaml
 ```
 
-## 使用 `ygg-agent-adapter` SDK
+## 使用 `agent-adapter` SDK
 
-`sdk/typescript/ygg-agent-adapter` 是一层薄适配器，不是完整 agent 框架。它用于：
+`sdk/typescript/agent-adapter` 是一层薄适配器，不是完整 agent 框架。它用于：
 
 - 把 Ygg 能力描述符映射为 pi 风格工具描述符。
 - 构造 `kernel.v1.capability.invoke` / `kernel.v1.capability.stream` 请求载荷。
@@ -66,7 +66,7 @@ cargo run -p ygg-cli -- package conformance /tmp/ygg-agent/manifest.yaml
 示意：
 
 ```ts
-import { createYggAgentAdapter } from "../../sdk/typescript/ygg-agent-adapter/index.js";
+import { createYggAgentAdapter } from "../../sdk/typescript/agent-adapter/index.js";
 
 const adapter = createYggAgentAdapter({
   protocolClient,
@@ -112,8 +112,8 @@ const plan = await adapter.invokeCapabilityTool(tool, {
 验证：
 
 ```bash
-cargo run -p ygg-cli -- package check examples/packages/thirdparty-agent-runtime/manifest.yaml
-cargo run -p ygg-cli -- composition check examples/compositions/agent-runtime-replacement/composition.yaml
+cargo run -p plurora-cli -- package check examples/packages/thirdparty-agent-runtime/manifest.yaml
+cargo run -p plurora-cli -- composition check examples/compositions/agent-runtime-replacement/composition.yaml
 ```
 
 ## UI 观察
@@ -126,6 +126,6 @@ Forge 的 Agent Observability 区块和 Assist Drawer 的 Agent Readiness 面板
 
 - `pi-agent-core` 的事件、工具、gate 和队列思路可被普通包内部吸收。
 - `pi-ai` 的 faux provider / stream shape 可作为未来模型包参考。
-- `pi-coding-agent` 只作为产品和观测经验参考，不嵌入 Yggdrasil。
+- `pi-coding-agent` 只作为产品和观测经验参考，不嵌入 Plurora。
 
 更多边界见 [`../architecture/PI_INTEGRATION.md`](../architecture/PI_INTEGRATION.md) 和 [`../../integrations/pi/README.md`](../../integrations/pi/README.md)。

@@ -11,6 +11,6 @@
     "mes_example": "<START>\n{{char}}: Maps are negotiations with chaos.",
     "creator_notes": "Fixture for persona-lab import_profile.",
     "tags": ["fixture", "persona"],
-    "extensions": { "ygg_fixture": true, "unknown_kept": "yes" }
+    "extensions": { "plurora_fixture": true, "unknown_kept": "yes" }
   }
 }

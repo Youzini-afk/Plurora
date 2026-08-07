@@ -1,47 +1,47 @@
 reference: TavernHeadless
 policy: >-
   Use TavernHeadless as a reference corpus for mature headless creative/RP workflows.
-  Adapt useful behavior into Yggdrasil-native official packages. Do not introduce
+  Adapt useful behavior into Plurora-native official packages. Do not introduce
   tavern-* product packages or kernel-level content ontology.
 
 subsystems:
   packages/adapters-sillytavern/src/parsers/character-parser.ts:
-    yggdrasil_package: official/persona-lab
+    plurora_package: official/persona-lab
     status: adapted
     notes: Character card import becomes generic persona profile import with unknown-field diagnostics.
   packages/adapters-sillytavern/src/serializers/character-serializer.ts:
-    yggdrasil_package: official/persona-lab
+    plurora_package: official/persona-lab
     status: adapter_only
-    notes: Export is explicit and may be lossy; persona profile remains canonical for Yggdrasil package behavior.
+    notes: Export is explicit and may be lossy; persona profile remains canonical for Plurora package behavior.
   packages/adapters-sillytavern/src/parsers/worldbook-parser.ts:
-    yggdrasil_package: official/knowledge-lab
+    plurora_package: official/knowledge-lab
     status: adapted
     notes: Worldbook entries become structured knowledge entries and activation hints.
   packages/adapters-sillytavern/src/worldbook/trigger-engine.ts:
-    yggdrasil_package: official/knowledge-lab
+    plurora_package: official/knowledge-lab
     status: adapted
     notes: Keyword/selective matching becomes deterministic match_entries with trace output.
   packages/adapters-sillytavern/src/parsers/preset-parser.ts:
-    yggdrasil_package: official/context-lab
+    plurora_package: official/context-lab
     status: adapted
     notes: Prompt order and preset concepts become generic context layer planning and diagnostics.
   packages/adapters-sillytavern/src/compat-assembler.ts:
-    yggdrasil_package: official/context-lab
+    plurora_package: official/context-lab
     status: adapted
     notes: Compat assembly informs context_preview; chat message output is not canonical.
   packages/core/src/prompt:
-    yggdrasil_package: official/context-lab
+    plurora_package: official/context-lab
     status: adapted
     notes: Prompt IR, traces, source selection, and budget pruning inform generic context block assembly.
   packages/adapters-sillytavern/src/parsers/regex-parser.ts:
-    yggdrasil_package: official/text-transform-lab
+    plurora_package: official/text-transform-lab
     status: adapted
     notes: Regex profiles become text transform rule imports with diagnostics.
   packages/adapters-sillytavern/src/regex/regex-engine.ts:
-    yggdrasil_package: official/text-transform-lab
+    plurora_package: official/text-transform-lab
     status: adapted
     notes: Placement/channel/depth filters become deterministic transform traces.
   packages/core/src/variables:
-    yggdrasil_package: future/scope-lab
+    plurora_package: future/scope-lab
     status: deferred
     notes: Variable scopes are useful but should wait until the first four labs prove the package path.

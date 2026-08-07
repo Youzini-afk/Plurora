@@ -6,21 +6,21 @@ The conformance kit lets third-party capability packages verify kernel v1 compli
 
 ## Purpose
 
-Yggdrasil requires official and third-party packages to use the same contract. The kit provides repeatable local validation: whether the manifest parses, the entry can run, bindings are correct, capability declarations line up, permissions are least-authority, audit is visible, and fixture calls are stable.
+Plurora requires official and third-party packages to use the same contract. The kit provides repeatable local validation: whether the manifest parses, the entry can run, bindings are correct, capability declarations line up, permissions are least-authority, audit is visible, and fixture calls are stable.
 
 Passing the kit does not mean the package is high quality or content-correct. It means the package participates in the platform according to v1.
 
 ## Basic usage
 
 ```bash
-yg conformance package --contract v1 --path <package>
+plurora conformance package --contract v1 --path <package>
 ```
 
 Common options:
 
 ```bash
-yg conformance package --contract v1 --path <package> --format json
-yg conformance package --contract v1 --path <package> --static-only
+plurora conformance package --contract v1 --path <package> --format json
+plurora conformance package --contract v1 --path <package> --static-only
 ```
 
 - `--format json`: machine-readable output for CI.
@@ -81,7 +81,7 @@ Example: a Path A package with 8 PASS checks is 100%. A Path B package can also 
 Recommended package-repo command:
 
 ```bash
-yg conformance package --contract v1 --path . --format json > conformance.json
+plurora conformance package --contract v1 --path . --format json > conformance.json
 ```
 
 PR gates should fail when:
@@ -146,7 +146,7 @@ Before release, save conformance JSON as an artifact. The artifact should record
 ```bash
 for manifest in packages/*/manifest.yaml; do
   dir=$(dirname "$manifest")
-  yg conformance package --contract v1 --path "$dir" --format json
+  plurora conformance package --contract v1 --path "$dir" --format json
 done
 ```
 

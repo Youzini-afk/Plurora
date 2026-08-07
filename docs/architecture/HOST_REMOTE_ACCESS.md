@@ -2,7 +2,7 @@
 
 > [English](./HOST_REMOTE_ACCESS.en.md) · [中文](./HOST_REMOTE_ACCESS.md)
 
-Yggdrasil 的 Web/PWA、桌面和 CLI 都是同一个 Host 的客户端。远程访问不会建立第二套写入接口，也不会把 root token 复制到手机；它在现有 Host API / RPC 前增加可撤销、可过期、同时按动作和结构化 project/target 资源衰减的设备身份。应用数据面的公开访问则是另一条显式边界，不能由“配置了域名”隐式开启。
+Plurora 的 Web/PWA、桌面和 CLI 都是同一个 Host 的客户端。远程访问不会建立第二套写入接口，也不会把 root token 复制到手机；它在现有 Host API / RPC 前增加可撤销、可过期、同时按动作和结构化 project/target 资源衰减的设备身份。应用数据面的公开访问则是另一条显式边界，不能由“配置了域名”隐式开启。
 
 ## 两个平面
 
@@ -24,8 +24,8 @@ flowchart LR
 
 | 身份 | 凭据 | 用途 |
 |---|---|---|
-| Host root | `YGG_HTTP_ACCESS_TOKEN` / `--access-token` 的 Bearer token；桌面可通过一次性 bootstrap 换取 root cookie | 本机管理、首次授权、紧急恢复；拥有全部 scope |
-| Paired device | `yggaccess.*` token；PWA claim 后只放入 `__Host-ygg_remote_session` Cookie | 日常远程控制；仅拥有 grant 中列出的 scope 与 project/target selector |
+| Host root | `PLURORA_HTTP_ACCESS_TOKEN` / `--access-token` 的 Bearer token；桌面可通过一次性 bootstrap 换取 root cookie | 本机管理、首次授权、紧急恢复；拥有全部 scope |
+| Paired device | `yggaccess.*` token；PWA claim 后只放入 `__Host-plurora_remote_session` Cookie | 日常远程控制；仅拥有 grant 中列出的 scope 与 project/target selector |
 
 未配置 root token 时的可选认证只用于 loopback 开发。`host serve` 绑定非 loopback 地址时会拒绝没有非空 root token 的启动。root token 是根凭据，不应进入 pairing URL、浏览器持久存储、应用上游或日志。
 
@@ -91,26 +91,26 @@ CLI 使用与 Web/PWA 相同的 Host API，不直接读写 grant journal：
 CLI 只允许 loopback 使用明文 HTTP；非 loopback Host 必须使用 HTTPS，Host origin 不能包含路径或凭据，并且 Host access 请求不跟随重定向。保存的连接配置只包含显示名称、endpoint 和按 Host 隔离的 project/target context；access token 仍只来自显式参数或环境变量。
 
 ```bash
-ygg host connection save workshop --endpoint https://host.example.com
-ygg host connection context --project my-project__abc12345 --target remote-builder
-ygg host access --access-token "$YGG_HTTP_ACCESS_TOKEN" me
-ygg host access --access-token "$YGG_HTTP_ACCESS_TOKEN" projects
-ygg host access --access-token "$YGG_HTTP_ACCESS_TOKEN" project-status
-ygg host access --access-token "$YGG_HTTP_ACCESS_TOKEN" target-status
-ygg host access --access-token "$YGG_HTTP_ACCESS_TOKEN" \
+plurora host connection save workshop --endpoint https://host.example.com
+plurora host connection context --project my-project__abc12345 --target remote-builder
+plurora host access --access-token "$PLURORA_HTTP_ACCESS_TOKEN" me
+plurora host access --access-token "$PLURORA_HTTP_ACCESS_TOKEN" projects
+plurora host access --access-token "$PLURORA_HTTP_ACCESS_TOKEN" project-status
+plurora host access --access-token "$PLURORA_HTTP_ACCESS_TOKEN" target-status
+plurora host access --access-token "$PLURORA_HTTP_ACCESS_TOKEN" \
   pair --device-name phone --scopes observe,project_operate,deploy \
   --project my-project__abc12345 --target local
-ygg host access --access-token "$YGG_HTTP_ACCESS_TOKEN" \
+plurora host access --access-token "$PLURORA_HTTP_ACCESS_TOKEN" \
   revoke <grant-id>
-ygg host access --access-token "$YGG_HTTP_ACCESS_TOKEN" \
+plurora host access --access-token "$PLURORA_HTTP_ACCESS_TOKEN" \
   bulk-revoke <grant-id> <grant-id> ...
-ygg host access --access-token "$YGG_HTTP_ACCESS_TOKEN" \
+plurora host access --access-token "$PLURORA_HTTP_ACCESS_TOKEN" \
   changes --project my-project__abc12345 list
-ygg host access --access-token "$YGG_HTTP_ACCESS_TOKEN" \
+plurora host access --access-token "$PLURORA_HTTP_ACCESS_TOKEN" \
   changes --project my-project__abc12345 draft --request change.json
 ```
 
-`changes` 还提供 `get`、`bundle`、`approve`、`reject`、`execute` 与 `recover`；所有命令都使用和 Web/Desktop/PWA 相同的公开 ChangeSet API。`--endpoint` / `YGG_HOST_URL` 仍可为单次命令覆盖当前连接；`ygg host connection local` 返回默认 loopback Host。
+`changes` 还提供 `get`、`bundle`、`approve`、`reject`、`execute` 与 `recover`；所有命令都使用和 Web/Desktop/PWA 相同的公开 ChangeSet API。`--endpoint` / `PLURORA_HOST_URL` 仍可为单次命令覆盖当前连接；`plurora host connection local` 返回默认 loopback Host。
 
 ## HTTPS 与同源要求
 
@@ -119,8 +119,8 @@ ygg host access --access-token "$YGG_HTTP_ACCESS_TOKEN" \
 生产拓扑应把 Host 放在 TLS 反向代理或可信 overlay 后：
 
 ```bash
-YGG_HTTP_ACCESS_TOKEN='<high-entropy-root-token>' \
-  ygg host serve --http 0.0.0.0:8787 --static-dir clients/web/dist
+PLURORA_HTTP_ACCESS_TOKEN='<high-entropy-root-token>' \
+  plurora host serve --http 0.0.0.0:8787 --static-dir clients/web/dist
 ```
 
 裸 HTTP 端口必须由防火墙限制在代理/overlay 内；外部 origin 例如 `https://host.example.com`。代理必须保留原始 `Host`，并让浏览器的 `Origin` 到达 Host。Cookie pairing 仍保持同源，系统不启用携带凭据的跨源 CORS。共享 Web/PWA/Desktop 客户端可使用按 Host 隔离的 Bearer token 跨源调用用户显式选择的远程 Host；control route 只允许 `GET`/`POST` 与 `Authorization`/`Content-Type`，且绝不启用 credentialed request，proxy 与 raw surface-bundle route 不发出这项 CORS policy。项目 surface 的 sandbox frame 与衰减 asset 从所选 Host 加载，因此需要渲染 surface 的 Host 必须提供匹配版本的 Web 静态 bundle。
@@ -139,7 +139,7 @@ route_access: host_authenticated # 默认；旧描述符也按此解释
 - route access 会写进 proxy 注册事件和 durable deployment revision，recover / rollback 保留原选择。
 - public vhost 不把 Host `Authorization`、Ygg query token、Host session Cookie 或 `Referer` 转发给应用；upstream 仍必须是 active、ready 的 loopback lease。
 
-公开 route 的应用必须自己承担互联网输入、应用级身份、CSRF、速率限制和内容安全。Yggdrasil 的 Host grant 不是应用用户系统。
+公开 route 的应用必须自己承担互联网输入、应用级身份、CSRF、速率限制和内容安全。Plurora 的 Host grant 不是应用用户系统。
 
 ## 刻意未提供
 

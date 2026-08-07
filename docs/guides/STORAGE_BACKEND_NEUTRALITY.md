@@ -2,7 +2,7 @@
 
 > [English](./STORAGE_BACKEND_NEUTRALITY.en.md) · [中文](./STORAGE_BACKEND_NEUTRALITY.md)
 
-Yggdrasil 目前有 SQLite-backed append-only event log，但平台契约不能绑定到 SQLite。SQLite、PostgreSQL、TDB、对象存储和向量/多模态检索都必须位于 backend/provider 层，而不是成为内核 ontology 或公开协议里的数据库产品。
+Plurora 目前有 SQLite-backed append-only event log，但平台契约不能绑定到 SQLite。SQLite、PostgreSQL、TDB、对象存储和向量/多模态检索都必须位于 backend/provider 层，而不是成为内核 ontology 或公开协议里的数据库产品。
 
 ## 分层模型
 
@@ -65,8 +65,8 @@ Assistant drawer 也提供轻量 storage lane。它只展示 contract/readiness�
 
 ```bash
 cargo test --workspace
-cargo run -p ygg-cli -- conformance --tag storage
-cargo run -p ygg-cli -- package check packages/official/storage-lab/manifest.yaml
+cargo run -p plurora-cli -- conformance --tag storage
+cargo run -p plurora-cli -- package check packages/official/storage-lab/manifest.yaml
 ```
 
 ## 下一步

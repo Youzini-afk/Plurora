@@ -158,15 +158,15 @@ permissions:
         purpose: resolve git refs while checking installed package freshness
   filesystem:
     read:
-      - /tmp/yggdrasil-git/
-      - ~/.yggdrasil/
+      - /tmp/plurora-git/
+      - ~/.plurora/
     write:
-      - /tmp/yggdrasil-git/
-      - ~/.yggdrasil/store/
-      - ~/.yggdrasil/profiles/
-      - ~/.yggdrasil/cache/
-      - ~/.yggdrasil/projects/
-      - ~/.yggdrasil/workspaces/
+      - /tmp/plurora-git/
+      - ~/.plurora/store/
+      - ~/.plurora/profiles/
+      - ~/.plurora/cache/
+      - ~/.plurora/projects/
+      - ~/.plurora/workspaces/
 sandbox_policy:
   cpu_quota_ms_per_invoke: 30000
   memory_mb: 512

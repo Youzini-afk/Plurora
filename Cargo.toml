@@ -1,10 +1,10 @@
 [workspace]
 members = [
-  "crates/ygg-core",
-  "crates/ygg-runtime",
-  "crates/ygg-service",
-  "crates/ygg-cli",
-  "sdk/rust/yg-kernel-sdk",
+  "crates/plurora-core",
+  "crates/plurora-runtime",
+  "crates/plurora-service",
+  "crates/plurora-cli",
+  "sdk/rust/plurora-contract-sdk",
   "clients/desktop/src-tauri",
 ]
 resolver = "2"
@@ -44,6 +44,6 @@ same-file = "1"
 toml = "0.8"
 url = "2"
 
-ygg-core = { path = "crates/ygg-core" }
-ygg-runtime = { path = "crates/ygg-runtime" }
-ygg-service = { path = "crates/ygg-service" }
+plurora-core = { path = "crates/plurora-core" }
+plurora-runtime = { path = "crates/plurora-runtime" }
+plurora-service = { path = "crates/plurora-service" }

@@ -10,7 +10,7 @@ const surfaceDevPaths = loadSurfaceDevPaths();
 const ydltavernDevPath = surfaceDevPaths.ydltavern ?? resolve(__dirname, '../../../YdlTavern/packages/ydltavern-surface/dist');
 
 function loadSurfaceDevPaths(): Record<string, string> {
-  const envValue = process.env.YGG_SURFACE_DEV_PATHS;
+  const envValue = process.env.PLURORA_SURFACE_DEV_PATHS;
   if (envValue) {
     try {
       return JSON.parse(envValue) as Record<string, string>;
@@ -19,7 +19,7 @@ function loadSurfaceDevPaths(): Record<string, string> {
     }
   }
 
-  const profilePath = process.env.YGG_HOST_PROFILE ?? resolve(__dirname, '../../profiles/forge-alpha.yaml');
+  const profilePath = process.env.PLURORA_HOST_PROFILE ?? resolve(__dirname, '../../profiles/forge-alpha.yaml');
   if (!existsSync(profilePath)) return {};
   const raw = readFileSync(profilePath, 'utf8');
   const map: Record<string, string> = {};
@@ -38,7 +38,7 @@ function loadSurfaceDevPaths(): Record<string, string> {
   return map;
 }
 
-// Yggdrasil web client config.
+// Plurora web client config.
 // Plain TS app with iframe-hosted surface bundles. No framework.
 // Public assets in clients/web/public/ are served at /.
 export default defineConfig({
@@ -101,11 +101,11 @@ export default defineConfig({
     VitePWA({
       registerType: 'prompt',
       injectRegister: null,
-      includeAssets: ['icons/yggdrasil.svg', 'icons/yggdrasil-maskable.svg'],
+      includeAssets: ['icons/plurora.svg', 'icons/plurora-maskable.svg'],
       manifest: {
         id: '/',
-        name: 'Yggdrasil Project Workshop',
-        short_name: 'Yggdrasil',
+        name: 'Plurora Project Workshop',
+        short_name: 'Plurora',
         description: 'A permissioned workshop for building, deploying, and operating projects.',
         start_url: '/',
         scope: '/',
@@ -114,13 +114,13 @@ export default defineConfig({
         theme_color: '#fafaf7',
         icons: [
           {
-            src: '/icons/yggdrasil.svg',
+            src: '/icons/plurora.svg',
             sizes: 'any',
             type: 'image/svg+xml',
             purpose: 'any',
           },
           {
-            src: '/icons/yggdrasil-maskable.svg',
+            src: '/icons/plurora-maskable.svg',
             sizes: 'any',
             type: 'image/svg+xml',
             purpose: 'maskable',

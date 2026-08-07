@@ -21,10 +21,10 @@ Prerequisites:
 3. The output directory does not exist and is outside the data directory.
 
 ```bash
-ygg host backup \
-  --data-dir /srv/ygg \
-  --profile /srv/ygg/profiles/host.yaml \
-  --output /srv/backups/ygg-2026-07-23
+plurora host backup \
+  --data-dir /srv/plurora \
+  --profile /srv/plurora/profiles/host.yaml \
+  --output /srv/backups/plurora-2026-07-23
 ```
 
 The command acquires the durable Host control-plane lease. It fails without copying if another Host still owns that lease. The snapshot excludes top-level `cache/`, refuses symlinks in the data directory, and records every file below `data/` with size and SHA-256 in `manifest.json`. SQLite is captured with the online backup API rather than by copying a live database file.
@@ -34,9 +34,9 @@ The command acquires the durable Host control-plane lease. It fails without copy
 Restore only targets a new, nonexistent directory:
 
 ```bash
-ygg host restore \
-  --backup /srv/backups/ygg-2026-07-23 \
-  --data-dir /srv/ygg-restored
+plurora host restore \
+  --backup /srv/backups/plurora-2026-07-23 \
+  --data-dir /srv/plurora-restored
 ```
 
 Restore validates the manifest, paths, file types, sizes, SHA-256 digests, profile-to-SQLite reference, and SQLite integrity in a sibling staging directory. It atomically renames staging only after every check succeeds. Start the Host with the restored data directory and its profile, confirm `/readyz`, then verify critical projects, secret references, and deployment history. Keep the old data directory until acceptance is complete.
@@ -48,8 +48,8 @@ A `v*` tag cannot bypass CI. The release workflow first reuses the complete Cont
 After downloading:
 
 ```bash
-sha256sum -c Yggdrasil-<target>-SHA256SUMS.txt
-gh attestation verify <installer> -R Youzini-afk/Yggdrasil
+sha256sum -c Plurora-<target>-SHA256SUMS.txt
+gh attestation verify <installer> -R Youzini-afk/Plurora
 ```
 
 Platform signing/notarization is not configured yet, so the draft must not be represented as a signed release.

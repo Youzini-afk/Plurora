@@ -2,7 +2,7 @@
 
 > [English](./MODEL_CONNECTIVITY_KIT.en.md) · [中文](./MODEL_CONNECTIVITY_KIT.md)
 
-Model Connectivity Kit is Yggdrasil’s model connectivity infrastructure. It prepares provider profiles and route plans, but it does not send data to external providers.
+Model Connectivity Kit is Plurora’s model connectivity infrastructure. It prepares provider profiles and route plans, but it does not send data to external providers.
 
 ## Included packages
 
@@ -43,8 +43,8 @@ Persistence should still be done through public asset/proposal protocol operatio
 
 ## TavernHeadless reference
 
-`integrations/tavern-headless/model-connectivity-map.yaml` tracks provider/profile/instance behavior reviewed from TavernHeadless. The map is a reference ledger only. Yggdrasil does not create `tavern-*` model packages.
+`integrations/tavern-headless/model-connectivity-map.yaml` tracks provider/profile/instance behavior reviewed from TavernHeadless. The map is a reference ledger only. Plurora does not create `tavern-*` model packages.
 
 ## Deferred inference
 
-Real model calls belong to a future package family, likely `official/model-inference-lab`. Before that, Yggdrasil needs clear rules for secret resolution, network permission, request/response audit, streaming/cancel policy, usage accounting, provider errors, and redaction.
+Real model calls belong to a future package family, likely `official/model-inference-lab`. Before that, Plurora needs clear rules for secret resolution, network permission, request/response audit, streaming/cancel policy, usage accounting, provider errors, and redaction.

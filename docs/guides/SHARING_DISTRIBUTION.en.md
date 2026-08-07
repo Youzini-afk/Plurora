@@ -143,7 +143,7 @@ See `examples/bundles/playable-creation-board-composition-bundle/` for a complet
 
 ```bash
 cargo test --workspace
-cargo run -p ygg-cli -- conformance
+cargo run -p plurora-cli -- conformance
 ```
 
 Validation covers contract shape, export/import, lockfile, compatibility report, AI disclosure, read-only sharing, async fork, and red-line constraints.

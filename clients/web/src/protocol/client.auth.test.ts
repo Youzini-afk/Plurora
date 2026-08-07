@@ -81,7 +81,7 @@ function installWindow(search: string) {
   };
 }
 
-const { storage, replacedUrl } = installWindow("?foo=bar&ygg_token=query-token&access_token=ignored");
+const { storage, replacedUrl } = installWindow("?foo=bar&plurora_token=query-token&access_token=ignored");
 assertEqual(resolveBrowserAccessToken(), "query-token");
 assertEqual(storage.getItem(BROWSER_ACCESS_TOKEN_STORAGE_KEY), null);
 assertEqual(replacedUrl(), "/app?foo=bar#frag");
@@ -185,7 +185,7 @@ globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
         protocol_version: "0.1.0",
         supported_transports: ["http_rpc"],
         methods: [],
-        default_profile: "ygg.contract.default/v1",
+        default_profile: "plurora.contract.default/v1",
       },
     });
   }
@@ -240,15 +240,15 @@ globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
       id: body.id,
       result: [],
       diagnostics: [{
-        code: "ygg.contract.alias.legacy_adapter",
+        code: "plurora.contract.alias.legacy_adapter",
         severity: "warning",
         requested_id: "kernel.v1.target.list",
         canonical_id: "host.target.list",
         maturity: "legacy_adapter",
         message: "use host.target.list; no new field semantics will be added",
-        deprecated_in: "ygg.contract.registry@0.4.0",
+        deprecated_in: "plurora.contract.registry@0.4.0",
         replacement: "host.target.list",
-        support_until: "ygg.contract.registry@0.5.0",
+        support_until: "plurora.contract.registry@0.5.0",
       }],
     });
   }
@@ -329,7 +329,7 @@ globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
 }) as typeof fetch;
 
 await new YggProtocolClient("http://host.test", "valid-token").resolveInstallPlan({
-  root_url: "https://github.com/Youzini-afk/Yggdrasil-Tavern",
+  root_url: "https://github.com/Youzini-afk/Plurora-Tavern",
 });
 
 const sessionOpenRequest = capturedRequests[0] as { method?: string; params?: Record<string, unknown> };
@@ -408,7 +408,7 @@ capturedRequests.length = 0;
 await protocolClient.call("kernel.v1.target.list");
 await protocolClient.listTargets();
 const legacyAdapterDiagnostic = protocolClient.drainContractDiagnostics()[0];
-assertEqual(legacyAdapterDiagnostic?.code, "ygg.contract.alias.legacy_adapter");
+assertEqual(legacyAdapterDiagnostic?.code, "plurora.contract.alias.legacy_adapter");
 assertEqual(legacyAdapterDiagnostic?.maturity, "legacy_adapter");
 assertEqual(legacyAdapterDiagnostic?.replacement, "host.target.list");
 assertDeepEqual(protocolClient.drainContractDiagnostics(), []);
@@ -573,7 +573,7 @@ assertDeepEqual(capturedRequests.map((request) => (request as { method?: string 
 capturedRequests.length = 0;
 const negotiatedClient = new YggProtocolClient("http://host.test", "valid-token");
 const contract = {
-  profile: "ygg.contract.default/v1",
+  profile: "plurora.contract.default/v1",
   versions: [{ layer: "host" as const, version: "0.1.0" }],
 };
 await negotiatedClient.negotiateHost(contract);

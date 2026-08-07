@@ -9103,7 +9103,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fdd20c5420375476fbd4394763288da7eb0cc0b8c11deed431a91562af7335d3"
 
 [[package]]
-name = "yg-kernel-sdk"
+name = "plurora-contract-sdk"
 version = "0.1.0"
 dependencies = [
  "anyhow",
@@ -9116,7 +9116,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "ygg-cli"
+name = "plurora-cli"
 version = "0.1.0"
 dependencies = [
  "anyhow",
@@ -9149,13 +9149,13 @@ dependencies = [
  "typify",
  "url",
  "uuid",
- "ygg-core",
- "ygg-runtime",
- "ygg-service",
+ "plurora-core",
+ "plurora-runtime",
+ "plurora-service",
 ]
 
 [[package]]
-name = "ygg-core"
+name = "plurora-core"
 version = "0.1.0"
 dependencies = [
  "anyhow",
@@ -9176,7 +9176,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "ygg-desktop"
+name = "plurora-desktop"
 version = "0.1.0"
 dependencies = [
  "reqwest 0.12.28",
@@ -9191,12 +9191,12 @@ dependencies = [
  "tempfile",
  "tokio",
  "uuid",
- "ygg-core",
- "ygg-runtime",
+ "plurora-core",
+ "plurora-runtime",
 ]
 
 [[package]]
-name = "ygg-runtime"
+name = "plurora-runtime"
 version = "0.1.0"
 dependencies = [
  "age",
@@ -9228,11 +9228,11 @@ dependencies = [
  "toml 0.8.2",
  "url",
  "uuid",
- "ygg-core",
+ "plurora-core",
 ]
 
 [[package]]
-name = "ygg-service"
+name = "plurora-service"
 version = "0.1.0"
 dependencies = [
  "anyhow",
@@ -9255,8 +9255,8 @@ dependencies = [
  "tracing",
  "url",
  "uuid",
- "ygg-core",
- "ygg-runtime",
+ "plurora-core",
+ "plurora-runtime",
 ]
 
 [[package]]

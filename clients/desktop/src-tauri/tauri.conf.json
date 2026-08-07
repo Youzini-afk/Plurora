@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "Yggdrasil",
+  "productName": "Plurora",
   "version": "0.1.0",
-  "identifier": "com.yggdrasil.desktop",
+  "identifier": "com.plurora.desktop",
   "build": {
     "beforeDevCommand": "npm run prepare:dev",
     "beforeBuildCommand": "npm run prepare:build",
@@ -12,7 +12,7 @@
     "windows": [
       {
         "label": "main",
-        "title": "Yggdrasil",
+        "title": "Plurora",
         "width": 1280,
         "height": 800,
         "minWidth": 800,
@@ -34,8 +34,8 @@
       "icons/icon.ico"
     ],
     "category": "DeveloperTool",
-    "shortDescription": "Yggdrasil desktop application",
-    "longDescription": "AGPL-3.0-only desktop application for the Yggdrasil platform."
+    "shortDescription": "Plurora desktop application",
+    "longDescription": "AGPL-3.0-only desktop application for the Plurora platform."
   },
   "plugins": {}
 }

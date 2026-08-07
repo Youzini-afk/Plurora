@@ -30,7 +30,7 @@ This guide explains how to implement agent-like capability with ordinary Package
 Generate a local, replayable agent runtime package:
 
 ```bash
-cargo run -p ygg-cli -- init-package /tmp/ygg-agent \
+cargo run -p plurora-cli -- init-package /tmp/plurora-agent \
   --id example/agent-runtime \
   --entry subprocess \
   --language typescript \
@@ -49,13 +49,13 @@ The template generates:
 Validate the generated package:
 
 ```bash
-cargo run -p ygg-cli -- package check /tmp/ygg-agent/manifest.yaml
-cargo run -p ygg-cli -- package conformance /tmp/ygg-agent/manifest.yaml
+cargo run -p plurora-cli -- package check /tmp/plurora-agent/manifest.yaml
+cargo run -p plurora-cli -- package conformance /tmp/plurora-agent/manifest.yaml
 ```
 
-## Use the `ygg-agent-adapter` SDK
+## Use the `agent-adapter` SDK
 
-`sdk/typescript/ygg-agent-adapter` is a thin adapter, not a full agent framework. It helps you:
+`sdk/typescript/agent-adapter` is a thin adapter, not a full agent framework. It helps you:
 
 - map Ygg capability descriptors to pi-style tool descriptors;
 - build `kernel.v1.capability.invoke` / `kernel.v1.capability.stream` request payloads;
@@ -66,7 +66,7 @@ cargo run -p ygg-cli -- package conformance /tmp/ygg-agent/manifest.yaml
 Example:
 
 ```ts
-import { createYggAgentAdapter } from "../../sdk/typescript/ygg-agent-adapter/index.js";
+import { createYggAgentAdapter } from "../../sdk/typescript/agent-adapter/index.js";
 
 const adapter = createYggAgentAdapter({
   protocolClient,
@@ -112,8 +112,8 @@ This example shows that a third-party agent runtime can expose equivalent surfac
 Validate it:
 
 ```bash
-cargo run -p ygg-cli -- package check examples/packages/thirdparty-agent-runtime/manifest.yaml
-cargo run -p ygg-cli -- composition check examples/compositions/agent-runtime-replacement/composition.yaml
+cargo run -p plurora-cli -- package check examples/packages/thirdparty-agent-runtime/manifest.yaml
+cargo run -p plurora-cli -- composition check examples/compositions/agent-runtime-replacement/composition.yaml
 ```
 
 ## UI observability
@@ -126,6 +126,6 @@ Forge's Agent Observability section and the Assist Drawer Agent Readiness panel 
 
 - `pi-agent-core` event/tool/gate/queue ideas may be absorbed inside ordinary packages.
 - `pi-ai` faux provider and stream shapes may inform future model packages.
-- `pi-coding-agent` is only a product and observability reference; it is not embedded into Yggdrasil.
+- `pi-coding-agent` is only a product and observability reference; it is not embedded into Plurora.
 
 For more boundaries, see [`../architecture/PI_INTEGRATION.md`](../architecture/PI_INTEGRATION.en.md) and [`../../integrations/pi/README.md`](../../integrations/pi/README.en.md).

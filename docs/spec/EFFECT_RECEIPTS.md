@@ -6,8 +6,8 @@
 
 ## Artifact profile
 
-- type URI：`urn:yggdrasil:effect-receipt:v1`
-- media type：`application/vnd.yggdrasil.effect-receipt+json;version=1`
+- type URI：`urn:plurora:effect-receipt:v1`
+- media type：`application/vnd.plurora.effect-receipt+json;version=1`
 - digest：ObjectStore 计算的 canonical `sha256:<hex>`
 - schema：[`v1/schemas/effect-receipt.schema.json`](v1/schemas/effect-receipt.schema.json)
 

@@ -1,4 +1,4 @@
-const STORAGE_KEY = "ygg-recently-opened";
+const STORAGE_KEY = "plurora-recently-opened";
 const CAP = 8;
 
 export interface Entry {

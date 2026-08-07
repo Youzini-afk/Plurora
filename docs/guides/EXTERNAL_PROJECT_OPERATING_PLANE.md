@@ -2,7 +2,7 @@
 
 > [English](./EXTERNAL_PROJECT_OPERATING_PLANE.en.md) · [中文](./EXTERNAL_PROJECT_OPERATING_PLANE.md)
 
-External Project Operating Plane 说明 Yggdrasil 不必只接入已经适配清单和能力契约的项目。未适配的 git、npm、本地目录或 archive 项目可以先作为 external project 被平台理解、评估风险、规划、展示和包装。只有稳定的 adapter 或 wrapper 才进入普通 Ygg 包和能力体系。
+External Project Operating Plane 说明 Plurora 不必只接入已经适配清单和能力契约的项目。未适配的 git、npm、本地目录或 archive 项目可以先作为 external project 被平台理解、评估风险、规划、展示和包装。只有稳定的 adapter 或 wrapper 才进入普通 Ygg 包和能力体系。
 
 安全边界从一个事实出发：install/run 等于执行不可信代码，workflow 与 secret 泄漏都是真实风险。因此未适配项目先进入计划、策略、proposal 和审计边界；只有用户批准且被类型化 executor 约束的操作才产生副作用。
 
@@ -15,13 +15,13 @@ External Project Operating Plane 说明 Yggdrasil 不必只接入已经适配清
 | Managed Workspace | External Project 的受控实例、计划或 fixture，包含 source ref、workspace state、entrypoint、patch proposal 和 audit ref。它不是内核对象。 | 否 |
 | Adapter / Wrapper Package | 把外部项目的稳定操作包装成普通 Ygg 包和能力。 | 是 |
 
-这让平台避免退回“所有项目必须先写插件”的旧模式。外部项目可以保持原样。Yggdrasil 围绕它做 intake、workspace plan、风险摘要、项目聚合 UI、patch proposal 和 adapter preview。
+这让平台避免退回“所有项目必须先写插件”的旧模式。外部项目可以保持原样。Plurora 围绕它做 intake、workspace plan、风险摘要、项目聚合 UI、patch proposal 和 adapter preview。
 
 ## 已实现包
 
 ### `official/install-lab` 的 external intake
 
-`ygg install` 现在先检测项目类型，再决定是否解析包清单。没有 `project.yaml` / package manifest 的本地目录和 git source 不再因为“缺少 manifest”而提前失败，而是调用 `official/install-lab/prepare_external_intake` 生成一个零包、可审计的 `external_workspace` 安装计划。
+`plurora install` 现在先检测项目类型，再决定是否解析包清单。没有 `project.yaml` / package manifest 的本地目录和 git source 不再因为“缺少 manifest”而提前失败，而是调用 `official/install-lab/prepare_external_intake` 生成一个零包、可审计的 `external_workspace` 安装计划。
 
 当前支持两种明确所有权：
 
@@ -108,7 +108,7 @@ development execute/recover 会在内存操作中携带认证身份，但绝不�
 - Home/Play 显示 External Project Operating Plane rail。
 - Forge 显示 External Projects / Managed Workspaces panel。
 - Assistant drawer 显示 inspect / draft patch / generate adapter plan 的轻量入口。
-- 项目控制台的 Development 区域和 `ygg host access ... changes` CLI 通过公开 Host API 草拟、审阅、批准、执行、导出和恢复 ChangeSet；控制台还负责 verified private preview、独立部署审批、activation 与中断对账。两个客户端都不直接读写 workspace。
+- 项目控制台的 Development 区域和 `plurora host access ... changes` CLI 通过公开 Host API 草拟、审阅、批准、执行、导出和恢复 ChangeSet；控制台还负责 verified private preview、独立部署审批、activation 与中断对账。两个客户端都不直接读写 workspace。
 - UI 不读 SQLite、runtime internals、本地项目目录或进程状态。
 
 ## 安全红线
@@ -129,11 +129,11 @@ development execute/recover 会在内存操作中携带认证身份，但绝不�
 可检查：
 
 ```bash
-cargo run -p ygg-cli -- package check packages/official/project-intake-lab/manifest.yaml
-cargo run -p ygg-cli -- package check packages/official/workspace-lab/manifest.yaml
-cargo run -p ygg-cli -- package check examples/packages/external-project-adapter-preview/manifest.yaml
-cargo run -p ygg-cli -- conformance --tag project_intake
-cargo run -p ygg-cli -- conformance --tag workspace_lab
+cargo run -p plurora-cli -- package check packages/official/project-intake-lab/manifest.yaml
+cargo run -p plurora-cli -- package check packages/official/workspace-lab/manifest.yaml
+cargo run -p plurora-cli -- package check examples/packages/external-project-adapter-preview/manifest.yaml
+cargo run -p plurora-cli -- conformance --tag project_intake
+cargo run -p plurora-cli -- conformance --tag workspace_lab
 ```
 
 ## 真实项目持续验收

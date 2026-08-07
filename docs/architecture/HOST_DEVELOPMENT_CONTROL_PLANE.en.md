@@ -54,7 +54,7 @@ All routes are inside Host authentication middleware. The root token remains the
 
 ## CLI lifecycle
 
-`ygg host access ... changes` uses only the routes above and the selected Host/project connection context. Draft input is the exact typed JSON request, read from a bounded file or from stdin with `--request -`; the CLI does not read a workspace or write the Host journal directly.
+`plurora host access ... changes` uses only the routes above and the selected Host/project connection context. Draft input is the exact typed JSON request, read from a bounded file or from stdin with `--request -`; the CLI does not read a workspace or write the Host journal directly.
 
 ```json
 {
@@ -63,7 +63,7 @@ All routes are inside Host authentication middleware. The root token remains the
     {
       "op": "file_write",
       "path": "src/title.txt",
-      "content": "Yggdrasil\n"
+      "content": "Plurora\n"
     }
   ],
   "verification": { "kind": "static_validation" },
@@ -72,21 +72,21 @@ All routes are inside Host authentication middleware. The root token remains the
 ```
 
 ```bash
-ygg host access --access-token "$YGG_HTTP_ACCESS_TOKEN" \
+plurora host access --access-token "$PLURORA_HTTP_ACCESS_TOKEN" \
   changes --project my-project__abc12345 draft --request change.json
-ygg host access --access-token "$YGG_HTTP_ACCESS_TOKEN" \
+plurora host access --access-token "$PLURORA_HTTP_ACCESS_TOKEN" \
   changes --project my-project__abc12345 approve <change-set-id> --reason reviewed
-ygg host access --access-token "$YGG_HTTP_ACCESS_TOKEN" \
+plurora host access --access-token "$PLURORA_HTTP_ACCESS_TOKEN" \
   changes --project my-project__abc12345 execute <change-set-id>
-ygg host access --access-token "$YGG_HTTP_ACCESS_TOKEN" \
+plurora host access --access-token "$PLURORA_HTTP_ACCESS_TOKEN" \
   changes --project my-project__abc12345 get <change-set-id>
-ygg host access --access-token "$YGG_HTTP_ACCESS_TOKEN" \
+plurora host access --access-token "$PLURORA_HTTP_ACCESS_TOKEN" \
   changes --project my-project__abc12345 bundle <change-set-id>
-ygg host access --access-token "$YGG_HTTP_ACCESS_TOKEN" \
+plurora host access --access-token "$PLURORA_HTTP_ACCESS_TOKEN" \
   changes --project my-project__abc12345 recover <change-set-id>
 ```
 
-`list` and `reject` complete the same lifecycle. Execute is asynchronous; its JSON response reports whether work was accepted, and `get`/`list` reads the durable status. Omitting `--project` uses the project selected by `ygg host connection context`.
+`list` and `reject` complete the same lifecycle. Execute is asynchronous; its JSON response reports whether work was accepted, and `get`/`list` reads the durable status. Omitting `--project` uses the project selected by `plurora host connection context`.
 
 ## Ownership behavior
 
@@ -127,7 +127,7 @@ A linked-local directory is user-owned and may change concurrently. The first ve
 - CPU, memory, time, file-count, and byte limits apply;
 - only status and a diagnostic-log SHA-256 are persisted, never raw Docker logs;
 - the verification image is removed after matching `managed-by`, package, project, build, and change labels. It is not retained as a deployment image.
-- container status/log/stop also carries route and port-lease scope and must match `managed-by`, package, route, and lease labels. Stop additionally requires explicit `approved: true`; an arbitrary Docker ID is never treated as a Yggdrasil resource.
+- container status/log/stop also carries route and port-lease scope and must match `managed-by`, package, route, and lease labels. Stop additionally requires explicit `approved: true`; an arbitrary Docker ID is never treated as a Plurora resource.
 
 ## Durability, concurrency, and recovery
 

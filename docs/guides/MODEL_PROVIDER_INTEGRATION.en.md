@@ -2,18 +2,18 @@
 
 > [English](./MODEL_PROVIDER_INTEGRATION.en.md) · [中文](./MODEL_PROVIDER_INTEGRATION.md)
 
-This guide documents Yggdrasil's cloud model provider adapter integration path. It is not a relay gateway, billing system, provider admin backend, or kernel model abstraction. Cloud model integration must be delivered as ordinary capability packages using the same manifest, permission, `secret_ref`, outbound audit, stream/cancel, and validation boundaries as every other package.
+This guide documents Plurora's cloud model provider adapter integration path. It is not a relay gateway, billing system, provider admin backend, or kernel model abstraction. Cloud model integration must be delivered as ordinary capability packages using the same manifest, permission, `secret_ref`, outbound audit, stream/cancel, and validation boundaries as every other package.
 
 ## Scope: cloud adapter, not platform abstraction
 
 `official/model-provider-lab` is a cloud API adapter lab:
 
-- It is not the Yggdrasil model abstraction.
+- It is not the Plurora model abstraction.
 - It is not a LiteLLM / OneAPI compatible gateway.
 - It is not a provider marketplace, billing system, or channel admin backend.
 - It has no kernel privilege; first-party and third-party packages must use the same public protocol / permission / secret / outbound boundary.
 - OpenAI, Anthropic, Gemini, OpenRouter, DeepSeek, xAI, and Fireworks schemas are adapter-local details, not platform public protocol.
-- `normalize_request` is a cloud-adapter-local request builder helper, not the Yggdrasil canonical inference request.
+- `normalize_request` is a cloud-adapter-local request builder helper, not the Plurora canonical inference request.
 
 For transport-neutral inference packages, read [`INFERENCE_CAPABILITY_AUTHORING.md`](./INFERENCE_CAPABILITY_AUTHORING.en.md). For the non-HTTP / local / self-host seam proof, see `official/inference-local-lab`.
 
@@ -47,7 +47,7 @@ The current delivery includes:
 | `xai` | `openai_chat`, `openai_responses` | `delta_sse`, `semantic_sse` | `api.x.ai` |
 | `fireworks` | `openai_chat`, `fireworks_responses` | `delta_sse`, `semantic_sse` | `api.fireworks.ai` |
 
-OpenAI-compatible is an adapter family, not Yggdrasil's only model worldview. Anthropic, Gemini, and Responses-style streams have different structures and must be adapted explicitly.
+OpenAI-compatible is an adapter family, not Plurora's only model worldview. Anthropic, Gemini, and Responses-style streams have different structures and must be adapted explicitly.
 
 ## Profile shape
 
@@ -91,7 +91,7 @@ Checks family, model, credential, base URL, and headers, returning:
 
 ### `normalize_request`
 
-`normalize_request` is an internal request-builder helper for the cloud adapter package: it converts adapter-local input into provider-specific request shapes. It is not the Yggdrasil canonical inference request and should not be treated as a platform-wide unified chat schema. The transport-neutral inference contract lives in `sdk/typescript/inference-capability`.
+`normalize_request` is an internal request-builder helper for the cloud adapter package: it converts adapter-local input into provider-specific request shapes. It is not the Plurora canonical inference request and should not be treated as a platform-wide unified chat schema. The transport-neutral inference contract lives in `sdk/typescript/inference-capability`.
 
 Examples:
 
@@ -191,7 +191,7 @@ Default validation does not require public internet access. Manual/live provider
 The optional real DeepSeek smoke path only runs when explicitly enabled:
 
 ```bash
-YGG_LIVE_MODEL_TESTS=1 DEEPSEEK_API_KEY=... cargo run -p ygg-cli -- conformance
+PLURORA_LIVE_MODEL_TESTS=1 DEEPSEEK_API_KEY=... cargo run -p plurora-cli -- conformance
 ```
 
 Default CI / default conformance never accesses public internet.
@@ -217,8 +217,8 @@ The dependency direction is: transport-neutral contract → cloud/local adapter 
 
 ```bash
 cargo test --workspace
-cargo run -p ygg-cli -- conformance
-cargo run -p ygg-cli -- package check packages/official/model-provider-lab/manifest.yaml
+cargo run -p plurora-cli -- conformance
+cargo run -p plurora-cli -- package check packages/official/model-provider-lab/manifest.yaml
 tsc -p clients/web/tsconfig.json --noEmit
 ```
 

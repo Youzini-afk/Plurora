@@ -1,4 +1,4 @@
-# Yggdrasil Constitution v2 (Candidate)
+# Plurora Constitution v2 (Candidate)
 
 > [English](./CONSTITUTION_V2.en.md) · [中文](./CONSTITUTION_V2.md)
 
@@ -9,7 +9,7 @@
 
 ## Core promise
 
-Yggdrasil hosts portable, composable, auditable, and long-lived applications, tools, services, worlds, games, agents, and other digital forms. Models, agents, components, engines, clients, and Hosts may be replaced; important content, history, and ownership do not belong to any single implementation or service.
+Plurora hosts portable, composable, auditable, and long-lived applications, tools, services, worlds, games, agents, and other digital forms. Models, agents, components, engines, clients, and Hosts may be replaced; important content, history, and ownership do not belong to any single implementation or service.
 
 The product may use “world” as its medium identity, but the constitutional substrate does not freeze `World` into system ontology. The substrate knows identity, authority, objects, references, causality, effects, and proof. Higher-level protocols define worlds.
 
@@ -150,7 +150,7 @@ Rules:
 - Host absolute paths, process IDs, and temporary URLs cannot serve as portable identity.
 - Packages, components, protocol descriptors, content, compositions, receipts, and world bundles may share the same reference mechanism without becoming a closed substrate enum.
 
-This shape borrows the `mediaType + digest + size` idea from OCI Content Descriptors. Yggdrasil does not require OCI manifests and does not import container semantics into the substrate.
+This shape borrows the `mediaType + digest + size` idea from OCI Content Descriptors. Plurora does not require OCI manifests and does not import container semantics into the substrate.
 
 ## Journals, causality, and heads
 
@@ -190,7 +190,7 @@ EffectReceipt
 
 Receipts distinguish planned values from actual values and distinguish denied, cancelled, timed out, partially completed, and successful outcomes. Raw secrets, full credentials, user content by default, and unnecessary complete prompts never enter receipts.
 
-Receipt envelope, statement, and predicate layers may evolve independently. This resembles in-toto's separation of subject, predicate type, statement, and authenticated envelope, but Yggdrasil receipts describe runtime effects rather than only software supply chains.
+Receipt envelope, statement, and predicate layers may evolve independently. This resembles in-toto's separation of subject, predicate type, statement, and authenticated envelope, but Plurora receipts describe runtime effects rather than only software supply chains.
 
 ## Protocol Commons
 
@@ -209,7 +209,7 @@ Every protocol contains at least:
 - migration, adapter, and deprecation instructions;
 - a list of independent implementations that pass conformance.
 
-Protocols may compete and fork. An officially maintained protocol has no kernel routing priority. External protocols such as MCP, A2A, or engine protocols may join the commons through adapters; Yggdrasil does not need to reinvent proprietary equivalents.
+Protocols may compete and fork. An officially maintained protocol has no kernel routing priority. External protocols such as MCP, A2A, or engine protocols may join the commons through adapters; Plurora does not need to reinvent proprietary equivalents.
 
 ## Components and execution trust
 
@@ -252,7 +252,7 @@ The current Proposal can become one profile of this protocol. Its UI may continu
 
 The substrate protects resources, call bridges, and authority. It does not hard-code Home, Play, Forge, or Assistant.
 
-A shell profile defines how a host interprets interaction resources such as views, actions, editors, presence, streams, layout hints, and input intents. Existing slots such as `experience_entry`, `home_card`, and `forge_panel` migrate into the vocabulary of the `ygg.shell.default/v1` profile.
+A shell profile defines how a host interprets interaction resources such as views, actions, editors, presence, streams, layout hints, and input intents. Existing slots such as `experience_entry`, `home_card`, and `forge_panel` migrate into the vocabulary of the `plurora.shell.default/v1` profile.
 
 A shell may be Web, desktop, VR, IDE, or headless. Replacing a shell must not change world history, object identity, protocol state, or effect receipts.
 
@@ -333,7 +333,7 @@ Before the candidate substrate becomes Stable, it must satisfy these compatibili
 8. history replays deterministically while the model service is offline;
 9. replacing the Web shell with desktop, VR, or headless does not change world data.
 
-These conditions constrain stability claims and compatibility commitments; they do not decide which product functionality Yggdrasil should build merely to satisfy them.
+These conditions constrain stability claims and compatibility commitments; they do not decide which product functionality Plurora should build merely to satisfy them.
 
 ## Non-normative references
 

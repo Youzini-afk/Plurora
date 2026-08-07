@@ -1,5 +1,5 @@
 /**
- * Yggdrasil Inference Capability SDK — Transport-neutral inference envelope,
+ * Plurora Inference Capability SDK — Transport-neutral inference envelope,
  * stream frames, error taxonomy, and provider capability manifest helpers.
  *
  * This module defines the **inference capability contract** at the package/SDK
@@ -991,7 +991,7 @@ export function runInferenceCapabilitySelfTest(): {
       resource_hints: { max_output_units: 512, temperature: 0.7, latency_preference: "low" },
       secret_refs: ["secret_ref:env:LOCAL_MODEL_KEY"],
       transport_kind: "local_process",
-      metadata: { source: "ygg-session-42" },
+      metadata: { source: "plurora-session-42" },
     });
     assert(req.operation_id === "op_local_001", "non-HTTP request: operation_id");
     assert(req.operation_kind === "generate", "non-HTTP request: operation_kind");

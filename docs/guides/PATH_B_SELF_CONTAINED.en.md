@@ -6,14 +6,14 @@ Path B is the opt-out mode for kernel v1. A package sets `entry.contract: "none"
 
 ## What Path B is
 
-A Path B package is a self-contained app or tool. It can run as a process managed by the Yggdrasil host, but it does not gain platform authority through manifest permissions, does not use `kernel.v1.capability.invoke`, and does not depend on v1 bindings.
+A Path B package is a self-contained app or tool. It can run as a process managed by the Plurora host, but it does not gain platform authority through manifest permissions, does not use `kernel.v1.capability.invoke`, and does not depend on v1 bindings.
 
 This is not a second-class path. It is a first-class mode for migration, compatibility layers, existing tools, and prototypes.
 
 ## When to use it
 
 - Porting an existing app and first getting it under host lifecycle.
-- Running third-party tools that do not need Yggdrasil capabilities.
+- Running third-party tools that do not need Plurora capabilities.
 - Prototyping before the authority boundary is known.
 - Needing only host start/stop/observe behavior, not platform permissions.
 - Bringing your own network, storage, or UI sandbox and accepting that v1 does not enforce it.
@@ -77,7 +77,7 @@ If you need auditable, revocable, least-authority capabilities, use Path A.
 
 ## Conformance behavior
 
-`yg conformance package --contract v1 --path <package>` detects `entry.contract: "none"`:
+`plurora conformance package --contract v1 --path <package>` detects `entry.contract: "none"`:
 
 - manifest parse: PASS/FAIL;
 - contract mode: PASS and marked Path B;

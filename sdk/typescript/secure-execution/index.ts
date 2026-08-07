@@ -1,5 +1,5 @@
 /**
- * Yggdrasil secure-execution helpers for TypeScript subprocess packages.
+ * Plurora secure-execution helpers for TypeScript subprocess packages.
  *
  * This module provides thin, protocol-safe helpers for:
  * - Secret reference construction and validation

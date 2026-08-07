@@ -2,7 +2,7 @@
 
 > [English](./BASELINE.en.md) · [中文](./BASELINE.md)
 
-This document records usage, measurement scenarios, sample limits, metric definitions, and compare mode for `cargo run -p ygg-cli -- perf baseline`. The current baseline is only a developer-machine reference, not a CI budget.
+This document records usage, measurement scenarios, sample limits, metric definitions, and compare mode for `cargo run -p plurora-cli -- perf baseline`. The current baseline is only a developer-machine reference, not a CI budget.
 
 The repository commits a reference baseline at [`perf/baseline.json`](../../perf/baseline.json). It was produced on a Linux developer machine and is useful as a before/after reference for future optimizations; do not treat it as a CI budget.
 
@@ -12,19 +12,19 @@ Performance/code-health guide: [`PERFORMANCE_AND_CODE_HEALTH.en.md`](./PERFORMAN
 
 ```bash
 # Default 10 iterations, text output
-cargo run -p ygg-cli -- perf baseline
+cargo run -p plurora-cli -- perf baseline
 
 # Custom iteration count
-cargo run -p ygg-cli -- perf baseline --iterations 20
+cargo run -p plurora-cli -- perf baseline --iterations 20
 
 # 30 measured iterations + 3 warmups, writing a JSON baseline file
-cargo run -p ygg-cli -- perf baseline --iterations 30 --warmup 3 --baseline-out perf/baseline.json
+cargo run -p plurora-cli -- perf baseline --iterations 30 --warmup 3 --baseline-out perf/baseline.json
 
 # Compare against the committed baseline; exit 2 when wall-clock regression exceeds 10%
-cargo run -p ygg-cli -- perf baseline --iterations 30 --compare perf/baseline.json --threshold-pct 10
+cargo run -p plurora-cli -- perf baseline --iterations 30 --compare perf/baseline.json --threshold-pct 10
 
 # JSON output (stdout contains JSON only, machine-parseable)
-cargo run -p ygg-cli -- perf baseline --format json
+cargo run -p plurora-cli -- perf baseline --format json
 ```
 
 Available flags:
@@ -68,7 +68,7 @@ JSON output uses an envelope:
 
 | Top-level field | Description |
 |---|---|
-| `schema` | JSON schema identifier; currently `yggdrasil.bench.v1`. |
+| `schema` | JSON schema identifier; currently `plurora.bench.v1`. |
 | `created_at` | Creation time as Unix seconds. |
 | `git` | Commit, branch, and dirty status for the producing checkout. |
 | `env` | Environment: OS, target triple, CPU count, rustc / CPU brand when available. |

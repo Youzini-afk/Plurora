@@ -2,7 +2,7 @@
 
 > [English](./README.en.md) · [中文](./README.md)
 
-这里记录 Yggdrasil 的长期分层、当前 Contract V1 兼容边界，以及 Host 控制平面的具体设计。长期架构区分宪法基底、协议公地、组件/内容、Host、发行版和产品，而不是把所有概念压成“内核或 Package”二选一。
+这里记录 Plurora 的长期分层、当前 Contract V1 兼容边界，以及 Host 控制平面的具体设计。长期架构区分宪法基底、协议公地、组件/内容、Host、发行版和产品，而不是把所有概念压成“内核或 Package”二选一。
 
 ## 平台形态与基底
 

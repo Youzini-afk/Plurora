@@ -143,7 +143,7 @@
 
 ```bash
 cargo test --workspace
-cargo run -p ygg-cli -- conformance
+cargo run -p plurora-cli -- conformance
 ```
 
 验证覆盖契约形状、export/import、lockfile、compatibility report、AI disclosure、只读共享、异步 fork 和红线约束。

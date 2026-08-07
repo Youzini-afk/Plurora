@@ -47,8 +47,8 @@ permissions:
   filesystem:
     read:
       - /tmp/
-      - ~/.yggdrasil/store/
-      - ~/.yggdrasil/cache/
+      - ~/.plurora/store/
+      - ~/.plurora/cache/
 sandbox_policy:
   cpu_quota_ms_per_invoke: 5000
   memory_mb: 128

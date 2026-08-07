@@ -1,7 +1,7 @@
-# Yggdrasil Desktop
+# Plurora Desktop
 
 Tauri 2.x shell around the shared `clients/web` platform UI. Desktop owns a
-loopback-only `ygg host serve` sidecar and loads the UI from that Host after a
+loopback-only `plurora host serve` sidecar and loads the UI from that Host after a
 health check, keeping RPC, SSE, project surfaces, and proxies same-origin.
 
 ## Development
@@ -35,7 +35,7 @@ uses a built Web bundle so its random-port, same-origin behavior matches release
 ## Managed Host boundary
 
 `scripts/stage-sidecar.mjs` builds the CLI for the selected Rust target and
-stages it as Tauri's `ygg-host` external binary. On launch Desktop:
+stages it as Tauri's `plurora-host` external binary. On launch Desktop:
 
 - creates or merges a writable `<data>/profiles/desktop.yaml` instead of using the transient in-memory Host defaults;
 - configures a profile-relative SQLite event store (`desktop-events.sqlite`) so sessions, runtime projections, deployment jobs, and revisions survive Desktop restarts;

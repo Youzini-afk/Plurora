@@ -30,7 +30,7 @@ export function AuthGateScreen() {
   const showError = isInvalid && error;
 
   return (
-    <div className="ygg-safe-overlay fixed inset-0 z-40 flex items-center justify-center bg-warm-bone/95 backdrop-blur-md dark:bg-deep-bark/95">
+    <div className="plurora-safe-overlay fixed inset-0 z-40 flex items-center justify-center bg-warm-bone/95 backdrop-blur-md dark:bg-deep-bark/95">
       <motion.div
         initial={{ opacity: 0, y: 24, scale: 0.97 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -121,7 +121,7 @@ export function AuthChecking() {
   return (
     <div className="fixed inset-0 z-40 flex items-center justify-center bg-warm-bone dark:bg-deep-bark">
       <div className="flex flex-col items-center gap-3">
-        <span className="font-display text-[24px] font-bold tracking-[-0.015em] text-charcoal-ink">Yggdrasil</span>
+        <span className="font-display text-[24px] font-bold tracking-[-0.015em] text-charcoal-ink">Plurora</span>
         <span className="pulse-dot text-[12px] text-muted-tone">{t("authCheckingAccess")}</span>
       </div>
     </div>
@@ -144,7 +144,7 @@ export function HostUnavailable() {
   };
 
   return (
-    <div className="ygg-safe-overlay fixed inset-0 z-40 flex items-center justify-center bg-warm-bone/95 backdrop-blur-md dark:bg-deep-bark/95">
+    <div className="plurora-safe-overlay fixed inset-0 z-40 flex items-center justify-center bg-warm-bone/95 backdrop-blur-md dark:bg-deep-bark/95">
       <div className="w-full max-w-[460px] rounded-2xl border border-whisper-border bg-pure-surface p-6 text-center shadow-modal sm:p-8">
         <span className="eyebrow">{t("authEyebrow")}</span>
         <h1 className="mt-3 font-display text-[22px] font-bold tracking-[-0.015em] text-charcoal-ink">

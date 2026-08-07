@@ -81,15 +81,15 @@ jobs:
         uses: tauri-apps/tauri-action@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          YGG_DESKTOP_TARGET: ${{ matrix.rust_target }}
+          PLURORA_DESKTOP_TARGET: ${{ matrix.rust_target }}
         with:
           projectPath: clients/desktop
           tagName: ${{ github.ref_name }}
-          releaseName: "Yggdrasil ${{ github.ref_name }}"
+          releaseName: "Plurora ${{ github.ref_name }}"
           releaseBody: |
-            ## Yggdrasil ${{ github.ref_name }}
+            ## Plurora ${{ github.ref_name }}
 
-            Source: https://github.com/Youzini-afk/Yggdrasil/tree/${{ github.ref_name }}
+            Source: https://github.com/Youzini-afk/Plurora/tree/${{ github.ref_name }}
 
             ## License
             AGPL-3.0-only. See repository LICENSE for terms.
@@ -115,20 +115,20 @@ jobs:
         with:
           path: release-assets
           format: spdx-json
-          output-file: release-metadata/Yggdrasil-${{ matrix.artifact_target }}.spdx.json
+          output-file: release-metadata/Plurora-${{ matrix.artifact_target }}.spdx.json
           upload-artifact: false
           upload-release-assets: false
 
       - name: Attest release provenance
         uses: actions/attest@v4
         with:
-          subject-checksums: release-metadata/Yggdrasil-${{ matrix.artifact_target }}-SHA256SUMS.txt
+          subject-checksums: release-metadata/Plurora-${{ matrix.artifact_target }}-SHA256SUMS.txt
 
       - name: Attest release SBOM
         uses: actions/attest@v4
         with:
-          subject-checksums: release-metadata/Yggdrasil-${{ matrix.artifact_target }}-SHA256SUMS.txt
-          sbom-path: release-metadata/Yggdrasil-${{ matrix.artifact_target }}.spdx.json
+          subject-checksums: release-metadata/Plurora-${{ matrix.artifact_target }}-SHA256SUMS.txt
+          sbom-path: release-metadata/Plurora-${{ matrix.artifact_target }}.spdx.json
 
       - name: Upload checksums and SBOM to draft release
         env:
@@ -136,6 +136,6 @@ jobs:
         shell: bash
         run: |
           gh release upload '${{ github.ref_name }}' \
-            'release-metadata/Yggdrasil-${{ matrix.artifact_target }}-SHA256SUMS.txt' \
-            'release-metadata/Yggdrasil-${{ matrix.artifact_target }}.spdx.json' \
+            'release-metadata/Plurora-${{ matrix.artifact_target }}-SHA256SUMS.txt' \
+            'release-metadata/Plurora-${{ matrix.artifact_target }}.spdx.json' \
             --clobber

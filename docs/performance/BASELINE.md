@@ -2,7 +2,7 @@
 
 > [English](./BASELINE.en.md) · [中文](./BASELINE.md)
 
-本文档记录 `cargo run -p ygg-cli -- perf baseline` 的用法、测量场景、样本限制、指标定义和比较模式。当前基线只作为开发机参考，不是 CI 预算。
+本文档记录 `cargo run -p plurora-cli -- perf baseline` 的用法、测量场景、样本限制、指标定义和比较模式。当前基线只作为开发机参考，不是 CI 预算。
 
 仓库已提交参考基线：[`perf/baseline.json`](../../perf/baseline.json)。它来自一台 Linux 开发机，可作为未来优化的前后对比起点；不要把它当成 CI 合规预算。
 
@@ -12,19 +12,19 @@
 
 ```bash
 # 默认 10 次迭代，文本输出
-cargo run -p ygg-cli -- perf baseline
+cargo run -p plurora-cli -- perf baseline
 
 # 自定义迭代次数
-cargo run -p ygg-cli -- perf baseline --iterations 20
+cargo run -p plurora-cli -- perf baseline --iterations 20
 
 # 30 次迭代 + 3 次预热，并写入 JSON baseline 文件
-cargo run -p ygg-cli -- perf baseline --iterations 30 --warmup 3 --baseline-out perf/baseline.json
+cargo run -p plurora-cli -- perf baseline --iterations 30 --warmup 3 --baseline-out perf/baseline.json
 
 # 和已提交基线比较；超过 10% wall-clock 回归时退出 2
-cargo run -p ygg-cli -- perf baseline --iterations 30 --compare perf/baseline.json --threshold-pct 10
+cargo run -p plurora-cli -- perf baseline --iterations 30 --compare perf/baseline.json --threshold-pct 10
 
 # JSON 输出（stdout 仅 JSON，可程序化处理）
-cargo run -p ygg-cli -- perf baseline --format json
+cargo run -p plurora-cli -- perf baseline --format json
 ```
 
 可用 flags：
@@ -68,7 +68,7 @@ JSON 输出使用 envelope：
 
 | 顶层字段 | 说明 |
 |---|---|
-| `schema` | JSON schema 标识；当前为 `yggdrasil.bench.v1`。 |
+| `schema` | JSON schema 标识；当前为 `plurora.bench.v1`。 |
 | `created_at` | 生成时间，Unix 秒。 |
 | `git` | 生成时的 commit、branch 和 dirty 状态。 |
 | `env` | 生成环境：OS、target triple、CPU 数、rustc / CPU brand（可用时）。 |

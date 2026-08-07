@@ -307,7 +307,7 @@ export function HomePage() {
                     description: project.description,
                     state: project.state,
                     type: project.type,
-                    source: project.type === "yggdrasil_native" ? "github" : "local",
+                    source: project.type === "plurora_native" ? "github" : "local",
                   }}
                   actions={{
                     onLaunch: () => onCardLaunch(project),

@@ -167,7 +167,7 @@ export function HostAccessPanel() {
 
   const shareLink = async () => {
     if (!pairingLink || !navigator.share) return;
-    await navigator.share({ title: "Yggdrasil", text: t("accessPairingShareText"), url: pairingLink });
+    await navigator.share({ title: "Plurora", text: t("accessPairingShareText"), url: pairingLink });
   };
 
   const revoke = async (grant: HostAccessGrant) => {

@@ -2,20 +2,20 @@
 
 > [English](./CONFORMANCE_FEEDBACK.en.md) · [中文](./CONFORMANCE_FEEDBACK.md)
 
-`ygg conformance` supports filtering, timing, and diagnostics. Use it to find failures and slow cases quickly.
+`plurora conformance` supports filtering, timing, and diagnostics. Use it to find failures and slow cases quickly.
 
 ## Basic usage
 
 ```bash
 # Run all conformance cases (default behavior unchanged)
-cargo run -p ygg-cli -- conformance
+cargo run -p plurora-cli -- conformance
 ```
 
 ## Listing cases
 
 ```bash
 # List all case ids and tags without executing
-cargo run -p ygg-cli -- conformance --list
+cargo run -p plurora-cli -- conformance --list
 ```
 
 Output format: `<case_id>  [<tag1>, <tag2>, ...]`
@@ -24,47 +24,47 @@ Output format: `<case_id>  [<tag1>, <tag2>, ...]`
 
 ```bash
 # Substring filter (matches cases whose id contains the given substring)
-cargo run -p ygg-cli -- conformance --case sharing_lab.contract_shape
+cargo run -p plurora-cli -- conformance --case sharing_lab.contract_shape
 
 # Filter all sharing_lab cases
-cargo run -p ygg-cli -- conformance --case sharing_lab
+cargo run -p plurora-cli -- conformance --case sharing_lab
 ```
 
 ## Filtering by tag
 
 ```bash
 # Tag filter (case matches if it has ANY of the specified tags)
-cargo run -p ygg-cli -- conformance --tag sharing
+cargo run -p plurora-cli -- conformance --tag sharing
 
 # Combine multiple tags (OR semantics)
-cargo run -p ygg-cli -- conformance --tag network --tag secret
+cargo run -p plurora-cli -- conformance --tag network --tag secret
 ```
 
 ## Fail-fast
 
 ```bash
 # Stop after the first failure
-cargo run -p ygg-cli -- conformance --fail-fast
+cargo run -p plurora-cli -- conformance --fail-fast
 ```
 
 ## Slowest report
 
 ```bash
 # Show the 10 slowest cases at the end (default)
-cargo run -p ygg-cli -- conformance
+cargo run -p plurora-cli -- conformance
 
 # Custom slowest N
-cargo run -p ygg-cli -- conformance --slowest 3
+cargo run -p plurora-cli -- conformance --slowest 3
 ```
 
 ## Combining options
 
 ```bash
 # Run only sharing-tagged cases, fail-fast, show slowest 3
-cargo run -p ygg-cli -- conformance --tag sharing --fail-fast --slowest 3
+cargo run -p plurora-cli -- conformance --tag sharing --fail-fast --slowest 3
 
 # Filter by both case id and tag (AND semantics: both conditions must match)
-cargo run -p ygg-cli -- conformance --case sharing_lab --tag secret
+cargo run -p plurora-cli -- conformance --case sharing_lab --tag secret
 ```
 
 ## Available tags

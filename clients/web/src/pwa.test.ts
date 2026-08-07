@@ -5,7 +5,7 @@ function assertEqual<T>(actual: T, expected: T) {
 }
 
 assertEqual(canRegisterServiceWorker({ protocol: "https:", hostname: "host.test", search: "" }, true), true);
-assertEqual(canRegisterServiceWorker({ protocol: "http:", hostname: "127.0.0.1", search: "?ygg_platform=desktop" }, true), false);
+assertEqual(canRegisterServiceWorker({ protocol: "http:", hostname: "127.0.0.1", search: "?plurora_platform=desktop" }, true), false);
 assertEqual(canRegisterServiceWorker({ protocol: "http:", hostname: "tauri.localhost", search: "" }, true), false);
 assertEqual(canRegisterServiceWorker({ protocol: "file:", hostname: "", search: "" }, true), false);
 assertEqual(canRegisterServiceWorker({ protocol: "https:", hostname: "host.test", search: "" }, false), false);

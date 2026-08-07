@@ -2,7 +2,7 @@
 
 > [English](./PACKAGE_INSTALLATION.en.md) · [中文](./PACKAGE_INSTALLATION.md)
 
-Yggdrasil's installation system lets users install capability packages and projects from GitHub or local paths while keeping the result reproducible, auditable, and reversible.
+Plurora's installation system lets users install capability packages and projects from GitHub or local paths while keeping the result reproducible, auditable, and reversible.
 This guide covers the install flow, native/external project detection, manifest fields, lockfiles, filesystem conventions, and CLI usage.
 
 ## Goals
@@ -34,46 +34,46 @@ This guide covers the install flow, native/external project detection, manifest 
 
 ```bash
 # Simple case
-yg install github.com/user/yggdrasil-package
+plurora install github.com/user/plurora-package
 
 # Native project (repository root has project.yaml)
-yg install github.com/Youzini-afk/Yggdrasil-Tavern
+plurora install github.com/Youzini-afk/Plurora-Tavern
 
 # Local native-project dogfood
-yg install ../YdlTavern --data-dir <data-dir> --profile <profile> -y
+plurora install ../YdlTavern --data-dir <data-dir> --profile <profile> -y
 
 # Pinned version (recommended)
-yg install github.com/user/yggdrasil-package#v1.2.0
+plurora install github.com/user/plurora-package#v1.2.0
 
 # Local path (development)
-yg install ./packages/my-package
+plurora install ./packages/my-package
 
 # Require a signed tag (release/controlled environments)
-yg install <url> --require-signed
+plurora install <url> --require-signed
 
 # Non-interactive (CI)
-yg install <url> --yes
+plurora install <url> --yes
 
 # Strict conformance gating
-yg install <url> --strict
+plurora install <url> --strict
 
 # External project strategy
-yg install github.com/user/external-app --wrap-as-adapter
-yg install github.com/user/external-app --workspace-only
+plurora install github.com/user/external-app --wrap-as-adapter
+plurora install github.com/user/external-app --workspace-only
 ```
 
 ### Other commands
 
 ```bash
-yg list-installed [--profile <name>]
-yg project list
-yg project info <id>
-yg project status <id>
-yg project start <id>
-yg project stop <id>
-yg uninstall <package-id-or-project-id> [--profile <name>]
-yg update [<package-id>|--project-id <id>] [--check-only]  # Check/update through install-lab
-yg lockfile [--check]         # Verify lockfile and store consistency
+plurora list-installed [--profile <name>]
+plurora project list
+plurora project info <id>
+plurora project status <id>
+plurora project start <id>
+plurora project stop <id>
+plurora uninstall <package-id-or-project-id> [--profile <name>]
+plurora update [<package-id>|--project-id <id>] [--check-only]  # Check/update through install-lab
+plurora lockfile [--check]         # Verify lockfile and store consistency
 ```
 
 ### Profile and data dir
@@ -83,8 +83,8 @@ Use `--profile <name>` to operate on a different profile.
 Use `--data-dir <path>` to override the data directory for tests and CI.
 
 ```bash
-yg install ./packages/dev --profile alpha --data-dir /tmp/ygg-alpha --yes
-yg list-installed --profile alpha --data-dir /tmp/ygg-alpha
+plurora install ./packages/dev --profile alpha --data-dir /tmp/plurora-alpha --yes
+plurora list-installed --profile alpha --data-dir /tmp/plurora-alpha
 ```
 
 Install-related flags:
@@ -93,18 +93,18 @@ Install-related flags:
 - `--strict`: block install on conformance failure; the default warns and continues.
 - `--yes`: non-interactive approval for consent prompts.
 - `--profile <name>`: choose the profile to update.
-- `--data-dir <path>`: override the `~/.yggdrasil` data directory for tests and CI.
+- `--data-dir <path>`: override the `~/.plurora` data directory for tests and CI.
 - `--wrap-as-adapter`: for an external project, generate/use an adapter package.
 - `--workspace-only`: for an external project, register it only as an agent workspace, without wrapping.
 
 
 ## Native vs external project detection
 
-`yg install <url>` first checks whether the source root contains `project.yaml`.
+`plurora install <url>` first checks whether the source root contains `project.yaml`.
 
 | Detection result | Behavior |
 |---|---|
-| Valid `project.yaml` with `project.type: yggdrasil_native` | Install as a native Yggdrasil project, copy the source into the store, resolve nested package manifests, write profile autoload entries, register in `ProjectRegistry`, write `~/.yggdrasil/projects/<id>/`, copy project dist, and show a Home project card. |
+| Valid `project.yaml` with `project.type: plurora_native` | Install as a native Plurora project, copy the source into the store, resolve nested package manifests, write profile autoload entries, register in `ProjectRegistry`, write `~/.plurora/projects/<id>/`, copy project dist, and show a Home project card. |
 | Present but invalid `project.yaml` | Fail closed and require descriptor fixes. |
 | No `project.yaml` | Enter the external-project wizard. |
 
@@ -116,7 +116,7 @@ See [`PROJECT_MODEL.md`](PROJECT_MODEL.en.md).
 
 ## External project wizard
 
-An external project is a repository not written for Yggdrasil. The installer shows detected language, package manager, entry points, and lifecycle risks, then asks the user to choose:
+An external project is a repository not written for Plurora. The installer shows detected language, package manager, entry points, and lifecycle risks, then asks the user to choose:
 
 1. **Wrap with adapter**: generate an adapter package and connect the external project as a controlled capability or surface. Best for long-lived use.
 2. **Workspace only**: register only as an agent workspace, with no wrapper. Best for temporary analysis, modification, or migration.
@@ -130,7 +130,7 @@ Forces the wrapping path. The installer uses external-project intake / adapter p
 
 ### `--workspace-only`
 
-Forces the workspace path. Yggdrasil records source, workspace path, detection metadata, and future agent action policy. It does not claim the external project has become a Yggdrasil capability package.
+Forces the workspace path. Plurora records source, workspace path, detection metadata, and future agent action policy. It does not claim the external project has become a Plurora capability package.
 
 ## Manifest `requires`
 
@@ -173,7 +173,7 @@ Runtime authority still comes from `permissions`, bindings, and capability handl
 Lockfile location:
 
 ```text
-~/.yggdrasil/profiles/<name>.lock.toml
+~/.plurora/profiles/<name>.lock.toml
 ```
 
 See [`../spec/v1/LOCKFILE_FORMAT.md`](../spec/v1/LOCKFILE_FORMAT.en.md).
@@ -199,7 +199,7 @@ This lets tools answer:
 ## Filesystem layout
 
 ```text
-~/.yggdrasil/
+~/.plurora/
 ├── store/              # Immutable content-addressed storage
 │   ├── sha256-abc.../
 │   └── sha256-def.../
@@ -214,16 +214,16 @@ This lets tools answer:
 
 Data directory precedence:
 
-1. `YGG_DATA_DIR`;
-2. a Yggdrasil directory under `XDG_DATA_HOME`;
-3. `~/.yggdrasil`.
+1. `PLURORA_DATA_DIR`;
+2. a Plurora directory under `XDG_DATA_HOME`;
+3. `~/.plurora`.
 
 CLI `--data-dir` has the highest precedence and is intended for tests, CI, and one-off demos.
 
 ## Detailed install flow
 
 ```text
-yg install github.com/user/repo#v1.0
+plurora install github.com/user/repo#v1.0
             ↓
 1. URL parsing (parse_install_url)
             ↓
@@ -236,7 +236,7 @@ yg install github.com/user/repo#v1.0
    ├─ integrity-lab.compute_manifest_hash
    ├─ integrity-lab.compute_tree_hash
    ├─ integrity-lab.verify_gpg_signature (when signed)
-   ├─ ygg-core::conformance::run_checks (static)
+   ├─ plurora-core::conformance::run_checks (static)
    └─ recursive manifest.requires (cycle detection)
             ↓
 4. Show plan (human readable + signature state + integrity hashes)
@@ -280,7 +280,7 @@ A crash may leave a temporary directory, but store, profile, and lockfile should
 
 ### Content-addressed store and schema
 
-`~/.yggdrasil/store/` is content-addressed.
+`~/.plurora/store/` is content-addressed.
 Once written, content is not mutated.
 `tree_hash` covers `dist/` inside the package/project tree, so a browser surface bundle-only change gets a new hash. The store has a schema marker; when hash rules change, host layout initialization clears old store contents while preserving profiles and lockfiles, so the next update rebuilds the store.
 
@@ -322,7 +322,7 @@ Future installs or updates compare against existing grants and prompt only for n
 ## Uninstall
 
 ```bash
-yg uninstall fixture/pkg-local
+plurora uninstall fixture/pkg-local
 ```
 
 Uninstall will:
@@ -338,9 +338,9 @@ Future dependency reverse lookup can warn when another package still needs the t
 ## Update
 
 ```bash
-yg update
-yg update third-party/cool-tool
-yg update --project-id my-project__abc12345 --check-only
+plurora update
+plurora update third-party/cool-tool
+plurora update --project-id my-project__abc12345 --check-only
 ```
 
 CLI update routes through `official/install-lab/update_project`; `--check-only` calls `official/install-lab/check_for_updates`.
@@ -352,7 +352,7 @@ Native project updates refresh lockfiles, profiles, the project descriptor, the 
 ## Drift detection
 
 ```bash
-yg lockfile --check
+plurora lockfile --check
 ```
 
 This command will:
@@ -367,16 +367,16 @@ Non-zero exit codes are for CI: drift means failure.
 
 ## Implementation references
 
-- `crates/ygg-core/src/manifest.rs` (`PackageDependency`, `DependencySource`)
-- `crates/ygg-core/src/lockfile.rs` (`Lockfile`, `LockEntry`)
-- `crates/ygg-core/src/paths.rs` (filesystem layout)
-- `crates/ygg-core/src/conformance.rs` (reusable static checks)
-- `crates/ygg-runtime/src/inproc/install_lab.rs` (orchestrator)
-- `crates/ygg-runtime/src/inproc/git_tools_lab.rs` (gix-based git)
-- `crates/ygg-runtime/src/inproc/integrity_lab.rs` (sequoia GPG + sha256)
-- `crates/ygg-cli/src/commands/install.rs` (CLI entry)
-- `crates/ygg-cli/src/install/consent.rs` (consent prompts)
-- `crates/ygg-cli/src/install/url_parser.rs` (URL parsing)
+- `crates/plurora-core/src/manifest.rs` (`PackageDependency`, `DependencySource`)
+- `crates/plurora-core/src/lockfile.rs` (`Lockfile`, `LockEntry`)
+- `crates/plurora-core/src/paths.rs` (filesystem layout)
+- `crates/plurora-core/src/conformance.rs` (reusable static checks)
+- `crates/plurora-runtime/src/inproc/install_lab.rs` (orchestrator)
+- `crates/plurora-runtime/src/inproc/git_tools_lab.rs` (gix-based git)
+- `crates/plurora-runtime/src/inproc/integrity_lab.rs` (sequoia GPG + sha256)
+- `crates/plurora-cli/src/commands/install.rs` (CLI entry)
+- `crates/plurora-cli/src/install/consent.rs` (consent prompts)
+- `crates/plurora-cli/src/install/url_parser.rs` (URL parsing)
 
 ## Conformance coverage
 
@@ -395,7 +395,7 @@ Default conformance does not use the network.
 The real GitHub smoke requires explicit opt-in:
 
 ```bash
-YGG_GIT_INSTALL_REAL_TESTS=1 cargo run -p ygg-cli -- conformance --case install.real_github_smoke
+PLURORA_GIT_INSTALL_REAL_TESTS=1 cargo run -p plurora-cli -- conformance --case install.real_github_smoke
 ```
 
 ## Limits
@@ -403,17 +403,17 @@ YGG_GIT_INSTALL_REAL_TESTS=1 cargo run -p ygg-cli -- conformance --case install.
 - Sigstore keyless verification: deferred (no git-tag convention yet).
 - Tauri UI install flow: deferred (CLI only).
 - Central marketplace: not planned (against platform philosophy).
-- Auto-update daemon: deferred (`yg update` remains manual).
+- Auto-update daemon: deferred (`plurora update` remains manual).
 - Binary package distribution: deferred (source/git only).
 - Cross-profile package sharing semantics: deferred.
-- Standalone `yg gc` command: not needed yet; install/update/uninstall already collect orphaned store entries automatically.
+- Standalone `plurora gc` command: not needed yet; install/update/uninstall already collect orphaned store entries automatically.
 
 ## Recommended practice
 
 - Publish packages with immutable tags; avoid asking users to install floating branches.
 - Use signed tags for GitHub packages.
 - Pin upstream refs in `requires` and use clear version constraints.
-- Run `yg lockfile --check` in CI.
-- Local development can use plain `yg install <url>`; release or controlled environments can add `--require-signed` and `--strict` as needed.
-- For Yggdrasil-native experiences, prefer a root `project.yaml` over publishing only loose package manifests.
+- Run `plurora lockfile --check` in CI.
+- Local development can use plain `plurora install <url>`; release or controlled environments can add `--require-signed` and `--strict` as needed.
+- For Plurora-native experiences, prefer a root `project.yaml` over publishing only loose package manifests.
 - Describe new network and secret authority with clear purposes so users can consent.

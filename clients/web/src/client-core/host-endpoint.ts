@@ -1,5 +1,5 @@
 const DEFAULT_LOCAL_HOST = "http://127.0.0.1:8787";
-export const HOST_CONNECTIONS_STORAGE_KEY = "ygg_host_connections_v1";
+export const HOST_CONNECTIONS_STORAGE_KEY = "plurora_host_connections_v1";
 export const CURRENT_HOST_CONNECTION_ID = "current-origin";
 const MAX_HOST_CONNECTIONS = 32;
 
@@ -29,7 +29,7 @@ export interface YggRuntimeBootstrap {
 
 declare global {
   interface Window {
-    __YGG_RUNTIME__?: YggRuntimeBootstrap;
+    __PLURORA_RUNTIME__?: YggRuntimeBootstrap;
   }
 }
 
@@ -187,7 +187,7 @@ export function resolveHostBaseUrl(explicit?: string): string {
   if (explicit) return normalizeHostBaseUrl(explicit);
 
   if (typeof window !== "undefined") {
-    const injected = window.__YGG_RUNTIME__?.hostBaseUrl;
+    const injected = window.__PLURORA_RUNTIME__?.hostBaseUrl;
     if (injected) return normalizeHostBaseUrl(injected);
 
     const selected = activeHostConnectionProfile();

@@ -2,7 +2,7 @@
 
 > [English](./LICENSING.en.md) · [中文](./LICENSING.md)
 
-Yggdrasil 仓库中的第一方源代码以 GNU Affero General Public License v3.0 的仅此版本授权，SPDX 标识为 `AGPL-3.0-only`。完整法律文本见仓库根目录的 [`LICENSE`](../LICENSE)。
+Plurora 仓库中的第一方源代码以 GNU Affero General Public License v3.0 的仅此版本授权，SPDX 标识为 `AGPL-3.0-only`。完整法律文本见仓库根目录的 [`LICENSE`](../LICENSE)。
 
 ## 第一方代码
 
@@ -24,7 +24,7 @@ Yggdrasil 仓库中的第一方源代码以 GNU Affero General Public License v3
 - `integrations/` 中记录的上游项目及其许可证元数据；
 - lockfile 中列出的第三方依赖。
 
-这些记录不改变 Yggdrasil 第一方代码的许可证，也不把第三方内容重新授权为 AGPL。能力包清单中的 `license` 字段描述该能力包自身；第三方能力包应声明自己的真实许可证。
+这些记录不改变 Plurora 第一方代码的许可证，也不把第三方内容重新授权为 AGPL。能力包清单中的 `license` 字段描述该能力包自身；第三方能力包应声明自己的真实许可证。
 
 ## 分发与网络使用
 

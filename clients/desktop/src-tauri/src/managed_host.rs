@@ -17,7 +17,7 @@ use tauri_plugin_shell::{
 };
 use uuid::Uuid;
 
-const LISTEN_PREFIX: &str = "YGG_HOST_LISTEN_ADDR=";
+const LISTEN_PREFIX: &str = "PLURORA_HOST_LISTEN_ADDR=";
 const DESKTOP_PROFILE_NAME: &str = "desktop";
 const OFFICIAL_MANIFESTS: [(&str, &str); 7] = [
     ("git-tools-lab", "git-tools-lab/manifest.yaml"),
@@ -71,8 +71,8 @@ impl ManagedHostState {
 }
 
 pub fn start(app: &App) -> Result<(), Box<dyn std::error::Error>> {
-    ygg_core::paths::ensure_initialized()?;
-    let data_dir = ygg_core::paths::data_dir()?;
+    plurora_core::paths::ensure_initialized()?;
+    let data_dir = plurora_core::paths::data_dir()?;
     let static_dir = resolve_static_dir(app)?;
     let profile_path = ensure_desktop_profile(app, &data_dir)?;
     if !static_dir.join("index.html").is_file() {
@@ -88,17 +88,17 @@ pub fn start(app: &App) -> Result<(), Box<dyn std::error::Error>> {
     let args = build_sidecar_args(&static_dir, &data_dir, &profile_path);
     let (events, child) = app
         .shell()
-        .sidecar("ygg-host")?
+        .sidecar("plurora-host")?
         .args(args)
-        .env("YGG_HTTP_ACCESS_TOKEN", &access_token)
-        .env("YGG_HTTP_BOOTSTRAP_TOKEN", &bootstrap_nonce)
+        .env("PLURORA_HTTP_ACCESS_TOKEN", &access_token)
+        .env("PLURORA_HTTP_BOOTSTRAP_TOKEN", &bootstrap_nonce)
         .spawn()?;
 
     app.state::<ManagedHostState>().install(child);
     let app_handle = app.handle().clone();
     tauri::async_runtime::spawn(async move {
         if let Err(error) = supervise(app_handle.clone(), events, bootstrap_nonce).await {
-            eprintln!("managed Yggdrasil Host failed: {error}");
+            eprintln!("managed Plurora Host failed: {error}");
             app_handle.state::<ManagedHostState>().stop();
             if let Some(window) = app_handle.get_webview_window("main") {
                 let _ = window.show();
@@ -314,7 +314,7 @@ fn ensure_desktop_profile_from_sources(
         .ok_or("managed Desktop profile must be a YAML object")?;
     profile_object.insert(
         "title".to_string(),
-        serde_json::Value::String("Yggdrasil Desktop".to_string()),
+        serde_json::Value::String("Plurora Desktop".to_string()),
     );
     profile_object.insert(
         "event_store".to_string(),
@@ -402,11 +402,11 @@ mod tests {
     #[test]
     fn listen_handshake_accepts_only_loopback_nonzero_ports() {
         assert_eq!(
-            parse_listen_addr_line(b"YGG_HOST_LISTEN_ADDR=127.0.0.1:43117"),
+            parse_listen_addr_line(b"PLURORA_HOST_LISTEN_ADDR=127.0.0.1:43117"),
             Some("127.0.0.1:43117".parse().unwrap())
         );
-        assert!(parse_listen_addr_line(b"YGG_HOST_LISTEN_ADDR=0.0.0.0:43117").is_none());
-        assert!(parse_listen_addr_line(b"YGG_HOST_LISTEN_ADDR=127.0.0.1:0").is_none());
+        assert!(parse_listen_addr_line(b"PLURORA_HOST_LISTEN_ADDR=0.0.0.0:43117").is_none());
+        assert!(parse_listen_addr_line(b"PLURORA_HOST_LISTEN_ADDR=127.0.0.1:0").is_none());
         assert!(parse_listen_addr_line(b"host serving 127.0.0.1:43117").is_none());
     }
 
@@ -438,7 +438,7 @@ mod tests {
             "http://127.0.0.1:43117/host/bootstrap?nonce=secret"
         );
         assert!(!url.as_str().contains("access_token="));
-        assert!(!url.as_str().contains("ygg_token="));
+        assert!(!url.as_str().contains("plurora_token="));
     }
 
     #[test]

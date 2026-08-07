@@ -55,7 +55,7 @@ export const InputGroup = forwardRef<HTMLInputElement, InputGroupProps>(
   ({ className, inputClassName, leftIcon, rightSlot, ...props }, ref) => (
     <div
       className={cn(
-        "ygg-input-group flex h-10 items-center gap-2 rounded-[10px] border border-whisper-border bg-transparent px-3 transition focus-within:border-aged-brass focus-within:bg-pure-surface focus-within:shadow-[0_0_0_1px_var(--color-aged-brass)]",
+        "plurora-input-group flex h-10 items-center gap-2 rounded-[10px] border border-whisper-border bg-transparent px-3 transition focus-within:border-aged-brass focus-within:bg-pure-surface focus-within:shadow-[0_0_0_1px_var(--color-aged-brass)]",
         className,
       )}
     >

@@ -6,14 +6,14 @@
 
 ## 什么是路径 B
 
-路径 B 包是自包含应用或工具。它可以作为 Yggdrasil host 管理的进程运行，但它不通过 manifest 权限获得平台权威，不使用 `kernel.v1.capability.invoke`，也不依赖 v1 bindings。
+路径 B 包是自包含应用或工具。它可以作为 Plurora host 管理的进程运行，但它不通过 manifest 权限获得平台权威，不使用 `kernel.v1.capability.invoke`，也不依赖 v1 bindings。
 
 这不是“低级”路径。它是给迁移期、兼容层、既有工具和原型保留的一等参与方式。
 
 ## 什么时候使用
 
 - 移植已有应用，先让它在 host 生命周期里跑起来。
-- 运行不需要 Yggdrasil 能力的第三方工具。
+- 运行不需要 Plurora 能力的第三方工具。
 - 原型阶段还没决定能力边界。
 - 只需要被 host 启停和观测，不需要平台权限。
 - 自带网络、存储或 UI sandbox，且接受不由内核 v1 强制。
@@ -77,7 +77,7 @@ entry:
 
 ## Conformance 行为
 
-`yg conformance package --contract v1 --path <package>` 会识别 `entry.contract: "none"`：
+`plurora conformance package --contract v1 --path <package>` 会识别 `entry.contract: "none"`：
 
 - manifest parse：PASS/FAIL；
 - contract mode：PASS，标记 Path B；

@@ -1,6 +1,6 @@
-# Yggdrasil platform shell (`clients/web`)
+# Plurora platform shell (`clients/web`)
 
-The Yggdrasil platform's shared Web/PWA chrome — Home, Settings, Install flow,
+The Plurora platform's shared Web/PWA chrome — Home, Settings, Install flow,
 project frame, scoped Host pairing, and toast/notification system. Built as a React 19 single-page
 app with Tailwind v4 and an installable service-worker shell. Styles, layout, and behavior follow the Editorial
 Workshop design system in [`../../docs/design/PLATFORM_UI_DESIGN.md`](../../docs/design/PLATFORM_UI_DESIGN.md).
@@ -15,7 +15,7 @@ and own their own visual identity; the shell does not impose a style on them.
 
 ```bash
 # Run the host first (separate terminal)
-cargo run -p ygg-cli -- host serve --http 127.0.0.1:8787 --profile profiles/forge-alpha.yaml
+cargo run -p plurora-cli -- host serve --http 127.0.0.1:8787 --profile profiles/forge-alpha.yaml
 
 # Run the web shell
 npm install --prefix clients/web
@@ -172,7 +172,7 @@ project from the project tab.
 
 - `system` (default) — follows `prefers-color-scheme`.
 - `light` / `dark` — explicit override, persisted in `localStorage` under
-  `yggdrasil:theme-preference`.
+  `plurora:theme-preference`.
 
 Tailwind's `dark:` modifier is bound to `[data-theme="dark"]` via
 `@custom-variant` in `app.css`. Modal overlay uses a dedicated
@@ -223,7 +223,7 @@ can bypass Host identity. `host.project.start` does not deploy
 anything automatically.
 
 The Host exposes authenticated routes through `/p/<route_id>/...`. When a route
-is explicitly public and `YGG_APP_BASE_DOMAIN` / `--app-base-domain` is
+is explicitly public and `PLURORA_APP_BASE_DOMAIN` / `--app-base-domain` is
 configured, it also exposes a virtual host such as
 `https://<slug>.apps.example.com/`. Merely configuring the wildcard domain does
 not publish private routes. The Web shell displays and opens the URL returned by

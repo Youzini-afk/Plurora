@@ -22,5 +22,5 @@ Executable v1 contracts and the hostile conformance roadmap. These docs are back
 Run the full suite:
 
 ```bash
-cargo run -p ygg-cli -- conformance
+cargo run -p plurora-cli -- conformance
 ```

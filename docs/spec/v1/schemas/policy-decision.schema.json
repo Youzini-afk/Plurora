@@ -176,7 +176,7 @@
       "type": "string"
     },
     "decision_type_uri": {
-      "default": "urn:yggdrasil:policy-decision:v1",
+      "default": "urn:plurora:policy-decision:v1",
       "type": "string"
     },
     "evaluated_authority": {

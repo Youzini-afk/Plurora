@@ -2,7 +2,7 @@
 
 > [English](./ARCHITECTURE.en.md) · [中文](./ARCHITECTURE.md)
 
-Yggdrasil 不是“内核、能力包、项目”三层的封闭产品栈。它是一组有明确所有权和单向依赖的开放层次：极小的宪法基底、可演化的协议、可替换的组件与内容、管理现实资源的 Host、可替换的发行版，以及自由发展的产品。
+Plurora 不是“内核、能力包、项目”三层的封闭产品栈。它是一组有明确所有权和单向依赖的开放层次：极小的宪法基底、可演化的协议、可替换的组件与内容、管理现实资源的 Host、可替换的发行版，以及自由发展的产品。
 
 当前 Contract V1 和代码中仍保留 `session`、`package`、`project`、`surface`、`proposal` 等历史边界。它们是正在运行的公开合同，不自动等同于永久架构。长期归属见 [`CONSTITUTION_V2.md`](CONSTITUTION_V2.md) 与 [`../spec/CONTRACT_LAYERING_MATRIX.md`](../spec/CONTRACT_LAYERING_MATRIX.md)。
 
@@ -50,7 +50,7 @@ Host Control Plane / Runtime Fabric 与上述层正交：
 
 基底不拥有 Project、Home、Play、Forge、Assistant、模型、agent、记忆、世界、文档、部署产品或具体 secret store。
 
-现有 `ygg-core` / `ygg-runtime` 中仍混合了一部分 Host、协议和 Shell 语义；迁移时以兼容和数据安全为前提逐步拆分，不通过一次性重写制造新的不稳定。
+现有 `plurora-core` / `plurora-runtime` 中仍混合了一部分 Host、协议和 Shell 语义；迁移时以兼容和数据安全为前提逐步拆分，不通过一次性重写制造新的不稳定。
 
 ### Protocol Commons
 
@@ -118,7 +118,7 @@ Surface slot、Home card、Forge panel 和 Assistant action 属于当前 Shell P
 - 是否本地、远程、多人或离线；
 - 采用哪些协议、组件与 Host 能力。
 
-产品选择不能反向成为所有 Yggdrasil 产品的要求。
+产品选择不能反向成为所有 Plurora 产品的要求。
 
 ## 单向依赖与下沉门槛
 
@@ -168,13 +168,13 @@ Contract V1 是当前可运行、可生成 SDK、由 conformance 守护的公开
 
 ### Desktop
 
-`clients/desktop` 是 Tauri 2.x wrapper，并管理 loopback-only Host sidecar。它准备持久 profile、以随机 loopback 端口启动 `ygg host serve`、完成健康与一次性 bootstrap 后显示 Web Shell，退出时终止 sidecar。
+`clients/desktop` 是 Tauri 2.x wrapper，并管理 loopback-only Host sidecar。它准备持久 profile、以随机 loopback 端口启动 `plurora host serve`、完成健康与一次性 bootstrap 后显示 Web Shell，退出时终止 sidecar。
 
 Desktop、Web/PWA 与远程 Host 连接复用同一 client core 和公开边界。官方 Desktop 不拥有第二套协议或私有 Studio。
 
 ### CLI 与无头使用
 
-`ygg-cli` 提供 Host、安装、项目、package、composition、contract、conformance 和运维入口。CLI 在本机运行也不能通过读取 Host 数据目录获得公开协议之外的产品权威。
+`plurora-cli` 提供 Host、安装、项目、package、composition、contract、conformance 和运维入口。CLI 在本机运行也不能通过读取 Host 数据目录获得公开协议之外的产品权威。
 
 ## 当前 Project 模型
 
@@ -185,10 +185,10 @@ World、Document、Service、Workspace 或其他协议对象可以独立存在�
 ## 仓库地图
 
 ```text
-crates/ygg-core      当前核心类型、schema、身份、事件与合同对象
-crates/ygg-runtime   当前 runtime、组件执行、协议调度与部分 Host 能力
-crates/ygg-service   HTTP / RPC / SSE 与 Host service 边界
-crates/ygg-cli       CLI、Host、脚手架、contract 与 conformance 工具
+crates/plurora-core      当前核心类型、schema、身份、事件与合同对象
+crates/plurora-runtime   当前 runtime、组件执行、协议调度与部分 Host 能力
+crates/plurora-service   HTTP / RPC / SSE 与 Host service 边界
+crates/plurora-cli       CLI、Host、脚手架、contract 与 conformance 工具
 clients/web          官方 React Web Shell / PWA
 clients/desktop      Tauri wrapper + managed Host sidecar
 packages/official    通过普通清单加载的第一方组件与实验能力

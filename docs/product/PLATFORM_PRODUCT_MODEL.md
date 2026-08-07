@@ -2,7 +2,7 @@
 
 > [English](./PLATFORM_PRODUCT_MODEL.en.md) · [中文](./PLATFORM_PRODUCT_MODEL.md)
 
-本文定义 Yggdrasil 官方发行版应该怎样成为一款完整、好用的产品，同时不把自己的产品选择提升为整个平台的强制本体。
+本文定义 Plurora 官方发行版应该怎样成为一款完整、好用的产品，同时不把自己的产品选择提升为整个平台的强制本体。
 
 ## 产品责任
 
@@ -42,7 +42,7 @@
 官方发行版至少覆盖：
 
 ```text
-获得 Yggdrasil
+获得 Plurora
 → 本地启动或连接 Host
 → 发现 / 导入内容
 → 查看来源、权限和资源需求
@@ -74,7 +74,7 @@
 
 ## 官方 Shell 的当前组织方式
 
-当前 Web/Desktop 发行版使用 Home、Settings、Project frame、项目控制台和可贡献 Surface 来组织体验。这是一套正在演化的官方产品结构，不是所有 Yggdrasil 客户端的强制结构。
+当前 Web/Desktop 发行版使用 Home、Settings、Project frame、项目控制台和可贡献 Surface 来组织体验。这是一套正在演化的官方产品结构，不是所有 Plurora 客户端的强制结构。
 
 - **Home / Library：** 发现、安装、启动和继续使用；
 - **Settings / Control：** Host、身份、权限、存储、连接和包管理；
@@ -86,7 +86,7 @@
 
 ## Project 的产品边界
 
-Project 是当前官方 Host 与发行版用于组织可安装、可运行实例的实用模型。它适合应用、工作区和一部分体验，但不是 Yggdrasil 上所有数据与交互的永久根对象。
+Project 是当前官方 Host 与发行版用于组织可安装、可运行实例的实用模型。它适合应用、工作区和一部分体验，但不是 Plurora 上所有数据与交互的永久根对象。
 
 其他产品可以围绕 World、Document、Service、Workspace、Collection、Simulation 或自己的协议对象组织。通用基底不能要求所有这些对象伪装成 Project；Host 也不能因为管理 Project 就拥有其内容语义。
 

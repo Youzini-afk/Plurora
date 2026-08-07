@@ -1,4 +1,4 @@
-title: Yggdrasil Forge Host With Live Model Outbound Enabled (Example)
+title: Plurora Forge Host With Live Model Outbound Enabled (Example)
 
 # Live HTTP outbound for model API calls is opt-in. This example is not the
 # default profile. It enables HTTPS outbound execute for provider API calls.
@@ -7,8 +7,8 @@ title: Yggdrasil Forge Host With Live Model Outbound Enabled (Example)
 # Set environment variables for any API keys referenced via secret_ref:env:NAME
 # (e.g., OPENAI_API_KEY, DEEPSEEK_API_KEY, ANTHROPIC_API_KEY,
 # GEMINI_API_KEY, OPENROUTER_API_KEY, XAI_API_KEY, FIREWORKS_API_KEY).
-# Real live smoke tests stay disabled unless YGG_LIVE_MODEL_TESTS=1 is also set.
-# Real WebSocket smoke tests also require YGG_LIVE_WEBSOCKET_TESTS=1 after the
+# Real live smoke tests stay disabled unless PLURORA_LIVE_MODEL_TESTS=1 is also set.
+# Real WebSocket smoke tests also require PLURORA_LIVE_WEBSOCKET_TESTS=1 after the
 # referenced provider environment variables are set.
 #
 # The live executor is HTTPS-only, does not follow redirects, and never echoes
@@ -35,7 +35,7 @@ outbound:
   #   enabled: false
   #   executor: deny_all     # | fake | live
   #   # Copy this example, set executor: live, configure provider env vars, and
-  #   # set YGG_LIVE_WEBSOCKET_TESTS=1 before running opt-in live WS smoke tests.
+  #   # set PLURORA_LIVE_WEBSOCKET_TESTS=1 before running opt-in live WS smoke tests.
   #   allowed_hosts:
   #     - api.openai.com               # OpenAI Realtime
   #     - generativelanguage.googleapis.com  # Gemini Live

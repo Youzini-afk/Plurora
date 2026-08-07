@@ -1,39 +1,39 @@
 reference: TavernHeadless
 policy: >-
   Use TavernHeadless model provider work as reference for provider/profile and route-planning edge cases.
-  Adapt metadata, validation, secret masking, discovery planning, and route resolution into Yggdrasil-native packages.
+  Adapt metadata, validation, secret masking, discovery planning, and route resolution into Plurora-native packages.
   Do not introduce tavern-* product packages, live network calls, or inference behavior in the current scope.
 
 subsystems:
   packages/core/src/llm/provider-registry.ts:
-    yggdrasil_package: official/model-connector-lab
+    plurora_package: official/model-connector-lab
     status: adapted
     notes: Provider families and factory metadata become static provider family descriptors.
   packages/core/src/llm/types.ts:
-    yggdrasil_package: official/model-connector-lab
+    plurora_package: official/model-connector-lab
     status: adapted
     notes: Provider config and generation params inform profile validation and route params normalization.
   apps/api/src/lib/llm-provider-discovery.ts:
-    yggdrasil_package: official/model-connector-lab
+    plurora_package: official/model-connector-lab
     status: adapted
     notes: Live probes become no-network discovery plans and compatibility reports in the current scope.
   apps/api/src/routes/llm-profiles.ts:
-    yggdrasil_package: official/model-connector-lab
+    plurora_package: official/model-connector-lab
     status: adapted
     notes: Profile CRUD informs profile schema, secret references, and redaction-safe display.
   apps/api/src/routes/llm-instances.ts:
-    yggdrasil_package: official/model-routing-lab
+    plurora_package: official/model-routing-lab
     status: adapted
     notes: Instance slots become generic consumer-slot bindings with deterministic route plans.
   packages/official-integration-kit/sdk/src/resources/llm-shared.ts:
-    yggdrasil_package: official/model-connector-lab
+    plurora_package: official/model-connector-lab
     status: adapted
     notes: Provider enum informs initial provider families.
   packages/core/src/llm/llm-service.ts:
-    yggdrasil_package: future/model-inference-lab
+    plurora_package: future/model-inference-lab
     status: deferred
     notes: generateText/streamText, timeouts, usage, and providerOptions wait for network/secret/audit policy.
   packages/core/src/llm/__tests__:
-    yggdrasil_package: official/model-connector-lab
+    plurora_package: official/model-connector-lab
     status: adapted
     notes: Provider registry tests inform conformance fixtures and compatibility reports.

@@ -59,9 +59,9 @@ permissions:
         methods: [GET, POST]
   filesystem:
     write:
-      - /tmp/yggdrasil-git/
-      - ~/.yggdrasil/cache/git/
-      - ~/.yggdrasil/store/
+      - /tmp/plurora-git/
+      - ~/.plurora/cache/git/
+      - ~/.plurora/store/
 sandbox_policy:
   cpu_quota_ms_per_invoke: 30000
   memory_mb: 512

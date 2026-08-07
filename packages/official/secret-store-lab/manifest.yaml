@@ -2,7 +2,7 @@ schema_version: 1
 id: official/secret-store-lab
 version: 0.1.0
 display_name: Secret Store Lab
-description: Local encrypted secret storage for API keys and credentials. Files at ~/.yggdrasil/secrets.dat (age-encrypted).
+description: Local encrypted secret storage for API keys and credentials. Files at ~/.plurora/secrets.dat (age-encrypted).
 license: AGPL-3.0-only
 entry:
   kind: rust_inproc
@@ -78,11 +78,11 @@ contributes:
 permissions:
   filesystem:
     read:
-      - ~/.yggdrasil/
+      - ~/.plurora/
     write:
-      - ~/.yggdrasil/secrets.dat
-      - ~/.yggdrasil/secret-store.key
-      - ~/.yggdrasil/projects/
+      - ~/.plurora/secrets.dat
+      - ~/.plurora/secret-store.key
+      - ~/.plurora/projects/
 sandbox_policy:
   cpu_quota_ms_per_invoke: 5000
   memory_mb: 128

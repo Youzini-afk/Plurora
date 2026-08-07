@@ -21,7 +21,7 @@ from typing import Any
 
 
 ROOT = Path(__file__).resolve().parents[1]
-YGG = Path(os.environ.get("YGG_BIN", ROOT / "target" / "debug" / "ygg"))
+YGG = Path(os.environ.get("PLURORA_BIN", ROOT / "target" / "debug" / "plurora"))
 REAL_SOURCE = (
     "https://github.com/mdn/beginner-html-site-styled"
     "#6c7a360ddb4a0d75be06044bf8a914f260ff10c7"
@@ -205,7 +205,7 @@ def start_host(
                 token,
             ],
             cwd=ROOT,
-            env={**os.environ, "RUST_LOG": os.environ.get("RUST_LOG", "ygg_service=warn")},
+            env={**os.environ, "RUST_LOG": os.environ.get("RUST_LOG", "plurora_service=warn")},
             text=True,
             stdout=log_handle,
             stderr=subprocess.STDOUT,
@@ -488,7 +488,7 @@ def cleanup_docker(routes: set[str], containers: set[str], projects: set[str]) -
         )
     for route_id in routes:
         listed = subprocess.run(
-            ["docker", "ps", "--all", "--quiet", "--filter", f"label=yggdrasil.route_id={route_id}"],
+            ["docker", "ps", "--all", "--quiet", "--filter", f"label=plurora.route_id={route_id}"],
             text=True,
             stdout=subprocess.PIPE,
             stderr=subprocess.DEVNULL,
@@ -503,7 +503,7 @@ def cleanup_docker(routes: set[str], containers: set[str], projects: set[str]) -
             )
     for project_id in projects:
         listed = subprocess.run(
-            ["docker", "image", "ls", "--quiet", "--filter", f"label=yggdrasil.project_id={project_id}"],
+            ["docker", "image", "ls", "--quiet", "--filter", f"label=plurora.project_id={project_id}"],
             text=True,
             stdout=subprocess.PIPE,
             stderr=subprocess.DEVNULL,
@@ -535,14 +535,14 @@ def write_profile(path: Path) -> None:
 
 def main() -> None:
     require(
-        os.environ.get("YGG_HOST_OPERATIONS_ACCEPTANCE") == "1",
-        "set YGG_HOST_OPERATIONS_ACCEPTANCE=1; this Docker workload is intended for GitHub CI",
+        os.environ.get("PLURORA_HOST_OPERATIONS_ACCEPTANCE") == "1",
+        "set PLURORA_HOST_OPERATIONS_ACCEPTANCE=1; this Docker workload is intended for GitHub CI",
     )
-    require(YGG.is_file(), f"Yggdrasil CLI binary was not found at {YGG}")
+    require(YGG.is_file(), f"Plurora CLI binary was not found at {YGG}")
     run_checked(["docker", "info"], timeout=60)
 
     output_dir = Path(
-        os.environ.get("YGG_HOST_OPERATIONS_OUTPUT_DIR", ROOT / "target" / "host-operations-acceptance")
+        os.environ.get("PLURORA_HOST_OPERATIONS_OUTPUT_DIR", ROOT / "target" / "host-operations-acceptance")
     )
     output_dir.mkdir(parents=True, exist_ok=True)
     token = secrets.token_hex(32)
@@ -550,7 +550,7 @@ def main() -> None:
     cleanup_routes = {"acceptance-mdn", "acceptance-python"}
     cleanup_containers: set[str] = set()
     project_ids: set[str] = set()
-    temporary = tempfile.TemporaryDirectory(prefix="ygg-host-operations-")
+    temporary = tempfile.TemporaryDirectory(prefix="plurora-host-operations-")
 
     try:
         data_dir = Path(temporary.name) / "data"
@@ -582,7 +582,7 @@ COPY . /usr/share/nginx/html
         )
 
         nginx_v2 = """FROM nginx:1.27-alpine
-LABEL org.yggdrasil.acceptance.revision="2"
+LABEL org.plurora.acceptance.revision="2"
 COPY . /usr/share/nginx/html
 """
         _, real_v2 = deploy_approved_change(
@@ -616,7 +616,7 @@ CMD ["python", "/srv/server.py"]
             container_port=8000,
             route_id="acceptance-python",
             health_path="/healthz",
-            marker=b"yggdrasil-python-fixture",
+            marker=b"plurora-python-fixture",
             idempotency="python-v1",
             cleanup_routes=cleanup_routes,
             cleanup_containers=cleanup_containers,
@@ -657,7 +657,7 @@ CMD ["python", "/srv/server.py"]
             "Host restart did not restore the second fixture revision",
         )
         assert_route(host, "acceptance-mdn", b"Mozilla is cool")
-        assert_route(host, "acceptance-python", b"yggdrasil-python-fixture")
+        assert_route(host, "acceptance-python", b"plurora-python-fixture")
 
         rolled_back = http_json(
             host,

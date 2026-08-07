@@ -9,7 +9,7 @@ function assertOk(value: unknown, message: string) {
 }
 
 const target = projectTabTargetName("project/with/slash");
-assertOk(/^ygg-project-[a-z0-9]+$/.test(target), "target name must be sanitized");
+assertOk(/^plurora-project-[a-z0-9]+$/.test(target), "target name must be sanitized");
 assertOk(!target.includes("project/with/slash"), "target must not include raw project id");
 
 let openArgs: [string, string, string | undefined] | null = null;
@@ -83,5 +83,5 @@ assertEqual(mobileOpened, false);
 assertEqual(assigned, "");
 assertEqual(pushedUrl, "/project/mobile-project");
 assertEqual((pushedState as Record<string, unknown> | null)?.existing, true);
-assertEqual((pushedState as Record<string, unknown> | null)?.__ygg_project_from_shell__, true);
+assertEqual((pushedState as Record<string, unknown> | null)?.__plurora_project_from_shell__, true);
 assertEqual(reloaded, true);

@@ -2,7 +2,7 @@ schema_version: 1
 id: official/model-provider-lab
 version: 0.1.0
 display_name: Official Cloud Provider Adapter Lab
-description: Ordinary cloud API adapter lab for eight provider families. Not the Yggdrasil model abstraction, not an API gateway, and not privileged by the kernel.v1. Provides package-local profile validation, cloud request builders, fake/local invoke shapes, stream normalization, and error explanation.
+description: Ordinary cloud API adapter lab for eight provider families. Not the Plurora model abstraction, not an API gateway, and not privileged by the kernel.v1. Provides package-local profile validation, cloud request builders, fake/local invoke shapes, stream normalization, and error explanation.
 license: AGPL-3.0-only
 entry:
   kind: rust_inproc

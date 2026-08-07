@@ -46,7 +46,7 @@ test("kernelClient exposes contract legacy-adapter diagnostics", async () => {
       id: frame.id,
       result: { protocol_version: "0.1.0" },
       diagnostics: [{
-        code: "ygg.contract.alias.legacy_adapter",
+        code: "plurora.contract.alias.legacy_adapter",
         severity: "warning",
         requested_id: "kernel.v1.host.info",
         canonical_id: "host.info",
@@ -61,7 +61,7 @@ test("kernelClient exposes contract legacy-adapter diagnostics", async () => {
     __handleKernelInboundForTest({ jsonrpc: "2.0", id: followupFrame.id, result: { ok: true } });
     await followup;
     const diagnostic = kernelClient.drainContractDiagnostics()[0];
-    assert.equal(diagnostic?.code, "ygg.contract.alias.legacy_adapter");
+    assert.equal(diagnostic?.code, "plurora.contract.alias.legacy_adapter");
     assert.equal(diagnostic?.maturity, "legacy_adapter");
     assert.equal(diagnostic?.replacement, "host.info");
     assert.deepEqual(kernelClient.drainContractDiagnostics(), []);

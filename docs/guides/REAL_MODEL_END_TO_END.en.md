@@ -22,7 +22,7 @@ invokeCapability("ydltavern/engine/model.live_call", { ... })
 clients/web main thread receives RPC and calls client.invokeWithSession(method, params, sessionId)
   ↓ (HTTP POST /rpc with session_id)
   ↓
-ygg host serve routes to dispatch_capability_invoke
+plurora host serve routes to dispatch_capability_invoke
   ↓ (sets ProtocolContext.session_id and ProtocolContext.principal=Package)
   ↓
 inproc dispatcher finds the ydltavern-engine package (subprocess)
@@ -38,10 +38,10 @@ host dispatch_outbound_execute handles:
   ✓ checks the package permissions.secret_refs declare this ref
   ✓ Runtime::resolve_secret_ref_with_session resolves ref → real value
     ├─ through CompositeSecretResolver
-    ├─ secret_ref:store:* → StoreSecretResolver → decrypt ~/.yggdrasil/secrets.dat
+    ├─ secret_ref:store:* → StoreSecretResolver → decrypt ~/.plurora/secrets.dat
     ├─ secret_ref:project:* → ProjectStoreSecretResolver
     │   ├─ uses ACTIVE_PROJECT_SCOPE task-local to read session.metadata.project_id
-    │   ├─ decrypts ~/.yggdrasil/projects/<id>/secrets.dat
+    │   ├─ decrypts ~/.plurora/projects/<id>/secrets.dat
     │   ├─ missing + fallback_to_platform default true → platform store
     │   └─ missing + fallback disabled → fail closed
     └─ secret_ref:env:* → EnvSecretResolver (allowlist)
@@ -126,14 +126,14 @@ Queueing may come later, but it is out of scope for v1.
 
 ## Configuring real calls (user view)
 
-Install the YdlTavern project, then start the Yggdrasil host and web shell:
+Install the YdlTavern project, then start the Plurora host and web shell:
 
 ```bash
 # 1. Install the local native project into a test data dir/profile
-yg install ../YdlTavern --data-dir <data-dir> --profile <profile> -y
+plurora install ../YdlTavern --data-dir <data-dir> --profile <profile> -y
 
 # 2. Start the host with the installed profile
-ygg host serve --profile <data-dir>/profiles/<profile>.yaml --http 127.0.0.1:8787 &
+plurora host serve --profile <data-dir>/profiles/<profile>.yaml --http 127.0.0.1:8787 &
 
 # 3. Start clients/web
 npm run dev --prefix clients/web
@@ -188,7 +188,7 @@ surface_dev_paths:
   ydltavern: ../YdlTavern/packages/ydltavern-surface/dist
 ```
 
-`surface_dev_paths` is only for development-time mounting of local build output. Installed projects do not need it; the host serves project dist files under `/surface-bundles/projects/<project_id>/...`. The web dev server port is `localhost:1420`. CLI `yg project start/status/stop` commands are project-state commands; Home's Play/session flow uses the Web public protocol to call `kernel.v1.project.start`, receive a `session_id`, resolve the surface, and mount it. Do not treat the CLI command path and the Web Play/session flow as equivalent entrypoints.
+`surface_dev_paths` is only for development-time mounting of local build output. Installed projects do not need it; the host serves project dist files under `/surface-bundles/projects/<project_id>/...`. The web dev server port is `localhost:1420`. CLI `plurora project start/status/stop` commands are project-state commands; Home's Play/session flow uses the Web public protocol to call `kernel.v1.project.start`, receive a `session_id`, resolve the surface, and mount it. Do not treat the CLI command path and the Web Play/session flow as equivalent entrypoints.
 
 Three gates must all pass:
 
@@ -269,7 +269,7 @@ The host profile has `secret_resolver.store_enabled: false`, but the user attemp
 
 ### `session has no metadata.project_id`
 
-Starting through Home Play's public-protocol start/session flow sets this automatically. CLI `yg project start` is useful for state/diagnostics but is not the same as the Web Play → session → surface mount flow. If the surface bypasses the project flow, create a session with `metadata.project_id` manually or avoid project refs.
+Starting through Home Play's public-protocol start/session flow sets this automatically. CLI `plurora project start` is useful for state/diagnostics but is not the same as the Web Play → session → surface mount flow. If the surface bypasses the project flow, create a session with `metadata.project_id` manually or avoid project refs.
 
 ### `host '...' not in outbound.allowed_hosts`
 
@@ -293,8 +293,8 @@ Check that Play returned `session_id`, iframe `initialProps.sessionId` is non-em
 - [`PROJECT_MODEL.md`](PROJECT_MODEL.en.md) — project + session pairing.
 - `../YdlTavern/packages/ydltavern-surface/src/app/TavernProvider.tsx::sendMessage`
 - `../YdlTavern/packages/ydltavern-engine/src/capabilities/model-live-call.ts`
-- `crates/ygg-runtime/src/runtime/protocol_dispatch.rs::dispatch_outbound_execute`
-- `crates/ygg-runtime/src/runtime/outbound.rs::LiveHttpOutboundExecutor`
+- `crates/plurora-runtime/src/runtime/protocol_dispatch.rs::dispatch_outbound_execute`
+- `crates/plurora-runtime/src/runtime/outbound.rs::LiveHttpOutboundExecutor`
 - the `clients/web` surface-host iframe bridge and `mountSurface`.
 
 ## Deferred items

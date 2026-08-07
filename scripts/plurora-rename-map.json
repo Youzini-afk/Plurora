@@ -16,7 +16,8 @@
     "sdk/rust/yg-kernel-sdk": "sdk/rust/plurora-contract-sdk",
     "sdk/typescript/ygg-agent-adapter": "sdk/typescript/agent-adapter",
     "clients/web/public/icons/yggdrasil.svg": "clients/web/public/icons/plurora.svg",
-    "clients/web/public/icons/yggdrasil-maskable.svg": "clients/web/public/icons/plurora-maskable.svg"
+    "clients/web/public/icons/yggdrasil-maskable.svg": "clients/web/public/icons/plurora-maskable.svg",
+    "sdk/typescript/kernel-sdk": "sdk/typescript/contract-sdk"
   },
   "identifier_replacements": {
     "Yggdrasil": "Plurora",

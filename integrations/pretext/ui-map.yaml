@@ -1,4 +1,4 @@
-# UI-Map: Pretext → Yggdrasil Web Shell Text Surface Proof
+# UI-Map: Pretext → Plurora Web Shell Text Surface Proof
 #
 # This file is a ledger, not a build artifact. It maps Pretext API concepts to
 # the lightweight adapter/fallback skeleton in clients/web/src/text-layout.

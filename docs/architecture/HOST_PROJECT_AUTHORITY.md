@@ -8,7 +8,7 @@
 
 - HTTP、Cookie、Bearer 与 RPC 在 Host Access 层统一保留逻辑 `host_device` 身份、grant、delegation chain、action 和结构化资源 selector；为保持冻结的 Contract V1 principal union，RPC context 使用 fail-closed 的 `anonymous` sentinel 加 Host 建立的 authority envelope，旧 runtime 忽略 envelope 时只会拒绝；
 - project/session/event/proposal/surface/target/exec/port/proxy 在服务端执行精确资源校验或过滤，legacy adapter 复用 canonical policy；
-- pairing journal 支持衰减委托、期限、祖先撤销级联、旧全局 grant 的显式 wildcard 水化，以及有界、原子的管理员批量撤销；Web/PWA 与 `yg host access` CLI 使用同一 API；
+- pairing journal 支持衰减委托、期限、祖先撤销级联、旧全局 grant 的显式 wildcard 水化，以及有界、原子的管理员批量撤销；Web/PWA 与 `plurora host access` CLI 使用同一 API；
 - 设备调用写入不含凭据与请求 payload 的 `host/control/v1/authority.decision` allow/deny journal；
 - 全局 package/capability/asset/projection 与 surface contribution 尚无项目归属，因此精确项目设备只能通过已验证项目/session 路径操作资源和解析其项目 bundle，不能枚举 Host 全局 catalog；opaque-origin frame 只获得绑定 grant 和 bundle root 的五分钟只读 asset lease，原始静态路径仍要求 Host 身份；
 - 部署 job 与 activation 持久化不含凭据的 authority lease，在每个新副作用前重新水化 grant 并拒绝过期/撤销，同时持久化 revision/direct-route ownership；跨 operation 的完整 effect-receipt 串联仍是 Candidate 边界。
@@ -16,7 +16,7 @@
 
 ## 目标
 
-Yggdrasil 的宪法基底拥有 principal、认证后的调用上下文、能力的衰减/转授/撤销和审计机制；Project 则是 Host Control Plane 资源。项目级隔离必须利用前者保护后者，不能把 `Project` 提升为内核内容本体，也不能继续把 caller 提交的 `session_id` 当作授权证明。
+Plurora 的宪法基底拥有 principal、认证后的调用上下文、能力的衰减/转授/撤销和审计机制；Project 则是 Host Control Plane 资源。项目级隔离必须利用前者保护后者，不能把 `Project` 提升为内核内容本体，也不能继续把 caller 提交的 `session_id` 当作授权证明。
 
 完成后应同时满足：
 

@@ -22,7 +22,7 @@ invokeCapability("ydltavern/engine/model.live_call", { ... })
 clients/web 主线程接收 RPC, 调用 client.invokeWithSession(method, params, sessionId)
   ↓ (HTTP POST /rpc 带 session_id)
   ↓
-ygg host serve 路由到 dispatch_capability_invoke
+plurora host serve 路由到 dispatch_capability_invoke
   ↓ (设置 ProtocolContext.session_id, 设置 ProtocolContext.principal=Package)
   ↓
 inproc dispatcher 找到 ydltavern-engine 包 (subprocess)
@@ -38,10 +38,10 @@ host dispatch_outbound_execute 处理:
   ✓ 检查包的 permissions.secret_refs 中是否声明了这个 ref
   ✓ Runtime::resolve_secret_ref_with_session 解析 ref → 真值
     ├─ 走 CompositeSecretResolver
-    ├─ secret_ref:store:* → StoreSecretResolver → 解密 ~/.yggdrasil/secrets.dat
+    ├─ secret_ref:store:* → StoreSecretResolver → 解密 ~/.plurora/secrets.dat
     ├─ secret_ref:project:* → ProjectStoreSecretResolver
     │   ├─ 通过 ACTIVE_PROJECT_SCOPE task-local 查 session.metadata.project_id
-    │   ├─ 解密 ~/.yggdrasil/projects/<id>/secrets.dat
+    │   ├─ 解密 ~/.plurora/projects/<id>/secrets.dat
     │   ├─ 缺失 + fallback_to_platform 默认 true → 退到 store
     │   └─ 缺失 + fallback 关闭 → fail-closed
     └─ secret_ref:env:* → EnvSecretResolver (allowlist)
@@ -126,14 +126,14 @@ TavernProvider 循环退出, 保留已累积内容, isGenerating: false
 
 ## 配置真实调用（用户视角）
 
-安装 YdlTavern 项目，启动 Yggdrasil host 与 Web shell：
+安装 YdlTavern 项目，启动 Plurora host 与 Web shell：
 
 ```bash
 # 1. 安装本地原生项目到测试 data dir/profile
-yg install ../YdlTavern --data-dir <data-dir> --profile <profile> -y
+plurora install ../YdlTavern --data-dir <data-dir> --profile <profile> -y
 
 # 2. 启动 host，加载安装后 profile
-ygg host serve --profile <data-dir>/profiles/<profile>.yaml --http 127.0.0.1:8787 &
+plurora host serve --profile <data-dir>/profiles/<profile>.yaml --http 127.0.0.1:8787 &
 
 # 3. 启动 clients/web
 npm run dev --prefix clients/web
@@ -188,7 +188,7 @@ surface_dev_paths:
   ydltavern: ../YdlTavern/packages/ydltavern-surface/dist
 ```
 
-`surface_dev_paths` 只用于开发期直接挂载本地构建产物。安装后的项目路径不需要该设置；host 会从 project dist 提供 `/surface-bundles/projects/<project_id>/...`。Web dev server 的端口是 `localhost:1420`。CLI 的 `yg project start/status/stop` 是项目状态命令；Home 的 Play/session flow 通过 Web public protocol 调用 `kernel.v1.project.start`、接收 `session_id`，再解析并挂载 surface，二者不要当作等价入口。
+`surface_dev_paths` 只用于开发期直接挂载本地构建产物。安装后的项目路径不需要该设置；host 会从 project dist 提供 `/surface-bundles/projects/<project_id>/...`。Web dev server 的端口是 `localhost:1420`。CLI 的 `plurora project start/status/stop` 是项目状态命令；Home 的 Play/session flow 通过 Web public protocol 调用 `kernel.v1.project.start`、接收 `session_id`，再解析并挂载 surface，二者不要当作等价入口。
 
 三道门必须同时通过：
 
@@ -269,7 +269,7 @@ host profile 的 `secret_resolver.store_enabled` 为 false，但用户尝试 `se
 
 ### `session has no metadata.project_id`
 
-项目通过 Home Play 的 public protocol start/session flow 启动时会自动设置。CLI `yg project start` 可用于状态/诊断，但不等同于 Web 的 Play → session → surface mount 流程；如果 surface 走的不是项目流程，需要手动开 session 并设 `metadata.project_id`，或不要使用 project ref。
+项目通过 Home Play 的 public protocol start/session flow 启动时会自动设置。CLI `plurora project start` 可用于状态/诊断，但不等同于 Web 的 Play → session → surface mount 流程；如果 surface 走的不是项目流程，需要手动开 session 并设 `metadata.project_id`，或不要使用 project ref。
 
 ### `host '...' not in outbound.allowed_hosts`
 
@@ -293,8 +293,8 @@ engine 包 manifest 的 `permissions.secret_refs` 没声明这个 ref。编辑 m
 - [`PROJECT_MODEL.md`](PROJECT_MODEL.md) — 项目 + session 配对。
 - `../YdlTavern/packages/ydltavern-surface/src/app/TavernProvider.tsx::sendMessage`
 - `../YdlTavern/packages/ydltavern-engine/src/capabilities/model-live-call.ts`
-- `crates/ygg-runtime/src/runtime/protocol_dispatch.rs::dispatch_outbound_execute`
-- `crates/ygg-runtime/src/runtime/outbound.rs::LiveHttpOutboundExecutor`
+- `crates/plurora-runtime/src/runtime/protocol_dispatch.rs::dispatch_outbound_execute`
+- `crates/plurora-runtime/src/runtime/outbound.rs::LiveHttpOutboundExecutor`
 - `clients/web` 的 surface-host iframe bridge 与 `mountSurface`。
 
 ## 推迟事项

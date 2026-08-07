@@ -387,7 +387,7 @@ export function DevelopmentWorkflowCard({
       const url = URL.createObjectURL(blob);
       const anchor = document.createElement("a");
       anchor.href = url;
-      anchor.download = `${change.change_set.id}.ygg-change.json`;
+      anchor.download = `${change.change_set.id}.plurora-change.json`;
       anchor.click();
       URL.revokeObjectURL(url);
     } catch (error) {

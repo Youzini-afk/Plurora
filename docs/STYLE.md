@@ -2,7 +2,7 @@
 
 > [English](./STYLE.en.md) · [中文](./STYLE.md)
 
-这份文档是 Yggdrasil 仓库写文档的最低规则。目标是让读者清楚地区分平台身份、长期架构、官方产品选择、当前实现和建设方向，避免开发记录或某个产品 Profile 反向覆盖整个平台。
+这份文档是 Plurora 仓库写文档的最低规则。目标是让读者清楚地区分平台身份、长期架构、官方产品选择、当前实现和建设方向，避免开发记录或某个产品 Profile 反向覆盖整个平台。
 
 ## 文档事实层级
 
@@ -51,7 +51,7 @@
 
 ## 区分平台、发行版和 Product Profile
 
-- 平台文档不得把 Project、Home、Play、Forge、Assist、Tavern、聊天、世界或部署写成 Yggdrasil 唯一中心；
+- 平台文档不得把 Project、Home、Play、Forge、Assist、Tavern、聊天、世界或部署写成 Plurora 唯一中心；
 - 官方发行版可以有强观点，但必须注明它是可替换的产品选择；
 - Product Profile 可以约束采用它的参与者，但不能声称是所有产品的强制本体；
 - 某个产品需求若推动底层变化，文档必须说明它最终属于 Protocol、Host 还是确实无法上移的 substrate mechanism；
@@ -125,7 +125,7 @@ python3 scripts/check-docs.py
 ## 文档红线
 
 - ❌ 把 raw stderr、API key、token、password 或 raw secret 放进文档；示例使用 `secret_ref`。
-- ❌ 把具体用户的绝对路径写进面向读者的指南；使用 `~/.yggdrasil/<area>/` 等约定路径。
+- ❌ 把具体用户的绝对路径写进面向读者的指南；使用 `~/.plurora/<area>/` 等约定路径。
 - ❌ 宣称未经代码、fixture 或兼容检查支持的覆盖率和互操作结论。
 - ❌ 把 YdlTavern 或其他产品的 chat、character、prompt 等语义写入平台基底。
 - ❌ 把官方 Package ID、UI slot 或默认 provider 当作权限、路由或长期本体。

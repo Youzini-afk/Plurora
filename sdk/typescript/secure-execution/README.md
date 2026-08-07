@@ -1,4 +1,4 @@
-# Yggdrasil TypeScript secure-execution helpers
+# Plurora TypeScript secure-execution helpers
 
 Thin helpers for capability packages that need secret references, network
 declarations, outbound audit/redaction, and streaming frame client support.

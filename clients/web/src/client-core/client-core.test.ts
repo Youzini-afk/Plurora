@@ -41,7 +41,7 @@ const credential = new BrowserCredentialProvider({
   localStorage: storage,
   location: {
     pathname: "/project/demo",
-    search: "?keep=1&ygg_token=&access_token=fallback-token",
+    search: "?keep=1&plurora_token=&access_token=fallback-token",
     hash: "#view",
   },
   history: {

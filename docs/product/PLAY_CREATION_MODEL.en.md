@@ -2,9 +2,9 @@
 
 > [English](./PLAY_CREATION_MODEL.en.md) · [中文](./PLAY_CREATION_MODEL.md)
 
-Play-creation is one opinionated product form that Yggdrasil can support: a person can experience a work and also inspect, modify, fork, compose, and continue creating it.
+Play-creation is one opinionated product form that Plurora can support: a person can experience a work and also inspect, modify, fork, compose, and continue creating it.
 
-This document defines the product language and surface collaboration of the current official play-creation profile. It is not the only product stance of the whole Yggdrasil platform, and it does not require other applications, services, tools, or distributions to adopt Project, Play, Forge, or Assist.
+This document defines the product language and surface collaboration of the current official play-creation profile. It is not the only product stance of the whole Plurora platform, and it does not require other applications, services, tools, or distributions to adopt Project, Play, Forge, or Assist.
 
 The general product model is in [`PLATFORM_PRODUCT_MODEL.md`](PLATFORM_PRODUCT_MODEL.en.md).
 
@@ -59,11 +59,11 @@ The play-creation profile favors:
 - AI output as candidate work rather than unlimited authority;
 - sharing that includes content, dependencies, compatibility, and migration information rather than only a screenshot or live link.
 
-These opinions constrain products that choose the profile, not other Yggdrasil products.
+These opinions constrain products that choose the profile, not other Plurora products.
 
 ## Coexistence with other product forms
 
-A document tool, ordinary Web service, IDE, automation system, multiplayer world, or headless agent runtime may ignore the play-creation profile completely. It can still share Yggdrasil identity, authority, objects, invocation, components, Hosts, and protocol evolution.
+A document tool, ordinary Web service, IDE, automation system, multiplayer world, or headless agent runtime may ignore the play-creation profile completely. It can still share Plurora identity, authority, objects, invocation, components, Hosts, and protocol evolution.
 
 Likewise, YdlTavern, world simulations, external game engines, and other experiences may adopt all, part, or none of this profile. Official implementations receive no implicit priority.
 

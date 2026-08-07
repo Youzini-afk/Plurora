@@ -2,7 +2,7 @@
 
 > [English](./DEPLOYMENT_RUNTIME.en.md) · [中文](./DEPLOYMENT_RUNTIME.md)
 
-Yggdrasil can now host self-hosted AI / agent projects. Deployment is not a Docker concept in the kernel. It is a small set of generic runtime primitives that ordinary packages and Host target drivers compose into Docker, native process, or enrolled remote-Agent targets.
+Plurora can now host self-hosted AI / agent projects. Deployment is not a Docker concept in the kernel. It is a small set of generic runtime primitives that ordinary packages and Host target drivers compose into Docker, native process, or enrolled remote-Agent targets.
 
 ## Boundary
 
@@ -21,7 +21,7 @@ Docker, git, installation, secret storage, workspaces, and adapters are not kern
 
 - `LocalExecExecutor` trait: defaults to `DenyAllLocalExecExecutor`; profiles may opt into `LiveLocalExecExecutor`.
 - `LiveLocalExecExecutor`: accepts argv arrays only, never shell strings. cwd, env, logs, timeout, and kill behavior are host-controlled.
-- `ygg-service` reverse proxy: `/p/<route_id>/...` remains available inside Host authentication. A route gets an additional unauthenticated `<slug>.apps.example.com/` virtual host only when it explicitly selects `public` and `YGG_APP_BASE_DOMAIN=apps.example.com` or `--app-base-domain apps.example.com` is configured, allowing a community app to own `/`. Both entry modes can only point at active loopback port leases. Redirects are disabled, dangerous response headers are stripped or rewritten, response bodies are bounded, and HTTP + WebSocket are supported.
+- `plurora-service` reverse proxy: `/p/<route_id>/...` remains available inside Host authentication. A route gets an additional unauthenticated `<slug>.apps.example.com/` virtual host only when it explicitly selects `public` and `PLURORA_APP_BASE_DOMAIN=apps.example.com` or `--app-base-domain apps.example.com` is configured, allowing a community app to own `/`. Both entry modes can only point at active loopback port leases. Redirects are disabled, dangerous response headers are stripped or rewritten, response bodies are bounded, and HTTP + WebSocket are supported.
 - `official/docker-runtime-lab`: an ordinary official capability package using `bollard` to manage Docker containers. It fails closed when Docker is unavailable; real Docker smoke requires opt-in.
 - Target drivers: built-in `local` and enrolled Agents use the same durable operation, artifact-transfer, declarative-verifier, deployment apply/stop, and receipt model. Agent upstreams remain loopback-only and return to the Host proxy through an authenticated tunnel bound to target/route/lease/epochs.
 - Web project console: shows target / exec / port / proxy diagnostics plus host-plane active revision, recovery state, revision history, and recent jobs. If a project declares deployment metadata, the user explicitly chooses Host-authenticated or public route exposure before Deploy / Stop or Build & Deploy, recover, or rollback. The Development area can also move a verified ChangeSet through private preview, separate deployment approval, activation, and interrupted-operation reconciliation. Host-authenticated is the default.
@@ -75,7 +75,7 @@ project:
           - name: OPENAI_API_KEY
             secret_ref: project:OPENAI_API_KEY
         runtime_mounts:
-          - source_host_path: /srv/ygg-data/my-app
+          - source_host_path: /srv/plurora-data/my-app
             container_path: /app/data
             mode: ro
             approved: true
@@ -87,7 +87,7 @@ The `dockerfile` strategy uses a Dockerfile from the repository. The `nixpacks` 
 
 Runtime secrets must be `store:` / `project:` / `env:` `secret_ref`s. Raw secret values are injected by a host-private Docker runner and never cross the `docker-runtime-lab` package boundary or enter events, logs, or job state. Build-time secrets are not supported yet and fail closed.
 
-Volumes may point to arbitrary host paths, but every mount needs explicit approval. Read-only is the default recommendation; read-write mounts require an extra confirmation. The host denies Docker sockets, system directories, secret directories, Yggdrasil secret storage, broad home directories, and ancestor paths that would implicitly include them.
+Volumes may point to arbitrary host paths, but every mount needs explicit approval. Read-only is the default recommendation; read-write mounts require an extra confirmation. The host denies Docker sockets, system directories, secret directories, Plurora secret storage, broad home directories, and ancestor paths that would implicitly include them.
 
 ## Explicit Deploy flow
 
@@ -105,12 +105,12 @@ Stop deployment (`POST /host/v1/deploy/stop`) finds and stops the container by D
 
 ## Virtual-host routes
 
-Path-prefix proxying (`/p/<route_id>/...`) is convenient for platform diagnostics, but real community apps often assume they own `/`. Frontends call `fetch('/api/...')`, load assets from `/assets/...`, and open WebSockets at `/ws`. ygg-service therefore supports an optional virtual-host entry:
+Path-prefix proxying (`/p/<route_id>/...`) is convenient for platform diagnostics, but real community apps often assume they own `/`. Frontends call `fetch('/api/...')`, load assets from `/assets/...`, and open WebSockets at `/ws`. plurora-service therefore supports an optional virtual-host entry:
 
 ```bash
-ygg host serve --app-base-domain apps.example.com
+plurora host serve --app-base-domain apps.example.com
 # or
-YGG_APP_BASE_DOMAIN=apps.example.com ygg host serve
+PLURORA_APP_BASE_DOMAIN=apps.example.com plurora host serve
 ```
 
 Configuring a base domain does not publish any route by itself. Only a route registered as `public` gets a DNS-safe slug derived from `route_id` and a public URL such as `https://<slug>.apps.example.com/`. A `host_authenticated` route, or any deployment without a base domain, keeps the Host-authenticated `/p/<route_id>/` URL.

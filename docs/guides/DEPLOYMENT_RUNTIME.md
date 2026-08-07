@@ -2,7 +2,7 @@
 
 > [English](./DEPLOYMENT_RUNTIME.en.md) · [中文](./DEPLOYMENT_RUNTIME.md)
 
-Yggdrasil 现在可以作为自托管 AI / agent 项目的部署宿主。这里的“部署”不是内核里的 Docker 概念，而是一组通用运行原语，再由普通能力包与 Host target driver 组合成 Docker、本地进程或已注册的远程 Agent 目标。
+Plurora 现在可以作为自托管 AI / agent 项目的部署宿主。这里的“部署”不是内核里的 Docker 概念，而是一组通用运行原语，再由普通能力包与 Host target driver 组合成 Docker、本地进程或已注册的远程 Agent 目标。
 
 ## 边界
 
@@ -21,7 +21,7 @@ Docker、git、安装、secret store、workspace、adapter 都不是内核概念
 
 - `LocalExecExecutor` trait：默认 `DenyAllLocalExecExecutor`，profile 显式开启后可用 `LiveLocalExecExecutor`。
 - `LiveLocalExecExecutor`：只接受 argv 数组，不接受 shell 字符串；cwd、env、日志、超时、kill 都由 host 控制。
-- `ygg-service` 反代：`/p/<route_id>/...` 继续保留并位于 Host 认证内；如果 route 显式选择 `public`，且设置 `YGG_APP_BASE_DOMAIN=apps.example.com` 或 `--app-base-domain apps.example.com`，才会额外启用 `<slug>.apps.example.com/` 免 Host 认证虚拟主机，让社区应用拥有根路径 `/`。两种入口都只指向 active loopback port lease；禁 redirect；剥离或重写危险 header；限制响应体；支持 HTTP 与 WebSocket。
+- `plurora-service` 反代：`/p/<route_id>/...` 继续保留并位于 Host 认证内；如果 route 显式选择 `public`，且设置 `PLURORA_APP_BASE_DOMAIN=apps.example.com` 或 `--app-base-domain apps.example.com`，才会额外启用 `<slug>.apps.example.com/` 免 Host 认证虚拟主机，让社区应用拥有根路径 `/`。两种入口都只指向 active loopback port lease；禁 redirect；剥离或重写危险 header；限制响应体；支持 HTTP 与 WebSocket。
 - `official/docker-runtime-lab`：普通官方能力包，使用 `bollard` 管理 Docker 容器。默认无 Docker 时 fail-closed；真实 Docker smoke 需要显式 opt-in。
 - Target driver：内置 `local` 与 enrolled Agent 使用相同的 durable operation、artifact transfer、declarative verifier、deployment apply/stop 和 receipt 模型；Agent 上游仍只绑定 loopback，并经 target/route/lease/epoch 约束的认证 tunnel 回到 Host proxy。
 - Web 项目控制台：显示 target / exec / port / proxy 诊断，以及 host-plane 的活动修订、恢复状态、修订历史和最近任务。若项目声明部署描述符，用户可显式选择 Host 认证或公开 route，再点击 Deploy / Stop、启动 Build & Deploy、恢复或回滚；Development 区还可把已验证 ChangeSet 送入 private preview、独立部署审批、activation 和中断对账。默认保持 Host 认证。
@@ -75,7 +75,7 @@ project:
           - name: OPENAI_API_KEY
             secret_ref: project:OPENAI_API_KEY
         runtime_mounts:
-          - source_host_path: /srv/ygg-data/my-app
+          - source_host_path: /srv/plurora-data/my-app
             container_path: /app/data
             mode: ro
             approved: true
@@ -87,7 +87,7 @@ project:
 
 运行时 secret 只接受 `store:` / `project:` / `env:` 形式的 `secret_ref`。原始 secret 由 host 私有 Docker runner 注入容器，不经过 `docker-runtime-lab` 包边界，也不写入事件、日志或 job 状态。构建时 secret 暂不支持，遇到 build secret 字段会 fail-closed。
 
-volume 可以指向任意宿主路径，但必须逐条批准。默认建议只读；读写挂载必须额外确认。host 会拒绝 Docker socket、系统目录、密钥目录、Yggdrasil secret store、过宽 home 目录以及这些路径的祖先目录。
+volume 可以指向任意宿主路径，但必须逐条批准。默认建议只读；读写挂载必须额外确认。host 会拒绝 Docker socket、系统目录、密钥目录、Plurora secret store、过宽 home 目录以及这些路径的祖先目录。
 
 ## 显式 Deploy 流程
 
@@ -105,12 +105,12 @@ Stop deployment（`POST /host/v1/deploy/stop`）按 Docker label（`route_id`）
 
 ## 虚拟主机路由
 
-路径前缀 `/p/<route_id>/...` 对平台调试很方便，但真实社区应用通常假设自己拥有 `/`。例如前端会写 `fetch('/api/...')`、静态资源从 `/assets/...` 读取、WebSocket 连 `/ws`。因此 ygg-service 支持可选虚拟主机入口：
+路径前缀 `/p/<route_id>/...` 对平台调试很方便，但真实社区应用通常假设自己拥有 `/`。例如前端会写 `fetch('/api/...')`、静态资源从 `/assets/...` 读取、WebSocket 连 `/ws`。因此 plurora-service 支持可选虚拟主机入口：
 
 ```bash
-ygg host serve --app-base-domain apps.example.com
+plurora host serve --app-base-domain apps.example.com
 # 或
-YGG_APP_BASE_DOMAIN=apps.example.com ygg host serve
+PLURORA_APP_BASE_DOMAIN=apps.example.com plurora host serve
 ```
 
 启用 base domain 本身不会公开任何 route。只有注册为 `public` 的 route 才会从 `route_id` 派生 DNS-safe slug，并把 public URL 展示为 `https://<slug>.apps.example.com/`。`host_authenticated` route 和没有配置 base domain 的环境都继续返回受 Host 认证的 `/p/<route_id>/`。

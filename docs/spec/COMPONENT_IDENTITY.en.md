@@ -2,7 +2,7 @@
 
 Status: Experimental, descriptor schema version 1.
 
-Yggdrasil separates how software is retrieved from what behavior it claims to implement. A package is an installation envelope. A component is an independently named implementation inside that envelope. Protocols, content roots, surfaces, and auxiliary artifacts retain their own descriptors and SHA-256 identities.
+Plurora separates how software is retrieved from what behavior it claims to implement. A package is an installation envelope. A component is an independently named implementation inside that envelope. Protocols, content roots, surfaces, and auxiliary artifacts retain their own descriptors and SHA-256 identities.
 
 ## Identity layers
 

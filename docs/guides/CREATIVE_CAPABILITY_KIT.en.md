@@ -2,7 +2,7 @@
 
 > [English](./CREATIVE_CAPABILITY_KIT.en.md) · [中文](./CREATIVE_CAPABILITY_KIT.md)
 
-Creative Capability Kit turns mature headless creative and RP workflows into general capability packages. These packages follow Yggdrasil's public protocol and manifest rules.
+Creative Capability Kit turns mature headless creative and RP workflows into general capability packages. These packages follow Plurora's public protocol and manifest rules.
 
 TavernHeadless informs the edge cases. The official packages are not `tavern-*` wrappers:
 
@@ -15,7 +15,7 @@ TavernHeadless informs the edge cases. The official packages are not `tavern-*` 
 
 - The kernel does not know persona, knowledge, prompt, worldbook, chat, character, or model-call concepts.
 - The packages are ordinary manifest/capability/surface packages.
-- Compatibility input formats are adapters and fixtures, not canonical Yggdrasil ontology.
+- Compatibility input formats are adapters and fixtures, not canonical Plurora ontology.
 - Mutation must be represented as explicit asset/projection/proposal plans, not hidden package state writes.
 - Outputs should include provenance and diagnostics.
 
@@ -25,7 +25,7 @@ TavernHeadless informs the edge cases. The official packages are not `tavern-*` 
 
 The decision vocabulary is:
 
-- `adapted`: generalized into a Yggdrasil package.
+- `adapted`: generalized into a Plurora package.
 - `adapter_only`: useful for import/export, not canonical.
 - `deferred`: valuable but not yet part of this kit.
 - `rejected`: intentionally not inherited.

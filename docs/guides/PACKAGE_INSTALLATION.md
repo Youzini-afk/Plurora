@@ -2,7 +2,7 @@
 
 > [English](./PACKAGE_INSTALLATION.en.md) · [中文](./PACKAGE_INSTALLATION.md)
 
-Yggdrasil 的安装系统让用户从 GitHub 或本地路径安装能力包和项目，并保持可重现、可审计、可撤销。
+Plurora 的安装系统让用户从 GitHub 或本地路径安装能力包和项目，并保持可重现、可审计、可撤销。
 本文档描述安装流程、原生/外部项目检测、清单字段、锁文件、文件系统约定和命令行用法。
 
 ## 目标
@@ -34,46 +34,46 @@ Yggdrasil 的安装系统让用户从 GitHub 或本地路径安装能力包和�
 
 ```bash
 # 简单情况
-yg install github.com/user/yggdrasil-package
+plurora install github.com/user/plurora-package
 
 # 原生项目（仓库根目录有 project.yaml）
-yg install github.com/Youzini-afk/Yggdrasil-Tavern
+plurora install github.com/Youzini-afk/Plurora-Tavern
 
 # 本地原生项目 dogfood
-yg install ../YdlTavern --data-dir <data-dir> --profile <profile> -y
+plurora install ../YdlTavern --data-dir <data-dir> --profile <profile> -y
 
 # 锁定版本（推荐）
-yg install github.com/user/yggdrasil-package#v1.2.0
+plurora install github.com/user/plurora-package#v1.2.0
 
 # 本地路径（开发）
-yg install ./packages/my-package
+plurora install ./packages/my-package
 
 # 要求签名标签（发布/受控环境）
-yg install <url> --require-signed
+plurora install <url> --require-signed
 
 # 非交互式（CI）
-yg install <url> --yes
+plurora install <url> --yes
 
 # 严格 conformance gating
-yg install <url> --strict
+plurora install <url> --strict
 
 # 外部项目策略
-yg install github.com/user/external-app --wrap-as-adapter
-yg install github.com/user/external-app --workspace-only
+plurora install github.com/user/external-app --wrap-as-adapter
+plurora install github.com/user/external-app --workspace-only
 ```
 
 ### 其他命令
 
 ```bash
-yg list-installed [--profile <name>]
-yg project list
-yg project info <id>
-yg project status <id>
-yg project start <id>
-yg project stop <id>
-yg uninstall <package-id-or-project-id> [--profile <name>]
-yg update [<package-id>|--project-id <id>] [--check-only]  # 通过 install-lab 检查/更新项目
-yg lockfile [--check]         # 验证 lockfile 与 store 一致
+plurora list-installed [--profile <name>]
+plurora project list
+plurora project info <id>
+plurora project status <id>
+plurora project start <id>
+plurora project stop <id>
+plurora uninstall <package-id-or-project-id> [--profile <name>]
+plurora update [<package-id>|--project-id <id>] [--check-only]  # 通过 install-lab 检查/更新项目
+plurora lockfile [--check]         # 验证 lockfile 与 store 一致
 ```
 
 ### Profile 与 data dir
@@ -83,8 +83,8 @@ yg lockfile [--check]         # 验证 lockfile 与 store 一致
 命令可通过 `--data-dir <path>` 覆盖数据目录，适合测试和 CI。
 
 ```bash
-yg install ./packages/dev --profile alpha --data-dir /tmp/ygg-alpha --yes
-yg list-installed --profile alpha --data-dir /tmp/ygg-alpha
+plurora install ./packages/dev --profile alpha --data-dir /tmp/plurora-alpha --yes
+plurora list-installed --profile alpha --data-dir /tmp/plurora-alpha
 ```
 
 安装相关 flag：
@@ -93,18 +93,18 @@ yg list-installed --profile alpha --data-dir /tmp/ygg-alpha
 - `--strict`：conformance 失败时阻断安装；默认只警告并继续。
 - `--yes`：非交互式批准同意提示。
 - `--profile <name>`：选择要更新的 profile。
-- `--data-dir <path>`：覆盖 `~/.yggdrasil` 数据目录，适合测试和 CI。
+- `--data-dir <path>`：覆盖 `~/.plurora` 数据目录，适合测试和 CI。
 - `--wrap-as-adapter`：外部项目安装时生成/使用 adapter package。
 - `--workspace-only`：外部项目只作为 agent workspace 注册，不包装。
 
 
 ## 原生 vs 外部项目检测
 
-`yg install <url>` 会先检查源根目录是否存在 `project.yaml`。
+`plurora install <url>` 会先检查源根目录是否存在 `project.yaml`。
 
 | 检测结果 | 行为 |
 |---|---|
-| 有有效 `project.yaml` 且 `project.type: yggdrasil_native` | 安装为原生 Yggdrasil 项目，复制 source 到 store，解析嵌套 package manifest，写入 profile autoload，注册到 `ProjectRegistry`，写入 `~/.yggdrasil/projects/<id>/`，复制项目 dist，并在 Home 显示项目卡片。 |
+| 有有效 `project.yaml` 且 `project.type: plurora_native` | 安装为原生 Plurora 项目，复制 source 到 store，解析嵌套 package manifest，写入 profile autoload，注册到 `ProjectRegistry`，写入 `~/.plurora/projects/<id>/`，复制项目 dist，并在 Home 显示项目卡片。 |
 | 有 `project.yaml` 但无效 | fail-closed，要求修正 descriptor。 |
 | 没有 `project.yaml` | 进入外部项目 wizard。 |
 
@@ -116,7 +116,7 @@ yg list-installed --profile alpha --data-dir /tmp/ygg-alpha
 
 ## 外部项目 wizard
 
-外部项目不是为 Yggdrasil 写的仓库。安装器会展示检测结果（语言、包管理器、入口、生命周期风险），然后让用户选择：
+外部项目不是为 Plurora 写的仓库。安装器会展示检测结果（语言、包管理器、入口、生命周期风险），然后让用户选择：
 
 1. **Wrap with adapter**：生成 adapter package，把外部项目作为受控能力或 surface 接入。适合长期使用。
 2. **Workspace only**：只注册为 agent workspace，不生成包装层。适合临时分析、修改、迁移。
@@ -130,7 +130,7 @@ yg list-installed --profile alpha --data-dir /tmp/ygg-alpha
 
 ### `--workspace-only`
 
-强制选择工作区路径。Yggdrasil 只记录项目来源、工作区路径、检测 metadata 和后续 agent 操作策略，不声明该外部项目已成为 Yggdrasil 能力包。
+强制选择工作区路径。Plurora 只记录项目来源、工作区路径、检测 metadata 和后续 agent 操作策略，不声明该外部项目已成为 Plurora 能力包。
 
 ## 清单 `requires` 字段
 
@@ -173,7 +173,7 @@ requires:
 锁文件位置：
 
 ```text
-~/.yggdrasil/profiles/<name>.lock.toml
+~/.plurora/profiles/<name>.lock.toml
 ```
 
 详见 [`../spec/v1/LOCKFILE_FORMAT.md`](../spec/v1/LOCKFILE_FORMAT.md)。
@@ -199,7 +199,7 @@ Lockfile 记录：
 ## 文件系统布局
 
 ```text
-~/.yggdrasil/
+~/.plurora/
 ├── store/              # 不可变内容寻址存储
 │   ├── sha256-abc.../
 │   └── sha256-def.../
@@ -214,16 +214,16 @@ Lockfile 记录：
 
 数据目录选择顺序：
 
-1. `YGG_DATA_DIR`；
-2. `XDG_DATA_HOME` 下的 Yggdrasil 目录；
-3. `~/.yggdrasil`。
+1. `PLURORA_DATA_DIR`；
+2. `XDG_DATA_HOME` 下的 Plurora 目录；
+3. `~/.plurora`。
 
 CLI 的 `--data-dir` 优先级最高，主要用于测试、CI 和一次性演示。
 
 ## 安装流程详解
 
 ```text
-yg install github.com/user/repo#v1.0
+plurora install github.com/user/repo#v1.0
             ↓
 1. URL 解析（parse_install_url）
             ↓
@@ -236,7 +236,7 @@ yg install github.com/user/repo#v1.0
    ├─ integrity-lab.compute_manifest_hash
    ├─ integrity-lab.compute_tree_hash
    ├─ integrity-lab.verify_gpg_signature（如有签名）
-   ├─ ygg-core::conformance::run_checks（静态）
+   ├─ plurora-core::conformance::run_checks（静态）
    └─ 递归 manifest.requires（循环检测）
             ↓
 4. 显示计划（人类可读 + 签名状态 + 完整性哈希）
@@ -280,7 +280,7 @@ URL 含 username/password 也拒绝，避免 credential 进入日志、审计或
 
 ### 内容寻址 store 与 schema
 
-`~/.yggdrasil/store/` 是内容寻址存储。
+`~/.plurora/store/` 是内容寻址存储。
 内容写入后不再修改。
 `tree_hash` 会覆盖项目/包树中的 `dist/`，因此只改浏览器 surface bundle 也会得到新 hash。store 带 schema marker；hash 规则变更时 host 会在冷启动布局初始化期间清掉旧 store 内容，保留 profile / lockfile，让后续更新重新构建 store。
 
@@ -322,7 +322,7 @@ Lockfile 的 `granted_capabilities`、`granted_network`、`granted_secrets` 字�
 ## 卸载
 
 ```bash
-yg uninstall fixture/pkg-local
+plurora uninstall fixture/pkg-local
 ```
 
 卸载会：
@@ -338,9 +338,9 @@ yg uninstall fixture/pkg-local
 ## 更新
 
 ```bash
-yg update
-yg update third-party/cool-tool
-yg update --project-id my-project__abc12345 --check-only
+plurora update
+plurora update third-party/cool-tool
+plurora update --project-id my-project__abc12345 --check-only
 ```
 
 CLI 更新通过 `official/install-lab/update_project`；`--check-only` 调 `official/install-lab/check_for_updates`。
@@ -352,7 +352,7 @@ CLI 更新通过 `official/install-lab/update_project`；`--check-only` 调 `off
 ## 漂移检测
 
 ```bash
-yg lockfile --check
+plurora lockfile --check
 ```
 
 该命令会：
@@ -369,16 +369,16 @@ yg lockfile --check
 
 参考：
 
-- `crates/ygg-core/src/manifest.rs`（`PackageDependency`、`DependencySource`）
-- `crates/ygg-core/src/lockfile.rs`（`Lockfile`、`LockEntry`）
-- `crates/ygg-core/src/paths.rs`（filesystem layout）
-- `crates/ygg-core/src/conformance.rs`（静态检查可重用）
-- `crates/ygg-runtime/src/inproc/install_lab.rs`（orchestrator）
-- `crates/ygg-runtime/src/inproc/git_tools_lab.rs`（gix-based git）
-- `crates/ygg-runtime/src/inproc/integrity_lab.rs`（sequoia GPG + sha256）
-- `crates/ygg-cli/src/commands/install.rs`（CLI 入口）
-- `crates/ygg-cli/src/install/consent.rs`（同意提示）
-- `crates/ygg-cli/src/install/url_parser.rs`（URL 解析）
+- `crates/plurora-core/src/manifest.rs`（`PackageDependency`、`DependencySource`）
+- `crates/plurora-core/src/lockfile.rs`（`Lockfile`、`LockEntry`）
+- `crates/plurora-core/src/paths.rs`（filesystem layout）
+- `crates/plurora-core/src/conformance.rs`（静态检查可重用）
+- `crates/plurora-runtime/src/inproc/install_lab.rs`（orchestrator）
+- `crates/plurora-runtime/src/inproc/git_tools_lab.rs`（gix-based git）
+- `crates/plurora-runtime/src/inproc/integrity_lab.rs`（sequoia GPG + sha256）
+- `crates/plurora-cli/src/commands/install.rs`（CLI 入口）
+- `crates/plurora-cli/src/install/consent.rs`（同意提示）
+- `crates/plurora-cli/src/install/url_parser.rs`（URL 解析）
 
 ## Conformance 覆盖
 
@@ -397,7 +397,7 @@ yg lockfile --check
 真实 GitHub smoke 需要显式设置：
 
 ```bash
-YGG_GIT_INSTALL_REAL_TESTS=1 cargo run -p ygg-cli -- conformance --case install.real_github_smoke
+PLURORA_GIT_INSTALL_REAL_TESTS=1 cargo run -p plurora-cli -- conformance --case install.real_github_smoke
 ```
 
 ## 限制
@@ -405,17 +405,17 @@ YGG_GIT_INSTALL_REAL_TESTS=1 cargo run -p ygg-cli -- conformance --case install.
 - Sigstore keyless 验签：推迟（无 git 标签约定）。
 - Tauri UI 安装：推迟（仅 CLI）。
 - 中央 marketplace：不做（违反平台哲学）。
-- 自动更新守护进程：推迟（`yg update` 手动）。
+- 自动更新守护进程：推迟（`plurora update` 手动）。
 - 二进制包分发：推迟（仅源/git）。
 - 跨 profile 包共享语义：推迟。
-- 独立 `yg gc` 命令：暂不需要；install/update/uninstall 已自动回收孤立 store。
+- 独立 `plurora gc` 命令：暂不需要；install/update/uninstall 已自动回收孤立 store。
 
 ## 推荐实践
 
 - 发布包时使用不可变 tag，不要让用户安装浮动分支。
 - 对 GitHub 包启用签名标签。
 - 在 `requires` 中固定上游 ref，并使用合理 version constraint。
-- 在 CI 中运行 `yg lockfile --check`。
-- 本地开发可直接使用 `yg install <url>`；发布或受控环境按需加 `--require-signed` 与 `--strict`。
-- 为 Yggdrasil 原生体验优先提供根目录 `project.yaml`，而不是只发布零散 package manifest。
+- 在 CI 中运行 `plurora lockfile --check`。
+- 本地开发可直接使用 `plurora install <url>`；发布或受控环境按需加 `--require-signed` 与 `--strict`。
+- 为 Plurora 原生体验优先提供根目录 `project.yaml`，而不是只发布零散 package manifest。
 - 对新增网络和 secret 权限写清楚 purpose，方便用户同意。

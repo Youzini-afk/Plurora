@@ -113,7 +113,7 @@ function ToastViewport({
     <ol
       role="status"
       aria-live="polite"
-      className="ygg-safe-toast pointer-events-none fixed z-50 flex flex-col gap-2"
+      className="plurora-safe-toast pointer-events-none fixed z-50 flex flex-col gap-2"
     >
       <AnimatePresence initial={false}>
         {toasts.map((toast) => {

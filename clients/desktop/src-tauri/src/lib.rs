@@ -13,7 +13,7 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![])
         .build(tauri::generate_context!())
-        .expect("error while building Yggdrasil desktop application");
+        .expect("error while building Plurora desktop application");
 
     app.run(|app_handle, event| {
         if matches!(event, tauri::RunEvent::Exit) {

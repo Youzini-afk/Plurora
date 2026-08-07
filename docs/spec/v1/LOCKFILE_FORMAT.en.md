@@ -1,10 +1,10 @@
-# Yggdrasil Lockfile v1 Format
+# Plurora Lockfile v1 Format
 
 > [English](./LOCKFILE_FORMAT.en.md) · [中文](./LOCKFILE_FORMAT.md)
 
 ## Purpose
 
-The Yggdrasil lockfile makes profile package installations reproducible. A profile manifest describes what is desired; the lockfile records what was actually resolved: versions, sources, commits, content hashes, signature state, install paths, and the permissions granted by the user at install time.
+The Plurora lockfile makes profile package installations reproducible. A profile manifest describes what is desired; the lockfile records what was actually resolved: versions, sources, commits, content hashes, signature state, install paths, and the permissions granted by the user at install time.
 
 When the same profile manifest is installed on another machine or at another time, the installer should prefer the pinned lockfile result. This avoids unexpected runtime state caused by branch movement, tag replacement, transitive dependency changes, or permission reinterpretation.
 
@@ -15,18 +15,18 @@ The lockfile is installer and host data, not a kernel protocol method. Kernel v1
 Default location:
 
 ```text
-~/.yggdrasil/profiles/<name>.lock.toml
+~/.plurora/profiles/<name>.lock.toml
 ```
 
 `<name>` is the profile name. Implementations may support an explicit `--lockfile <path>`, but writes for the default profile should use this path.
 
 ## Filesystem layout
 
-Yggdrasil's state lives under a single base directory, resolved as:
+Plurora's state lives under a single base directory, resolved as:
 
-1. `YGG_DATA_DIR` environment variable (explicit override)
-2. `$XDG_DATA_HOME/yggdrasil/` (XDG-compliant)
-3. `~/.yggdrasil/` (default)
+1. `PLURORA_DATA_DIR` environment variable (explicit override)
+2. `$XDG_DATA_HOME/plurora/` (XDG-compliant)
+3. `~/.plurora/` (default)
 
 Layout:
 
@@ -66,16 +66,16 @@ Permissions: data directory is created with 0700 on Unix.
 The top-level `schema` field must be:
 
 ```toml
-schema = "yggdrasil.lock.v1"
+schema = "plurora.lock.v1"
 ```
 
-Readers must reject unknown schemas unless an explicit migration flow is enabled. Within v1, only additive changes are allowed. Breaking changes must use a new namespace such as `yggdrasil.lock.v2`.
+Readers must reject unknown schemas unless an explicit migration flow is enabled. Within v1, only additive changes are allowed. Breaking changes must use a new namespace such as `plurora.lock.v2`.
 
 ## Top-level fields
 
 ### `schema`
 
-String. Fixed to `yggdrasil.lock.v1`. It lets the reader choose the correct parsing and validation rules.
+String. Fixed to `plurora.lock.v1`. It lets the reader choose the correct parsing and validation rules.
 
 ### `profile`
 
@@ -109,7 +109,7 @@ String. The resolved package version. This is a lockfile result, not a constrain
 
 Enum. Source kind:
 
-- `internal`: built into Yggdrasil or provided by the host; no fetch is needed.
+- `internal`: built into Plurora or provided by the host; no fetch is needed.
 - `git`: fetched from a Git remote.
 - `local`: loaded from a local path, mainly for development.
 
@@ -159,7 +159,7 @@ Optional string. Signing key fingerprint. Usually present when `signed = true`. 
 
 ### `installed_at_store`
 
-String. Path in the immutable store. Implementations may use the Nix store, a Yggdrasil CAS store, or a host-managed read-only directory.
+String. Path in the immutable store. Implementations may use the Nix store, a Plurora CAS store, or a host-managed read-only directory.
 
 ### `granted_capabilities`
 
@@ -199,7 +199,7 @@ This lets tools answer why a package was installed, which constraint caused the 
 
 ## Drift detection
 
-`yg lockfile --check` will:
+`plurora lockfile --check` will:
 
 1. read the lockfile;
 2. for each `LockEntry`:
@@ -228,7 +228,7 @@ Readers should ignore unknown optional fields, but must not ignore an unknown `s
 ## Example
 
 ```toml
-schema = "yggdrasil.lock.v1"
+schema = "plurora.lock.v1"
 profile = "default"
 generated_at = "2026-05-23T00:00:00Z"
 manifest_hash = "sha256:profile"

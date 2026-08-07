@@ -33,7 +33,7 @@ export function formatDetectedKind(kind: InstallDetectedKind | null, t: TFunctio
 export function detectKindFromInstallPlan(plan: InstallPlan): InstallDetectedKind | null {
   const descriptor = readProjectDescriptor(plan.project_descriptor);
   const projectType = descriptor?.project?.type;
-  if (projectType === "yggdrasil_native") {
+  if (projectType === "plurora_native") {
     return { kind: "native", descriptor };
   }
   if (projectType === "external_wrapped" || projectType === "external_workspace") {

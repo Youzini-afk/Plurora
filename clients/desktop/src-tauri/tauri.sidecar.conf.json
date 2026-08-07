@@ -1,6 +1,6 @@
 {
   "bundle": {
-    "externalBin": ["binaries/ygg-host"],
+    "externalBin": ["binaries/plurora-host"],
     "resources": {
       "../../web/dist/": "web/",
       "../../../packages/official/docker-runtime-lab/manifest.yaml": "official-packages/docker-runtime-lab/manifest.yaml",

@@ -1,6 +1,6 @@
 # TavernHeadless Reference Ledger
 
-This directory records how Yggdrasil studies TavernHeadless without adopting TavernHeadless as product ontology.
+This directory records how Plurora studies TavernHeadless without adopting TavernHeadless as product ontology.
 
 TavernHeadless is a reference source for mature headless creative/RP capabilities:
 
@@ -10,7 +10,7 @@ TavernHeadless is a reference source for mature headless creative/RP capabilitie
 - regex/text transform behavior;
 - public SDK/OpenAPI update discipline.
 
-Yggdrasil adapts those lessons into general official capability packages:
+Plurora adapts those lessons into general official capability packages:
 
 - `official/persona-lab`
 - `official/knowledge-lab`
@@ -28,10 +28,10 @@ When TavernHeadless changes:
 1. Compare the current upstream commit with `upstream.lock.toml`.
 2. Review changed subsystem paths against `capability-map.yaml`.
 3. Decide for each change: `adapted`, `adapter_only`, `deferred`, or `rejected`.
-4. Add or update compact fixtures only when they protect a Yggdrasil-native behavior.
-5. Run Yggdrasil conformance before changing package claims.
+4. Add or update compact fixtures only when they protect a Plurora-native behavior.
+5. Run Plurora conformance before changing package claims.
 
-The goal is not bit-for-bit parity. The goal is to avoid forgetting useful edge cases while keeping Yggdrasil’s abstractions broader than Tavern.
+The goal is not bit-for-bit parity. The goal is to avoid forgetting useful edge cases while keeping Plurora’s abstractions broader than Tavern.
 
 ## Model connectivity note
 

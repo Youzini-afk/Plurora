@@ -13,11 +13,11 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 
 cargo_manifests=(
-  crates/ygg-core/Cargo.toml
-  crates/ygg-runtime/Cargo.toml
-  crates/ygg-service/Cargo.toml
-  crates/ygg-cli/Cargo.toml
-  sdk/rust/yg-kernel-sdk/Cargo.toml
+  crates/plurora-core/Cargo.toml
+  crates/plurora-runtime/Cargo.toml
+  crates/plurora-service/Cargo.toml
+  crates/plurora-cli/Cargo.toml
+  sdk/rust/plurora-contract-sdk/Cargo.toml
   clients/desktop/src-tauri/Cargo.toml
   integrations/tdb/rust-adapter/Cargo.toml
   integrations/tdb/rust-adapter-real-crate/Cargo.toml
@@ -57,8 +57,8 @@ const files = [
   'sdk/typescript/experience-runtime/package.json',
   'sdk/typescript/experience-runtime/package-lock.json',
   'sdk/typescript/inference-capability/package.json',
-  'sdk/typescript/kernel-sdk/package.json',
-  'sdk/typescript/kernel-sdk/package-lock.json',
+  'sdk/typescript/contract-sdk/package.json',
+  'sdk/typescript/contract-sdk/package-lock.json',
   'sdk/typescript/subprocess/package.json',
   'sdk/typescript/subprocess/package-lock.json',
 ];

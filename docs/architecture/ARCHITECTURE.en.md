@@ -2,7 +2,7 @@
 
 > [English](./ARCHITECTURE.en.md) · [中文](./ARCHITECTURE.md)
 
-Yggdrasil is not a closed three-tier product stack of “kernel, packages, projects.” It is a set of open layers with explicit ownership and one-way dependencies: a very small constitutional substrate, evolvable protocols, replaceable components and content, a Host that manages real resources, replaceable distributions, and freely evolving products.
+Plurora is not a closed three-tier product stack of “kernel, packages, projects.” It is a set of open layers with explicit ownership and one-way dependencies: a very small constitutional substrate, evolvable protocols, replaceable components and content, a Host that manages real resources, replaceable distributions, and freely evolving products.
 
 Contract V1 and the current code still retain historical boundaries such as `session`, `package`, `project`, `surface`, and `proposal`. They are the operational public contract, not automatically the permanent architecture. Long-term ownership is described by [`CONSTITUTION_V2.md`](CONSTITUTION_V2.en.md) and [`../spec/CONTRACT_LAYERING_MATRIX.md`](../spec/CONTRACT_LAYERING_MATRIX.en.md).
 
@@ -51,7 +51,7 @@ The substrate owns only mechanisms that cannot safely be reimplemented by an ord
 
 The substrate does not own Project, Home, Play, Forge, Assistant, models, agents, memory, worlds, documents, deployment products, or a concrete secret store.
 
-The current `ygg-core` and `ygg-runtime` still mix some Host, protocol, and shell semantics. Migration separates them incrementally with compatibility and data safety rather than creating instability through a one-shot rewrite.
+The current `plurora-core` and `plurora-runtime` still mix some Host, protocol, and shell semantics. Migration separates them incrementally with compatibility and data safety rather than creating instability through a one-shot rewrite.
 
 ### Protocol Commons
 
@@ -119,7 +119,7 @@ A product chooses:
 - whether it is local, remote, collaborative, or offline;
 - which protocols, components, and Host capabilities it adopts.
 
-A product choice cannot become a requirement for every Yggdrasil product in reverse.
+A product choice cannot become a requirement for every Plurora product in reverse.
 
 ## One-way dependency and the downward-movement gate
 
@@ -169,13 +169,13 @@ Third-party Web surfaces are mounted in sandboxed iframes. A surface has no kern
 
 ### Desktop
 
-`clients/desktop` is a Tauri 2.x wrapper and manages a loopback-only Host sidecar. It prepares a persistent profile, starts `ygg host serve` on a random loopback port, completes health and one-time bootstrap, reveals the Web shell, and terminates the sidecar on exit.
+`clients/desktop` is a Tauri 2.x wrapper and manages a loopback-only Host sidecar. It prepares a persistent profile, starts `plurora host serve` on a random loopback port, completes health and one-time bootstrap, reveals the Web shell, and terminates the sidecar on exit.
 
 Desktop, Web/PWA, and remote Host connections reuse the same client core and public boundaries. Official Desktop owns no second protocol or private Studio.
 
 ### CLI and headless use
 
-`ygg-cli` exposes Host, installation, Project, package, composition, contract, conformance, and operational entry points. Running locally does not allow the CLI to gain product authority by inspecting the Host data directory outside the public boundary.
+`plurora-cli` exposes Host, installation, Project, package, composition, contract, conformance, and operational entry points. Running locally does not allow the CLI to gain product authority by inspecting the Host data directory outside the public boundary.
 
 ## Current Project model
 
@@ -186,10 +186,10 @@ World, Document, Service, Workspace, and other protocol objects may exist indepe
 ## Repository map
 
 ```text
-crates/ygg-core      current core types, schemas, identity, events, contracts
-crates/ygg-runtime   runtime, component execution, dispatch, some Host work
-crates/ygg-service   HTTP / RPC / SSE and Host service boundary
-crates/ygg-cli       CLI, Host, scaffolding, contract, conformance tooling
+crates/plurora-core      current core types, schemas, identity, events, contracts
+crates/plurora-runtime   runtime, component execution, dispatch, some Host work
+crates/plurora-service   HTTP / RPC / SSE and Host service boundary
+crates/plurora-cli       CLI, Host, scaffolding, contract, conformance tooling
 clients/web          official React Web shell / PWA
 clients/desktop      Tauri wrapper + managed Host sidecar
 packages/official    first-party components and experiments via manifests

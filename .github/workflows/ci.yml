@@ -44,10 +44,10 @@ jobs:
         run: |
           base_sha="${{ github.event.pull_request.base.sha || github.event.before }}"
           if [ -n "$base_sha" ] && git cat-file -e "$base_sha:docs/spec/v1/schemas" 2>/dev/null; then
-            rm -rf /tmp/ygg-base-schemas
-            mkdir -p /tmp/ygg-base-schemas
-            git archive "$base_sha" docs/spec/v1/schemas | tar -x -C /tmp/ygg-base-schemas
-            BASE_SCHEMA_DIR=/tmp/ygg-base-schemas/docs/spec/v1/schemas bash scripts/validate-schemas.sh
+            rm -rf /tmp/plurora-base-schemas
+            mkdir -p /tmp/plurora-base-schemas
+            git archive "$base_sha" docs/spec/v1/schemas | tar -x -C /tmp/plurora-base-schemas
+            BASE_SCHEMA_DIR=/tmp/plurora-base-schemas/docs/spec/v1/schemas bash scripts/validate-schemas.sh
           else
             bash scripts/validate-schemas.sh
           fi
@@ -98,30 +98,30 @@ jobs:
         run: cargo check --workspace
 
       - name: cargo test generated Rust SDK
-        run: cargo test -p yg-kernel-sdk
+        run: cargo test -p plurora-contract-sdk
 
-      - name: cargo test ygg-runtime
-        run: cargo test -p ygg-runtime --lib
+      - name: cargo test plurora-runtime
+        run: cargo test -p plurora-runtime --lib
 
       - name: Verified artifact target preview smoke
         run: |
           docker pull nginx:1.27-alpine
-          YGG_TARGET_DEPLOYMENT_SMOKE=1 cargo test -p ygg-runtime verified_build_context_deploys_on_local_and_agent_targets_smoke -- --ignored --nocapture
+          PLURORA_TARGET_DEPLOYMENT_SMOKE=1 cargo test -p plurora-runtime verified_build_context_deploys_on_local_and_agent_targets_smoke -- --ignored --nocapture
 
-      - name: cargo test ygg-service
-        run: cargo test -p ygg-service --lib
+      - name: cargo test plurora-service
+        run: cargo test -p plurora-service --lib
 
-      - name: cargo test ygg-cli
-        run: cargo test -p ygg-cli
+      - name: cargo test plurora-cli
+        run: cargo test -p plurora-cli
 
-      - name: cargo test ygg-core
-        run: cargo test -p ygg-core
+      - name: cargo test plurora-core
+        run: cargo test -p plurora-core
 
       - name: cargo test desktop Host supervisor
-        run: cargo test -p ygg-desktop --lib
+        run: cargo test -p plurora-desktop --lib
 
-      - name: ygg conformance
-        run: cargo run -p ygg-cli --release -- conformance
+      - name: plurora conformance
+        run: cargo run -p plurora-cli --release -- conformance
 
   host-operations-acceptance:
     name: External project Host operations acceptance
@@ -135,7 +135,7 @@ jobs:
       - uses: swatinem/rust-cache@v2
 
       - name: Build the public CLI and Host
-        run: cargo build --locked -p ygg-cli
+        run: cargo build --locked -p plurora-cli
 
       - name: Cache acceptance runtime bases
         run: |
@@ -144,8 +144,8 @@ jobs:
 
       - name: Exercise external development, deployment, recovery, and rollback
         env:
-          YGG_HOST_OPERATIONS_ACCEPTANCE: "1"
-          YGG_HOST_OPERATIONS_OUTPUT_DIR: target/host-operations-acceptance
+          PLURORA_HOST_OPERATIONS_ACCEPTANCE: "1"
+          PLURORA_HOST_OPERATIONS_OUTPUT_DIR: target/host-operations-acceptance
         run: python3 scripts/host-operations-acceptance.py
 
       - name: Upload Host acceptance diagnostics
@@ -167,7 +167,7 @@ jobs:
       - uses: swatinem/rust-cache@v2
 
       - name: Exercise private ACL backup and restore
-        run: cargo test -p ygg-cli backup_and_restore_preserve_data_and_verify_sqlite
+        run: cargo test -p plurora-cli backup_and_restore_preserve_data_and_verify_sqlite
 
   web:
     name: Web typecheck + test + build
@@ -181,13 +181,13 @@ jobs:
           cache: npm
           cache-dependency-path: |
             clients/web/package-lock.json
-            sdk/typescript/kernel-sdk/package-lock.json
+            sdk/typescript/contract-sdk/package-lock.json
 
       - name: Install TypeScript SDK deps
-        run: npm ci --prefix sdk/typescript/kernel-sdk
+        run: npm ci --prefix sdk/typescript/contract-sdk
 
       - name: Test generated TypeScript SDK
-        run: npm test --prefix sdk/typescript/kernel-sdk
+        run: npm test --prefix sdk/typescript/contract-sdk
 
       - name: Install web deps
         run: npm ci --prefix clients/web

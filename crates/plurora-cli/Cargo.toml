@@ -1,0 +1,58 @@
+[package]
+name = "plurora-cli"
+version = "0.1.0"
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+default-run = "plurora"
+
+[[bin]]
+name = "plurora"
+path = "src/main.rs"
+
+[[bin]]
+name = "export-schemas"
+path = "src/bin/export-schemas.rs"
+
+[[bin]]
+name = "validate-schemas"
+path = "src/bin/validate-schemas.rs"
+
+[dependencies]
+anyhow.workspace = true
+async-trait.workspace = true
+axum.workspace = true
+base64 = "0.22"
+chrono.workspace = true
+clap.workspace = true
+console = "0.15"
+dialoguer = "0.11"
+dirs = "5"
+fs2 = "0.4"
+futures.workspace = true
+heck = "0.5"
+jsonschema.workspace = true
+prettyplease = "0.2"
+reqwest.workspace = true
+schemars.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+serde_yaml.workspace = true
+sha2 = "0.10"
+sequoia-openpgp = { version = "1.21", default-features = false, features = ["compression", "crypto-rust", "allow-experimental-crypto", "allow-variable-time-crypto"] }
+syn = "2"
+tempfile = "3"
+tokio.workspace = true
+tokio-tungstenite = "0.24"
+tracing-subscriber.workspace = true
+typify = "0.6"
+toml.workspace = true
+url.workspace = true
+uuid.workspace = true
+plurora-core.workspace = true
+plurora-runtime.workspace = true
+plurora-service.workspace = true
+
+[features]
+default = []
+postgres = ["plurora-runtime/postgres"]

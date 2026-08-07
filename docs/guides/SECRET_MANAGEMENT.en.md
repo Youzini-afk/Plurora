@@ -2,7 +2,7 @@
 
 > [English](./SECRET_MANAGEMENT.en.md) · [中文](./SECRET_MANAGEMENT.md)
 
-Yggdrasil references secrets through `secret_ref`. The host resolves those references into real values only while executing a capability call. Packages never receive raw secrets. This guide explains the four resolver paths, the security model, and how to move from environment variables to the local encrypted store or project-level store.
+Plurora references secrets through `secret_ref`. The host resolves those references into real values only while executing a capability call. Packages never receive raw secrets. This guide explains the four resolver paths, the security model, and how to move from environment variables to the local encrypted store or project-level store.
 
 ## Design principles
 
@@ -67,7 +67,7 @@ The host must allowlist `OPENAI_API_KEY`. If it is not allowed, resolution fails
 
 ### `secret_ref:store:NAME` — local encrypted store
 
-Reads `~/.yggdrasil/secrets.dat` encrypted with age. The master key lives in `~/.yggdrasil/secret-store.key` (0600) or in the system keyring.
+Reads `~/.plurora/secrets.dat` encrypted with age. The master key lives in `~/.plurora/secret-store.key` (0600) or in the system keyring.
 
 - Use for: desktop use, long-lived local use, product-grade UX.
 - Advantages: users paste once in the UI; the value is encrypted on disk and available on the next start.
@@ -85,7 +85,7 @@ The host uses `StoreSecretResolver` during capability execution to read and decr
 
 ### `secret_ref:project:NAME` — project-level encrypted store
 
-Reads `~/.yggdrasil/projects/<project_id>/secrets.dat` for the current project. The project store uses the same age encryption model and master key as the platform store, but the data file is per project.
+Reads `~/.plurora/projects/<project_id>/secrets.dat` for the current project. The project store uses the same age encryption model and master key as the platform store, but the data file is per project.
 
 Resolution path:
 
@@ -126,7 +126,7 @@ Reserved for future HashiCorp Vault / AWS Secrets Manager / Doppler integrations
 | Local development | env |
 | CI / automation | env |
 | Desktop product | store |
-| Yggdrasil project default | project (with policy-based store fallback) |
+| Plurora project default | project (with policy-based store fallback) |
 | One project must use its own key | project + `require_per_project` |
 | Docker single-service deployment | env |
 | Shared multi-user deployment | env (export per user) |
@@ -158,10 +158,10 @@ If the store is unavailable, the env path still works as a fallback. For install
 
 ```bash
 # Exercise the capability through conformance to verify availability.
-ygg conformance --case secret_store
+plurora conformance --case secret_store
 ```
 
-Future releases will add `yg secret put / list / delete` commands for direct store management.
+Future releases will add `plurora secret put / list / delete` commands for direct store management.
 
 ### Through the protocol
 
@@ -193,9 +193,9 @@ The public protocol has no `get_secret`. Capability packages cannot request raw 
 
 - Algorithm: age (rage), authenticated encryption, X25519 identity.
 - File format: age-encrypted JSON `{ schema, secrets: { name: value } }`.
-- Schema: `yggdrasil.secret-store.v1`.
-- Store file: `~/.yggdrasil/secrets.dat`.
-- Master key file: `~/.yggdrasil/secret-store.key`.
+- Schema: `plurora.secret-store.v1`.
+- Store file: `~/.plurora/secrets.dat`.
+- Master key file: `~/.plurora/secret-store.key`.
 - File permissions: Unix 0600.
 - Writes: atomic (tmp + rename).
 - Name limit: ASCII letters/digits plus underscore and hyphen, 1..=128 characters.
@@ -208,7 +208,7 @@ These limits keep the store auditable and avoid treating arbitrary large payload
 The host tries, in order:
 
 1. OS keyring through the `keyring` crate. The current build does not enable it because of dbus system dependencies, so it falls through to step 2.
-2. `~/.yggdrasil/secret-store.key` with 0600 permissions.
+2. `~/.plurora/secret-store.key` with 0600 permissions.
 3. Generate a new key on first use and persist it to the file.
 
 OS keyring integration is deferred until CI and cross-platform builds have stable system dependencies.
@@ -274,14 +274,14 @@ The provider adapter constructs the request shape; the host outbound executor re
 
 The scope for `secret_ref:project:*` comes from the project session, not from a `projectId` string the surface claims:
 
-1. Home Play or `yg project start` calls `kernel.v1.project.start`.
+1. Home Play or `plurora project start` calls `kernel.v1.project.start`.
 2. The host creates or reuses a project session and writes `session.metadata.project_id`.
 3. `clients/web` injects `session_id` into the surface as `initialProps.sessionId`.
 4. Later surface RPCs automatically carry `session_id`.
 5. Host dispatch sets `ProtocolContext.session_id`.
 6. Before outbound dispatch resolves secrets, it reads `metadata.project_id` from that session.
 7. The runtime sets the `ACTIVE_PROJECT_SCOPE` task-local with a `ProjectScopeContext`.
-8. `ProjectStoreSecretResolver` first reads `~/.yggdrasil/projects/<id>/secrets.dat`.
+8. `ProjectStoreSecretResolver` first reads `~/.plurora/projects/<id>/secrets.dat`.
 9. If the entry is missing, the project's `secret_policy` decides whether platform fallback is allowed.
 10. When fallback is allowed, resolution reads `secret_ref:store:NAME`; when fallback is disabled or `require_per_project` matches, it fails closed.
 
@@ -289,17 +289,17 @@ The resolution order is therefore: project store → fallback policy → platfor
 
 ## Implementation locations
 
-- `crates/ygg-core/src/secret_ref.rs` — `secret_ref` parsing and validation.
-- `crates/ygg-core/src/paths.rs` — filesystem paths (`secret_store_path` / `secret_store_key_path`).
-- `crates/ygg-runtime/src/secret.rs` — `HostSecretResolver` / `EnvSecretResolver` / `StoreSecretResolver` / `ProjectSecretResolver` / `CompositeSecretResolver`.
-- `crates/ygg-runtime/src/secret_store.rs` — shared encrypted file load/save.
-- `crates/ygg-runtime/src/inproc/secret_store_lab.rs` — capability implementation.
+- `crates/plurora-core/src/secret_ref.rs` — `secret_ref` parsing and validation.
+- `crates/plurora-core/src/paths.rs` — filesystem paths (`secret_store_path` / `secret_store_key_path`).
+- `crates/plurora-runtime/src/secret.rs` — `HostSecretResolver` / `EnvSecretResolver` / `StoreSecretResolver` / `ProjectSecretResolver` / `CompositeSecretResolver`.
+- `crates/plurora-runtime/src/secret_store.rs` — shared encrypted file load/save.
+- `crates/plurora-runtime/src/inproc/secret_store_lab.rs` — capability implementation.
 - `packages/official/secret-store-lab/manifest.yaml` — package manifest.
 
 ## Current limits
 
 - OS keyring integration is deferred; the default path uses the local key file.
-- `yg secret put / list / delete` CLI is deferred.
+- `plurora secret put / list / delete` CLI is deferred.
 - Remote vault resolvers are not implemented.
 - The store is a local user-level store, not a team-shared vault.
 - The project store is soft isolation, not a multi-tenant security boundary.

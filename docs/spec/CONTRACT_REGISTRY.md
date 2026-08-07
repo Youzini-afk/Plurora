@@ -62,7 +62,7 @@ RPC envelope 可带可选字段：
   "method": "host.info",
   "params": {},
   "contract": {
-    "profile": "ygg.contract.default/v1",
+    "profile": "plurora.contract.default/v1",
     "versions": [
       { "layer": "host", "version": "0.1.0" }
     ]
@@ -71,7 +71,7 @@ RPC envelope 可带可选字段：
 ```
 
 - 省略 `contract` 时，为旧客户端使用 `kernel.v1` legacy profile。
-- 当前公开 `ygg.contract.default/v1`、`ygg.shell.default/v1` 与 `kernel.v1`；Shell Default
+- 当前公开 `plurora.contract.default/v1`、`plurora.shell.default/v1` 与 `kernel.v1`；Shell Default
   精确要求 host、protocol、shell 三层的已发布版本。
 - 一旦客户端显式给出 profile 或 layer version，host 必须精确满足。
 - 未知 profile、profile 不包含所需 layer、或 version 不匹配时返回
@@ -91,7 +91,7 @@ additive optional 字段：
 
 ## SDK
 
-生成器读取每个 method schema 的 `x-yggdrasil-contract` metadata：
+生成器读取每个 method schema 的 `x-plurora-contract` metadata：
 
 - 原有方法名调用 canonical wire ID；
 - 每个 legacy wire ID 生成显式 `legacyKernelV1...` / `legacy_kernel_v1_...`
@@ -109,8 +109,8 @@ Registry `0.4.0` 开始第一个可验证的弃用窗口，`0.5.0` 完成第一�
 
 | Legacy alias | 当前成熟度 | Replacement | Replacement maturity | Deprecated in | Legacy Adapter from |
 |---|---|---|---|---|---|
-| `kernel.v1.host.info` | Legacy Adapter | `host.info` | Candidate | `ygg.contract.registry@0.4.0` | `ygg.contract.registry@0.5.0` |
-| `kernel.v1.target.list` | Legacy Adapter | `host.target.list` | Candidate | `ygg.contract.registry@0.4.0` | `ygg.contract.registry@0.5.0` |
+| `kernel.v1.host.info` | Legacy Adapter | `host.info` | Candidate | `plurora.contract.registry@0.4.0` | `plurora.contract.registry@0.5.0` |
+| `kernel.v1.target.list` | Legacy Adapter | `host.target.list` | Candidate | `plurora.contract.registry@0.4.0` | `plurora.contract.registry@0.5.0` |
 
 历史 `deprecated_in`、`replacement` 与 `support_until` metadata 保留。旧 ID 与 canonical ID
 仍进入同一个 handler、共享同一 request/response schema，并通过 identity adapter 保持 method
@@ -118,9 +118,9 @@ result 完全一致。进入 Legacy Adapter 后，旧 ID 只接受安全修复�
 语义。
 
 HTTP RPC、host stdio 和 subprocess reverse stdio 在调用受跟踪的 Legacy Adapter alias 时，
-会附加 code 为 `ygg.contract.alias.legacy_adapter` 的可选顶层 `diagnostics` 数组。兼容路由
+会附加 code 为 `plurora.contract.alias.legacy_adapter` 的可选顶层 `diagnostics` 数组。兼容路由
 `GET /kernel/v1/host.info` 通过
-`x-yggdrasil-contract-*` response header 和指向 `/rpc` 的 `Link` 发布同一策略。
+`x-plurora-contract-*` response header 和指向 `/rpc` 的 `Link` 发布同一策略。
 Replacement header 的值是 canonical method ID，而不是 URL；应通过 `POST /rpc` 调用。
 诊断只用于迁移提示，不改变 method payload 或 error mapping；即使 contract selection
 结构错误，只要仍能提取请求的 legacy method ID，也会保留对应诊断。
@@ -128,7 +128,7 @@ Replacement header 的值是 canonical method ID，而不是 URL；应通过 `PO
 只读预览：
 
 ```sh
-ygg contract migrate PATH --json
+plurora contract migrate PATH --json
 ```
 
 默认只迁移带已发布生命周期/deprecation metadata 的 alias；增加 `--all-aliases` 才会主动迁移全部

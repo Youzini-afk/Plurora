@@ -2,7 +2,7 @@
 
 > [English](./TRIVIUMDB_REVIEW.en.md) · [中文](./TRIVIUMDB_REVIEW.md)
 
-本 ledger 记录 TriviumDB 源码调研对 Yggdrasil 的接入含义，并修正上一轮过度保守的判断：TriviumDB README 明确推荐 Rust 侧 `cargo add triviumdb`，所以 Yggdrasil 应当提供真实 Rust API adapter proof，而不只是 plan-only 入口。
+本 ledger 记录 TriviumDB 源码调研对 Plurora 的接入含义，并修正上一轮过度保守的判断：TriviumDB README 明确推荐 Rust 侧 `cargo add triviumdb`，所以 Plurora 应当提供真实 Rust API adapter proof，而不只是 plan-only 入口。
 
 ## 源码观察
 
@@ -16,7 +16,7 @@
 
 ## 接入判断
 
-TDB 适合成为 Yggdrasil 的 **retrieval/multimodal provider adapter**，而不是：
+TDB 适合成为 Plurora 的 **retrieval/multimodal provider adapter**，而不是：
 
 - kernel event store；
 - canonical asset store；
@@ -24,7 +24,7 @@ TDB 适合成为 Yggdrasil 的 **retrieval/multimodal provider adapter**，而�
 - package raw database；
 - 全局 memory/chat/agent/world store。
 
-理由：TDB 的优势是单机嵌入式多模态/向量/图/文档混合检索；Yggdrasil 的事件、proposal、permission、branch lineage 仍需要 event spine 作为 authority。
+理由：TDB 的优势是单机嵌入式多模态/向量/图/文档混合检索；Plurora 的事件、proposal、permission、branch lineage 仍需要 event spine 作为 authority。
 
 ## 当前真实 Rust adapter proof
 
@@ -67,7 +67,7 @@ search_hybrid(...)
 
 因此采用双轨：
 
-1. 默认 adapter shell：可在普通 Yggdrasil checkout 中编译、加载、conformance；不打开 backend；
+1. 默认 adapter shell：可在普通 Plurora checkout 中编译、加载、conformance；不打开 backend；
 2. real-crate adapter：通过已发布 crate 显式 opt-in 跑真实 Rust API proof；未发布源码测试应使用开发者自己的未提交 Cargo patch。
 
 后续如果 TDB 以 crates.io、固定 git rev、submodule 或 vendor 方式稳定可解析，可以把 real adapter 从 published-crate proof 推进到更正式的 feature-gated package 构建。

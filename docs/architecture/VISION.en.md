@@ -2,7 +2,7 @@
 
 > [English](./VISION.en.md) · [中文](./VISION.md)
 
-Yggdrasil should become open digital ground that people can depend on for a long time: immediately useful to ordinary users, fast for creators to build with, deep enough for professional extension, reliable for operators, and spacious enough for forms the platform authors never anticipated.
+Plurora should become open digital ground that people can depend on for a long time: immediately useful to ordinary users, fast for creators to build with, deep enough for professional extension, reliable for operators, and spacious enough for forms the platform authors never anticipated.
 
 AI-native capability is important, but the platform does not define itself as chat, agents, worlds, games, or any other single product form.
 
@@ -34,7 +34,7 @@ This is not a single mandatory top-to-bottom product stack. Distributions and pr
 
 A user should be able to:
 
-- use Yggdrasil locally without mandatory cloud registration;
+- use Plurora locally without mandatory cloud registration;
 - take away data, history, configuration, compositions, and content;
 - replace models, components, clients, storage, and Hosts without rebuilding all work;
 - inspect which code, service, or principal has which authority;
@@ -61,11 +61,11 @@ content and data model
 
 A product may select only a small subset. A local tool need not carry deployment. A headless service need not have Home. A world product need not use Project Console. An ordinary Web application need not adopt agents or models.
 
-This requires Yggdrasil to distinguish mechanisms, protocols, distributions, and products rather than forcing everything into a kernel-or-package binary.
+This requires Plurora to distinguish mechanisms, protocols, distributions, and products rather than forcing everything into a kernel-or-package binary.
 
 ## Technical direction
 
-Yggdrasil's technical ambition focuses on foundations that improve long-term capability:
+Plurora's technical ambition focuses on foundations that improve long-term capability:
 
 - **Capability-oriented security:** least authority, attenuation, delegation, leases, revocation, and understandable authority chains;
 - **Content-addressed data:** verifiable identity for important objects without dependence on local paths;
@@ -80,7 +80,7 @@ These directions do not all enter the stable layer at once. Maturity and real va
 
 ## Long-term evolution
 
-Yggdrasil does not interpret compatibility as preserving every failed decision forever. It evolves through:
+Plurora does not interpret compatibility as preserving every failed decision forever. It evolves through:
 
 - a very small stable substrate;
 - versioned and competitive protocol commons;
@@ -94,7 +94,7 @@ Contract V1 is the current operational public contract; it does not automaticall
 
 ## A usable default distribution
 
-The official Yggdrasil distribution is not merely a demonstration shell. It should be a product people choose to use for the long term. It needs to:
+The official Plurora distribution is not merely a demonstration shell. It should be a product people choose to use for the long term. It needs to:
 
 - work locally after installation;
 - make discovery, installation, running, stopping, updating, and removal clear;
@@ -120,7 +120,7 @@ Therefore:
 
 ## Desired result
 
-As Yggdrasil matures, it should support all of these at once:
+As Plurora matures, it should support all of these at once:
 
 - an official distribution that non-technical users can install and use reliably;
 - third-party components, protocols, shells, and complete products;

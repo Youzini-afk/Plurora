@@ -9,7 +9,7 @@ class Handler(BaseHTTPRequestHandler):
             content_type = "text/plain; charset=utf-8"
         else:
             body = json.dumps(
-                {"service": "yggdrasil-python-fixture", "path": self.path},
+                {"service": "plurora-python-fixture", "path": self.path},
                 separators=(",", ":"),
             ).encode()
             content_type = "application/json"

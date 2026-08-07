@@ -1,0 +1,131 @@
+pub mod capability;
+pub mod contract;
+pub mod event_store;
+pub mod inproc;
+pub mod object_store;
+pub mod package;
+pub mod pi;
+pub mod project_registry;
+pub mod project_secret;
+pub mod protocol;
+pub mod protocol_commons;
+pub mod redaction;
+pub mod runtime;
+pub mod schema;
+pub mod secret;
+pub mod secret_store;
+pub mod storage;
+pub mod subprocess;
+pub mod target_deployment;
+pub mod tavern;
+
+pub use capability::{
+    CapabilityFabric, CapabilityInvocationRequest, CapabilityInvocationResult,
+    ExtensionDispatchResult, ExtensionRegistry, RegisteredCapability, RegisteredHook,
+};
+pub use contract::{
+    contract_aliases, contract_diagnostics, contract_layers, contract_method, contract_methods,
+    contract_profiles, contract_versions, negotiate_contract, resolve_contract_method,
+    ContractAdapter, ContractAlias, ContractDiagnostic, ContractLayerInfo, ContractMaturity,
+    ContractMethod, ContractNegotiation, ContractOwnerLayer, ContractProfileInfo,
+    ContractSelection, ContractVersionInfo, ContractVersionRequirement, ResolvedContractMethod,
+    UnknownContractMethod, CONTRACT_LAYER_VERSION, CONTRACT_REGISTRY_VERSION,
+    DEFAULT_CONTRACT_PROFILE, LEGACY_CONTRACT_PROFILE, SHELL_DEFAULT_PROFILE,
+};
+#[cfg(feature = "postgres")]
+pub use event_store::PostgresEventStore;
+pub use event_store::{EventStore, InMemoryEventStore, SqliteEventStore};
+pub use inproc::{
+    compute_external_workspace_tree_hash, prepare_docker_build_context,
+    DockerDeploymentReconcileSource, InprocInvocation, InprocPackage, InprocPackageCatalog,
+    KernelEnv, PreparedDockerBuildContext, WorkspaceTreeHash,
+};
+pub use object_store::{
+    sha256_digest, FilesystemObjectStore, InMemoryObjectStore, ObjectInfo, ObjectStore,
+    ObjectStoreError, ObjectStream, SHA256_DIGEST_PREFIX,
+};
+pub use package::{
+    entry_kind, trust_level, HostPolicy, PackageFailureSummary, PackageRecord, PackageRegistry,
+    PackageState, TrustLevel,
+};
+pub use pi::PI_INTEGRATION_DEFERRED;
+pub use plurora_core::{
+    NegotiatedProtocol, ProtocolAuthorityRequirement, ProtocolCompatibilityProfile,
+    ProtocolConformanceVector, ProtocolDescriptor, ProtocolDocumentReference,
+    ProtocolImplementationClaim, ProtocolMaturity, ProtocolMigration, ProtocolMigrationKind,
+    ProtocolSchemaKind, ProtocolSchemaReference, ProtocolSelection, PROTOCOL_DESCRIPTOR_TYPE_URI,
+};
+pub use project_registry::{ProjectEntry, ProjectRegistry};
+pub use project_secret::{ProjectScopeContext, ProjectStoreSecretResolver};
+pub use protocol::{
+    host_info, method_ids, HostInfo, KernelMethod, MethodStatus, ProtocolAuthorityContext,
+    ProtocolContext, ProtocolError, ProtocolHostOperationContext, ProtocolMethod,
+    ProtocolPrincipal, ProtocolRequest, ProtocolResourceSelector, ProtocolResponse, KERNEL_METHODS,
+    KERNEL_PROTOCOL_VERSION,
+};
+pub use protocol_commons::{
+    negotiate_protocols, protocol_descriptor, protocol_descriptors, validate_protocol_registry,
+    CHANGE_DEFAULT_PROFILE, CHANGE_PROTOCOL_ID, CHANGE_PROTOCOL_VERSION,
+    PROTOCOL_COMMONS_REGISTRY_VERSION, SHELL_PROTOCOL_ID, SHELL_PROTOCOL_PROFILE,
+    SHELL_PROTOCOL_VERSION, WORLD_BUNDLE_EXPERIMENTAL_PROFILE, WORLD_BUNDLE_PROTOCOL_ID,
+    WORLD_BUNDLE_PROTOCOL_VERSION,
+};
+pub use redaction::{
+    redact_effect_value, redact_secrets_in_value, scan_effect_value_for_raw_secrets,
+    scan_value_for_raw_secrets, SecretDetection, SecretFinding, SecretScanResult,
+};
+pub use runtime::{
+    audit_world_bundle_archive, check_network_policy, content_address, is_secret_header_name,
+    is_static_header_allowed, legacy_content_address, replay_world_bundle_archive,
+    standard_asset_metadata, verify_world_bundle_archive, AppendEventRequest,
+    ArtifactCommitRequest, AssetGetResponse, AssetPutRequest, AuditPackageParams, BranchRecord,
+    CancelSignal, CapabilityReexecutionResult, DeclaredAuthority, DenyAllLocalExecExecutor,
+    DenyAllOutboundExecutor, DenyAllWebSocketExecutor, DeploymentHealthEventPayload,
+    DeploymentHealthProbe, DeploymentReconcileSource, DeploymentReconcileSummary,
+    EffectReplayResult, EmptyReconcileSource, EventListRequest, ExecCommand, ExecId,
+    ExecLifecyclePolicy, ExecRegistry, ExecResourceLimits, ExecStatus, ExecStatusKind,
+    ExecutionTarget, ExecutionTargetCapability, ExecutionTargetId, ExecutionTargetObservedSummary,
+    ExecutionTargetReachability, ExecutionTargetRegistry, ExecutionTargetStatusKind, ExecutorKind,
+    FakeLocalExecExecutor, FakeOutboundExecutor, FakeWebSocketExecutor, FrameDirection, FrameKind,
+    KernelOutboundStreamResponse, LiveHttpOutboundExecutor, LiveHttpOutboundExecutorConfig,
+    LiveLocalExecExecutor, LiveLocalExecExecutorConfig, LiveWebSocketExecutor,
+    LiveWebSocketExecutorConfig, LiveWebSocketProfile, LocalExecExecutor, LocalExecExecutorConfig,
+    LocalExecListResponse, LocalExecLogLine, LocalExecLogStream, LocalExecLogsRequest,
+    LocalExecLogsResponse, LocalExecStartRequest, LocalExecStartResponse, LocalExecStatusRequest,
+    LocalExecStatusResponse, LocalExecStopRequest, LocalExecStopResponse, ManagedContainerReport,
+    NetworkPolicyDecision, OpenSessionRequest, OutboundExecutePolicyConfig, OutboundExecutor,
+    OutboundExecutorConfig, OutboundExecutorRequest, OutboundExecutorResponse, OutboundFrameKind,
+    OutboundRequest, OutboundSecretHeaderSpec, OutboundStaticHeader, OutboundStreamFrame,
+    OutboundStreamSummary, OutboundWebSocketFrame, OutboundWebSocketOpenRequest,
+    OutboundWebSocketSession, PackageAuditReport, PermissionGrantRecord, PortBindScope,
+    PortLeaseId, PortLeaseRecord, PortLeaseRegistry, PortLeaseRequest, PortLeaseResponse,
+    PortLeaseStatusKind, PortProtocol, ProjectionDefinition, ProposalApproval, ProposalOperation,
+    ProposalRecord, ProposalStatus, ProxyProtocol, ProxyRouteAccess, ProxyRouteId,
+    ProxyRouteRecord, ProxyRouteRegisterRequest, ProxyRouteRegisterResponse, ProxyRouteRegistry,
+    ProxyRouteStatusKind, ProxyRouteUpstream, ReadinessProbe, ReadinessProbeKind,
+    RedactedHeaderValue, ResolvedSecretHeader, Runtime, RuntimeConfig, SecretHeaderSpec,
+    SendStatus, SseEvent, SseParser, StaticHeader, StreamEmitter, StreamFormat, StreamRegistry,
+    StreamStartStatus, TighteningSuggestion, UnusedAuthority, UsedAuthority, WebSocketEvent,
+    WebSocketExecutor, WebSocketFramePayload, WorldBundleAuditReport, WorldBundleExportRequest,
+    WorldBundleImportResult, WorldBundleReceiptReplay, WorldBundleReplayResult,
+    WorldJournalSelection, ACTIVE_PROJECT_SCOPE, EFFECT_RECEIPT_MEDIA_TYPE,
+    EFFECT_VALUE_MEDIA_TYPE, GENERIC_BLOB_ARTIFACT_TYPE_URI, STATIC_HEADER_ALLOWLIST,
+};
+pub use schema::validate_json_schema_subset;
+pub use secret::{
+    extract_env_name, CompositeSecretResolver, DenyAllSecretResolver, EnvSecretResolver,
+    HostSecretResolver, SecretResolverConfig, StoreSecretResolver,
+};
+pub use subprocess::{dispatch_reverse_kernel_frame, SubprocessLogLine, SubprocessSupervisor};
+pub use target_deployment::{
+    apply_managed_target_deployment, build_managed_target_image, count_managed_target_deployments,
+    drain_managed_target_deployment, is_managed_target_deployment_outcome_unknown,
+    managed_target_deployment_outcome_unknown, observe_managed_target_deployment,
+    open_managed_target_tunnel_stream, stop_managed_target_deployment,
+    validate_managed_target_deployment_runtime, wait_for_managed_target_deployment_readiness,
+    ManagedTargetBuildNetworkMode, ManagedTargetDeploymentApply,
+    ManagedTargetDeploymentDrainReceipt, ManagedTargetDeploymentObservation,
+    ManagedTargetDeploymentOutcomeUnknown, ManagedTargetDeploymentRef,
+    ManagedTargetDeploymentStopReceipt, ManagedTargetImageBuild, ManagedTargetImageBuildReceipt,
+};
+pub use tavern::TAVERN_COMPAT_DEFERRED;

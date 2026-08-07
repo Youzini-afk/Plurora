@@ -2,7 +2,7 @@
 
 > [English](./STYLE.en.md) · [中文](./STYLE.md)
 
-These are the minimum documentation rules for the Yggdrasil repository. They keep platform identity, long-term architecture, official product choices, current implementation, and construction direction distinct, so development history or one product profile cannot redefine the whole platform.
+These are the minimum documentation rules for the Plurora repository. They keep platform identity, long-term architecture, official product choices, current implementation, and construction direction distinct, so development history or one product profile cannot redefine the whole platform.
 
 ## Documentation truth hierarchy
 
@@ -51,7 +51,7 @@ A one-time implementation plan may live in `docs/roadmap/`, but is deleted on co
 
 ## Distinguish platform, distribution, and Product Profile
 
-- Platform documents must not make Project, Home, Play, Forge, Assist, Tavern, chat, worlds, or deployment the only center of Yggdrasil;
+- Platform documents must not make Project, Home, Play, Forge, Assist, Tavern, chat, worlds, or deployment the only center of Plurora;
 - the official distribution may be opinionated but identifies its organization as a replaceable product choice;
 - a Product Profile may constrain participants that adopt it but is not mandatory ontology for every product;
 - when a product need motivates lower-layer work, documentation identifies whether the result belongs to a Protocol, Host, or a substrate mechanism that truly cannot move upward;
@@ -125,7 +125,7 @@ Maintain primary narrative, navigation, and guides in both languages:
 ## Documentation red lines
 
 - ❌ Do not include raw stderr, API keys, tokens, passwords, or raw secrets; use `secret_ref` examples.
-- ❌ Do not include a specific user's absolute Host path in reader-facing guides; use conventions such as `~/.yggdrasil/<area>/`.
+- ❌ Do not include a specific user's absolute Host path in reader-facing guides; use conventions such as `~/.plurora/<area>/`.
 - ❌ Do not claim coverage or interoperability without code, fixtures, or compatibility checks.
 - ❌ Do not move YdlTavern or another product's chat, character, or prompt semantics into the platform substrate.
 - ❌ Do not treat an official Package ID, UI slot, or default provider as authority, routing priority, or permanent ontology.

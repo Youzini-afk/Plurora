@@ -7,11 +7,11 @@ import { fileURLToPath } from "node:url";
 
 const scriptDir = dirname(fileURLToPath(import.meta.url));
 const workspaceRoot = resolve(scriptDir, "../../..");
-const target = process.env.YGG_DESKTOP_TARGET ?? detectHostTriple();
+const target = process.env.PLURORA_DESKTOP_TARGET ?? detectHostTriple();
 const extension = target.includes("windows") ? ".exe" : "";
-const binary = resolve(scriptDir, "../src-tauri/binaries", `ygg-host-${target}${extension}`);
+const binary = resolve(scriptDir, "../src-tauri/binaries", `plurora-host-${target}${extension}`);
 const staticDir = resolve(workspaceRoot, "clients/web/dist");
-const dataDir = mkdtempSync(join(tmpdir(), "ygg-desktop-smoke-"));
+const dataDir = mkdtempSync(join(tmpdir(), "plurora-desktop-smoke-"));
 const token = "desktop-sidecar-smoke-token";
 const bootstrapNonce = "desktop-sidecar-smoke-bootstrap-nonce";
 
@@ -23,8 +23,8 @@ const child = spawn(binary, [
 ], {
   env: {
     ...process.env,
-    YGG_HTTP_ACCESS_TOKEN: token,
-    YGG_HTTP_BOOTSTRAP_TOKEN: bootstrapNonce,
+    PLURORA_HTTP_ACCESS_TOKEN: token,
+    PLURORA_HTTP_BOOTSTRAP_TOKEN: bootstrapNonce,
   },
   stdio: ["ignore", "pipe", "pipe"],
   windowsHide: true,
@@ -64,11 +64,11 @@ try {
     { redirect: "manual" },
   );
   if (bootstrap.status !== 303) throw new Error(`bootstrap returned ${bootstrap.status}`);
-  if (bootstrap.headers.get("location") !== "/?ygg_platform=desktop") {
+  if (bootstrap.headers.get("location") !== "/?plurora_platform=desktop") {
     throw new Error(`bootstrap returned an unexpected location: ${bootstrap.headers.get("location")}`);
   }
   const sessionCookie = bootstrap.headers.get("set-cookie")?.split(";", 1)[0];
-  if (!sessionCookie?.startsWith("ygg_host_session=")) {
+  if (!sessionCookie?.startsWith("plurora_host_session=")) {
     throw new Error("bootstrap did not issue the Host session cookie");
   }
   const cookieAllowed = await fetch(`http://${address}/rpc`, {
@@ -106,7 +106,7 @@ function listenAddress(processHandle) {
       reject(new Error(`sidecar exited before handshake (code=${code}, signal=${signal}): ${stderr}`));
     });
     lines.on("line", (line) => {
-      const match = line.match(/^YGG_HOST_LISTEN_ADDR=(127\.0\.0\.1:[1-9][0-9]*)$/);
+      const match = line.match(/^PLURORA_HOST_LISTEN_ADDR=(127\.0\.0\.1:[1-9][0-9]*)$/);
       if (!match) return;
       clearTimeout(timeout);
       lines.close();

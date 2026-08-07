@@ -2,7 +2,7 @@
 
 > [English](./SECRET_MANAGEMENT.en.md) · [中文](./SECRET_MANAGEMENT.md)
 
-Yggdrasil 通过 `secret_ref` 引用密钥，宿主在能力调用时解析为真实值。包永远拿不到原始密钥。本文档解释四种解析路径、安全模型、以及怎么从环境变量迁到本地存储或项目级存储。
+Plurora 通过 `secret_ref` 引用密钥，宿主在能力调用时解析为真实值。包永远拿不到原始密钥。本文档解释四种解析路径、安全模型、以及怎么从环境变量迁到本地存储或项目级存储。
 
 ## 设计原则
 
@@ -67,7 +67,7 @@ secret_refs:
 
 ### `secret_ref:store:NAME` — 本地加密存储
 
-读取 `~/.yggdrasil/secrets.dat`（age 加密）。主密钥存 `~/.yggdrasil/secret-store.key`（0600）或系统 keyring。
+读取 `~/.plurora/secrets.dat`（age 加密）。主密钥存 `~/.plurora/secret-store.key`（0600）或系统 keyring。
 
 - 适用：桌面端、长期使用、产品级 UX。
 - 优点：用户在 UI 内粘贴一次即可，加密落盘；下次启动自动可用。
@@ -85,7 +85,7 @@ secret_refs:
 
 ### `secret_ref:project:NAME` — 项目级加密存储
 
-读取当前项目目录的 `~/.yggdrasil/projects/<project_id>/secrets.dat`。项目 store 与平台 store 使用同一类 age 加密和同一 master key，但数据文件按项目隔离。
+读取当前项目目录的 `~/.plurora/projects/<project_id>/secrets.dat`。项目 store 与平台 store 使用同一类 age 加密和同一 master key，但数据文件按项目隔离。
 
 解析路径：
 
@@ -126,7 +126,7 @@ secret_policy:
 | 开发本地调试 | env |
 | CI / 自动化 | env |
 | 桌面端产品 | store |
-| Yggdrasil 项目默认路径 | project（可按 policy 回退 store） |
+| Plurora 项目默认路径 | project（可按 policy 回退 store） |
 | 某项目必须用专属 key | project + `require_per_project` |
 | Docker 单服务部署 | env |
 | 多用户共享部署 | env（按用户 export） |
@@ -157,11 +157,11 @@ YdlTavern 的 API Connections 抽屉支持粘贴 + 保存：
 ### 通过命令行
 
 ```bash
-# 通过 ygg conformance 调一下能力来测试可用
-ygg conformance --case secret_store
+# 通过 plurora conformance 调一下能力来测试可用
+plurora conformance --case secret_store
 ```
 
-未来会有 `yg secret put / list / delete` 命令直接操作 store。
+未来会有 `plurora secret put / list / delete` 命令直接操作 store。
 
 ### 通过协议
 
@@ -193,9 +193,9 @@ ygg conformance --case secret_store
 
 - 算法：age（rage），认证加密，X25519 身份。
 - 文件格式：age-encrypted JSON `{ schema, secrets: { name: value } }`。
-- schema：`yggdrasil.secret-store.v1`。
-- store 文件：`~/.yggdrasil/secrets.dat`。
-- 主密钥文件：`~/.yggdrasil/secret-store.key`。
+- schema：`plurora.secret-store.v1`。
+- store 文件：`~/.plurora/secrets.dat`。
+- 主密钥文件：`~/.plurora/secret-store.key`。
 - 文件权限：Unix 0600。
 - 写入：原子（tmp + rename）。
 - 名字限制：ASCII 字母数字 + 下划线 + 连字符，1..=128 字符。
@@ -208,7 +208,7 @@ ygg conformance --case secret_store
 按顺序尝试：
 
 1. OS keyring（通过 `keyring` crate；当前版本因 dbus 系统依赖暂未启用，会落到第 2 步）。
-2. `~/.yggdrasil/secret-store.key` 文件，0600 权限。
+2. `~/.plurora/secret-store.key` 文件，0600 权限。
 3. 首次使用时生成新密钥并持久化到文件。
 
 OS keyring 集成是延后项；当 CI 与跨平台构建环境提供稳定系统依赖后再启用。
@@ -274,14 +274,14 @@ provider adapter 构造请求 shape；宿主 outbound executor 在最后一刻�
 
 `secret_ref:project:*` 的范围来自项目 session，而不是 surface 自己传的 `projectId` 字符串：
 
-1. Home Play 或 `yg project start` 调 `kernel.v1.project.start`。
+1. Home Play 或 `plurora project start` 调 `kernel.v1.project.start`。
 2. host 创建或复用项目 session，并写入 `session.metadata.project_id`。
 3. `clients/web` 把 `session_id` 注入 surface 的 `initialProps.sessionId`。
 4. surface 后续 RPC 自动带 `session_id`。
 5. host dispatch 设置 `ProtocolContext.session_id`。
 6. outbound dispatch 解析 secret 前，用该 session 查 `metadata.project_id`。
 7. runtime 设置 `ACTIVE_PROJECT_SCOPE` task-local，内容是 `ProjectScopeContext`。
-8. `ProjectStoreSecretResolver` 先读 `~/.yggdrasil/projects/<id>/secrets.dat`。
+8. `ProjectStoreSecretResolver` 先读 `~/.plurora/projects/<id>/secrets.dat`。
 9. 如果缺失，按项目 `secret_policy` 决定是否回退平台 store。
 10. fallback 允许时读取 `secret_ref:store:NAME`；fallback 关闭或 `require_per_project` 命中时 fail-closed。
 
@@ -289,17 +289,17 @@ provider adapter 构造请求 shape；宿主 outbound executor 在最后一刻�
 
 ## 实现位置
 
-- `crates/ygg-core/src/secret_ref.rs` — `secret_ref` 解析与校验。
-- `crates/ygg-core/src/paths.rs` — 文件路径（`secret_store_path` / `secret_store_key_path`）。
-- `crates/ygg-runtime/src/secret.rs` — `HostSecretResolver` / `EnvSecretResolver` / `StoreSecretResolver` / `ProjectSecretResolver` / `CompositeSecretResolver`。
-- `crates/ygg-runtime/src/secret_store.rs` — 共享加密文件 load/save。
-- `crates/ygg-runtime/src/inproc/secret_store_lab.rs` — 能力实现。
+- `crates/plurora-core/src/secret_ref.rs` — `secret_ref` 解析与校验。
+- `crates/plurora-core/src/paths.rs` — 文件路径（`secret_store_path` / `secret_store_key_path`）。
+- `crates/plurora-runtime/src/secret.rs` — `HostSecretResolver` / `EnvSecretResolver` / `StoreSecretResolver` / `ProjectSecretResolver` / `CompositeSecretResolver`。
+- `crates/plurora-runtime/src/secret_store.rs` — 共享加密文件 load/save。
+- `crates/plurora-runtime/src/inproc/secret_store_lab.rs` — 能力实现。
 - `packages/official/secret-store-lab/manifest.yaml` — 包清单。
 
 ## 当前限制
 
 - OS keyring 集成延后，当前默认走本地 key 文件。
-- `yg secret put / list / delete` CLI 延后。
+- `plurora secret put / list / delete` CLI 延后。
 - 远程 vault resolver 未实现。
 - store 是本机用户级存储，不是团队共享 vault。
 - 项目级 store 是软隔离，不是多租户安全边界。

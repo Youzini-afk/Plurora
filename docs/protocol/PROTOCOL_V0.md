@@ -2,7 +2,7 @@
 
 > [English](./PROTOCOL_V0.en.md) · [中文](./PROTOCOL_V0.md)
 
-Yggdrasil 当前通过一份公开合同暴露 substrate、Host、Protocol 和 Shell Profile 能力。官方 Web/Desktop、CLI、in-process Component、子进程、未来 WASM Component 和远端服务使用同一套身份、authority 与行为语义。
+Plurora 当前通过一份公开合同暴露 substrate、Host、Protocol 和 Shell Profile 能力。官方 Web/Desktop、CLI、in-process Component、子进程、未来 WASM Component 和远端服务使用同一套身份、authority 与行为语义。
 
 不存在私有旁路。官方客户端使用这份协议；第三方也使用这份协议。
 
@@ -15,7 +15,7 @@ Yggdrasil 当前通过一份公开合同暴露 substrate、Host、Protocol 和 S
 - In-process：与线上格式一一对应的 Rust API。
 - Subprocess：基于 stdio 的 JSON-RPC。当前 host 必须实现。
 - HTTP：用于非流式方法的 request/response。当前 host 必须实现。
-- Profile 支持的 HTTP host：`ygg host serve --http 127.0.0.1:8787 --profile profiles/forge-alpha.yaml` 在自动加载 profile 包之后启动 `/rpc` 以及 ad hoc SSE 路由。
+- Profile 支持的 HTTP host：`plurora host serve --http 127.0.0.1:8787 --profile profiles/forge-alpha.yaml` 在自动加载 profile 包之后启动 `/rpc` 以及 ad hoc SSE 路由。
 - Host stdio：用于自动化和 conformance 的 JSON-RPC。当前 host 必须实现。
 - WebSocket：用于订阅和流式方法。计划在 sequence-range replay 之后实现。
 - TCP：基于本地 socket 的 JSON-RPC。Deferred。
@@ -181,7 +181,7 @@ kernel.v1.outbound.audit      list redacted outbound audit records for a package
 
 出站协议提供三个出站原语：`execute` 是一元 HTTP-style 请求，`stream` 是 SSE / NDJSON / raw 单向流，`kernel.v1.outbound.websocket.*` 是双向 WebSocket。`websocket.open` 是 streaming 方法，建立 WSS 连接并返回 `connection_id`；`websocket.send` 和 `websocket.close` 是 unary 方法。`connection_id` 也是 `stream_id`，调用 `kernel.v1.capability.cancel` 并传入该 id 会走同一条取消/关闭路径。
 
-请求/响应 shape 以运行时类型和协议分发解析为准，不在本文重复完整结构：HTTP/stream 类型见 `crates/ygg-runtime/src/runtime/outbound.rs`，WebSocket 类型见 `crates/ygg-runtime/src/runtime/outbound_websocket.rs`，协议解析见 `crates/ygg-runtime/src/runtime/protocol_dispatch.rs`。核心字段包括 `capability_id`、`destination_host`、`method`、可选 `path`、`body_shape`、`metadata`、`secret_headers`、`static_headers`、`timeout_ms`；`stream` 额外接受 `stream_format`（`sse` / `ndjson` / `raw`）与帧/时长上限；`websocket.open` 接受目标 host/path、可选 subprotocol、headers、`secret_refs` 和连接/帧/字节上限。
+请求/响应 shape 以运行时类型和协议分发解析为准，不在本文重复完整结构：HTTP/stream 类型见 `crates/plurora-runtime/src/runtime/outbound.rs`，WebSocket 类型见 `crates/plurora-runtime/src/runtime/outbound_websocket.rs`，协议解析见 `crates/plurora-runtime/src/runtime/protocol_dispatch.rs`。核心字段包括 `capability_id`、`destination_host`、`method`、可选 `path`、`body_shape`、`metadata`、`secret_headers`、`static_headers`、`timeout_ms`；`stream` 额外接受 `stream_format`（`sse` / `ndjson` / `raw`）与帧/时长上限；`websocket.open` 接受目标 host/path、可选 subprotocol、headers、`secret_refs` 和连接/帧/字节上限。
 
 出站请求按两层 fail-closed 校验：能力包 manifest 必须声明匹配的 `permissions.network.declarations`（WebSocket 使用 `WEBSOCKET` method），并且所有 `secret_headers` / `secret_refs` 必须声明在 `permissions.secret_refs`。host profile 还必须显式启用对应的 outbound primitive，目标 host 必须精确匹配 allowlist（支持 `*.suffix`），HTTP/SSE 使用 HTTPS-only，WebSocket 默认强制 WSS-only，redirect 默认拒绝。`capability_id` 必须属于调用包 namespace；subprocess reverse kernel calls 也使用 host 绑定的 package principal，不能 spoof。
 
@@ -191,7 +191,7 @@ WebSocket 专用事件使用 `kernel/v1/outbound.websocket.*`：`opened` 记录�
 
 `kernel.v1.outbound.audit` 只返回脱敏审计记录：package、capability、destination host、method、purpose、使用的 `secret_ref` 与 redaction state。raw header/body/secret/response 不进入审计或协议响应。
 
-Git 安装不属于内核传输。未来的 `yg install <github-url>` 会作为普通能力包能力实现，走 `kernel.v1.outbound.execute` 与文件系统写权限，而不是新增内核 git fetch 方法。
+Git 安装不属于内核传输。未来的 `plurora install <github-url>` 会作为普通能力包能力实现，走 `kernel.v1.outbound.execute` 与文件系统写权限，而不是新增内核 git fetch 方法。
 
 ## 包方法
 

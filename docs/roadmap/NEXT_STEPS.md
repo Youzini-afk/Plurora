@@ -2,7 +2,7 @@
 
 > [English](./NEXT_STEPS.en.md) · [中文](./NEXT_STEPS.md)
 
-Yggdrasil 的下一步不是围绕某个单一产品、示例或工作流扩张，也不是为了完成一张证明题而增加功能。建设方向来自章程中的五个长期目标：开放、多样、先进、长久、好用。
+Plurora 的下一步不是围绕某个单一产品、示例或工作流扩张，也不是为了完成一张证明题而增加功能。建设方向来自章程中的五个长期目标：开放、多样、先进、长久、好用。
 
 这些方向并行推进，不用阶段编号制造虚假的线性顺序。每一项具体工作都应落在清楚的用户生命周期、架构层和长期责任中。
 
@@ -129,7 +129,7 @@ ObjectStore、ArtifactDescriptor、World Bundle、deployment artifact 和 effect
 
 ## 明确不是平台中心的东西
 
-以下能力可以继续建设，但不能被写成 Yggdrasil 唯一方向：
+以下能力可以继续建设，但不能被写成 Plurora 唯一方向：
 
 - Project workflow；
 - 游创、Tavern、世界或聊天；

@@ -2,7 +2,7 @@
 
 > [English](./EXTERNAL_PROJECT_OPERATING_PLANE.en.md) · [中文](./EXTERNAL_PROJECT_OPERATING_PLANE.md)
 
-External Project Operating Plane shows that Yggdrasil does not have to accept only projects that already implement the manifest and capability contract. Unadapted git, npm, local, or archive projects can first be understood, risk-scored, planned, displayed, and wrapped by the platform. Only stable adapters or wrappers enter the ordinary Ygg package and capability world.
+External Project Operating Plane shows that Plurora does not have to accept only projects that already implement the manifest and capability contract. Unadapted git, npm, local, or archive projects can first be understood, risk-scored, planned, displayed, and wrapped by the platform. Only stable adapters or wrappers enter the ordinary Ygg package and capability world.
 
 The security boundary starts from one fact: install/run means executing untrusted code, and workflow or secret exfiltration are real risks. An unadapted project therefore enters planning, policy, proposal, and audit boundaries first; only user-approved operations constrained by typed executors may produce effects.
 
@@ -15,13 +15,13 @@ The security boundary starts from one fact: install/run means executing untruste
 | Managed Workspace | Controlled instance/plan/fixture around an External Project, including source ref, workspace state, entrypoints, patch proposals, and audit refs. Not a kernel object. | No |
 | Adapter / Wrapper Package | Ordinary Ygg package/capability wrapper around stable external-project operations. | Yes |
 
-This avoids the old plugin-host trap. An external project can remain unchanged while Yggdrasil performs intake, workspace planning, risk summaries, project aggregation UI, patch proposals, and adapter previews around it.
+This avoids the old plugin-host trap. An external project can remain unchanged while Plurora performs intake, workspace planning, risk summaries, project aggregation UI, patch proposals, and adapter previews around it.
 
 ## Implemented packages
 
 ### External intake in `official/install-lab`
 
-`ygg install` now detects project kind before attempting package-manifest resolution. A local directory or git source without `project.yaml` / a package manifest no longer fails early with “manifest missing.” Instead, it invokes `official/install-lab/prepare_external_intake` to produce an auditable, zero-package `external_workspace` install plan.
+`plurora install` now detects project kind before attempting package-manifest resolution. A local directory or git source without `project.yaml` / a package manifest no longer fails early with “manifest missing.” Instead, it invokes `official/install-lab/prepare_external_intake` to produce an auditable, zero-package `external_workspace` install plan.
 
 Two ownership modes are explicit:
 
@@ -108,7 +108,7 @@ Development execute/recover carries the authenticated identity, but never its cr
 - Home/Play displays an External Project Operating Plane rail.
 - Forge displays an External Projects / Managed Workspaces panel.
 - Assistant drawer displays lightweight inspect / draft patch / generate adapter plan entries.
-- The project console Development area and `ygg host access ... changes` CLI use the public Host API to draft, review, approve, execute, export, and recover ChangeSets. The console also completes verified private preview, separate deployment approval, activation, and interrupted-operation reconciliation. Neither client reads or writes a workspace directly.
+- The project console Development area and `plurora host access ... changes` CLI use the public Host API to draft, review, approve, execute, export, and recover ChangeSets. The console also completes verified private preview, separate deployment approval, activation, and interrupted-operation reconciliation. Neither client reads or writes a workspace directly.
 - UI does not read SQLite, runtime internals, local project directories, or process state.
 
 ## Security red lines
@@ -129,11 +129,11 @@ Development execute/recover carries the authenticated identity, but never its cr
 Check it with:
 
 ```bash
-cargo run -p ygg-cli -- package check packages/official/project-intake-lab/manifest.yaml
-cargo run -p ygg-cli -- package check packages/official/workspace-lab/manifest.yaml
-cargo run -p ygg-cli -- package check examples/packages/external-project-adapter-preview/manifest.yaml
-cargo run -p ygg-cli -- conformance --tag project_intake
-cargo run -p ygg-cli -- conformance --tag workspace_lab
+cargo run -p plurora-cli -- package check packages/official/project-intake-lab/manifest.yaml
+cargo run -p plurora-cli -- package check packages/official/workspace-lab/manifest.yaml
+cargo run -p plurora-cli -- package check examples/packages/external-project-adapter-preview/manifest.yaml
+cargo run -p plurora-cli -- conformance --tag project_intake
+cargo run -p plurora-cli -- conformance --tag workspace_lab
 ```
 
 ## Continuous real-project acceptance

@@ -4,7 +4,7 @@
 
 Project is the model used by the current official Host and distribution to organize installable, runnable instances. Each Project has a stable ID, entry point, state, data, secret policy, and lifecycle, and may run independently beside other Projects.
 
-Project is important, but it is not the permanent root object required by every Yggdrasil product. World, Document, Service, Workspace, Collection, and other protocol objects may retain their own identity; an adapter or product mapping can associate them with a Project when the official Home needs to manage them.
+Project is important, but it is not the permanent root object required by every Plurora product. World, Document, Service, Workspace, Collection, and other protocol objects may retain their own identity; an adapter or product mapping can associate them with a Project when the official Home needs to manage them.
 
 ## Layer and boundary
 
@@ -23,9 +23,9 @@ Project belongs to the Host and distribution rather than the constitutional subs
 
 ## Steam analogy
 
-| Steam | Yggdrasil |
+| Steam | Plurora |
 |---|---|
-| Steam client | Yggdrasil platform |
+| Steam client | Plurora platform |
 | Game library | Home screen |
 | Game card | Project card |
 | Game save directory | Per-project data directory |
@@ -37,9 +37,9 @@ Project belongs to the Host and distribution rather than the constitutional subs
 
 Three `project.type` values distinguish where a project came from.
 
-### yggdrasil_native
+### plurora_native
 
-A repository root has `project.yaml` and references Yggdrasil capability packages. This is the preferred form for projects designed for Yggdrasil.
+A repository root has `project.yaml` and references Plurora capability packages. This is the preferred form for projects designed for Plurora.
 
 ```yaml
 schema_version: 1
@@ -47,7 +47,7 @@ project:
   id: my-project__abc12345
   title: My Project
   description: A short summary
-  type: yggdrasil_native
+  type: plurora_native
   entry_surface_id: my-namespace/play
   packages:
     - packages/foo/manifest.yaml
@@ -75,7 +75,7 @@ Common fields:
 | `id` | Stable project id for directories, CLI, and Home cards. |
 | `title` | User-facing project name. |
 | `description` | Text shown on Home cards and detail views. |
-| `type` | `yggdrasil_native` / `external_wrapped` / `external_workspace`. |
+| `type` | `plurora_native` / `external_wrapped` / `external_workspace`. |
 | `entry_surface_id` | Surface contribution id opened by Play. |
 | `packages` | Required package manifest paths. |
 | `optional_packages` | Optional package manifest paths. |
@@ -89,7 +89,7 @@ For example, YdlTavern uses `ydltavern/play`.
 ## Project directory layout
 
 ```text
-~/.yggdrasil/projects/<project_id>/
+~/.plurora/projects/<project_id>/
 ├── project.yaml          # ProjectDescriptor copy
 ├── secrets.dat           # age-encrypted project secret store
 ├── sessions/             # project-level session data
@@ -100,13 +100,13 @@ For example, YdlTavern uses `ydltavern/play`.
 A managed external workspace is stored separately:
 
 ```text
-~/.yggdrasil/workspaces/external/<project_id>/<content_digest>/
+~/.plurora/workspaces/external/<project_id>/<content_digest>/
 ```
 
 The descriptor's `workspace_ownership` controls uninstall authority. A `managed` path must be contained under that host-owned root before it can be archived/deleted. A `linked_local` source is always preserved.
 
 Permissions: 0700 directories, 0600 files on Unix.
-Encryption: the same master key, from `~/.yggdrasil/secret-store.key` or the OS keyring.
+Encryption: the same master key, from `~/.plurora/secret-store.key` or the OS keyring.
 
 ## Soft isolation + platform fallback
 
@@ -130,20 +130,20 @@ secret_policy:
 ## Lifecycle
 
 ```text
-yg install <url>
+plurora install <url>
   ↓ (detect project.yaml / run wizard)
 Installed (registered in ProjectRegistry, visible in Home)
-  ↓ yg project start (or Home Play)
+  ↓ plurora project start (or Home Play)
 Starting → Running
-  ↓ yg project stop
+  ↓ plurora project stop
 Stopping → Stopped
-  ↓ yg uninstall
+  ↓ plurora uninstall
 (ask what to do with data)
-  ├─ Keep: archive project data under ~/.yggdrasil/projects/.archived/<id>/ and archive a managed workspace
+  ├─ Keep: archive project data under ~/.plurora/projects/.archived/<id>/ and archive a managed workspace
   └─ Delete: remove project data and a containment-verified managed workspace
 ```
 
-A linked-local source does not belong to Yggdrasil, so neither uninstall choice modifies it.
+A linked-local source does not belong to Plurora, so neither uninstall choice modifies it.
 
 Any state can fail → Failed.
 
@@ -151,25 +151,25 @@ Any state can fail → Failed.
 
 ```bash
 # Install projects
-yg install github.com/user/repo
-yg install github.com/user/repo --workspace-only    # external project: workspace
-yg install ./existing-source --link-local           # local external project: keep user ownership
-yg install github.com/user/repo --wrap-as-adapter   # currently fails closed; never fabricates a manifest
+plurora install github.com/user/repo
+plurora install github.com/user/repo --workspace-only    # external project: workspace
+plurora install ./existing-source --link-local           # local external project: keep user ownership
+plurora install github.com/user/repo --wrap-as-adapter   # currently fails closed; never fabricates a manifest
 
 # Inspect projects
-yg project list
-yg project info <id>
-yg project status <id>
+plurora project list
+plurora project info <id>
+plurora project status <id>
 
 # Control
-yg project start <id>
-yg project stop <id>
-yg update --project-id <id> [--check-only]
+plurora project start <id>
+plurora project stop <id>
+plurora update --project-id <id> [--check-only]
 
 # Uninstall
-yg uninstall <id>                # interactive data prompt
-yg uninstall <id> --keep-data    # keep data (move to .archived)
-yg uninstall <id> --delete-data  # delete immediately
+plurora uninstall <id>                # interactive data prompt
+plurora uninstall <id> --keep-data    # keep data (move to .archived)
+plurora uninstall <id> --delete-data  # delete immediately
 ```
 
 ## Home screen
@@ -224,7 +224,7 @@ Note: this `sessionId` is then used for:
 
 `project.start` does not start external processes. It only opens a project session and marks the project Running.
 
-If a project needs a Docker HTTP service, it can declare a minimal descriptor under `project.metadata.deployment.docker`. The web project console then shows Deploy / Stop buttons. After user confirmation, the `ygg-service` host broker runs the chain while the browser remains a thin client:
+If a project needs a Docker HTTP service, it can declare a minimal descriptor under `project.metadata.deployment.docker`. The web project console then shows Deploy / Stop buttons. After user confirmation, the `plurora-service` host broker runs the chain while the browser remains a thin client:
 
 1. `kernel.v1.port.lease` leases a loopback port.
 2. `official/docker-runtime-lab/start_container` starts the container.
@@ -267,17 +267,17 @@ kernel/v1/project.uninstalled
 | Composition (existing) | Project (new) |
 |---|---|
 | Static package-set descriptor | Runtime instance + state |
-| Validated by `ygg composition check` | Managed by `yg project list/start/stop` |
+| Validated by `plurora composition check` | Managed by `plurora project list/start/stop` |
 | Used for share/import bundles | Used for Home + install lifecycle |
-| `ygg-cli` internal type | `ygg-core` public type |
+| `plurora-cli` internal type | `plurora-core` public type |
 
 In the future, one composition template can instantiate multiple projects with different ids and the same package set. The current version does not require that; one project is usually one concrete composition instance.
 
 ## Install detection
 
-`yg install <url>` detects source and project kind before deciding whether to resolve a package manifest.
+`plurora install <url>` detects source and project kind before deciding whether to resolve a package manifest.
 
-- Present with `type: yggdrasil_native`: install as a native project.
+- Present with `type: plurora_native`: install as a native project.
 - A valid package manifest: resolve and install as a package source.
 - No project/package manifest: invoke `official/install-lab/prepare_external_intake` and create an `external_workspace`.
 - Present but invalid: fail closed and require descriptor fixes.

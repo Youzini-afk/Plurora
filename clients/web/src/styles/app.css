@@ -5,7 +5,7 @@
 @custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
 
 /* ====================================================================
-   Yggdrasil Editorial Workshop — design tokens (Tailwind v4 @theme)
+   Plurora Editorial Workshop — design tokens (Tailwind v4 @theme)
    Reference: docs/design/PLATFORM_UI_DESIGN.md
    ==================================================================== */
 
@@ -82,10 +82,10 @@
    ==================================================================== */
 
 :root {
-  --ygg-safe-top: env(safe-area-inset-top, 0px);
-  --ygg-safe-right: env(safe-area-inset-right, 0px);
-  --ygg-safe-bottom: env(safe-area-inset-bottom, 0px);
-  --ygg-safe-left: env(safe-area-inset-left, 0px);
+  --plurora-safe-top: env(safe-area-inset-top, 0px);
+  --plurora-safe-right: env(safe-area-inset-right, 0px);
+  --plurora-safe-bottom: env(safe-area-inset-bottom, 0px);
+  --plurora-safe-left: env(safe-area-inset-left, 0px);
   font-family: var(--font-sans);
   color: var(--color-charcoal-ink);
   background: var(--color-warm-bone);
@@ -129,35 +129,35 @@ body {
   min-height: 100dvh;
 }
 
-.ygg-safe-topbar {
-  height: calc(60px + var(--ygg-safe-top));
-  padding-top: var(--ygg-safe-top);
-  padding-left: max(0.75rem, var(--ygg-safe-left));
-  padding-right: max(0.75rem, var(--ygg-safe-right));
+.plurora-safe-topbar {
+  height: calc(60px + var(--plurora-safe-top));
+  padding-top: var(--plurora-safe-top);
+  padding-left: max(0.75rem, var(--plurora-safe-left));
+  padding-right: max(0.75rem, var(--plurora-safe-right));
 }
 
-.ygg-safe-overlay {
-  padding-top: max(1rem, var(--ygg-safe-top));
-  padding-right: max(1rem, var(--ygg-safe-right));
-  padding-bottom: max(1rem, var(--ygg-safe-bottom));
-  padding-left: max(1rem, var(--ygg-safe-left));
+.plurora-safe-overlay {
+  padding-top: max(1rem, var(--plurora-safe-top));
+  padding-right: max(1rem, var(--plurora-safe-right));
+  padding-bottom: max(1rem, var(--plurora-safe-bottom));
+  padding-left: max(1rem, var(--plurora-safe-left));
 }
 
-.ygg-safe-modal {
-  max-height: calc(100dvh - var(--ygg-safe-top) - var(--ygg-safe-bottom) - 24px);
+.plurora-safe-modal {
+  max-height: calc(100dvh - var(--plurora-safe-top) - var(--plurora-safe-bottom) - 24px);
 }
 
-.ygg-safe-toast {
-  right: max(1rem, var(--ygg-safe-right));
-  bottom: max(1rem, var(--ygg-safe-bottom));
-  width: min(360px, calc(100vw - var(--ygg-safe-left) - var(--ygg-safe-right) - 2rem));
+.plurora-safe-toast {
+  right: max(1rem, var(--plurora-safe-right));
+  bottom: max(1rem, var(--plurora-safe-bottom));
+  width: min(360px, calc(100vw - var(--plurora-safe-left) - var(--plurora-safe-right) - 2rem));
 }
 
-.ygg-mobile-project-bar {
-  min-height: calc(42px + var(--ygg-safe-top));
-  padding-top: var(--ygg-safe-top);
-  padding-left: max(0.5rem, var(--ygg-safe-left));
-  padding-right: max(0.75rem, var(--ygg-safe-right));
+.plurora-mobile-project-bar {
+  min-height: calc(42px + var(--plurora-safe-top));
+  padding-top: var(--plurora-safe-top);
+  padding-left: max(0.5rem, var(--plurora-safe-left));
+  padding-right: max(0.75rem, var(--plurora-safe-right));
 }
 
 *,
@@ -196,8 +196,8 @@ select {
 
 /* InputGroup: the outer shell owns the focus ring.
    Suppress the inner input's native/global focus-visible outline. */
-.ygg-input-group input:focus,
-.ygg-input-group input:focus-visible {
+.plurora-input-group input:focus,
+.plurora-input-group input:focus-visible {
   outline: none;
 }
 
@@ -273,7 +273,7 @@ select {
    Iframe surface host
    ==================================================================== */
 
-.ygg-surface-iframe {
+.plurora-surface-iframe {
   display: block;
   width: 100%;
   height: 100%;

@@ -1,4 +1,4 @@
-# Yggdrasil TypeScript text-surface SDK
+# Plurora TypeScript text-surface SDK
 
 Pure TypeScript helpers for third-party UIs that need streaming text
 accumulation, stream-frame dispatch, safe text extraction, and scroll

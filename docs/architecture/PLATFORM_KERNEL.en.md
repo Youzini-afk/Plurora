@@ -4,10 +4,10 @@
 
 This document separates two things:
 
-1. the deliberately small **Constitutional Substrate** Yggdrasil should retain for the long term;
+1. the deliberately small **Constitutional Substrate** Plurora should retain for the long term;
 2. the implementation boundary currently named kernel in Contract V1.
 
-They do not yet coincide completely. To provide an operational platform, the current `ygg-core` and `ygg-runtime` also carry some Host, protocol, and shell responsibility. The long-term goal is not to invalidate that code, but to return responsibility to the correct layer while preserving compatibility, migration, and data readability.
+They do not yet coincide completely. To provide an operational platform, the current `plurora-core` and `plurora-runtime` also carry some Host, protocol, and shell responsibility. The long-term goal is not to invalidate that code, but to return responsibility to the correct layer while preserving compatibility, migration, and data readability.
 
 ## Mechanisms owned by the constitutional substrate
 

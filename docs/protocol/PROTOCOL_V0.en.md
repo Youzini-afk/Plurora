@@ -2,7 +2,7 @@
 
 > [English](./PROTOCOL_V0.en.md) · [中文](./PROTOCOL_V0.md)
 
-Yggdrasil currently exposes substrate, Host, Protocol, and Shell Profile capability through one public contract. Official Web/Desktop, CLI, in-process Components, subprocesses, future WASM Components, and remote services share the same identity, authority, and behavioral semantics.
+Plurora currently exposes substrate, Host, Protocol, and Shell Profile capability through one public contract. Official Web/Desktop, CLI, in-process Components, subprocesses, future WASM Components, and remote services share the same identity, authority, and behavioral semantics.
 
 There is no private bypass. Official clients use this protocol; third parties use this protocol.
 
@@ -15,7 +15,7 @@ All transports eventually surface the same public behavior. The current Host imp
 - In-process: a Rust API that mirrors the wire shape one-to-one.
 - Subprocess: JSON-RPC over stdio. Required for the current host.
 - HTTP: request/response for non-streaming methods. Required for the current host.
-- Profile-backed HTTP host: `ygg host serve --http 127.0.0.1:8787 --profile profiles/forge-alpha.yaml` starts `/rpc` plus ad hoc SSE routes after autoloading profile packages.
+- Profile-backed HTTP host: `plurora host serve --http 127.0.0.1:8787 --profile profiles/forge-alpha.yaml` starts `/rpc` plus ad hoc SSE routes after autoloading profile packages.
 - Host stdio: JSON-RPC for automation and conformance. Required for the current host.
 - WebSocket: subscriptions and streaming methods. Planned after sequence-range replay.
 - TCP: JSON-RPC over a local socket. Deferred.
@@ -181,7 +181,7 @@ kernel.v1.outbound.audit      list redacted outbound audit records for a package
 
 The outbound protocol has three outbound primitives: `execute` is a unary HTTP-style request, `stream` is an SSE / NDJSON / raw one-way stream, and `kernel.v1.outbound.websocket.*` is bidirectional WebSocket. `websocket.open` is a streaming method that establishes a WSS connection and returns `connection_id`; `websocket.send` and `websocket.close` are unary methods. `connection_id` is also the `stream_id`; passing it to `kernel.v1.capability.cancel` uses the same cancel/close path.
 
-Request/response shapes are defined by runtime types and protocol dispatch parsing, not repeated in full here: HTTP/stream types live in `crates/ygg-runtime/src/runtime/outbound.rs`, WebSocket types live in `crates/ygg-runtime/src/runtime/outbound_websocket.rs`, and protocol parsing lives in `crates/ygg-runtime/src/runtime/protocol_dispatch.rs`. Core fields include `capability_id`, `destination_host`, `method`, optional `path`, `body_shape`, `metadata`, `secret_headers`, `static_headers`, and `timeout_ms`; `stream` also accepts `stream_format` (`sse` / `ndjson` / `raw`) and frame/duration limits; `websocket.open` accepts destination host/path, optional subprotocols, headers, `secret_refs`, and connection/frame/byte limits.
+Request/response shapes are defined by runtime types and protocol dispatch parsing, not repeated in full here: HTTP/stream types live in `crates/plurora-runtime/src/runtime/outbound.rs`, WebSocket types live in `crates/plurora-runtime/src/runtime/outbound_websocket.rs`, and protocol parsing lives in `crates/plurora-runtime/src/runtime/protocol_dispatch.rs`. Core fields include `capability_id`, `destination_host`, `method`, optional `path`, `body_shape`, `metadata`, `secret_headers`, `static_headers`, and `timeout_ms`; `stream` also accepts `stream_format` (`sse` / `ndjson` / `raw`) and frame/duration limits; `websocket.open` accepts destination host/path, optional subprotocols, headers, `secret_refs`, and connection/frame/byte limits.
 
 Outbound requests pass two fail-closed gates: the package manifest must declare matching `permissions.network.declarations` (WebSocket uses the `WEBSOCKET` method), and every `secret_headers` / `secret_refs` entry must be declared in `permissions.secret_refs`. The host profile must also explicitly enable the relevant outbound primitive, the destination host must match the allowlist by equality (or `*.suffix`), HTTP/SSE use HTTPS-only, WebSocket defaults to WSS-only, and redirects are rejected by default. `capability_id` must be in the caller package namespace; subprocess reverse kernel calls use the host-bound package principal and cannot spoof another package.
 
@@ -191,7 +191,7 @@ All three outbound primitives emit completion audit events: `kernel/v1/outbound.
 
 `kernel.v1.outbound.audit` returns only redacted audit records: package, capability, destination host, method, purpose, used `secret_ref`s, and redaction state. Raw headers, bodies, secrets, and responses are not written to audit or protocol responses.
 
-Git installation is not a kernel transport. Future `yg install <github-url>` support will be implemented by an ordinary capability package using `kernel.v1.outbound.execute` and filesystem write permission, not by a kernel git fetch method.
+Git installation is not a kernel transport. Future `plurora install <github-url>` support will be implemented by an ordinary capability package using `kernel.v1.outbound.execute` and filesystem write permission, not by a kernel git fetch method.
 
 ## Package methods
 

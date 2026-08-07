@@ -7,14 +7,14 @@
 仓库根目录的 `Dockerfile` 会构建：
 
 - 使用 `npm ci` 和 `npm run build` 构建 `clients/web`
-- 构建 Rust release `ygg` 二进制
+- 构建 Rust release `plurora` 二进制
 - 在 runtime 镜像中用同一个端口提供 Web 静态文件和 host API
 - 打包 Web 安装与 secret-store 快速验证所需的最小官方 lab manifest（`git-tools-lab`、`integrity-lab`、`install-lab`、`secret-store-lab`）
 
 容器启动时执行：
 
 ```sh
-ygg host serve --http 0.0.0.0:$PORT --data-dir /data --profile /data/profiles/default.yaml --static-dir /app/public --access-token "$YGG_HTTP_ACCESS_TOKEN"
+plurora host serve --http 0.0.0.0:$PORT --data-dir /data --profile /data/profiles/default.yaml --static-dir /app/public --access-token "$PLURORA_HTTP_ACCESS_TOKEN"
 ```
 
 同一个 HTTP 服务暴露：
@@ -25,7 +25,7 @@ ygg host serve --http 0.0.0.0:$PORT --data-dir /data --profile /data/profiles/de
 - `GET /surface-bundles/...`（需 Host 身份）与授权解析后短期可读的 `/surface-assets/<lease>/...`
 - `GET /healthz`
 
-设置 `YGG_HTTP_ACCESS_TOKEN` 后，`/rpc` 与 `/kernel/...` 路由需要 `Authorization: Bearer <token>`。浏览器 SSE 使用 `?access_token=<token>`，因为 EventSource 不能发送自定义 header。正常使用时，直接打开 Web URL，在登录页粘贴 token；Web client 会验证 token、保存到 `localStorage`，之后自动用于 RPC/SSE。作为可选 bootstrap，也可以第一次访问时在 URL 加上 `?ygg_token=<token>` 或 `?access_token=<token>`；Web client 会读取一次并从地址栏移除该参数。
+设置 `PLURORA_HTTP_ACCESS_TOKEN` 后，`/rpc` 与 `/kernel/...` 路由需要 `Authorization: Bearer <token>`。浏览器 SSE 使用 `?access_token=<token>`，因为 EventSource 不能发送自定义 header。正常使用时，直接打开 Web URL，在登录页粘贴 token；Web client 会验证 token、保存到 `localStorage`，之后自动用于 RPC/SSE。作为可选 bootstrap，也可以第一次访问时在 URL 加上 `?plurora_token=<token>` 或 `?access_token=<token>`；Web client 会读取一次并从地址栏移除该参数。
 
 原始 `/surface-bundles/...` 走 Host 身份与项目授权。sandboxed iframe 不携带 Host credential；授权后的 resolver 会返回随机、五分钟、绑定 grant/bundle root 的 `/surface-assets/<lease>/...` 只读路径，让 dynamic import、stylesheet、font、image 稳定加载。asset lease 仍不是 secret 容器，不要把 secret 放进 bundle 或 asset；能力与数据访问继续由 Host token、项目 authority 和 SurfaceHost bridge policy 保护。
 
@@ -41,27 +41,27 @@ ygg host serve --http 0.0.0.0:$PORT --data-dir /data --profile /data/profiles/de
 | 变量 | 默认值 | 用途 |
 | --- | --- | --- |
 | `PORT` | `8080` | HTTP 监听端口；entrypoint 绑定 `0.0.0.0:$PORT`。 |
-| `YGG_DATA_DIR` | `/data` | 持久化 Yggdrasil 数据目录。 |
-| `YGG_PROFILE` | `default` | 在 `/data/profiles` 下创建/使用的安全 profile id；entrypoint 会拒绝不安全值。 |
-| `YGG_STATIC_DIR` | `/app/public` | 要服务的已构建 Web 静态目录。 |
-| `YGG_HTTP_ACCESS_TOKEN` | 未设置 | 公网 URL 强烈建议设置；保护 RPC/SSE/service 路由。 |
-| `YGG_REQUIRE_ACCESS_TOKEN` | `0` | 设为 `1` 时，如果缺少 `YGG_HTTP_ACCESS_TOKEN`，容器会启动失败。 |
-| `YGG_APP_BASE_DOMAIN` | 未设置 | 可选 wildcard app 域名，例如 `apps.example.com`；启用后部署项目可通过 `<slug>.apps.example.com/` 访问。 |
+| `PLURORA_DATA_DIR` | `/data` | 持久化 Plurora 数据目录。 |
+| `PLURORA_PROFILE` | `default` | 在 `/data/profiles` 下创建/使用的安全 profile id；entrypoint 会拒绝不安全值。 |
+| `PLURORA_STATIC_DIR` | `/app/public` | 要服务的已构建 Web 静态目录。 |
+| `PLURORA_HTTP_ACCESS_TOKEN` | 未设置 | 公网 URL 强烈建议设置；保护 RPC/SSE/service 路由。 |
+| `PLURORA_REQUIRE_ACCESS_TOKEN` | `0` | 设为 `1` 时，如果缺少 `PLURORA_HTTP_ACCESS_TOKEN`，容器会启动失败。 |
+| `PLURORA_APP_BASE_DOMAIN` | 未设置 | 可选 wildcard app 域名，例如 `apps.example.com`；启用后部署项目可通过 `<slug>.apps.example.com/` 访问。 |
 
-如果 `/data/profiles/$YGG_PROFILE.yaml` 不存在，entrypoint 会创建一个轻量 SQLite profile。也可以通过挂载或写入同一路径来替换为自定义 profile。
+如果 `/data/profiles/$PLURORA_PROFILE.yaml` 不存在，entrypoint 会创建一个轻量 SQLite profile。也可以通过挂载或写入同一路径来替换为自定义 profile。
 
-在 Zeabur/公网验证时，请设置随机 token，打开应用 URL 后在登录页输入该 token。不要复用生产凭据，也不要在该验证实例中保存真实 provider secret。URL token（`?ygg_token=<token>` 或 `?access_token=<token>`）仍可作为可选的一次性 bootstrap 路径使用。
+在 Zeabur/公网验证时，请设置随机 token，打开应用 URL 后在登录页输入该 token。不要复用生产凭据，也不要在该验证实例中保存真实 provider secret。URL token（`?plurora_token=<token>` 或 `?access_token=<token>`）仍可作为可选的一次性 bootstrap 路径使用。
 
-如果要验证虚拟主机部署入口，需要把 wildcard DNS（例如 `*.apps.example.com`）指向该 Zeabur 服务，并设置 `YGG_APP_BASE_DOMAIN=apps.example.com`。Ygg 管理 UI 仍在主域上使用 token；项目应用域不要求 Ygg token。
+如果要验证虚拟主机部署入口，需要把 wildcard DNS（例如 `*.apps.example.com`）指向该 Zeabur 服务，并设置 `PLURORA_APP_BASE_DOMAIN=apps.example.com`。Ygg 管理 UI 仍在主域上使用 token；项目应用域不要求 Ygg token。
 
 ## 本地 smoke test
 
 ```sh
-docker build -t ygg-zeabur-quick .
-docker run --rm -p 8080:8080 -v ygg-data:/data \
-  -e YGG_HTTP_ACCESS_TOKEN=dev-token \
-  -e YGG_REQUIRE_ACCESS_TOKEN=1 \
-  ygg-zeabur-quick
+docker build -t plurora-zeabur-quick .
+docker run --rm -p 8080:8080 -v plurora-data:/data \
+  -e PLURORA_HTTP_ACCESS_TOKEN=dev-token \
+  -e PLURORA_REQUIRE_ACCESS_TOKEN=1 \
+  plurora-zeabur-quick
 curl http://127.0.0.1:8080/healthz
 ```
 

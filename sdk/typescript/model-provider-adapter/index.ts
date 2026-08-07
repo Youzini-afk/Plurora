@@ -1,5 +1,5 @@
 /**
- * Yggdrasil Model Provider Adapter SDK — Pure TypeScript adapter for
+ * Plurora Model Provider Adapter SDK — Pure TypeScript adapter for
  * normalizing model provider API differences.
  *
  * This module provides types and helpers that let capability packages

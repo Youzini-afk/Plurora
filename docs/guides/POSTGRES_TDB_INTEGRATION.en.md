@@ -6,7 +6,7 @@ This guide records the PostgreSQL and TDB integration boundary. PostgreSQL is an
 
 ## PostgreSQL event store
 
-`ygg-runtime` provides a feature-gated `PostgresEventStore`:
+`plurora-runtime` provides a feature-gated `PostgresEventStore`:
 
 - feature: `postgres`
 - driver: `tokio-postgres` + `deadpool-postgres`
@@ -18,13 +18,13 @@ This guide records the PostgreSQL and TDB integration boundary. PostgreSQL is an
 Real PostgreSQL conformance only runs when explicitly requested:
 
 ```bash
-cargo run -p ygg-cli --features postgres -- conformance --tag postgres
+cargo run -p plurora-cli --features postgres -- conformance --tag postgres
 ```
 
 with the host-owned test environment variable set:
 
 ```text
-YGG_POSTGRES_TEST_DATABASE_URL
+PLURORA_POSTGRES_TEST_DATABASE_URL
 ```
 
 The value must never be written to package manifests, events, proposals, logs, or public diagnostics.
@@ -47,7 +47,7 @@ event_store:
 ```yaml
 event_store:
   kind: postgres
-  env: YGG_POSTGRES_DATABASE_URL
+  env: PLURORA_POSTGRES_DATABASE_URL
 ```
 
 Example:
@@ -74,7 +74,7 @@ Conclusion: TriviumDB/TDB fits as a retrieval and multimodal provider adapter, n
 - raw package database;
 - global memory/chat/agent/world store.
 
-TDB is valuable as a local embedded vector, graph, document, and multimodal hybrid retrieval engine. Yggdrasil events, permissions, proposals, branch lineage, and audit still need the event spine as their substrate.
+TDB is valuable as a local embedded vector, graph, document, and multimodal hybrid retrieval engine. Plurora events, permissions, proposals, branch lineage, and audit still need the event spine as their substrate.
 
 ## `official/tdb-retrieval-lab`
 
@@ -202,9 +202,9 @@ Common validation commands:
 
 ```bash
 cargo test --workspace
-cargo run -p ygg-cli -- conformance --tag storage
-cargo run -p ygg-cli -- conformance --tag tdb
-cargo run -p ygg-cli -- package check packages/official/tdb-retrieval-lab/manifest.yaml
-cargo run -p ygg-cli -- package check examples/packages/tdb-rust-adapter/manifest.yaml
-cargo check -p ygg-cli --features postgres
+cargo run -p plurora-cli -- conformance --tag storage
+cargo run -p plurora-cli -- conformance --tag tdb
+cargo run -p plurora-cli -- package check packages/official/tdb-retrieval-lab/manifest.yaml
+cargo run -p plurora-cli -- package check examples/packages/tdb-rust-adapter/manifest.yaml
+cargo check -p plurora-cli --features postgres
 ```

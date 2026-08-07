@@ -59,7 +59,7 @@ assertEqual(listAfterCap[7].projectId, "p3");
 
 // Test 5: corrupt storage falls back to empty
 const s5 = createMockStorage();
-s5.setItem("ygg-recently-opened", "not json");
+s5.setItem("plurora-recently-opened", "not json");
 assertDeepEqual(loadStore(s5), []);
 
 // Test 6: clear empties storage

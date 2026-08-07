@@ -1,16 +1,16 @@
-# Yggdrasil Charter
+# Plurora Charter
 
 > [English](./CHARTER.en.md) · [中文](./CHARTER.md)
 
-Yggdrasil is an open digital platform for people, AI, and software to create and operate together.
+Plurora is an open digital platform for people, AI, and software to create and operate together.
 
 It enables applications, tools, services, worlds, games, agents, creative environments, and forms not yet named to be created, composed, run, inspected, modified, moved, and replaced. The platform supplies reliable common ground without prescribing what those forms must become.
 
-This charter defines the identity, goals, and boundaries that Yggdrasil does not change casually.
+This charter defines the identity, goals, and boundaries that Plurora does not change casually.
 
 ## Platform identity
 
-Yggdrasil is not only a kernel, and it is not identical to one official interface. The complete platform includes:
+Plurora is not only a kernel, and it is not identical to one official interface. The complete platform includes:
 
 - a deliberately small constitutional substrate that owns only generic mechanisms;
 - an evolvable and competitive ecosystem of public protocols and components;
@@ -24,7 +24,7 @@ Lower layers enable higher layers. A higher layer must not turn its product onto
 
 ### 1. Be as open as practical
 
-Openness means more than visible source code. Yggdrasil also aims for:
+Openness means more than visible source code. Plurora also aims for:
 
 - public first-party implementations, protocols, data formats, and extension points;
 - user ability to read, export, back up, migrate, and delete their data;
@@ -41,7 +41,7 @@ Plurality comes from independently replaceable dimensions, not from adding endle
 
 ### 3. Pursue advanced technology that creates real value
 
-Yggdrasil deliberately adopts technology that materially increases freedom, security, performance, portability, or maintainability: capability security, content addressing, portable components, local-first operation, multiple Hosts, streaming and cancellation, explicit causality, effect receipts, and protocol negotiation.
+Plurora deliberately adopts technology that materially increases freedom, security, performance, portability, or maintainability: capability security, content addressing, portable components, local-first operation, multiple Hosts, streaming and cancellation, explicit causality, effect receipts, and protocol negotiation.
 
 “Advanced” does not mean collecting new terminology. Technology that adds complexity without a meaningful capability or long-term return does not belong in the platform core.
 
@@ -90,7 +90,7 @@ Components, protocols, clients, and products can be replaced independently. An o
 
 ### The default product is not platform law
 
-The official distribution is an important part of Yggdrasil and should be an excellent product. Its Home, Project, Play, Forge, Assist, or future workflows constrain only the distribution and profiles that choose them; they do not constrain every Yggdrasil product.
+The official distribution is an important part of Plurora and should be an excellent product. Its Home, Project, Play, Forge, Assist, or future workflows constrain only the distribution and profiles that choose them; they do not constrain every Plurora product.
 
 ### Evolution preserves migration paths
 
@@ -106,7 +106,7 @@ AI is a first-class participant, not the platform's only center. Humans, assista
 
 ## Non-goals
 
-Yggdrasil does not aim to:
+Plurora does not aim to:
 
 - unify all digital products into one ontology or workflow;
 - judge direction by feature count, test count, or technology count;

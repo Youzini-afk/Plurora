@@ -56,11 +56,11 @@ else
 fi
 
 # 2. Cargo packages with explicit package.version values.
-stamp_cargo_package_version crates/ygg-core/Cargo.toml
-stamp_cargo_package_version crates/ygg-runtime/Cargo.toml
-stamp_cargo_package_version crates/ygg-service/Cargo.toml
-stamp_cargo_package_version crates/ygg-cli/Cargo.toml
-stamp_cargo_package_version sdk/rust/yg-kernel-sdk/Cargo.toml
+stamp_cargo_package_version crates/plurora-core/Cargo.toml
+stamp_cargo_package_version crates/plurora-runtime/Cargo.toml
+stamp_cargo_package_version crates/plurora-service/Cargo.toml
+stamp_cargo_package_version crates/plurora-cli/Cargo.toml
+stamp_cargo_package_version sdk/rust/plurora-contract-sdk/Cargo.toml
 stamp_cargo_package_version clients/desktop/src-tauri/Cargo.toml
 stamp_cargo_package_version integrations/tdb/rust-adapter/Cargo.toml
 stamp_cargo_package_version integrations/tdb/rust-adapter-real-crate/Cargo.toml
@@ -74,8 +74,8 @@ stamp_json_version sdk/typescript/agentic-forge/package.json
 stamp_json_version sdk/typescript/experience-runtime/package.json
 stamp_json_version sdk/typescript/experience-runtime/package-lock.json
 stamp_json_version sdk/typescript/inference-capability/package.json
-stamp_json_version sdk/typescript/kernel-sdk/package.json
-stamp_json_version sdk/typescript/kernel-sdk/package-lock.json
+stamp_json_version sdk/typescript/contract-sdk/package.json
+stamp_json_version sdk/typescript/contract-sdk/package-lock.json
 stamp_json_version sdk/typescript/subprocess/package.json
 stamp_json_version sdk/typescript/subprocess/package-lock.json
 

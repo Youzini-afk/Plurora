@@ -8,7 +8,7 @@ Protocol Commons 是共享语义的注册表。只有 JSON 形状并不构成协
 
 ## 描述符
 
-[`protocol-descriptor.schema.json`](v1/schemas/protocol-descriptor.schema.json) 发布 `ProtocolDescriptor`（`urn:yggdrasil:protocol-descriptor:v1`）。稳定字段包括：
+[`protocol-descriptor.schema.json`](v1/schemas/protocol-descriptor.schema.json) 发布 `ProtocolDescriptor`（`urn:plurora:protocol-descriptor:v1`）。稳定字段包括：
 
 - `protocol_id`、`version`、`maturity`；
 - JSON Schema 与 WIT world 引用；
@@ -25,9 +25,9 @@ Protocol Commons 是共享语义的注册表。只有 JSON 形状并不构成协
 
 | 协议 | 版本 | Profile | 状态 |
 | --- | --- | --- | --- |
-| `ygg.change` | `1.0.0` | `ygg.change/default/v1` | Experimental |
-| `ygg.shell.default` | `1.0.0` | `ygg.shell.default/v1` | Experimental |
-| `ygg.world.bundle` | `1.0.0` | `ygg.world.bundle/experimental/v1` | Experimental |
+| `plurora.change` | `1.0.0` | `plurora.change/default/v1` | Experimental |
+| `plurora.shell.default` | `1.0.0` | `plurora.shell.default/v1` | Experimental |
+| `plurora.world.bundle` | `1.0.0` | `plurora.world.bundle/experimental/v1` | Experimental |
 
 Projection 仍保留 Experimental canonical namespace，但不进入首批 Protocol Commons 描述符。至少要由两个实质不同的 Experience 验证后，才能声称它具有共享语义。
 
@@ -40,7 +40,7 @@ Projection 仍保留 Experimental canonical namespace，但不进入首批 Proto
 - 不支持的 major 返回 `kernel/v1/error/unsupported_protocol`，`reason=protocol_major_mismatch`，并给出请求/支持 major 与可用适配器；
 - 未知协议和 Profile 显式失败，不会因为 Schema 能解析就降级到更弱语义。
 
-首个显式适配器是 `kernel.v1.proposal@1.0.0 → ygg.change@1.0.0`，适配器 ID 为 `change.proposal.v1`。
+首个显式适配器是 `kernel.v1.proposal@1.0.0 → plurora.change@1.0.0`，适配器 ID 为 `change.proposal.v1`。
 
 ## 一致性职责
 
@@ -55,9 +55,9 @@ Projection 仍保留 Experimental canonical namespace，但不进入首批 Proto
 三类报告可独立执行：
 
 ```text
-ygg conformance protocol --protocol ygg.change --json
-ygg conformance protocol --protocol ygg.change --implementation ygg.runtime.change-proposal --json
-ygg conformance package --path <package>
+plurora conformance protocol --protocol plurora.change --json
+plurora conformance protocol --protocol plurora.change --implementation plurora.runtime.change-proposal --json
+plurora conformance package --path <package>
 ```
 
 ## Change 协议
@@ -66,7 +66,7 @@ Change 协议引用增量的 Intent、ChangeSet、PolicyDecision、Commit 和 Ef
 
 ## Shell Default Profile
 
-`ygg.shell.default/v1` 拥有把结构化贡献和沙箱 Surface Bundle 映射到 Shell 的词汇。现有固定 `SurfaceSlot` 仅作为 `shell.surface-slot.v1` 接受的旧词汇，不是 substrate ontology。
+`plurora.shell.default/v1` 拥有把结构化贡献和沙箱 Surface Bundle 映射到 Shell 的词汇。现有固定 `SurfaceSlot` 仅作为 `shell.surface-slot.v1` 接受的旧词汇，不是 substrate ontology。
 
 该 Profile 要求：
 
@@ -80,9 +80,9 @@ Change 协议引用增量的 Intent、ChangeSet、PolicyDecision、Commit 和 Ef
 
 ## World Bundle Experimental Profile
 
-`ygg.world.bundle/experimental/v1` 定义可移植性条件，但不会把 `World` 加入 substrate。描述符引用 EventEnvelope、ArtifactDescriptor、EffectReceipt，以及具体的 [`WORLD_BUNDLE.md`](WORLD_BUNDLE.md) archive/head/journal schema。
+`plurora.world.bundle/experimental/v1` 定义可移植性条件，但不会把 `World` 加入 substrate。描述符引用 EventEnvelope、ArtifactDescriptor、EffectReceipt，以及具体的 [`WORLD_BUNDLE.md`](WORLD_BUNDLE.md) archive/head/journal schema。
 
-五个必需向量覆盖引用闭包、跨 Host 导入、离线回放、新分支重执行和 Shell 独立性。当前 `official/playable-creation-board` integration fixture 已覆盖这些向量，因此 `ygg.runtime.world-bundle` 注册了第一个 production implementation claim；该声明描述当前实现覆盖，不代表 World Bundle 是平台唯一内容 Profile。
+五个必需向量覆盖引用闭包、跨 Host 导入、离线回放、新分支重执行和 Shell 独立性。当前 `official/playable-creation-board` integration fixture 已覆盖这些向量，因此 `plurora.runtime.world-bundle` 注册了第一个 production implementation claim；该声明描述当前实现覆盖，不代表 World Bundle 是平台唯一内容 Profile。
 
 ## World Bundle 生命周期
 

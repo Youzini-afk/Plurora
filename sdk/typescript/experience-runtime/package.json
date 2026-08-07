@@ -1,8 +1,8 @@
 {
-  "name": "@yggdrasil/experience-runtime",
+  "name": "@plurora/experience-runtime",
   "version": "0.1.0",
   "license": "AGPL-3.0-only",
-  "description": "Experience Runtime SDK — package-owned experience descriptor, state projection, checkpoint, recovery, and Play/Forge/Assist surface bindings for Yggdrasil",
+  "description": "Experience Runtime SDK — package-owned experience descriptor, state projection, checkpoint, recovery, and Play/Forge/Assist surface bindings for Plurora",
   "private": true,
   "type": "module",
   "main": "index.ts",

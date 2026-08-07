@@ -180,7 +180,7 @@
     "DependencySource": {
       "oneOf": [
         {
-          "description": "Built-in to Yggdrasil (no fetch needed; resolves at host runtime)",
+          "description": "Built-in to Plurora (no fetch needed; resolves at host runtime)",
           "properties": {
             "kind": {
               "enum": [
@@ -389,7 +389,7 @@
             }
           ],
           "default": "v1",
-          "description": "Path A (`v1`) enforces the Yggdrasil package contract. Path B (`none`) is a self-contained app hosted by the kernel without manifest contract enforcement."
+          "description": "Path A (`v1`) enforces the Plurora package contract. Path B (`none`) is a self-contained app hosted by the kernel without manifest contract enforcement."
         }
       },
       "type": "object"

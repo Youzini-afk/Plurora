@@ -2,11 +2,11 @@
 
 > [English](./PERFORMANCE_AND_CODE_HEALTH.en.md) · [中文](./PERFORMANCE_AND_CODE_HEALTH.md)
 
-本文档是性能与代码健康的长期指南。它取代临时计划，记录 Yggdrasil 后续优化应遵守的测量、反馈环、结构、事件存储与 Web 渲染纪律。
+本文档是性能与代码健康的长期指南。它取代临时计划，记录 Plurora 后续优化应遵守的测量、反馈环、结构、事件存储与 Web 渲染纪律。
 
 ## 原则
 
-1. 先测量，再优化。使用 `cargo run -p ygg-cli -- perf baseline`、conformance timing、Web TypeScript diagnostics 和针对性单元测试定位热点。不要凭感觉替换架构。
+1. 先测量，再优化。使用 `cargo run -p plurora-cli -- perf baseline`、conformance timing、Web TypeScript diagnostics 和针对性单元测试定位热点。不要凭感觉替换架构。
 2. 优化不得改变平台契约。官方包与第三方包必须继续走同一清单、能力、权限、钩子、schema、脱敏和审计路径。
 3. UI 仍走公开协议。Web shell 不得读取 SQLite、runtime internals，也不得 special-case official packages。
 4. 不要用性能名义引入内容本体。不要新增 `kernel.v1.agent.*`、`kernel.v1.model.*`、`kernel.v1.memory.*`、`kernel.v1.experience.*`、`kernel.v1.sharing.*` 等内容或产品命名空间。
@@ -19,19 +19,19 @@
 cargo test --workspace
 
 # full charter/conformance gate with timings
-cargo run -p ygg-cli -- conformance
+cargo run -p plurora-cli -- conformance
 
 # list/filter/fail-fast conformance during focused work
-cargo run -p ygg-cli -- conformance --list
-cargo run -p ygg-cli -- conformance --case sharing_lab
-cargo run -p ygg-cli -- conformance --tag experience
-cargo run -p ygg-cli -- conformance --fail-fast --slowest 5
+cargo run -p plurora-cli -- conformance --list
+cargo run -p plurora-cli -- conformance --case sharing_lab
+cargo run -p plurora-cli -- conformance --tag experience
+cargo run -p plurora-cli -- conformance --fail-fast --slowest 5
 
 # performance baseline without real network
-cargo run -p ygg-cli -- perf baseline
-cargo run -p ygg-cli -- perf baseline --format json
-cargo run -p ygg-cli -- perf baseline --iterations 30 --warmup 3 --baseline-out perf/baseline.json
-cargo run -p ygg-cli -- perf baseline --iterations 30 --compare perf/baseline.json --threshold-pct 10
+cargo run -p plurora-cli -- perf baseline
+cargo run -p plurora-cli -- perf baseline --format json
+cargo run -p plurora-cli -- perf baseline --iterations 30 --warmup 3 --baseline-out perf/baseline.json
+cargo run -p plurora-cli -- perf baseline --iterations 30 --compare perf/baseline.json --threshold-pct 10
 
 # web correctness
 tsc -p clients/web/tsconfig.json --noEmit
@@ -39,7 +39,7 @@ tsc -p clients/web/tsconfig.json --noEmit
 
 ## Baseline 范围
 
-`cargo run -p ygg-cli -- perf baseline` 当前覆盖：
+`cargo run -p plurora-cli -- perf baseline` 当前覆盖：
 
 - Rust in-process capability invoke。
 - 官方包普通 capability invoke。
@@ -52,7 +52,7 @@ tsc -p clients/web/tsconfig.json --noEmit
 
 输出 envelope 现在包含 `schema`、`created_at`、`git`、`env`；每个场景包含 p50/p95/p99、RSS delta 和必要时的 `iterations_capped`。已提交 [`../../perf/baseline.json`](../../perf/baseline.json) 作为 Linux 开发机参考，不是 CI 预算；后续优化应把它作为 regression reference。
 
-前端侧性能诊断应使用实际存在的 Web 检查、浏览器 profiler 或针对性测试，不指向不存在的 helper 文件。YdlTavern 的 benchmark 约定位于独立仓库的 [`docs/guides/PERFORMANCE_BASELINE.md`](https://github.com/Youzini-afk/Yggdrasil-Tavern/blob/main/docs/guides/PERFORMANCE_BASELINE.md)。
+前端侧性能诊断应使用实际存在的 Web 检查、浏览器 profiler 或针对性测试，不指向不存在的 helper 文件。YdlTavern 的 benchmark 约定位于独立仓库的 [`docs/guides/PERFORMANCE_BASELINE.md`](https://github.com/Youzini-afk/Plurora-Tavern/blob/main/docs/guides/PERFORMANCE_BASELINE.md)。
 
 当前人测前基线还应关注 install/profile/surface/security bridge 路径：项目安装、profile autoload、静态 surface bundle 暴露、bridge allowlist、stream ownership、诊断脱敏与 secret 输入清理。
 

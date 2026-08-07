@@ -59,9 +59,9 @@ export function PairingPage() {
   };
 
   return (
-    <main className="ygg-safe-page flex min-h-[100dvh] flex-col bg-warm-bone text-charcoal-ink">
+    <main className="plurora-safe-page flex min-h-[100dvh] flex-col bg-warm-bone text-charcoal-ink">
       <header className="flex items-center justify-between px-4 py-4 sm:px-6">
-        <span className="font-display text-[18px] font-bold tracking-[-0.015em]">Yggdrasil</span>
+        <span className="font-display text-[18px] font-bold tracking-[-0.015em]">Plurora</span>
         <LocaleSwitcher />
       </header>
       <div className="mx-auto flex w-full max-w-[620px] flex-1 items-center px-4 py-8 sm:px-6">

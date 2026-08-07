@@ -8,7 +8,7 @@
 
 - 作为 `validate_profile` / `normalize_request` / `invoke` / `normalize_stream` 的输入参考；
 - 作为第三方 provider 包的 profile shape 参考；
-- 验证 Yggdrasil 支持多 provider API 差异，而不是只支持 OpenAI-compatible。
+- 验证 Plurora 支持多 provider API 差异，而不是只支持 OpenAI-compatible。
 
 当前文件：
 

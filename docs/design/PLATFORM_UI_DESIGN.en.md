@@ -1,10 +1,10 @@
-# Design System: Yggdrasil Platform Shell
+# Design System: Plurora Platform Shell
 
 > [English](./PLATFORM_UI_DESIGN.en.md) · [中文](./PLATFORM_UI_DESIGN.md)
 >
 > Single source of truth for Stitch screen generation and React implementation
 > of the official `clients/web` distribution shell. This document expresses the
-> current official product's visual and interaction opinions, not Yggdrasil's
+> current official product's visual and interaction opinions, not Plurora's
 > platform constitution. Third-party distributions and products may use a
 > completely different navigation and visual language.
 
@@ -22,7 +22,7 @@
 > The current official distribution organizes open platform capability into a
 > warm, legible workbench that can disclose depth gradually. Projects and
 > content sit on shelves while control and creation tools appear as needed.
-> Third-party shells need not copy this layout, and Yggdrasil is not defined as
+> Third-party shells need not copy this layout, and Plurora is not defined as
 > Steam, an IDE, or a chatbot.
 
 ---
@@ -212,7 +212,7 @@ urge to make every heading bigger.
 
 - Sticky topbar at `top: 0`, height `60px`, background Warm Bone with `0.85`
   opacity + `backdrop-filter: blur(20px)`, 1px Whisper Border bottom
-- Left side: text logo `Yggdrasil` in Cabinet Grotesk 700 weight at `1.125rem`,
+- Left side: text logo `Plurora` in Cabinet Grotesk 700 weight at `1.125rem`,
   paired with current breadcrumb in Steel Secondary
 - Right side: settings icon (Phosphor `GearSix`), notification bell with status
   dot, theme toggle (sun/moon icons)
@@ -466,7 +466,7 @@ viewport breaks are critical failures.
 
 When prompting Stitch with this design system:
 
-- Always specify the screen is for "Yggdrasil platform shell" (not a project,
+- Always specify the screen is for "Plurora platform shell" (not a project,
   not YdlTavern, not a chat product) so it doesn't pull SaaS / chatbot
   references
 - Reinforce: warm cream (#FAFAF7) background, single Aged Brass (#B8956A)

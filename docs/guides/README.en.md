@@ -7,9 +7,9 @@ Capability-package authoring guides grouped by domain. Each one targets a class 
 ## Getting started
 
 - [`PACKAGE_AUTHORING_WALKTHROUGH.md`](PACKAGE_AUTHORING_WALKTHROUGH.en.md) — third-party package authoring walkthrough (init-package, check, run-fixture, reload, composition)
-- [`PACKAGE_INSTALLATION.md`](PACKAGE_INSTALLATION.en.md) — package/project install and update, lockfiles, `~/.yggdrasil` layout, signatures/integrity, bundle freshness, and consent prompts
+- [`PACKAGE_INSTALLATION.md`](PACKAGE_INSTALLATION.en.md) — package/project install and update, lockfiles, `~/.plurora` layout, signatures/integrity, bundle freshness, and consent prompts
 - [`PROJECT_MODEL.md`](PROJECT_MODEL.en.md) — `project.yaml`, Home project cards, project lifecycle, project-console diagnostics/update, and project-level secret policy
-- [`DEPLOYMENT_RUNTIME.md`](DEPLOYMENT_RUNTIME.en.md) — target / exec / port / proxy deployment runtime, ygg-service reverse proxy, and Docker Deploy broker
+- [`DEPLOYMENT_RUNTIME.md`](DEPLOYMENT_RUNTIME.en.md) — target / exec / port / proxy deployment runtime, plurora-service reverse proxy, and Docker Deploy broker
 - [`HOST_OPERATIONS.md`](HOST_OPERATIONS.en.md) — Host liveness/readiness, offline SQLite backup and atomic restore, and release verification
 - [`SECRET_MANAGEMENT.md`](SECRET_MANAGEMENT.en.md) — `secret_ref:env:` / `secret_ref:store:`, local encrypted secret store, and API key management
 - [`REAL_MODEL_END_TO_END.md`](REAL_MODEL_END_TO_END.en.md) — complete path from YdlTavern Send to a real model provider response
@@ -21,7 +21,7 @@ Capability-package authoring guides grouped by domain. Each one targets a class 
 
 ## Creative capability families
 
-- [`CREATIVE_CAPABILITY_KIT.md`](CREATIVE_CAPABILITY_KIT.en.md) — Yggdrasil-native generic creative capability packages (persona / knowledge / context / text-transform)
+- [`CREATIVE_CAPABILITY_KIT.md`](CREATIVE_CAPABILITY_KIT.en.md) — Plurora-native generic creative capability packages (persona / knowledge / context / text-transform)
 - [`MODEL_CONNECTIVITY_KIT.md`](MODEL_CONNECTIVITY_KIT.en.md) — model provider profile and route planning kit
 - [`MODEL_PROVIDER_INTEGRATION.md`](MODEL_PROVIDER_INTEGRATION.en.md) — multi-provider model integration (OpenAI, Anthropic, Gemini, OpenAI-compatible, OpenRouter, DeepSeek, xAI, Fireworks)
 - [`INFERENCE_CAPABILITY_AUTHORING.md`](INFERENCE_CAPABILITY_AUTHORING.en.md) — transport-neutral inference capability authoring

@@ -10,7 +10,7 @@ interface ThemeContextValue {
   toggle: () => void;
 }
 
-const STORAGE_KEY = "yggdrasil:theme-preference";
+const STORAGE_KEY = "plurora:theme-preference";
 const ThemeContext = createContext<ThemeContextValue | null>(null);
 
 function readPreference(): ThemePreference {

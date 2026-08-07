@@ -549,7 +549,7 @@ components:
         change_set_id:
           type: string
         commit_type_uri:
-          default: urn:yggdrasil:change-commit:v1
+          default: urn:plurora:change-commit:v1
           type: string
         completed_at:
           format: date-time
@@ -628,7 +628,7 @@ components:
       $schema: https://json-schema.org/draft/2020-12/schema
       properties:
         change_set_type_uri:
-          default: urn:yggdrasil:change-set:v1
+          default: urn:plurora:change-set:v1
           type: string
         created_at:
           format: date-time
@@ -1073,7 +1073,7 @@ components:
       type: object
     DependencySource:
       oneOf:
-      - description: Built-in to Yggdrasil (no fetch needed; resolves at host runtime)
+      - description: Built-in to Plurora (no fetch needed; resolves at host runtime)
         properties:
           kind:
             enum:
@@ -1404,7 +1404,7 @@ components:
           allOf:
           - $ref: '#/components/schemas/ContractMode'
           default: v1
-          description: Path A (`v1`) enforces the Yggdrasil package contract. Path B (`none`) is a self-contained app hosted by the kernel without manifest contract enforcement.
+          description: Path A (`v1`) enforces the Plurora package contract. Path B (`none`) is a self-contained app hosted by the kernel without manifest contract enforcement.
       type: object
     ErrorShape:
       $schema: https://json-schema.org/draft/2020-12/schema
@@ -2190,7 +2190,7 @@ components:
         id:
           type: string
         intent_type_uri:
-          default: urn:yggdrasil:intent:v1
+          default: urn:plurora:intent:v1
           type: string
         principal:
           $ref: '#/components/schemas/PrincipalIdentity'
@@ -4060,7 +4060,7 @@ components:
           format: date-time
           type: string
         decision_type_uri:
-          default: urn:yggdrasil:policy-decision:v1
+          default: urn:plurora:policy-decision:v1
           type: string
         evaluated_authority:
           default: []
@@ -4472,7 +4472,7 @@ components:
           type: array
         packages:
           default: []
-          description: 'Package manifest paths used by this project. For yggdrasil_native: typically packages/* paths For external_wrapped: the adapter package For external_workspace: empty or workspace tooling'
+          description: 'Package manifest paths used by this project. For plurora_native: typically packages/* paths For external_wrapped: the adapter package For external_workspace: empty or workspace tooling'
           items:
             type: string
           type: array
@@ -4726,9 +4726,9 @@ components:
       type: object
     ProjectType:
       oneOf:
-      - description: 'Native Yggdrasil project: has project.yaml at repo root, manifest references Yggdrasil packages.'
+      - description: 'Native Plurora project: has project.yaml at repo root, manifest references Plurora packages.'
         enum:
-        - yggdrasil_native
+        - plurora_native
         type: string
       - description: External project wrapped by an adapter package.
         enum:
@@ -6537,7 +6537,7 @@ components:
       type: object
 info:
   description: Generated from docs/spec/v1/schemas/. JSON-RPC methods are exposed as typed /rpc/{method} operations for code generators.
-  title: Yggdrasil Kernel RPC API
+  title: Plurora Kernel RPC API
   version: 1.0.0
 openapi: 3.1.0
 paths:
@@ -11565,7 +11565,7 @@ paths:
                 type: object
           description: JSON-RPC response envelope
       summary: Invoke legacy alias kernel.v1.exec.list for host.exec.list
-      x-yggdrasil-canonical-method: host.exec.list
+      x-plurora-canonical-method: host.exec.list
   /rpc/kernel.v1.exec.logs:
     post:
       deprecated: true
@@ -11670,7 +11670,7 @@ paths:
                 type: object
           description: JSON-RPC response envelope
       summary: Invoke legacy alias kernel.v1.exec.logs for host.exec.logs
-      x-yggdrasil-canonical-method: host.exec.logs
+      x-plurora-canonical-method: host.exec.logs
   /rpc/kernel.v1.exec.start:
     post:
       deprecated: true
@@ -11797,7 +11797,7 @@ paths:
                 type: object
           description: JSON-RPC response envelope
       summary: Invoke legacy alias kernel.v1.exec.start for host.exec.start
-      x-yggdrasil-canonical-method: host.exec.start
+      x-plurora-canonical-method: host.exec.start
   /rpc/kernel.v1.exec.status:
     post:
       deprecated: true
@@ -11879,7 +11879,7 @@ paths:
                 type: object
           description: JSON-RPC response envelope
       summary: Invoke legacy alias kernel.v1.exec.status for host.exec.status
-      x-yggdrasil-canonical-method: host.exec.status
+      x-plurora-canonical-method: host.exec.status
   /rpc/kernel.v1.exec.stop:
     post:
       deprecated: true
@@ -11968,7 +11968,7 @@ paths:
                 type: object
           description: JSON-RPC response envelope
       summary: Invoke legacy alias kernel.v1.exec.stop for host.exec.stop
-      x-yggdrasil-canonical-method: host.exec.stop
+      x-plurora-canonical-method: host.exec.stop
   /rpc/kernel.v1.extension_point.describe:
     post:
       operationId: extensionPointDescribe
@@ -12373,7 +12373,7 @@ paths:
                 type: object
           description: JSON-RPC response envelope
       summary: Invoke legacy alias kernel.v1.host.info for host.info
-      x-yggdrasil-canonical-method: host.info
+      x-plurora-canonical-method: host.info
   /rpc/kernel.v1.host.ping:
     post:
       operationId: hostPing
@@ -14754,7 +14754,7 @@ paths:
                 type: object
           description: JSON-RPC response envelope
       summary: Invoke legacy alias kernel.v1.port.lease for host.port.lease
-      x-yggdrasil-canonical-method: host.port.lease
+      x-plurora-canonical-method: host.port.lease
   /rpc/kernel.v1.port.list:
     post:
       deprecated: true
@@ -14852,7 +14852,7 @@ paths:
                 type: object
           description: JSON-RPC response envelope
       summary: Invoke legacy alias kernel.v1.port.list for host.port.list
-      x-yggdrasil-canonical-method: host.port.list
+      x-plurora-canonical-method: host.port.list
   /rpc/kernel.v1.port.release:
     post:
       deprecated: true
@@ -14953,7 +14953,7 @@ paths:
                 type: object
           description: JSON-RPC response envelope
       summary: Invoke legacy alias kernel.v1.port.release for host.port.release
-      x-yggdrasil-canonical-method: host.port.release
+      x-plurora-canonical-method: host.port.release
   /rpc/kernel.v1.port.status:
     post:
       deprecated: true
@@ -15054,7 +15054,7 @@ paths:
                 type: object
           description: JSON-RPC response envelope
       summary: Invoke legacy alias kernel.v1.port.status for host.port.status
-      x-yggdrasil-canonical-method: host.port.status
+      x-plurora-canonical-method: host.port.status
   /rpc/kernel.v1.project.get:
     post:
       deprecated: true
@@ -15222,7 +15222,7 @@ paths:
                 type: object
           description: JSON-RPC response envelope
       summary: Invoke legacy alias kernel.v1.project.get for host.project.get
-      x-yggdrasil-canonical-method: host.project.get
+      x-plurora-canonical-method: host.project.get
   /rpc/kernel.v1.project.list:
     post:
       deprecated: true
@@ -15302,7 +15302,7 @@ paths:
                 type: object
           description: JSON-RPC response envelope
       summary: Invoke legacy alias kernel.v1.project.list for host.project.list
-      x-yggdrasil-canonical-method: host.project.list
+      x-plurora-canonical-method: host.project.list
   /rpc/kernel.v1.project.start:
     post:
       deprecated: true
@@ -15392,7 +15392,7 @@ paths:
                 type: object
           description: JSON-RPC response envelope
       summary: Invoke legacy alias kernel.v1.project.start for host.project.start
-      x-yggdrasil-canonical-method: host.project.start
+      x-plurora-canonical-method: host.project.start
   /rpc/kernel.v1.project.status:
     post:
       deprecated: true
@@ -15490,7 +15490,7 @@ paths:
                 type: object
           description: JSON-RPC response envelope
       summary: Invoke legacy alias kernel.v1.project.status for host.project.status
-      x-yggdrasil-canonical-method: host.project.status
+      x-plurora-canonical-method: host.project.status
   /rpc/kernel.v1.project.stop:
     post:
       deprecated: true
@@ -15577,7 +15577,7 @@ paths:
                 type: object
           description: JSON-RPC response envelope
       summary: Invoke legacy alias kernel.v1.project.stop for host.project.stop
-      x-yggdrasil-canonical-method: host.project.stop
+      x-plurora-canonical-method: host.project.stop
   /rpc/kernel.v1.projection.get:
     post:
       deprecated: true
@@ -15665,7 +15665,7 @@ paths:
                 type: object
           description: JSON-RPC response envelope
       summary: Invoke legacy alias kernel.v1.projection.get for projection.get
-      x-yggdrasil-canonical-method: projection.get
+      x-plurora-canonical-method: projection.get
   /rpc/kernel.v1.projection.list:
     post:
       deprecated: true
@@ -15750,7 +15750,7 @@ paths:
                 type: object
           description: JSON-RPC response envelope
       summary: Invoke legacy alias kernel.v1.projection.list for projection.list
-      x-yggdrasil-canonical-method: projection.list
+      x-plurora-canonical-method: projection.list
   /rpc/kernel.v1.projection.rebuild:
     post:
       deprecated: true
@@ -15838,7 +15838,7 @@ paths:
                 type: object
           description: JSON-RPC response envelope
       summary: Invoke legacy alias kernel.v1.projection.rebuild for projection.rebuild
-      x-yggdrasil-canonical-method: projection.rebuild
+      x-plurora-canonical-method: projection.rebuild
   /rpc/kernel.v1.projection.register:
     post:
       deprecated: true
@@ -15936,7 +15936,7 @@ paths:
                 type: object
           description: JSON-RPC response envelope
       summary: Invoke legacy alias kernel.v1.projection.register for projection.register
-      x-yggdrasil-canonical-method: projection.register
+      x-plurora-canonical-method: projection.register
   /rpc/kernel.v1.proposal.apply:
     post:
       deprecated: true
@@ -16074,7 +16074,7 @@ paths:
                 type: object
           description: JSON-RPC response envelope
       summary: Invoke legacy alias kernel.v1.proposal.apply for change.proposal.apply
-      x-yggdrasil-canonical-method: change.proposal.apply
+      x-plurora-canonical-method: change.proposal.apply
   /rpc/kernel.v1.proposal.approve:
     post:
       deprecated: true
@@ -16216,7 +16216,7 @@ paths:
                 type: object
           description: JSON-RPC response envelope
       summary: Invoke legacy alias kernel.v1.proposal.approve for change.proposal.approve
-      x-yggdrasil-canonical-method: change.proposal.approve
+      x-plurora-canonical-method: change.proposal.approve
   /rpc/kernel.v1.proposal.create:
     post:
       deprecated: true
@@ -16414,7 +16414,7 @@ paths:
                 type: object
           description: JSON-RPC response envelope
       summary: Invoke legacy alias kernel.v1.proposal.create for change.proposal.create
-      x-yggdrasil-canonical-method: change.proposal.create
+      x-plurora-canonical-method: change.proposal.create
   /rpc/kernel.v1.proposal.get:
     post:
       deprecated: true
@@ -16552,7 +16552,7 @@ paths:
                 type: object
           description: JSON-RPC response envelope
       summary: Invoke legacy alias kernel.v1.proposal.get for change.proposal.get
-      x-yggdrasil-canonical-method: change.proposal.get
+      x-plurora-canonical-method: change.proposal.get
   /rpc/kernel.v1.proposal.list:
     post:
       deprecated: true
@@ -16687,7 +16687,7 @@ paths:
                 type: object
           description: JSON-RPC response envelope
       summary: Invoke legacy alias kernel.v1.proposal.list for change.proposal.list
-      x-yggdrasil-canonical-method: change.proposal.list
+      x-plurora-canonical-method: change.proposal.list
   /rpc/kernel.v1.proposal.reject:
     post:
       deprecated: true
@@ -16829,7 +16829,7 @@ paths:
                 type: object
           description: JSON-RPC response envelope
       summary: Invoke legacy alias kernel.v1.proposal.reject for change.proposal.reject
-      x-yggdrasil-canonical-method: change.proposal.reject
+      x-plurora-canonical-method: change.proposal.reject
   /rpc/kernel.v1.proxy.list:
     post:
       deprecated: true
@@ -16926,7 +16926,7 @@ paths:
                 type: object
           description: JSON-RPC response envelope
       summary: Invoke legacy alias kernel.v1.proxy.list for host.proxy.list
-      x-yggdrasil-canonical-method: host.proxy.list
+      x-plurora-canonical-method: host.proxy.list
   /rpc/kernel.v1.proxy.register:
     post:
       deprecated: true
@@ -17016,7 +17016,7 @@ paths:
                 type: object
           description: JSON-RPC response envelope
       summary: Invoke legacy alias kernel.v1.proxy.register for host.proxy.register
-      x-yggdrasil-canonical-method: host.proxy.register
+      x-plurora-canonical-method: host.proxy.register
   /rpc/kernel.v1.proxy.status:
     post:
       deprecated: true
@@ -17116,7 +17116,7 @@ paths:
                 type: object
           description: JSON-RPC response envelope
       summary: Invoke legacy alias kernel.v1.proxy.status for host.proxy.status
-      x-yggdrasil-canonical-method: host.proxy.status
+      x-plurora-canonical-method: host.proxy.status
   /rpc/kernel.v1.proxy.unregister:
     post:
       deprecated: true
@@ -17216,7 +17216,7 @@ paths:
                 type: object
           description: JSON-RPC response envelope
       summary: Invoke legacy alias kernel.v1.proxy.unregister for host.proxy.unregister
-      x-yggdrasil-canonical-method: host.proxy.unregister
+      x-plurora-canonical-method: host.proxy.unregister
   /rpc/kernel.v1.session.branch.list:
     post:
       operationId: sessionBranchList
@@ -17864,7 +17864,7 @@ paths:
                 type: object
           description: JSON-RPC response envelope
       summary: Invoke legacy alias kernel.v1.surface.contribution.describe for shell.contribution.describe
-      x-yggdrasil-canonical-method: shell.contribution.describe
+      x-plurora-canonical-method: shell.contribution.describe
   /rpc/kernel.v1.surface.contribution.list:
     post:
       deprecated: true
@@ -17935,7 +17935,7 @@ paths:
                 type: object
           description: JSON-RPC response envelope
       summary: Invoke legacy alias kernel.v1.surface.contribution.list for shell.contribution.list
-      x-yggdrasil-canonical-method: shell.contribution.list
+      x-plurora-canonical-method: shell.contribution.list
   /rpc/kernel.v1.surface.resolve_bundle:
     post:
       deprecated: true
@@ -18035,7 +18035,7 @@ paths:
                 type: object
           description: JSON-RPC response envelope
       summary: Invoke legacy alias kernel.v1.surface.resolve_bundle for host.surface.bundle.resolve
-      x-yggdrasil-canonical-method: host.surface.bundle.resolve
+      x-plurora-canonical-method: host.surface.bundle.resolve
   /rpc/kernel.v1.target.list:
     post:
       deprecated: true
@@ -18183,7 +18183,7 @@ paths:
                 type: object
           description: JSON-RPC response envelope
       summary: Invoke legacy alias kernel.v1.target.list for host.target.list
-      x-yggdrasil-canonical-method: host.target.list
+      x-plurora-canonical-method: host.target.list
   /rpc/kernel.v1.target.register:
     post:
       deprecated: true
@@ -18407,7 +18407,7 @@ paths:
                 type: object
           description: JSON-RPC response envelope
       summary: Invoke legacy alias kernel.v1.target.register for host.target.register
-      x-yggdrasil-canonical-method: host.target.register
+      x-plurora-canonical-method: host.target.register
   /rpc/kernel.v1.target.status:
     post:
       deprecated: true
@@ -18558,7 +18558,7 @@ paths:
                 type: object
           description: JSON-RPC response envelope
       summary: Invoke legacy alias kernel.v1.target.status for host.target.status
-      x-yggdrasil-canonical-method: host.target.status
+      x-plurora-canonical-method: host.target.status
   /rpc/kernel.v1.target.unregister:
     post:
       deprecated: true
@@ -18709,7 +18709,7 @@ paths:
                 type: object
           description: JSON-RPC response envelope
       summary: Invoke legacy alias kernel.v1.target.unregister for host.target.unregister
-      x-yggdrasil-canonical-method: host.target.unregister
+      x-plurora-canonical-method: host.target.unregister
   /rpc/projection.get:
     post:
       operationId: projectionGet

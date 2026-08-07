@@ -69,10 +69,10 @@ import { resolveBrowserAccessToken } from "@/client-core/credentials";
 
 export function resolveManagedProfile(): string {
   if (typeof window === "undefined") return "default";
-  const injected = window.__YGG_RUNTIME__?.profile?.trim();
+  const injected = window.__PLURORA_RUNTIME__?.profile?.trim();
   if (injected) return injected;
-  const platform = window.__YGG_RUNTIME__?.platform
-    ?? new URLSearchParams(window.location.search).get("ygg_platform");
+  const platform = window.__PLURORA_RUNTIME__?.platform
+    ?? new URLSearchParams(window.location.search).get("plurora_platform");
   return platform === "desktop" ? "desktop" : "default";
 }
 
@@ -383,7 +383,7 @@ export interface ProjectRecord {
   id: string;
   title: string;
   description?: string;
-  type: "yggdrasil_native" | "external_wrapped" | "external_workspace";
+  type: "plurora_native" | "external_wrapped" | "external_workspace";
   state: "installed" | "stopped" | "starting" | "running" | "stopping" | "failed" | "archived";
   icon?: string;
   entry_surface_id?: string;
@@ -1458,7 +1458,7 @@ export class YggProtocolClient {
     } catch (err: unknown) {
       if (isFetchTransportError(err)) {
         throw new Error(
-          "Cannot reach the Yggdrasil host RPC. Check that the host is still running, the access token is valid, and the deployment did not time out while resolving the install plan.",
+          "Cannot reach the Plurora host RPC. Check that the host is still running, the access token is valid, and the deployment did not time out while resolving the install plan.",
         );
       }
       throw err;
@@ -1476,7 +1476,7 @@ export class YggProtocolClient {
       return (await response.json()) as T;
     } catch (err: unknown) {
       if (isFetchTransportError(err)) {
-        throw new Error("Cannot reach the Yggdrasil Host control API. Check that the Host is reachable and the access token is valid.");
+        throw new Error("Cannot reach the Plurora Host control API. Check that the Host is reachable and the access token is valid.");
       }
       throw err;
     }
@@ -1492,7 +1492,7 @@ export class YggProtocolClient {
       return (await response.json()) as T;
     } catch (err: unknown) {
       if (isFetchTransportError(err)) {
-        throw new Error("Cannot reach the Yggdrasil Host control API. Check that the Host is reachable and the access token is valid.");
+        throw new Error("Cannot reach the Plurora Host control API. Check that the Host is reachable and the access token is valid.");
       }
       throw err;
     }

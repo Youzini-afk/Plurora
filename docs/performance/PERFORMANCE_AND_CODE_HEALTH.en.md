@@ -2,11 +2,11 @@
 
 > [English](./PERFORMANCE_AND_CODE_HEALTH.en.md) · [中文](./PERFORMANCE_AND_CODE_HEALTH.md)
 
-This is the long-term guide for performance and code health. It replaces the temporary plan and records the measurement, feedback-loop, structure, event-store, and web-rendering discipline future Yggdrasil optimization should follow.
+This is the long-term guide for performance and code health. It replaces the temporary plan and records the measurement, feedback-loop, structure, event-store, and web-rendering discipline future Plurora optimization should follow.
 
 ## Principles
 
-1. Measure before optimizing. Use `cargo run -p ygg-cli -- perf baseline`, conformance timing, Web TypeScript diagnostics, and focused tests before changing architecture.
+1. Measure before optimizing. Use `cargo run -p plurora-cli -- perf baseline`, conformance timing, Web TypeScript diagnostics, and focused tests before changing architecture.
 2. Optimization must not change the platform contract. Official and third-party packages must keep sharing the same manifest, capability, permission, hook, schema, redaction, and audit path.
 3. UI stays on the public protocol. The web shell must not read SQLite, runtime internals, or special-case official packages.
 4. Do not introduce content ontology in the name of performance. Do not add `kernel.v1.agent.*`, `kernel.v1.model.*`, `kernel.v1.memory.*`, `kernel.v1.experience.*`, `kernel.v1.sharing.*`, or similar product/content namespaces.
@@ -19,19 +19,19 @@ This is the long-term guide for performance and code health. It replaces the tem
 cargo test --workspace
 
 # full charter/conformance gate with timings
-cargo run -p ygg-cli -- conformance
+cargo run -p plurora-cli -- conformance
 
 # list/filter/fail-fast conformance during focused work
-cargo run -p ygg-cli -- conformance --list
-cargo run -p ygg-cli -- conformance --case sharing_lab
-cargo run -p ygg-cli -- conformance --tag experience
-cargo run -p ygg-cli -- conformance --fail-fast --slowest 5
+cargo run -p plurora-cli -- conformance --list
+cargo run -p plurora-cli -- conformance --case sharing_lab
+cargo run -p plurora-cli -- conformance --tag experience
+cargo run -p plurora-cli -- conformance --fail-fast --slowest 5
 
 # performance baseline without real network
-cargo run -p ygg-cli -- perf baseline
-cargo run -p ygg-cli -- perf baseline --format json
-cargo run -p ygg-cli -- perf baseline --iterations 30 --warmup 3 --baseline-out perf/baseline.json
-cargo run -p ygg-cli -- perf baseline --iterations 30 --compare perf/baseline.json --threshold-pct 10
+cargo run -p plurora-cli -- perf baseline
+cargo run -p plurora-cli -- perf baseline --format json
+cargo run -p plurora-cli -- perf baseline --iterations 30 --warmup 3 --baseline-out perf/baseline.json
+cargo run -p plurora-cli -- perf baseline --iterations 30 --compare perf/baseline.json --threshold-pct 10
 
 # web correctness
 tsc -p clients/web/tsconfig.json --noEmit
@@ -39,7 +39,7 @@ tsc -p clients/web/tsconfig.json --noEmit
 
 ## Baseline scope
 
-`cargo run -p ygg-cli -- perf baseline` currently covers:
+`cargo run -p plurora-cli -- perf baseline` currently covers:
 
 - Rust in-process capability invocation.
 - Ordinary official package capability invocation.
@@ -52,7 +52,7 @@ tsc -p clients/web/tsconfig.json --noEmit
 
 The output envelope now includes `schema`, `created_at`, `git`, and `env`; each scenario includes p50/p95/p99, RSS delta, and `iterations_capped` when applicable. The committed [`../../perf/baseline.json`](../../perf/baseline.json) is a Linux developer-machine reference, not a CI budget; future optimizations should use it as the regression reference.
 
-Frontend performance diagnostics should use existing web checks, browser profilers, or focused tests; do not point to a helper file that is not present. YdlTavern's benchmark convention is documented in the independent repository's [`docs/guides/PERFORMANCE_BASELINE.en.md`](https://github.com/Youzini-afk/Yggdrasil-Tavern/blob/main/docs/guides/PERFORMANCE_BASELINE.en.md).
+Frontend performance diagnostics should use existing web checks, browser profilers, or focused tests; do not point to a helper file that is not present. YdlTavern's benchmark convention is documented in the independent repository's [`docs/guides/PERFORMANCE_BASELINE.en.md`](https://github.com/Youzini-afk/Plurora-Tavern/blob/main/docs/guides/PERFORMANCE_BASELINE.en.md).
 
 The current pre-human-testing baseline should also watch install/profile/surface/security-bridge paths: project install, profile autoload, static surface-bundle serving, bridge allowlists, stream ownership, redacted diagnostics, and secret-input cleanup.
 

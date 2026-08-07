@@ -37,7 +37,7 @@ for (const artifactPath of [...artifactPaths].sort()) {
 }
 
 await writeFile(
-  join("release-metadata", `Yggdrasil-${target}-SHA256SUMS.txt`),
+  join("release-metadata", `Plurora-${target}-SHA256SUMS.txt`),
   `${checksums.join("\n")}\n`,
   "utf8",
 );

@@ -1,0 +1,50 @@
+[package]
+name = "plurora-runtime"
+version = "0.1.0"
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+age = { version = "0.11.3", default-features = false }
+anyhow.workspace = true
+async-trait.workspace = true
+bytes.workspace = true
+chrono.workspace = true
+futures.workspace = true
+gix = { version = "0.83", default-features = false, features = ["blocking-network-client", "blocking-http-transport-reqwest", "blocking-http-transport-reqwest-rust-tls", "sha1"] }
+rusqlite.workspace = true
+base64 = "0.22"
+bollard = "0.21"
+serde.workspace = true
+serde_json.workspace = true
+serde_yaml.workspace = true
+sha2 = "0.10"
+tar = "0.4"
+thiserror.workspace = true
+toml.workspace = true
+tokio.workspace = true
+tokio-stream.workspace = true
+url.workspace = true
+uuid.workspace = true
+plurora-core.workspace = true
+reqwest.workspace = true
+schemars.workspace = true
+same-file.workspace = true
+sequoia-openpgp = { version = "1.21", default-features = false, features = ["compression", "crypto-rust", "allow-experimental-crypto", "allow-variable-time-crypto"] }
+tokio-tungstenite = { version = "0.24", features = ["rustls-tls-native-roots"] }
+
+[features]
+default = []
+postgres = ["tokio-postgres", "deadpool-postgres"]
+
+[dependencies.tokio-postgres]
+workspace = true
+optional = true
+
+[dependencies.deadpool-postgres]
+workspace = true
+optional = true
+
+[dev-dependencies]
+tempfile = "3"

@@ -1,4 +1,4 @@
-# Yggdrasil Documentation
+# Plurora Documentation
 
 > [English](./README.en.md) · [中文](./README.md)
 
@@ -48,7 +48,7 @@ Then enter the relevant guide, spec, or roadmap as needed.
 
 - [`performance/`](performance/README.en.md) — performance baselines, quality feedback, and code health
 - [`roadmap/`](roadmap/README.en.md) — construction direction that still affects current choices
-- [`tavern/`](tavern/README.en.md) — relationship between Yggdrasil and the independent YdlTavern integration project
+- [`tavern/`](tavern/README.en.md) — relationship between Plurora and the independent YdlTavern integration project
 
 ## Shortest path by intent
 

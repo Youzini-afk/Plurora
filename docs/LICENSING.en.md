@@ -2,7 +2,7 @@
 
 > [English](./LICENSING.en.md) · [中文](./LICENSING.md)
 
-First-party source code in the Yggdrasil repository is licensed under version 3.0 only of the GNU Affero General Public License, identified by the SPDX expression `AGPL-3.0-only`. The complete legal text is in the repository-root [`LICENSE`](../LICENSE).
+First-party source code in the Plurora repository is licensed under version 3.0 only of the GNU Affero General Public License, identified by the SPDX expression `AGPL-3.0-only`. The complete legal text is in the repository-root [`LICENSE`](../LICENSE).
 
 ## First-party code
 
@@ -24,7 +24,7 @@ The repository also contains compatibility, test, or integration material that m
 - upstream projects and license metadata recorded under `integrations/`;
 - third-party dependencies listed in lockfiles.
 
-Those records do not change the license of Yggdrasil first-party code and do not relicense third-party content as AGPL. A capability package's manifest `license` field describes that package itself; third-party packages should declare their actual license.
+Those records do not change the license of Plurora first-party code and do not relicense third-party content as AGPL. A capability package's manifest `license` field describes that package itself; third-party packages should declare their actual license.
 
 ## Distribution and network use
 

@@ -2,7 +2,7 @@
 
 > [English](./MODEL_CONNECTIVITY_KIT.en.md) · [中文](./MODEL_CONNECTIVITY_KIT.md)
 
-Model Connectivity Kit 是 Yggdrasil 的模型连接基础设施。它准备 provider profile 与 route plan，但不把数据发送给外部 provider。
+Model Connectivity Kit 是 Plurora 的模型连接基础设施。它准备 provider profile 与 route plan，但不把数据发送给外部 provider。
 
 ## 包含的能力包
 
@@ -43,8 +43,8 @@ Model Connectivity Kit 是 Yggdrasil 的模型连接基础设施。它准备 pro
 
 ## TavernHeadless 参考
 
-`integrations/tavern-headless/model-connectivity-map.yaml` 跟踪从 TavernHeadless 研查的 provider、profile 和 instance 行为。这个 map 只是 reference ledger。Yggdrasil 不创建 `tavern-*` model packages。
+`integrations/tavern-headless/model-connectivity-map.yaml` 跟踪从 TavernHeadless 研查的 provider、profile 和 instance 行为。这个 map 只是 reference ledger。Plurora 不创建 `tavern-*` model packages。
 
 ## Deferred inference
 
-真实模型调用属于未来能力包族，可能是 `official/model-inference-lab`。在此之前，Yggdrasil 需要先定义 secret 解析、网络权限、请求/响应审计、流式/取消策略、用量统计、provider 错误和脱敏规则。
+真实模型调用属于未来能力包族，可能是 `official/model-inference-lab`。在此之前，Plurora 需要先定义 secret 解析、网络权限、请求/响应审计、流式/取消策略、用量统计、provider 错误和脱敏规则。

@@ -167,7 +167,7 @@ mod real_tdb {
             .duration_since(UNIX_EPOCH)
             .map_err(|error| sanitize(&error.to_string()))?
             .as_nanos();
-        root.push(format!("ygg-tdb-smoke-{nonce}"));
+        root.push(format!("plurora-tdb-smoke-{nonce}"));
         std::fs::create_dir_all(&root).map_err(|error| sanitize(&error.to_string()))?;
         let store_path = root.join("adapter-proof.tdb");
         let store_path_str = store_path.to_string_lossy().to_string();

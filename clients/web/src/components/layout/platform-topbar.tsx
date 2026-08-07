@@ -36,7 +36,7 @@ export function PlatformTopbar({ route }: { route: Route }) {
   return (
     <header
       className={cn(
-        "ygg-safe-topbar sticky top-0 z-30 flex items-center justify-between border-b border-whisper-border bg-warm-bone/85 backdrop-blur-[20px] sm:px-6 lg:px-8",
+        "plurora-safe-topbar sticky top-0 z-30 flex items-center justify-between border-b border-whisper-border bg-warm-bone/85 backdrop-blur-[20px] sm:px-6 lg:px-8",
       )}
     >
       <nav className="flex min-w-0 items-center gap-2 text-[14px] sm:gap-3">
@@ -45,7 +45,7 @@ export function PlatformTopbar({ route }: { route: Route }) {
           onClick={() => navigate({ kind: "home" })}
           className="font-display text-[18px] font-bold leading-none tracking-[-0.015em] text-charcoal-ink hover:text-aged-brass-deep"
         >
-          Yggdrasil
+          Plurora
         </button>
         <span className="hidden text-muted-tone sm:inline" aria-hidden>
           /

@@ -2,7 +2,7 @@
 
 > English summary is available in [`README.en.md`](./README.en.md). 中文为默认说明。
 
-本目录记录 Yggdrasil 如何研究并吸收 [pi](https://github.com/earendil-works/pi)，同时避免把 pi 变成内核、协议或官方特权路径。
+本目录记录 Plurora 如何研究并吸收 [pi](https://github.com/earendil-works/pi)，同时避免把 pi 变成内核、协议或官方特权路径。
 
 ## 上游快照
 

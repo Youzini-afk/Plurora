@@ -51,13 +51,13 @@ export function Modal({ open, onOpenChange, children, accent = null, size = "md"
                 className={cn(
                   "fixed left-1/2 top-1/2 z-50 -translate-x-1/2 -translate-y-1/2",
                   sizeWidths[size],
-                  "ygg-safe-modal overflow-hidden rounded-[24px] bg-pure-surface shadow-modal border border-whisper-border",
+                  "plurora-safe-modal overflow-hidden rounded-[24px] bg-pure-surface shadow-modal border border-whisper-border",
                   accent === "rust" && "border-l-[4px] border-l-deep-rust",
                   accent === "brass" && "border-l-[4px] border-l-aged-brass",
                   className,
                 )}
               >
-                <div className="ygg-safe-modal relative overflow-y-auto p-6 sm:p-9">
+                <div className="plurora-safe-modal relative overflow-y-auto p-6 sm:p-9">
                   <RadixDialog.Close asChild>
                     <Button
                       tone="icon"

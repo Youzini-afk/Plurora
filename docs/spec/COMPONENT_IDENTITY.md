@@ -2,7 +2,7 @@
 
 状态：Experimental，描述符 Schema 版本 1。
 
-Yggdrasil 将“软件如何被获取”与“软件声称实现什么行为”分离。package 是安装 envelope；component 是 envelope 内独立命名的实现。协议、内容根、surface 与辅助 artifact 各自保留独立 descriptor 和 SHA-256 identity。
+Plurora 将“软件如何被获取”与“软件声称实现什么行为”分离。package 是安装 envelope；component 是 envelope 内独立命名的实现。协议、内容根、surface 与辅助 artifact 各自保留独立 descriptor 和 SHA-256 identity。
 
 ## Identity 分层
 

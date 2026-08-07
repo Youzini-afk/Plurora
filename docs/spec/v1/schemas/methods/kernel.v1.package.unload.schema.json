@@ -306,7 +306,7 @@
     "DependencySource": {
       "oneOf": [
         {
-          "description": "Built-in to Yggdrasil (no fetch needed; resolves at host runtime)",
+          "description": "Built-in to Plurora (no fetch needed; resolves at host runtime)",
           "properties": {
             "kind": {
               "enum": [
@@ -515,7 +515,7 @@
             }
           ],
           "default": "v1",
-          "description": "Path A (`v1`) enforces the Yggdrasil package contract. Path B (`none`) is a self-contained app hosted by the kernel without manifest contract enforcement."
+          "description": "Path A (`v1`) enforces the Plurora package contract. Path B (`none`) is a self-contained app hosted by the kernel without manifest contract enforcement."
         }
       },
       "type": "object"
@@ -1765,10 +1765,10 @@
       "type": "string"
     }
   },
-  "$id": "https://yggdrasil.dev/spec/v1/methods/kernel.v1.package.unload.schema.json",
+  "$id": "https://plurora.dev/spec/v1/methods/kernel.v1.package.unload.schema.json",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": false,
-  "description": "Yggdrasil public kernel method kernel.v1.package.unload.",
+  "description": "Plurora public kernel method kernel.v1.package.unload.",
   "properties": {
     "errors": {
       "$ref": "#/$defs/Errors"
@@ -1789,7 +1789,7 @@
   ],
   "title": "kernel.v1.package.unload",
   "type": "object",
-  "x-yggdrasil-contract": {
+  "x-plurora-contract": {
     "aliases": [],
     "canonical_id": "kernel.v1.package.unload",
     "implementation_status": "partial",
@@ -1797,9 +1797,9 @@
     "maturity": "experimental",
     "owner_layer": "substrate",
     "request_adapter": "identity",
-    "request_schema": "https://yggdrasil.dev/spec/v1/methods/kernel.v1.package.unload.schema.json#/$defs/Params",
+    "request_schema": "https://plurora.dev/spec/v1/methods/kernel.v1.package.unload.schema.json#/$defs/Params",
     "response_adapter": "identity",
-    "response_schema": "https://yggdrasil.dev/spec/v1/methods/kernel.v1.package.unload.schema.json#/$defs/Result",
+    "response_schema": "https://plurora.dev/spec/v1/methods/kernel.v1.package.unload.schema.json#/$defs/Result",
     "streaming": false
   }
 }

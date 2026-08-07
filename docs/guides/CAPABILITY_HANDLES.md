@@ -27,7 +27,7 @@
 - SES / object-capability 风格的 attenuated references；
 - 浏览器中不可直接伪造的 platform handles。
 
-Yggdrasil 使用它不是为了复杂化 API，而是为了把最小权限、衰减、撤销、审计做成普通路径。
+Plurora 使用它不是为了复杂化 API，而是为了把最小权限、衰减、撤销、审计做成普通路径。
 
 ## 字符串声明 vs 运行时权威
 
@@ -130,7 +130,7 @@ Rust in-process 包通过 `KernelEnv` 获得句柄。Host catalog 负责把 mani
 
 ## Effect audit 如何消费句柄
 
-`kernel.v1.audit.package` 与 `yg audit --package <id>` 把三类数据合并：
+`kernel.v1.audit.package` 与 `plurora audit --package <id>` 把三类数据合并：
 
 1. declared：manifest 中声明的 capability、permission、network、secret_refs；
 2. granted：内核实际铸造、衰减、撤销、过期的 handles；
@@ -175,7 +175,7 @@ Rust in-process 包通过 `KernelEnv` 获得句柄。Host catalog 负责把 mani
 ## 操作员检查清单
 
 - 检查 package manifest 中声明的权限是否都对应必要功能。
-- 运行 `yg audit --package <id>` 查看 declared vs used。
+- 运行 `plurora audit --package <id>` 查看 declared vs used。
 - 对长期运行包定期检查 live handles 数量。
 - 撤销不再需要的 handles，而不是等待 package unload。
 - 对网络与 secret handles 设置较短 lease。
@@ -199,7 +199,7 @@ Rust in-process 包通过 `KernelEnv` 获得句柄。Host catalog 负责把 mani
 4. Subprocess handshake 收到 bindings。
 5. SDK 用该 handle 调用 provider。
 6. 内核写 `capability.invoked` 与 `capability.completed`。
-7. `yg audit` 显示 declared、granted、used 三者一致。
+7. `plurora audit` 显示 declared、granted、used 三者一致。
 
 ## 参考
 

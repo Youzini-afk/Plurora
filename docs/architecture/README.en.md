@@ -2,7 +2,7 @@
 
 > [English](./README.en.md) · [中文](./README.md)
 
-These documents cover Yggdrasil's long-term layering, the compatibility boundary of Contract V1, and concrete Host control-plane designs. The long-term architecture distinguishes constitutional substrate, Protocol Commons, components/content, Host, distributions, and products rather than reducing every concept to a kernel-or-Package binary.
+These documents cover Plurora's long-term layering, the compatibility boundary of Contract V1, and concrete Host control-plane designs. The long-term architecture distinguishes constitutional substrate, Protocol Commons, components/content, Host, distributions, and products rather than reducing every concept to a kernel-or-Package binary.
 
 ## Platform shape and substrate
 

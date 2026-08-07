@@ -1,6 +1,6 @@
 # Changelog
 
-All notable changes to Yggdrasil will be documented here.
+All notable changes to Plurora will be documented here.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
@@ -8,7 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Changed
-- Reframed Yggdrasil as an open digital creation and runtime platform guided
+- Reframed Plurora as an open digital creation and runtime platform guided
   by openness, plurality, valuable advanced technology, long-term evolution,
   and usability
 - Separated constitutional substrate, Protocol Commons, Components/Content,

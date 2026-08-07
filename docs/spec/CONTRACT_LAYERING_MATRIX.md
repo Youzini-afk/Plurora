@@ -44,7 +44,7 @@
 - 有 22 个顶层 schema，覆盖 contract selection、artifact descriptor、EffectReceipt、Change primitives、protocol descriptor、component/package envelope/composition lock、World Bundle/World Head/journal range，以及 additive transport diagnostics 的 `protocol-response.schema.json`。
 - `KernelMethod::status()`、Contract 文档状态和 actual dispatch 的已知漂移已对齐，并由测试约束。
 - Experimental method contract registry、集中 alias 解析、显式 profile/version 协商与 identity adapter 已落地；Host Control Plane、host bundle resolver、Shell contribution、Change/Proposal 与 Projection 当前发布 36 条 canonical/legacy 双栈。
-- Experimental Protocol Commons 注册表已发布 Change、Shell Default 与 World Bundle descriptor，在 dispatch 前协商显式协议/Profile，并分离 protocol、implementation 与 package 报告；具体 World Bundle archive 与五条 portability 向量现在支撑 `ygg.runtime.world-bundle` implementation claim。
+- Experimental Protocol Commons 注册表已发布 Change、Shell Default 与 World Bundle descriptor，在 dispatch 前协商显式协议/Profile，并分离 protocol、implementation 与 package 报告；具体 World Bundle archive 与五条 portability 向量现在支撑 `plurora.runtime.world-bundle` implementation claim。
 - Web 生产调用已切换到 canonical method ID；生成 SDK 从 schema metadata 生成 canonical client 与显式 legacy wrapper，以队列保留 transport diagnostics，并在生成前校验所有 wire ID、函数名与 operation ID 全局唯一。
 
 因此迁移的第一要求不是删除旧代码，而是建立可测试的兼容路由。
@@ -172,7 +172,7 @@
 | 当前方法 | 代码状态 | 目标层 | 处置 | 目标概念与兼容行为 |
 |---|---:|---:|---|---|
 | `kernel.v1.surface.resolve_bundle` | partial | `X` | 拆分 | `H` 解析/托管 bundle；`P` 解释 shell profile 与 bridge policy |
-| `kernel.v1.surface.contribution.list` | partial | `P` | 迁移 | `ygg.shell.default/v1` contribution registry |
+| `kernel.v1.surface.contribution.list` | partial | `P` | 迁移 | `plurora.shell.default/v1` contribution registry |
 | `kernel.v1.surface.contribution.describe` | partial | `P` | 迁移 | shell-profile descriptor；slot 不再是 substrate enum |
 
 ### Outbound（6）
@@ -188,7 +188,7 @@
 
 ## 59 个事件
 
-“写入”表示在 `ygg-runtime` 中找到命名写入点；`—` 表示当前只有常量/schema/registry 或范围内未找到发出点。
+“写入”表示在 `plurora-runtime` 中找到命名写入点；`—` 表示当前只有常量/schema/registry 或范围内未找到发出点。
 
 ### Session、component 与 project（16）
 

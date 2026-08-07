@@ -2,7 +2,7 @@
 
 > [English](./WORLD_BUNDLE.en.md) · [中文](./WORLD_BUNDLE.md)
 
-状态：Experimental profile `ygg.world.bundle/experimental/v1`。
+状态：Experimental profile `plurora.world.bundle/experimental/v1`。
 
 World Bundle 为持久化的高层 World 提供跨 Host 携带、读取和迁移的可选 Profile，但不会因此把 `World` 变成 substrate 类型。具体 archive 无需加载原始 Package、启动 Component、启用模型 provider 或挂载 Web Shell，就能被读取、校验和审计。
 
@@ -74,10 +74,10 @@ ObjectStore 与 EventStore 没有跨后端共享事务。因此 import 会先验
 Archive 是不依赖 Shell 的数据 Artifact：
 
 ```text
-ygg world-bundle verify <archive.json> [--json]
-ygg world-bundle audit <archive.json> [--json]
-ygg world-bundle replay <archive.json> [--json]
-ygg world-bundle import <archive.json> --data-dir <fresh-dir> [--json]
+plurora world-bundle verify <archive.json> [--json]
+plurora world-bundle audit <archive.json> [--json]
+plurora world-bundle replay <archive.json> [--json]
+plurora world-bundle import <archive.json> --data-dir <fresh-dir> [--json]
 ```
 
 `replay` 只做 historical replay：它解码已记录的 envelope、receipt 与 receipt output，并报告 executor invocation 为零。它不会调用原始 capability provider、网络 executor、模型 provider、本地进程 executor 或 shell bridge。
@@ -99,7 +99,7 @@ ygg world-bundle import <archive.json> --data-dir <fresh-dir> [--json]
 
 ## 可执行 Conformance
 
-`ygg.runtime.world-bundle` 已注册为第一个 production implementation claim，因为五条协议自有向量全部可执行通过：
+`plurora.runtime.world-bundle` 已注册为第一个 production implementation claim，因为五条协议自有向量全部可执行通过：
 
 - `world_bundle.reference_closure`；
 - `world_bundle.cross_host_import`；

@@ -12,7 +12,7 @@ import { labels, type LabelKey, type LocaleDictionary } from "@/lib/labels";
 export const SUPPORTED_LOCALES = ["zh-CN", "en"] as const;
 export type SupportedLocale = (typeof SUPPORTED_LOCALES)[number];
 
-export const LOCALE_STORAGE_KEY = "ygg-language";
+export const LOCALE_STORAGE_KEY = "plurora-language";
 
 type LabelValue<K extends LabelKey> = LocaleDictionary[K];
 type LabelArgs<K extends LabelKey> = LabelValue<K> extends (...args: infer Args) => string

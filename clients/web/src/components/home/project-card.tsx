@@ -20,7 +20,7 @@ export interface ProjectCardData {
   title: string;
   description?: string;
   state: string; // running/stopped/starting/failed/installed
-  type: "yggdrasil_native" | "external_wrapped" | "external_workspace";
+  type: "plurora_native" | "external_wrapped" | "external_workspace";
   version?: string;
   source?: string; // github / local / etc
   sizeMB?: number;

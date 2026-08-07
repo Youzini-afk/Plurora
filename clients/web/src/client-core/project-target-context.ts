@@ -1,6 +1,6 @@
 import { activeHostCredentialScope } from "./host-endpoint";
 
-export const PROJECT_TARGET_CONTEXT_STORAGE_KEY = "ygg_project_target_context_v1";
+export const PROJECT_TARGET_CONTEXT_STORAGE_KEY = "plurora_project_target_context_v1";
 
 type ContextStorage = Pick<Storage, "getItem" | "setItem" | "removeItem">;
 

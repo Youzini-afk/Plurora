@@ -1,6 +1,6 @@
 # 错误代码（v1）
 
-Yggdrasil v1 保留 JSON-RPC application error 数值区间 `-32000..-32099`。当前运行时响应中的 `ProtocolError.code` 仍是字符串标识；下表给出规范化数值别名，供跨语言实现和未来 JSON-RPC 适配使用。
+Plurora v1 保留 JSON-RPC application error 数值区间 `-32000..-32099`。当前运行时响应中的 `ProtocolError.code` 仍是字符串标识；下表给出规范化数值别名，供跨语言实现和未来 JSON-RPC 适配使用。
 
 | 数值 | 字符串标识 | 名称 | 何时产生 | 恢复建议 |
 |---:|---|---|---|---|

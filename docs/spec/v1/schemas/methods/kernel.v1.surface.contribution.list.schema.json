@@ -39,10 +39,10 @@
       "type": "array"
     }
   },
-  "$id": "https://yggdrasil.dev/spec/v1/methods/kernel.v1.surface.contribution.list.schema.json",
+  "$id": "https://plurora.dev/spec/v1/methods/kernel.v1.surface.contribution.list.schema.json",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": false,
-  "description": "Yggdrasil public kernel method kernel.v1.surface.contribution.list.",
+  "description": "Plurora public kernel method kernel.v1.surface.contribution.list.",
   "properties": {
     "errors": {
       "$ref": "#/$defs/Errors"
@@ -63,7 +63,7 @@
   ],
   "title": "kernel.v1.surface.contribution.list",
   "type": "object",
-  "x-yggdrasil-contract": {
+  "x-plurora-contract": {
     "aliases": [
       {
         "canonical_id": "shell.contribution.list",
@@ -77,13 +77,13 @@
     ],
     "canonical_id": "shell.contribution.list",
     "implementation_status": "partial",
-    "introduced_in": "ygg.shell.default/v1@0.1.0",
+    "introduced_in": "plurora.shell.default/v1@0.1.0",
     "maturity": "experimental",
     "owner_layer": "shell",
     "request_adapter": "identity",
-    "request_schema": "https://yggdrasil.dev/spec/v1/methods/kernel.v1.surface.contribution.list.schema.json#/$defs/Params",
+    "request_schema": "https://plurora.dev/spec/v1/methods/kernel.v1.surface.contribution.list.schema.json#/$defs/Params",
     "response_adapter": "identity",
-    "response_schema": "https://yggdrasil.dev/spec/v1/methods/kernel.v1.surface.contribution.list.schema.json#/$defs/Result",
+    "response_schema": "https://plurora.dev/spec/v1/methods/kernel.v1.surface.contribution.list.schema.json#/$defs/Result",
     "streaming": false
   }
 }

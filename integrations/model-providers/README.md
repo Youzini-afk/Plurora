@@ -6,7 +6,7 @@
 
 ## Scope
 
-本台账把模型 provider 接入视为 cloud provider 级别的普通能力包复杂度样本。目标是帮助 Yggdrasil 的 `official/model-provider-lab` 等普通能力包安全接入真实 provider API，而不是构建中转站、计费系统、渠道后台或平台模型网关。
+本台账把模型 provider 接入视为 cloud provider 级别的普通能力包复杂度样本。目标是帮助 Plurora 的 `official/model-provider-lab` 等普通能力包安全接入真实 provider API，而不是构建中转站、计费系统、渠道后台或平台模型网关。
 
 模型 provider 不是 kernel ontology。Provider profile、模型列表、prompt/messages schema、usage/cost 和错误映射都属于 package output、diagnostics 或 outbound audit metadata。真实出网必须走 host-enforced outbound boundary 或等价 fake/local executor；默认 conformance 使用 fake executor/local mock，不依赖真实 API key 或外网。手动真实调用必须 opt-in，使用 `secret_ref`、network allowlist 和 redacted audit，并且不作为 CI/release gate。
 
@@ -40,7 +40,7 @@
 
 ## Error taxonomy
 
-Yggdrasil 不在 kernel 中定义模型错误。Provider adapters 应在 package output 与 diagnostics 中把上游错误映射到稳定分类，同时保留 provider 原始 code/message/request id 的 redacted metadata。
+Plurora 不在 kernel 中定义模型错误。Provider adapters 应在 package output 与 diagnostics 中把上游错误映射到稳定分类，同时保留 provider 原始 code/message/request id 的 redacted metadata。
 
 建议分类：`bad_request`、`authentication`、`permission`、`billing`、`rate_limit`、`not_found`、`timeout`、`overloaded`、`tool_schema`、`stream_error`、`upstream_malformed`、`network_denied`、`secret_unavailable`、`unknown`。
 
@@ -54,16 +54,16 @@ Yggdrasil 不在 kernel 中定义模型错误。Provider adapters 应在 package
 
 ### new-api
 
-[new-api](https://github.com/Youzini-afk/new-api) 是 provider 接入复杂度样本，不是 Yggdrasil 采用的实现。可吸收的是 adapter 分层：provider adapter 负责 URL、headers、request conversion、response conversion 和 stream handling。Runtime context bus、request conversion chain、stream scanner、model mapping、header/base URL quirks、usage metadata、error wrapping 都提示 Yggdrasil 需要可观测的 transport layer、canonical model layer 与 provider quirk layer。
+[new-api](https://github.com/Youzini-afk/new-api) 是 provider 接入复杂度样本，不是 Plurora 采用的实现。可吸收的是 adapter 分层：provider adapter 负责 URL、headers、request conversion、response conversion 和 stream handling。Runtime context bus、request conversion chain、stream scanner、model mapping、header/base URL quirks、usage metadata、error wrapping 都提示 Plurora 需要可观测的 transport layer、canonical model layer 与 provider quirk layer。
 
-Yggdrasil 不吸收用户余额、充值、倍率、pre-consume/refund、subscription、admin/channel UI、自动禁用/启用 channel 的运营治理、平台代理 API key 或统一 relay endpoint，也不把 channel/provider ontology 放进 kernel。Usage/cost 只作为 package output/audit metadata；base URL 和 redirect 必须走 host policy 检查。
+Plurora 不吸收用户余额、充值、倍率、pre-consume/refund、subscription、admin/channel UI、自动禁用/启用 channel 的运营治理、平台代理 API key 或统一 relay endpoint，也不把 channel/provider ontology 放进 kernel。Usage/cost 只作为 package output/audit metadata；base URL 和 redirect 必须走 host policy 检查。
 
 ### TavernHeadless
 
-[TavernHeadless](https://github.com/Youzini-afk/TavernHeadless) 是 provider/profile 经验参考，不是 Yggdrasil 采用的实现。它提示 provider profile 应是可激活、可 fallback、可 masking 的 package 配置对象，而不是 kernel state；routing 按 provider type 选择 adapter；OpenAI/DeepSeek/xAI/openai-compatible 可共享 OpenAI-style 工厂，Anthropic/Gemini 需要独立 adapter。
+[TavernHeadless](https://github.com/Youzini-afk/TavernHeadless) 是 provider/profile 经验参考，不是 Plurora 采用的实现。它提示 provider profile 应是可激活、可 fallback、可 masking 的 package 配置对象，而不是 kernel state；routing 按 provider type 选择 adapter；OpenAI/DeepSeek/xAI/openai-compatible 可共享 OpenAI-style 工厂，Anthropic/Gemini 需要独立 adapter。
 
 Request normalization 应留在 package/SDK 层：generation params、history normalization、assistant prefill、token budget 都是产品语义。Streaming 有 provider stream parser 与 UI reducer/tool-event grouper 两层；kernel 只需要通用 stream frame lifecycle。Discovery/hello probe、model discovery、slot routing、session/global fallback、active profile resolution、tool event grouping 和 replay safety hints 都不进入 kernel。
 
 ## Boundaries
 
-模型接入是普通能力包能力，例如 `official/model-provider-lab`、`model-connector-lab` 与 `model-routing-lab`，不是 kernel ontology。Yggdrasil 不新增 `kernel.v1.model.*`、`kernel.v1.prompt.*`、`kernel.v1.chat.*`、`kernel.v1.embedding.*`，不托管用户金额或平台代理 API key，不做中转站，不提供 channel admin，也不给官方 provider 包任何隐式 network、secret、routing 或 UI 特权。
+模型接入是普通能力包能力，例如 `official/model-provider-lab`、`model-connector-lab` 与 `model-routing-lab`，不是 kernel ontology。Plurora 不新增 `kernel.v1.model.*`、`kernel.v1.prompt.*`、`kernel.v1.chat.*`、`kernel.v1.embedding.*`，不托管用户金额或平台代理 API key，不做中转站，不提供 channel admin，也不给官方 provider 包任何隐式 network、secret、routing 或 UI 特权。

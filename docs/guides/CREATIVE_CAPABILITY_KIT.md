@@ -2,7 +2,7 @@
 
 > [English](./CREATIVE_CAPABILITY_KIT.en.md) · [中文](./CREATIVE_CAPABILITY_KIT.md)
 
-Creative Capability Kit 把成熟的无界面创作和 RP 流程整理成通用能力包。这些包遵守 Yggdrasil 的公开协议和清单约束。
+Creative Capability Kit 把成熟的无界面创作和 RP 流程整理成通用能力包。这些包遵守 Plurora 的公开协议和清单约束。
 
 TavernHeadless 提供边界案例参考。但这些官方包不是 `tavern-*` wrapper：
 
@@ -15,7 +15,7 @@ TavernHeadless 提供边界案例参考。但这些官方包不是 `tavern-*` wr
 
 - 内核不知道 persona、knowledge、prompt、worldbook、chat、character 或 model-call 概念。
 - 这些包都是普通清单、能力和 surface 包。
-- 兼容输入格式只是 adapter 和 fixture，不是 Yggdrasil 的 canonical ontology。
+- 兼容输入格式只是 adapter 和 fixture，不是 Plurora 的 canonical ontology。
 - 变更必须表达为明确的资产、projection 或提案计划，不能隐藏为包状态写入。
 - 输出应包含来源和诊断。
 
@@ -25,7 +25,7 @@ TavernHeadless 提供边界案例参考。但这些官方包不是 `tavern-*` wr
 
 决策词汇：
 
-- `adapted`：已泛化为 Yggdrasil package。
+- `adapted`：已泛化为 Plurora package。
 - `adapter_only`：适合 import/export，但不是 canonical。
 - `deferred`：有价值，但暂不属于本 kit。
 - `rejected`：明确不继承。

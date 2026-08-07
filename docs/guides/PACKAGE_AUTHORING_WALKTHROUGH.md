@@ -7,7 +7,7 @@
 ## 1. 生成能力包
 
 ```bash
-cargo run -p ygg-cli -- init-package /tmp/ygg-seed-package \
+cargo run -p plurora-cli -- init-package /tmp/plurora-seed-package \
   --id example/seed-package \
   --entry subprocess \
   --language typescript \
@@ -26,13 +26,13 @@ cargo run -p ygg-cli -- init-package /tmp/ygg-seed-package \
 如果只需要更窄的包，可以选择其他 template：
 
 ```bash
-cargo run -p ygg-cli -- init-package /tmp/ygg-assist \
+cargo run -p plurora-cli -- init-package /tmp/plurora-assist \
   --id example/assist \
   --entry subprocess \
   --language typescript \
   --template assistant-action
 
-cargo run -p ygg-cli -- init-package /tmp/ygg-asset-editor \
+cargo run -p plurora-cli -- init-package /tmp/plurora-asset-editor \
   --id example/asset-editor \
   --entry subprocess \
   --language python \
@@ -50,7 +50,7 @@ cargo run -p ygg-cli -- init-package /tmp/ygg-asset-editor \
 - `full-surface` — 所有 authoring/play surface slots。
 - `networked` — 带网络权限声明（`host`、`methods`、`purpose`）的能力包。它使用 `secret_ref` 和 outbound audit helper，不嵌入 raw secret，也不隐式访问网络。演示 `sdk/typescript/secure-execution` 中的 `NetworkDeclaration` 和 `OutboundAuditHelper`。
 - `streaming` — 带 faux frame 生命周期的流式能力（`StreamFrameClient`）。演示 `start`/`chunk`/`end` frame 和 `redaction_state`。不做真实模型推理。使用 `sdk/typescript/secure-execution`。
-- `agent-runtime` — 本地可重放的类 agent 子进程包。包含流式 `run` 能力、`explain-run` 追踪摘要、`draft-proposal` 提案草案、`echo` 能力，以及 `assistant_action` + `forge_panel` surfaces。使用 `StreamFrameClient`（`sdk/typescript/secure-execution`）与 `createTraceEvent`/`createProposalDraft`/`blockRawSecrets`（`sdk/typescript/ygg-agent-adapter`）。不做真实模型推理、不出网、不暴露 raw secret。
+- `agent-runtime` — 本地可重放的类 agent 子进程包。包含流式 `run` 能力、`explain-run` 追踪摘要、`draft-proposal` 提案草案、`echo` 能力，以及 `assistant_action` + `forge_panel` surfaces。使用 `StreamFrameClient`（`sdk/typescript/secure-execution`）与 `createTraceEvent`/`createProposalDraft`/`blockRawSecrets`（`sdk/typescript/agent-adapter`）。不做真实模型推理、不出网、不暴露 raw secret。
 - `experience-runtime` — 本地可重放的 experience-runtime 子进程包。包含 `describe-contract`、`create-checkpoint`、`inspect-checkpoint`、`draft-recovery`、`bind-agent-run` 和 `echo` 能力，以及全部四个 experience surfaces。使用 `sdk/typescript/experience-runtime` SDK。不做真实模型推理、不出网、不暴露 raw secret。
 - `playable-board` — 本地可重放的 playable board 子进程包。包含 `launch`、`project_state`、`render_payload`、`record_player_action`、`request_change`、`create_checkpoint` 和 `echo` 能力，以及全部四个 experience surfaces。最接近 `official/playable-creation-board` 形态的第三方创作者模板。不做真实模型推理、不出网、不暴露 raw secret。
 - `playable-experience` — 本地可重放的 playable experience 子进程包。包含 `playable-board` 的所有能力外加 `inspect_checkpoint` 和 `draft_recovery`，支持完整的 checkpoint/recovery 生命周期。全部四个 experience surfaces。不做真实模型推理、不出网、不暴露 raw secret。
@@ -60,10 +60,10 @@ cargo run -p ygg-cli -- init-package /tmp/ygg-asset-editor \
 ## 2. 本地验证能力包
 
 ```bash
-cargo run -p ygg-cli -- package check /tmp/ygg-seed-package/manifest.yaml
-cargo run -p ygg-cli -- package conformance /tmp/ygg-seed-package/manifest.yaml
-cargo run -p ygg-cli -- package run-fixture /tmp/ygg-seed-package/manifest.yaml
-cargo run -p ygg-cli -- package reload /tmp/ygg-seed-package/manifest.yaml
+cargo run -p plurora-cli -- package check /tmp/plurora-seed-package/manifest.yaml
+cargo run -p plurora-cli -- package conformance /tmp/plurora-seed-package/manifest.yaml
+cargo run -p plurora-cli -- package run-fixture /tmp/plurora-seed-package/manifest.yaml
+cargo run -p plurora-cli -- package reload /tmp/plurora-seed-package/manifest.yaml
 ```
 
 这些命令只检查清单，并通过普通能力路径调用能力包。它们不会授予私有 host 访问权。
@@ -73,8 +73,8 @@ cargo run -p ygg-cli -- package reload /tmp/ygg-seed-package/manifest.yaml
 ## 3. 创建 composition descriptor
 
 ```bash
-cargo run -p ygg-cli -- init-composition /tmp/ygg-seed-composition --id example/seed-package
-cargo run -p ygg-cli -- composition check /tmp/ygg-seed-composition/composition.yaml
+cargo run -p plurora-cli -- init-composition /tmp/plurora-seed-composition --id example/seed-package
+cargo run -p plurora-cli -- composition check /tmp/plurora-seed-composition/composition.yaml
 ```
 
 composition descriptor 描述哪些包提供可启动入口、必须有哪些 surface slots。它不是内核里的 `game` 或 `experience` 类型。
@@ -84,8 +84,8 @@ Composition descriptor 字段还能声明 optional packages、required capabilit
 要查看 replacement proof，可以检查内置第三方 example：
 
 ```bash
-cargo run -p ygg-cli -- package check examples/packages/thirdparty-playable-seed/manifest.yaml
-cargo run -p ygg-cli -- composition check examples/compositions/playable-seed-replacement/composition.yaml
+cargo run -p plurora-cli -- package check examples/packages/thirdparty-playable-seed/manifest.yaml
+cargo run -p plurora-cli -- composition check examples/compositions/playable-seed-replacement/composition.yaml
 ```
 
 该 package id 是 `thirdparty/playable-seed`，不是 `official/*`。它在没有 official priority 的情况下暴露兼容的 Play/Forging/Assistant/Asset surfaces。
@@ -96,13 +96,13 @@ cargo run -p ygg-cli -- composition check examples/compositions/playable-seed-re
 
 ```yaml
 autoload:
-  - /tmp/ygg-seed-package/manifest.yaml
+  - /tmp/plurora-seed-package/manifest.yaml
 ```
 
 然后运行：
 
 ```bash
-cargo run -p ygg-cli -- host serve --http 127.0.0.1:8787 --profile profiles/forge-alpha.yaml
+cargo run -p plurora-cli -- host serve --http 127.0.0.1:8787 --profile profiles/forge-alpha.yaml
 ```
 
 Home 通过 `kernel.v1.surface.contribution.list` 发现能力包。Forge 通过同一公开协议发现 panel。UI 不会获得私有 runtime handle。
@@ -201,8 +201,8 @@ const endFrame = client.end();
 对于想证明自己已准备好在安全执行底座（secret refs、网络权限、流式）上运行，但不想进行真实网络调用或模型推理的包，可以参考内置示例：
 
 ```bash
-cargo run -p ygg-cli -- package check examples/packages/faux-model-readiness/manifest.yaml
-cargo run -p ygg-cli -- package check examples/packages/faux-agent-readiness/manifest.yaml
+cargo run -p plurora-cli -- package check examples/packages/faux-model-readiness/manifest.yaml
+cargo run -p plurora-cli -- package check examples/packages/faux-agent-readiness/manifest.yaml
 ```
 
 - `example/faux-model-readiness` 声明网络权限，使用 `secret_ref` 引用凭证，返回 discovery plans（非真实 API 响应），产生 faux streaming frames。不做真实推理或网络调用。
@@ -212,12 +212,12 @@ cargo run -p ygg-cli -- package check examples/packages/faux-agent-readiness/man
 
 ## 8. Playable package walkthrough — 从 template 到 playable
 
-这份 walkthrough 展示一个新创作者如何只靠文档、template 和 Forge，在一天内从 template 到 playable package，不需要阅读 Yggdrasil 源码。
+这份 walkthrough 展示一个新创作者如何只靠文档、template 和 Forge，在一天内从 template 到 playable package，不需要阅读 Plurora 源码。
 
 ### 8.1 生成 playable board 包
 
 ```bash
-cargo run -p ygg-cli -- init-package /tmp/my-playable-board \
+cargo run -p plurora-cli -- init-package /tmp/my-playable-board \
   --id thirdparty/my-playable-board \
   --entry subprocess \
   --language typescript \
@@ -234,10 +234,10 @@ cargo run -p ygg-cli -- init-package /tmp/my-playable-board \
 ### 8.2 本地验证
 
 ```bash
-cargo run -p ygg-cli -- package check /tmp/my-playable-board/manifest.yaml
-cargo run -p ygg-cli -- package conformance /tmp/my-playable-board/manifest.yaml
-cargo run -p ygg-cli -- package run-fixture /tmp/my-playable-board/manifest.yaml
-cargo run -p ygg-cli -- package reload /tmp/my-playable-board/manifest.yaml
+cargo run -p plurora-cli -- package check /tmp/my-playable-board/manifest.yaml
+cargo run -p plurora-cli -- package conformance /tmp/my-playable-board/manifest.yaml
+cargo run -p plurora-cli -- package run-fixture /tmp/my-playable-board/manifest.yaml
+cargo run -p plurora-cli -- package reload /tmp/my-playable-board/manifest.yaml
 ```
 
 `package check` 现在输出面向创作者的诊断：
@@ -254,8 +254,8 @@ cargo run -p ygg-cli -- package reload /tmp/my-playable-board/manifest.yaml
 ### 8.3 与其他包 composition
 
 ```bash
-cargo run -p ygg-cli -- init-composition /tmp/my-board-composition --id thirdparty/my-playable-board
-cargo run -p ygg-cli -- composition check /tmp/my-board-composition/composition.yaml
+cargo run -p plurora-cli -- init-composition /tmp/my-board-composition --id thirdparty/my-playable-board
+cargo run -p plurora-cli -- composition check /tmp/my-board-composition/composition.yaml
 ```
 
 `composition check` 现在输出 experience 相关诊断：
@@ -275,7 +275,7 @@ cargo run -p ygg-cli -- composition check /tmp/my-board-composition/composition.
 如果你的 experience 需要 checkpoint 检查和恢复计划（中途保存/恢复、从故障中恢复），使用 `playable-experience` template：
 
 ```bash
-cargo run -p ygg-cli -- init-package /tmp/my-playable-experience \
+cargo run -p plurora-cli -- init-package /tmp/my-playable-experience \
   --id thirdparty/my-playable-experience \
   --entry subprocess \
   --language typescript \

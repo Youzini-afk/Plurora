@@ -2,7 +2,7 @@
 
 > [English](./INFERENCE_CAPABILITY_AUTHORING.en.md) · [中文](./INFERENCE_CAPABILITY_AUTHORING.md)
 
-本指南记录 Yggdrasil 的推理能力包创作方式。Yggdrasil 可以优先支持 API，但不把平台协议做成某个 API 的形状。云端 API adapter 只是其中一类 provider。本地进程、内存计算和 IPC 管道同样可以承载推理。
+本指南记录 Plurora 的推理能力包创作方式。Plurora 可以优先支持 API，但不把平台协议做成某个 API 的形状。云端 API adapter 只是其中一类 provider。本地进程、内存计算和 IPC 管道同样可以承载推理。
 
 ## 核心立场
 
@@ -26,7 +26,7 @@
 ## 请求信封
 
 ```typescript
-import { createInferenceRequest } from "@yggdrasil/inference-capability";
+import { createInferenceRequest } from "@plurora/inference-capability";
 
 // 本地进程推理请求——不需要 URL、header 或 status code
 const req = createInferenceRequest({
@@ -61,7 +61,7 @@ const req = createInferenceRequest({
 ## Stream Frame 生命周期
 
 ```typescript
-import { InferenceStreamLifecycle } from "@yggdrasil/inference-capability";
+import { InferenceStreamLifecycle } from "@plurora/inference-capability";
 
 const lifecycle = new InferenceStreamLifecycle("op_001", "str_001");
 const start = lifecycle.start({ capability_id: "inference/generate" });
@@ -76,7 +76,7 @@ const end = lifecycle.end();
 Provider 声明自己支持的 operation kinds、modalities、transport kinds、runtime kind 和 resource hints：
 
 ```typescript
-import { createProviderCapabilityManifest } from "@yggdrasil/inference-capability";
+import { createProviderCapabilityManifest } from "@plurora/inference-capability";
 
 // Cloud API provider
 const cloudManifest = createProviderCapabilityManifest({

@@ -211,10 +211,10 @@
       "type": "object"
     }
   },
-  "$id": "https://yggdrasil.dev/spec/v1/methods/kernel.v1.target.unregister.schema.json",
+  "$id": "https://plurora.dev/spec/v1/methods/kernel.v1.target.unregister.schema.json",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": false,
-  "description": "Yggdrasil public kernel method kernel.v1.target.unregister.",
+  "description": "Plurora public kernel method kernel.v1.target.unregister.",
   "properties": {
     "errors": {
       "$ref": "#/$defs/Errors"
@@ -235,7 +235,7 @@
   ],
   "title": "kernel.v1.target.unregister",
   "type": "object",
-  "x-yggdrasil-contract": {
+  "x-plurora-contract": {
     "aliases": [
       {
         "canonical_id": "host.target.unregister",
@@ -249,13 +249,13 @@
     ],
     "canonical_id": "host.target.unregister",
     "implementation_status": "partial",
-    "introduced_in": "ygg.contract.default/v1@0.2.0",
+    "introduced_in": "plurora.contract.default/v1@0.2.0",
     "maturity": "experimental",
     "owner_layer": "host",
     "request_adapter": "identity",
-    "request_schema": "https://yggdrasil.dev/spec/v1/methods/kernel.v1.target.unregister.schema.json#/$defs/Params",
+    "request_schema": "https://plurora.dev/spec/v1/methods/kernel.v1.target.unregister.schema.json#/$defs/Params",
     "response_adapter": "identity",
-    "response_schema": "https://yggdrasil.dev/spec/v1/methods/kernel.v1.target.unregister.schema.json#/$defs/Result",
+    "response_schema": "https://plurora.dev/spec/v1/methods/kernel.v1.target.unregister.schema.json#/$defs/Result",
     "streaming": false
   }
 }

@@ -14,4 +14,4 @@ purpose = "Creative capability reference extraction"
 [public_boundary]
 sdk = "packages/official-integration-kit/sdk"
 client_helpers = "packages/official-integration-kit/client-helpers"
-internal_shared = "packages/shared is not a Yggdrasil integration boundary"
+internal_shared = "packages/shared is not a Plurora integration boundary"

@@ -1,8 +1,8 @@
 {
-  "name": "@yggdrasil/agentic-forge",
+  "name": "@plurora/agentic-forge",
   "version": "0.1.0",
   "license": "AGPL-3.0-only",
-  "description": "Agentic Forge SDK — package-owned run lifecycle, plan graph, working state, and candidate shapes for Yggdrasil",
+  "description": "Agentic Forge SDK — package-owned run lifecycle, plan graph, working state, and candidate shapes for Plurora",
   "private": true,
   "type": "module",
   "main": "index.ts",

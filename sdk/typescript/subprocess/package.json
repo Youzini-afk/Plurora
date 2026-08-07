@@ -1,8 +1,8 @@
 {
-  "name": "@yggdrasil/subprocess",
+  "name": "@plurora/subprocess",
   "version": "0.1.0",
   "license": "AGPL-3.0-only",
-  "description": "Yggdrasil JSON-RPC-over-stdio subprocess SDK",
+  "description": "Plurora JSON-RPC-over-stdio subprocess SDK",
   "private": true,
   "type": "module",
   "main": "index.ts",

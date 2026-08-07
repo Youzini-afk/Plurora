@@ -36,7 +36,7 @@ import type {
   UpdateCheckResult,
 } from "@/protocol/client";
 
-const FRAME_CONTAINER_ID = "ygg-project-frame";
+const FRAME_CONTAINER_ID = "plurora-project-frame";
 const UPDATE_AVAILABLE_STATUSES = new Set(["available", "update_available", "repair_required"]);
 
 interface ProjectDiagnostics {
@@ -107,8 +107,8 @@ export function ProjectFrame({ projectId, chrome = "shell" }: { projectId: strin
     if (typeof document === "undefined") return;
     const previousTitle = document.title;
     document.title = chrome === "none"
-      ? `${project?.title ?? projectId} — Yggdrasil`
-      : `${project?.title ?? projectId} console — Yggdrasil`;
+      ? `${project?.title ?? projectId} — Plurora`
+      : `${project?.title ?? projectId} console — Plurora`;
     return () => {
       document.title = previousTitle;
     };
@@ -574,7 +574,7 @@ export function ProjectFrame({ projectId, chrome = "shell" }: { projectId: strin
   return (
     <div className={isStandalone ? "flex h-[100dvh] flex-col overflow-hidden bg-warm-bone" : "flex min-h-[calc(100dvh-60px)] flex-col"}>
       {isStandalone ? (
-      <div className="ygg-mobile-project-bar flex shrink-0 items-center gap-2 border-b border-whisper-border bg-pure-surface md:hidden">
+      <div className="plurora-mobile-project-bar flex shrink-0 items-center gap-2 border-b border-whisper-border bg-pure-surface md:hidden">
         <Button tone="icon" size="icon-sm" onClick={returnToShell} aria-label={t("projectFrameBackHome")}>
           <ArrowLeft size={16} />
         </Button>

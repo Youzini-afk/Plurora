@@ -35,7 +35,7 @@ function basePlan(projectType?: string): InstallPlan {
   };
 }
 
-assertEqual(detectKindFromInstallPlan(basePlan("yggdrasil_native"))?.kind, "native");
+assertEqual(detectKindFromInstallPlan(basePlan("plurora_native"))?.kind, "native");
 assertEqual(detectKindFromInstallPlan(basePlan("external_wrapped"))?.kind, "declared_external");
 assertEqual(detectKindFromInstallPlan(basePlan("external_workspace"))?.kind, "declared_external");
 assertEqual(detectKindFromInstallPlan(basePlan())?.kind, undefined);

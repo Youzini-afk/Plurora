@@ -6,7 +6,7 @@
 
 ## PostgreSQL event store
 
-`ygg-runtime` 提供 feature-gated `PostgresEventStore`：
+`plurora-runtime` 提供 feature-gated `PostgresEventStore`：
 
 - feature：`postgres`
 - driver：`tokio-postgres` + `deadpool-postgres`
@@ -18,13 +18,13 @@
 真实 PostgreSQL conformance 只有在同时满足以下条件时运行：
 
 ```bash
-cargo run -p ygg-cli --features postgres -- conformance --tag postgres
+cargo run -p plurora-cli --features postgres -- conformance --tag postgres
 ```
 
 并设置 host-owned 测试环境变量：
 
 ```text
-YGG_POSTGRES_TEST_DATABASE_URL
+PLURORA_POSTGRES_TEST_DATABASE_URL
 ```
 
 环境变量值不得写入 package manifest、event、proposal、log 或 public diagnostics。
@@ -47,7 +47,7 @@ event_store:
 ```yaml
 event_store:
   kind: postgres
-  env: YGG_POSTGRES_DATABASE_URL
+  env: PLURORA_POSTGRES_DATABASE_URL
 ```
 
 示例：
@@ -74,7 +74,7 @@ integrations/tdb/TRIVIUMDB_REVIEW.md
 - package raw database；
 - global memory/chat/agent/world store。
 
-原因是 TDB 的强项是本地嵌入式向量、图、文档和多模态混合检索。Yggdrasil 的事件、权限、提案、分支 lineage 和审计仍应由 event spine 承担。
+原因是 TDB 的强项是本地嵌入式向量、图、文档和多模态混合检索。Plurora 的事件、权限、提案、分支 lineage 和审计仍应由 event spine 承担。
 
 ## `official/tdb-retrieval-lab`
 
@@ -202,9 +202,9 @@ kernel.v1.embedding.*
 
 ```bash
 cargo test --workspace
-cargo run -p ygg-cli -- conformance --tag storage
-cargo run -p ygg-cli -- conformance --tag tdb
-cargo run -p ygg-cli -- package check packages/official/tdb-retrieval-lab/manifest.yaml
-cargo run -p ygg-cli -- package check examples/packages/tdb-rust-adapter/manifest.yaml
-cargo check -p ygg-cli --features postgres
+cargo run -p plurora-cli -- conformance --tag storage
+cargo run -p plurora-cli -- conformance --tag tdb
+cargo run -p plurora-cli -- package check packages/official/tdb-retrieval-lab/manifest.yaml
+cargo run -p plurora-cli -- package check examples/packages/tdb-rust-adapter/manifest.yaml
+cargo check -p plurora-cli --features postgres
 ```

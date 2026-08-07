@@ -22,5 +22,5 @@
 跑全套 conformance：
 
 ```bash
-cargo run -p ygg-cli -- conformance
+cargo run -p plurora-cli -- conformance
 ```

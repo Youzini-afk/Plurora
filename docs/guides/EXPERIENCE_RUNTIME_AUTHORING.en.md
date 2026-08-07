@@ -2,7 +2,7 @@
 
 > [English](./EXPERIENCE_RUNTIME_AUTHORING.en.md) · [中文](./EXPERIENCE_RUNTIME_AUTHORING.md)
 
-This guide explains how to create, inspect, checkpoint, recover, and replace experience-runtime packages in Yggdrasil.
+This guide explains how to create, inspect, checkpoint, recover, and replace experience-runtime packages in Plurora.
 
 ## Overview
 
@@ -17,7 +17,7 @@ Key constraints:
 ## Generating an experience-runtime package
 
 ```bash
-ygg init-package ./my-experience \
+plurora init-package ./my-experience \
   --id example/my-experience \
   --entry subprocess \
   --language typescript \
@@ -224,7 +224,7 @@ import {
 ## Reference Implementation
 
 - `packages/official/experience-runtime-lab/` — Official experience-runtime lab package
-- `crates/ygg-runtime/src/inproc/experience_runtime_lab.rs` — Replayable in-process handler
+- `crates/plurora-runtime/src/inproc/experience_runtime_lab.rs` — Replayable in-process handler
 - `sdk/typescript/experience-runtime/` — TypeScript SDK
 - `docs/guides/EXPERIENCE_RUNTIME_AUTHORING.md` — This document
 

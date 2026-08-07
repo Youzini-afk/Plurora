@@ -1,4 +1,4 @@
-# Yggdrasil TDB Rust Adapter
+# Plurora TDB Rust Adapter
 
 This is an opt-in TriviumDB/TDB adapter proof.
 
@@ -18,4 +18,4 @@ Real local smoke test:
 cargo test --manifest-path integrations/tdb/rust-adapter-real-crate/Cargo.toml --features real-tdb
 ```
 
-This real-crate manifest is intentionally separate from the default manifest so ordinary Yggdrasil builds keep TDB disabled by default while platform users can still compile the real published crate path. Developers who need to test an unpublished local checkout should use their own uncommitted Cargo patch/override.
+This real-crate manifest is intentionally separate from the default manifest so ordinary Plurora builds keep TDB disabled by default while platform users can still compile the real published crate path. Developers who need to test an unpublished local checkout should use their own uncommitted Cargo patch/override.

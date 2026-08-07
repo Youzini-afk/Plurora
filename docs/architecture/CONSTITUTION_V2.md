@@ -1,4 +1,4 @@
-# Yggdrasil 宪法 v2（候选）
+# Plurora 宪法 v2（候选）
 
 > [English](./CONSTITUTION_V2.en.md) · [中文](./CONSTITUTION_V2.md)
 
@@ -8,7 +8,7 @@
 
 ## 核心承诺
 
-Yggdrasil 承载可移植、可组合、可审计并能长期演化的应用、工具、服务、世界、游戏、agent 与其他数字形态。
+Plurora 承载可移植、可组合、可审计并能长期演化的应用、工具、服务、世界、游戏、agent 与其他数字形态。
 模型、agent、组件、引擎、客户端和 Host 都可以替换；重要内容、历史与所有权不属于任何单一实现或服务。
 
 产品可以把「世界」作为媒介身份，但宪法基底不把 `World` 固化为系统本体。基底只认识身份、权力、对象、引用、因果、效果和证明；世界由上层协议定义。
@@ -150,7 +150,7 @@ ArtifactDescriptor
 - 宿主绝对路径、进程 ID 和临时 URL 不能成为可移植身份。
 - Package、component、protocol descriptor、content、composition、receipt 和 world bundle 都可以使用同一引用机制，但基底不把它们硬编码成封闭枚举。
 
-该形状借鉴 OCI Content Descriptor 的 `mediaType + digest + size` 思路；Yggdrasil 不要求采用 OCI manifest，也不把容器语义带进基底。
+该形状借鉴 OCI Content Descriptor 的 `mediaType + digest + size` 思路；Plurora 不要求采用 OCI manifest，也不把容器语义带进基底。
 
 ## Journal、因果与 Head
 
@@ -190,7 +190,7 @@ EffectReceipt
 
 Receipt 必须区分计划值与实际值，区分被拒绝、取消、超时、部分完成和成功。Raw secret、完整 credential、默认用户内容和未经需要的完整 prompt 不得进入 receipt。
 
-Receipt 的 envelope、statement 和具体 predicate 可以分层演进；这一点与 in-toto attestation 将 subject、predicate type、认证 envelope 分离的做法相似，但 Yggdrasil receipt 面向运行时效果，而非只面向软件供应链。
+Receipt 的 envelope、statement 和具体 predicate 可以分层演进；这一点与 in-toto attestation 将 subject、predicate type、认证 envelope 分离的做法相似，但 Plurora receipt 面向运行时效果，而非只面向软件供应链。
 
 ## Protocol Commons：协议公地
 
@@ -209,7 +209,7 @@ Receipt 的 envelope、statement 和具体 predicate 可以分层演进；这一
 - 迁移、adapter 和弃用说明；
 - 已通过 conformance 的独立实现列表。
 
-协议可以相互竞争和分叉。官方维护的协议不获得内核路由优先级。外部协议如 MCP、A2A 或引擎协议可以通过 adapter 成为协议公地成员，不要求重新发明 Yggdrasil 专用版本。
+协议可以相互竞争和分叉。官方维护的协议不获得内核路由优先级。外部协议如 MCP、A2A 或引擎协议可以通过 adapter 成为协议公地成员，不要求重新发明 Plurora 专用版本。
 
 ## Component 与执行信任
 
@@ -252,7 +252,7 @@ Intent
 
 基底只保护资源、调用桥和权限，不硬编码 Home、Play、Forge 或 Assistant。
 
-Shell profile 定义宿主如何解释交互资源，例如 view、action、editor、presence、stream、layout hint 和 input intent。`experience_entry`、`home_card`、`forge_panel` 等现有 slot 迁移为 `ygg.shell.default/v1` profile 的词汇。
+Shell profile 定义宿主如何解释交互资源，例如 view、action、editor、presence、stream、layout hint 和 input intent。`experience_entry`、`home_card`、`forge_panel` 等现有 slot 迁移为 `plurora.shell.default/v1` profile 的词汇。
 
 Shell 可以是 Web、desktop、VR、IDE 或 headless 服务。更换 shell 不得改变世界历史、对象身份、协议状态或 effect receipt。
 
@@ -333,7 +333,7 @@ Experimental
 8. 模型服务离线时，历史仍可确定性重放。
 9. Web shell 被 desktop、VR 或 headless shell 替换时，世界数据不变。
 
-这些条件约束稳定性声明和兼容承诺，不决定 Yggdrasil 应该为了它们建设哪些产品功能。
+这些条件约束稳定性声明和兼容承诺，不决定 Plurora 应该为了它们建设哪些产品功能。
 
 ## 非规范性参考
 

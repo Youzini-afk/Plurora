@@ -1,10 +1,10 @@
-# Yggdrasil
+# Plurora
 
 > [English](./README.en.md) · [中文](./README.md)
 
 **一个面向人、AI 与软件共同创造和运行的开放数字平台。**
 
-Yggdrasil 让应用、工具、服务、世界、游戏、agent、创作环境和未来尚未被命名的数字形态，能够被创建、组合、运行、审视、修改、迁移和替换。平台提供可信的共同基础，但不规定上层最终应该长成什么样。
+Plurora 让应用、工具、服务、世界、游戏、agent、创作环境和未来尚未被命名的数字形态，能够被创建、组合、运行、审视、修改、迁移和替换。平台提供可信的共同基础，但不规定上层最终应该长成什么样。
 
 ```text
 ┌──────────────────────────────────────────────────────────┐
@@ -23,7 +23,7 @@ Host Control Plane / Runtime Fabric 横跨各层，管理安装、执行、
 
 ## 我们想建设什么
 
-Yggdrasil 长期追求五件事：
+Plurora 长期追求五件事：
 
 - **开放：** 源码、协议、数据和扩展入口公开；用户能导出、迁移和删除数据；官方实现没有私有 API。
 - **多样：** 不固定唯一应用形态、工作流、Shell、模型、组件或内容本体。
@@ -35,7 +35,7 @@ Yggdrasil 长期追求五件事：
 
 ## 平台与官方产品
 
-Yggdrasil 不只是内核，也不等于官方 Web/Desktop。当前官方发行版使用 Home、Settings、Project frame、Console 和可贡献 Surface，提供本地 managed Host、远程 Host、安装、运行、创作、部署、权限和数据管理等体验。
+Plurora 不只是内核，也不等于官方 Web/Desktop。当前官方发行版使用 Home、Settings、Project frame、Console 和可贡献 Surface，提供本地 managed Host、远程 Host、安装、运行、创作、部署、权限和数据管理等体验。
 
 这些是正在持续打磨的默认产品选择，而不是整个平台的永久本体：
 
@@ -58,10 +58,10 @@ Yggdrasil 不只是内核，也不等于官方 Web/Desktop。当前官方发行�
 
 ```text
 crates/
-  ygg-core/            当前核心类型、schema、身份、事件与合同对象
-  ygg-runtime/         runtime、组件执行、协议调度与部分 Host 能力
-  ygg-service/         HTTP / RPC / SSE 与 Host service 边界
-  ygg-cli/             CLI、Host、脚手架、contract 与 conformance 工具
+  plurora-core/            当前核心类型、schema、身份、事件与合同对象
+  plurora-runtime/         runtime、组件执行、协议调度与部分 Host 能力
+  plurora-service/         HTTP / RPC / SSE 与 Host service 边界
+  plurora-cli/             CLI、Host、脚手架、contract 与 conformance 工具
 
 clients/web/           官方 React 19 + Tailwind v4 + Vite Web Shell / PWA
 clients/desktop/       Tauri 2.x wrapper + managed Host sidecar
@@ -83,7 +83,7 @@ integrations/          外部项目和生态接入调研
 启动 Host：
 
 ```bash
-cargo run -p ygg-cli -- host serve \
+cargo run -p plurora-cli -- host serve \
   --http 127.0.0.1:8787 \
   --profile profiles/forge-alpha.yaml
 ```
@@ -99,26 +99,26 @@ npm run build --prefix clients/web
 
 ```bash
 cargo test --workspace
-cargo run -p ygg-cli -- conformance
+cargo run -p plurora-cli -- conformance
 ```
 
 安装和管理 Package / Project：
 
 ```bash
-yg install github.com/user/yggdrasil-package#v1.2.0
-yg list-installed
-yg project list
-yg project start <project-id>
-yg project stop <project-id>
-yg uninstall <package-id-or-project-id>
-yg update [<package-id>|--project-id <project-id>] [--check-only]
-yg lockfile --check
+plurora install github.com/user/plurora-package#v1.2.0
+plurora list-installed
+plurora project list
+plurora project start <project-id>
+plurora project stop <project-id>
+plurora uninstall <package-id-or-project-id>
+plurora update [<package-id>|--project-id <project-id>] [--check-only]
+plurora lockfile --check
 ```
 
 通过公开协议运行空白游创示例：
 
 ```bash
-cargo run -p ygg-cli -- play-create-demo
+cargo run -p plurora-cli -- play-create-demo
 ```
 
 更多命令和组件创作流程见 [`docs/guides/PACKAGE_AUTHORING_WALKTHROUGH.md`](docs/guides/PACKAGE_AUTHORING_WALKTHROUGH.md)。
@@ -143,7 +143,7 @@ cargo run -p ygg-cli -- play-create-demo
 | 看建设方向 | [`docs/roadmap/NEXT_STEPS.md`](docs/roadmap/NEXT_STEPS.md) |
 | 写文档 | [`docs/STYLE.md`](docs/STYLE.md) |
 
-## 可以在 Yggdrasil 上发展的形态
+## 可以在 Plurora 上发展的形态
 
 聊天、世界模拟、Tavern、游戏引擎桥接、IDE、普通 Web 服务、agent runtime、文档工具、节点编辑器和市场，都可以成为平台上的产品、协议、组件或发行版。它们没有一项是平台唯一中心，也没有一项因为“官方”而获得隐藏权威。
 
@@ -151,4 +151,4 @@ YdlTavern 是一个独立接入项目，边界见 [`docs/tavern/TAVERN_COMPAT.md
 
 ## 许可证
 
-Yggdrasil 以 GNU Affero General Public License v3.0（仅此版本，`AGPL-3.0-only`）发布，详见 [`LICENSE`](LICENSE)；第一方代码、外部依赖和第三方内容的边界见 [`docs/LICENSING.md`](docs/LICENSING.md)。
+Plurora 以 GNU Affero General Public License v3.0（仅此版本，`AGPL-3.0-only`）发布，详见 [`LICENSE`](LICENSE)；第一方代码、外部依赖和第三方内容的边界见 [`docs/LICENSING.md`](docs/LICENSING.md)。

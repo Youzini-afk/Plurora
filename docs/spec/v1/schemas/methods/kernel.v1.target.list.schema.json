@@ -206,10 +206,10 @@
       "type": "array"
     }
   },
-  "$id": "https://yggdrasil.dev/spec/v1/methods/kernel.v1.target.list.schema.json",
+  "$id": "https://plurora.dev/spec/v1/methods/kernel.v1.target.list.schema.json",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": false,
-  "description": "Yggdrasil public kernel method kernel.v1.target.list.",
+  "description": "Plurora public kernel method kernel.v1.target.list.",
   "properties": {
     "errors": {
       "$ref": "#/$defs/Errors"
@@ -230,29 +230,29 @@
   ],
   "title": "kernel.v1.target.list",
   "type": "object",
-  "x-yggdrasil-contract": {
+  "x-plurora-contract": {
     "aliases": [
       {
         "canonical_id": "host.target.list",
-        "deprecated_in": "ygg.contract.registry@0.4.0",
+        "deprecated_in": "plurora.contract.registry@0.4.0",
         "id": "kernel.v1.target.list",
         "introduced_in": "kernel.v1@0.1.0",
         "maturity": "legacy_adapter",
         "replacement": "host.target.list",
         "request_adapter": "identity",
         "response_adapter": "identity",
-        "support_until": "ygg.contract.registry@0.5.0"
+        "support_until": "plurora.contract.registry@0.5.0"
       }
     ],
     "canonical_id": "host.target.list",
     "implementation_status": "partial",
-    "introduced_in": "ygg.contract.default/v1@0.1.0",
+    "introduced_in": "plurora.contract.default/v1@0.1.0",
     "maturity": "candidate",
     "owner_layer": "host",
     "request_adapter": "identity",
-    "request_schema": "https://yggdrasil.dev/spec/v1/methods/kernel.v1.target.list.schema.json#/$defs/Params",
+    "request_schema": "https://plurora.dev/spec/v1/methods/kernel.v1.target.list.schema.json#/$defs/Params",
     "response_adapter": "identity",
-    "response_schema": "https://yggdrasil.dev/spec/v1/methods/kernel.v1.target.list.schema.json#/$defs/Result",
+    "response_schema": "https://plurora.dev/spec/v1/methods/kernel.v1.target.list.schema.json#/$defs/Result",
     "streaming": false
   }
 }

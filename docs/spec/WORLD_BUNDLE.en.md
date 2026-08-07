@@ -2,7 +2,7 @@
 
 > [English](./WORLD_BUNDLE.en.md) · [中文](./WORLD_BUNDLE.md)
 
-Status: Experimental profile `ygg.world.bundle/experimental/v1`.
+Status: Experimental profile `plurora.world.bundle/experimental/v1`.
 
 World Bundle is an optional Profile for carrying, reading, and migrating a persistent higher-level World across Hosts without making `World` a substrate type. The concrete archive is readable, integrity-checkable, and auditable without loading the original Package, starting a Component, enabling a model provider, or mounting the Web Shell.
 
@@ -74,10 +74,10 @@ ObjectStore and EventStore do not share a cross-backend transaction. Import ther
 The archive is a shell-independent data artifact:
 
 ```text
-ygg world-bundle verify <archive.json> [--json]
-ygg world-bundle audit <archive.json> [--json]
-ygg world-bundle replay <archive.json> [--json]
-ygg world-bundle import <archive.json> --data-dir <fresh-dir> [--json]
+plurora world-bundle verify <archive.json> [--json]
+plurora world-bundle audit <archive.json> [--json]
+plurora world-bundle replay <archive.json> [--json]
+plurora world-bundle import <archive.json> --data-dir <fresh-dir> [--json]
 ```
 
 `replay` is historical-only. It decodes recorded envelopes, receipts, and receipt outputs and reports zero executor invocations. It never calls the original capability provider, network executor, model provider, local process executor, or shell bridge.
@@ -99,7 +99,7 @@ Unknown artifact semantics are not an error. Their bytes and descriptors remain 
 
 ## Executable conformance
 
-`ygg.runtime.world-bundle` is registered as the first production implementation claim because all five protocol-owned vectors execute successfully:
+`plurora.runtime.world-bundle` is registered as the first production implementation claim because all five protocol-owned vectors execute successfully:
 
 - `world_bundle.reference_closure`;
 - `world_bundle.cross_host_import`;

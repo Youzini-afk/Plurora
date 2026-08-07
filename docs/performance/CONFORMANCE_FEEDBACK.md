@@ -2,20 +2,20 @@
 
 > [English](./CONFORMANCE_FEEDBACK.en.md) · [中文](./CONFORMANCE_FEEDBACK.md)
 
-`ygg conformance` 支持过滤、计时和诊断。它用于快速定位失败项和慢项。
+`plurora conformance` 支持过滤、计时和诊断。它用于快速定位失败项和慢项。
 
 ## 基本用法
 
 ```bash
 # 运行全部 conformance cases（默认行为不变）
-cargo run -p ygg-cli -- conformance
+cargo run -p plurora-cli -- conformance
 ```
 
 ## 列出 case
 
 ```bash
 # 列出所有 case id 和 tag，不执行
-cargo run -p ygg-cli -- conformance --list
+cargo run -p plurora-cli -- conformance --list
 ```
 
 输出格式：`<case_id>  [<tag1>, <tag2>, ...]`
@@ -24,47 +24,47 @@ cargo run -p ygg-cli -- conformance --list
 
 ```bash
 # 按子串过滤（匹配 case id 中包含指定子串的 case）
-cargo run -p ygg-cli -- conformance --case sharing_lab.contract_shape
+cargo run -p plurora-cli -- conformance --case sharing_lab.contract_shape
 
 # 过滤所有 sharing_lab case
-cargo run -p ygg-cli -- conformance --case sharing_lab
+cargo run -p plurora-cli -- conformance --case sharing_lab
 ```
 
 ## 按 tag 过滤
 
 ```bash
 # 按 tag 过滤（case 只需包含任一指定 tag 即被选中）
-cargo run -p ygg-cli -- conformance --tag sharing
+cargo run -p plurora-cli -- conformance --tag sharing
 
 # 组合多个 tag（OR 语义）
-cargo run -p ygg-cli -- conformance --tag network --tag secret
+cargo run -p plurora-cli -- conformance --tag network --tag secret
 ```
 
 ## Fail-fast
 
 ```bash
 # 第一个失败后立即停止
-cargo run -p ygg-cli -- conformance --fail-fast
+cargo run -p plurora-cli -- conformance --fail-fast
 ```
 
 ## Slowest report
 
 ```bash
 # 末尾显示最慢 10 个 case（默认）
-cargo run -p ygg-cli -- conformance
+cargo run -p plurora-cli -- conformance
 
 # 自定义最慢 N
-cargo run -p ygg-cli -- conformance --slowest 3
+cargo run -p plurora-cli -- conformance --slowest 3
 ```
 
 ## 组合使用
 
 ```bash
 # 只跑 sharing 相关 case，fail-fast，显示最慢 3
-cargo run -p ygg-cli -- conformance --tag sharing --fail-fast --slowest 3
+cargo run -p plurora-cli -- conformance --tag sharing --fail-fast --slowest 3
 
 # 按 case id 和 tag 同时过滤（AND 语义：必须同时满足两个条件）
-cargo run -p ygg-cli -- conformance --case sharing_lab --tag secret
+cargo run -p plurora-cli -- conformance --case sharing_lab --tag secret
 ```
 
 ## 可用 tags

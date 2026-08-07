@@ -2,7 +2,7 @@
 
 > [English](./INFERENCE_CAPABILITY_AUTHORING.en.md) · [中文](./INFERENCE_CAPABILITY_AUTHORING.md)
 
-This guide documents how to author inference capability packages for Yggdrasil. Yggdrasil can be API-first without making the platform protocol look like one vendor API. Cloud API adapters are one kind of provider. Local processes, in-memory compute, IPC pipes, and WebSocket channels can carry inference too.
+This guide documents how to author inference capability packages for Plurora. Plurora can be API-first without making the platform protocol look like one vendor API. Cloud API adapters are one kind of provider. Local processes, in-memory compute, IPC pipes, and WebSocket channels can carry inference too.
 
 ## Core position
 
@@ -26,7 +26,7 @@ This guide documents how to author inference capability packages for Yggdrasil. 
 ## Request envelope
 
 ```typescript
-import { createInferenceRequest } from "@yggdrasil/inference-capability";
+import { createInferenceRequest } from "@plurora/inference-capability";
 
 // Local process inference request — no URL, header, or status code needed
 const req = createInferenceRequest({
@@ -61,7 +61,7 @@ The taxonomy does not depend on HTTP status codes. `classifyInferenceError` acce
 ## Stream frame lifecycle
 
 ```typescript
-import { InferenceStreamLifecycle } from "@yggdrasil/inference-capability";
+import { InferenceStreamLifecycle } from "@plurora/inference-capability";
 
 const lifecycle = new InferenceStreamLifecycle("op_001", "str_001");
 const start = lifecycle.start({ capability_id: "inference/generate" });
@@ -76,7 +76,7 @@ const end = lifecycle.end();
 Providers declare their supported operation kinds, modalities, transport kinds, runtime kind, and resource hints:
 
 ```typescript
-import { createProviderCapabilityManifest } from "@yggdrasil/inference-capability";
+import { createProviderCapabilityManifest } from "@plurora/inference-capability";
 
 // Cloud API provider
 const cloudManifest = createProviderCapabilityManifest({

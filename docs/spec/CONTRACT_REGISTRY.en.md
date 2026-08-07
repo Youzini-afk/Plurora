@@ -65,7 +65,7 @@ The RPC envelope may include an optional field:
   "method": "host.info",
   "params": {},
   "contract": {
-    "profile": "ygg.contract.default/v1",
+    "profile": "plurora.contract.default/v1",
     "versions": [
       { "layer": "host", "version": "0.1.0" }
     ]
@@ -74,7 +74,7 @@ The RPC envelope may include an optional field:
 ```
 
 - Omitting `contract` selects the `kernel.v1` legacy profile for old clients.
-- The advertised profiles are currently `ygg.contract.default/v1`, `ygg.shell.default/v1`, and
+- The advertised profiles are currently `plurora.contract.default/v1`, `plurora.shell.default/v1`, and
   `kernel.v1`. Shell Default requires the published host, protocol, and shell layer versions.
 - Once a client explicitly requests a profile or layer version, the host must satisfy it exactly.
 - Unknown profiles, layers outside the profile, and version mismatches return
@@ -96,7 +96,7 @@ older host.
 
 ## SDKs
 
-The generator reads `x-yggdrasil-contract` metadata from every method schema:
+The generator reads `x-plurora-contract` metadata from every method schema:
 
 - existing source-level method names invoke the canonical wire ID;
 - each legacy wire ID gets an explicit `legacyKernelV1...` / `legacy_kernel_v1_...` wrapper;
@@ -114,8 +114,8 @@ Registry `0.4.0` began the first measured deprecation window; `0.5.0` completes 
 
 | Legacy alias | Current maturity | Replacement | Replacement maturity | Deprecated in | Legacy Adapter from |
 |---|---|---|---|---|---|
-| `kernel.v1.host.info` | Legacy Adapter | `host.info` | Candidate | `ygg.contract.registry@0.4.0` | `ygg.contract.registry@0.5.0` |
-| `kernel.v1.target.list` | Legacy Adapter | `host.target.list` | Candidate | `ygg.contract.registry@0.4.0` | `ygg.contract.registry@0.5.0` |
+| `kernel.v1.host.info` | Legacy Adapter | `host.info` | Candidate | `plurora.contract.registry@0.4.0` | `plurora.contract.registry@0.5.0` |
+| `kernel.v1.target.list` | Legacy Adapter | `host.target.list` | Candidate | `plurora.contract.registry@0.4.0` | `plurora.contract.registry@0.5.0` |
 
 Historical `deprecated_in`, `replacement`, and `support_until` metadata remains published. The old
 and canonical IDs still reach the same handler, share the same request/response schemas, and use
@@ -123,9 +123,9 @@ identity adapters to return the same method result. After entering Legacy Adapte
 only security fixes and data-reading compatibility; it receives no new field semantics.
 
 HTTP RPC, host stdio, and subprocess reverse stdio add an optional top-level `diagnostics` array with
-code `ygg.contract.alias.legacy_adapter` when a tracked Legacy Adapter alias is requested. The ad-hoc
+code `plurora.contract.alias.legacy_adapter` when a tracked Legacy Adapter alias is requested. The ad-hoc
 `GET /kernel/v1/host.info` route exposes the same
-policy through `x-yggdrasil-contract-*` response headers and a `Link` to `/rpc`. The replacement
+policy through `x-plurora-contract-*` response headers and a `Link` to `/rpc`. The replacement
 header value is a canonical method ID, not a URL; invoke it with `POST /rpc`. Diagnostics are
 advisory and do not alter the method payload or error mapping, including when contract selection is
 structurally invalid but the requested legacy method ID can still be recovered.
@@ -133,7 +133,7 @@ structurally invalid but the requested legacy method ID can still be recovered.
 Run a read-only migration preview with:
 
 ```sh
-ygg contract migrate PATH --json
+plurora contract migrate PATH --json
 ```
 
 By default the tool migrates only aliases with published lifecycle/deprecation metadata. Add `--all-aliases`

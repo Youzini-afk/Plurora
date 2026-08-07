@@ -8,7 +8,7 @@ export type ProjectTabWindow = ProjectNavigationWindow;
 export type ProjectOpenOutcome = "tab" | "same-window" | "invalid" | "failed";
 
 export function projectTabTargetName(projectId: string): string {
-  return `ygg-project-${fnv1a(projectId).toString(36).padStart(7, "0").slice(0, 16)}`;
+  return `plurora-project-${fnv1a(projectId).toString(36).padStart(7, "0").slice(0, 16)}`;
 }
 
 export function openProjectInTab(projectId: string, hostWindow: ProjectTabWindow = window): ProjectOpenOutcome {

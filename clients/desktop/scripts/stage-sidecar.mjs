@@ -9,7 +9,7 @@ const tauriDir = resolve(scriptDir, "../src-tauri");
 
 const release = process.argv.includes("--release");
 const requestedTarget = readArgument("--target")
-  ?? process.env.YGG_DESKTOP_TARGET
+  ?? process.env.PLURORA_DESKTOP_TARGET
   ?? process.env.TAURI_ENV_TARGET_TRIPLE;
 const target = requestedTarget ?? detectHostTriple();
 
@@ -19,8 +19,8 @@ if (!/^[A-Za-z0-9_.-]+$/.test(target)) {
 
 const cargoArgs = [
   "build",
-  "-p", "ygg-cli",
-  "--bin", "ygg",
+  "-p", "plurora-cli",
+  "--bin", "plurora",
   "--target", target,
   "--locked",
 ];
@@ -31,8 +31,8 @@ run("cargo", cargoArgs, workspaceRoot);
 const windows = target.includes("windows");
 const extension = windows ? ".exe" : "";
 const profile = release ? "release" : "debug";
-const source = resolve(workspaceRoot, "target", target, profile, `ygg${extension}`);
-const destination = resolve(tauriDir, "binaries", `ygg-host-${target}${extension}`);
+const source = resolve(workspaceRoot, "target", target, profile, `plurora${extension}`);
+const destination = resolve(tauriDir, "binaries", `plurora-host-${target}${extension}`);
 mkdirSync(dirname(destination), { recursive: true });
 copyFileSync(source, destination);
 if (!windows) chmodSync(destination, 0o755);

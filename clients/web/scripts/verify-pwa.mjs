@@ -6,8 +6,8 @@ for (const relative of [
   "index.html",
   "manifest.webmanifest",
   "sw.js",
-  "icons/yggdrasil.svg",
-  "icons/yggdrasil-maskable.svg",
+  "icons/plurora.svg",
+  "icons/plurora-maskable.svg",
 ]) {
   if (!existsSync(resolve(dist, relative))) throw new Error(`missing PWA artifact: dist/${relative}`);
 }

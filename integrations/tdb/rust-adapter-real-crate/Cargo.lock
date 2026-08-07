@@ -487,7 +487,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "ygg-tdb-rust-adapter-real-crate"
+name = "plurora-tdb-rust-adapter-real-crate"
 version = "0.1.0"
 dependencies = [
  "serde",

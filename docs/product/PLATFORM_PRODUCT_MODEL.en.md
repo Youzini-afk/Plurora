@@ -2,7 +2,7 @@
 
 > [English](./PLATFORM_PRODUCT_MODEL.en.md) · [中文](./PLATFORM_PRODUCT_MODEL.md)
 
-This document defines how the official Yggdrasil distribution becomes a complete, usable product without promoting its product choices into mandatory ontology for the entire platform.
+This document defines how the official Plurora distribution becomes a complete, usable product without promoting its product choices into mandatory ontology for the entire platform.
 
 ## Product responsibility
 
@@ -42,7 +42,7 @@ One person may hold several roles. The product adapts through progressive disclo
 The official distribution covers at least:
 
 ```text
-obtain Yggdrasil
+obtain Plurora
 → start locally or connect to a Host
 → discover / import content
 → inspect source, authority, and resource requirements
@@ -74,7 +74,7 @@ Creator tools may be opinionated but receive no private kernel authority. AI ass
 
 ## Current organization of the official shell
 
-The current Web/Desktop distribution organizes itself around Home, Settings, Project frames, Project Console, and contributed surfaces. This is an evolving official product structure, not a mandatory structure for all Yggdrasil clients.
+The current Web/Desktop distribution organizes itself around Home, Settings, Project frames, Project Console, and contributed surfaces. This is an evolving official product structure, not a mandatory structure for all Plurora clients.
 
 - **Home / Library:** discover, install, launch, and resume;
 - **Settings / Control:** Hosts, identities, authority, storage, connections, and package management;
@@ -86,7 +86,7 @@ A third-party distribution may have no Home, no Project, or a completely differe
 
 ## Product boundary of Project
 
-Project is a practical model used by the current official Host and distribution to organize installable, runnable instances. It fits applications, workspaces, and some experiences, but it is not the permanent root of all Yggdrasil data and interaction.
+Project is a practical model used by the current official Host and distribution to organize installable, runnable instances. It fits applications, workspaces, and some experiences, but it is not the permanent root of all Plurora data and interaction.
 
 Other products may organize around a World, Document, Service, Workspace, Collection, Simulation, or their own protocol objects. The generic substrate must not force those objects to pretend to be Projects, and the Host does not gain their content semantics merely by managing a Project.
 

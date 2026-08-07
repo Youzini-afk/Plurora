@@ -2,18 +2,18 @@
 
 > [English](./MODEL_PROVIDER_INTEGRATION.en.md) · [中文](./MODEL_PROVIDER_INTEGRATION.md)
 
-本指南记录 Yggdrasil 的 cloud model provider adapter 接入方式。它不是中转站、计费系统、provider 后台或内核模型抽象。云模型接入必须作为普通能力包工作，并遵守同一套清单、权限、`secret_ref`、出站审计、流式/取消和检查边界。
+本指南记录 Plurora 的 cloud model provider adapter 接入方式。它不是中转站、计费系统、provider 后台或内核模型抽象。云模型接入必须作为普通能力包工作，并遵守同一套清单、权限、`secret_ref`、出站审计、流式/取消和检查边界。
 
 ## Scope：cloud adapter，不是平台抽象
 
 `official/model-provider-lab` 是 cloud API adapter lab：
 
-- 它不是 Yggdrasil 的模型抽象。
+- 它不是 Plurora 的模型抽象。
 - 它不是 LiteLLM / OneAPI compatible gateway。
 - 它不是 provider marketplace、计费系统或渠道后台。
 - 它没有内核特权；官方包和第三方包必须走同一套公开协议、权限、secret 和出站边界。
 - OpenAI、Anthropic、Gemini、OpenRouter、DeepSeek、xAI、Fireworks 的 schema 是 adapter 内部细节，不是平台公共协议。
-- `normalize_request` 是 cloud adapter 内部 request builder helper，不是 Yggdrasil canonical inference request。
+- `normalize_request` 是 cloud adapter 内部 request builder helper，不是 Plurora canonical inference request。
 
 如果你要编写与传输无关的推理包，请看 [`INFERENCE_CAPABILITY_AUTHORING.md`](./INFERENCE_CAPABILITY_AUTHORING.md)。如果你要证明非 HTTP、本地或自托管 seam，请参考 `official/inference-local-lab`。
 
@@ -47,7 +47,7 @@
 | `xai` | `openai_chat`, `openai_responses` | `delta_sse`, `semantic_sse` | `api.x.ai` |
 | `fireworks` | `openai_chat`, `fireworks_responses` | `delta_sse`, `semantic_sse` | `api.fireworks.ai` |
 
-OpenAI-compatible 是 adapter family，不是 Yggdrasil 的唯一模型世界观。Anthropic、Gemini 和 Responses 风格流都有不同结构，必须显式适配。
+OpenAI-compatible 是 adapter family，不是 Plurora 的唯一模型世界观。Anthropic、Gemini 和 Responses 风格流都有不同结构，必须显式适配。
 
 ## Profile shape
 
@@ -91,7 +91,7 @@ OpenAI-compatible 是 adapter family，不是 Yggdrasil 的唯一模型世界观
 
 ### `normalize_request`
 
-`normalize_request` 是 cloud adapter package 的内部 request-builder helper。它把 adapter-local input 转成 provider-specific request shape。它不是 Yggdrasil 的 canonical inference request，也不应被第三方包当成平台统一 chat schema。与传输无关的推理契约位于 `sdk/typescript/inference-capability`。
+`normalize_request` 是 cloud adapter package 的内部 request-builder helper。它把 adapter-local input 转成 provider-specific request shape。它不是 Plurora 的 canonical inference request，也不应被第三方包当成平台统一 chat schema。与传输无关的推理契约位于 `sdk/typescript/inference-capability`。
 
 示例：
 
@@ -191,7 +191,7 @@ OpenAI-compatible 是 adapter family，不是 Yggdrasil 的唯一模型世界观
 可选真实 DeepSeek smoke path 只在同时满足以下条件时运行：
 
 ```bash
-YGG_LIVE_MODEL_TESTS=1 DEEPSEEK_API_KEY=... cargo run -p ygg-cli -- conformance
+PLURORA_LIVE_MODEL_TESTS=1 DEEPSEEK_API_KEY=... cargo run -p plurora-cli -- conformance
 ```
 
 默认 CI / 默认 conformance 不会访问公网。
@@ -217,8 +217,8 @@ YGG_LIVE_MODEL_TESTS=1 DEEPSEEK_API_KEY=... cargo run -p ygg-cli -- conformance
 
 ```bash
 cargo test --workspace
-cargo run -p ygg-cli -- conformance
-cargo run -p ygg-cli -- package check packages/official/model-provider-lab/manifest.yaml
+cargo run -p plurora-cli -- conformance
+cargo run -p plurora-cli -- package check packages/official/model-provider-lab/manifest.yaml
 tsc -p clients/web/tsconfig.json --noEmit
 ```
 

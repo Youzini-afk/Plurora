@@ -4,7 +4,7 @@ export function canRegisterServiceWorker(
 ): boolean {
   const isHttp = locationLike.protocol === "http:" || locationLike.protocol === "https:";
   const isTauriResourceOrigin = locationLike.hostname === "tauri.localhost";
-  const isManagedDesktop = new URLSearchParams(locationLike.search).get("ygg_platform") === "desktop";
+  const isManagedDesktop = new URLSearchParams(locationLike.search).get("plurora_platform") === "desktop";
   return isHttp && !isTauriResourceOrigin && !isManagedDesktop && serviceWorkerSupported;
 }
 
@@ -15,10 +15,10 @@ export async function registerPwa(): Promise<void> {
     registerSW({
       immediate: true,
       onRegisterError(error) {
-        console.warn("Yggdrasil service worker registration failed", error);
+        console.warn("Plurora service worker registration failed", error);
       },
     });
   } catch (error) {
-    console.warn("Yggdrasil PWA bootstrap failed", error);
+    console.warn("Plurora PWA bootstrap failed", error);
   }
 }

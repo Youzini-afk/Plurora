@@ -1,5 +1,5 @@
 /**
- * Yggdrasil Agentic Forge SDK — Package-owned run lifecycle, plan graph,
+ * Plurora Agentic Forge SDK — Package-owned run lifecycle, plan graph,
  * working state, and candidate shapes.
  *
  * This module defines the **agentic forge contract** at the package/SDK layer.

@@ -2,7 +2,7 @@
 
 > [English](./ALPHA_STATUS.en.md) · [中文](./ALPHA_STATUS.md)
 
-A snapshot of Yggdrasil's current implementation. It records what code, public contracts, and quality checks support, except where explicitly marked partial or deferred. It does not define why the platform exists or the only direction it may take.
+A snapshot of Plurora's current implementation. It records what code, public contracts, and quality checks support, except where explicitly marked partial or deferred. It does not define why the platform exists or the only direction it may take.
 
 For platform goals and principles, see [`CHARTER.md`](CHARTER.en.md) and [`architecture/VISION.md`](architecture/VISION.en.md). Official product responsibility is in [`product/PLATFORM_PRODUCT_MODEL.md`](product/PLATFORM_PRODUCT_MODEL.en.md); play-creation is only an optional profile. Construction direction is in [`roadmap/NEXT_STEPS.md`](roadmap/NEXT_STEPS.en.md).
 
@@ -11,7 +11,7 @@ For platform goals and principles, see [`CHARTER.md`](CHARTER.en.md) and [`archi
 - **Conformance:** 474 named CLI cases pass, plus crate and service unit tests; 161 v1 schemas validate (80 methods + 59 events + 22 top-level).
 - **Charter discipline:** content-free kernel; no privilege for official packages; public protocol only; equal entry forms; capability handles, binding injection, Path A / Path B, the conformance kit, and generated SDKs are implemented; trusted paths block raw secrets and use manifest-declared `secret_ref` everywhere; permission grants rehydrate; network permissions are audited and redacted; generic streaming and cancel lifecycle; outbound execution has a boundary, deny-all by default; public HTTPS outbound uses the same host-policy / audit / redaction boundary; unary outbound, SSE/NDJSON/raw streams, and WebSocket all emit completion audit events.
 - **Code health:** the CLI, runtime domain behavior, protocol dispatch, in-process handlers, and the event store are all split by domain. We're not stacking more onto single files.
-- **Human-testing substrate:** install warnings and schema shapes are stable; native project install now flows source → store → nested manifests/profile autoload → project registry → project dist → protected `/surface-bundles/projects/<project_id>/...` → a short-lived sandbox asset lease; `surface_bundle` is a static, non-executing entry; `dist/` is included in `tree_hash`, store schema migration clears old stores, and install/update/uninstall garbage-collect orphan stores; `official/install-lab` provides `check_for_updates` / `update_project`, and both CLI `yg update` and the web project console route through it; the Surface bridge has converged on allowlists, stream ownership, redacted diagnostics, secret-input cleanup, CSP/CORS hardening, and typed `allowed_capability_ids`; Desktop manages a loopback Host sidecar and the Web shell is installable as a PWA; self-hosted deployment includes unified local/Agent target drivers, target / exec / port / proxy primitives, HTTP/WebSocket reverse proxy, the explicit Deploy broker, private-by-default / explicitly public routes, shared Host/project/target client context, and Verified ChangeSet → private preview → separate deployment approval → activation → reconcile/recover/rollback. Revocable scoped-device pairing lets phones control projects, deployments, and ChangeSets through the same Host API; Web/Desktop/PWA reuse one client core, while the remote CLI uses the same Bearer/public-Host boundary for project/target operations and the full ChangeSet draft/review/approve/reject/execute/export/recover lifecycle.
+- **Human-testing substrate:** install warnings and schema shapes are stable; native project install now flows source → store → nested manifests/profile autoload → project registry → project dist → protected `/surface-bundles/projects/<project_id>/...` → a short-lived sandbox asset lease; `surface_bundle` is a static, non-executing entry; `dist/` is included in `tree_hash`, store schema migration clears old stores, and install/update/uninstall garbage-collect orphan stores; `official/install-lab` provides `check_for_updates` / `update_project`, and both CLI `plurora update` and the web project console route through it; the Surface bridge has converged on allowlists, stream ownership, redacted diagnostics, secret-input cleanup, CSP/CORS hardening, and typed `allowed_capability_ids`; Desktop manages a loopback Host sidecar and the Web shell is installable as a PWA; self-hosted deployment includes unified local/Agent target drivers, target / exec / port / proxy primitives, HTTP/WebSocket reverse proxy, the explicit Deploy broker, private-by-default / explicitly public routes, shared Host/project/target client context, and Verified ChangeSet → private preview → separate deployment approval → activation → reconcile/recover/rollback. Revocable scoped-device pairing lets phones control projects, deployments, and ChangeSets through the same Host API; Web/Desktop/PWA reuse one client core, while the remote CLI uses the same Bearer/public-Host boundary for project/target operations and the full ChangeSet draft/review/approve/reject/execute/export/recover lifecycle.
 
 The repository now has a substantial operational surface, but neither the platform nor the official product is “finished.” Further construction addresses openness, plurality, advanced execution and protocol capability, long-term data evolution, and complete experiences for users and creators.
 
@@ -34,11 +34,11 @@ The repository now has a substantial operational surface, but neither the platfo
 
 - **`secret_ref` references:** `secret_ref:<vault>:<key>`, `secretRef:`, `secret-ref:`, and `host:` prefixes are all supported. Packages refer to secrets through these references; raw values never appear in events, proposals, logs, or audit records.
 - **Environment-variable resolver:** a host-owned resolver with an explicit allowlist. Deny-all by default; an env name has to be allowed before it can be resolved. Errors carry only the env name, never the raw value.
-- **Local encrypted secret store:** `secret_ref:store:NAME` resolves through `StoreSecretResolver` from `~/.yggdrasil/secrets.dat`; `secret_ref:project:NAME` reads the project-level store first and then falls back to the platform store according to `secret_policy`; stores use age (X25519), with a master key from OS keyring (deferred) or a 0600 local key file.
+- **Local encrypted secret store:** `secret_ref:store:NAME` resolves through `StoreSecretResolver` from `~/.plurora/secrets.dat`; `secret_ref:project:NAME` reads the project-level store first and then falls back to the platform store according to `secret_policy`; stores use age (X25519), with a master key from OS keyring (deferred) or a 0600 local key file.
 - **Raw secret blocking:** proposal operations and expected effects, plus asset metadata, are scanned conservatively. Obvious API keys, tokens, and password fields are rejected. Asset content and ordinary prose aren't scanned, to avoid false positives on user content.
 - **Network permission declarations:** `permissions.network` in a manifest supports both flat `hosts` (backward compatible) and structured `declarations` with `host`, `methods`, and `purpose`. A package without a declaration can't reach the network. Official packages don't bypass.
 - **Outbound audit and redaction:** every outbound request produces an audit record holding only the principal, the package id, the capability id, the destination host, the method, the purpose, the redaction state, and the `secret_ref`s used. Raw bodies, headers, prompts, and responses are never recorded.
-- **Outbound executor boundary:** content-free HTTP and WebSocket executor traits. Default is deny-all (fail closed). They can switch to fake executors (with fixtures, used by conformance) or live executors (HTTP uses reqwest + rustls; WebSocket uses tokio-tungstenite + rustls; both off by default; HTTP is HTTPS-only; WebSocket is WSS-only; redirect fail closed). Secret headers are injected at execution time only — never into audit, response, or `Debug`. Real live model / WebSocket outbound requires explicit opt-in through profile and environment variables; default conformance does not use the network, and real WebSocket smoke also requires `YGG_LIVE_WEBSOCKET_TESTS=1`.
+- **Outbound executor boundary:** content-free HTTP and WebSocket executor traits. Default is deny-all (fail closed). They can switch to fake executors (with fixtures, used by conformance) or live executors (HTTP uses reqwest + rustls; WebSocket uses tokio-tungstenite + rustls; both off by default; HTTP is HTTPS-only; WebSocket is WSS-only; redirect fail closed). Secret headers are injected at execution time only — never into audit, response, or `Debug`. Real live model / WebSocket outbound requires explicit opt-in through profile and environment variables; default conformance does not use the network, and real WebSocket smoke also requires `PLURORA_LIVE_WEBSOCKET_TESTS=1`.
 - **Protocol methods:** `kernel.v1.outbound.audit` lists outbound audit events for a package; `kernel.v1.outbound.execute` lets ordinary packages issue unary outbound requests through the host executor; `kernel.v1.outbound.stream` provides SSE/NDJSON/raw streaming outbound; `kernel.v1.outbound.websocket.open|send|close` provides bidirectional WebSocket outbound.
 - **Completion audit events:** `kernel/v1/outbound.execute.completed`, `kernel/v1/outbound.stream.completed`, and `kernel/v1/outbound.websocket.completed` cover all three outbound primitives; events record only status, counts, duration, executor kind, network_performed, redaction state, and `secret_ref` references.
 - **Streaming lifecycle:** the stream registry tracks in-flight streaming invocations and emits `kernel/v1/stream.started|chunk|progress|ended|error|cancelled|timeout` in order. Cancel and timeout block further chunks. Non-streaming capabilities are rejected.
@@ -46,11 +46,11 @@ The repository now has a substantial operational surface, but neither the platfo
 ## Public protocol and transport
 
 - A canonical request / response envelope carrying a host-bound principal context. Callers can't claim to be a package or admin.
-- The same dispatcher handles HTTP `POST /rpc` and host JSON-RPC stdio (`ygg host-stdio`).
-- Contract Registry `0.5.0` completes the first real Deprecated → Legacy Adapter transition: all 36 aliases still resolve centrally; `host.info` and `host.target.list` are Candidate, while their `kernel.v1.*` aliases retain the `0.4.0` deprecation history and are frozen as identity Legacy Adapters from `0.5.0`. They accept security fixes and data-reading compatibility but no new field semantics. HTTP, host stdio, and subprocess reverse stdio emit additive lifecycle diagnostics; generated SDKs queue those warnings; `ygg contract migrate` previews boundary-aware migrations and uses atomic write/rollback. Web sends canonical IDs in production.
+- The same dispatcher handles HTTP `POST /rpc` and host JSON-RPC stdio (`plurora host-stdio`).
+- Contract Registry `0.5.0` completes the first real Deprecated → Legacy Adapter transition: all 36 aliases still resolve centrally; `host.info` and `host.target.list` are Candidate, while their `kernel.v1.*` aliases retain the `0.4.0` deprecation history and are frozen as identity Legacy Adapters from `0.5.0`. They accept security fixes and data-reading compatibility but no new field semantics. HTTP, host stdio, and subprocess reverse stdio emit additive lifecycle diagnostics; generated SDKs queue those warnings; `plurora contract migrate` previews boundary-aware migrations and uses atomic write/rollback. Web sends canonical IDs in production.
 - Event subscription via SSE, with `after_sequence` replay and live tailing.
-- Profile-driven `ygg host serve` autoloads packages and exposes both `/rpc` and SSE.
-- The Host control plane remains separate from Contract V1: the root token is the root credential, while durable device grants attenuate both action scopes and `project` / `target` resource selectors, with bounded delegation, ancestor-revocation cascade, expiry, single revoke, and atomic administrator bulk revoke. HTTP and RPC preserve the same device identity and authority before entering the runtime, project sessions require an explicit project binding, and each device protocol call records a redacted allow/deny decision. Long-running development execution refreshes grant/ancestor state before Docker and managed-workspace effects and after blocking verification. The mobile PWA and `yg host access` CLI manage authority through the same Host API; pairing still exchanges a one-time HTTPS token for a Secure/HttpOnly cookie. See [`architecture/HOST_REMOTE_ACCESS.md`](architecture/HOST_REMOTE_ACCESS.en.md).
+- Profile-driven `plurora host serve` autoloads packages and exposes both `/rpc` and SSE.
+- The Host control plane remains separate from Contract V1: the root token is the root credential, while durable device grants attenuate both action scopes and `project` / `target` resource selectors, with bounded delegation, ancestor-revocation cascade, expiry, single revoke, and atomic administrator bulk revoke. HTTP and RPC preserve the same device identity and authority before entering the runtime, project sessions require an explicit project binding, and each device protocol call records a redacted allow/deny decision. Long-running development execution refreshes grant/ancestor state before Docker and managed-workspace effects and after blocking verification. The mobile PWA and `plurora host access` CLI manage authority through the same Host API; pairing still exchanges a one-time HTTPS token for a Secure/HttpOnly cookie. See [`architecture/HOST_REMOTE_ACCESS.md`](architecture/HOST_REMOTE_ACCESS.en.md).
 - TCP transport is reserved for later. WASM and remote entries are first-class manifest forms; execution is deferred.
 
 ## Package execution
@@ -67,7 +67,7 @@ The repository now has a substantial operational surface, but neither the platfo
 - Asset registry: opaque `id`, `mime`, `hash`, `size`, `origin_package_id`, `metadata`. Rehydrates from SQLite. Permission enforcement and content-addressed blob storage are next.
 - Session fork / branch lineage rehydrates from the event log.
 - Generic projection registry. Rebuilds filter the event log by `kind_prefix` and `writer_package_id` and write `kernel/v1/projection.updated`. Package-owned projection execution is next.
-- Project runtime: `ProjectDescriptor`, `ProjectRegistry`, `~/.yggdrasil/projects/<id>/` layout, project-level secret policy, Home project cards, per-project storage summaries, redacted package-failure summaries, and `yg project list/info/status/start/stop` are implemented.
+- Project runtime: `ProjectDescriptor`, `ProjectRegistry`, `~/.plurora/projects/<id>/` layout, project-level secret policy, Home project cards, per-project storage summaries, redacted package-failure summaries, and `plurora project list/info/status/start/stop` are implemented.
 - Deployment runtime: `kernel.v1.target.*`, `kernel.v1.exec.*`, `kernel.v1.port.*`, and `kernel.v1.proxy.*` are implemented; default is deny-all and profiles may opt into `LiveLocalExecExecutor`. Built-in `local` and enrolled Agents use the same durable operation/artifact/verifier/deployment-receipt contracts; ports remain loopback-only, proxy upstreams must reference active port leases, and Agent traffic returns to the Host proxy only through authenticated tunnels. `ProxyRouteAccess` defaults to `host_authenticated`; only an explicit `public` route enables the optional unauthenticated `<slug>.apps.<host>/` vhost, while `/p/<route_id>/...` remains inside Host authentication. The web project console supports explicit Docker Deploy / Stop, Dockerfile / nixpacks Build & Deploy, and immutable-build-context-driven verified ChangeSet private preview, separate approval, `VerifiedActivate` revisions, and explicit reconcile/recover/rollback. Verified replay rebuilds on the recorded target without reading the live workspace or refetching source. A real MDN repository and a structurally different Python fixture cover faults, Host restart, and rollback in GitHub CI.
 - Surface contributions: descriptors with version, slot, activation, required permissions, approval policy, and metadata. Slots are `experience_entry`, `home_card`, `quick_action`, `workshop_card`, `play_renderer`, `forge_panel`, `asset_editor`, and `assistant_action`. `quick_action`, `workshop_card`, and `home_card` entries with `metadata.shell_schema_version: 1` are structured shell descriptors: the web shell reads only bounded text, icon hints, order, and same-package targets, then renders them itself. It does not load package JavaScript, parse HTML, or mount iframes for those entries. Complex project surfaces still use `surface_bundle` plus sandboxed iframe hosting. Discoverable via `kernel.v1.surface.contribution.list` and `.describe`.
 - Surface bundles: `surface_bundle` is a static browser-bundle entry in the manifest, not an executable package entry. Installed project bundles live internally under `/surface-bundles/projects/<project_id>/...`, whose raw path requires a Host identity. After project authorization, an opaque-origin sandbox receives a five-minute `/surface-assets/<lease>/...` read-only handle bound to its grant and bundle root, without a Host credential. `dist/` participates in `tree_hash`, so browser-bundle-only changes trigger updates; project dist refreshes through a temporary directory plus atomic replacement.
@@ -78,12 +78,12 @@ The repository now has a substantial operational surface, but neither the platfo
 | Capability | Status |
 |---|---|
 | `manifest.requires` field | implemented |
-| Lockfile schema (`yggdrasil.lock.v1`) | implemented |
+| Lockfile schema (`plurora.lock.v1`) | implemented |
 | `official/git-tools-lab` (gix-based) | implemented |
 | `official/integrity-lab` (sequoia GPG + sha256) | implemented |
 | `official/install-lab` orchestrator | implemented |
-| `yg install` / `uninstall` / `list-installed` / `update` / `lockfile` CLI | implemented |
-| `~/.yggdrasil` filesystem convention | implemented |
+| `plurora install` / `uninstall` / `list-installed` / `update` / `lockfile` CLI | implemented |
+| `~/.plurora` filesystem convention | implemented |
 | Interactive consent prompt | implemented |
 | Static conformance integration (warning by default; `--strict` blocks) | implemented |
 | GPG signature verification (off by default; `--require-signed` enables) | implemented |
@@ -99,21 +99,21 @@ The repository now has a substantial operational surface, but neither the platfo
 | `StoreSecretResolver` + `CompositeSecretResolver` | implemented |
 | age (X25519) encryption + 0600 file permissions | implemented |
 | OS keyring integration | deferred (libdbus-sys system dep) |
-| `yg secret put / list / delete` CLI | deferred |
+| `plurora secret put / list / delete` CLI | deferred |
 | Sigstore verification | deferred |
 | Tauri UI install path | deferred |
 | Auto-update daemon | deferred |
 | Binary package distribution | deferred |
 | Project as first-class runtime concept | implemented |
 | `ProjectDescriptor` + `ProjectId` + `ProjectType` + `SecretPolicy` | implemented |
-| `~/.yggdrasil/projects/<id>/` filesystem layout | implemented |
+| `~/.plurora/projects/<id>/` filesystem layout | implemented |
 | `secret_ref:project:NAME` with platform fallback | implemented |
 | `ProjectRegistry` (in-memory + disk scan) | implemented |
 | `ProtocolContext.session_id` propagation | implemented |
 | Install detection (native vs external) | implemented |
 | External project wizard (wrap / workspace) | implemented |
-| `yg project list/info/status/start/stop` | implemented |
-| `yg uninstall` archival prompt | implemented |
+| `plurora project list/info/status/start/stop` | implemented |
+| `plurora uninstall` archival prompt | implemented |
 | `kernel.v1.project.list/get/start/stop/status` | implemented |
 | `kernel/v1/project.installed/started/stopped/uninstalled` | implemented |
 | Home surface project cards | implemented |
@@ -121,7 +121,7 @@ The repository now has a substantial operational surface, but neither the platfo
 | Native project install into profile, project registry, and project dist | implemented |
 | `surface_bundle` static entry and installed project bundle route | implemented |
 | typed `allowed_capability_ids` bridge declaration | implemented |
-| CLI `yg update` routes through install-lab project update | implemented |
+| CLI `plurora update` routes through install-lab project update | implemented |
 | Multi-tenant `project_id` in `ProtocolContext` | deferred |
 | Project archive auto-cleanup beyond 30 days | deferred |
 
@@ -212,7 +212,7 @@ Under `sdk/typescript/`:
 - `secure-execution` — `secret_ref` construction and validation, network declarations, outbound audit, faux stream-frame client.
 - `inference-capability` — transport-neutral inference contract.
 - `model-provider-adapter` — cloud-provider adapter helpers.
-- `ygg-agent-adapter` — maps Ygg capabilities into pi-style tools.
+- `agent-adapter` — maps Ygg capabilities into pi-style tools.
 - `agentic-forge` — run lifecycle, plan graph, working state, candidate / compare / promote, inference nodes, tool bridge v2 helpers.
 - `experience-runtime` — experience runtime types and constructors.
 - `text-surface` — frontend text-surface helpers (streaming buffer, frame adapter, scroll anchor, font loading).
@@ -223,12 +223,12 @@ Under `sdk/typescript/`:
 
 - `docs/spec/KERNEL_V1_CONTRACT.md` is the public platform spec.
 - `docs/spec/v1/schemas/` is the single source of truth for SDKs and conformance: 80 methods, 59 events, 22 top-level schemas, 161 total.
-- `sdk/typescript/kernel-sdk/` and `sdk/rust/yg-kernel-sdk/` are generated from schemas; the TypeScript package can be consumed through npm, workspace path, or independent codegen.
-- `yg conformance package --contract v1 --path <package>` provides 8 third-party package acceptance checks.
+- `sdk/typescript/contract-sdk/` and `sdk/rust/plurora-contract-sdk/` are generated from schemas; the TypeScript package can be consumed through npm, workspace path, or independent codegen.
+- `plurora conformance package --contract v1 --path <package>` provides 8 third-party package acceptance checks.
 
 ## Package templates
 
-`ygg init-package --template <name>`: `basic`, `experience`, `play-renderer`, `forge-panel`, `assistant-action`, `asset-editor`, `full-surface`, `networked`, `streaming`, `agent-runtime`, `experience-runtime`, `playable-board`, `playable-experience`. Generated packages are safe by default — no raw secrets, no implicit network.
+`plurora init-package --template <name>`: `basic`, `experience`, `play-renderer`, `forge-panel`, `assistant-action`, `asset-editor`, `full-surface`, `networked`, `streaming`, `agent-runtime`, `experience-runtime`, `playable-board`, `playable-experience`. Generated packages are safe by default — no raw secrets, no implicit network.
 
 ## Web shell (`clients/web`)
 
@@ -259,29 +259,29 @@ The platform user-facing chrome — Home, Settings, Install flow, Project frame,
 
 ## Authoring flow
 
-- `ygg init-package` generates Python or TypeScript subprocess scaffolding. `--template` chooses the surface descriptors. `--language *-experience` without `--template` still generates the legacy 4-surface experience for back-compat.
-- `ygg init-composition` plus `ygg composition check` covers the local composition flow with v2 fields (title, description, optional packages, required capabilities, default activation, permission expectations, replacement candidates, compatibility notes).
-- `ygg package check` prints structured diagnostics: entry kind, trust level, capability count, surfaces by slot, permission summary, sandbox policy. Warns on packages with no capabilities or no surfaces.
-- `ygg package conformance` validates a generated package locally.
-- `ygg package reload <manifest>` loads the package into an in-memory runtime, restarts (subprocess only), shows before / after status and log counts, and unloads.
-- `ygg package run-fixture` invokes every non-streaming capability with deterministic fixture input and prints a JSON summary.
-- `ygg play-create-demo` runs the blank play-creation loop end to end.
-- `ygg perf baseline` runs deterministic baseline measurements (in-process invoke, official capability invoke, event store append / list / range, composition check, profile load, subprocess echo) in text or JSON. See [`performance/BASELINE.md`](performance/BASELINE.en.md).
+- `plurora init-package` generates Python or TypeScript subprocess scaffolding. `--template` chooses the surface descriptors. `--language *-experience` without `--template` still generates the legacy 4-surface experience for back-compat.
+- `plurora init-composition` plus `plurora composition check` covers the local composition flow with v2 fields (title, description, optional packages, required capabilities, default activation, permission expectations, replacement candidates, compatibility notes).
+- `plurora package check` prints structured diagnostics: entry kind, trust level, capability count, surfaces by slot, permission summary, sandbox policy. Warns on packages with no capabilities or no surfaces.
+- `plurora package conformance` validates a generated package locally.
+- `plurora package reload <manifest>` loads the package into an in-memory runtime, restarts (subprocess only), shows before / after status and log counts, and unloads.
+- `plurora package run-fixture` invokes every non-streaming capability with deterministic fixture input and prints a JSON summary.
+- `plurora play-create-demo` runs the blank play-creation loop end to end.
+- `plurora perf baseline` runs deterministic baseline measurements (in-process invoke, official capability invoke, event store append / list / range, composition check, profile load, subprocess echo) in text or JSON. See [`performance/BASELINE.md`](performance/BASELINE.en.md).
 
 ## Code organization
 
-- `crates/ygg-cli/src/main.rs` is a thin entry. CLI types live in `cli.rs`, commands under `commands/`, and package templates under `templates/`. The conformance runner and case registry are split: `conformance/runner.rs` owns `--list`, `--case`, `--tag`, `--fail-fast`, and `--slowest`; `conformance/registry/` registers the 474 `ConformanceCase { id, tags, run }` entries by domain.
-- `crates/ygg-cli/src/schema_export/` owns v1 schema export; `src/bin/export-schemas.rs` is a thin entry. Generated files still come from the exporter only — SDKs and schemas are not hand-edited.
-- `crates/ygg-runtime/src/runtime/` splits runtime behavior into session, events, packages, capabilities, hooks, permissions, assets, branches, projections, and proposals. `runtime/protocol_dispatch.rs` is now the public router facade; concrete public-protocol handlers live under `runtime/protocol/` by domain. `runtime/mod.rs` keeps the public `Runtime<S>` API.
+- `crates/plurora-cli/src/main.rs` is a thin entry. CLI types live in `cli.rs`, commands under `commands/`, and package templates under `templates/`. The conformance runner and case registry are split: `conformance/runner.rs` owns `--list`, `--case`, `--tag`, `--fail-fast`, and `--slowest`; `conformance/registry/` registers the 474 `ConformanceCase { id, tags, run }` entries by domain.
+- `crates/plurora-cli/src/schema_export/` owns v1 schema export; `src/bin/export-schemas.rs` is a thin entry. Generated files still come from the exporter only — SDKs and schemas are not hand-edited.
+- `crates/plurora-runtime/src/runtime/` splits runtime behavior into session, events, packages, capabilities, hooks, permissions, assets, branches, projections, and proposals. `runtime/protocol_dispatch.rs` is now the public router facade; concrete public-protocol handlers live under `runtime/protocol/` by domain. `runtime/mod.rs` keeps the public `Runtime<S>` API.
 - Protocol metadata and dispatch share a single source of truth (`KernelMethod`), with a registry / dispatch consistency unit test.
-- `crates/ygg-runtime/src/inproc/` splits official-package behavior by domain; `official/install-lab` is split into `install_lab/` modules (types/source/planner/executor/layout/project_kind/fs_copy). The shared helper routes by provider package plus local capability name, not suffix-only fallback.
+- `crates/plurora-runtime/src/inproc/` splits official-package behavior by domain; `official/install-lab` is split into `install_lab/` modules (types/source/planner/executor/layout/project_kind/fs_copy). The shared helper routes by provider package plus local capability name, not suffix-only fallback.
 - `clients/web` Home and Install flow are split into page shells plus hooks/helpers/step components. The UI still uses public protocol only and does not read the local filesystem or private runtime state.
 
 These splits don't change behavior — they keep the codebase reviewable as more packages, conformance cases, handlers, and UI flows land.
 
 ## Conformance
 
-`cargo run -p ygg-cli -- conformance` runs 474 named CLI cases. Flags:
+`cargo run -p plurora-cli -- conformance` runs 474 named CLI cases. Flags:
 
 - `--list` — list ids and tags.
 - `--case <pattern>` — substring filter.
@@ -314,7 +314,7 @@ These will arrive as ordinary packages or future work — not as kernel features
 - Conversation runtime, prompts, models, sampling, message / turn semantics.
 - Memory models, retrieval, summarization, agent loops, directors.
 - World, scene, character, rule, dice, inventory semantics.
-- SillyTavern compatibility lives in the YdlTavern integration project on top of Yggdrasil (see [`tavern/TAVERN_COMPAT.md`](tavern/TAVERN_COMPAT.en.md)).
+- SillyTavern compatibility lives in the YdlTavern integration project on top of Plurora (see [`tavern/TAVERN_COMPAT.md`](tavern/TAVERN_COMPAT.en.md)).
 - Production-grade long-running autonomous agents, multi-agent collaboration, production memory systems, fuller live-ops.
 - External game-engine bridges (UE5, Godot, Unity, web clients).
 - Marketplace, package signing, dependency resolution (local sharing proof is done; see [`guides/SHARING_DISTRIBUTION.md`](guides/SHARING_DISTRIBUTION.en.md)).
@@ -325,10 +325,10 @@ These will arrive as ordinary packages or future work — not as kernel features
 
 ```bash
 cargo test --workspace
-cargo run -p ygg-cli -- conformance
-cargo run -p ygg-cli -- conformance --list
-cargo run -p ygg-cli -- conformance --tag sharing --slowest 3
-cargo run -p ygg-cli -- play-create-demo
+cargo run -p plurora-cli -- conformance
+cargo run -p plurora-cli -- conformance --list
+cargo run -p plurora-cli -- conformance --tag sharing --slowest 3
+cargo run -p plurora-cli -- play-create-demo
 npm run check --prefix clients/web
 npm run build --prefix clients/web
 ```

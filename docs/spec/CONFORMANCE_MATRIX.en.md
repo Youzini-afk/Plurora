@@ -8,7 +8,7 @@ The conformance suite is the executable guardian of the charter. It proves both 
 
 ```bash
 cargo test --workspace
-cargo run -p ygg-cli -- conformance
+cargo run -p plurora-cli -- conformance
 ```
 
 The current matrix records implemented conformance coverage. Named CLI cases and crate/service unit tests support these results. Current CLI conformance total: **453**.
@@ -19,26 +19,26 @@ The conformance command supports filtering, timing, and diagnostics. See [`docs/
 
 ```bash
 # List all case ids and tags
-cargo run -p ygg-cli -- conformance --list
+cargo run -p plurora-cli -- conformance --list
 
 # Filter by substring
-cargo run -p ygg-cli -- conformance --case sharing_lab
+cargo run -p plurora-cli -- conformance --case sharing_lab
 
 # Filter by tag
-cargo run -p ygg-cli -- conformance --tag sharing
+cargo run -p plurora-cli -- conformance --tag sharing
 
 # Fail-fast
-cargo run -p ygg-cli -- conformance --fail-fast
+cargo run -p plurora-cli -- conformance --fail-fast
 
 # Custom slowest report
-cargo run -p ygg-cli -- conformance --slowest 3
+cargo run -p plurora-cli -- conformance --slowest 3
 ```
 
 ## Current conformance coverage
 
 ### Project model conformance cases
 
-The current matrix includes the following project-model cases. Verify the actual case ids with `cargo run -p ygg-cli -- conformance --list | grep -E "(host_profile|project|protocol\.project)"`.
+The current matrix includes the following project-model cases. Verify the actual case ids with `cargo run -p plurora-cli -- conformance --list | grep -E "(host_profile|project|protocol\.project)"`.
 
 | Group | Case id | Coverage | Status |
 |---|---|---|---|
@@ -65,7 +65,7 @@ The current matrix includes the following project-model cases. Verify the actual
 
 ### End-to-end real-path conformance cases
 
-The current matrix includes the following end-to-end-real-path cases. Verify the actual case ids with `cargo run -p ygg-cli -- conformance --list | grep -E "(surface\.resolve|project\.start_returns|session_metadata|running_session|stop_closes)"`.
+The current matrix includes the following end-to-end-real-path cases. Verify the actual case ids with `cargo run -p plurora-cli -- conformance --list | grep -E "(surface\.resolve|project\.start_returns|session_metadata|running_session|stop_closes)"`.
 
 | Group | Case id | Coverage | Status |
 |---|---|---|---|
@@ -263,10 +263,10 @@ Surface/static bundle and bridge coverage also includes these stable assertions:
 | secret_ref | manifest `permissions.secret_refs` declaration: undeclared refs fail closed, declared refs resolve via host resolver | implemented |
 | subprocess_outbound | subprocess SDK reverse kernel call: principal binding, execute dispatch, stream chunks piped back | implemented |
 | sse_parser | outbound stream SSE parser basic smoke and partial chunk coalescing | implemented |
-| live_model | live smoke is skipped by default; real calls require `YGG_LIVE_MODEL_TESTS=1` plus provider env vars | implemented |
+| live_model | live smoke is skipped by default; real calls require `PLURORA_LIVE_MODEL_TESTS=1` plus provider env vars | implemented |
 | outbound | local loopback HTTP server secret injection: Authorization header actually arrives at server, raw secret not in protocol response/audit/log | implemented |
 | outbound | DeepSeek SSE stream normalize canary: delta_sse start→chunk→end lifecycle, terminal_frame_consistent, no raw secrets | implemented |
-| outbound | opt-in live DeepSeek conformance: default skip, only when YGG_LIVE_MODEL_TESTS=1 + DEEPSEEK_API_KEY | implemented |
+| outbound | opt-in live DeepSeek conformance: default skip, only when PLURORA_LIVE_MODEL_TESTS=1 + DEEPSEEK_API_KEY | implemented |
 | outbound | canary DeepSeek profile shape: normalize_request endpoint/dialect/stream_family correct, secret_ref placeholder no raw key | implemented |
 | outbound | OpenAI Chat Completions loopback: Authorization Bearer arrives at server, POST /v1/chat/completions, body shape model+messages, raw secret not in response/audit | implemented |
 | outbound | OpenAI Responses loopback: Authorization Bearer arrives, POST /v1/responses, body shape uses input field, raw secret not in response/audit | implemented |
@@ -408,7 +408,7 @@ Surface/static bundle and bridge coverage also includes these stable assertions:
 
 ## CLI target output
 
-`cargo run -p ygg-cli -- conformance` should evolve from a smoke test into a named case runner:
+`cargo run -p plurora-cli -- conformance` should evolve from a smoke test into a named case runner:
 
 ```text
 session.open_empty                         PASS

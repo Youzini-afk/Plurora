@@ -2,7 +2,7 @@
 
 > [English](./ALPHA_STATUS.en.md) · [中文](./ALPHA_STATUS.md)
 
-这是 Yggdrasil 当前实现状态的快照。它记录代码、公开合同和质量检查已经支持什么，明确标注 partial 或 deferred 的除外；它不负责定义平台为什么存在或未来只能往哪里发展。
+这是 Plurora 当前实现状态的快照。它记录代码、公开合同和质量检查已经支持什么，明确标注 partial 或 deferred 的除外；它不负责定义平台为什么存在或未来只能往哪里发展。
 
 平台目标与原则见 [`CHARTER.md`](CHARTER.md) 和 [`architecture/VISION.md`](architecture/VISION.md)；官方产品责任见 [`product/PLATFORM_PRODUCT_MODEL.md`](product/PLATFORM_PRODUCT_MODEL.md)，游创只是可选 Profile。建设方向见 [`roadmap/NEXT_STEPS.md`](roadmap/NEXT_STEPS.md)。
 
@@ -11,7 +11,7 @@
 - **Conformance：** 474 个具名 CLI 用例通过，外加 crate / service 单元测试；161 个 v1 schema（80 methods + 59 events + 22 top-level）通过校验。
 - **章程纪律：** 内核对内容无意见；官方包没有特权；公开协议是唯一入口；入口形态平等；能力句柄、bindings 注入、Path A / Path B、conformance kit 与生成 SDK 已落地；可信路径阻断 raw secret，全部走 manifest 声明的 `secret_ref`；权限授权可重新水化；网络声明带审计与脱敏；通用流式与取消生命周期；外发执行有边界，默认全拒；公开 HTTPS 出站走同样的 host policy / 审计 / 脱敏边界；一元、SSE/NDJSON/raw 流和 WebSocket 三个原语都有完成审计事件。
 - **代码健康：** CLI、运行时各域行为、协议分发、in-process 处理器、事件存储——都已按域拆分，不再继续往单文件里堆。
-- **人测底座：** 安装 warning 与 schema 形状已稳定；原生项目安装链路从 source → store → nested manifests/profile autoload → project registry → project dist → 受保护的 `/surface-bundles/projects/<project_id>/...` → 短期 sandbox asset lease；`surface_bundle` 是 static、non-executing 入口；`dist/` 已进入 `tree_hash`，store schema 迁移会清掉旧 store，install/update/uninstall 后会回收孤立 store；`official/install-lab` 提供 `check_for_updates` / `update_project`，CLI `yg update` 与 Web 项目控制台都通过它更新；Surface bridge 已收敛 allowlist、stream ownership、诊断脱敏、secret 输入清理、CSP/CORS 加固与 typed `allowed_capability_ids`；桌面端管理 loopback Host sidecar，Web shell 可安装为 PWA；自托管部署底座包含统一 local/Agent target driver、target / exec / port / proxy、HTTP/WebSocket 反代、显式 Deploy broker、默认私有/显式公开 route、共享 Host/project/target 客户端 context，以及 Verified ChangeSet → private preview → 独立部署审批 → activation → reconcile/recover/rollback。可撤销 scoped device pairing 让手机通过同一 Host API 控制项目、部署与 ChangeSet；Web/Desktop/PWA 复用同一 client core，远程 CLI 通过同一 Bearer/public Host 边界完成 project/target 操作以及 ChangeSet 的草拟、审阅、批准/拒绝、执行、导出和恢复完整生命周期。
+- **人测底座：** 安装 warning 与 schema 形状已稳定；原生项目安装链路从 source → store → nested manifests/profile autoload → project registry → project dist → 受保护的 `/surface-bundles/projects/<project_id>/...` → 短期 sandbox asset lease；`surface_bundle` 是 static、non-executing 入口；`dist/` 已进入 `tree_hash`，store schema 迁移会清掉旧 store，install/update/uninstall 后会回收孤立 store；`official/install-lab` 提供 `check_for_updates` / `update_project`，CLI `plurora update` 与 Web 项目控制台都通过它更新；Surface bridge 已收敛 allowlist、stream ownership、诊断脱敏、secret 输入清理、CSP/CORS 加固与 typed `allowed_capability_ids`；桌面端管理 loopback Host sidecar，Web shell 可安装为 PWA；自托管部署底座包含统一 local/Agent target driver、target / exec / port / proxy、HTTP/WebSocket 反代、显式 Deploy broker、默认私有/显式公开 route、共享 Host/project/target 客户端 context，以及 Verified ChangeSet → private preview → 独立部署审批 → activation → reconcile/recover/rollback。可撤销 scoped device pairing 让手机通过同一 Host API 控制项目、部署与 ChangeSet；Web/Desktop/PWA 复用同一 client core，远程 CLI 通过同一 Bearer/public Host 边界完成 project/target 操作以及 ChangeSet 的草拟、审阅、批准/拒绝、执行、导出和恢复完整生命周期。
 
 当前已经形成较大的可运行面，但平台和官方产品都不等于“完成”。后续建设同时关注开放性、多样性、先进执行与协议能力、长期数据演化，以及普通用户和创作者的完整体验。
 
@@ -34,11 +34,11 @@
 
 - **`secret_ref` 引用：** 支持 `secret_ref:<vault>:<key>`、`secretRef:`、`secret-ref:`、`host:` 各种前缀。能力包通过引用提及 secret，原始值不出现在事件、提案、日志、审计里。
 - **环境变量解析器：** host 拥有的解析器，带显式 allowlist。默认全拒；env 名要先放行才能解析。错误只带 env 名，绝不带原始值。
-- **本地加密 secret store：** `secret_ref:store:NAME` 通过 `StoreSecretResolver` 从 `~/.yggdrasil/secrets.dat` 解析；`secret_ref:project:NAME` 先读项目级 store，再按 `secret_policy` 回退平台 store；store 使用 age (X25519) 加密，主密钥来自 OS keyring（延后启用）或 0600 本地 key 文件。
+- **本地加密 secret store：** `secret_ref:store:NAME` 通过 `StoreSecretResolver` 从 `~/.plurora/secrets.dat` 解析；`secret_ref:project:NAME` 先读项目级 store，再按 `secret_policy` 回退平台 store；store 使用 age (X25519) 加密，主密钥来自 OS keyring（延后启用）或 0600 本地 key 文件。
 - **Raw secret 阻断：** 提案的 operations / expected effects 与资产 metadata 会被保守扫描，明显的 API key、token、password 字段被拒绝。资产内容与普通文本不扫描，避免误伤用户内容。
 - **网络权限声明：** 清单中的 `permissions.network` 同时支持扁平 `hosts`（向后兼容）和结构化 `declarations`（带 `host` / `methods` / `purpose`）。无声明的能力包不能出网。官方包没有绕过。
 - **外发审计与脱敏：** 每条出站请求都生成审计记录，只含身份、能力包 id、目标主机、方法、用途、脱敏状态、用到的 `secret_ref`，不含原始 body / header / 提示词 / 响应。
-- **外发执行边界：** 内容无关的 HTTP 与 WebSocket executor trait。默认 deny-all（fail-closed），可切换为 fake executor（带 fixture，用于 conformance）或 live executor（HTTP 使用 reqwest + rustls，WebSocket 使用 tokio-tungstenite + rustls；默认关闭；HTTP 为 HTTPS-only，WebSocket 为 WSS-only；重定向 fail-closed；secret header 只在执行时注入，不进审计）。真实 live 模型 / WebSocket 出站必须通过 profile 与环境变量显式 opt-in；默认 conformance 不联网，真实 WebSocket smoke 还要求 `YGG_LIVE_WEBSOCKET_TESTS=1`。
+- **外发执行边界：** 内容无关的 HTTP 与 WebSocket executor trait。默认 deny-all（fail-closed），可切换为 fake executor（带 fixture，用于 conformance）或 live executor（HTTP 使用 reqwest + rustls，WebSocket 使用 tokio-tungstenite + rustls；默认关闭；HTTP 为 HTTPS-only，WebSocket 为 WSS-only；重定向 fail-closed；secret header 只在执行时注入，不进审计）。真实 live 模型 / WebSocket 出站必须通过 profile 与环境变量显式 opt-in；默认 conformance 不联网，真实 WebSocket smoke 还要求 `PLURORA_LIVE_WEBSOCKET_TESTS=1`。
 - **协议方法：** `kernel.v1.outbound.audit` 列出某个能力包的出站审计事件；`kernel.v1.outbound.execute` 让普通能力包通过 host executor 发起一元出站请求；`kernel.v1.outbound.stream` 提供 SSE/NDJSON/raw 流式出站；`kernel.v1.outbound.websocket.open|send|close` 提供双向 WebSocket 出站。
 - **完成审计事件：** `kernel/v1/outbound.execute.completed`、`kernel/v1/outbound.stream.completed`、`kernel/v1/outbound.websocket.completed` 覆盖三种出站原语；事件只记录状态、计数、耗时、executor kind、network_performed、redaction state 与 `secret_ref` 引用。
 - **流式生命周期：** 流注册表跟踪进行中的流式调用，按序发出 `kernel/v1/stream.started|chunk|progress|ended|error|cancelled|timeout`。取消和超时阻断后续 chunk。非流式能力被拒绝。
@@ -46,11 +46,11 @@
 ## 公开协议与传输
 
 - 规范的请求 / 响应信封，自带 host 绑定的身份上下文。调用方不能自己声称是某个能力包或 admin。
-- 同一份 dispatcher 同时承载 HTTP `POST /rpc` 和 host JSON-RPC stdio (`ygg host-stdio`)。
-- Contract Registry `0.5.0` 已完成第一次真实 Deprecated → Legacy Adapter 转换：36 条 alias 仍统一走集中解析；`host.info` 与 `host.target.list` 是 Candidate，其 `kernel.v1.*` alias 保留 `0.4.0` 弃用历史并从 `0.5.0` 起冻结为 identity Legacy Adapter。它们只接受安全修复和数据读取兼容，不增加新字段语义；HTTP、host stdio 与 subprocess reverse stdio 返回 additive lifecycle diagnostics，生成 SDK 以队列保留警告；`ygg contract migrate` 提供有 ID 边界的 preview 与原子写入/回滚。Web 生产调用已全部切换到 canonical ID。
+- 同一份 dispatcher 同时承载 HTTP `POST /rpc` 和 host JSON-RPC stdio (`plurora host-stdio`)。
+- Contract Registry `0.5.0` 已完成第一次真实 Deprecated → Legacy Adapter 转换：36 条 alias 仍统一走集中解析；`host.info` 与 `host.target.list` 是 Candidate，其 `kernel.v1.*` alias 保留 `0.4.0` 弃用历史并从 `0.5.0` 起冻结为 identity Legacy Adapter。它们只接受安全修复和数据读取兼容，不增加新字段语义；HTTP、host stdio 与 subprocess reverse stdio 返回 additive lifecycle diagnostics，生成 SDK 以队列保留警告；`plurora contract migrate` 提供有 ID 边界的 preview 与原子写入/回滚。Web 生产调用已全部切换到 canonical ID。
 - 通过 SSE 订阅事件，支持 `after_sequence` 回放和实时追尾。
-- 基于 profile 的 `ygg host serve` 自动加载能力包，对外暴露 `/rpc` 与 SSE。
-- Host 控制平面在 Contract V1 之外保持独立：root token 是根凭据；持久化设备 grant 同时按 action scope 与 `project` / `target` 资源选择器衰减，支持有界委托、祖先撤销级联、过期、单项撤销和原子的管理员批量撤销。HTTP 与 RPC 在进入运行时前保留同一设备身份和 authority，项目会话必须显式绑定项目；每次设备协议调用都会写入脱敏的 allow/deny 判定日志。开发长操作会在 Docker 与 managed-workspace 效应前、以及阻塞验证结束后刷新 grant/祖先状态。移动 PWA 与 `yg host access` CLI 通过同一 Host API 管理授权，pairing 仍只经 HTTPS 一次性交换为 Secure/HttpOnly Cookie。详见 [`architecture/HOST_REMOTE_ACCESS.md`](architecture/HOST_REMOTE_ACCESS.md)。
+- 基于 profile 的 `plurora host serve` 自动加载能力包，对外暴露 `/rpc` 与 SSE。
+- Host 控制平面在 Contract V1 之外保持独立：root token 是根凭据；持久化设备 grant 同时按 action scope 与 `project` / `target` 资源选择器衰减，支持有界委托、祖先撤销级联、过期、单项撤销和原子的管理员批量撤销。HTTP 与 RPC 在进入运行时前保留同一设备身份和 authority，项目会话必须显式绑定项目；每次设备协议调用都会写入脱敏的 allow/deny 判定日志。开发长操作会在 Docker 与 managed-workspace 效应前、以及阻塞验证结束后刷新 grant/祖先状态。移动 PWA 与 `plurora host access` CLI 通过同一 Host API 管理授权，pairing 仍只经 HTTPS 一次性交换为 Secure/HttpOnly Cookie。详见 [`architecture/HOST_REMOTE_ACCESS.md`](architecture/HOST_REMOTE_ACCESS.md)。
 - TCP 传输留作后续工作；WASM 与远程入口在清单中已是一等形式，执行延后。
 
 ## 包执行
@@ -67,7 +67,7 @@
 - 资产注册表：不透明的 `id` / `mime` / `hash` / `size` / `origin_package_id` / `metadata`，可从 SQLite 重新水化。权限执行与内容寻址 blob 存储留待后续。
 - 会话 fork / 分支沿革，可从事件日志重新水化。
 - 通用 projection 注册表：通过 `kind_prefix` 与 `writer_package_id` 过滤事件来重建，写入 `kernel/v1/projection.updated`。包持有的 projection 执行留待后续。
-- 项目运行时：`ProjectDescriptor`、`ProjectRegistry`、`~/.yggdrasil/projects/<id>/` 布局、项目级 secret policy、Home 项目卡、项目级 storage summary、redacted package failure summary，以及 `yg project list/info/status/start/stop` 已落地。
+- 项目运行时：`ProjectDescriptor`、`ProjectRegistry`、`~/.plurora/projects/<id>/` 布局、项目级 secret policy、Home 项目卡、项目级 storage summary、redacted package failure summary，以及 `plurora project list/info/status/start/stop` 已落地。
 - 部署运行时：`kernel.v1.target.*`、`kernel.v1.exec.*`、`kernel.v1.port.*`、`kernel.v1.proxy.*` 已落地；默认 deny-all，profile 可显式启用 `LiveLocalExecExecutor`；内置 `local` 与 enrolled Agent 使用相同的 durable operation/artifact/verifier/deployment receipt 合同，端口只绑定 loopback，proxy upstream 必须引用 active port lease，Agent 流量只经认证 tunnel 返回 Host proxy。`ProxyRouteAccess` 默认 `host_authenticated`，只有显式 `public` route 才启用可选 `<slug>.apps.<host>/` 免 Host 认证 vhost，`/p/<route_id>/...` 始终保留在 Host auth 内。Web 项目控制台支持显式 Docker Deploy / Stop、Dockerfile / nixpacks Build & Deploy，以及由 immutable build-context artifact 驱动的 verified ChangeSet private preview、独立审批、`VerifiedActivate` revision、显式 reconcile/recover/rollback；verified replay 在记录的 target 上重建，不读取 live workspace 或重新抓取源码。真实 MDN 仓库与结构不同的 Python fixture 已在 GitHub CI 覆盖故障、Host restart 和 rollback。
 - Surface 贡献：带版本、slot、激活方式、所需权限、审批策略、metadata 的描述符。Slot 包括 `experience_entry`、`home_card`、`quick_action`、`workshop_card`、`play_renderer`、`forge_panel`、`asset_editor`、`assistant_action`。`quick_action`、`workshop_card` 与带 `metadata.shell_schema_version: 1` 的 `home_card` 是结构化 shell descriptor：Web shell 只读取受限文本、icon hint、排序和同包 target，由平台渲染；不加载包 JS、不解析 HTML、不 mount iframe。复杂项目 surface 继续走 `surface_bundle` + sandbox iframe。通过 `kernel.v1.surface.contribution.list` 与 `.describe` 发现。
 - Surface bundle：`surface_bundle` 是清单里的静态浏览器 bundle 入口，不是可执行 package entry；安装后的项目 bundle 内部位于 `/surface-bundles/projects/<project_id>/...`，原始路径要求 Host 身份。opaque-origin sandbox 在项目授权后获得绑定 grant/bundle root 的五分钟 `/surface-assets/<lease>/...` 只读句柄，不携带 Host credential。`dist/` 参与 `tree_hash`，因此只改浏览器 bundle 也会触发更新；project dist 通过临时目录 + 原子替换刷新。
@@ -78,12 +78,12 @@
 | 能力 | 状态 |
 |---|---|
 | `manifest.requires` 字段 | implemented |
-| Lockfile schema (`yggdrasil.lock.v1`) | implemented |
+| Lockfile schema (`plurora.lock.v1`) | implemented |
 | `official/git-tools-lab`（基于 gix） | implemented |
 | `official/integrity-lab`（sequoia GPG + sha256） | implemented |
 | `official/install-lab` 编排器 | implemented |
-| `yg install` / `uninstall` / `list-installed` / `update` / `lockfile` CLI | implemented |
-| `~/.yggdrasil` 文件系统约定 | implemented |
+| `plurora install` / `uninstall` / `list-installed` / `update` / `lockfile` CLI | implemented |
+| `~/.plurora` 文件系统约定 | implemented |
 | 交互式同意提示 | implemented |
 | 静态 conformance 集成（默认 warning，`--strict` 阻断） | implemented |
 | GPG 签名验证（默认关闭，`--require-signed` 启用） | implemented |
@@ -99,21 +99,21 @@
 | `StoreSecretResolver` + `CompositeSecretResolver` | implemented |
 | age (X25519) 加密 + 0600 文件权限 | implemented |
 | OS keyring 集成 | deferred（libdbus-sys 系统依赖） |
-| `yg secret put / list / delete` CLI | deferred |
+| `plurora secret put / list / delete` CLI | deferred |
 | Sigstore 验签 | deferred |
 | Tauri UI 安装路径 | deferred |
 | 自动更新守护 | deferred |
 | 二进制包分发 | deferred |
 | 项目作为一等运行时概念 | implemented |
 | `ProjectDescriptor` + `ProjectId` + `ProjectType` + `SecretPolicy` | implemented |
-| `~/.yggdrasil/projects/<id>/` 布局 | implemented |
+| `~/.plurora/projects/<id>/` 布局 | implemented |
 | `secret_ref:project:NAME` + 平台 fallback | implemented |
 | `ProjectRegistry`（内存 + 磁盘扫描） | implemented |
 | `ProtocolContext.session_id` 传递 | implemented |
 | 安装识别（原生 vs 外部） | implemented |
 | 外部项目 wizard（wrap / workspace） | implemented |
-| `yg project list/info/status/start/stop` | implemented |
-| `yg uninstall` 归档提示 | implemented |
+| `plurora project list/info/status/start/stop` | implemented |
+| `plurora uninstall` 归档提示 | implemented |
 | `kernel.v1.project.list/get/start/stop/status` | implemented |
 | `kernel/v1/project.installed/started/stopped/uninstalled` | implemented |
 | Home 项目卡 | implemented |
@@ -121,7 +121,7 @@
 | 原生项目安装到 profile、project registry 与 project dist | implemented |
 | `surface_bundle` 静态入口与 installed project bundle route | implemented |
 | typed `allowed_capability_ids` bridge 声明 | implemented |
-| CLI `yg update` 通过 install-lab 更新项目 | implemented |
+| CLI `plurora update` 通过 install-lab 更新项目 | implemented |
 | 多租户级 `project_id` 进入 `ProtocolContext` | deferred |
 | 项目归档超过 30 天自动清理 | deferred |
 
@@ -212,7 +212,7 @@ Forge profile (`profiles/forge-alpha.yaml`) 会自动加载这些包以及示例
 - `secure-execution` —— `secret_ref` 构造与校验、网络声明、出站审计、伪造流帧客户端。
 - `inference-capability` —— transport-neutral 推理契约。
 - `model-provider-adapter` —— 云 provider adapter helper。
-- `ygg-agent-adapter` —— 把 Ygg 能力映射为 pi 风格 tool。
+- `agent-adapter` —— 把 Ygg 能力映射为 pi 风格 tool。
 - `agentic-forge` —— 运行生命周期、计划图、工作状态、candidate / compare / promote、推理节点、tool bridge v2 helper。
 - `experience-runtime` —— 体验运行时类型与构造器。
 - `text-surface` —— 前端文字 surface helper（流式 buffer、frame 适配、滚动锚、字体加载）。
@@ -223,12 +223,12 @@ Forge profile (`profiles/forge-alpha.yaml`) 会自动加载这些包以及示例
 
 - `docs/spec/KERNEL_V1_CONTRACT.md` 是公开平台规范。
 - `docs/spec/v1/schemas/` 是 SDK 与 conformance 的单一可信源：80 methods、59 events、22 top-level，共 161 个 schema。
-- `sdk/typescript/kernel-sdk/` 与 `sdk/rust/yg-kernel-sdk/` 由 schema 生成；TypeScript 包可通过 npm、工作空间路径或自行 codegen 使用。
-- `yg conformance package --contract v1 --path <package>` 提供第三方包 8 项验收检查。
+- `sdk/typescript/contract-sdk/` 与 `sdk/rust/plurora-contract-sdk/` 由 schema 生成；TypeScript 包可通过 npm、工作空间路径或自行 codegen 使用。
+- `plurora conformance package --contract v1 --path <package>` 提供第三方包 8 项验收检查。
 
 ## 包模板
 
-`ygg init-package --template <name>`：`basic`、`experience`、`play-renderer`、`forge-panel`、`assistant-action`、`asset-editor`、`full-surface`、`networked`、`streaming`、`agent-runtime`、`experience-runtime`、`playable-board`、`playable-experience`。生成的包默认安全：no raw secret、不隐式联网。
+`plurora init-package --template <name>`：`basic`、`experience`、`play-renderer`、`forge-panel`、`assistant-action`、`asset-editor`、`full-surface`、`networked`、`streaming`、`agent-runtime`、`experience-runtime`、`playable-board`、`playable-experience`。生成的包默认安全：no raw secret、不隐式联网。
 
 ## Web shell（`clients/web`）
 
@@ -259,29 +259,29 @@ Forge profile (`profiles/forge-alpha.yaml`) 会自动加载这些包以及示例
 
 ## 创作流程
 
-- `ygg init-package` 生成 Python 或 TypeScript 子进程包脚手架。`--template` 控制 surface 描述符；`--language *-experience` 在不指定模板时仍生成旧版 4-surface 体验，兼容旧行为。
-- `ygg init-composition` + `ygg composition check` 提供本地 composition 流程，支持 v2 字段（标题、描述、可选包、所需能力、默认激活、权限期望、替换候选、兼容性说明）。
-- `ygg package check` 输出结构化诊断：入口类型、信任级别、能力数、按 slot 分组的 surface、权限摘要、沙箱策略；对无能力或无 surface 的包给出警告。
-- `ygg package conformance` 在本地验证生成的包。
-- `ygg package reload <manifest>` 把包加载进内存运行时、重启（仅子进程）、输出前后状态和日志数、再卸载。
-- `ygg package run-fixture` 用确定性 fixture 输入调用所有非流式能力，输出 JSON 摘要。
-- `ygg play-create-demo` 端到端跑通空白游创循环。
-- `ygg perf baseline` 跑确定性性能基线（in-process 调用、官方能力调用、事件存储 append/list/range、composition check、profile 加载、子进程 echo），输出文本或 JSON。详见 [`performance/BASELINE.md`](performance/BASELINE.md)。
+- `plurora init-package` 生成 Python 或 TypeScript 子进程包脚手架。`--template` 控制 surface 描述符；`--language *-experience` 在不指定模板时仍生成旧版 4-surface 体验，兼容旧行为。
+- `plurora init-composition` + `plurora composition check` 提供本地 composition 流程，支持 v2 字段（标题、描述、可选包、所需能力、默认激活、权限期望、替换候选、兼容性说明）。
+- `plurora package check` 输出结构化诊断：入口类型、信任级别、能力数、按 slot 分组的 surface、权限摘要、沙箱策略；对无能力或无 surface 的包给出警告。
+- `plurora package conformance` 在本地验证生成的包。
+- `plurora package reload <manifest>` 把包加载进内存运行时、重启（仅子进程）、输出前后状态和日志数、再卸载。
+- `plurora package run-fixture` 用确定性 fixture 输入调用所有非流式能力，输出 JSON 摘要。
+- `plurora play-create-demo` 端到端跑通空白游创循环。
+- `plurora perf baseline` 跑确定性性能基线（in-process 调用、官方能力调用、事件存储 append/list/range、composition check、profile 加载、子进程 echo），输出文本或 JSON。详见 [`performance/BASELINE.md`](performance/BASELINE.md)。
 
 ## 代码组织
 
-- `crates/ygg-cli/src/main.rs` 是薄入口。CLI 类型在 `cli.rs`，命令在 `commands/`，包模板在 `templates/`。conformance runner 与 case registry 已拆分：`conformance/runner.rs` 负责 `--list`、`--case`、`--tag`、`--fail-fast`、`--slowest`，`conformance/registry/` 按域注册 474 个 `ConformanceCase { id, tags, run }`。
-- `crates/ygg-cli/src/schema_export/` 负责 v1 schema 导出；`src/bin/export-schemas.rs` 只是薄入口。生成文件仍只来自 exporter，不手改 SDK 或 schema。
-- `crates/ygg-runtime/src/runtime/` 按 session、events、packages、capabilities、hooks、permissions、assets、branches、projections、proposals 分模块；`runtime/protocol_dispatch.rs` 只保留 public router，具体 public protocol 处理器在 `runtime/protocol/` 下按 domain 拆分。`runtime/mod.rs` 保持公开 `Runtime<S>` API。
+- `crates/plurora-cli/src/main.rs` 是薄入口。CLI 类型在 `cli.rs`，命令在 `commands/`，包模板在 `templates/`。conformance runner 与 case registry 已拆分：`conformance/runner.rs` 负责 `--list`、`--case`、`--tag`、`--fail-fast`、`--slowest`，`conformance/registry/` 按域注册 474 个 `ConformanceCase { id, tags, run }`。
+- `crates/plurora-cli/src/schema_export/` 负责 v1 schema 导出；`src/bin/export-schemas.rs` 只是薄入口。生成文件仍只来自 exporter，不手改 SDK 或 schema。
+- `crates/plurora-runtime/src/runtime/` 按 session、events、packages、capabilities、hooks、permissions、assets、branches、projections、proposals 分模块；`runtime/protocol_dispatch.rs` 只保留 public router，具体 public protocol 处理器在 `runtime/protocol/` 下按 domain 拆分。`runtime/mod.rs` 保持公开 `Runtime<S>` API。
 - 协议方法的元数据与分发共享 `KernelMethod` 这一份事实来源，并有注册表 / 分发的一致性单测。
-- `crates/ygg-runtime/src/inproc/` 把官方包行为按域拆开；`official/install-lab` 已拆成 `install_lab/` 子模块（types/source/planner/executor/layout/project_kind/fs_copy），公共 helper 走 provider package + 本地能力名路由，不再用 suffix-only 兜底。
+- `crates/plurora-runtime/src/inproc/` 把官方包行为按域拆开；`official/install-lab` 已拆成 `install_lab/` 子模块（types/source/planner/executor/layout/project_kind/fs_copy），公共 helper 走 provider package + 本地能力名路由，不再用 suffix-only 兜底。
 - `clients/web` 的 Home 与 Install flow 已拆成 page shell + hooks/helpers/step components；UI 继续只走公开协议，不读本地文件系统或 runtime 私有状态。
 
 这些拆分不改变行为，只是让后续新增能力包、conformance、handler 与 UI flow 时仍然可审查。
 
 ## Conformance
 
-`cargo run -p ygg-cli -- conformance` 跑 474 个具名 CLI 用例。支持：
+`cargo run -p plurora-cli -- conformance` 跑 474 个具名 CLI 用例。支持：
 
 - `--list` 列出 id 与 tag；
 - `--case <pattern>` 子串过滤；
@@ -314,7 +314,7 @@ Forge profile (`profiles/forge-alpha.yaml`) 会自动加载这些包以及示例
 - 对话运行时、提示词、模型、采样、消息 / 回合语义。
 - 记忆模型、检索、摘要、agent 循环、导演。
 - 世界、场景、角色、规则、骰子、背包语义。
-- SillyTavern 兼容由独立项目 YdlTavern 承担，跑在 Yggdrasil 之上（见 [`tavern/TAVERN_COMPAT.md`](tavern/TAVERN_COMPAT.md)）。
+- SillyTavern 兼容由独立项目 YdlTavern 承担，跑在 Plurora 之上（见 [`tavern/TAVERN_COMPAT.md`](tavern/TAVERN_COMPAT.md)）。
 - 生产级长期自治 agent、多 agent 协作、生产级记忆系统、更完整的 live-ops。
 - 外部游戏引擎桥接（UE5、Godot、Unity、Web 客户端）。
 - 市场、包签名、依赖解析（本地分享 proof 已完成，见 [`guides/SHARING_DISTRIBUTION.md`](guides/SHARING_DISTRIBUTION.md)）。
@@ -325,10 +325,10 @@ Forge profile (`profiles/forge-alpha.yaml`) 会自动加载这些包以及示例
 
 ```bash
 cargo test --workspace
-cargo run -p ygg-cli -- conformance
-cargo run -p ygg-cli -- conformance --list
-cargo run -p ygg-cli -- conformance --tag sharing --slowest 3
-cargo run -p ygg-cli -- play-create-demo
+cargo run -p plurora-cli -- conformance
+cargo run -p plurora-cli -- conformance --list
+cargo run -p plurora-cli -- conformance --tag sharing --slowest 3
+cargo run -p plurora-cli -- play-create-demo
 npm run check --prefix clients/web
 npm run build --prefix clients/web
 ```

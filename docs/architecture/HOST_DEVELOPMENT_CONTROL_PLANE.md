@@ -54,7 +54,7 @@ flowchart LR
 
 ## CLI 生命周期
 
-`ygg host access ... changes` 只使用上表公开路由和当前选择的 Host/project 连接 context。草拟输入就是精确的类型化 JSON 请求，通过有界文件读取，或以 `--request -` 从 stdin 读取；CLI 不读取 workspace，也不直接写 Host journal。
+`plurora host access ... changes` 只使用上表公开路由和当前选择的 Host/project 连接 context。草拟输入就是精确的类型化 JSON 请求，通过有界文件读取，或以 `--request -` 从 stdin 读取；CLI 不读取 workspace，也不直接写 Host journal。
 
 ```json
 {
@@ -63,7 +63,7 @@ flowchart LR
     {
       "op": "file_write",
       "path": "src/title.txt",
-      "content": "Yggdrasil\n"
+      "content": "Plurora\n"
     }
   ],
   "verification": { "kind": "static_validation" },
@@ -72,21 +72,21 @@ flowchart LR
 ```
 
 ```bash
-ygg host access --access-token "$YGG_HTTP_ACCESS_TOKEN" \
+plurora host access --access-token "$PLURORA_HTTP_ACCESS_TOKEN" \
   changes --project my-project__abc12345 draft --request change.json
-ygg host access --access-token "$YGG_HTTP_ACCESS_TOKEN" \
+plurora host access --access-token "$PLURORA_HTTP_ACCESS_TOKEN" \
   changes --project my-project__abc12345 approve <change-set-id> --reason reviewed
-ygg host access --access-token "$YGG_HTTP_ACCESS_TOKEN" \
+plurora host access --access-token "$PLURORA_HTTP_ACCESS_TOKEN" \
   changes --project my-project__abc12345 execute <change-set-id>
-ygg host access --access-token "$YGG_HTTP_ACCESS_TOKEN" \
+plurora host access --access-token "$PLURORA_HTTP_ACCESS_TOKEN" \
   changes --project my-project__abc12345 get <change-set-id>
-ygg host access --access-token "$YGG_HTTP_ACCESS_TOKEN" \
+plurora host access --access-token "$PLURORA_HTTP_ACCESS_TOKEN" \
   changes --project my-project__abc12345 bundle <change-set-id>
-ygg host access --access-token "$YGG_HTTP_ACCESS_TOKEN" \
+plurora host access --access-token "$PLURORA_HTTP_ACCESS_TOKEN" \
   changes --project my-project__abc12345 recover <change-set-id>
 ```
 
-`list` 与 `reject` 补齐同一生命周期。execute 是异步操作；JSON 响应会说明任务是否被接受，`get`/`list` 读取 durable 状态。省略 `--project` 时使用 `ygg host connection context` 当前选择的项目。
+`list` 与 `reject` 补齐同一生命周期。execute 是异步操作；JSON 响应会说明任务是否被接受，`get`/`list` 读取 durable 状态。省略 `--project` 时使用 `plurora host connection context` 当前选择的项目。
 
 ## 所有权行为
 
@@ -127,7 +127,7 @@ linked-local 是用户可并发修改的目录。首版不会用“先检查路�
 - 构建有 CPU、内存、时间、文件数和字节上限；
 - 结果只持久化状态与诊断日志 SHA-256，不保存原始 Docker log；
 - 验证镜像按 `managed-by`、package、project、build 和 change 五组标签核对后删除，不作为部署镜像保留。
-- 容器 status/log/stop 也必须携带 route 与 port-lease scope，并核对 `managed-by`、package、route 和 lease 标签；stop 还要求显式 `approved: true`，不能把任意 Docker ID 当作 Yggdrasil 资源。
+- 容器 status/log/stop 也必须携带 route 与 port-lease scope，并核对 `managed-by`、package、route 和 lease 标签；stop 还要求显式 `approved: true`，不能把任意 Docker ID 当作 Plurora 资源。
 
 ## 持久化、并发与恢复
 

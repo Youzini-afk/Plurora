@@ -1,7 +1,7 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "Default capabilities for Yggdrasil desktop",
+  "description": "Default capabilities for Plurora desktop",
   "windows": ["main"],
   "permissions": [
     "core:default",

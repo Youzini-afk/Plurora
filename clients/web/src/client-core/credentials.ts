@@ -1,6 +1,6 @@
 import { activeHostCredentialScope, CURRENT_HOST_CONNECTION_ID } from "./host-endpoint";
 
-export const BROWSER_ACCESS_TOKEN_STORAGE_KEY = "ygg_http_access_token";
+export const BROWSER_ACCESS_TOKEN_STORAGE_KEY = "plurora_http_access_token";
 
 export function browserAccessTokenStorageKey(
   scope: string = activeHostCredentialScope(),
@@ -91,13 +91,13 @@ export class BrowserCredentialProvider implements CredentialProvider {
 
     try {
       const params = new URLSearchParams(hostWindow.location.search);
-      const primary = params.get("ygg_token")?.trim();
+      const primary = params.get("plurora_token")?.trim();
       const secondary = params.get("access_token")?.trim();
       const token = primary || secondary;
-      const hadBootstrapParameter = params.has("ygg_token") || params.has("access_token");
+      const hadBootstrapParameter = params.has("plurora_token") || params.has("access_token");
       if (!hadBootstrapParameter) return this.read();
 
-      params.delete("ygg_token");
+      params.delete("plurora_token");
       params.delete("access_token");
       const search = params.toString();
       const cleanUrl = `${hostWindow.location.pathname}${search ? `?${search}` : ""}${hostWindow.location.hash}`;

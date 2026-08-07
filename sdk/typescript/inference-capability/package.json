@@ -1,8 +1,8 @@
 {
-  "name": "@yggdrasil/inference-capability",
+  "name": "@plurora/inference-capability",
   "version": "0.1.0",
   "license": "AGPL-3.0-only",
-  "description": "Transport-neutral inference capability contract SDK for Yggdrasil",
+  "description": "Transport-neutral inference capability contract SDK for Plurora",
   "private": true,
   "type": "module",
   "main": "index.ts",

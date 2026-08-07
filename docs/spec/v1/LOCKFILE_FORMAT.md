@@ -1,10 +1,10 @@
-# Yggdrasil Lockfile v1 格式
+# Plurora Lockfile v1 格式
 
 > [English](./LOCKFILE_FORMAT.en.md) · [中文](./LOCKFILE_FORMAT.md)
 
 ## 目的
 
-Yggdrasil lockfile 用于让 profile 的 package 安装可复现。Profile manifest 描述“想要什么”，lockfile 记录“实际解析到了什么”：版本、来源、提交、内容哈希、签名状态、安装路径以及用户在安装时授予的权限。
+Plurora lockfile 用于让 profile 的 package 安装可复现。Profile manifest 描述“想要什么”，lockfile 记录“实际解析到了什么”：版本、来源、提交、内容哈希、签名状态、安装路径以及用户在安装时授予的权限。
 
 同一个 profile manifest 在不同机器、不同时间运行安装时，应该优先使用 lockfile 中的固定结果，避免分支漂移、远端 tag 变化、传递依赖变化或权限重新解释造成不可预期的运行时状态。
 
@@ -15,18 +15,18 @@ Lockfile 是安装器与 host 的数据文件，不是内核协议方法。内�
 默认位置：
 
 ```text
-~/.yggdrasil/profiles/<name>.lock.toml
+~/.plurora/profiles/<name>.lock.toml
 ```
 
 其中 `<name>` 是 profile 名称。实现可以支持显式 `--lockfile <path>`，但写入默认 profile 时应使用上述路径。
 
 ## Filesystem layout
 
-Yggdrasil's state lives under a single base directory, resolved as:
+Plurora's state lives under a single base directory, resolved as:
 
-1. `YGG_DATA_DIR` environment variable (explicit override)
-2. `$XDG_DATA_HOME/yggdrasil/` (XDG-compliant)
-3. `~/.yggdrasil/` (default)
+1. `PLURORA_DATA_DIR` environment variable (explicit override)
+2. `$XDG_DATA_HOME/plurora/` (XDG-compliant)
+3. `~/.plurora/` (default)
 
 Layout:
 
@@ -66,16 +66,16 @@ Permissions: data directory is created with 0700 on Unix.
 顶层 `schema` 字段必须为：
 
 ```toml
-schema = "yggdrasil.lock.v1"
+schema = "plurora.lock.v1"
 ```
 
-读取器必须拒绝未知 schema，除非显式启用迁移流程。v1 内仅允许 additive 变更；breaking change 必须使用新的 namespace，例如 `yggdrasil.lock.v2`。
+读取器必须拒绝未知 schema，除非显式启用迁移流程。v1 内仅允许 additive 变更；breaking change 必须使用新的 namespace，例如 `plurora.lock.v2`。
 
 ## 顶层字段
 
 ### `schema`
 
-字符串。固定为 `yggdrasil.lock.v1`。用于让读取器选择正确的解析和验证规则。
+字符串。固定为 `plurora.lock.v1`。用于让读取器选择正确的解析和验证规则。
 
 ### `profile`
 
@@ -109,7 +109,7 @@ schema = "yggdrasil.lock.v1"
 
 枚举。来源类型：
 
-- `internal`：Yggdrasil 内置或 host 提供，不需要获取。
+- `internal`：Plurora 内置或 host 提供，不需要获取。
 - `git`：来自 Git remote。
 - `local`：来自本地路径，主要用于开发。
 
@@ -159,7 +159,7 @@ schema = "yggdrasil.lock.v1"
 
 ### `installed_at_store`
 
-字符串。不可变 store 中的安装路径。实现可以使用 Nix store、Yggdrasil 自有 CAS store 或 host 管理的只读目录。
+字符串。不可变 store 中的安装路径。实现可以使用 Nix store、Plurora 自有 CAS store 或 host 管理的只读目录。
 
 ### `granted_capabilities`
 
@@ -199,7 +199,7 @@ schema = "yggdrasil.lock.v1"
 
 ## Drift 检测
 
-`yg lockfile --check` 会：
+`plurora lockfile --check` 会：
 
 1. 读取 lockfile；
 2. 对每个 `LockEntry`：
@@ -228,7 +228,7 @@ v1 不允许删除字段、改变必填性、改变 hash 语义、重命名 enum
 ## 示例
 
 ```toml
-schema = "yggdrasil.lock.v1"
+schema = "plurora.lock.v1"
 profile = "default"
 generated_at = "2026-05-23T00:00:00Z"
 manifest_hash = "sha256:profile"

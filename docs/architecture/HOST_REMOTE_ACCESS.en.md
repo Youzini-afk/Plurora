@@ -2,7 +2,7 @@
 
 > [English](./HOST_REMOTE_ACCESS.en.md) · [中文](./HOST_REMOTE_ACCESS.md)
 
-Yggdrasil's Web/PWA, Desktop, and CLI are clients of the same Host. Remote access does not create a second mutation interface and does not copy the root token onto a phone. It adds revocable, expiring device identities attenuated by both actions and structured project/target resources in front of the existing Host API and RPC. Public application traffic is a separate, explicit data-plane boundary; configuring a domain does not publish routes implicitly.
+Plurora's Web/PWA, Desktop, and CLI are clients of the same Host. Remote access does not create a second mutation interface and does not copy the root token onto a phone. It adds revocable, expiring device identities attenuated by both actions and structured project/target resources in front of the existing Host API and RPC. Public application traffic is a separate, explicit data-plane boundary; configuring a domain does not publish routes implicitly.
 
 ## Two planes
 
@@ -24,8 +24,8 @@ flowchart LR
 
 | Identity | Credential | Purpose |
 |---|---|---|
-| Host root | Bearer token from `YGG_HTTP_ACCESS_TOKEN` / `--access-token`; Desktop may exchange a one-time bootstrap nonce for a root cookie | Local administration, first authorization, and recovery; owns every scope |
-| Paired device | `yggaccess.*` token; after PWA claim it exists only in the `__Host-ygg_remote_session` cookie | Routine remote control; owns only the grant's scopes and project/target selectors |
+| Host root | Bearer token from `PLURORA_HTTP_ACCESS_TOKEN` / `--access-token`; Desktop may exchange a one-time bootstrap nonce for a root cookie | Local administration, first authorization, and recovery; owns every scope |
+| Paired device | `yggaccess.*` token; after PWA claim it exists only in the `__Host-plurora_remote_session` cookie | Routine remote control; owns only the grant's scopes and project/target selectors |
 
 Optional authentication with no configured root token is a loopback development mode. `host serve` refuses a non-loopback bind without a non-empty root token. The root token is a root credential and must never enter a pairing URL, browser persistence, application upstream, or logs.
 
@@ -91,26 +91,26 @@ The CLI uses the same Host API as Web/PWA and never writes the grant journal dir
 The CLI permits plaintext HTTP only for loopback. Non-loopback Hosts require HTTPS, Host origins cannot contain paths or credentials, and Host-access requests do not follow redirects. Saved connection profiles contain only a display name, endpoint, and per-Host project/target context; the access token remains an explicit argument or environment variable.
 
 ```bash
-ygg host connection save workshop --endpoint https://host.example.com
-ygg host connection context --project my-project__abc12345 --target remote-builder
-ygg host access --access-token "$YGG_HTTP_ACCESS_TOKEN" me
-ygg host access --access-token "$YGG_HTTP_ACCESS_TOKEN" projects
-ygg host access --access-token "$YGG_HTTP_ACCESS_TOKEN" project-status
-ygg host access --access-token "$YGG_HTTP_ACCESS_TOKEN" target-status
-ygg host access --access-token "$YGG_HTTP_ACCESS_TOKEN" \
+plurora host connection save workshop --endpoint https://host.example.com
+plurora host connection context --project my-project__abc12345 --target remote-builder
+plurora host access --access-token "$PLURORA_HTTP_ACCESS_TOKEN" me
+plurora host access --access-token "$PLURORA_HTTP_ACCESS_TOKEN" projects
+plurora host access --access-token "$PLURORA_HTTP_ACCESS_TOKEN" project-status
+plurora host access --access-token "$PLURORA_HTTP_ACCESS_TOKEN" target-status
+plurora host access --access-token "$PLURORA_HTTP_ACCESS_TOKEN" \
   pair --device-name phone --scopes observe,project_operate,deploy \
   --project my-project__abc12345 --target local
-ygg host access --access-token "$YGG_HTTP_ACCESS_TOKEN" \
+plurora host access --access-token "$PLURORA_HTTP_ACCESS_TOKEN" \
   revoke <grant-id>
-ygg host access --access-token "$YGG_HTTP_ACCESS_TOKEN" \
+plurora host access --access-token "$PLURORA_HTTP_ACCESS_TOKEN" \
   bulk-revoke <grant-id> <grant-id> ...
-ygg host access --access-token "$YGG_HTTP_ACCESS_TOKEN" \
+plurora host access --access-token "$PLURORA_HTTP_ACCESS_TOKEN" \
   changes --project my-project__abc12345 list
-ygg host access --access-token "$YGG_HTTP_ACCESS_TOKEN" \
+plurora host access --access-token "$PLURORA_HTTP_ACCESS_TOKEN" \
   changes --project my-project__abc12345 draft --request change.json
 ```
 
-`changes` also exposes `get`, `bundle`, `approve`, `reject`, `execute`, and `recover`; every command uses the same public ChangeSet API as Web/Desktop/PWA. `--endpoint` / `YGG_HOST_URL` still overrides the selected connection for one command. `ygg host connection local` returns to the default loopback Host.
+`changes` also exposes `get`, `bundle`, `approve`, `reject`, `execute`, and `recover`; every command uses the same public ChangeSet API as Web/Desktop/PWA. `--endpoint` / `PLURORA_HOST_URL` still overrides the selected connection for one command. `plurora host connection local` returns to the default loopback Host.
 
 ## HTTPS and same-origin requirements
 
@@ -119,8 +119,8 @@ Remote PWA control requires an HTTPS origin. The pairing screen refuses claim ov
 A production topology places the Host behind a TLS reverse proxy or trusted overlay:
 
 ```bash
-YGG_HTTP_ACCESS_TOKEN='<high-entropy-root-token>' \
-  ygg host serve --http 0.0.0.0:8787 --static-dir clients/web/dist
+PLURORA_HTTP_ACCESS_TOKEN='<high-entropy-root-token>' \
+  plurora host serve --http 0.0.0.0:8787 --static-dir clients/web/dist
 ```
 
 Firewall the plaintext port so only the proxy/overlay can reach it; expose an origin such as `https://host.example.com`. The proxy must preserve the original `Host` and allow the browser's `Origin` to reach the Host. Cookie pairing remains same-origin and credentialed cross-origin CORS is disabled. The shared Web/PWA/Desktop client may call an explicitly selected remote Host cross-origin with a Host-scoped Bearer token; control routes permit only `GET`/`POST` plus `Authorization`/`Content-Type` and never enable credentialed requests. Proxy and raw surface-bundle routes do not emit this CORS policy. Browser tokens are isolated per Host connection. Project surfaces load their sandbox frame and attenuated assets from the selected Host, so a Host used for surface rendering must serve the matching Web static bundle.
@@ -139,7 +139,7 @@ route_access: host_authenticated # default; old descriptors resolve this way
 - Route access is written into proxy registration events and durable deployment revisions; recover and rollback preserve the original choice.
 - A public vhost does not forward Host `Authorization`, Ygg query tokens, Host session cookies, or `Referer` to the app. The upstream must remain an active, ready loopback lease.
 
-A public route's application owns internet-input validation, application identity, CSRF protection, rate limiting, and content security. A Yggdrasil Host grant is not an application user system.
+A public route's application owns internet-input validation, application identity, CSRF protection, rate limiting, and content security. A Plurora Host grant is not an application user system.
 
 ## Deliberately absent
 

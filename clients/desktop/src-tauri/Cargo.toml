@@ -1,14 +1,14 @@
 [package]
-name = "ygg-desktop"
+name = "plurora-desktop"
 version = "0.1.0"
 edition = "2021"
 build = "build.rs"
-description = "Yggdrasil desktop application"
-authors = ["Yggdrasil contributors"]
+description = "Plurora desktop application"
+authors = ["Plurora contributors"]
 license = "AGPL-3.0-only"
 
 [lib]
-name = "ygg_desktop_lib"
+name = "plurora_desktop_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]
@@ -25,8 +25,8 @@ serde_yaml = { workspace = true }
 tokio = { workspace = true }
 reqwest = { workspace = true }
 uuid = { workspace = true }
-ygg-runtime = { path = "../../../crates/ygg-runtime" }
-ygg-core = { path = "../../../crates/ygg-core" }
+plurora-runtime = { path = "../../../crates/plurora-runtime" }
+plurora-core = { path = "../../../crates/plurora-core" }
 
 [dev-dependencies]
 tempfile = "3"

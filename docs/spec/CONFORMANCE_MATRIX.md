@@ -8,7 +8,7 @@ Conformance 套件是 charter 的可执行守卫。它同时证明正向行为�
 
 ```bash
 cargo test --workspace
-cargo run -p ygg-cli -- conformance
+cargo run -p plurora-cli -- conformance
 ```
 
 当前矩阵记录已实现的 conformance 覆盖。具名 CLI 用例和 crate/service 单元测试共同支撑这些结果。当前 CLI conformance 总数：**453**。
@@ -19,26 +19,26 @@ Conformance 命令支持过滤、计时和诊断。详见 [`docs/performance/CON
 
 ```bash
 # 列出所有 case id 和 tags
-cargo run -p ygg-cli -- conformance --list
+cargo run -p plurora-cli -- conformance --list
 
 # 按 substring 过滤
-cargo run -p ygg-cli -- conformance --case sharing_lab
+cargo run -p plurora-cli -- conformance --case sharing_lab
 
 # 按 tag 过滤
-cargo run -p ygg-cli -- conformance --tag sharing
+cargo run -p plurora-cli -- conformance --tag sharing
 
 # fail-fast
-cargo run -p ygg-cli -- conformance --fail-fast
+cargo run -p plurora-cli -- conformance --fail-fast
 
 # 自定义 slowest 报告
-cargo run -p ygg-cli -- conformance --slowest 3
+cargo run -p plurora-cli -- conformance --slowest 3
 ```
 
 ## 当前 conformance 覆盖
 
 ### Project model conformance cases
 
-The current matrix includes the following project-model cases. 实际 case id 可用 `cargo run -p ygg-cli -- conformance --list | grep -E "(host_profile|project|protocol\.project)"` 核对。
+The current matrix includes the following project-model cases. 实际 case id 可用 `cargo run -p plurora-cli -- conformance --list | grep -E "(host_profile|project|protocol\.project)"` 核对。
 
 | 分组 | Case id | 覆盖 | 状态 |
 |---|---|---|---|
@@ -65,7 +65,7 @@ The current matrix includes the following project-model cases. 实际 case id �
 
 ### End-to-end real-path conformance cases
 
-The current matrix includes the following end-to-end-real-path cases. 实际 case id 可用 `cargo run -p ygg-cli -- conformance --list | grep -E "(surface\.resolve|project\.start_returns|session_metadata|running_session|stop_closes)"` 核对。
+The current matrix includes the following end-to-end-real-path cases. 实际 case id 可用 `cargo run -p plurora-cli -- conformance --list | grep -E "(surface\.resolve|project\.start_returns|session_metadata|running_session|stop_closes)"` 核对。
 
 | 分组 | Case id | 覆盖 | 状态 |
 |---|---|---|---|
@@ -263,10 +263,10 @@ Surface/static bundle 与 bridge 还覆盖以下稳定断言：
 | secret_ref | manifest `permissions.secret_refs` 声明：未声明 fail-closed，已声明经 host resolver 解析 | implemented |
 | subprocess_outbound | subprocess SDK reverse kernel call：principal 绑定、execute 调度、stream chunks 回传 | implemented |
 | sse_parser | outbound stream SSE parser basic smoke 与 partial chunk 归并 | implemented |
-| live_model | live smoke 默认跳过；`YGG_LIVE_MODEL_TESTS=1` + provider env 才 opt-in 真实调用 | implemented |
+| live_model | live smoke 默认跳过；`PLURORA_LIVE_MODEL_TESTS=1` + provider env 才 opt-in 真实调用 | implemented |
 | outbound | local loopback HTTP server secret injection：Authorization header 真实到达 server，raw secret 不在 protocol response/audit/log | implemented |
 | outbound | DeepSeek SSE stream normalize canary：delta_sse start→chunk→end lifecycle，terminal_frame_consistent，no raw secrets | implemented |
-| outbound | opt-in live DeepSeek conformance：默认跳过，YGG_LIVE_MODEL_TESTS=1 + DEEPSEEK_API_KEY 时才尝试 | implemented |
+| outbound | opt-in live DeepSeek conformance：默认跳过，PLURORA_LIVE_MODEL_TESTS=1 + DEEPSEEK_API_KEY 时才尝试 | implemented |
 | outbound | canary DeepSeek profile shape：normalize_request endpoint/dialect/stream_family 正确，secret_ref placeholder 不含 raw key | implemented |
 | outbound | OpenAI Chat Completions loopback：Authorization Bearer 到达 server，POST /v1/chat/completions，body shape model+messages，raw secret 不在 response/audit | implemented |
 | outbound | OpenAI Responses loopback：Authorization Bearer 到达 server，POST /v1/responses，body shape 使用 input 字段，raw secret 不在 response/audit | implemented |
@@ -399,7 +399,7 @@ Surface/static bundle 与 bridge 还覆盖以下稳定断言：
 
 ## CLI 目标输出
 
-`cargo run -p ygg-cli -- conformance` 应从冒烟测试演进为具名用例运行器：
+`cargo run -p plurora-cli -- conformance` 应从冒烟测试演进为具名用例运行器：
 
 ```text
 session.open_empty                         PASS

@@ -45,7 +45,7 @@ Dispositions:
 - There are 22 top-level schemas covering contract selection, artifact descriptors, EffectReceipt, Change primitives, protocol descriptors, component/package envelopes/composition locks, World Bundle/World Head/journal ranges, and `protocol-response.schema.json` for additive transport diagnostics.
 - Known drift among `KernelMethod::status()`, Contract documentation, and actual dispatch is aligned and test-enforced.
 - The Experimental method contract registry, centralized alias resolution, explicit profile/version negotiation, and identity adapters are implemented. The Host Control Plane, host bundle resolver, Shell contributions, Change/Proposal, and Projection currently publish 36 canonical/legacy dual-stack routes.
-- The Experimental Protocol Commons registry publishes Change, Shell Default, and World Bundle descriptors, negotiates explicit protocol/profile selections before dispatch, and separates protocol, implementation, and package reports. The concrete World Bundle archive and all five portability vectors now back the `ygg.runtime.world-bundle` implementation claim.
+- The Experimental Protocol Commons registry publishes Change, Shell Default, and World Bundle descriptors, negotiates explicit protocol/profile selections before dispatch, and separates protocol, implementation, and package reports. The concrete World Bundle archive and all five portability vectors now back the `plurora.runtime.world-bundle` implementation claim.
 - The Web client now uses canonical IDs in production; generated SDKs derive canonical clients and explicit legacy wrappers from schema metadata, queue transport diagnostics, and reject duplicate wire IDs, function names, or operation IDs before generation.
 
 The first migration requirement is therefore a testable compatibility router, not code deletion.
@@ -173,7 +173,7 @@ The first migration requirement is therefore a testable compatibility router, no
 | Current method | Code status | Target | Disposition | Target concept and compatibility behavior |
 |---|---:|---:|---|---|
 | `kernel.v1.surface.resolve_bundle` | partial | `X` | Split | `H` resolves/serves bundle; `P` interprets profile and bridge policy |
-| `kernel.v1.surface.contribution.list` | partial | `P` | Move | `ygg.shell.default/v1` contribution registry |
+| `kernel.v1.surface.contribution.list` | partial | `P` | Move | `plurora.shell.default/v1` contribution registry |
 | `kernel.v1.surface.contribution.describe` | partial | `P` | Move | Shell-profile descriptor; slot is no longer a substrate enum |
 
 ### Outbound (6)
@@ -189,7 +189,7 @@ The first migration requirement is therefore a testable compatibility router, no
 
 ## 59 events
 
-“Emitted” means a named write site exists in `ygg-runtime`; `—` means only constants/schemas/registry exist or no emission site was found in the inspected scope.
+“Emitted” means a named write site exists in `plurora-runtime`; `—` means only constants/schemas/registry exist or no emission site was found in the inspected scope.
 
 ### Session, component, and project (16)
 

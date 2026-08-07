@@ -92,9 +92,9 @@
     "ProjectType": {
       "oneOf": [
         {
-          "description": "Native Yggdrasil project: has project.yaml at repo root, manifest references Yggdrasil packages.",
+          "description": "Native Plurora project: has project.yaml at repo root, manifest references Plurora packages.",
           "enum": [
-            "yggdrasil_native"
+            "plurora_native"
           ],
           "type": "string"
         },
@@ -115,7 +115,7 @@
       ]
     }
   },
-  "$id": "https://yggdrasil.dev/spec/v1/events/kernel__v1__project.uninstalled.schema.json",
+  "$id": "https://plurora.dev/spec/v1/events/kernel__v1__project.uninstalled.schema.json",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "description": "Payload schema for event kind kernel/v1/project.uninstalled.",
   "properties": {

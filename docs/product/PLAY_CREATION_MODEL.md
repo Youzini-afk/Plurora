@@ -2,9 +2,9 @@
 
 > [English](./PLAY_CREATION_MODEL.en.md) · [中文](./PLAY_CREATION_MODEL.md)
 
-游创（play-creation）是 Yggdrasil 可以承载的一类强观点产品形态：使用者既能体验作品，也能审视、修改、fork、组合并继续创作。
+游创（play-creation）是 Plurora 可以承载的一类强观点产品形态：使用者既能体验作品，也能审视、修改、fork、组合并继续创作。
 
-本文定义当前官方游创 Profile 的产品语言和 Surface 协作方式。它不是 Yggdrasil 整个平台的唯一产品立场，不要求其他应用、服务、工具或发行版采用 Project、Play、Forge 或 Assist。
+本文定义当前官方游创 Profile 的产品语言和 Surface 协作方式。它不是 Plurora 整个平台的唯一产品立场，不要求其他应用、服务、工具或发行版采用 Project、Play、Forge 或 Assist。
 
 平台的总体产品模型见 [`PLATFORM_PRODUCT_MODEL.md`](PLATFORM_PRODUCT_MODEL.md)。
 
@@ -59,11 +59,11 @@ Assist 是上下文辅助入口。它可以解释状态、提出建议、起草�
 - AI 输出是候选工作，不自动获得无限权威；
 - 分享包含内容、依赖、兼容和迁移信息，而不只是一张截图或一个在线链接。
 
-这些观点约束选择该 Profile 的产品，不约束其他 Yggdrasil 产品。
+这些观点约束选择该 Profile 的产品，不约束其他 Plurora 产品。
 
 ## 与其他产品形态共存
 
-一个纯文档工具、普通 Web 服务、IDE、自动化系统、多人世界或无头 agent runtime 可以完全不采用游创 Profile。它们仍可共享 Yggdrasil 的身份、权限、对象、调用、组件、Host 和协议演进能力。
+一个纯文档工具、普通 Web 服务、IDE、自动化系统、多人世界或无头 agent runtime 可以完全不采用游创 Profile。它们仍可共享 Plurora 的身份、权限、对象、调用、组件、Host 和协议演进能力。
 
 同样，YdlTavern、世界模拟、外部游戏引擎和其他体验可以采用游创 Profile 的全部、部分或自己的替代协议。官方实现没有隐式优先级。
 

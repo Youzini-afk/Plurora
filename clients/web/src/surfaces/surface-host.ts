@@ -187,7 +187,7 @@ export async function mountSurface(options: SurfaceHostOptions): Promise<Surface
   const initialProps = createMountInitialProps(options.initialProps, options.hostBridge, bridgeToken);
 
   const iframe = document.createElement('iframe');
-  iframe.className = 'ygg-surface-iframe';
+  iframe.className = 'plurora-surface-iframe';
   iframe.setAttribute('sandbox', 'allow-scripts');
   iframe.style.width = '100%';
   iframe.style.height = '100%';

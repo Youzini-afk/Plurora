@@ -2,11 +2,11 @@
 
 > [English](./PI_INTEGRATION.en.md) · [中文](./PI_INTEGRATION.md)
 
-This document fixes the boundary for learning from or hosting agent frameworks such as [pi](https://github.com/earendil-works/pi). pi may be an implementation source for ordinary capability packages or an input to SDK adapters; it is not the Yggdrasil kernel, public contract, or product shell.
+This document fixes the boundary for learning from or hosting agent frameworks such as [pi](https://github.com/earendil-works/pi). pi may be an implementation source for ordinary capability packages or an input to SDK adapters; it is not the Plurora kernel, public contract, or product shell.
 
 ## Core stance
 
-Yggdrasil must be able to host, constrain, observe, and replace agent Components and Products without owning an agent ontology. Shared meaning for runs, steps, tools, traces, prompts, models, memory, and coding workflows belongs to optional Protocols and Profiles; concrete state and behavior belong to Components or Products rather than the constitutional substrate.
+Plurora must be able to host, constrain, observe, and replace agent Components and Products without owning an agent ontology. Shared meaning for runs, steps, tools, traces, prompts, models, memory, and coding workflows belongs to optional Protocols and Profiles; concrete state and behavior belong to Components or Products rather than the constitutional substrate.
 
 Agent infrastructure reuses existing public primitives:
 
@@ -21,17 +21,17 @@ There is no private `kernel.v1.agent.*` path and no additional authority for an 
 
 ## Layered use of pi
 
-| pi layer | Yggdrasil treatment | Boundary |
+| pi layer | Plurora treatment | Boundary |
 |---|---|---|
 | `pi-ai` | Implementation reference for provider, streaming, and tool-call adapters | Provider semantics stay in ordinary inference/model packages; Host boundaries enforce secrets, network, and audit. |
 | `pi-agent-core` | May be wrapped by an SDK or capability package | `AgentEvent`, tool adapters, and steer/follow-up queues may stay package-local; messages, system prompts, and thinking levels do not enter the kernel. |
-| `pi-coding-agent` | Reference for a complete product and workflow | TUI, bash/read/write/edit tools, session format, skills, and coding policy are not Yggdrasil platform defaults. |
+| `pi-coding-agent` | Reference for a complete product and workflow | TUI, bash/read/write/edit tools, session format, skills, and coding policy are not Plurora platform defaults. |
 
 The detailed upstream ledger is in [`../../integrations/pi/README.md`](../../integrations/pi/README.md).
 
 ## Concept mapping
 
-| Agent concept | Yggdrasil public primitive | Rule |
+| Agent concept | Plurora public primitive | Rule |
 |---|---|---|
 | run / turn / step | Component capability call, stream, or protocol-owned state | The substrate gains no agent lifecycle. |
 | cancellation | `kernel.v1.capability.cancel` | Only caller-owned invocations and streams may be cancelled. |
@@ -48,7 +48,7 @@ The detailed upstream ledger is in [`../../integrations/pi/README.md`](../../int
 
 The repository implements and continuously checks this boundary through ordinary SDKs, Component Packages, and integration fixtures:
 
-- `sdk/typescript/ygg-agent-adapter` maps Ygg capabilities to pi-style tools;
+- `sdk/typescript/agent-adapter` maps Ygg capabilities to pi-style tools;
 - `sdk/typescript/agentic-forge` provides package-owned run lifecycle, plan graph, working state, and candidate helpers;
 - `official/pi-agent-runtime-lab` is a no-network-by-default reference agent package;
 - `official/capability-tool-bridge-lab` handles capability discovery, permission preview, explicit provider selection, and controlled invocation;

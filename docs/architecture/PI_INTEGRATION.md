@@ -2,11 +2,11 @@
 
 > [English](./PI_INTEGRATION.en.md) · [中文](./PI_INTEGRATION.md)
 
-本文固定 Yggdrasil 如何借鉴或承载 [pi](https://github.com/earendil-works/pi) 一类 agent framework。pi 可以作为普通能力包的实现来源，也可以帮助定义 SDK adapter；它不是 Yggdrasil 的内核、公开合同或产品壳。
+本文固定 Plurora 如何借鉴或承载 [pi](https://github.com/earendil-works/pi) 一类 agent framework。pi 可以作为普通能力包的实现来源，也可以帮助定义 SDK adapter；它不是 Plurora 的内核、公开合同或产品壳。
 
 ## 核心立场
 
-Yggdrasil 要能托管、约束、观察和替换 agent 类 Component 与 Product，但平台本身不拥有 agent ontology。Run、step、tool、trace、prompt、model、memory 和 coding workflow 的共享含义属于可选 Protocol / Profile，具体状态与行为属于 Component 或 Product，不进入宪法基底。
+Plurora 要能托管、约束、观察和替换 agent 类 Component 与 Product，但平台本身不拥有 agent ontology。Run、step、tool、trace、prompt、model、memory 和 coding workflow 的共享含义属于可选 Protocol / Profile，具体状态与行为属于 Component 或 Product，不进入宪法基底。
 
 Agent 基础设施必须复用现有公开原语：
 
@@ -21,17 +21,17 @@ Agent 基础设施必须复用现有公开原语：
 
 ## pi 分层吸收
 
-| pi 层 | Yggdrasil 处理方式 | 边界 |
+| pi 层 | Plurora 处理方式 | 边界 |
 |---|---|---|
 | `pi-ai` | 作为 provider、streaming 和 tool-call adapter 的实现参考 | Provider 语义留在普通 inference/model 包；secret、网络和审计由 Host 边界执行。 |
 | `pi-agent-core` | 可由 SDK 或能力包包装 | `AgentEvent`、tool adapter、steer/follow-up queue 等可以留在包内；message、system prompt、thinking level 不进入内核。 |
-| `pi-coding-agent` | 作为完整产品和 workflow 的参考 | TUI、bash/read/write/edit、session format、skills 和 coding policy 不成为 Yggdrasil 平台默认值。 |
+| `pi-coding-agent` | 作为完整产品和 workflow 的参考 | TUI、bash/read/write/edit、session format、skills 和 coding policy 不成为 Plurora 平台默认值。 |
 
 更细的上游 ledger 见 [`../../integrations/pi/README.md`](../../integrations/pi/README.md)。
 
 ## 概念映射
 
-| Agent 概念 | Yggdrasil 公开原语 | 规则 |
+| Agent 概念 | Plurora 公开原语 | 规则 |
 |---|---|---|
 | run / turn / step | Component capability call、stream 或协议拥有的状态 | 基底不新增 agent 生命周期。 |
 | cancellation | `kernel.v1.capability.cancel` | 只能取消调用者拥有的 invocation/stream。 |
@@ -48,7 +48,7 @@ Agent 基础设施必须复用现有公开原语：
 
 当前仓库通过普通 SDK、Component Package 和 integration fixture 实现并持续检查这条边界：
 
-- `sdk/typescript/ygg-agent-adapter` 把 Ygg capability 映射为 pi-style tool；
+- `sdk/typescript/agent-adapter` 把 Ygg capability 映射为 pi-style tool；
 - `sdk/typescript/agentic-forge` 提供包拥有的 run lifecycle、plan graph、working state 和 candidate helper；
 - `official/pi-agent-runtime-lab` 提供默认不联网的参考 agent 包；
 - `official/capability-tool-bridge-lab` 负责 capability discovery、permission preview、显式 provider 选择和受控调用；

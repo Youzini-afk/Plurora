@@ -21,10 +21,10 @@
 3. 输出目录必须不存在并位于 data dir 外。
 
 ```bash
-ygg host backup \
-  --data-dir /srv/ygg \
-  --profile /srv/ygg/profiles/host.yaml \
-  --output /srv/backups/ygg-2026-07-23
+plurora host backup \
+  --data-dir /srv/plurora \
+  --profile /srv/plurora/profiles/host.yaml \
+  --output /srv/backups/plurora-2026-07-23
 ```
 
 命令会取得持久 Host 控制面租约；如果仍有 Host 持有租约，它会失败而不会复制。快照排除顶层 `cache/`，拒绝 data dir 中的符号链接，并在 `manifest.json` 中记录 `data/` 下每个文件的大小和 SHA-256。SQLite 文件通过 online backup API 生成，不是复制活跃数据库文件。
@@ -34,9 +34,9 @@ ygg host backup \
 恢复只接受不存在的新目录，不覆盖旧数据：
 
 ```bash
-ygg host restore \
-  --backup /srv/backups/ygg-2026-07-23 \
-  --data-dir /srv/ygg-restored
+plurora host restore \
+  --backup /srv/backups/plurora-2026-07-23 \
+  --data-dir /srv/plurora-restored
 ```
 
 恢复先在目标同级 staging 中校验 manifest、路径、文件类型、大小、SHA-256、profile 到 SQLite 的引用和 SQLite integrity；全部通过后才原子 rename。验收时用恢复后的 data dir 和其中的 profile 启动 Host，确认 `/readyz`，再验证关键项目、secret 引用和部署历史。验收完成前保留旧 data dir。
@@ -48,8 +48,8 @@ ygg host restore \
 下载后可核验：
 
 ```bash
-sha256sum -c Yggdrasil-<target>-SHA256SUMS.txt
-gh attestation verify <installer> -R Youzini-afk/Yggdrasil
+sha256sum -c Plurora-<target>-SHA256SUMS.txt
+gh attestation verify <installer> -R Youzini-afk/Plurora
 ```
 
 当前没有配置平台 signing/notarization，draft release 不应被描述为已签名发行版。

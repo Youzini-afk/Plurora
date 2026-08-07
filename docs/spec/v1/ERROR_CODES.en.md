@@ -1,6 +1,6 @@
 # Error Codes (v1)
 
-Yggdrasil v1 reserves JSON-RPC application error numbers `-32000..-32099`. The current runtime `ProtocolError.code` remains a string identifier; the table assigns canonical numeric aliases for cross-language implementations and future JSON-RPC adapters.
+Plurora v1 reserves JSON-RPC application error numbers `-32000..-32099`. The current runtime `ProtocolError.code` remains a string identifier; the table assigns canonical numeric aliases for cross-language implementations and future JSON-RPC adapters.
 
 | Number | String identifier | Name | When emitted | Recovery hint |
 |---:|---|---|---|---|

@@ -1,4 +1,4 @@
-# Yggdrasil 文档
+# Plurora 文档
 
 > [English](./README.en.md) · [中文](./README.md)
 
@@ -48,7 +48,7 @@
 
 - [`performance/`](performance/README.md) — 性能基线、质量反馈与代码健康
 - [`roadmap/`](roadmap/README.md) — 当前仍影响取舍的建设方向
-- [`tavern/`](tavern/README.md) — Yggdrasil 与独立接入项目 YdlTavern 的关系
+- [`tavern/`](tavern/README.md) — Plurora 与独立接入项目 YdlTavern 的关系
 
 ## 最短读路径
 

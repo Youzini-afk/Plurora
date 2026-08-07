@@ -2,7 +2,7 @@
 
 > [English](./TRIVIUMDB_REVIEW.en.md) · [中文](./TRIVIUMDB_REVIEW.md)
 
-This ledger records what the TriviumDB source review means for Yggdrasil integration, and corrects the previous overly conservative judgment: the TriviumDB README explicitly recommends Rust-side `cargo add triviumdb`, so Yggdrasil should provide a real Rust API adapter proof, not just a plan-only entry.
+This ledger records what the TriviumDB source review means for Plurora integration, and corrects the previous overly conservative judgment: the TriviumDB README explicitly recommends Rust-side `cargo add triviumdb`, so Plurora should provide a real Rust API adapter proof, not just a plan-only entry.
 
 ## Source observations
 
@@ -16,7 +16,7 @@ This ledger records what the TriviumDB source review means for Yggdrasil integra
 
 ## Integration judgment
 
-TDB fits Yggdrasil as a **retrieval/multimodal provider adapter**, not as:
+TDB fits Plurora as a **retrieval/multimodal provider adapter**, not as:
 
 - kernel event store;
 - canonical asset store;
@@ -24,7 +24,7 @@ TDB fits Yggdrasil as a **retrieval/multimodal provider adapter**, not as:
 - raw package database;
 - global memory/chat/agent/world store.
 
-Reason: TDB is valuable as a local embedded multimodal/vector/graph/document hybrid retrieval engine; Yggdrasil events, proposals, permissions, and branch lineage still need the event spine as authority.
+Reason: TDB is valuable as a local embedded multimodal/vector/graph/document hybrid retrieval engine; Plurora events, proposals, permissions, and branch lineage still need the event spine as authority.
 
 ## Current real Rust adapter proof
 
@@ -67,7 +67,7 @@ This is not “not doing it because TDB is outside the repo”; the real Rust ad
 
 Therefore the route is dual-track:
 
-1. default adapter shell: compiles, loads, and passes conformance in an ordinary Yggdrasil checkout; it opens no backend;
+1. default adapter shell: compiles, loads, and passes conformance in an ordinary Plurora checkout; it opens no backend;
 2. real-crate adapter: explicit opt-in real Rust API proof through the published crate; unpublished source tests should use a developer-owned uncommitted Cargo patch.
 
 If TDB later becomes stably resolvable through crates.io, pinned git rev, submodule, or vendor, the real adapter can move from published-crate proof into a more formal feature-gated package build.

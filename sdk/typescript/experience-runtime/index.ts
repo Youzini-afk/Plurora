@@ -1,5 +1,5 @@
 /**
- * Yggdrasil Experience Runtime SDK — Package-owned experience descriptor,
+ * Plurora Experience Runtime SDK — Package-owned experience descriptor,
  * state projection, checkpoint, recovery, and Play/Forge/Assist surface
  * binding types.
  *

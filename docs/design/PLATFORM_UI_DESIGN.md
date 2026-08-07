@@ -1,9 +1,9 @@
-# 设计系统：Yggdrasil 平台壳
+# 设计系统：Plurora 平台壳
 
 > [English](./PLATFORM_UI_DESIGN.en.md) · [中文](./PLATFORM_UI_DESIGN.md)
 >
 > 作为 Stitch 屏生成与 React 实现的唯一来源，覆盖 `clients/web` 官方发行版 Shell。
-> 本文描述的是当前官方产品的视觉与交互观点，不是 Yggdrasil 的平台宪法。
+> 本文描述的是当前官方产品的视觉与交互观点，不是 Plurora 的平台宪法。
 > 第三方发行版、YdlTavern 与其他产品可以采用完全不同的导航和视觉语言。
 
 ---
@@ -19,7 +19,7 @@
 
 > 当前官方发行版把开放平台能力组织成一张温暖、清楚、可逐步深入的工作台。
 > 这是 `clients/web` 的产品观点：项目和内容在架上，控制与创作工具按需展开；
-> 它不要求第三方 Shell 复制这种布局，也不把 Yggdrasil 限定成 Steam、IDE 或 chatbot。
+> 它不要求第三方 Shell 复制这种布局，也不把 Plurora 限定成 Steam、IDE 或 chatbot。
 
 ---
 
@@ -171,7 +171,7 @@
 ### 导航 / Topbar
 
 - Sticky topbar 在 `top: 0`，高 `60px`，背景 Warm Bone 配 `0.85` 透明度 + `backdrop-filter: blur(20px)`，下方 1px Whisper Border
-- 左：文字 logo `Yggdrasil`，Cabinet Grotesk 700 weight、`1.125rem`，配当前 breadcrumb（Steel Secondary）
+- 左：文字 logo `Plurora`，Cabinet Grotesk 700 weight、`1.125rem`，配当前 breadcrumb（Steel Secondary）
 - 右：settings icon (Phosphor `GearSix`)、通知 bell（带状态点）、主题切换（sun/moon）
 - 移动端不做汉堡 — 主导航（Home、Settings）始终通过 topbar 可达
 
@@ -236,7 +236,7 @@
 Home 是平台第一印象 — 必须立即建立编辑工坊气氛，没有营销 chrome。
 
 - **非对称布局** — 桌面 60/40 split。
-  左区：eyebrow（"Yggdrasil"小 caps）、Cabinet Grotesk 800 标题（如"你的工作台"）、一行正文。
+  左区：eyebrow（"Plurora"小 caps）、Cabinet Grotesk 800 标题（如"你的工作台"）、一行正文。
   右区：环境细节 — 安静一句引文、mono 显示已装项目数量、轻盈装饰元素。
   右区主要是负空间。
 - **无填充 chrome** — 禁用：「向下滚动探索」、「开始」、滚动箭头、动画 chevron、
@@ -360,7 +360,7 @@ Home 是平台第一印象 — 必须立即建立编辑工坊气氛，没有营�
 
 用本设计系统提示 Stitch 时：
 
-- 始终声明屏是给「Yggdrasil 平台壳」（不是项目、不是 YdlTavern、不是聊天产品），
+- 始终声明屏是给「Plurora 平台壳」（不是项目、不是 YdlTavern、不是聊天产品），
   防止 Stitch 拉 SaaS / chatbot 参考
 - 强化关键词：暖奶油 (#FAFAF7) 背景、单一 Aged Brass (#B8956A) 强调、
   非对称布局、不做居中 hero、不要 emoji、Cabinet Grotesk 做 display

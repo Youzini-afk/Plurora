@@ -6,21 +6,21 @@ Conformance kit 用来让第三方能力包在交给 host、市场、CI 或用�
 
 ## 目的
 
-Yggdrasil 要求官方包和第三方包走同一份契约。Conformance kit 提供可重复的本地验证：manifest 是否能解析、entry 是否可运行、bindings 是否正确、能力声明是否一致、权限是否最小、审计是否可见、fixture 调用是否稳定。
+Plurora 要求官方包和第三方包走同一份契约。Conformance kit 提供可重复的本地验证：manifest 是否能解析、entry 是否可运行、bindings 是否正确、能力声明是否一致、权限是否最小、审计是否可见、fixture 调用是否稳定。
 
 通过 kit 不代表包“质量好”或“内容正确”；它只说明该包按 v1 合同参与平台。
 
 ## 基本用法
 
 ```bash
-yg conformance package --contract v1 --path <package>
+plurora conformance package --contract v1 --path <package>
 ```
 
 常用选项：
 
 ```bash
-yg conformance package --contract v1 --path <package> --format json
-yg conformance package --contract v1 --path <package> --static-only
+plurora conformance package --contract v1 --path <package> --format json
+plurora conformance package --contract v1 --path <package> --static-only
 ```
 
 - `--format json`：输出机器可读报告，适合 CI。
@@ -81,7 +81,7 @@ yg conformance package --contract v1 --path <package> --static-only
 推荐在包仓库中加入：
 
 ```bash
-yg conformance package --contract v1 --path . --format json > conformance.json
+plurora conformance package --contract v1 --path . --format json > conformance.json
 ```
 
 PR gate 应在以下情况失败：
@@ -146,7 +146,7 @@ PR gate 应在以下情况失败：
 ```bash
 for manifest in packages/*/manifest.yaml; do
   dir=$(dirname "$manifest")
-  yg conformance package --contract v1 --path "$dir" --format json
+  plurora conformance package --contract v1 --path "$dir" --format json
 done
 ```
 

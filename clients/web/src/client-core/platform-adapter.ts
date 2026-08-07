@@ -14,11 +14,11 @@ export interface PlatformAdapter {
 }
 
 const PROJECT_WINDOW_FEATURES = "noopener,noreferrer";
-export const PROJECT_SHELL_HISTORY_STATE = "__ygg_project_from_shell__";
+export const PROJECT_SHELL_HISTORY_STATE = "__plurora_project_from_shell__";
 
 export function detectClientPlatform(hostWindow: Window = window): ClientPlatform {
-  if (hostWindow.__YGG_RUNTIME__?.platform) return hostWindow.__YGG_RUNTIME__.platform;
-  const bootstrapPlatform = new URLSearchParams(hostWindow.location.search).get("ygg_platform");
+  if (hostWindow.__PLURORA_RUNTIME__?.platform) return hostWindow.__PLURORA_RUNTIME__.platform;
+  const bootstrapPlatform = new URLSearchParams(hostWindow.location.search).get("plurora_platform");
   if (bootstrapPlatform === "desktop" || bootstrapPlatform === "pwa" || bootstrapPlatform === "web") {
     return bootstrapPlatform;
   }

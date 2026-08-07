@@ -2,7 +2,7 @@
 
 > [English](./KERNEL_V1_CONTRACT.en.md) · [中文](./KERNEL_V1_CONTRACT.md)
 
-This document is the v1 specification for Yggdrasil's current platform contract. It defines the operative public boundary: methods, events, error codes, capability handles, manifest declarations, schemas, and conformance expectations. Any participant can call the platform through this contract; every implementation must satisfy the same schema and behavioral conformance. `kernel.v1.*` is a compatibility name rather than automatic membership in the long-term constitutional substrate.
+This document is the v1 specification for Plurora's current platform contract. It defines the operative public boundary: methods, events, error codes, capability handles, manifest declarations, schemas, and conformance expectations. Any participant can call the platform through this contract; every implementation must satisfy the same schema and behavioral conformance. `kernel.v1.*` is a compatibility name rather than automatic membership in the long-term constitutional substrate.
 
 v1 does not put content semantics into core mechanisms. Characters, worlds, prompts, models, messages, memory, and similar concepts belong to their protocols, components, or products rather than the constitutional substrate.
 
@@ -167,7 +167,7 @@ Git installation is not a kernel transport; future support belongs in the ordina
 
 | Method | Status | Contract |
 |---|---:|---|
-| `kernel.v1.audit.package` | partial | Report declared vs used authority for `yg audit --package <id>`; actual-use tracking continues to expand. |
+| `kernel.v1.audit.package` | partial | Report declared vs used authority for `plurora audit --package <id>`; actual-use tracking continues to expand. |
 
 ### Surface / extension point / hook (6)
 
@@ -239,7 +239,7 @@ Bindings must contain only the caller's granted authority. Path B packages do no
 
 ## Effect audit
 
-`yg audit --package <id>` and `kernel.v1.audit.package` report declared vs used authority. Audit input comes from:
+`plurora audit --package <id>` and `kernel.v1.audit.package` report declared vs used authority. Audit input comes from:
 
 1. manifest permissions, capabilities, secret_refs, and network hosts;
 2. kernel-minted and attenuated capability handles;
@@ -254,7 +254,7 @@ Audit reports find unused declarations, undeclared use, authority expansion, exp
 Third-party packages can run:
 
 ```bash
-yg conformance package --contract v1 --path <package>
+plurora conformance package --contract v1 --path <package>
 ```
 
 The kit has 8 acceptance checks: manifest parse, contract mode, entry support, bindings/handshake, capability declarations, permission declarations, audit visibility, and fixture invocation. It outputs PASS/FAIL/SKIP/WARNING and a compliance percentage. Path A packages must pass applicable checks; Path B packages skip capability/permission checks but must remain self-contained and lifecycle-observable.
@@ -265,8 +265,8 @@ See [`../guides/CONFORMANCE_KIT.md`](../guides/CONFORMANCE_KIT.en.md).
 
 `docs/spec/v1/schemas/` is the single source of truth. SDKs are available through three channels:
 
-- npm: `@yggdrasil/kernel-sdk` (`sdk/typescript/kernel-sdk/`).
-- workspace path: `file:../yggdrasil/sdk/typescript/kernel-sdk`.
+- npm: `@plurora/contract-sdk` (`sdk/typescript/contract-sdk/`).
+- workspace path: `file:../plurora/sdk/typescript/contract-sdk`.
 - generate yourself: read `docs/spec/v1/schemas/` with any codegen tool.
 
 See [`../../sdk/README.md`](../../sdk/README.md).
@@ -285,7 +285,7 @@ v1 only allows additive changes: optional fields, new methods, new events, new e
 - Error codes: [`v1/ERROR_CODES.md`](v1/ERROR_CODES.en.md).
 - Event registry: [`v1/EVENT_KIND_REGISTRY.md`](v1/EVENT_KIND_REGISTRY.en.md).
 
-All 161 schemas must pass `cargo run -p ygg-cli --bin validate-schemas`.
+All 161 schemas must pass `cargo run -p plurora-cli --bin validate-schemas`.
 
 ## Content-free invariant
 
@@ -318,7 +318,7 @@ requires:
   - id: official/model-provider-lab
     source:
       kind: git
-      url: https://example.com/yggdrasil/model-provider-lab.git
+      url: https://example.com/plurora/model-provider-lab.git
       ref: v1.2.3
     version: "^1.2"
     minimum_signed_by:
@@ -439,7 +439,7 @@ secret_ref:project:OPENAI_API_KEY # resolved via project store, then policy fall
 
 Project-backed references resolve from the active project store first, then fall back to the platform store when `secret_policy.fallback_to_platform` allows it and the key is not listed in `require_per_project`.
 
-Store-backed references are resolved via the `StoreSecretResolver` against an age-encrypted file at `~/.yggdrasil/secrets.dat`. See [`docs/guides/SECRET_MANAGEMENT.md`](../guides/SECRET_MANAGEMENT.en.md).
+Store-backed references are resolved via the `StoreSecretResolver` against an age-encrypted file at `~/.plurora/secrets.dat`. See [`docs/guides/SECRET_MANAGEMENT.md`](../guides/SECRET_MANAGEMENT.en.md).
 
 Undeclared secret refs, resolution failure, resolver denial, and raw secrets in protected payloads must fail closed.
 
@@ -514,13 +514,13 @@ The old alpha contract has been replaced by this file. Long-term references shou
 Before releasing a v1-compatible host, run:
 
 ```bash
-cargo test -p ygg-core
-cargo test -p ygg-runtime
-cargo test -p ygg-cli
-cargo run -p ygg-cli -- conformance
-cargo run -p ygg-cli --bin export-schemas
-cargo run -p ygg-cli --bin validate-schemas
-cargo run -p ygg-cli --bin generate-sdks
+cargo test -p plurora-core
+cargo test -p plurora-runtime
+cargo test -p plurora-cli
+cargo run -p plurora-cli -- conformance
+cargo run -p plurora-cli --bin export-schemas
+cargo run -p plurora-cli --bin validate-schemas
+cargo run -p plurora-cli --bin generate-sdks
 ```
 
 Also run package conformance against representative Path A and Path B examples.

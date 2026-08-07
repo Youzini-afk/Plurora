@@ -5,7 +5,7 @@ title: Forge Alpha (PostgreSQL event store example)
 # manifests, events, proposals, logs, or public diagnostics.
 event_store:
   kind: postgres
-  env: YGG_POSTGRES_DATABASE_URL
+  env: PLURORA_POSTGRES_DATABASE_URL
 
 autoload:
   - ../packages/official/package-lab/manifest.yaml
