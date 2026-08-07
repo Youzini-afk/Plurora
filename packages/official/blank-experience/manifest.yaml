@@ -3,6 +3,7 @@ id: official/blank-experience
 version: 0.1.0
 display_name: Official Blank Experience
 description: Minimal play-creation loop fixture package for seed, branch, asset, and projection workflows.
+license: AGPL-3.0-only
 entry:
   kind: rust_inproc
   crate_ref: official-foundation

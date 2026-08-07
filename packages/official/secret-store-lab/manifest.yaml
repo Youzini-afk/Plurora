@@ -3,7 +3,7 @@ id: official/secret-store-lab
 version: 0.1.0
 display_name: Secret Store Lab
 description: Local encrypted secret storage for API keys and credentials. Files at ~/.yggdrasil/secrets.dat (age-encrypted).
-license: AGPL-3.0
+license: AGPL-3.0-only
 entry:
   kind: rust_inproc
   crate_ref: official-secret-store-lab

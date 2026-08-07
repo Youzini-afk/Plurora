@@ -3,6 +3,7 @@ id: official/agentic-forge-lab
 version: 0.1.0
 display_name: Official Agentic Forge Lab
 description: Package-owned agent run lifecycle, working state, and plan graph contract. Deterministic, no-network, no real model inference. Produces run events, plan graphs, working states, and observability summaries through ordinary capabilities.
+license: AGPL-3.0-only
 entry:
   kind: rust_inproc
   crate_ref: official-foundation

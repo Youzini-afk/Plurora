@@ -1,6 +1,7 @@
 {
   "name": "@yggdrasil/subprocess",
   "version": "0.1.0",
+  "license": "AGPL-3.0-only",
   "description": "Yggdrasil JSON-RPC-over-stdio subprocess SDK",
   "private": true,
   "type": "module",

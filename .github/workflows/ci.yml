@@ -28,6 +28,9 @@ jobs:
 
       - uses: swatinem/rust-cache@v2
 
+      - name: Verify first-party license metadata
+        run: bash scripts/check-license-metadata.sh
+
       - name: Regenerate schemas and SDKs
         run: bash scripts/regen-sdks.sh
 

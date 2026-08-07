@@ -3,6 +3,7 @@ id: official/asset-lab
 version: 0.1.0
 display_name: Official Asset Lab
 description: Generic asset inspection and planning helpers for Forge and assistant workflows.
+license: AGPL-3.0-only
 entry:
   kind: rust_inproc
   crate_ref: official-foundation

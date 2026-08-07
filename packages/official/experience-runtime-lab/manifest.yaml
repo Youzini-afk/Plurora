@@ -3,6 +3,7 @@ id: official/experience-runtime-lab
 version: 0.1.0
 display_name: Official Experience Runtime Lab
 description: Package-owned experience runtime contract — experience descriptor, state projection, checkpoint, recovery, and Play/Forge/Assist surface bindings. Deterministic, no-network, no real model inference. Produces contract shapes, checkpoints, recovery plans, and agent-run bindings through ordinary capabilities.
+license: AGPL-3.0-only
 entry:
   kind: rust_inproc
   crate_ref: official-foundation

@@ -61,4 +61,4 @@ assets before a polished desktop release.
 
 ## License
 
-AGPL-3.0. See repository LICENSE.
+AGPL-3.0-only. See repository LICENSE.

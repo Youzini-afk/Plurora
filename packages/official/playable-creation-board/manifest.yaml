@@ -3,6 +3,7 @@ id: official/playable-creation-board
 version: 0.1.0
 display_name: Official Playable Creation Board
 description: Package-owned playable creation board — board/module/constraint/marker state with play→request_change→agentic forge candidate/proposal→inspect/approve/reject→fork/compare→recovery. Deterministic, no-network, no real model inference. Uses package-owned board semantics only.
+license: AGPL-3.0-only
 entry:
   kind: rust_inproc
   crate_ref: official-foundation

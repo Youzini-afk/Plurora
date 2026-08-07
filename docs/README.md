@@ -17,6 +17,7 @@
 - [`CHARTER.md`](CHARTER.md) — 不变的根本原则
 - [`ALPHA_STATUS.md`](ALPHA_STATUS.md) — 当前状态、partial、deferred 的活快照
 - [`STYLE.md`](STYLE.md) — 文档体例与红线
+- [`LICENSING.md`](LICENSING.md) — `AGPL-3.0-only` 第一方范围与第三方许可证边界
 - [`../BUILDING.md`](../BUILDING.md) — Rust、Web、Tauri desktop 与 release 构建说明
 - [`product/`](product/README.md) — 游创一体产品立场
 

@@ -144,4 +144,4 @@ cargo run -p ygg-cli -- play-create-demo
 
 ## 协议
 
-Yggdrasil 以 GNU Affero General Public License v3.0（AGPLv3）发布，详见 [`LICENSE`](LICENSE)。
+Yggdrasil 以 GNU Affero General Public License v3.0（仅此版本，`AGPL-3.0-only`）发布，详见 [`LICENSE`](LICENSE)；第一方代码与第三方内容的边界见 [`docs/LICENSING.md`](docs/LICENSING.md)。

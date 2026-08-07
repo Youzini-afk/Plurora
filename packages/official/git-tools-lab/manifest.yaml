@@ -3,7 +3,7 @@ id: official/git-tools-lab
 version: 0.1.0
 display_name: Git Tools Lab
 description: Pure-Rust git operations over HTTPS for package installation.
-license: AGPL-3.0
+license: AGPL-3.0-only
 entry:
   kind: rust_inproc
   crate_ref: official-foundation

@@ -3,6 +3,7 @@ id: official/schema-tools
 version: 0.1.0
 display_name: Official Schema Tools
 description: Infrastructure capability package for schema validation and sample generation.
+license: AGPL-3.0-only
 entry:
   kind: rust_inproc
   crate_ref: official-foundation

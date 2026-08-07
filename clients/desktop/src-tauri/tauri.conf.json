@@ -35,7 +35,7 @@
     ],
     "category": "DeveloperTool",
     "shortDescription": "Yggdrasil desktop application",
-    "longDescription": "AGPL-3.0 desktop application for the Yggdrasil platform."
+    "longDescription": "AGPL-3.0-only desktop application for the Yggdrasil platform."
   },
   "plugins": {}
 }

@@ -3,6 +3,7 @@ id: official/experience-observability-lab
 version: 0.1.0
 display_name: Official Experience Observability Lab
 description: Package-owned experience observability — session health, package health, agent run health, proposal causal chain, failure breadcrumbs, cost/latency summary, and guardrail/audit summary. Deterministic, no-network, no real model inference. Produces protocol-visible observability shapes from package/protocol refs, not from SQLite or runtime internals.
+license: AGPL-3.0-only
 entry:
   kind: rust_inproc
   crate_ref: official-foundation

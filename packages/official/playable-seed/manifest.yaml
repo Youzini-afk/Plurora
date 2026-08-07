@@ -3,6 +3,7 @@ id: official/playable-seed
 version: 0.1.0
 display_name: Official Playable Seed
 description: Reference playable package proving launch, render payload, Forge inspection, and approval-gated edits without defining a game runtime.
+license: AGPL-3.0-only
 entry:
   kind: rust_inproc
   crate_ref: official-foundation

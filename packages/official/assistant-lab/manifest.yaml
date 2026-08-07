@@ -3,6 +3,7 @@ id: official/assistant-lab
 version: 0.1.0
 display_name: Official Assistant Lab
 description: Protocol-bound assistant package that produces explanations, suggestions, and branch proposals without private kernel access.
+license: AGPL-3.0-only
 entry:
   kind: rust_inproc
   crate_ref: official-foundation

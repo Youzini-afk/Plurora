@@ -3,6 +3,7 @@ id: official/context-lab
 version: 0.1.0
 display_name: Official Context Lab
 description: Generic bounded context assembly, layer inspection, budget planning, template rendering, and assembly explanation.
+license: AGPL-3.0-only
 entry:
   kind: rust_inproc
   crate_ref: official-foundation

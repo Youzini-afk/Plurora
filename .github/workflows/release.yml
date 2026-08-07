@@ -92,7 +92,7 @@ jobs:
             Source: https://github.com/Youzini-afk/Yggdrasil/tree/${{ github.ref_name }}
 
             ## License
-            AGPL-3.0. See repository LICENSE for terms.
+            AGPL-3.0-only. See repository LICENSE for terms.
 
             ## Build
             See BUILDING.md for build instructions.

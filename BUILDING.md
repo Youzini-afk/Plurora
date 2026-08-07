@@ -1,6 +1,6 @@
 # Building Yggdrasil
 
-Yggdrasil is licensed under AGPL-3.0. See [LICENSE](./LICENSE) for terms.
+Yggdrasil is licensed under AGPL-3.0-only. See [LICENSE](./LICENSE) for terms.
 
 ## Source
 

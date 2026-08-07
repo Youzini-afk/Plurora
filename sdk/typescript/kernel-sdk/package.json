@@ -2,7 +2,7 @@
   "name": "@yggdrasil/kernel-sdk",
   "version": "0.1.0",
   "description": "Generated TypeScript SDK for the Yggdrasil kernel contract",
-  "license": "MIT OR Apache-2.0",
+  "license": "AGPL-3.0-only",
   "type": "commonjs",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",

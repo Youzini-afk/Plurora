@@ -5,7 +5,7 @@ edition = "2021"
 build = "build.rs"
 description = "Yggdrasil desktop application"
 authors = ["Yggdrasil contributors"]
-license = "AGPL-3.0"
+license = "AGPL-3.0-only"
 
 [lib]
 name = "ygg_desktop_lib"

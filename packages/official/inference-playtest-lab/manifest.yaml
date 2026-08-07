@@ -3,6 +3,7 @@ id: official/inference-playtest-lab
 version: 0.1.0
 display_name: Official Inference Playtest Lab
 description: Ygg-native inference proposal vertical slice. Proves inference is not prompt->text but ordinary package participation in session/branch/proposal/inspection/fork creative runtime. No network, no secrets.
+license: AGPL-3.0-only
 entry:
   kind: rust_inproc
   crate_ref: official-foundation

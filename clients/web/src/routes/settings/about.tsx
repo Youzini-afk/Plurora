@@ -84,7 +84,7 @@ export function AboutPanel() {
             <CardSection>
               <EyebrowSm>{t("aboutLicense")}</EyebrowSm>
               <h3 className="mt-2 font-display text-[17px] font-bold text-charcoal-ink">
-                AGPL-3.0-or-later
+                AGPL-3.0-only
               </h3>
               <p className="mt-2 max-w-[32ch] text-[12px] leading-relaxed text-steel-secondary">
                 {t("aboutLicenseBody")}

@@ -144,4 +144,4 @@ These are valuable directions, but they don't belong in the kernel — they will
 
 ## License
 
-Yggdrasil is licensed under the GNU Affero General Public License v3.0 (AGPLv3). See [`LICENSE`](LICENSE).
+Yggdrasil is licensed under version 3.0 only of the GNU Affero General Public License (`AGPL-3.0-only`). See [`LICENSE`](LICENSE); first-party and third-party boundaries are documented in [`docs/LICENSING.md`](docs/LICENSING.en.md).

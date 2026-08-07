@@ -3,7 +3,7 @@ id: official/integrity-lab
 version: 0.1.0
 display_name: Integrity Lab
 description: SHA-256 hashing and GPG signature verification for package installation.
-license: AGPL-3.0
+license: AGPL-3.0-only
 entry:
   kind: rust_inproc
   contract: v1

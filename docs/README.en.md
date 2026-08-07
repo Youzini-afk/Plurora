@@ -17,6 +17,7 @@ After that, hop into the relevant guide / spec / roadmap on demand.
 - [`CHARTER.md`](CHARTER.en.md) — permanent principles
 - [`ALPHA_STATUS.md`](ALPHA_STATUS.en.md) — living snapshot of done / partial / deferred
 - [`STYLE.md`](STYLE.en.md) — documentation conventions and red lines
+- [`LICENSING.md`](LICENSING.en.md) — `AGPL-3.0-only` first-party scope and third-party license boundaries
 - [`../BUILDING.md`](../BUILDING.md) — Rust, web, Tauri desktop, and release build notes
 - [`product/`](product/README.en.md) — play-creation product stance
 

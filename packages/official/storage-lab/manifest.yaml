@@ -3,6 +3,7 @@ id: official/storage-lab
 version: 0.1.0
 display_name: Official Storage Lab
 description: Package-scoped storage/data contract preview — storage backend classes, package state store planning, document CRUD preview, snapshot export, blob/asset store contract proof, and projection/index materialization contract proof. Deterministic, no real DB, no SQL, no filesystem, no network, no blob content in events, no DB table/index/query exposure. Ordinary package capability with no privileged platform access.
+license: AGPL-3.0-only
 entry:
   kind: rust_inproc
   crate_ref: official-foundation

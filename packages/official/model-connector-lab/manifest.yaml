@@ -3,6 +3,7 @@ id: official/model-connector-lab
 version: 0.1.0
 display_name: Official Model Connector Lab
 description: No-network model provider family metadata, profile validation, secret masking, discovery plans, and compatibility reports.
+license: AGPL-3.0-only
 entry:
   kind: rust_inproc
   crate_ref: official-foundation

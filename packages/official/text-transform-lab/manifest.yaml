@@ -3,6 +3,7 @@ id: official/text-transform-lab
 version: 0.1.0
 display_name: Official Text Transform Lab
 description: Generic deterministic text transform rule import, validation, preview, pipeline explanation, and compatibility diagnostics.
+license: AGPL-3.0-only
 entry:
   kind: rust_inproc
   crate_ref: official-foundation

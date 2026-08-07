@@ -3,6 +3,7 @@ id: official/sharing-lab
 version: 0.1.0
 display_name: Official Sharing Lab
 description: Package-owned sharing and distribution — export/import composition bundles, branch/session bundle manifests, package-set lockfiles, compatibility/migration reports, AI disclosure metadata, read-only shared session manifests, and async fork sharing plans. Deterministic, no-network, local-file proof. Ordinary package capability with no privileged platform access.
+license: AGPL-3.0-only
 entry:
   kind: rust_inproc
   crate_ref: official-foundation

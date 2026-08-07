@@ -1,6 +1,7 @@
 {
   "name": "@yggdrasil/agentic-forge",
   "version": "0.1.0",
+  "license": "AGPL-3.0-only",
   "description": "Agentic Forge SDK — package-owned run lifecycle, plan graph, working state, and candidate shapes for Yggdrasil",
   "private": true,
   "type": "module",

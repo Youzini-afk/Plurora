@@ -3,7 +3,7 @@ id: official/install-lab
 version: 0.1.0
 display_name: Install Lab
 description: Package installation orchestrator; composes git-tools, integrity, and project-intake.
-license: AGPL-3.0
+license: AGPL-3.0-only
 entry:
   kind: rust_inproc
   crate_ref: official-install-lab

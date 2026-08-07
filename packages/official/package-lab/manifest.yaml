@@ -3,6 +3,7 @@ id: official/package-lab
 version: 0.1.0
 display_name: Official Package Lab
 description: Infrastructure capability package for host/package behavior exercises. No official privilege.
+license: AGPL-3.0-only
 entry:
   kind: rust_inproc
   crate_ref: official-foundation

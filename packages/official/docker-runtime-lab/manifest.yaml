@@ -3,6 +3,7 @@ id: official/docker-runtime-lab
 version: 0.1.0
 display_name: Official Docker Runtime Lab
 description: Ordinary package for approved Docker container lifecycle operations using host-provided port lease and proxy route metadata. The host/kernel owns port leases and proxy registration; this package never invokes HostAdmin-only port/proxy capabilities and blocks privileged mode, host networking, bind mounts, arbitrary env, and secret injection.
+license: AGPL-3.0-only
 entry:
   kind: rust_inproc
   crate_ref: official-foundation

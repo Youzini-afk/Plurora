@@ -3,6 +3,7 @@ id: official/knowledge-lab
 version: 0.1.0
 display_name: Official Knowledge Lab
 description: Generic structured knowledge collection normalization, matching, injection planning, and diagnostics.
+license: AGPL-3.0-only
 entry:
   kind: rust_inproc
   crate_ref: official-foundation

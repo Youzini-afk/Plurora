@@ -3,6 +3,7 @@ id: official/inference-local-lab
 version: 0.1.0
 display_name: Official Inference Local Lab
 description: Deterministic non-HTTP fake local inference provider proof. Proves the inference capability seam does not depend on cloud APIs, HTTP, bearer tokens, JSON provider schemas, or network access.
+license: AGPL-3.0-only
 entry:
   kind: rust_inproc
   crate_ref: official-foundation
