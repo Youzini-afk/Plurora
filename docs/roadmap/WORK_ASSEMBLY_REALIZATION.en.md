@@ -1651,6 +1651,7 @@ feat(creator): ship a modular simulation work kit
 ### Phase 9 — Convergence
 
 - delete this document and its Chinese counterpart;
+- delete the temporary active-program root `AGENTS.md`, or replace it only with durable general repository instructions;
 - move durable semantics into architecture and spec;
 - update Product Model, guides, `ALPHA_STATUS`, and `NEXT_STEPS`;
 - remove all Project, Composition, and Deployment machine identities;

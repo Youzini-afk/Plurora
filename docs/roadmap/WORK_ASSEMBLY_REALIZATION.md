@@ -1649,6 +1649,7 @@ feat(creator): ship a modular simulation work kit
 ### Phase 9 — 收口
 
 - 删除本文及英文版本；
+- 删除临时 active-program 根 `AGENTS.md`，或只在仍有长期价值时替换为通用仓库规范；
 - 把长期模型写入 architecture/spec；
 - 更新 Product Model、guides、ALPHA_STATUS、NEXT_STEPS；
 - 删除全部 Project/Composition/Deployment 旧术语的机器身份；
