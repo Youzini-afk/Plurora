@@ -6,6 +6,8 @@ Plurora does not move forward by expanding around one product, example, or workf
 
 These directions progress in parallel. Phase numbers would create a false linear order. Every concrete task should belong to a clear user lifecycle, architecture layer, and long-term responsibility.
 
+The current candidate construction line now converges three needs—game composition, open-source project deployment, and closed-source entrypoints—into one model: portable Work revisions, recursive Assemblies, Host-local Installations, Runs, and Target-compiled Realizations. The destructive model, Public Contract reset, Codex execution rules, phase commits, and final acceptance scenarios are specified in [`WORK_ASSEMBLY_REALIZATION.md`](WORK_ASSEMBLY_REALIZATION.en.md). That document is a temporary development plan, not an automatic Stable platform ontology; delete it after completion and move durable conclusions into formal documentation.
+
 ## Most important current work
 
 ### Make the official distribution complete and usable

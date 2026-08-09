@@ -6,6 +6,8 @@ Plurora 的下一步不是围绕某个单一产品、示例或工作流扩张，
 
 这些方向并行推进，不用阶段编号制造虚假的线性顺序。每一项具体工作都应落在清楚的用户生命周期、架构层和长期责任中。
 
+当前已把游戏组合、开源项目部署与闭源入口三个需求收敛为同一条候选建设主线：可移植的 Work revision、递归 Assembly、Host-local Installation、Run，以及面向 Target 编译的 Realization。具体破坏性模型、公开合同重置、Codex 执行规则、分阶段提交和最终验收见 [`WORK_ASSEMBLY_REALIZATION.md`](WORK_ASSEMBLY_REALIZATION.md)。该文件是开发期临时实施计划，不自动成为 Stable 平台本体；完成后删除并把长期结论归入正式文档。
+
 ## 当前最重要的工作
 
 ### 让官方发行版成为完整、好用的产品
