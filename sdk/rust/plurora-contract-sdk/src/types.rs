@@ -30,6 +30,290 @@ pub mod error {
         }
     }
 }
+///`AccessMode`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "AccessMode",
+///  "type": "string",
+///  "enum": [
+///    "read_only",
+///    "read_write",
+///    "append_only"
+///  ]
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(
+    ::serde::Deserialize,
+    ::serde::Serialize,
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    Ord,
+    PartialEq,
+    PartialOrd,
+)]
+pub enum AccessMode {
+    #[serde(rename = "read_only")]
+    ReadOnly,
+    #[serde(rename = "read_write")]
+    ReadWrite,
+    #[serde(rename = "append_only")]
+    AppendOnly,
+}
+impl ::std::fmt::Display for AccessMode {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+        match *self {
+            Self::ReadOnly => f.write_str("read_only"),
+            Self::ReadWrite => f.write_str("read_write"),
+            Self::AppendOnly => f.write_str("append_only"),
+        }
+    }
+}
+impl ::std::str::FromStr for AccessMode {
+    type Err = self::error::ConversionError;
+    fn from_str(value: &str) -> ::std::result::Result<Self, self::error::ConversionError> {
+        match value {
+            "read_only" => Ok(Self::ReadOnly),
+            "read_write" => Ok(Self::ReadWrite),
+            "append_only" => Ok(Self::AppendOnly),
+            _ => Err("invalid value".into()),
+        }
+    }
+}
+impl ::std::convert::TryFrom<&str> for AccessMode {
+    type Error = self::error::ConversionError;
+    fn try_from(value: &str) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<&::std::string::String> for AccessMode {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<::std::string::String> for AccessMode {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: ::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+///`AcquisitionKind`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "AcquisitionKind",
+///  "type": "string",
+///  "enum": [
+///    "work_bundle",
+///    "package",
+///    "git_snapshot",
+///    "local_import",
+///    "remote_catalog",
+///    "foreign_binding"
+///  ]
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(
+    ::serde::Deserialize,
+    ::serde::Serialize,
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    Ord,
+    PartialEq,
+    PartialOrd,
+)]
+pub enum AcquisitionKind {
+    #[serde(rename = "work_bundle")]
+    WorkBundle,
+    #[serde(rename = "package")]
+    Package,
+    #[serde(rename = "git_snapshot")]
+    GitSnapshot,
+    #[serde(rename = "local_import")]
+    LocalImport,
+    #[serde(rename = "remote_catalog")]
+    RemoteCatalog,
+    #[serde(rename = "foreign_binding")]
+    ForeignBinding,
+}
+impl ::std::fmt::Display for AcquisitionKind {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+        match *self {
+            Self::WorkBundle => f.write_str("work_bundle"),
+            Self::Package => f.write_str("package"),
+            Self::GitSnapshot => f.write_str("git_snapshot"),
+            Self::LocalImport => f.write_str("local_import"),
+            Self::RemoteCatalog => f.write_str("remote_catalog"),
+            Self::ForeignBinding => f.write_str("foreign_binding"),
+        }
+    }
+}
+impl ::std::str::FromStr for AcquisitionKind {
+    type Err = self::error::ConversionError;
+    fn from_str(value: &str) -> ::std::result::Result<Self, self::error::ConversionError> {
+        match value {
+            "work_bundle" => Ok(Self::WorkBundle),
+            "package" => Ok(Self::Package),
+            "git_snapshot" => Ok(Self::GitSnapshot),
+            "local_import" => Ok(Self::LocalImport),
+            "remote_catalog" => Ok(Self::RemoteCatalog),
+            "foreign_binding" => Ok(Self::ForeignBinding),
+            _ => Err("invalid value".into()),
+        }
+    }
+}
+impl ::std::convert::TryFrom<&str> for AcquisitionKind {
+    type Error = self::error::ConversionError;
+    fn try_from(value: &str) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<&::std::string::String> for AcquisitionKind {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<::std::string::String> for AcquisitionKind {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: ::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+///`AcquisitionRecord`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "AcquisitionRecord",
+///  "type": "object",
+///  "required": [
+///    "kind"
+///  ],
+///  "properties": {
+///    "kind": {
+///      "$ref": "#/definitions/AcquisitionKind"
+///    },
+///    "provenance_refs": {
+///      "type": "array",
+///      "items": {
+///        "$ref": "#/definitions/ArtifactDescriptor"
+///      }
+///    },
+///    "source_ref": {
+///      "anyOf": [
+///        {
+///          "$ref": "#/definitions/ArtifactDescriptor"
+///        },
+///        {
+///          "type": "null"
+///        }
+///      ]
+///    },
+///    "update_channel": {
+///      "type": [
+///        "string",
+///        "null"
+///      ]
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct AcquisitionRecord {
+    pub kind: AcquisitionKind,
+    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
+    pub provenance_refs: ::std::vec::Vec<ArtifactDescriptor>,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub source_ref: ::std::option::Option<ArtifactDescriptor>,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub update_channel: ::std::option::Option<::std::string::String>,
+}
+///`ActiveBindingRecord`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "ActiveBindingRecord",
+///  "type": "object",
+///  "required": [
+///    "authority_handle_id",
+///    "binding_id",
+///    "consumer_installation_id",
+///    "consumer_port",
+///    "exposure_id",
+///    "transport"
+///  ],
+///  "properties": {
+///    "authority_handle_id": {
+///      "type": "string"
+///    },
+///    "binding_id": {
+///      "$ref": "#/definitions/BindingId"
+///    },
+///    "consumer_installation_id": {
+///      "$ref": "#/definitions/InstallationId"
+///    },
+///    "consumer_port": {
+///      "$ref": "#/definitions/PortId"
+///    },
+///    "expires_at": {
+///      "type": [
+///        "string",
+///        "null"
+///      ],
+///      "format": "date-time"
+///    },
+///    "exposure_id": {
+///      "$ref": "#/definitions/ExposureId"
+///    },
+///    "transport": {
+///      "$ref": "#/definitions/SelectedTransport"
+///    }
+///  },
+///  "$schema": "https://json-schema.org/draft/2020-12/schema"
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct ActiveBindingRecord {
+    pub authority_handle_id: ::std::string::String,
+    pub binding_id: BindingId,
+    pub consumer_installation_id: InstallationId,
+    pub consumer_port: PortId,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub expires_at: ::std::option::Option<::chrono::DateTime<::chrono::offset::Utc>>,
+    pub exposure_id: ExposureId,
+    pub transport: SelectedTransport,
+}
 ///`AppendEventRequest`
 ///
 /// <details><summary>JSON schema</summary>
@@ -128,6 +412,563 @@ pub struct ArtifactDescriptor {
     #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
     pub references: ::std::vec::Vec<::std::string::String>,
     pub size_bytes: u64,
+}
+///`AssemblyBinding`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "AssemblyBinding",
+///  "type": "object",
+///  "required": [
+///    "binding_id",
+///    "consumer",
+///    "phase",
+///    "provider"
+///  ],
+///  "properties": {
+///    "annotations": {
+///      "type": "object",
+///      "additionalProperties": true
+///    },
+///    "binding_id": {
+///      "type": "string"
+///    },
+///    "consumer": {
+///      "$ref": "#/definitions/PortEndpoint"
+///    },
+///    "phase": {
+///      "$ref": "#/definitions/BindingPhase"
+///    },
+///    "provider": {
+///      "$ref": "#/definitions/PortEndpoint"
+///    },
+///    "transport_policy": {
+///      "default": {
+///        "requirements": {
+///          "large_payload": false,
+///          "local_only": false,
+///          "ordered": false,
+///          "reliable": false,
+///          "same_process": false,
+///          "shared_memory_allowed": false
+///        }
+///      },
+///      "allOf": [
+///        {
+///          "$ref": "#/definitions/TransportPolicy"
+///        }
+///      ]
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct AssemblyBinding {
+    #[serde(default, skip_serializing_if = "::serde_json::Map::is_empty")]
+    pub annotations: ::serde_json::Map<::std::string::String, ::serde_json::Value>,
+    pub binding_id: ::std::string::String,
+    pub consumer: PortEndpoint,
+    pub phase: BindingPhase,
+    pub provider: PortEndpoint,
+    #[serde(default = "defaults::assembly_binding_transport_policy")]
+    pub transport_policy: TransportPolicy,
+}
+///`AssemblyId`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "AssemblyId",
+///  "type": "string",
+///  "pattern": "^(?!.*\\.\\.)[A-Za-z0-9._-]+(?:/[A-Za-z0-9._-]+)+$"
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Serialize, Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+#[serde(transparent)]
+pub struct AssemblyId(::std::string::String);
+impl ::std::ops::Deref for AssemblyId {
+    type Target = ::std::string::String;
+    fn deref(&self) -> &::std::string::String {
+        &self.0
+    }
+}
+impl ::std::convert::From<AssemblyId> for ::std::string::String {
+    fn from(value: AssemblyId) -> Self {
+        value.0
+    }
+}
+impl ::std::str::FromStr for AssemblyId {
+    type Err = self::error::ConversionError;
+    fn from_str(value: &str) -> ::std::result::Result<Self, self::error::ConversionError> {
+        static PATTERN: ::std::sync::LazyLock<::regress::Regex> =
+            ::std::sync::LazyLock::new(|| {
+                ::regress::Regex::new("^(?!.*\\.\\.)[A-Za-z0-9._-]+(?:/[A-Za-z0-9._-]+)+$").unwrap()
+            });
+        if PATTERN.find(value).is_none() {
+            return Err(
+                "doesn't match pattern \"^(?!.*\\.\\.)[A-Za-z0-9._-]+(?:/[A-Za-z0-9._-]+)+$\""
+                    .into(),
+            );
+        }
+        Ok(Self(value.to_string()))
+    }
+}
+impl ::std::convert::TryFrom<&str> for AssemblyId {
+    type Error = self::error::ConversionError;
+    fn try_from(value: &str) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<&::std::string::String> for AssemblyId {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<::std::string::String> for AssemblyId {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: ::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl<'de> ::serde::Deserialize<'de> for AssemblyId {
+    fn deserialize<D>(deserializer: D) -> ::std::result::Result<Self, D::Error>
+    where
+        D: ::serde::Deserializer<'de>,
+    {
+        ::std::string::String::deserialize(deserializer)?
+            .parse()
+            .map_err(|e: self::error::ConversionError| {
+                <D::Error as ::serde::de::Error>::custom(e.to_string())
+            })
+    }
+}
+///`AssemblyLock`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "AssemblyLock",
+///  "type": "object",
+///  "required": [
+///    "assembly",
+///    "nodes",
+///    "schema"
+///  ],
+///  "properties": {
+///    "assembly": {
+///      "$ref": "#/definitions/ArtifactDescriptor"
+///    },
+///    "bindings": {
+///      "type": "array",
+///      "items": {
+///        "$ref": "#/definitions/BindingLock"
+///      }
+///    },
+///    "content_roots": {
+///      "type": "array",
+///      "items": {
+///        "$ref": "#/definitions/ArtifactDescriptor"
+///      }
+///    },
+///    "nodes": {
+///      "type": "array",
+///      "items": {
+///        "$ref": "#/definitions/NodeLock"
+///      }
+///    },
+///    "protocol_profiles": {
+///      "type": "array",
+///      "items": {
+///        "$ref": "#/definitions/ProtocolProfilePin"
+///      }
+///    },
+///    "schema": {
+///      "type": "string",
+///      "enum": [
+///        "plurora.assembly-lock.v1"
+///      ]
+///    }
+///  },
+///  "$schema": "https://json-schema.org/draft/2020-12/schema"
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct AssemblyLock {
+    pub assembly: ArtifactDescriptor,
+    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
+    pub bindings: ::std::vec::Vec<BindingLock>,
+    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
+    pub content_roots: ::std::vec::Vec<ArtifactDescriptor>,
+    pub nodes: ::std::vec::Vec<NodeLock>,
+    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
+    pub protocol_profiles: ::std::vec::Vec<ProtocolProfilePin>,
+    pub schema: AssemblyLockSchema,
+}
+///`AssemblyLockSchema`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "type": "string",
+///  "enum": [
+///    "plurora.assembly-lock.v1"
+///  ]
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(
+    ::serde::Deserialize,
+    ::serde::Serialize,
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    Ord,
+    PartialEq,
+    PartialOrd,
+)]
+pub enum AssemblyLockSchema {
+    #[serde(rename = "plurora.assembly-lock.v1")]
+    PluroraAssemblyLockV1,
+}
+impl ::std::fmt::Display for AssemblyLockSchema {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+        match *self {
+            Self::PluroraAssemblyLockV1 => f.write_str("plurora.assembly-lock.v1"),
+        }
+    }
+}
+impl ::std::str::FromStr for AssemblyLockSchema {
+    type Err = self::error::ConversionError;
+    fn from_str(value: &str) -> ::std::result::Result<Self, self::error::ConversionError> {
+        match value {
+            "plurora.assembly-lock.v1" => Ok(Self::PluroraAssemblyLockV1),
+            _ => Err("invalid value".into()),
+        }
+    }
+}
+impl ::std::convert::TryFrom<&str> for AssemblyLockSchema {
+    type Error = self::error::ConversionError;
+    fn try_from(value: &str) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<&::std::string::String> for AssemblyLockSchema {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<::std::string::String> for AssemblyLockSchema {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: ::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+///`AssemblyNode`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "AssemblyNode",
+///  "type": "object",
+///  "required": [
+///    "node_id",
+///    "source"
+///  ],
+///  "properties": {
+///    "annotations": {
+///      "type": "object",
+///      "additionalProperties": true
+///    },
+///    "configuration": {
+///      "anyOf": [
+///        {
+///          "$ref": "#/definitions/ArtifactDescriptor"
+///        },
+///        {
+///          "type": "null"
+///        }
+///      ]
+///    },
+///    "node_id": {
+///      "$ref": "#/definitions/NodeId"
+///    },
+///    "source": {
+///      "$ref": "#/definitions/AssemblyNodeSource"
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct AssemblyNode {
+    #[serde(default, skip_serializing_if = "::serde_json::Map::is_empty")]
+    pub annotations: ::serde_json::Map<::std::string::String, ::serde_json::Value>,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub configuration: ::std::option::Option<ArtifactDescriptor>,
+    pub node_id: NodeId,
+    pub source: AssemblyNodeSource,
+}
+///`AssemblyNodeSource`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "AssemblyNodeSource",
+///  "oneOf": [
+///    {
+///      "type": "object",
+///      "required": [
+///        "component",
+///        "kind"
+///      ],
+///      "properties": {
+///        "component": {
+///          "$ref": "#/definitions/ArtifactDescriptor"
+///        },
+///        "kind": {
+///          "type": "string",
+///          "enum": [
+///            "component"
+///          ]
+///        }
+///      }
+///    },
+///    {
+///      "type": "object",
+///      "required": [
+///        "assembly",
+///        "kind"
+///      ],
+///      "properties": {
+///        "assembly": {
+///          "$ref": "#/definitions/ArtifactDescriptor"
+///        },
+///        "kind": {
+///          "type": "string",
+///          "enum": [
+///            "assembly"
+///          ]
+///        }
+///      }
+///    }
+///  ]
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+#[serde(tag = "kind")]
+pub enum AssemblyNodeSource {
+    #[serde(rename = "component")]
+    Component { component: ArtifactDescriptor },
+    #[serde(rename = "assembly")]
+    Assembly { assembly: ArtifactDescriptor },
+}
+///`AssemblyPortExposure`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "AssemblyPortExposure",
+///  "type": "object",
+///  "required": [
+///    "direction",
+///    "port_id",
+///    "target"
+///  ],
+///  "properties": {
+///    "annotations": {
+///      "type": "object",
+///      "additionalProperties": true
+///    },
+///    "direction": {
+///      "$ref": "#/definitions/PortDirection"
+///    },
+///    "port_id": {
+///      "$ref": "#/definitions/PortId"
+///    },
+///    "target": {
+///      "$ref": "#/definitions/PortEndpoint"
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct AssemblyPortExposure {
+    #[serde(default, skip_serializing_if = "::serde_json::Map::is_empty")]
+    pub annotations: ::serde_json::Map<::std::string::String, ::serde_json::Value>,
+    pub direction: PortDirection,
+    pub port_id: PortId,
+    pub target: PortEndpoint,
+}
+///`AssemblyRevision`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "AssemblyRevision",
+///  "type": "object",
+///  "required": [
+///    "assembly_id",
+///    "nodes",
+///    "schema"
+///  ],
+///  "properties": {
+///    "annotations": {
+///      "type": "object",
+///      "additionalProperties": true
+///    },
+///    "assembly_id": {
+///      "$ref": "#/definitions/AssemblyId"
+///    },
+///    "bindings": {
+///      "type": "array",
+///      "items": {
+///        "$ref": "#/definitions/AssemblyBinding"
+///      }
+///    },
+///    "exposed_ports": {
+///      "type": "array",
+///      "items": {
+///        "$ref": "#/definitions/AssemblyPortExposure"
+///      }
+///    },
+///    "nodes": {
+///      "type": "array",
+///      "items": {
+///        "$ref": "#/definitions/AssemblyNode"
+///      }
+///    },
+///    "schema": {
+///      "type": "string",
+///      "enum": [
+///        "plurora.assembly-revision.v1"
+///      ]
+///    },
+///    "state_slots": {
+///      "type": "array",
+///      "items": {
+///        "$ref": "#/definitions/StateSlotDescriptor"
+///      }
+///    }
+///  },
+///  "$schema": "https://json-schema.org/draft/2020-12/schema"
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct AssemblyRevision {
+    #[serde(default, skip_serializing_if = "::serde_json::Map::is_empty")]
+    pub annotations: ::serde_json::Map<::std::string::String, ::serde_json::Value>,
+    pub assembly_id: AssemblyId,
+    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
+    pub bindings: ::std::vec::Vec<AssemblyBinding>,
+    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
+    pub exposed_ports: ::std::vec::Vec<AssemblyPortExposure>,
+    pub nodes: ::std::vec::Vec<AssemblyNode>,
+    pub schema: AssemblyRevisionSchema,
+    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
+    pub state_slots: ::std::vec::Vec<StateSlotDescriptor>,
+}
+///`AssemblyRevisionSchema`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "type": "string",
+///  "enum": [
+///    "plurora.assembly-revision.v1"
+///  ]
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(
+    ::serde::Deserialize,
+    ::serde::Serialize,
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    Ord,
+    PartialEq,
+    PartialOrd,
+)]
+pub enum AssemblyRevisionSchema {
+    #[serde(rename = "plurora.assembly-revision.v1")]
+    PluroraAssemblyRevisionV1,
+}
+impl ::std::fmt::Display for AssemblyRevisionSchema {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+        match *self {
+            Self::PluroraAssemblyRevisionV1 => f.write_str("plurora.assembly-revision.v1"),
+        }
+    }
+}
+impl ::std::str::FromStr for AssemblyRevisionSchema {
+    type Err = self::error::ConversionError;
+    fn from_str(value: &str) -> ::std::result::Result<Self, self::error::ConversionError> {
+        match value {
+            "plurora.assembly-revision.v1" => Ok(Self::PluroraAssemblyRevisionV1),
+            _ => Err("invalid value".into()),
+        }
+    }
+}
+impl ::std::convert::TryFrom<&str> for AssemblyRevisionSchema {
+    type Error = self::error::ConversionError;
+    fn try_from(value: &str) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<&::std::string::String> for AssemblyRevisionSchema {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<::std::string::String> for AssemblyRevisionSchema {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: ::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
 }
 ///`AssetGetParams`
 ///
@@ -743,6 +1584,352 @@ impl ::std::convert::From<::serde_json::Map<::std::string::String, ::serde_json:
         Self(value)
     }
 }
+///`AvailabilityPolicy`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "AvailabilityPolicy",
+///  "type": "string",
+///  "enum": [
+///    "required",
+///    "degraded_without",
+///    "optional"
+///  ]
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(
+    ::serde::Deserialize,
+    ::serde::Serialize,
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    Ord,
+    PartialEq,
+    PartialOrd,
+)]
+pub enum AvailabilityPolicy {
+    #[serde(rename = "required")]
+    Required,
+    #[serde(rename = "degraded_without")]
+    DegradedWithout,
+    #[serde(rename = "optional")]
+    Optional,
+}
+impl ::std::fmt::Display for AvailabilityPolicy {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+        match *self {
+            Self::Required => f.write_str("required"),
+            Self::DegradedWithout => f.write_str("degraded_without"),
+            Self::Optional => f.write_str("optional"),
+        }
+    }
+}
+impl ::std::str::FromStr for AvailabilityPolicy {
+    type Err = self::error::ConversionError;
+    fn from_str(value: &str) -> ::std::result::Result<Self, self::error::ConversionError> {
+        match value {
+            "required" => Ok(Self::Required),
+            "degraded_without" => Ok(Self::DegradedWithout),
+            "optional" => Ok(Self::Optional),
+            _ => Err("invalid value".into()),
+        }
+    }
+}
+impl ::std::convert::TryFrom<&str> for AvailabilityPolicy {
+    type Error = self::error::ConversionError;
+    fn try_from(value: &str) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<&::std::string::String> for AvailabilityPolicy {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<::std::string::String> for AvailabilityPolicy {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: ::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+///`BackupPolicy`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "BackupPolicy",
+///  "type": "string",
+///  "enum": [
+///    "required",
+///    "allowed",
+///    "forbidden"
+///  ]
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(
+    ::serde::Deserialize,
+    ::serde::Serialize,
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    Ord,
+    PartialEq,
+    PartialOrd,
+)]
+pub enum BackupPolicy {
+    #[serde(rename = "required")]
+    Required,
+    #[serde(rename = "allowed")]
+    Allowed,
+    #[serde(rename = "forbidden")]
+    Forbidden,
+}
+impl ::std::fmt::Display for BackupPolicy {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+        match *self {
+            Self::Required => f.write_str("required"),
+            Self::Allowed => f.write_str("allowed"),
+            Self::Forbidden => f.write_str("forbidden"),
+        }
+    }
+}
+impl ::std::str::FromStr for BackupPolicy {
+    type Err = self::error::ConversionError;
+    fn from_str(value: &str) -> ::std::result::Result<Self, self::error::ConversionError> {
+        match value {
+            "required" => Ok(Self::Required),
+            "allowed" => Ok(Self::Allowed),
+            "forbidden" => Ok(Self::Forbidden),
+            _ => Err("invalid value".into()),
+        }
+    }
+}
+impl ::std::convert::TryFrom<&str> for BackupPolicy {
+    type Error = self::error::ConversionError;
+    fn try_from(value: &str) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<&::std::string::String> for BackupPolicy {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<::std::string::String> for BackupPolicy {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: ::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+///`BindingId`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "BindingId",
+///  "type": "string",
+///  "format": "uuid"
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+#[serde(transparent)]
+pub struct BindingId(pub ::uuid::Uuid);
+impl ::std::ops::Deref for BindingId {
+    type Target = ::uuid::Uuid;
+    fn deref(&self) -> &::uuid::Uuid {
+        &self.0
+    }
+}
+impl ::std::convert::From<BindingId> for ::uuid::Uuid {
+    fn from(value: BindingId) -> Self {
+        value.0
+    }
+}
+impl ::std::convert::From<::uuid::Uuid> for BindingId {
+    fn from(value: ::uuid::Uuid) -> Self {
+        Self(value)
+    }
+}
+impl ::std::str::FromStr for BindingId {
+    type Err = <::uuid::Uuid as ::std::str::FromStr>::Err;
+    fn from_str(value: &str) -> ::std::result::Result<Self, Self::Err> {
+        Ok(Self(value.parse()?))
+    }
+}
+impl ::std::convert::TryFrom<&str> for BindingId {
+    type Error = <::uuid::Uuid as ::std::str::FromStr>::Err;
+    fn try_from(value: &str) -> ::std::result::Result<Self, Self::Error> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<String> for BindingId {
+    type Error = <::uuid::Uuid as ::std::str::FromStr>::Err;
+    fn try_from(value: String) -> ::std::result::Result<Self, Self::Error> {
+        value.parse()
+    }
+}
+impl ::std::fmt::Display for BindingId {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+        self.0.fmt(f)
+    }
+}
+///`BindingLock`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "BindingLock",
+///  "type": "object",
+///  "required": [
+///    "binding_id",
+///    "consumer",
+///    "phase",
+///    "provider",
+///    "provider_component",
+///    "transport"
+///  ],
+///  "properties": {
+///    "binding_id": {
+///      "type": "string"
+///    },
+///    "consumer": {
+///      "$ref": "#/definitions/PortEndpoint"
+///    },
+///    "phase": {
+///      "$ref": "#/definitions/BindingPhase"
+///    },
+///    "provider": {
+///      "$ref": "#/definitions/PortEndpoint"
+///    },
+///    "provider_component": {
+///      "$ref": "#/definitions/ArtifactDescriptor"
+///    },
+///    "transport": {
+///      "$ref": "#/definitions/SelectedTransport"
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct BindingLock {
+    pub binding_id: ::std::string::String,
+    pub consumer: PortEndpoint,
+    pub phase: BindingPhase,
+    pub provider: PortEndpoint,
+    pub provider_component: ArtifactDescriptor,
+    pub transport: SelectedTransport,
+}
+///`BindingPhase`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "BindingPhase",
+///  "type": "string",
+///  "enum": [
+///    "authoring",
+///    "installation",
+///    "launch",
+///    "runtime"
+///  ]
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(
+    ::serde::Deserialize,
+    ::serde::Serialize,
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    Ord,
+    PartialEq,
+    PartialOrd,
+)]
+pub enum BindingPhase {
+    #[serde(rename = "authoring")]
+    Authoring,
+    #[serde(rename = "installation")]
+    Installation,
+    #[serde(rename = "launch")]
+    Launch,
+    #[serde(rename = "runtime")]
+    Runtime,
+}
+impl ::std::fmt::Display for BindingPhase {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+        match *self {
+            Self::Authoring => f.write_str("authoring"),
+            Self::Installation => f.write_str("installation"),
+            Self::Launch => f.write_str("launch"),
+            Self::Runtime => f.write_str("runtime"),
+        }
+    }
+}
+impl ::std::str::FromStr for BindingPhase {
+    type Err = self::error::ConversionError;
+    fn from_str(value: &str) -> ::std::result::Result<Self, self::error::ConversionError> {
+        match value {
+            "authoring" => Ok(Self::Authoring),
+            "installation" => Ok(Self::Installation),
+            "launch" => Ok(Self::Launch),
+            "runtime" => Ok(Self::Runtime),
+            _ => Err("invalid value".into()),
+        }
+    }
+}
+impl ::std::convert::TryFrom<&str> for BindingPhase {
+    type Error = self::error::ConversionError;
+    fn try_from(value: &str) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<&::std::string::String> for BindingPhase {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<::std::string::String> for BindingPhase {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: ::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
 ///`BranchRecord`
 ///
 /// <details><summary>JSON schema</summary>
@@ -795,6 +1982,58 @@ pub struct BranchRecord {
     #[serde(default = "defaults::branch_record_metadata")]
     pub metadata: ::serde_json::Value,
     pub parent_session_id: ::std::string::String,
+}
+///`BuildAction`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "BuildAction",
+///  "type": "object",
+///  "required": [
+///    "action_id",
+///    "builder_id",
+///    "node_id",
+///    "output_id",
+///    "parameter_ref"
+///  ],
+///  "properties": {
+///    "action_id": {
+///      "type": "string"
+///    },
+///    "builder_id": {
+///      "type": "string"
+///    },
+///    "input_refs": {
+///      "type": "array",
+///      "items": {
+///        "$ref": "#/definitions/ArtifactDescriptor"
+///      }
+///    },
+///    "node_id": {
+///      "$ref": "#/definitions/NodeId"
+///    },
+///    "output_id": {
+///      "type": "string"
+///    },
+///    "parameter_ref": {
+///      "$ref": "#/definitions/ArtifactDescriptor"
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct BuildAction {
+    pub action_id: ::std::string::String,
+    pub builder_id: ::std::string::String,
+    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
+    pub input_refs: ::std::vec::Vec<ArtifactDescriptor>,
+    pub node_id: NodeId,
+    pub output_id: ::std::string::String,
+    pub parameter_ref: ArtifactDescriptor,
 }
 ///`CapAttenuateParams`
 ///
@@ -2591,6 +3830,90 @@ pub struct ChangeSet {
     #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
     pub required_authority: ::std::vec::Vec<::std::string::String>,
 }
+///`ClaimStatus`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "ClaimStatus",
+///  "type": "string",
+///  "enum": [
+///    "claimed",
+///    "verified",
+///    "refuted",
+///    "unknown"
+///  ]
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(
+    ::serde::Deserialize,
+    ::serde::Serialize,
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    Ord,
+    PartialEq,
+    PartialOrd,
+)]
+pub enum ClaimStatus {
+    #[serde(rename = "claimed")]
+    Claimed,
+    #[serde(rename = "verified")]
+    Verified,
+    #[serde(rename = "refuted")]
+    Refuted,
+    #[serde(rename = "unknown")]
+    Unknown,
+}
+impl ::std::fmt::Display for ClaimStatus {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+        match *self {
+            Self::Claimed => f.write_str("claimed"),
+            Self::Verified => f.write_str("verified"),
+            Self::Refuted => f.write_str("refuted"),
+            Self::Unknown => f.write_str("unknown"),
+        }
+    }
+}
+impl ::std::str::FromStr for ClaimStatus {
+    type Err = self::error::ConversionError;
+    fn from_str(value: &str) -> ::std::result::Result<Self, self::error::ConversionError> {
+        match value {
+            "claimed" => Ok(Self::Claimed),
+            "verified" => Ok(Self::Verified),
+            "refuted" => Ok(Self::Refuted),
+            "unknown" => Ok(Self::Unknown),
+            _ => Err("invalid value".into()),
+        }
+    }
+}
+impl ::std::convert::TryFrom<&str> for ClaimStatus {
+    type Error = self::error::ConversionError;
+    fn try_from(value: &str) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<&::std::string::String> for ClaimStatus {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<::std::string::String> for ClaimStatus {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: ::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
 ///`ComponentBoundaryClaims`
 ///
 /// <details><summary>JSON schema</summary>
@@ -4070,6 +5393,95 @@ pub struct DeploymentReconcileSummary {
     pub routes_promoted: u32,
     pub routes_removed: u32,
 }
+///`EffectClass`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "EffectClass",
+///  "type": "string",
+///  "enum": [
+///    "pure",
+///    "deterministic_stateful",
+///    "recorded_nondeterministic",
+///    "external_effecting",
+///    "realtime_best_effort"
+///  ]
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(
+    ::serde::Deserialize,
+    ::serde::Serialize,
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    Ord,
+    PartialEq,
+    PartialOrd,
+)]
+pub enum EffectClass {
+    #[serde(rename = "pure")]
+    Pure,
+    #[serde(rename = "deterministic_stateful")]
+    DeterministicStateful,
+    #[serde(rename = "recorded_nondeterministic")]
+    RecordedNondeterministic,
+    #[serde(rename = "external_effecting")]
+    ExternalEffecting,
+    #[serde(rename = "realtime_best_effort")]
+    RealtimeBestEffort,
+}
+impl ::std::fmt::Display for EffectClass {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+        match *self {
+            Self::Pure => f.write_str("pure"),
+            Self::DeterministicStateful => f.write_str("deterministic_stateful"),
+            Self::RecordedNondeterministic => f.write_str("recorded_nondeterministic"),
+            Self::ExternalEffecting => f.write_str("external_effecting"),
+            Self::RealtimeBestEffort => f.write_str("realtime_best_effort"),
+        }
+    }
+}
+impl ::std::str::FromStr for EffectClass {
+    type Err = self::error::ConversionError;
+    fn from_str(value: &str) -> ::std::result::Result<Self, self::error::ConversionError> {
+        match value {
+            "pure" => Ok(Self::Pure),
+            "deterministic_stateful" => Ok(Self::DeterministicStateful),
+            "recorded_nondeterministic" => Ok(Self::RecordedNondeterministic),
+            "external_effecting" => Ok(Self::ExternalEffecting),
+            "realtime_best_effort" => Ok(Self::RealtimeBestEffort),
+            _ => Err("invalid value".into()),
+        }
+    }
+}
+impl ::std::convert::TryFrom<&str> for EffectClass {
+    type Error = self::error::ConversionError;
+    fn try_from(value: &str) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<&::std::string::String> for EffectClass {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<::std::string::String> for EffectClass {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: ::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
 ///`EffectReceipt`
 ///
 /// <details><summary>JSON schema</summary>
@@ -4522,6 +5934,177 @@ impl ::std::convert::From<::serde_json::Map<::std::string::String, ::serde_json:
 {
     fn from(value: ::serde_json::Map<::std::string::String, ::serde_json::Value>) -> Self {
         Self(value)
+    }
+}
+///`EndpointAction`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "EndpointAction",
+///  "type": "object",
+///  "required": [
+///    "action_id",
+///    "endpoint_id",
+///    "target_id",
+///    "transport",
+///    "visibility"
+///  ],
+///  "properties": {
+///    "action_id": {
+///      "type": "string"
+///    },
+///    "endpoint_id": {
+///      "type": "string"
+///    },
+///    "target_id": {
+///      "type": "string"
+///    },
+///    "transport": {
+///      "$ref": "#/definitions/SelectedTransport"
+///    },
+///    "visibility": {
+///      "$ref": "#/definitions/EndpointVisibility"
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct EndpointAction {
+    pub action_id: ::std::string::String,
+    pub endpoint_id: ::std::string::String,
+    pub target_id: ::std::string::String,
+    pub transport: SelectedTransport,
+    pub visibility: EndpointVisibility,
+}
+///`EndpointIntent`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "EndpointIntent",
+///  "type": "object",
+///  "required": [
+///    "endpoint_id",
+///    "port",
+///    "visibility"
+///  ],
+///  "properties": {
+///    "annotations": {
+///      "type": "object",
+///      "additionalProperties": true
+///    },
+///    "endpoint_id": {
+///      "type": "string"
+///    },
+///    "port": {
+///      "$ref": "#/definitions/PortEndpoint"
+///    },
+///    "protocol_hint": {
+///      "type": [
+///        "string",
+///        "null"
+///      ]
+///    },
+///    "visibility": {
+///      "$ref": "#/definitions/EndpointVisibility"
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct EndpointIntent {
+    #[serde(default, skip_serializing_if = "::serde_json::Map::is_empty")]
+    pub annotations: ::serde_json::Map<::std::string::String, ::serde_json::Value>,
+    pub endpoint_id: ::std::string::String,
+    pub port: PortEndpoint,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub protocol_hint: ::std::option::Option<::std::string::String>,
+    pub visibility: EndpointVisibility,
+}
+///`EndpointVisibility`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "EndpointVisibility",
+///  "type": "string",
+///  "enum": [
+///    "private",
+///    "shared",
+///    "public"
+///  ]
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(
+    ::serde::Deserialize,
+    ::serde::Serialize,
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    Ord,
+    PartialEq,
+    PartialOrd,
+)]
+pub enum EndpointVisibility {
+    #[serde(rename = "private")]
+    Private,
+    #[serde(rename = "shared")]
+    Shared,
+    #[serde(rename = "public")]
+    Public,
+}
+impl ::std::fmt::Display for EndpointVisibility {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+        match *self {
+            Self::Private => f.write_str("private"),
+            Self::Shared => f.write_str("shared"),
+            Self::Public => f.write_str("public"),
+        }
+    }
+}
+impl ::std::str::FromStr for EndpointVisibility {
+    type Err = self::error::ConversionError;
+    fn from_str(value: &str) -> ::std::result::Result<Self, self::error::ConversionError> {
+        match value {
+            "private" => Ok(Self::Private),
+            "shared" => Ok(Self::Shared),
+            "public" => Ok(Self::Public),
+            _ => Err("invalid value".into()),
+        }
+    }
+}
+impl ::std::convert::TryFrom<&str> for EndpointVisibility {
+    type Error = self::error::ConversionError;
+    fn try_from(value: &str) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<&::std::string::String> for EndpointVisibility {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<::std::string::String> for EndpointVisibility {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: ::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
     }
 }
 ///`EntryDescriptor`
@@ -6262,6 +7845,209 @@ impl ::std::convert::TryFrom<::std::string::String> for ExecutorKind {
         value.parse()
     }
 }
+///`ExposureId`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "ExposureId",
+///  "type": "string",
+///  "format": "uuid"
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+#[serde(transparent)]
+pub struct ExposureId(pub ::uuid::Uuid);
+impl ::std::ops::Deref for ExposureId {
+    type Target = ::uuid::Uuid;
+    fn deref(&self) -> &::uuid::Uuid {
+        &self.0
+    }
+}
+impl ::std::convert::From<ExposureId> for ::uuid::Uuid {
+    fn from(value: ExposureId) -> Self {
+        value.0
+    }
+}
+impl ::std::convert::From<::uuid::Uuid> for ExposureId {
+    fn from(value: ::uuid::Uuid) -> Self {
+        Self(value)
+    }
+}
+impl ::std::str::FromStr for ExposureId {
+    type Err = <::uuid::Uuid as ::std::str::FromStr>::Err;
+    fn from_str(value: &str) -> ::std::result::Result<Self, Self::Err> {
+        Ok(Self(value.parse()?))
+    }
+}
+impl ::std::convert::TryFrom<&str> for ExposureId {
+    type Error = <::uuid::Uuid as ::std::str::FromStr>::Err;
+    fn try_from(value: &str) -> ::std::result::Result<Self, Self::Error> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<String> for ExposureId {
+    type Error = <::uuid::Uuid as ::std::str::FromStr>::Err;
+    fn try_from(value: String) -> ::std::result::Result<Self, Self::Error> {
+        value.parse()
+    }
+}
+impl ::std::fmt::Display for ExposureId {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+        self.0.fmt(f)
+    }
+}
+///`ExposureRecord`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "ExposureRecord",
+///  "type": "object",
+///  "required": [
+///    "audience",
+///    "export_port",
+///    "exposure_id",
+///    "installation_id",
+///    "status"
+///  ],
+///  "properties": {
+///    "audience": {
+///      "type": "array",
+///      "items": {
+///        "$ref": "#/definitions/ResourceSelector"
+///      }
+///    },
+///    "expires_at": {
+///      "type": [
+///        "string",
+///        "null"
+///      ],
+///      "format": "date-time"
+///    },
+///    "export_port": {
+///      "$ref": "#/definitions/PortId"
+///    },
+///    "exposure_id": {
+///      "$ref": "#/definitions/ExposureId"
+///    },
+///    "installation_id": {
+///      "$ref": "#/definitions/InstallationId"
+///    },
+///    "run_id": {
+///      "anyOf": [
+///        {
+///          "$ref": "#/definitions/RunId"
+///        },
+///        {
+///          "type": "null"
+///        }
+///      ]
+///    },
+///    "status": {
+///      "$ref": "#/definitions/ExposureStatus"
+///    }
+///  },
+///  "$schema": "https://json-schema.org/draft/2020-12/schema"
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct ExposureRecord {
+    pub audience: ::std::vec::Vec<ResourceSelector>,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub expires_at: ::std::option::Option<::chrono::DateTime<::chrono::offset::Utc>>,
+    pub export_port: PortId,
+    pub exposure_id: ExposureId,
+    pub installation_id: InstallationId,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub run_id: ::std::option::Option<RunId>,
+    pub status: ExposureStatus,
+}
+///`ExposureStatus`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "ExposureStatus",
+///  "type": "string",
+///  "enum": [
+///    "active",
+///    "expired",
+///    "revoked"
+///  ]
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(
+    ::serde::Deserialize,
+    ::serde::Serialize,
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    Ord,
+    PartialEq,
+    PartialOrd,
+)]
+pub enum ExposureStatus {
+    #[serde(rename = "active")]
+    Active,
+    #[serde(rename = "expired")]
+    Expired,
+    #[serde(rename = "revoked")]
+    Revoked,
+}
+impl ::std::fmt::Display for ExposureStatus {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+        match *self {
+            Self::Active => f.write_str("active"),
+            Self::Expired => f.write_str("expired"),
+            Self::Revoked => f.write_str("revoked"),
+        }
+    }
+}
+impl ::std::str::FromStr for ExposureStatus {
+    type Err = self::error::ConversionError;
+    fn from_str(value: &str) -> ::std::result::Result<Self, self::error::ConversionError> {
+        match value {
+            "active" => Ok(Self::Active),
+            "expired" => Ok(Self::Expired),
+            "revoked" => Ok(Self::Revoked),
+            _ => Err("invalid value".into()),
+        }
+    }
+}
+impl ::std::convert::TryFrom<&str> for ExposureStatus {
+    type Error = self::error::ConversionError;
+    fn try_from(value: &str) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<&::std::string::String> for ExposureStatus {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<::std::string::String> for ExposureStatus {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: ::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
 ///`ExtensionPointDescriptor`
 ///
 /// <details><summary>JSON schema</summary>
@@ -6553,6 +8339,40 @@ impl ::std::convert::TryFrom<::std::string::String> for ExternalWorkspaceOwnersh
         value.parse()
     }
 }
+///`FilesystemImport`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "FilesystemImport",
+///  "type": "object",
+///  "required": [
+///    "access",
+///    "import_id",
+///    "resource_id"
+///  ],
+///  "properties": {
+///    "access": {
+///      "$ref": "#/definitions/AccessMode"
+///    },
+///    "import_id": {
+///      "type": "string"
+///    },
+///    "resource_id": {
+///      "type": "string"
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct FilesystemImport {
+    pub access: AccessMode,
+    pub import_id: ::std::string::String,
+    pub resource_id: ::std::string::String,
+}
 ///`FilesystemPermissions`
 ///
 /// <details><summary>JSON schema</summary>
@@ -6785,6 +8605,90 @@ pub struct HandleScope {
     pub holder_package_id: ::std::string::String,
     #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
     pub session_id: ::std::option::Option<::std::string::String>,
+}
+///`HealthStatus`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "HealthStatus",
+///  "type": "string",
+///  "enum": [
+///    "unknown",
+///    "healthy",
+///    "degraded",
+///    "unhealthy"
+///  ]
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(
+    ::serde::Deserialize,
+    ::serde::Serialize,
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    Ord,
+    PartialEq,
+    PartialOrd,
+)]
+pub enum HealthStatus {
+    #[serde(rename = "unknown")]
+    Unknown,
+    #[serde(rename = "healthy")]
+    Healthy,
+    #[serde(rename = "degraded")]
+    Degraded,
+    #[serde(rename = "unhealthy")]
+    Unhealthy,
+}
+impl ::std::fmt::Display for HealthStatus {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+        match *self {
+            Self::Unknown => f.write_str("unknown"),
+            Self::Healthy => f.write_str("healthy"),
+            Self::Degraded => f.write_str("degraded"),
+            Self::Unhealthy => f.write_str("unhealthy"),
+        }
+    }
+}
+impl ::std::str::FromStr for HealthStatus {
+    type Err = self::error::ConversionError;
+    fn from_str(value: &str) -> ::std::result::Result<Self, self::error::ConversionError> {
+        match value {
+            "unknown" => Ok(Self::Unknown),
+            "healthy" => Ok(Self::Healthy),
+            "degraded" => Ok(Self::Degraded),
+            "unhealthy" => Ok(Self::Unhealthy),
+            _ => Err("invalid value".into()),
+        }
+    }
+}
+impl ::std::convert::TryFrom<&str> for HealthStatus {
+    type Error = self::error::ConversionError;
+    fn try_from(value: &str) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<&::std::string::String> for HealthStatus {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<::std::string::String> for HealthStatus {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: ::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
 }
 ///`HookSubscription`
 ///
@@ -10021,6 +11925,338 @@ impl ::std::convert::From<()> for IdentityCurrentResult {
         Self(value)
     }
 }
+///`InstallationId`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "InstallationId",
+///  "type": "string",
+///  "format": "uuid"
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+#[serde(transparent)]
+pub struct InstallationId(pub ::uuid::Uuid);
+impl ::std::ops::Deref for InstallationId {
+    type Target = ::uuid::Uuid;
+    fn deref(&self) -> &::uuid::Uuid {
+        &self.0
+    }
+}
+impl ::std::convert::From<InstallationId> for ::uuid::Uuid {
+    fn from(value: InstallationId) -> Self {
+        value.0
+    }
+}
+impl ::std::convert::From<::uuid::Uuid> for InstallationId {
+    fn from(value: ::uuid::Uuid) -> Self {
+        Self(value)
+    }
+}
+impl ::std::str::FromStr for InstallationId {
+    type Err = <::uuid::Uuid as ::std::str::FromStr>::Err;
+    fn from_str(value: &str) -> ::std::result::Result<Self, Self::Err> {
+        Ok(Self(value.parse()?))
+    }
+}
+impl ::std::convert::TryFrom<&str> for InstallationId {
+    type Error = <::uuid::Uuid as ::std::str::FromStr>::Err;
+    fn try_from(value: &str) -> ::std::result::Result<Self, Self::Error> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<String> for InstallationId {
+    type Error = <::uuid::Uuid as ::std::str::FromStr>::Err;
+    fn try_from(value: String) -> ::std::result::Result<Self, Self::Error> {
+        value.parse()
+    }
+}
+impl ::std::fmt::Display for InstallationId {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+        self.0.fmt(f)
+    }
+}
+///`InstallationRecord`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "InstallationRecord",
+///  "type": "object",
+///  "required": [
+///    "assembly_lock",
+///    "created_at",
+///    "display_name",
+///    "installation_id",
+///    "schema_version",
+///    "source",
+///    "status",
+///    "updated_at",
+///    "work_revision"
+///  ],
+///  "properties": {
+///    "assembly_lock": {
+///      "$ref": "#/definitions/ArtifactDescriptor"
+///    },
+///    "created_at": {
+///      "type": "string",
+///      "format": "date-time"
+///    },
+///    "display_name": {
+///      "type": "string"
+///    },
+///    "installation_id": {
+///      "$ref": "#/definitions/InstallationId"
+///    },
+///    "schema_version": {
+///      "type": "integer",
+///      "format": "uint16",
+///      "enum": [
+///        1
+///      ]
+///    },
+///    "secret_policy": {
+///      "default": {
+///        "allow_platform_fallback": false
+///      },
+///      "allOf": [
+///        {
+///          "$ref": "#/definitions/InstallationSecretPolicy"
+///        }
+///      ]
+///    },
+///    "source": {
+///      "$ref": "#/definitions/AcquisitionRecord"
+///    },
+///    "state_bindings": {
+///      "type": "array",
+///      "items": {
+///        "$ref": "#/definitions/StateBindingRecord"
+///      }
+///    },
+///    "status": {
+///      "$ref": "#/definitions/InstallationStatus"
+///    },
+///    "updated_at": {
+///      "type": "string",
+///      "format": "date-time"
+///    },
+///    "work_revision": {
+///      "$ref": "#/definitions/ArtifactDescriptor"
+///    }
+///  },
+///  "$schema": "https://json-schema.org/draft/2020-12/schema"
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct InstallationRecord {
+    pub assembly_lock: ArtifactDescriptor,
+    pub created_at: ::chrono::DateTime<::chrono::offset::Utc>,
+    pub display_name: ::std::string::String,
+    pub installation_id: InstallationId,
+    pub schema_version: InstallationRecordSchemaVersion,
+    #[serde(default = "defaults::installation_record_secret_policy")]
+    pub secret_policy: InstallationSecretPolicy,
+    pub source: AcquisitionRecord,
+    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
+    pub state_bindings: ::std::vec::Vec<StateBindingRecord>,
+    pub status: InstallationStatus,
+    pub updated_at: ::chrono::DateTime<::chrono::offset::Utc>,
+    pub work_revision: ArtifactDescriptor,
+}
+///`InstallationRecordSchemaVersion`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "type": "integer",
+///  "format": "uint16",
+///  "enum": [
+///    1
+///  ]
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Serialize, Clone, Debug, PartialEq)]
+#[serde(transparent)]
+pub struct InstallationRecordSchemaVersion(u16);
+impl ::std::ops::Deref for InstallationRecordSchemaVersion {
+    type Target = u16;
+    fn deref(&self) -> &u16 {
+        &self.0
+    }
+}
+impl ::std::convert::From<InstallationRecordSchemaVersion> for u16 {
+    fn from(value: InstallationRecordSchemaVersion) -> Self {
+        value.0
+    }
+}
+impl ::std::convert::TryFrom<u16> for InstallationRecordSchemaVersion {
+    type Error = self::error::ConversionError;
+    fn try_from(value: u16) -> ::std::result::Result<Self, self::error::ConversionError> {
+        if ![1_u16].contains(&value) {
+            Err("invalid value".into())
+        } else {
+            Ok(Self(value))
+        }
+    }
+}
+impl<'de> ::serde::Deserialize<'de> for InstallationRecordSchemaVersion {
+    fn deserialize<D>(deserializer: D) -> ::std::result::Result<Self, D::Error>
+    where
+        D: ::serde::Deserializer<'de>,
+    {
+        Self::try_from(<u16>::deserialize(deserializer)?)
+            .map_err(|e| <D::Error as ::serde::de::Error>::custom(e.to_string()))
+    }
+}
+///`InstallationSecretPolicy`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "InstallationSecretPolicy",
+///  "type": "object",
+///  "properties": {
+///    "allow_platform_fallback": {
+///      "default": false,
+///      "type": "boolean"
+///    },
+///    "allowed_secret_refs": {
+///      "type": "array",
+///      "items": {
+///        "type": "string"
+///      }
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct InstallationSecretPolicy {
+    #[serde(default)]
+    pub allow_platform_fallback: bool,
+    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
+    pub allowed_secret_refs: ::std::vec::Vec<::std::string::String>,
+}
+impl ::std::default::Default for InstallationSecretPolicy {
+    fn default() -> Self {
+        Self {
+            allow_platform_fallback: Default::default(),
+            allowed_secret_refs: Default::default(),
+        }
+    }
+}
+///`InstallationStatus`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "InstallationStatus",
+///  "type": "string",
+///  "enum": [
+///    "resolving",
+///    "ready",
+///    "updating",
+///    "blocked",
+///    "failed",
+///    "removing",
+///    "removed"
+///  ]
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(
+    ::serde::Deserialize,
+    ::serde::Serialize,
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    Ord,
+    PartialEq,
+    PartialOrd,
+)]
+pub enum InstallationStatus {
+    #[serde(rename = "resolving")]
+    Resolving,
+    #[serde(rename = "ready")]
+    Ready,
+    #[serde(rename = "updating")]
+    Updating,
+    #[serde(rename = "blocked")]
+    Blocked,
+    #[serde(rename = "failed")]
+    Failed,
+    #[serde(rename = "removing")]
+    Removing,
+    #[serde(rename = "removed")]
+    Removed,
+}
+impl ::std::fmt::Display for InstallationStatus {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+        match *self {
+            Self::Resolving => f.write_str("resolving"),
+            Self::Ready => f.write_str("ready"),
+            Self::Updating => f.write_str("updating"),
+            Self::Blocked => f.write_str("blocked"),
+            Self::Failed => f.write_str("failed"),
+            Self::Removing => f.write_str("removing"),
+            Self::Removed => f.write_str("removed"),
+        }
+    }
+}
+impl ::std::str::FromStr for InstallationStatus {
+    type Err = self::error::ConversionError;
+    fn from_str(value: &str) -> ::std::result::Result<Self, self::error::ConversionError> {
+        match value {
+            "resolving" => Ok(Self::Resolving),
+            "ready" => Ok(Self::Ready),
+            "updating" => Ok(Self::Updating),
+            "blocked" => Ok(Self::Blocked),
+            "failed" => Ok(Self::Failed),
+            "removing" => Ok(Self::Removing),
+            "removed" => Ok(Self::Removed),
+            _ => Err("invalid value".into()),
+        }
+    }
+}
+impl ::std::convert::TryFrom<&str> for InstallationStatus {
+    type Error = self::error::ConversionError;
+    fn try_from(value: &str) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<&::std::string::String> for InstallationStatus {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<::std::string::String> for InstallationStatus {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: ::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
 ///`Intent`
 ///
 /// <details><summary>JSON schema</summary>
@@ -10263,6 +12499,57 @@ impl ::std::convert::From<()> for JournalSubscribeResult {
     fn from(value: ()) -> Self {
         Self(value)
     }
+}
+///`LaunchAction`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "LaunchAction",
+///  "type": "object",
+///  "required": [
+///    "action_id",
+///    "artifact",
+///    "node_id",
+///    "target_id"
+///  ],
+///  "properties": {
+///    "action_id": {
+///      "type": "string"
+///    },
+///    "artifact": {
+///      "$ref": "#/definitions/ArtifactDescriptor"
+///    },
+///    "node_id": {
+///      "$ref": "#/definitions/NodeId"
+///    },
+///    "parameter_ref": {
+///      "anyOf": [
+///        {
+///          "$ref": "#/definitions/ArtifactDescriptor"
+///        },
+///        {
+///          "type": "null"
+///        }
+///      ]
+///    },
+///    "target_id": {
+///      "type": "string"
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct LaunchAction {
+    pub action_id: ::std::string::String,
+    pub artifact: ArtifactDescriptor,
+    pub node_id: NodeId,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub parameter_ref: ::std::option::Option<ArtifactDescriptor>,
+    pub target_id: ::std::string::String,
 }
 ///`LocalExecDeclaration`
 ///
@@ -11001,6 +13288,43 @@ pub struct NetworkDeclaration {
     #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
     pub purpose: ::std::option::Option<::std::string::String>,
 }
+///`NetworkImport`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "NetworkImport",
+///  "type": "object",
+///  "required": [
+///    "import_id",
+///    "protocol"
+///  ],
+///  "properties": {
+///    "allowed_destinations": {
+///      "type": "array",
+///      "items": {
+///        "type": "string"
+///      }
+///    },
+///    "import_id": {
+///      "type": "string"
+///    },
+///    "protocol": {
+///      "type": "string"
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct NetworkImport {
+    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
+    pub allowed_destinations: ::std::vec::Vec<::std::string::String>,
+    pub import_id: ::std::string::String,
+    pub protocol: ::std::string::String,
+}
 ///`NetworkPermissions`
 ///
 /// <details><summary>JSON schema</summary>
@@ -11047,6 +13371,313 @@ impl ::std::default::Default for NetworkPermissions {
             hosts: Default::default(),
         }
     }
+}
+///`NodeId`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "NodeId",
+///  "type": "string",
+///  "pattern": "^(?!.*\\.\\.)[A-Za-z0-9._-]+$"
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Serialize, Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+#[serde(transparent)]
+pub struct NodeId(::std::string::String);
+impl ::std::ops::Deref for NodeId {
+    type Target = ::std::string::String;
+    fn deref(&self) -> &::std::string::String {
+        &self.0
+    }
+}
+impl ::std::convert::From<NodeId> for ::std::string::String {
+    fn from(value: NodeId) -> Self {
+        value.0
+    }
+}
+impl ::std::str::FromStr for NodeId {
+    type Err = self::error::ConversionError;
+    fn from_str(value: &str) -> ::std::result::Result<Self, self::error::ConversionError> {
+        static PATTERN: ::std::sync::LazyLock<::regress::Regex> =
+            ::std::sync::LazyLock::new(|| {
+                ::regress::Regex::new("^(?!.*\\.\\.)[A-Za-z0-9._-]+$").unwrap()
+            });
+        if PATTERN.find(value).is_none() {
+            return Err("doesn't match pattern \"^(?!.*\\.\\.)[A-Za-z0-9._-]+$\"".into());
+        }
+        Ok(Self(value.to_string()))
+    }
+}
+impl ::std::convert::TryFrom<&str> for NodeId {
+    type Error = self::error::ConversionError;
+    fn try_from(value: &str) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<&::std::string::String> for NodeId {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<::std::string::String> for NodeId {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: ::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl<'de> ::serde::Deserialize<'de> for NodeId {
+    fn deserialize<D>(deserializer: D) -> ::std::result::Result<Self, D::Error>
+    where
+        D: ::serde::Deserializer<'de>,
+    {
+        ::std::string::String::deserialize(deserializer)?
+            .parse()
+            .map_err(|e: self::error::ConversionError| {
+                <D::Error as ::serde::de::Error>::custom(e.to_string())
+            })
+    }
+}
+///`NodeInstanceRecord`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "NodeInstanceRecord",
+///  "type": "object",
+///  "required": [
+///    "instance_id",
+///    "node_id",
+///    "status"
+///  ],
+///  "properties": {
+///    "instance_id": {
+///      "type": "string"
+///    },
+///    "node_id": {
+///      "$ref": "#/definitions/NodeId"
+///    },
+///    "realization_id": {
+///      "anyOf": [
+///        {
+///          "$ref": "#/definitions/RealizationId"
+///        },
+///        {
+///          "type": "null"
+///        }
+///      ]
+///    },
+///    "status": {
+///      "$ref": "#/definitions/NodeInstanceStatus"
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct NodeInstanceRecord {
+    pub instance_id: ::std::string::String,
+    pub node_id: NodeId,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub realization_id: ::std::option::Option<RealizationId>,
+    pub status: NodeInstanceStatus,
+}
+///`NodeInstanceStatus`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "NodeInstanceStatus",
+///  "type": "string",
+///  "enum": [
+///    "starting",
+///    "running",
+///    "degraded",
+///    "stopping",
+///    "stopped",
+///    "failed",
+///    "interrupted"
+///  ]
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(
+    ::serde::Deserialize,
+    ::serde::Serialize,
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    Ord,
+    PartialEq,
+    PartialOrd,
+)]
+pub enum NodeInstanceStatus {
+    #[serde(rename = "starting")]
+    Starting,
+    #[serde(rename = "running")]
+    Running,
+    #[serde(rename = "degraded")]
+    Degraded,
+    #[serde(rename = "stopping")]
+    Stopping,
+    #[serde(rename = "stopped")]
+    Stopped,
+    #[serde(rename = "failed")]
+    Failed,
+    #[serde(rename = "interrupted")]
+    Interrupted,
+}
+impl ::std::fmt::Display for NodeInstanceStatus {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+        match *self {
+            Self::Starting => f.write_str("starting"),
+            Self::Running => f.write_str("running"),
+            Self::Degraded => f.write_str("degraded"),
+            Self::Stopping => f.write_str("stopping"),
+            Self::Stopped => f.write_str("stopped"),
+            Self::Failed => f.write_str("failed"),
+            Self::Interrupted => f.write_str("interrupted"),
+        }
+    }
+}
+impl ::std::str::FromStr for NodeInstanceStatus {
+    type Err = self::error::ConversionError;
+    fn from_str(value: &str) -> ::std::result::Result<Self, self::error::ConversionError> {
+        match value {
+            "starting" => Ok(Self::Starting),
+            "running" => Ok(Self::Running),
+            "degraded" => Ok(Self::Degraded),
+            "stopping" => Ok(Self::Stopping),
+            "stopped" => Ok(Self::Stopped),
+            "failed" => Ok(Self::Failed),
+            "interrupted" => Ok(Self::Interrupted),
+            _ => Err("invalid value".into()),
+        }
+    }
+}
+impl ::std::convert::TryFrom<&str> for NodeInstanceStatus {
+    type Error = self::error::ConversionError;
+    fn try_from(value: &str) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<&::std::string::String> for NodeInstanceStatus {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<::std::string::String> for NodeInstanceStatus {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: ::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+///`NodeLock`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "NodeLock",
+///  "type": "object",
+///  "required": [
+///    "artifact",
+///    "node_id"
+///  ],
+///  "properties": {
+///    "artifact": {
+///      "$ref": "#/definitions/ArtifactDescriptor"
+///    },
+///    "behavior_digest": {
+///      "type": [
+///        "string",
+///        "null"
+///      ]
+///    },
+///    "node_id": {
+///      "$ref": "#/definitions/NodeId"
+///    },
+///    "trust_class": {
+///      "anyOf": [
+///        {
+///          "$ref": "#/definitions/ComponentTrustClass"
+///        },
+///        {
+///          "type": "null"
+///        }
+///      ]
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct NodeLock {
+    pub artifact: ArtifactDescriptor,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub behavior_digest: ::std::option::Option<::std::string::String>,
+    pub node_id: NodeId,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub trust_class: ::std::option::Option<ComponentTrustClass>,
+}
+///`NodePlacement`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "NodePlacement",
+///  "type": "object",
+///  "required": [
+///    "execution_class",
+///    "node_id",
+///    "placement_id",
+///    "target_id"
+///  ],
+///  "properties": {
+///    "execution_class": {
+///      "type": "string"
+///    },
+///    "node_id": {
+///      "$ref": "#/definitions/NodeId"
+///    },
+///    "placement_id": {
+///      "type": "string"
+///    },
+///    "target_id": {
+///      "type": "string"
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct NodePlacement {
+    pub execution_class: ::std::string::String,
+    pub node_id: NodeId,
+    pub placement_id: ::std::string::String,
+    pub target_id: ::std::string::String,
 }
 ///`ObjectListResult`
 ///
@@ -11232,6 +13863,153 @@ pub struct OpenSessionRequest {
     pub active_package_set: ::std::vec::Vec<::std::string::String>,
     pub labels: ::std::vec::Vec<::std::string::String>,
     pub metadata: ::serde_json::Value,
+}
+///`OperationalIntent`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "OperationalIntent",
+///  "type": "object",
+///  "required": [
+///    "schema"
+///  ],
+///  "properties": {
+///    "annotations": {
+///      "type": "object",
+///      "additionalProperties": true
+///    },
+///    "endpoints": {
+///      "type": "array",
+///      "items": {
+///        "$ref": "#/definitions/EndpointIntent"
+///      }
+///    },
+///    "placement": {
+///      "type": "array",
+///      "items": {
+///        "$ref": "#/definitions/PlacementConstraint"
+///      }
+///    },
+///    "schema": {
+///      "type": "string",
+///      "enum": [
+///        "plurora.operational-intent.v1"
+///      ]
+///    },
+///    "state": {
+///      "type": "array",
+///      "items": {
+///        "$ref": "#/definitions/StatePlacementIntent"
+///      }
+///    },
+///    "update_policy": {
+///      "default": {
+///        "max_unavailable": 1,
+///        "strategy": "replace"
+///      },
+///      "allOf": [
+///        {
+///          "$ref": "#/definitions/UpdatePolicy"
+///        }
+///      ]
+///    },
+///    "workloads": {
+///      "type": "array",
+///      "items": {
+///        "$ref": "#/definitions/WorkloadIntent"
+///      }
+///    }
+///  },
+///  "$schema": "https://json-schema.org/draft/2020-12/schema"
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct OperationalIntent {
+    #[serde(default, skip_serializing_if = "::serde_json::Map::is_empty")]
+    pub annotations: ::serde_json::Map<::std::string::String, ::serde_json::Value>,
+    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
+    pub endpoints: ::std::vec::Vec<EndpointIntent>,
+    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
+    pub placement: ::std::vec::Vec<PlacementConstraint>,
+    pub schema: OperationalIntentSchema,
+    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
+    pub state: ::std::vec::Vec<StatePlacementIntent>,
+    #[serde(default = "defaults::operational_intent_update_policy")]
+    pub update_policy: UpdatePolicy,
+    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
+    pub workloads: ::std::vec::Vec<WorkloadIntent>,
+}
+///`OperationalIntentSchema`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "type": "string",
+///  "enum": [
+///    "plurora.operational-intent.v1"
+///  ]
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(
+    ::serde::Deserialize,
+    ::serde::Serialize,
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    Ord,
+    PartialEq,
+    PartialOrd,
+)]
+pub enum OperationalIntentSchema {
+    #[serde(rename = "plurora.operational-intent.v1")]
+    PluroraOperationalIntentV1,
+}
+impl ::std::fmt::Display for OperationalIntentSchema {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+        match *self {
+            Self::PluroraOperationalIntentV1 => f.write_str("plurora.operational-intent.v1"),
+        }
+    }
+}
+impl ::std::str::FromStr for OperationalIntentSchema {
+    type Err = self::error::ConversionError;
+    fn from_str(value: &str) -> ::std::result::Result<Self, self::error::ConversionError> {
+        match value {
+            "plurora.operational-intent.v1" => Ok(Self::PluroraOperationalIntentV1),
+            _ => Err("invalid value".into()),
+        }
+    }
+}
+impl ::std::convert::TryFrom<&str> for OperationalIntentSchema {
+    type Error = self::error::ConversionError;
+    fn try_from(value: &str) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<&::std::string::String> for OperationalIntentSchema {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<::std::string::String> for OperationalIntentSchema {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: ::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
 }
 ///`OutboundAuditParams`
 ///
@@ -13841,6 +16619,148 @@ impl ::std::default::Default for PermissionSet {
         }
     }
 }
+///`PlacementConstraint`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "PlacementConstraint",
+///  "type": "object",
+///  "required": [
+///    "constraint_id",
+///    "hard",
+///    "kind"
+///  ],
+///  "properties": {
+///    "constraint_id": {
+///      "type": "string"
+///    },
+///    "hard": {
+///      "type": "boolean"
+///    },
+///    "kind": {
+///      "$ref": "#/definitions/PlacementConstraintKind"
+///    },
+///    "label": {
+///      "type": [
+///        "string",
+///        "null"
+///      ]
+///    },
+///    "nodes": {
+///      "type": "array",
+///      "items": {
+///        "$ref": "#/definitions/NodeId"
+///      }
+///    },
+///    "value": {
+///      "type": [
+///        "string",
+///        "null"
+///      ]
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct PlacementConstraint {
+    pub constraint_id: ::std::string::String,
+    pub hard: bool,
+    pub kind: PlacementConstraintKind,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub label: ::std::option::Option<::std::string::String>,
+    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
+    pub nodes: ::std::vec::Vec<NodeId>,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub value: ::std::option::Option<::std::string::String>,
+}
+///`PlacementConstraintKind`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "PlacementConstraintKind",
+///  "type": "string",
+///  "enum": [
+///    "co_locate",
+///    "separate",
+///    "require_label",
+///    "prefer_label"
+///  ]
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(
+    ::serde::Deserialize,
+    ::serde::Serialize,
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    Ord,
+    PartialEq,
+    PartialOrd,
+)]
+pub enum PlacementConstraintKind {
+    #[serde(rename = "co_locate")]
+    CoLocate,
+    #[serde(rename = "separate")]
+    Separate,
+    #[serde(rename = "require_label")]
+    RequireLabel,
+    #[serde(rename = "prefer_label")]
+    PreferLabel,
+}
+impl ::std::fmt::Display for PlacementConstraintKind {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+        match *self {
+            Self::CoLocate => f.write_str("co_locate"),
+            Self::Separate => f.write_str("separate"),
+            Self::RequireLabel => f.write_str("require_label"),
+            Self::PreferLabel => f.write_str("prefer_label"),
+        }
+    }
+}
+impl ::std::str::FromStr for PlacementConstraintKind {
+    type Err = self::error::ConversionError;
+    fn from_str(value: &str) -> ::std::result::Result<Self, self::error::ConversionError> {
+        match value {
+            "co_locate" => Ok(Self::CoLocate),
+            "separate" => Ok(Self::Separate),
+            "require_label" => Ok(Self::RequireLabel),
+            "prefer_label" => Ok(Self::PreferLabel),
+            _ => Err("invalid value".into()),
+        }
+    }
+}
+impl ::std::convert::TryFrom<&str> for PlacementConstraintKind {
+    type Error = self::error::ConversionError;
+    fn try_from(value: &str) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<&::std::string::String> for PlacementConstraintKind {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<::std::string::String> for PlacementConstraintKind {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: ::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
 ///`PolicyDecision`
 ///
 /// <details><summary>JSON schema</summary>
@@ -14070,6 +16990,48 @@ impl ::std::convert::TryFrom<::std::string::String> for PortBindScope {
         value.parse()
     }
 }
+///`PortContract`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "PortContract",
+///  "type": "object",
+///  "required": [
+///    "interface_id",
+///    "protocol_id",
+///    "version"
+///  ],
+///  "properties": {
+///    "interface_id": {
+///      "type": "string"
+///    },
+///    "profiles": {
+///      "type": "array",
+///      "items": {
+///        "type": "string"
+///      }
+///    },
+///    "protocol_id": {
+///      "type": "string"
+///    },
+///    "version": {
+///      "type": "string"
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct PortContract {
+    pub interface_id: ::std::string::String,
+    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
+    pub profiles: ::std::vec::Vec<::std::string::String>,
+    pub protocol_id: ::std::string::String,
+    pub version: ::std::string::String,
+}
 ///`PortDeclaration`
 ///
 /// <details><summary>JSON schema</summary>
@@ -14113,6 +17075,246 @@ pub struct PortDeclaration {
     #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
     pub port_names: ::std::vec::Vec<::std::string::String>,
     pub target_id: ::std::string::String,
+}
+///`PortDescriptor`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "PortDescriptor",
+///  "type": "object",
+///  "required": [
+///    "contract",
+///    "interaction",
+///    "port_id",
+///    "role"
+///  ],
+///  "properties": {
+///    "annotations": {
+///      "type": "object",
+///      "additionalProperties": true
+///    },
+///    "contract": {
+///      "$ref": "#/definitions/PortContract"
+///    },
+///    "interaction": {
+///      "type": "string"
+///    },
+///    "port_id": {
+///      "$ref": "#/definitions/PortId"
+///    },
+///    "role": {
+///      "$ref": "#/definitions/PortRole"
+///    },
+///    "transport": {
+///      "default": {
+///        "large_payload": false,
+///        "local_only": false,
+///        "ordered": false,
+///        "reliable": false,
+///        "same_process": false,
+///        "shared_memory_allowed": false
+///      },
+///      "allOf": [
+///        {
+///          "$ref": "#/definitions/TransportRequirements"
+///        }
+///      ]
+///    }
+///  },
+///  "$schema": "https://json-schema.org/draft/2020-12/schema"
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct PortDescriptor {
+    #[serde(default, skip_serializing_if = "::serde_json::Map::is_empty")]
+    pub annotations: ::serde_json::Map<::std::string::String, ::serde_json::Value>,
+    pub contract: PortContract,
+    pub interaction: ::std::string::String,
+    pub port_id: PortId,
+    pub role: PortRole,
+    #[serde(default = "defaults::port_descriptor_transport")]
+    pub transport: TransportRequirements,
+}
+///`PortDirection`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "PortDirection",
+///  "type": "string",
+///  "enum": [
+///    "import",
+///    "export"
+///  ]
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(
+    ::serde::Deserialize,
+    ::serde::Serialize,
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    Ord,
+    PartialEq,
+    PartialOrd,
+)]
+pub enum PortDirection {
+    #[serde(rename = "import")]
+    Import,
+    #[serde(rename = "export")]
+    Export,
+}
+impl ::std::fmt::Display for PortDirection {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+        match *self {
+            Self::Import => f.write_str("import"),
+            Self::Export => f.write_str("export"),
+        }
+    }
+}
+impl ::std::str::FromStr for PortDirection {
+    type Err = self::error::ConversionError;
+    fn from_str(value: &str) -> ::std::result::Result<Self, self::error::ConversionError> {
+        match value {
+            "import" => Ok(Self::Import),
+            "export" => Ok(Self::Export),
+            _ => Err("invalid value".into()),
+        }
+    }
+}
+impl ::std::convert::TryFrom<&str> for PortDirection {
+    type Error = self::error::ConversionError;
+    fn try_from(value: &str) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<&::std::string::String> for PortDirection {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<::std::string::String> for PortDirection {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: ::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+///`PortEndpoint`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "PortEndpoint",
+///  "type": "object",
+///  "required": [
+///    "node_id",
+///    "port_id"
+///  ],
+///  "properties": {
+///    "node_id": {
+///      "$ref": "#/definitions/NodeId"
+///    },
+///    "port_id": {
+///      "$ref": "#/definitions/PortId"
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct PortEndpoint {
+    pub node_id: NodeId,
+    pub port_id: PortId,
+}
+///`PortId`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "PortId",
+///  "type": "string",
+///  "pattern": "^(?!.*\\.\\.)[A-Za-z0-9._-]+$"
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Serialize, Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+#[serde(transparent)]
+pub struct PortId(::std::string::String);
+impl ::std::ops::Deref for PortId {
+    type Target = ::std::string::String;
+    fn deref(&self) -> &::std::string::String {
+        &self.0
+    }
+}
+impl ::std::convert::From<PortId> for ::std::string::String {
+    fn from(value: PortId) -> Self {
+        value.0
+    }
+}
+impl ::std::str::FromStr for PortId {
+    type Err = self::error::ConversionError;
+    fn from_str(value: &str) -> ::std::result::Result<Self, self::error::ConversionError> {
+        static PATTERN: ::std::sync::LazyLock<::regress::Regex> =
+            ::std::sync::LazyLock::new(|| {
+                ::regress::Regex::new("^(?!.*\\.\\.)[A-Za-z0-9._-]+$").unwrap()
+            });
+        if PATTERN.find(value).is_none() {
+            return Err("doesn't match pattern \"^(?!.*\\.\\.)[A-Za-z0-9._-]+$\"".into());
+        }
+        Ok(Self(value.to_string()))
+    }
+}
+impl ::std::convert::TryFrom<&str> for PortId {
+    type Error = self::error::ConversionError;
+    fn try_from(value: &str) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<&::std::string::String> for PortId {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<::std::string::String> for PortId {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: ::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl<'de> ::serde::Deserialize<'de> for PortId {
+    fn deserialize<D>(deserializer: D) -> ::std::result::Result<Self, D::Error>
+    where
+        D: ::serde::Deserializer<'de>,
+    {
+        ::std::string::String::deserialize(deserializer)?
+            .parse()
+            .map_err(|e: self::error::ConversionError| {
+                <D::Error as ::serde::de::Error>::custom(e.to_string())
+            })
+    }
 }
 ///`PortLeaseIdParams`
 ///
@@ -14354,6 +17556,42 @@ impl ::std::convert::TryFrom<::std::string::String> for PortLeaseStatusKind {
         value.parse()
     }
 }
+///`PortMultiplicity`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "PortMultiplicity",
+///  "type": "object",
+///  "required": [
+///    "min"
+///  ],
+///  "properties": {
+///    "max": {
+///      "type": [
+///        "integer",
+///        "null"
+///      ],
+///      "format": "uint16",
+///      "minimum": 0.0
+///    },
+///    "min": {
+///      "type": "integer",
+///      "format": "uint16",
+///      "minimum": 0.0
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct PortMultiplicity {
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub max: ::std::option::Option<u16>,
+    pub min: u16,
+}
 ///`PortPermissions`
 ///
 /// <details><summary>JSON schema</summary>
@@ -14472,6 +17710,90 @@ impl ::std::convert::TryFrom<::std::string::String> for PortProtocol {
     ) -> ::std::result::Result<Self, self::error::ConversionError> {
         value.parse()
     }
+}
+///`PortRole`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "PortRole",
+///  "oneOf": [
+///    {
+///      "type": "object",
+///      "required": [
+///        "accepted_effects",
+///        "availability",
+///        "kind",
+///        "latest_binding_phase",
+///        "multiplicity"
+///      ],
+///      "properties": {
+///        "accepted_effects": {
+///          "type": "array",
+///          "items": {
+///            "$ref": "#/definitions/EffectClass"
+///          }
+///        },
+///        "availability": {
+///          "$ref": "#/definitions/AvailabilityPolicy"
+///        },
+///        "kind": {
+///          "type": "string",
+///          "enum": [
+///            "import"
+///          ]
+///        },
+///        "latest_binding_phase": {
+///          "$ref": "#/definitions/BindingPhase"
+///        },
+///        "multiplicity": {
+///          "$ref": "#/definitions/PortMultiplicity"
+///        }
+///      }
+///    },
+///    {
+///      "type": "object",
+///      "required": [
+///        "effect_class",
+///        "kind",
+///        "multiplicity"
+///      ],
+///      "properties": {
+///        "effect_class": {
+///          "$ref": "#/definitions/EffectClass"
+///        },
+///        "kind": {
+///          "type": "string",
+///          "enum": [
+///            "export"
+///          ]
+///        },
+///        "multiplicity": {
+///          "$ref": "#/definitions/PortMultiplicity"
+///        }
+///      }
+///    }
+///  ]
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+#[serde(tag = "kind")]
+pub enum PortRole {
+    #[serde(rename = "import")]
+    Import {
+        accepted_effects: ::std::vec::Vec<EffectClass>,
+        availability: AvailabilityPolicy,
+        latest_binding_phase: BindingPhase,
+        multiplicity: PortMultiplicity,
+    },
+    #[serde(rename = "export")]
+    Export {
+        effect_class: EffectClass,
+        multiplicity: PortMultiplicity,
+    },
 }
 ///`PrincipalIdentity`
 ///
@@ -14747,6 +18069,10 @@ pub struct ProjectIdParams {
 ///        }
 ///      ]
 ///    },
+///    "title": {
+///      "description": "Display title for Home card.",
+///      "type": "string"
+///    },
 ///    "type": {
 ///      "description": "Project type discriminator.",
 ///      "allOf": [
@@ -14794,7 +18120,8 @@ pub struct ProjectInner {
     ///Secret policy for this project.
     #[serde(default = "defaults::project_inner_secret_policy")]
     pub secret_policy: SecretPolicy,
-    pub title: ::serde_json::Value,
+    ///Display title for Home card.
+    pub title: ::std::string::String,
     ///Project type discriminator.
     #[serde(rename = "type")]
     pub type_: ProjectType,
@@ -14830,6 +18157,9 @@ pub struct ProjectInner {
 ///    "project_id": {
 ///      "type": "string"
 ///    },
+///    "title": {
+///      "type": "string"
+///    },
 ///    "type": {
 ///      "$ref": "#/definitions/ProjectType"
 ///    }
@@ -14845,7 +18175,7 @@ pub struct ProjectLifecyclePayloadSchema {
     #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
     pub previous_state: ::std::option::Option<ProjectState>,
     pub project_id: ::std::string::String,
-    pub title: ::serde_json::Value,
+    pub title: ::std::string::String,
     #[serde(rename = "type")]
     pub type_: ProjectType,
 }
@@ -14900,6 +18230,9 @@ pub struct ProjectLifecyclePayloadSchema {
 ///        }
 ///      ]
 ///    },
+///    "title": {
+///      "type": "string"
+///    },
 ///    "type": {
 ///      "$ref": "#/definitions/ProjectType"
 ///    }
@@ -14920,7 +18253,7 @@ pub struct ProjectListItemSchema {
     pub state: ProjectState,
     #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
     pub storage_summary: ::std::option::Option<ProjectStorageSummarySchema>,
-    pub title: ::serde_json::Value,
+    pub title: ::std::string::String,
     #[serde(rename = "type")]
     pub type_: ProjectType,
 }
@@ -17190,6 +20523,43 @@ pub struct ProtocolProfilePin {
     pub protocol_id: ::std::string::String,
     pub version: ::std::string::String,
 }
+///`ProtocolRequirement`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "ProtocolRequirement",
+///  "type": "object",
+///  "required": [
+///    "protocol_id",
+///    "version"
+///  ],
+///  "properties": {
+///    "profiles": {
+///      "type": "array",
+///      "items": {
+///        "type": "string"
+///      }
+///    },
+///    "protocol_id": {
+///      "type": "string"
+///    },
+///    "version": {
+///      "type": "string"
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct ProtocolRequirement {
+    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
+    pub profiles: ::std::vec::Vec<::std::string::String>,
+    pub protocol_id: ::std::string::String,
+    pub version: ::std::string::String,
+}
 ///`ProtocolResourceSelector`
 ///
 /// <details><summary>JSON schema</summary>
@@ -18076,6 +21446,551 @@ impl ::std::convert::TryFrom<::std::string::String> for ReadinessProbeKind {
         value.parse()
     }
 }
+///`RealizationHealth`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "RealizationHealth",
+///  "type": "object",
+///  "required": [
+///    "status"
+///  ],
+///  "properties": {
+///    "evidence_refs": {
+///      "type": "array",
+///      "items": {
+///        "$ref": "#/definitions/ArtifactDescriptor"
+///      }
+///    },
+///    "reason_code": {
+///      "type": [
+///        "string",
+///        "null"
+///      ]
+///    },
+///    "status": {
+///      "$ref": "#/definitions/HealthStatus"
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct RealizationHealth {
+    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
+    pub evidence_refs: ::std::vec::Vec<ArtifactDescriptor>,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub reason_code: ::std::option::Option<::std::string::String>,
+    pub status: HealthStatus,
+}
+///`RealizationId`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "RealizationId",
+///  "type": "string",
+///  "format": "uuid"
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+#[serde(transparent)]
+pub struct RealizationId(pub ::uuid::Uuid);
+impl ::std::ops::Deref for RealizationId {
+    type Target = ::uuid::Uuid;
+    fn deref(&self) -> &::uuid::Uuid {
+        &self.0
+    }
+}
+impl ::std::convert::From<RealizationId> for ::uuid::Uuid {
+    fn from(value: RealizationId) -> Self {
+        value.0
+    }
+}
+impl ::std::convert::From<::uuid::Uuid> for RealizationId {
+    fn from(value: ::uuid::Uuid) -> Self {
+        Self(value)
+    }
+}
+impl ::std::str::FromStr for RealizationId {
+    type Err = <::uuid::Uuid as ::std::str::FromStr>::Err;
+    fn from_str(value: &str) -> ::std::result::Result<Self, Self::Err> {
+        Ok(Self(value.parse()?))
+    }
+}
+impl ::std::convert::TryFrom<&str> for RealizationId {
+    type Error = <::uuid::Uuid as ::std::str::FromStr>::Err;
+    fn try_from(value: &str) -> ::std::result::Result<Self, Self::Error> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<String> for RealizationId {
+    type Error = <::uuid::Uuid as ::std::str::FromStr>::Err;
+    fn try_from(value: String) -> ::std::result::Result<Self, Self::Error> {
+        value.parse()
+    }
+}
+impl ::std::fmt::Display for RealizationId {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+        self.0.fmt(f)
+    }
+}
+///`RealizationPlan`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "RealizationPlan",
+///  "type": "object",
+///  "required": [
+///    "assembly_lock",
+///    "installation_id",
+///    "inventory_refs",
+///    "operational_intent",
+///    "required_authority",
+///    "schema",
+///    "work_revision"
+///  ],
+///  "properties": {
+///    "assembly_lock": {
+///      "$ref": "#/definitions/ArtifactDescriptor"
+///    },
+///    "build_actions": {
+///      "type": "array",
+///      "items": {
+///        "$ref": "#/definitions/BuildAction"
+///      }
+///    },
+///    "endpoint_actions": {
+///      "type": "array",
+///      "items": {
+///        "$ref": "#/definitions/EndpointAction"
+///      }
+///    },
+///    "installation_id": {
+///      "$ref": "#/definitions/InstallationId"
+///    },
+///    "inventory_refs": {
+///      "type": "array",
+///      "items": {
+///        "$ref": "#/definitions/ArtifactDescriptor"
+///      }
+///    },
+///    "launch_actions": {
+///      "type": "array",
+///      "items": {
+///        "$ref": "#/definitions/LaunchAction"
+///      }
+///    },
+///    "operational_intent": {
+///      "$ref": "#/definitions/ArtifactDescriptor"
+///    },
+///    "placements": {
+///      "type": "array",
+///      "items": {
+///        "$ref": "#/definitions/NodePlacement"
+///      }
+///    },
+///    "preconditions": {
+///      "type": "array",
+///      "items": {
+///        "$ref": "#/definitions/ChangePrecondition"
+///      }
+///    },
+///    "required_authority": {
+///      "type": "array",
+///      "items": {
+///        "type": "string"
+///      }
+///    },
+///    "risk_summary": {
+///      "type": "array",
+///      "items": {
+///        "type": "string"
+///      }
+///    },
+///    "schema": {
+///      "type": "string",
+///      "enum": [
+///        "plurora.realization-plan.v1"
+///      ]
+///    },
+///    "state_actions": {
+///      "type": "array",
+///      "items": {
+///        "$ref": "#/definitions/StateAction"
+///      }
+///    },
+///    "transports": {
+///      "type": "array",
+///      "items": {
+///        "$ref": "#/definitions/TransportBindingPlan"
+///      }
+///    },
+///    "work_revision": {
+///      "$ref": "#/definitions/ArtifactDescriptor"
+///    }
+///  },
+///  "$schema": "https://json-schema.org/draft/2020-12/schema"
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct RealizationPlan {
+    pub assembly_lock: ArtifactDescriptor,
+    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
+    pub build_actions: ::std::vec::Vec<BuildAction>,
+    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
+    pub endpoint_actions: ::std::vec::Vec<EndpointAction>,
+    pub installation_id: InstallationId,
+    pub inventory_refs: ::std::vec::Vec<ArtifactDescriptor>,
+    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
+    pub launch_actions: ::std::vec::Vec<LaunchAction>,
+    pub operational_intent: ArtifactDescriptor,
+    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
+    pub placements: ::std::vec::Vec<NodePlacement>,
+    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
+    pub preconditions: ::std::vec::Vec<ChangePrecondition>,
+    pub required_authority: ::std::vec::Vec<::std::string::String>,
+    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
+    pub risk_summary: ::std::vec::Vec<::std::string::String>,
+    pub schema: RealizationPlanSchema,
+    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
+    pub state_actions: ::std::vec::Vec<StateAction>,
+    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
+    pub transports: ::std::vec::Vec<TransportBindingPlan>,
+    pub work_revision: ArtifactDescriptor,
+}
+///`RealizationPlanSchema`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "type": "string",
+///  "enum": [
+///    "plurora.realization-plan.v1"
+///  ]
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(
+    ::serde::Deserialize,
+    ::serde::Serialize,
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    Ord,
+    PartialEq,
+    PartialOrd,
+)]
+pub enum RealizationPlanSchema {
+    #[serde(rename = "plurora.realization-plan.v1")]
+    PluroraRealizationPlanV1,
+}
+impl ::std::fmt::Display for RealizationPlanSchema {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+        match *self {
+            Self::PluroraRealizationPlanV1 => f.write_str("plurora.realization-plan.v1"),
+        }
+    }
+}
+impl ::std::str::FromStr for RealizationPlanSchema {
+    type Err = self::error::ConversionError;
+    fn from_str(value: &str) -> ::std::result::Result<Self, self::error::ConversionError> {
+        match value {
+            "plurora.realization-plan.v1" => Ok(Self::PluroraRealizationPlanV1),
+            _ => Err("invalid value".into()),
+        }
+    }
+}
+impl ::std::convert::TryFrom<&str> for RealizationPlanSchema {
+    type Error = self::error::ConversionError;
+    fn try_from(value: &str) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<&::std::string::String> for RealizationPlanSchema {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<::std::string::String> for RealizationPlanSchema {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: ::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+///`RealizationRevision`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "RealizationRevision",
+///  "type": "object",
+///  "required": [
+///    "created_at",
+///    "health",
+///    "installation_id",
+///    "plan_ref",
+///    "realization_id",
+///    "status"
+///  ],
+///  "properties": {
+///    "activated_at": {
+///      "type": [
+///        "string",
+///        "null"
+///      ],
+///      "format": "date-time"
+///    },
+///    "actual_resources": {
+///      "type": "array",
+///      "items": {
+///        "$ref": "#/definitions/RealizedResource"
+///      }
+///    },
+///    "created_at": {
+///      "type": "string",
+///      "format": "date-time"
+///    },
+///    "health": {
+///      "$ref": "#/definitions/RealizationHealth"
+///    },
+///    "installation_id": {
+///      "$ref": "#/definitions/InstallationId"
+///    },
+///    "parent_realization_id": {
+///      "anyOf": [
+///        {
+///          "$ref": "#/definitions/RealizationId"
+///        },
+///        {
+///          "type": "null"
+///        }
+///      ]
+///    },
+///    "plan_ref": {
+///      "$ref": "#/definitions/ArtifactDescriptor"
+///    },
+///    "realization_id": {
+///      "$ref": "#/definitions/RealizationId"
+///    },
+///    "receipts": {
+///      "type": "array",
+///      "items": {
+///        "$ref": "#/definitions/ArtifactDescriptor"
+///      }
+///    },
+///    "status": {
+///      "$ref": "#/definitions/RealizationStatus"
+///    }
+///  },
+///  "$schema": "https://json-schema.org/draft/2020-12/schema"
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct RealizationRevision {
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub activated_at: ::std::option::Option<::chrono::DateTime<::chrono::offset::Utc>>,
+    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
+    pub actual_resources: ::std::vec::Vec<RealizedResource>,
+    pub created_at: ::chrono::DateTime<::chrono::offset::Utc>,
+    pub health: RealizationHealth,
+    pub installation_id: InstallationId,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub parent_realization_id: ::std::option::Option<RealizationId>,
+    pub plan_ref: ArtifactDescriptor,
+    pub realization_id: RealizationId,
+    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
+    pub receipts: ::std::vec::Vec<ArtifactDescriptor>,
+    pub status: RealizationStatus,
+}
+///`RealizationStatus`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "RealizationStatus",
+///  "type": "string",
+///  "enum": [
+///    "planned",
+///    "applying",
+///    "active",
+///    "degraded",
+///    "stopping",
+///    "stopped",
+///    "failed",
+///    "outcome_unknown",
+///    "recovery_required"
+///  ]
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(
+    ::serde::Deserialize,
+    ::serde::Serialize,
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    Ord,
+    PartialEq,
+    PartialOrd,
+)]
+pub enum RealizationStatus {
+    #[serde(rename = "planned")]
+    Planned,
+    #[serde(rename = "applying")]
+    Applying,
+    #[serde(rename = "active")]
+    Active,
+    #[serde(rename = "degraded")]
+    Degraded,
+    #[serde(rename = "stopping")]
+    Stopping,
+    #[serde(rename = "stopped")]
+    Stopped,
+    #[serde(rename = "failed")]
+    Failed,
+    #[serde(rename = "outcome_unknown")]
+    OutcomeUnknown,
+    #[serde(rename = "recovery_required")]
+    RecoveryRequired,
+}
+impl ::std::fmt::Display for RealizationStatus {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+        match *self {
+            Self::Planned => f.write_str("planned"),
+            Self::Applying => f.write_str("applying"),
+            Self::Active => f.write_str("active"),
+            Self::Degraded => f.write_str("degraded"),
+            Self::Stopping => f.write_str("stopping"),
+            Self::Stopped => f.write_str("stopped"),
+            Self::Failed => f.write_str("failed"),
+            Self::OutcomeUnknown => f.write_str("outcome_unknown"),
+            Self::RecoveryRequired => f.write_str("recovery_required"),
+        }
+    }
+}
+impl ::std::str::FromStr for RealizationStatus {
+    type Err = self::error::ConversionError;
+    fn from_str(value: &str) -> ::std::result::Result<Self, self::error::ConversionError> {
+        match value {
+            "planned" => Ok(Self::Planned),
+            "applying" => Ok(Self::Applying),
+            "active" => Ok(Self::Active),
+            "degraded" => Ok(Self::Degraded),
+            "stopping" => Ok(Self::Stopping),
+            "stopped" => Ok(Self::Stopped),
+            "failed" => Ok(Self::Failed),
+            "outcome_unknown" => Ok(Self::OutcomeUnknown),
+            "recovery_required" => Ok(Self::RecoveryRequired),
+            _ => Err("invalid value".into()),
+        }
+    }
+}
+impl ::std::convert::TryFrom<&str> for RealizationStatus {
+    type Error = self::error::ConversionError;
+    fn try_from(value: &str) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<&::std::string::String> for RealizationStatus {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<::std::string::String> for RealizationStatus {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: ::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+///`RealizedResource`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "RealizedResource",
+///  "type": "object",
+///  "required": [
+///    "backend_id",
+///    "resource_id",
+///    "resource_type",
+///    "target_id"
+///  ],
+///  "properties": {
+///    "backend_id": {
+///      "type": "string"
+///    },
+///    "properties": {
+///      "type": "object",
+///      "additionalProperties": true
+///    },
+///    "receipt_ref": {
+///      "anyOf": [
+///        {
+///          "$ref": "#/definitions/ArtifactDescriptor"
+///        },
+///        {
+///          "type": "null"
+///        }
+///      ]
+///    },
+///    "resource_id": {
+///      "type": "string"
+///    },
+///    "resource_type": {
+///      "type": "string"
+///    },
+///    "target_id": {
+///      "type": "string"
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct RealizedResource {
+    pub backend_id: ::std::string::String,
+    #[serde(default, skip_serializing_if = "::serde_json::Map::is_empty")]
+    pub properties: ::serde_json::Map<::std::string::String, ::serde_json::Value>,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub receipt_ref: ::std::option::Option<ArtifactDescriptor>,
+    pub resource_id: ::std::string::String,
+    pub resource_type: ::std::string::String,
+    pub target_id: ::std::string::String,
+}
 /**Redaction state for an outbound audit record.
 
 Every outbound request carries one of these states to indicate whether raw body/header/prompt/response data was preserved. The default is `NotCaptured` — raw data is never saved unless explicitly approved.*/
@@ -18231,6 +22146,763 @@ pub struct RemoteAuth {
     pub config: ::serde_json::Value,
     pub scheme: ::std::string::String,
 }
+///`ReplicaPolicy`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "ReplicaPolicy",
+///  "type": "object",
+///  "required": [
+///    "max",
+///    "min"
+///  ],
+///  "properties": {
+///    "max": {
+///      "type": "integer",
+///      "format": "uint16",
+///      "minimum": 0.0
+///    },
+///    "min": {
+///      "type": "integer",
+///      "format": "uint16",
+///      "minimum": 0.0
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct ReplicaPolicy {
+    pub max: u16,
+    pub min: u16,
+}
+///`ResourceCapacity`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "ResourceCapacity",
+///  "type": "object",
+///  "properties": {
+///    "cpu_millis": {
+///      "default": 0,
+///      "type": "integer",
+///      "format": "uint64",
+///      "minimum": 0.0
+///    },
+///    "gpu_count": {
+///      "default": 0,
+///      "type": "integer",
+///      "format": "uint32",
+///      "minimum": 0.0
+///    },
+///    "max_workloads": {
+///      "default": 0,
+///      "type": "integer",
+///      "format": "uint32",
+///      "minimum": 0.0
+///    },
+///    "memory_bytes": {
+///      "default": 0,
+///      "type": "integer",
+///      "format": "uint64",
+///      "minimum": 0.0
+///    },
+///    "storage_bytes": {
+///      "default": 0,
+///      "type": "integer",
+///      "format": "uint64",
+///      "minimum": 0.0
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct ResourceCapacity {
+    #[serde(default)]
+    pub cpu_millis: u64,
+    #[serde(default)]
+    pub gpu_count: u32,
+    #[serde(default)]
+    pub max_workloads: u32,
+    #[serde(default)]
+    pub memory_bytes: u64,
+    #[serde(default)]
+    pub storage_bytes: u64,
+}
+impl ::std::default::Default for ResourceCapacity {
+    fn default() -> Self {
+        Self {
+            cpu_millis: Default::default(),
+            gpu_count: Default::default(),
+            max_workloads: Default::default(),
+            memory_bytes: Default::default(),
+            storage_bytes: Default::default(),
+        }
+    }
+}
+///`ResourceRequirements`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "ResourceRequirements",
+///  "type": "object",
+///  "properties": {
+///    "cpu_millis": {
+///      "type": [
+///        "integer",
+///        "null"
+///      ],
+///      "format": "uint64",
+///      "minimum": 0.0
+///    },
+///    "duration_seconds": {
+///      "type": [
+///        "integer",
+///        "null"
+///      ],
+///      "format": "uint64",
+///      "minimum": 0.0
+///    },
+///    "gpu_count": {
+///      "type": [
+///        "integer",
+///        "null"
+///      ],
+///      "format": "uint32",
+///      "minimum": 0.0
+///    },
+///    "max_concurrency": {
+///      "type": [
+///        "integer",
+///        "null"
+///      ],
+///      "format": "uint32",
+///      "minimum": 0.0
+///    },
+///    "memory_bytes": {
+///      "type": [
+///        "integer",
+///        "null"
+///      ],
+///      "format": "uint64",
+///      "minimum": 0.0
+///    },
+///    "storage_bytes": {
+///      "type": [
+///        "integer",
+///        "null"
+///      ],
+///      "format": "uint64",
+///      "minimum": 0.0
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct ResourceRequirements {
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub cpu_millis: ::std::option::Option<u64>,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub duration_seconds: ::std::option::Option<u64>,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub gpu_count: ::std::option::Option<u32>,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub max_concurrency: ::std::option::Option<u32>,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub memory_bytes: ::std::option::Option<u64>,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub storage_bytes: ::std::option::Option<u64>,
+}
+impl ::std::default::Default for ResourceRequirements {
+    fn default() -> Self {
+        Self {
+            cpu_millis: Default::default(),
+            duration_seconds: Default::default(),
+            gpu_count: Default::default(),
+            max_concurrency: Default::default(),
+            memory_bytes: Default::default(),
+            storage_bytes: Default::default(),
+        }
+    }
+}
+///`ResourceSelector`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "ResourceSelector",
+///  "type": "object",
+///  "required": [
+///    "id",
+///    "kind"
+///  ],
+///  "properties": {
+///    "id": {
+///      "type": "string"
+///    },
+///    "kind": {
+///      "type": "string"
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct ResourceSelector {
+    pub id: ::std::string::String,
+    pub kind: ::std::string::String,
+}
+///`RestartPolicy`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "RestartPolicy",
+///  "type": "string",
+///  "enum": [
+///    "never",
+///    "on_failure",
+///    "always"
+///  ]
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(
+    ::serde::Deserialize,
+    ::serde::Serialize,
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    Ord,
+    PartialEq,
+    PartialOrd,
+)]
+pub enum RestartPolicy {
+    #[serde(rename = "never")]
+    Never,
+    #[serde(rename = "on_failure")]
+    OnFailure,
+    #[serde(rename = "always")]
+    Always,
+}
+impl ::std::fmt::Display for RestartPolicy {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+        match *self {
+            Self::Never => f.write_str("never"),
+            Self::OnFailure => f.write_str("on_failure"),
+            Self::Always => f.write_str("always"),
+        }
+    }
+}
+impl ::std::str::FromStr for RestartPolicy {
+    type Err = self::error::ConversionError;
+    fn from_str(value: &str) -> ::std::result::Result<Self, self::error::ConversionError> {
+        match value {
+            "never" => Ok(Self::Never),
+            "on_failure" => Ok(Self::OnFailure),
+            "always" => Ok(Self::Always),
+            _ => Err("invalid value".into()),
+        }
+    }
+}
+impl ::std::convert::TryFrom<&str> for RestartPolicy {
+    type Error = self::error::ConversionError;
+    fn try_from(value: &str) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<&::std::string::String> for RestartPolicy {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<::std::string::String> for RestartPolicy {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: ::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+///`RightDisposition`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "RightDisposition",
+///  "type": "string",
+///  "enum": [
+///    "allowed",
+///    "denied",
+///    "requires_entitlement",
+///    "unspecified"
+///  ]
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(
+    ::serde::Deserialize,
+    ::serde::Serialize,
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    Ord,
+    PartialEq,
+    PartialOrd,
+)]
+pub enum RightDisposition {
+    #[serde(rename = "allowed")]
+    Allowed,
+    #[serde(rename = "denied")]
+    Denied,
+    #[serde(rename = "requires_entitlement")]
+    RequiresEntitlement,
+    #[serde(rename = "unspecified")]
+    Unspecified,
+}
+impl ::std::fmt::Display for RightDisposition {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+        match *self {
+            Self::Allowed => f.write_str("allowed"),
+            Self::Denied => f.write_str("denied"),
+            Self::RequiresEntitlement => f.write_str("requires_entitlement"),
+            Self::Unspecified => f.write_str("unspecified"),
+        }
+    }
+}
+impl ::std::str::FromStr for RightDisposition {
+    type Err = self::error::ConversionError;
+    fn from_str(value: &str) -> ::std::result::Result<Self, self::error::ConversionError> {
+        match value {
+            "allowed" => Ok(Self::Allowed),
+            "denied" => Ok(Self::Denied),
+            "requires_entitlement" => Ok(Self::RequiresEntitlement),
+            "unspecified" => Ok(Self::Unspecified),
+            _ => Err("invalid value".into()),
+        }
+    }
+}
+impl ::std::convert::TryFrom<&str> for RightDisposition {
+    type Error = self::error::ConversionError;
+    fn try_from(value: &str) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<&::std::string::String> for RightDisposition {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<::std::string::String> for RightDisposition {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: ::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+///`RightsDeclaration`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "RightsDeclaration",
+///  "type": "object",
+///  "required": [
+///    "backup",
+///    "copy_across_hosts",
+///    "dedicated_server",
+///    "derive",
+///    "execute",
+///    "export_state",
+///    "install",
+///    "modding",
+///    "modify",
+///    "redistribute_artifacts"
+///  ],
+///  "properties": {
+///    "backup": {
+///      "$ref": "#/definitions/RightDisposition"
+///    },
+///    "copy_across_hosts": {
+///      "$ref": "#/definitions/RightDisposition"
+///    },
+///    "dedicated_server": {
+///      "$ref": "#/definitions/RightDisposition"
+///    },
+///    "derive": {
+///      "$ref": "#/definitions/RightDisposition"
+///    },
+///    "entitlement_requirements": {
+///      "type": "array",
+///      "items": {
+///        "$ref": "#/definitions/ProtocolRequirement"
+///      }
+///    },
+///    "evidence_refs": {
+///      "type": "array",
+///      "items": {
+///        "$ref": "#/definitions/ArtifactDescriptor"
+///      }
+///    },
+///    "execute": {
+///      "$ref": "#/definitions/RightDisposition"
+///    },
+///    "export_state": {
+///      "$ref": "#/definitions/RightDisposition"
+///    },
+///    "install": {
+///      "$ref": "#/definitions/RightDisposition"
+///    },
+///    "license_expression": {
+///      "type": [
+///        "string",
+///        "null"
+///      ]
+///    },
+///    "modding": {
+///      "$ref": "#/definitions/RightDisposition"
+///    },
+///    "modify": {
+///      "$ref": "#/definitions/RightDisposition"
+///    },
+///    "redistribute_artifacts": {
+///      "$ref": "#/definitions/RightDisposition"
+///    },
+///    "terms_uri": {
+///      "type": [
+///        "string",
+///        "null"
+///      ]
+///    }
+///  },
+///  "$schema": "https://json-schema.org/draft/2020-12/schema"
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct RightsDeclaration {
+    pub backup: RightDisposition,
+    pub copy_across_hosts: RightDisposition,
+    pub dedicated_server: RightDisposition,
+    pub derive: RightDisposition,
+    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
+    pub entitlement_requirements: ::std::vec::Vec<ProtocolRequirement>,
+    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
+    pub evidence_refs: ::std::vec::Vec<ArtifactDescriptor>,
+    pub execute: RightDisposition,
+    pub export_state: RightDisposition,
+    pub install: RightDisposition,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub license_expression: ::std::option::Option<::std::string::String>,
+    pub modding: RightDisposition,
+    pub modify: RightDisposition,
+    pub redistribute_artifacts: RightDisposition,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub terms_uri: ::std::option::Option<::std::string::String>,
+}
+///`RunHealth`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "RunHealth",
+///  "type": "object",
+///  "required": [
+///    "status"
+///  ],
+///  "properties": {
+///    "diagnostic_refs": {
+///      "type": "array",
+///      "items": {
+///        "$ref": "#/definitions/ArtifactDescriptor"
+///      }
+///    },
+///    "reason_code": {
+///      "type": [
+///        "string",
+///        "null"
+///      ]
+///    },
+///    "status": {
+///      "$ref": "#/definitions/HealthStatus"
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct RunHealth {
+    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
+    pub diagnostic_refs: ::std::vec::Vec<ArtifactDescriptor>,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub reason_code: ::std::option::Option<::std::string::String>,
+    pub status: HealthStatus,
+}
+///`RunId`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "RunId",
+///  "type": "string",
+///  "format": "uuid"
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+#[serde(transparent)]
+pub struct RunId(pub ::uuid::Uuid);
+impl ::std::ops::Deref for RunId {
+    type Target = ::uuid::Uuid;
+    fn deref(&self) -> &::uuid::Uuid {
+        &self.0
+    }
+}
+impl ::std::convert::From<RunId> for ::uuid::Uuid {
+    fn from(value: RunId) -> Self {
+        value.0
+    }
+}
+impl ::std::convert::From<::uuid::Uuid> for RunId {
+    fn from(value: ::uuid::Uuid) -> Self {
+        Self(value)
+    }
+}
+impl ::std::str::FromStr for RunId {
+    type Err = <::uuid::Uuid as ::std::str::FromStr>::Err;
+    fn from_str(value: &str) -> ::std::result::Result<Self, Self::Err> {
+        Ok(Self(value.parse()?))
+    }
+}
+impl ::std::convert::TryFrom<&str> for RunId {
+    type Error = <::uuid::Uuid as ::std::str::FromStr>::Err;
+    fn try_from(value: &str) -> ::std::result::Result<Self, Self::Error> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<String> for RunId {
+    type Error = <::uuid::Uuid as ::std::str::FromStr>::Err;
+    fn try_from(value: String) -> ::std::result::Result<Self, Self::Error> {
+        value.parse()
+    }
+}
+impl ::std::fmt::Display for RunId {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+        self.0.fmt(f)
+    }
+}
+///`RunRecord`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "RunRecord",
+///  "type": "object",
+///  "required": [
+///    "health",
+///    "installation_id",
+///    "run_id",
+///    "started_at",
+///    "status"
+///  ],
+///  "properties": {
+///    "bindings": {
+///      "type": "array",
+///      "items": {
+///        "$ref": "#/definitions/ActiveBindingRecord"
+///      }
+///    },
+///    "context_id": {
+///      "type": [
+///        "string",
+///        "null"
+///      ]
+///    },
+///    "health": {
+///      "$ref": "#/definitions/RunHealth"
+///    },
+///    "installation_id": {
+///      "$ref": "#/definitions/InstallationId"
+///    },
+///    "node_instances": {
+///      "type": "array",
+///      "items": {
+///        "$ref": "#/definitions/NodeInstanceRecord"
+///      }
+///    },
+///    "run_id": {
+///      "$ref": "#/definitions/RunId"
+///    },
+///    "started_at": {
+///      "type": "string",
+///      "format": "date-time"
+///    },
+///    "status": {
+///      "$ref": "#/definitions/RunStatus"
+///    },
+///    "stopped_at": {
+///      "type": [
+///        "string",
+///        "null"
+///      ],
+///      "format": "date-time"
+///    }
+///  },
+///  "$schema": "https://json-schema.org/draft/2020-12/schema"
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct RunRecord {
+    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
+    pub bindings: ::std::vec::Vec<ActiveBindingRecord>,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub context_id: ::std::option::Option<::std::string::String>,
+    pub health: RunHealth,
+    pub installation_id: InstallationId,
+    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
+    pub node_instances: ::std::vec::Vec<NodeInstanceRecord>,
+    pub run_id: RunId,
+    pub started_at: ::chrono::DateTime<::chrono::offset::Utc>,
+    pub status: RunStatus,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub stopped_at: ::std::option::Option<::chrono::DateTime<::chrono::offset::Utc>>,
+}
+///`RunStatus`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "RunStatus",
+///  "type": "string",
+///  "enum": [
+///    "starting",
+///    "running",
+///    "degraded",
+///    "stopping",
+///    "stopped",
+///    "failed",
+///    "interrupted"
+///  ]
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(
+    ::serde::Deserialize,
+    ::serde::Serialize,
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    Ord,
+    PartialEq,
+    PartialOrd,
+)]
+pub enum RunStatus {
+    #[serde(rename = "starting")]
+    Starting,
+    #[serde(rename = "running")]
+    Running,
+    #[serde(rename = "degraded")]
+    Degraded,
+    #[serde(rename = "stopping")]
+    Stopping,
+    #[serde(rename = "stopped")]
+    Stopped,
+    #[serde(rename = "failed")]
+    Failed,
+    #[serde(rename = "interrupted")]
+    Interrupted,
+}
+impl ::std::fmt::Display for RunStatus {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+        match *self {
+            Self::Starting => f.write_str("starting"),
+            Self::Running => f.write_str("running"),
+            Self::Degraded => f.write_str("degraded"),
+            Self::Stopping => f.write_str("stopping"),
+            Self::Stopped => f.write_str("stopped"),
+            Self::Failed => f.write_str("failed"),
+            Self::Interrupted => f.write_str("interrupted"),
+        }
+    }
+}
+impl ::std::str::FromStr for RunStatus {
+    type Err = self::error::ConversionError;
+    fn from_str(value: &str) -> ::std::result::Result<Self, self::error::ConversionError> {
+        match value {
+            "starting" => Ok(Self::Starting),
+            "running" => Ok(Self::Running),
+            "degraded" => Ok(Self::Degraded),
+            "stopping" => Ok(Self::Stopping),
+            "stopped" => Ok(Self::Stopped),
+            "failed" => Ok(Self::Failed),
+            "interrupted" => Ok(Self::Interrupted),
+            _ => Err("invalid value".into()),
+        }
+    }
+}
+impl ::std::convert::TryFrom<&str> for RunStatus {
+    type Error = self::error::ConversionError;
+    fn try_from(value: &str) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<&::std::string::String> for RunStatus {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<::std::string::String> for RunStatus {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: ::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
 ///`SandboxPolicy`
 ///
 /// <details><summary>JSON schema</summary>
@@ -18308,6 +22980,36 @@ pub struct SchemaContribution {
     pub id: ::std::string::String,
     pub schema: ::serde_json::Value,
 }
+///`SecretImport`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "SecretImport",
+///  "type": "object",
+///  "required": [
+///    "secret_id"
+///  ],
+///  "properties": {
+///    "required": {
+///      "default": false,
+///      "type": "boolean"
+///    },
+///    "secret_id": {
+///      "type": "string"
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct SecretImport {
+    #[serde(default)]
+    pub required: bool,
+    pub secret_id: ::std::string::String,
+}
 ///`SecretPolicy`
 ///
 /// <details><summary>JSON schema</summary>
@@ -18351,6 +23053,36 @@ impl ::std::default::Default for SecretPolicy {
             require_per_project: Default::default(),
         }
     }
+}
+///`SelectedTransport`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "SelectedTransport",
+///  "type": "object",
+///  "required": [
+///    "class_id"
+///  ],
+///  "properties": {
+///    "class_id": {
+///      "type": "string"
+///    },
+///    "properties": {
+///      "type": "object",
+///      "additionalProperties": true
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct SelectedTransport {
+    pub class_id: ::std::string::String,
+    #[serde(default, skip_serializing_if = "::serde_json::Map::is_empty")]
+    pub properties: ::serde_json::Map<::std::string::String, ::serde_json::Value>,
 }
 ///`SessionBranchListParams`
 ///
@@ -18673,6 +23405,795 @@ impl ::std::convert::From<ShellContributionListResult> for ::std::vec::Vec<::ser
 impl ::std::convert::From<::std::vec::Vec<::serde_json::Value>> for ShellContributionListResult {
     fn from(value: ::std::vec::Vec<::serde_json::Value>) -> Self {
         Self(value)
+    }
+}
+///`SourceVisibility`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "SourceVisibility",
+///  "type": "string",
+///  "enum": [
+///    "open",
+///    "source_available",
+///    "closed",
+///    "unknown"
+///  ]
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(
+    ::serde::Deserialize,
+    ::serde::Serialize,
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    Ord,
+    PartialEq,
+    PartialOrd,
+)]
+pub enum SourceVisibility {
+    #[serde(rename = "open")]
+    Open,
+    #[serde(rename = "source_available")]
+    SourceAvailable,
+    #[serde(rename = "closed")]
+    Closed,
+    #[serde(rename = "unknown")]
+    Unknown,
+}
+impl ::std::fmt::Display for SourceVisibility {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+        match *self {
+            Self::Open => f.write_str("open"),
+            Self::SourceAvailable => f.write_str("source_available"),
+            Self::Closed => f.write_str("closed"),
+            Self::Unknown => f.write_str("unknown"),
+        }
+    }
+}
+impl ::std::str::FromStr for SourceVisibility {
+    type Err = self::error::ConversionError;
+    fn from_str(value: &str) -> ::std::result::Result<Self, self::error::ConversionError> {
+        match value {
+            "open" => Ok(Self::Open),
+            "source_available" => Ok(Self::SourceAvailable),
+            "closed" => Ok(Self::Closed),
+            "unknown" => Ok(Self::Unknown),
+            _ => Err("invalid value".into()),
+        }
+    }
+}
+impl ::std::convert::TryFrom<&str> for SourceVisibility {
+    type Error = self::error::ConversionError;
+    fn try_from(value: &str) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<&::std::string::String> for SourceVisibility {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<::std::string::String> for SourceVisibility {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: ::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+///`StateAction`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "StateAction",
+///  "type": "object",
+///  "required": [
+///    "action_id",
+///    "kind",
+///    "state_slot_id",
+///    "target_id"
+///  ],
+///  "properties": {
+///    "action_id": {
+///      "type": "string"
+///    },
+///    "input_ref": {
+///      "anyOf": [
+///        {
+///          "$ref": "#/definitions/ArtifactDescriptor"
+///        },
+///        {
+///          "type": "null"
+///        }
+///      ]
+///    },
+///    "kind": {
+///      "$ref": "#/definitions/StateActionKind"
+///    },
+///    "state_slot_id": {
+///      "$ref": "#/definitions/StateSlotId"
+///    },
+///    "target_id": {
+///      "type": "string"
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct StateAction {
+    pub action_id: ::std::string::String,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub input_ref: ::std::option::Option<ArtifactDescriptor>,
+    pub kind: StateActionKind,
+    pub state_slot_id: StateSlotId,
+    pub target_id: ::std::string::String,
+}
+///`StateActionKind`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "StateActionKind",
+///  "type": "string",
+///  "enum": [
+///    "provision",
+///    "attach",
+///    "snapshot",
+///    "restore",
+///    "migrate"
+///  ]
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(
+    ::serde::Deserialize,
+    ::serde::Serialize,
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    Ord,
+    PartialEq,
+    PartialOrd,
+)]
+pub enum StateActionKind {
+    #[serde(rename = "provision")]
+    Provision,
+    #[serde(rename = "attach")]
+    Attach,
+    #[serde(rename = "snapshot")]
+    Snapshot,
+    #[serde(rename = "restore")]
+    Restore,
+    #[serde(rename = "migrate")]
+    Migrate,
+}
+impl ::std::fmt::Display for StateActionKind {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+        match *self {
+            Self::Provision => f.write_str("provision"),
+            Self::Attach => f.write_str("attach"),
+            Self::Snapshot => f.write_str("snapshot"),
+            Self::Restore => f.write_str("restore"),
+            Self::Migrate => f.write_str("migrate"),
+        }
+    }
+}
+impl ::std::str::FromStr for StateActionKind {
+    type Err = self::error::ConversionError;
+    fn from_str(value: &str) -> ::std::result::Result<Self, self::error::ConversionError> {
+        match value {
+            "provision" => Ok(Self::Provision),
+            "attach" => Ok(Self::Attach),
+            "snapshot" => Ok(Self::Snapshot),
+            "restore" => Ok(Self::Restore),
+            "migrate" => Ok(Self::Migrate),
+            _ => Err("invalid value".into()),
+        }
+    }
+}
+impl ::std::convert::TryFrom<&str> for StateActionKind {
+    type Error = self::error::ConversionError;
+    fn try_from(value: &str) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<&::std::string::String> for StateActionKind {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<::std::string::String> for StateActionKind {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: ::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+///`StateBindingKind`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "StateBindingKind",
+///  "type": "string",
+///  "enum": [
+///    "host_managed",
+///    "external_provider"
+///  ]
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(
+    ::serde::Deserialize,
+    ::serde::Serialize,
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    Ord,
+    PartialEq,
+    PartialOrd,
+)]
+pub enum StateBindingKind {
+    #[serde(rename = "host_managed")]
+    HostManaged,
+    #[serde(rename = "external_provider")]
+    ExternalProvider,
+}
+impl ::std::fmt::Display for StateBindingKind {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+        match *self {
+            Self::HostManaged => f.write_str("host_managed"),
+            Self::ExternalProvider => f.write_str("external_provider"),
+        }
+    }
+}
+impl ::std::str::FromStr for StateBindingKind {
+    type Err = self::error::ConversionError;
+    fn from_str(value: &str) -> ::std::result::Result<Self, self::error::ConversionError> {
+        match value {
+            "host_managed" => Ok(Self::HostManaged),
+            "external_provider" => Ok(Self::ExternalProvider),
+            _ => Err("invalid value".into()),
+        }
+    }
+}
+impl ::std::convert::TryFrom<&str> for StateBindingKind {
+    type Error = self::error::ConversionError;
+    fn try_from(value: &str) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<&::std::string::String> for StateBindingKind {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<::std::string::String> for StateBindingKind {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: ::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+///`StateBindingRecord`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "StateBindingRecord",
+///  "type": "object",
+///  "required": [
+///    "binding_id",
+///    "kind",
+///    "state_slot_id"
+///  ],
+///  "properties": {
+///    "binding_id": {
+///      "type": "string"
+///    },
+///    "kind": {
+///      "$ref": "#/definitions/StateBindingKind"
+///    },
+///    "provider_ref": {
+///      "anyOf": [
+///        {
+///          "$ref": "#/definitions/ArtifactDescriptor"
+///        },
+///        {
+///          "type": "null"
+///        }
+///      ]
+///    },
+///    "state_slot_id": {
+///      "$ref": "#/definitions/StateSlotId"
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct StateBindingRecord {
+    pub binding_id: ::std::string::String,
+    pub kind: StateBindingKind,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub provider_ref: ::std::option::Option<ArtifactDescriptor>,
+    pub state_slot_id: StateSlotId,
+}
+///`StateDurability`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "StateDurability",
+///  "type": "string",
+///  "enum": [
+///    "ephemeral",
+///    "durable",
+///    "external"
+///  ]
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(
+    ::serde::Deserialize,
+    ::serde::Serialize,
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    Ord,
+    PartialEq,
+    PartialOrd,
+)]
+pub enum StateDurability {
+    #[serde(rename = "ephemeral")]
+    Ephemeral,
+    #[serde(rename = "durable")]
+    Durable,
+    #[serde(rename = "external")]
+    External,
+}
+impl ::std::fmt::Display for StateDurability {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+        match *self {
+            Self::Ephemeral => f.write_str("ephemeral"),
+            Self::Durable => f.write_str("durable"),
+            Self::External => f.write_str("external"),
+        }
+    }
+}
+impl ::std::str::FromStr for StateDurability {
+    type Err = self::error::ConversionError;
+    fn from_str(value: &str) -> ::std::result::Result<Self, self::error::ConversionError> {
+        match value {
+            "ephemeral" => Ok(Self::Ephemeral),
+            "durable" => Ok(Self::Durable),
+            "external" => Ok(Self::External),
+            _ => Err("invalid value".into()),
+        }
+    }
+}
+impl ::std::convert::TryFrom<&str> for StateDurability {
+    type Error = self::error::ConversionError;
+    fn try_from(value: &str) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<&::std::string::String> for StateDurability {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<::std::string::String> for StateDurability {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: ::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+///`StatePlacementIntent`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "StatePlacementIntent",
+///  "type": "object",
+///  "required": [
+///    "durability",
+///    "state_slot_id"
+///  ],
+///  "properties": {
+///    "durability": {
+///      "$ref": "#/definitions/StateDurability"
+///    },
+///    "replication": {
+///      "default": 0,
+///      "type": "integer",
+///      "format": "uint16",
+///      "minimum": 0.0
+///    },
+///    "required_capabilities": {
+///      "type": "array",
+///      "items": {
+///        "type": "string"
+///      }
+///    },
+///    "state_slot_id": {
+///      "$ref": "#/definitions/StateSlotId"
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct StatePlacementIntent {
+    pub durability: StateDurability,
+    #[serde(default)]
+    pub replication: u16,
+    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
+    pub required_capabilities: ::std::vec::Vec<::std::string::String>,
+    pub state_slot_id: StateSlotId,
+}
+///`StatePortability`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "StatePortability",
+///  "type": "string",
+///  "enum": [
+///    "portable",
+///    "opaque_exportable",
+///    "host_bound",
+///    "external_authority"
+///  ]
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(
+    ::serde::Deserialize,
+    ::serde::Serialize,
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    Ord,
+    PartialEq,
+    PartialOrd,
+)]
+pub enum StatePortability {
+    #[serde(rename = "portable")]
+    Portable,
+    #[serde(rename = "opaque_exportable")]
+    OpaqueExportable,
+    #[serde(rename = "host_bound")]
+    HostBound,
+    #[serde(rename = "external_authority")]
+    ExternalAuthority,
+}
+impl ::std::fmt::Display for StatePortability {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+        match *self {
+            Self::Portable => f.write_str("portable"),
+            Self::OpaqueExportable => f.write_str("opaque_exportable"),
+            Self::HostBound => f.write_str("host_bound"),
+            Self::ExternalAuthority => f.write_str("external_authority"),
+        }
+    }
+}
+impl ::std::str::FromStr for StatePortability {
+    type Err = self::error::ConversionError;
+    fn from_str(value: &str) -> ::std::result::Result<Self, self::error::ConversionError> {
+        match value {
+            "portable" => Ok(Self::Portable),
+            "opaque_exportable" => Ok(Self::OpaqueExportable),
+            "host_bound" => Ok(Self::HostBound),
+            "external_authority" => Ok(Self::ExternalAuthority),
+            _ => Err("invalid value".into()),
+        }
+    }
+}
+impl ::std::convert::TryFrom<&str> for StatePortability {
+    type Error = self::error::ConversionError;
+    fn try_from(value: &str) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<&::std::string::String> for StatePortability {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<::std::string::String> for StatePortability {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: ::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+///`StateScope`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "StateScope",
+///  "type": "string",
+///  "enum": [
+///    "run",
+///    "installation",
+///    "user",
+///    "shared",
+///    "external"
+///  ]
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(
+    ::serde::Deserialize,
+    ::serde::Serialize,
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    Ord,
+    PartialEq,
+    PartialOrd,
+)]
+pub enum StateScope {
+    #[serde(rename = "run")]
+    Run,
+    #[serde(rename = "installation")]
+    Installation,
+    #[serde(rename = "user")]
+    User,
+    #[serde(rename = "shared")]
+    Shared,
+    #[serde(rename = "external")]
+    External,
+}
+impl ::std::fmt::Display for StateScope {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+        match *self {
+            Self::Run => f.write_str("run"),
+            Self::Installation => f.write_str("installation"),
+            Self::User => f.write_str("user"),
+            Self::Shared => f.write_str("shared"),
+            Self::External => f.write_str("external"),
+        }
+    }
+}
+impl ::std::str::FromStr for StateScope {
+    type Err = self::error::ConversionError;
+    fn from_str(value: &str) -> ::std::result::Result<Self, self::error::ConversionError> {
+        match value {
+            "run" => Ok(Self::Run),
+            "installation" => Ok(Self::Installation),
+            "user" => Ok(Self::User),
+            "shared" => Ok(Self::Shared),
+            "external" => Ok(Self::External),
+            _ => Err("invalid value".into()),
+        }
+    }
+}
+impl ::std::convert::TryFrom<&str> for StateScope {
+    type Error = self::error::ConversionError;
+    fn try_from(value: &str) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<&::std::string::String> for StateScope {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<::std::string::String> for StateScope {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: ::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+///`StateSlotDescriptor`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "StateSlotDescriptor",
+///  "type": "object",
+///  "required": [
+///    "backup_policy",
+///    "owner_node_id",
+///    "portability",
+///    "scope",
+///    "state_slot_id"
+///  ],
+///  "properties": {
+///    "annotations": {
+///      "type": "object",
+///      "additionalProperties": true
+///    },
+///    "backup_policy": {
+///      "$ref": "#/definitions/BackupPolicy"
+///    },
+///    "migration_port": {
+///      "anyOf": [
+///        {
+///          "$ref": "#/definitions/PortEndpoint"
+///        },
+///        {
+///          "type": "null"
+///        }
+///      ]
+///    },
+///    "owner_node_id": {
+///      "$ref": "#/definitions/NodeId"
+///    },
+///    "portability": {
+///      "$ref": "#/definitions/StatePortability"
+///    },
+///    "schema_ref": {
+///      "anyOf": [
+///        {
+///          "$ref": "#/definitions/ArtifactDescriptor"
+///        },
+///        {
+///          "type": "null"
+///        }
+///      ]
+///    },
+///    "scope": {
+///      "$ref": "#/definitions/StateScope"
+///    },
+///    "state_slot_id": {
+///      "$ref": "#/definitions/StateSlotId"
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct StateSlotDescriptor {
+    #[serde(default, skip_serializing_if = "::serde_json::Map::is_empty")]
+    pub annotations: ::serde_json::Map<::std::string::String, ::serde_json::Value>,
+    pub backup_policy: BackupPolicy,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub migration_port: ::std::option::Option<PortEndpoint>,
+    pub owner_node_id: NodeId,
+    pub portability: StatePortability,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub schema_ref: ::std::option::Option<ArtifactDescriptor>,
+    pub scope: StateScope,
+    pub state_slot_id: StateSlotId,
+}
+///`StateSlotId`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "StateSlotId",
+///  "type": "string",
+///  "pattern": "^(?!.*\\.\\.)[A-Za-z0-9._-]+$"
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Serialize, Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+#[serde(transparent)]
+pub struct StateSlotId(::std::string::String);
+impl ::std::ops::Deref for StateSlotId {
+    type Target = ::std::string::String;
+    fn deref(&self) -> &::std::string::String {
+        &self.0
+    }
+}
+impl ::std::convert::From<StateSlotId> for ::std::string::String {
+    fn from(value: StateSlotId) -> Self {
+        value.0
+    }
+}
+impl ::std::str::FromStr for StateSlotId {
+    type Err = self::error::ConversionError;
+    fn from_str(value: &str) -> ::std::result::Result<Self, self::error::ConversionError> {
+        static PATTERN: ::std::sync::LazyLock<::regress::Regex> =
+            ::std::sync::LazyLock::new(|| {
+                ::regress::Regex::new("^(?!.*\\.\\.)[A-Za-z0-9._-]+$").unwrap()
+            });
+        if PATTERN.find(value).is_none() {
+            return Err("doesn't match pattern \"^(?!.*\\.\\.)[A-Za-z0-9._-]+$\"".into());
+        }
+        Ok(Self(value.to_string()))
+    }
+}
+impl ::std::convert::TryFrom<&str> for StateSlotId {
+    type Error = self::error::ConversionError;
+    fn try_from(value: &str) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<&::std::string::String> for StateSlotId {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<::std::string::String> for StateSlotId {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: ::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl<'de> ::serde::Deserialize<'de> for StateSlotId {
+    fn deserialize<D>(deserializer: D) -> ::std::result::Result<Self, D::Error>
+    where
+        D: ::serde::Deserializer<'de>,
+    {
+        ::std::string::String::deserialize(deserializer)?
+            .parse()
+            .map_err(|e: self::error::ConversionError| {
+                <D::Error as ::serde::de::Error>::custom(e.to_string())
+            })
     }
 }
 ///`StorageMeasurementStateSchema`
@@ -19762,6 +25283,9 @@ impl ::std::convert::TryFrom<::std::string::String> for SurfaceBundleSourceSchem
 ///    "slot": {
 ///      "$ref": "#/definitions/SurfaceSlot"
 ///    },
+///    "title": {
+///      "type": "string"
+///    },
 ///    "version": {
 ///      "default": "0.1.0",
 ///      "type": "string"
@@ -19790,7 +25314,7 @@ pub struct SurfaceContribution {
     #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
     pub required_permissions: ::std::vec::Vec<SurfacePermissionRequirement>,
     pub slot: SurfaceSlot,
-    pub title: ::serde_json::Value,
+    pub title: ::std::string::String,
     #[serde(default = "defaults::surface_contribution_version")]
     pub version: ::std::string::String,
 }
@@ -20176,6 +25700,54 @@ impl ::std::convert::TryFrom<::std::string::String> for SurfaceSlot {
         value.parse()
     }
 }
+///`TargetCapabilityRecord`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "TargetCapabilityRecord",
+///  "type": "object",
+///  "required": [
+///    "available",
+///    "capability_id",
+///    "version"
+///  ],
+///  "properties": {
+///    "available": {
+///      "type": "boolean"
+///    },
+///    "capability_id": {
+///      "type": "string"
+///    },
+///    "evidence_refs": {
+///      "type": "array",
+///      "items": {
+///        "$ref": "#/definitions/ArtifactDescriptor"
+///      }
+///    },
+///    "properties": {
+///      "type": "object",
+///      "additionalProperties": true
+///    },
+///    "version": {
+///      "type": "string"
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct TargetCapabilityRecord {
+    pub available: bool,
+    pub capability_id: ::std::string::String,
+    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
+    pub evidence_refs: ::std::vec::Vec<ArtifactDescriptor>,
+    #[serde(default, skip_serializing_if = "::serde_json::Map::is_empty")]
+    pub properties: ::serde_json::Map<::std::string::String, ::serde_json::Value>,
+    pub version: ::std::string::String,
+}
 ///`TargetIdParams`
 ///
 /// <details><summary>JSON schema</summary>
@@ -20200,6 +25772,85 @@ impl ::std::convert::TryFrom<::std::string::String> for SurfaceSlot {
 #[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
 pub struct TargetIdParams {
     pub target_id: ::std::string::String,
+}
+///`TargetInventorySnapshot`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "TargetInventorySnapshot",
+///  "type": "object",
+///  "required": [
+///    "observed_at",
+///    "target_id",
+///    "trust_zone"
+///  ],
+///  "properties": {
+///    "capabilities": {
+///      "type": "array",
+///      "items": {
+///        "$ref": "#/definitions/TargetCapabilityRecord"
+///      }
+///    },
+///    "capacity": {
+///      "default": {
+///        "cpu_millis": 0,
+///        "gpu_count": 0,
+///        "max_workloads": 0,
+///        "memory_bytes": 0,
+///        "storage_bytes": 0
+///      },
+///      "allOf": [
+///        {
+///          "$ref": "#/definitions/ResourceCapacity"
+///        }
+///      ]
+///    },
+///    "labels": {
+///      "type": "object",
+///      "additionalProperties": {
+///        "type": "string"
+///      }
+///    },
+///    "observed_at": {
+///      "type": "string",
+///      "format": "date-time"
+///    },
+///    "target_id": {
+///      "type": "string"
+///    },
+///    "topology": {
+///      "type": "array",
+///      "items": {
+///        "$ref": "#/definitions/TopologyRelation"
+///      }
+///    },
+///    "trust_zone": {
+///      "type": "string"
+///    }
+///  },
+///  "$schema": "https://json-schema.org/draft/2020-12/schema"
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct TargetInventorySnapshot {
+    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
+    pub capabilities: ::std::vec::Vec<TargetCapabilityRecord>,
+    #[serde(default = "defaults::target_inventory_snapshot_capacity")]
+    pub capacity: ResourceCapacity,
+    #[serde(
+        default,
+        skip_serializing_if = ":: std :: collections :: HashMap::is_empty"
+    )]
+    pub labels: ::std::collections::HashMap<::std::string::String, ::std::string::String>,
+    pub observed_at: ::chrono::DateTime<::chrono::offset::Utc>,
+    pub target_id: ::std::string::String,
+    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
+    pub topology: ::std::vec::Vec<TopologyRelation>,
+    pub trust_zone: ::std::string::String,
 }
 ///`TighteningSuggestion`
 ///
@@ -20234,6 +25885,326 @@ pub struct TighteningSuggestion {
     pub kind: ::std::string::String,
     pub rationale: ::std::string::String,
     pub target: ::std::string::String,
+}
+///`TopologyRelation`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "TopologyRelation",
+///  "type": "object",
+///  "required": [
+///    "other_target_id",
+///    "relation_id"
+///  ],
+///  "properties": {
+///    "latency_class": {
+///      "type": [
+///        "string",
+///        "null"
+///      ]
+///    },
+///    "other_target_id": {
+///      "type": "string"
+///    },
+///    "properties": {
+///      "type": "object",
+///      "additionalProperties": true
+///    },
+///    "relation_id": {
+///      "type": "string"
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct TopologyRelation {
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub latency_class: ::std::option::Option<::std::string::String>,
+    pub other_target_id: ::std::string::String,
+    #[serde(default, skip_serializing_if = "::serde_json::Map::is_empty")]
+    pub properties: ::serde_json::Map<::std::string::String, ::serde_json::Value>,
+    pub relation_id: ::std::string::String,
+}
+///`TransparencyDeclaration`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "TransparencyDeclaration",
+///  "type": "object",
+///  "required": [
+///    "reproducible_build_claim",
+///    "source_visibility",
+///    "state_portability"
+///  ],
+///  "properties": {
+///    "evidence_refs": {
+///      "type": "array",
+///      "items": {
+///        "$ref": "#/definitions/ArtifactDescriptor"
+///      }
+///    },
+///    "provenance_refs": {
+///      "type": "array",
+///      "items": {
+///        "$ref": "#/definitions/ArtifactDescriptor"
+///      }
+///    },
+///    "reproducible_build_claim": {
+///      "$ref": "#/definitions/ClaimStatus"
+///    },
+///    "sbom_refs": {
+///      "type": "array",
+///      "items": {
+///        "$ref": "#/definitions/ArtifactDescriptor"
+///      }
+///    },
+///    "signature_refs": {
+///      "type": "array",
+///      "items": {
+///        "$ref": "#/definitions/ArtifactDescriptor"
+///      }
+///    },
+///    "source_refs": {
+///      "type": "array",
+///      "items": {
+///        "$ref": "#/definitions/ArtifactDescriptor"
+///      }
+///    },
+///    "source_visibility": {
+///      "$ref": "#/definitions/SourceVisibility"
+///    },
+///    "state_portability": {
+///      "$ref": "#/definitions/StatePortability"
+///    },
+///    "telemetry_disclosures": {
+///      "type": "array",
+///      "items": {
+///        "type": "string"
+///      }
+///    }
+///  },
+///  "$schema": "https://json-schema.org/draft/2020-12/schema"
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct TransparencyDeclaration {
+    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
+    pub evidence_refs: ::std::vec::Vec<ArtifactDescriptor>,
+    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
+    pub provenance_refs: ::std::vec::Vec<ArtifactDescriptor>,
+    pub reproducible_build_claim: ClaimStatus,
+    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
+    pub sbom_refs: ::std::vec::Vec<ArtifactDescriptor>,
+    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
+    pub signature_refs: ::std::vec::Vec<ArtifactDescriptor>,
+    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
+    pub source_refs: ::std::vec::Vec<ArtifactDescriptor>,
+    pub source_visibility: SourceVisibility,
+    pub state_portability: StatePortability,
+    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
+    pub telemetry_disclosures: ::std::vec::Vec<::std::string::String>,
+}
+///`TransportBindingPlan`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "TransportBindingPlan",
+///  "type": "object",
+///  "required": [
+///    "binding_id",
+///    "consumer",
+///    "consumer_target_id",
+///    "phase",
+///    "provider",
+///    "provider_target_id",
+///    "transport"
+///  ],
+///  "properties": {
+///    "binding_id": {
+///      "type": "string"
+///    },
+///    "consumer": {
+///      "$ref": "#/definitions/PortEndpoint"
+///    },
+///    "consumer_target_id": {
+///      "type": "string"
+///    },
+///    "phase": {
+///      "$ref": "#/definitions/BindingPhase"
+///    },
+///    "provider": {
+///      "$ref": "#/definitions/PortEndpoint"
+///    },
+///    "provider_target_id": {
+///      "type": "string"
+///    },
+///    "transport": {
+///      "$ref": "#/definitions/SelectedTransport"
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct TransportBindingPlan {
+    pub binding_id: ::std::string::String,
+    pub consumer: PortEndpoint,
+    pub consumer_target_id: ::std::string::String,
+    pub phase: BindingPhase,
+    pub provider: PortEndpoint,
+    pub provider_target_id: ::std::string::String,
+    pub transport: SelectedTransport,
+}
+///`TransportPolicy`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "TransportPolicy",
+///  "type": "object",
+///  "properties": {
+///    "preferred_classes": {
+///      "type": "array",
+///      "items": {
+///        "type": "string"
+///      }
+///    },
+///    "requirements": {
+///      "default": {
+///        "large_payload": false,
+///        "local_only": false,
+///        "ordered": false,
+///        "reliable": false,
+///        "same_process": false,
+///        "shared_memory_allowed": false
+///      },
+///      "allOf": [
+///        {
+///          "$ref": "#/definitions/TransportRequirements"
+///        }
+///      ]
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct TransportPolicy {
+    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
+    pub preferred_classes: ::std::vec::Vec<::std::string::String>,
+    #[serde(default = "defaults::transport_policy_requirements")]
+    pub requirements: TransportRequirements,
+}
+impl ::std::default::Default for TransportPolicy {
+    fn default() -> Self {
+        Self {
+            preferred_classes: Default::default(),
+            requirements: defaults::transport_policy_requirements(),
+        }
+    }
+}
+///`TransportRequirements`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "TransportRequirements",
+///  "type": "object",
+///  "properties": {
+///    "allowed_classes": {
+///      "type": "array",
+///      "items": {
+///        "type": "string"
+///      }
+///    },
+///    "extensions": {
+///      "type": "object",
+///      "additionalProperties": true
+///    },
+///    "large_payload": {
+///      "default": false,
+///      "type": "boolean"
+///    },
+///    "local_only": {
+///      "default": false,
+///      "type": "boolean"
+///    },
+///    "max_latency_class": {
+///      "type": [
+///        "string",
+///        "null"
+///      ]
+///    },
+///    "ordered": {
+///      "default": false,
+///      "type": "boolean"
+///    },
+///    "reliable": {
+///      "default": false,
+///      "type": "boolean"
+///    },
+///    "same_process": {
+///      "default": false,
+///      "type": "boolean"
+///    },
+///    "shared_memory_allowed": {
+///      "default": false,
+///      "type": "boolean"
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct TransportRequirements {
+    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
+    pub allowed_classes: ::std::vec::Vec<::std::string::String>,
+    #[serde(default, skip_serializing_if = "::serde_json::Map::is_empty")]
+    pub extensions: ::serde_json::Map<::std::string::String, ::serde_json::Value>,
+    #[serde(default)]
+    pub large_payload: bool,
+    #[serde(default)]
+    pub local_only: bool,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub max_latency_class: ::std::option::Option<::std::string::String>,
+    #[serde(default)]
+    pub ordered: bool,
+    #[serde(default)]
+    pub reliable: bool,
+    #[serde(default)]
+    pub same_process: bool,
+    #[serde(default)]
+    pub shared_memory_allowed: bool,
+}
+impl ::std::default::Default for TransportRequirements {
+    fn default() -> Self {
+        Self {
+            allowed_classes: Default::default(),
+            extensions: Default::default(),
+            large_payload: Default::default(),
+            local_only: Default::default(),
+            max_latency_class: Default::default(),
+            ordered: Default::default(),
+            reliable: Default::default(),
+            same_process: Default::default(),
+            shared_memory_allowed: Default::default(),
+        }
+    }
 }
 ///`TrustLevel`
 ///
@@ -20367,6 +26338,127 @@ pub struct UnusedAuthority {
     pub network_hosts_unused: ::std::vec::Vec<::std::string::String>,
     pub secret_refs_unused: ::std::vec::Vec<::std::string::String>,
 }
+///`UpdatePolicy`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "UpdatePolicy",
+///  "type": "object",
+///  "required": [
+///    "strategy"
+///  ],
+///  "properties": {
+///    "health_timeout_seconds": {
+///      "type": [
+///        "integer",
+///        "null"
+///      ],
+///      "format": "uint64",
+///      "minimum": 0.0
+///    },
+///    "max_unavailable": {
+///      "default": 0,
+///      "type": "integer",
+///      "format": "uint16",
+///      "minimum": 0.0
+///    },
+///    "strategy": {
+///      "$ref": "#/definitions/UpdateStrategy"
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct UpdatePolicy {
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub health_timeout_seconds: ::std::option::Option<u64>,
+    #[serde(default)]
+    pub max_unavailable: u16,
+    pub strategy: UpdateStrategy,
+}
+///`UpdateStrategy`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "UpdateStrategy",
+///  "type": "string",
+///  "enum": [
+///    "replace",
+///    "rolling",
+///    "recreate"
+///  ]
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(
+    ::serde::Deserialize,
+    ::serde::Serialize,
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    Ord,
+    PartialEq,
+    PartialOrd,
+)]
+pub enum UpdateStrategy {
+    #[serde(rename = "replace")]
+    Replace,
+    #[serde(rename = "rolling")]
+    Rolling,
+    #[serde(rename = "recreate")]
+    Recreate,
+}
+impl ::std::fmt::Display for UpdateStrategy {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+        match *self {
+            Self::Replace => f.write_str("replace"),
+            Self::Rolling => f.write_str("rolling"),
+            Self::Recreate => f.write_str("recreate"),
+        }
+    }
+}
+impl ::std::str::FromStr for UpdateStrategy {
+    type Err = self::error::ConversionError;
+    fn from_str(value: &str) -> ::std::result::Result<Self, self::error::ConversionError> {
+        match value {
+            "replace" => Ok(Self::Replace),
+            "rolling" => Ok(Self::Rolling),
+            "recreate" => Ok(Self::Recreate),
+            _ => Err("invalid value".into()),
+        }
+    }
+}
+impl ::std::convert::TryFrom<&str> for UpdateStrategy {
+    type Error = self::error::ConversionError;
+    fn try_from(value: &str) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<&::std::string::String> for UpdateStrategy {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<::std::string::String> for UpdateStrategy {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: ::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
 ///`UsedAuthority`
 ///
 /// <details><summary>JSON schema</summary>
@@ -20443,6 +26535,510 @@ pub struct UsedAuthority {
     pub events_read_count: u64,
     pub network_hosts_used: ::std::collections::HashMap<::std::string::String, u64>,
     pub secret_refs_used: ::std::collections::HashMap<::std::string::String, u64>,
+}
+///`WorkEntrypoint`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "WorkEntrypoint",
+///  "type": "object",
+///  "required": [
+///    "id",
+///    "intent_uri",
+///    "target"
+///  ],
+///  "properties": {
+///    "annotations": {
+///      "type": "object",
+///      "additionalProperties": true
+///    },
+///    "id": {
+///      "type": "string"
+///    },
+///    "intent_uri": {
+///      "type": "string"
+///    },
+///    "target": {
+///      "$ref": "#/definitions/WorkEntrypointTarget"
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct WorkEntrypoint {
+    #[serde(default, skip_serializing_if = "::serde_json::Map::is_empty")]
+    pub annotations: ::serde_json::Map<::std::string::String, ::serde_json::Value>,
+    pub id: ::std::string::String,
+    pub intent_uri: ::std::string::String,
+    pub target: WorkEntrypointTarget,
+}
+///`WorkEntrypointTarget`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "WorkEntrypointTarget",
+///  "oneOf": [
+///    {
+///      "type": "object",
+///      "required": [
+///        "kind",
+///        "port_id"
+///      ],
+///      "properties": {
+///        "kind": {
+///          "type": "string",
+///          "enum": [
+///            "assembly_port"
+///          ]
+///        },
+///        "port_id": {
+///          "$ref": "#/definitions/PortId"
+///        }
+///      }
+///    },
+///    {
+///      "type": "object",
+///      "required": [
+///        "kind",
+///        "surface_id"
+///      ],
+///      "properties": {
+///        "kind": {
+///          "type": "string",
+///          "enum": [
+///            "surface"
+///          ]
+///        },
+///        "surface_id": {
+///          "type": "string"
+///        }
+///      }
+///    },
+///    {
+///      "type": "object",
+///      "required": [
+///        "kind",
+///        "launch_id"
+///      ],
+///      "properties": {
+///        "kind": {
+///          "type": "string",
+///          "enum": [
+///            "foreign_launch"
+///          ]
+///        },
+///        "launch_id": {
+///          "type": "string"
+///        }
+///      }
+///    }
+///  ]
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+#[serde(tag = "kind")]
+pub enum WorkEntrypointTarget {
+    #[serde(rename = "assembly_port")]
+    AssemblyPort { port_id: PortId },
+    #[serde(rename = "surface")]
+    Surface { surface_id: ::std::string::String },
+    #[serde(rename = "foreign_launch")]
+    ForeignLaunch { launch_id: ::std::string::String },
+}
+///`WorkId`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "WorkId",
+///  "type": "string",
+///  "pattern": "^(?!.*\\.\\.)[A-Za-z0-9._-]+(?:/[A-Za-z0-9._-]+)+$"
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Serialize, Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+#[serde(transparent)]
+pub struct WorkId(::std::string::String);
+impl ::std::ops::Deref for WorkId {
+    type Target = ::std::string::String;
+    fn deref(&self) -> &::std::string::String {
+        &self.0
+    }
+}
+impl ::std::convert::From<WorkId> for ::std::string::String {
+    fn from(value: WorkId) -> Self {
+        value.0
+    }
+}
+impl ::std::str::FromStr for WorkId {
+    type Err = self::error::ConversionError;
+    fn from_str(value: &str) -> ::std::result::Result<Self, self::error::ConversionError> {
+        static PATTERN: ::std::sync::LazyLock<::regress::Regex> =
+            ::std::sync::LazyLock::new(|| {
+                ::regress::Regex::new("^(?!.*\\.\\.)[A-Za-z0-9._-]+(?:/[A-Za-z0-9._-]+)+$").unwrap()
+            });
+        if PATTERN.find(value).is_none() {
+            return Err(
+                "doesn't match pattern \"^(?!.*\\.\\.)[A-Za-z0-9._-]+(?:/[A-Za-z0-9._-]+)+$\""
+                    .into(),
+            );
+        }
+        Ok(Self(value.to_string()))
+    }
+}
+impl ::std::convert::TryFrom<&str> for WorkId {
+    type Error = self::error::ConversionError;
+    fn try_from(value: &str) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<&::std::string::String> for WorkId {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<::std::string::String> for WorkId {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: ::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl<'de> ::serde::Deserialize<'de> for WorkId {
+    fn deserialize<D>(deserializer: D) -> ::std::result::Result<Self, D::Error>
+    where
+        D: ::serde::Deserializer<'de>,
+    {
+        ::std::string::String::deserialize(deserializer)?
+            .parse()
+            .map_err(|e: self::error::ConversionError| {
+                <D::Error as ::serde::de::Error>::custom(e.to_string())
+            })
+    }
+}
+///`WorkRevision`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "WorkRevision",
+///  "type": "object",
+///  "required": [
+///    "assembly",
+///    "schema",
+///    "title",
+///    "work_id"
+///  ],
+///  "properties": {
+///    "annotations": {
+///      "type": "object",
+///      "additionalProperties": true
+///    },
+///    "assembly": {
+///      "$ref": "#/definitions/ArtifactDescriptor"
+///    },
+///    "content_roots": {
+///      "type": "array",
+///      "items": {
+///        "$ref": "#/definitions/ArtifactDescriptor"
+///      }
+///    },
+///    "description": {
+///      "default": "",
+///      "type": "string"
+///    },
+///    "entrypoints": {
+///      "type": "array",
+///      "items": {
+///        "$ref": "#/definitions/WorkEntrypoint"
+///      }
+///    },
+///    "operational_intent": {
+///      "anyOf": [
+///        {
+///          "$ref": "#/definitions/ArtifactDescriptor"
+///        },
+///        {
+///          "type": "null"
+///        }
+///      ]
+///    },
+///    "rights": {
+///      "anyOf": [
+///        {
+///          "$ref": "#/definitions/ArtifactDescriptor"
+///        },
+///        {
+///          "type": "null"
+///        }
+///      ]
+///    },
+///    "schema": {
+///      "type": "string",
+///      "enum": [
+///        "plurora.work-revision.v1"
+///      ]
+///    },
+///    "title": {
+///      "type": "string"
+///    },
+///    "transparency": {
+///      "anyOf": [
+///        {
+///          "$ref": "#/definitions/ArtifactDescriptor"
+///        },
+///        {
+///          "type": "null"
+///        }
+///      ]
+///    },
+///    "work_id": {
+///      "$ref": "#/definitions/WorkId"
+///    }
+///  },
+///  "$schema": "https://json-schema.org/draft/2020-12/schema"
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct WorkRevision {
+    #[serde(default, skip_serializing_if = "::serde_json::Map::is_empty")]
+    pub annotations: ::serde_json::Map<::std::string::String, ::serde_json::Value>,
+    pub assembly: ArtifactDescriptor,
+    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
+    pub content_roots: ::std::vec::Vec<ArtifactDescriptor>,
+    #[serde(default)]
+    pub description: ::std::string::String,
+    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
+    pub entrypoints: ::std::vec::Vec<WorkEntrypoint>,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub operational_intent: ::std::option::Option<ArtifactDescriptor>,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub rights: ::std::option::Option<ArtifactDescriptor>,
+    pub schema: WorkRevisionSchema,
+    pub title: ::std::string::String,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub transparency: ::std::option::Option<ArtifactDescriptor>,
+    pub work_id: WorkId,
+}
+///`WorkRevisionSchema`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "type": "string",
+///  "enum": [
+///    "plurora.work-revision.v1"
+///  ]
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(
+    ::serde::Deserialize,
+    ::serde::Serialize,
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    Ord,
+    PartialEq,
+    PartialOrd,
+)]
+pub enum WorkRevisionSchema {
+    #[serde(rename = "plurora.work-revision.v1")]
+    PluroraWorkRevisionV1,
+}
+impl ::std::fmt::Display for WorkRevisionSchema {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+        match *self {
+            Self::PluroraWorkRevisionV1 => f.write_str("plurora.work-revision.v1"),
+        }
+    }
+}
+impl ::std::str::FromStr for WorkRevisionSchema {
+    type Err = self::error::ConversionError;
+    fn from_str(value: &str) -> ::std::result::Result<Self, self::error::ConversionError> {
+        match value {
+            "plurora.work-revision.v1" => Ok(Self::PluroraWorkRevisionV1),
+            _ => Err("invalid value".into()),
+        }
+    }
+}
+impl ::std::convert::TryFrom<&str> for WorkRevisionSchema {
+    type Error = self::error::ConversionError;
+    fn try_from(value: &str) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<&::std::string::String> for WorkRevisionSchema {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<::std::string::String> for WorkRevisionSchema {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: ::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+///`WorkloadImports`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "WorkloadImports",
+///  "type": "object",
+///  "properties": {
+///    "filesystem": {
+///      "type": "array",
+///      "items": {
+///        "$ref": "#/definitions/FilesystemImport"
+///      }
+///    },
+///    "network": {
+///      "type": "array",
+///      "items": {
+///        "$ref": "#/definitions/NetworkImport"
+///      }
+///    },
+///    "secret_imports": {
+///      "type": "array",
+///      "items": {
+///        "$ref": "#/definitions/SecretImport"
+///      }
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct WorkloadImports {
+    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
+    pub filesystem: ::std::vec::Vec<FilesystemImport>,
+    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
+    pub network: ::std::vec::Vec<NetworkImport>,
+    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
+    pub secret_imports: ::std::vec::Vec<SecretImport>,
+}
+impl ::std::default::Default for WorkloadImports {
+    fn default() -> Self {
+        Self {
+            filesystem: Default::default(),
+            network: Default::default(),
+            secret_imports: Default::default(),
+        }
+    }
+}
+///`WorkloadIntent`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "WorkloadIntent",
+///  "type": "object",
+///  "required": [
+///    "execution_classes",
+///    "node_id",
+///    "replicas",
+///    "restart_policy",
+///    "workload_id"
+///  ],
+///  "properties": {
+///    "annotations": {
+///      "type": "object",
+///      "additionalProperties": true
+///    },
+///    "execution_classes": {
+///      "type": "array",
+///      "items": {
+///        "type": "string"
+///      }
+///    },
+///    "health_port": {
+///      "anyOf": [
+///        {
+///          "$ref": "#/definitions/PortEndpoint"
+///        },
+///        {
+///          "type": "null"
+///        }
+///      ]
+///    },
+///    "imports": {
+///      "default": {},
+///      "allOf": [
+///        {
+///          "$ref": "#/definitions/WorkloadImports"
+///        }
+///      ]
+///    },
+///    "node_id": {
+///      "$ref": "#/definitions/NodeId"
+///    },
+///    "replicas": {
+///      "$ref": "#/definitions/ReplicaPolicy"
+///    },
+///    "resources": {
+///      "default": {},
+///      "allOf": [
+///        {
+///          "$ref": "#/definitions/ResourceRequirements"
+///        }
+///      ]
+///    },
+///    "restart_policy": {
+///      "$ref": "#/definitions/RestartPolicy"
+///    },
+///    "workload_id": {
+///      "type": "string"
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct WorkloadIntent {
+    #[serde(default, skip_serializing_if = "::serde_json::Map::is_empty")]
+    pub annotations: ::serde_json::Map<::std::string::String, ::serde_json::Value>,
+    pub execution_classes: ::std::vec::Vec<::std::string::String>,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub health_port: ::std::option::Option<PortEndpoint>,
+    #[serde(default = "defaults::workload_intent_imports")]
+    pub imports: WorkloadImports,
+    pub node_id: NodeId,
+    pub replicas: ReplicaPolicy,
+    #[serde(default = "defaults::workload_intent_resources")]
+    pub resources: ResourceRequirements,
+    pub restart_policy: RestartPolicy,
+    pub workload_id: ::std::string::String,
 }
 ///`WorldBundleArchive`
 ///
@@ -20847,6 +27443,22 @@ pub mod defaults {
     {
         T::try_from(V).unwrap()
     }
+    pub(super) fn assembly_binding_transport_policy() -> super::TransportPolicy {
+        super::TransportPolicy {
+            preferred_classes: Default::default(),
+            requirements: super::TransportRequirements {
+                allowed_classes: Default::default(),
+                extensions: Default::default(),
+                large_payload: false,
+                local_only: false,
+                max_latency_class: Default::default(),
+                ordered: false,
+                reliable: false,
+                same_process: false,
+                shared_memory_allowed: false,
+            },
+        }
+    }
     pub(super) fn asset_put_request_metadata() -> ::serde_json::Value {
         ::serde_json::from_str::<::serde_json::Value>("null").unwrap()
     }
@@ -20993,6 +27605,12 @@ pub mod defaults {
     pub(super) fn host_proxy_list_result_item_access() -> super::ProxyRouteAccess {
         super::ProxyRouteAccess::HostAuthenticated
     }
+    pub(super) fn installation_record_secret_policy() -> super::InstallationSecretPolicy {
+        super::InstallationSecretPolicy {
+            allow_platform_fallback: false,
+            allowed_secret_refs: Default::default(),
+        }
+    }
     pub(super) fn intent_goal() -> ::serde_json::Value {
         ::serde_json::from_str::<::serde_json::Value>("null").unwrap()
     }
@@ -21024,6 +27642,13 @@ pub mod defaults {
     }
     pub(super) fn object_list_result_item_metadata() -> ::serde_json::Value {
         ::serde_json::from_str::<::serde_json::Value>("null").unwrap()
+    }
+    pub(super) fn operational_intent_update_policy() -> super::UpdatePolicy {
+        super::UpdatePolicy {
+            health_timeout_seconds: Default::default(),
+            max_unavailable: 1_u16,
+            strategy: super::UpdateStrategy::Replace,
+        }
     }
     pub(super) fn outbound_audit_record_cost() -> ::serde_json::Value {
         ::serde_json::from_str::<::serde_json::Value>("null").unwrap()
@@ -21186,6 +27811,19 @@ pub mod defaults {
     pub(super) fn policy_decision_decision_type_uri() -> ::std::string::String {
         "urn:plurora:policy-decision:v1".to_string()
     }
+    pub(super) fn port_descriptor_transport() -> super::TransportRequirements {
+        super::TransportRequirements {
+            allowed_classes: Default::default(),
+            extensions: Default::default(),
+            large_payload: false,
+            local_only: false,
+            max_latency_class: Default::default(),
+            ordered: false,
+            reliable: false,
+            same_process: false,
+            shared_memory_allowed: false,
+        }
+    }
     pub(super) fn port_lease_request_protocol() -> super::PortProtocol {
         super::PortProtocol::Tcp
     }
@@ -21273,5 +27911,44 @@ pub mod defaults {
     }
     pub(super) fn surface_permission_requirement_risk() -> super::SurfaceRisk {
         super::SurfaceRisk::Low
+    }
+    pub(super) fn target_inventory_snapshot_capacity() -> super::ResourceCapacity {
+        super::ResourceCapacity {
+            cpu_millis: 0_u64,
+            gpu_count: 0_u32,
+            max_workloads: 0_u32,
+            memory_bytes: 0_u64,
+            storage_bytes: 0_u64,
+        }
+    }
+    pub(super) fn transport_policy_requirements() -> super::TransportRequirements {
+        super::TransportRequirements {
+            allowed_classes: Default::default(),
+            extensions: Default::default(),
+            large_payload: false,
+            local_only: false,
+            max_latency_class: Default::default(),
+            ordered: false,
+            reliable: false,
+            same_process: false,
+            shared_memory_allowed: false,
+        }
+    }
+    pub(super) fn workload_intent_imports() -> super::WorkloadImports {
+        super::WorkloadImports {
+            filesystem: Default::default(),
+            network: Default::default(),
+            secret_imports: Default::default(),
+        }
+    }
+    pub(super) fn workload_intent_resources() -> super::ResourceRequirements {
+        super::ResourceRequirements {
+            cpu_millis: Default::default(),
+            duration_seconds: Default::default(),
+            gpu_count: Default::default(),
+            max_concurrency: Default::default(),
+            memory_bytes: Default::default(),
+            storage_bytes: Default::default(),
+        }
     }
 }

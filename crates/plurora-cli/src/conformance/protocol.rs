@@ -58,12 +58,14 @@ pub(crate) async fn protocol_commons_advertised() -> anyhow::Result<()> {
         .as_array()
         .ok_or_else(|| anyhow::anyhow!("host.info missing protocol descriptors"))?;
     anyhow::ensure!(
-        protocols.len() == 3,
-        "expected exactly three Phase 6 protocols"
+        protocols.len() == 5,
+        "expected exactly five explicit Protocol Commons descriptors"
     );
     for id in [
         "plurora.change",
         "plurora.shell.default",
+        "plurora.work",
+        "plurora.assembly",
         "plurora.world.bundle",
     ] {
         anyhow::ensure!(

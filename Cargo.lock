@@ -5166,6 +5166,7 @@ dependencies = [
  "plurora-core",
  "plurora-runtime",
  "plurora-service",
+ "plurora-work",
  "prettyplease",
  "reqwest 0.12.28",
  "schemars 0.8.22",
@@ -5193,6 +5194,7 @@ dependencies = [
  "async-trait",
  "chrono",
  "futures",
+ "regress",
  "serde",
  "serde_json",
  "uuid",
@@ -5300,6 +5302,20 @@ dependencies = [
  "tower-http 0.5.2",
  "tracing",
  "url",
+ "uuid",
+]
+
+[[package]]
+name = "plurora-work"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "plurora-core",
+ "schemars 0.8.22",
+ "semver",
+ "serde",
+ "serde_json",
+ "thiserror 1.0.69",
  "uuid",
 ]
 

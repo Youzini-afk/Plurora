@@ -50,6 +50,7 @@ toml.workspace = true
 url.workspace = true
 uuid.workspace = true
 plurora-core.workspace = true
+plurora-work.workspace = true
 plurora-runtime.workspace = true
 plurora-service.workspace = true
 

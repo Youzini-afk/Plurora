@@ -1,6 +1,7 @@
 [workspace]
 members = [
   "crates/plurora-core",
+  "crates/plurora-work",
   "crates/plurora-runtime",
   "crates/plurora-service",
   "crates/plurora-cli",
@@ -37,6 +38,7 @@ tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 uuid = { version = "1", features = ["v4", "serde"] }
 reqwest = { version = "0.12", features = ["json", "rustls-tls", "stream"], default-features = false }
+regress = "0.11"
 schemars = { version = "0.8", features = ["chrono"] }
 jsonschema = "0.18"
 semver = "1"
@@ -45,5 +47,6 @@ toml = "0.8"
 url = "2"
 
 plurora-core = { path = "crates/plurora-core" }
+plurora-work = { path = "crates/plurora-work" }
 plurora-runtime = { path = "crates/plurora-runtime" }
 plurora-service = { path = "crates/plurora-service" }

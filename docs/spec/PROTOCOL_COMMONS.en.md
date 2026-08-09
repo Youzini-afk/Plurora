@@ -4,7 +4,7 @@
 
 Status: Experimental, descriptor schema version 1.
 
-The Protocol Commons is the registry for shared semantics. A JSON shape alone is not a protocol: every registered protocol also names its lifecycle, error and cancellation model, authority boundary, behavioral vectors, compatibility profiles, migrations, and implementations. Registry entries do not receive routing priority, and an first-party provider is evaluated by the same vector set as any third-party provider.
+The Protocol Commons is the registry for shared semantics. A JSON shape alone is not a protocol: every registered protocol also names its lifecycle, error and cancellation model, authority boundary, behavioral vectors, compatibility profiles, migrations, and implementations. Registry entries do not receive routing priority, and a first-party provider is evaluated by the same vector set as any third-party provider.
 
 ## Descriptor
 
@@ -21,12 +21,14 @@ The Protocol Commons is the registry for shared semantics. A JSON shape alone is
 
 Document references may omit a digest while the referenced document is repository-local. A portable package or World Bundle must materialize such references as content-addressed artifacts before making a cross-host integrity claim.
 
-`host.info` exposes `protocol_commons_registry_version` and the full descriptor registry. The current registry intentionally includes only:
+`host.info` exposes `protocol_commons_registry_version` and the full descriptor registry. The current registry version is `0.2.0` and intentionally includes only:
 
 | Protocol | Version | Profile | Status |
 | --- | --- | --- | --- |
 | `plurora.change` | `1.0.0` | `plurora.change/default/v1` | Experimental |
 | `plurora.shell.default` | `1.0.0` | `plurora.shell.default/v1` | Experimental |
+| `plurora.work` | `1.0.0` | `plurora.work/experimental/v1` | Experimental |
+| `plurora.assembly` | `1.0.0` | `plurora.assembly/experimental/v1` | Experimental |
 | `plurora.world.bundle` | `1.0.0` | `plurora.world.bundle/experimental/v1` | Experimental |
 
 Projection stays an Experimental canonical namespace, but is not admitted as an initial Protocol Commons descriptor. It needs two materially different experiences before shared semantics can be claimed.
@@ -50,7 +52,7 @@ Protocol conformance and implementation/package conformance are different report
 - `ImplementationConformanceReport` additionally identifies the implementation and provider while retaining the same vector identifiers.
 - `PackageConformanceReport` continues to assess the distribution envelope, declarations, handshake, permissions, streaming, and handle lifecycle.
 
-The registry rejects implementation claims that omit a required vector, invent a vector outside the protocol descriptor, name an unknown profile, or claim a different protocol version. The Change descriptor includes an Plurora runtime implementation and a test-only third-party reference claim; both are bound to the same four required vector IDs. `test_only` prevents that fixture from being presented as a portable production implementation.
+The registry rejects implementation claims that omit a required vector, invent a vector outside the protocol descriptor, name an unknown profile, or claim a different protocol version. The Change descriptor includes a Plurora runtime implementation and a test-only third-party reference claim; both are bound to the same four required vector IDs. `test_only` prevents that fixture from being presented as a portable production implementation.
 
 The reports are executable independently:
 
@@ -77,6 +79,30 @@ The profile requires:
 - shell replacement without changing journal history, object identity, or receipts.
 
 The current lifecycle and bridge error model are documented in [`SURFACE_HOSTING.md`](../guides/SURFACE_HOSTING.en.md).
+
+## Work Experimental profile
+
+`plurora.work/experimental/v1` defines immutable, content-addressed `WorkRevision` objects and separates durable logical `WorkId` from an exact revision digest. A Work references its Assembly, content roots, entrypoints, Rights, Transparency, and optional OperationalIntent. It stores no absolute host path, raw secret, actual port, process ID, or current time. Unknown annotations survive lossless round trips while remaining subject to raw-secret and host-path redlines.
+
+Its three required vectors cover canonical-digest stability, portable-identity redlines, and unknown-annotation preservation. `plurora.work.model` is an ordinary implementation claim by the `plurora-work` crate; it receives no execution authority, routing priority, or first-party privilege.
+
+## Assembly Experimental profile
+
+`plurora.assembly/experimental/v1` defines an acyclic recursive graph of Components and nested Assemblies, plus typed Ports, Bindings, exposed Ports, and State Slots. A Port constrains protocol/interface/version/Profile, an open interaction ID, effect class, binding phase, cardinality, and transport requirements. Unknown interactions remain losslessly preservable but cannot bind or execute without an implementation or explicit Adapter.
+
+Its three required vectors cover recursive containment closure, Port-contract compatibility, and State Slot migration boundaries. `AssemblyLock` pins artifacts, behavior digests, trust classes, providers, transports, Profiles, and content roots. It belongs to the Experimental Protocol Commons, not the Constitutional Substrate.
+
+## Work artifact lifecycle
+
+The pure Work-model flow is `construct → validate → canonical JSON → SHA-256 descriptor → explicit persistence/transfer`. Validation and canonicalization have no external effect and grant no `object.write`; persistence requires authority the caller already holds. A WorkRevision is never modified in place—change creates a new content identity.
+
+## Assembly artifact lifecycle
+
+The pure Assembly-model flow is `construct graph → validate local IDs/references → validate an acyclic recursive closure → validate Ports/State → canonicalize → persist`. A later runtime may flatten execution, but it cannot discard nested identity, node paths, exposure mappings, or provenance. Phase 1 model validation does not activate Components or select installation-, launch-, or runtime-phase providers.
+
+## Work and Assembly error model
+
+Invalid IDs, missing or digest-mismatched Artifacts, containment cycles, unresolved or incompatible Ports, unsupported interactions, portable state without a schema, raw secrets, host-local paths, and implementation-budget overruns fail structurally. Errors return a stable reason and redacted explanation without echoing a secret, absolute path, or raw exception. Unknown Artifacts and annotations remain preservable and copyable; unknown semantics block only interpretation, binding, and execution.
 
 ## World Bundle Experimental profile
 

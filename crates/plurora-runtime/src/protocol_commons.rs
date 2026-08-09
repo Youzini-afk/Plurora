@@ -11,13 +11,19 @@ use serde_json::json;
 
 use crate::ProtocolError;
 
-pub const PROTOCOL_COMMONS_REGISTRY_VERSION: &str = "0.1.0";
+pub const PROTOCOL_COMMONS_REGISTRY_VERSION: &str = "0.2.0";
 pub const CHANGE_PROTOCOL_ID: &str = "plurora.change";
 pub const CHANGE_PROTOCOL_VERSION: &str = "1.0.0";
 pub const CHANGE_DEFAULT_PROFILE: &str = "plurora.change/default/v1";
 pub const SHELL_PROTOCOL_ID: &str = "plurora.shell.default";
 pub const SHELL_PROTOCOL_VERSION: &str = "1.0.0";
 pub const SHELL_PROTOCOL_PROFILE: &str = "plurora.shell.default/v1";
+pub const WORK_PROTOCOL_ID: &str = "plurora.work";
+pub const WORK_PROTOCOL_VERSION: &str = "1.0.0";
+pub const WORK_EXPERIMENTAL_PROFILE: &str = "plurora.work/experimental/v1";
+pub const ASSEMBLY_PROTOCOL_ID: &str = "plurora.assembly";
+pub const ASSEMBLY_PROTOCOL_VERSION: &str = "1.0.0";
+pub const ASSEMBLY_EXPERIMENTAL_PROFILE: &str = "plurora.assembly/experimental/v1";
 pub const WORLD_BUNDLE_PROTOCOL_ID: &str = "plurora.world.bundle";
 pub const WORLD_BUNDLE_PROTOCOL_VERSION: &str = "1.0.0";
 pub const WORLD_BUNDLE_EXPERIMENTAL_PROFILE: &str = "plurora.world.bundle/experimental/v1";
@@ -30,6 +36,8 @@ pub fn protocol_descriptors() -> &'static [ProtocolDescriptor] {
             let descriptors = vec![
                 change_protocol_descriptor(),
                 shell_protocol_descriptor(),
+                work_protocol_descriptor(),
+                assembly_protocol_descriptor(),
                 world_bundle_protocol_descriptor(),
             ];
             validate_protocol_registry(&descriptors)
@@ -463,6 +471,130 @@ fn shell_protocol_descriptor() -> ProtocolDescriptor {
     }
 }
 
+fn work_protocol_descriptor() -> ProtocolDescriptor {
+    let vectors = vec![
+        vector(
+            "work.canonical_digest_stable",
+            "Equivalent Work metadata produces identical canonical bytes and SHA-256 identity.",
+            WORK_EXPERIMENTAL_PROFILE,
+        ),
+        vector(
+            "work.portable_identity_redlines",
+            "Portable Work artifacts reject raw secrets and host-local filesystem paths.",
+            WORK_EXPERIMENTAL_PROFILE,
+        ),
+        vector(
+            "work.unknown_annotations_preserved",
+            "Unknown annotations survive lossless read, validation, and transfer.",
+            WORK_EXPERIMENTAL_PROFILE,
+        ),
+    ];
+    ProtocolDescriptor {
+        descriptor_type_uri: PROTOCOL_DESCRIPTOR_TYPE_URI.to_string(),
+        protocol_id: WORK_PROTOCOL_ID.to_string(),
+        version: WORK_PROTOCOL_VERSION.to_string(),
+        maturity: ProtocolMaturity::Experimental,
+        schemas: [
+            ("work-revision", "work-revision.schema.json"),
+            ("rights-declaration", "rights-declaration.schema.json"),
+            (
+                "transparency-declaration",
+                "transparency-declaration.schema.json",
+            ),
+            ("operational-intent", "operational-intent.schema.json"),
+        ]
+        .into_iter()
+        .map(|(id, filename)| json_schema(id, filename))
+        .collect(),
+        wit_worlds: Vec::new(),
+        semantic_specification: protocol_commons_spec("work-experimental-profile"),
+        lifecycle: protocol_commons_spec("work-artifact-lifecycle"),
+        error_model: protocol_commons_spec("work-and-assembly-error-model"),
+        authority_requirements: vec![ProtocolAuthorityRequirement {
+            authority: "object.write".to_string(),
+            scope: "explicit content-addressed artifact destination".to_string(),
+            operations: vec!["persist".to_string()],
+        }],
+        conformance_vectors: vectors.clone(),
+        compatibility_profiles: vec![profile(
+            WORK_EXPERIMENTAL_PROFILE,
+            WORK_PROTOCOL_VERSION,
+            "Portable immutable Work definitions with explicit artifact references.",
+        )],
+        migrations: Vec::new(),
+        conforming_implementations: vec![ProtocolImplementationClaim {
+            implementation_id: "plurora.work.model".to_string(),
+            provider: "plurora-work".to_string(),
+            version: WORK_PROTOCOL_VERSION.to_string(),
+            profiles: vec![WORK_EXPERIMENTAL_PROFILE.to_string()],
+            conformance_vectors: vectors.iter().map(|vector| vector.id.clone()).collect(),
+            test_only: false,
+        }],
+    }
+}
+
+fn assembly_protocol_descriptor() -> ProtocolDescriptor {
+    let vectors = vec![
+        vector(
+            "assembly.containment_acyclic",
+            "Nested Assembly containment is complete, digest-bound, bounded, and acyclic.",
+            ASSEMBLY_EXPERIMENTAL_PROFILE,
+        ),
+        vector(
+            "assembly.port_contract_valid",
+            "Bindings validate role, protocol, interface, version, profile, interaction, effect, transport, and cardinality.",
+            ASSEMBLY_EXPERIMENTAL_PROFILE,
+        ),
+        vector(
+            "assembly.state_slot_valid",
+            "Portable state declares a schema and durable replacement requires migration or explicit reset.",
+            ASSEMBLY_EXPERIMENTAL_PROFILE,
+        ),
+    ];
+    ProtocolDescriptor {
+        descriptor_type_uri: PROTOCOL_DESCRIPTOR_TYPE_URI.to_string(),
+        protocol_id: ASSEMBLY_PROTOCOL_ID.to_string(),
+        version: ASSEMBLY_PROTOCOL_VERSION.to_string(),
+        maturity: ProtocolMaturity::Experimental,
+        schemas: [
+            ("port-descriptor", "port-descriptor.schema.json"),
+            ("assembly-revision", "assembly-revision.schema.json"),
+            (
+                "state-slot-descriptor",
+                "state-slot-descriptor.schema.json",
+            ),
+            ("assembly-lock", "assembly-lock.schema.json"),
+        ]
+        .into_iter()
+        .map(|(id, filename)| json_schema(id, filename))
+        .collect(),
+        wit_worlds: Vec::new(),
+        semantic_specification: protocol_commons_spec("assembly-experimental-profile"),
+        lifecycle: protocol_commons_spec("assembly-artifact-lifecycle"),
+        error_model: protocol_commons_spec("work-and-assembly-error-model"),
+        authority_requirements: vec![ProtocolAuthorityRequirement {
+            authority: "object.write".to_string(),
+            scope: "explicit content-addressed artifact destination".to_string(),
+            operations: vec!["persist".to_string()],
+        }],
+        conformance_vectors: vectors.clone(),
+        compatibility_profiles: vec![profile(
+            ASSEMBLY_EXPERIMENTAL_PROFILE,
+            ASSEMBLY_PROTOCOL_VERSION,
+            "Recursive Component and nested Assembly graphs with typed Ports, Bindings, and State Slots.",
+        )],
+        migrations: Vec::new(),
+        conforming_implementations: vec![ProtocolImplementationClaim {
+            implementation_id: "plurora.assembly.model".to_string(),
+            provider: "plurora-work".to_string(),
+            version: ASSEMBLY_PROTOCOL_VERSION.to_string(),
+            profiles: vec![ASSEMBLY_EXPERIMENTAL_PROFILE.to_string()],
+            conformance_vectors: vectors.iter().map(|vector| vector.id.clone()).collect(),
+            test_only: false,
+        }],
+    }
+}
+
 fn world_bundle_protocol_descriptor() -> ProtocolDescriptor {
     let vectors = vec![
         vector(
@@ -596,7 +728,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn registry_contains_only_the_three_phase_six_protocols() {
+    fn registry_contains_the_five_explicit_protocols() {
         assert_eq!(
             protocol_descriptors()
                 .iter()
@@ -605,9 +737,36 @@ mod tests {
             vec![
                 CHANGE_PROTOCOL_ID,
                 SHELL_PROTOCOL_ID,
+                WORK_PROTOCOL_ID,
+                ASSEMBLY_PROTOCOL_ID,
                 WORLD_BUNDLE_PROTOCOL_ID,
             ]
         );
+    }
+
+    #[test]
+    fn work_and_assembly_remain_experimental_and_claim_their_vectors() {
+        for id in [WORK_PROTOCOL_ID, ASSEMBLY_PROTOCOL_ID] {
+            let descriptor = protocol_descriptor(id).unwrap();
+            assert_eq!(descriptor.maturity, ProtocolMaturity::Experimental);
+            assert_eq!(descriptor.compatibility_profiles.len(), 1);
+            assert_eq!(
+                descriptor.compatibility_profiles[0].maturity,
+                ProtocolMaturity::Experimental
+            );
+            assert_eq!(descriptor.conforming_implementations.len(), 1);
+            let required = descriptor
+                .conformance_vectors
+                .iter()
+                .map(|vector| vector.id.as_str())
+                .collect::<HashSet<_>>();
+            let claimed = descriptor.conforming_implementations[0]
+                .conformance_vectors
+                .iter()
+                .map(String::as_str)
+                .collect::<HashSet<_>>();
+            assert_eq!(claimed, required);
+        }
     }
 
     #[test]

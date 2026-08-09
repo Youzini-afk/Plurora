@@ -1,0 +1,90 @@
+{
+  "$defs": {
+    "ExposureId": {
+      "format": "uuid",
+      "type": "string"
+    },
+    "ExposureStatus": {
+      "enum": [
+        "active",
+        "expired",
+        "revoked"
+      ],
+      "type": "string"
+    },
+    "InstallationId": {
+      "format": "uuid",
+      "type": "string"
+    },
+    "PortId": {
+      "pattern": "^(?!.*\\.\\.)[A-Za-z0-9._-]+$",
+      "type": "string"
+    },
+    "ResourceSelector": {
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "kind": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "kind"
+      ],
+      "type": "object"
+    },
+    "RunId": {
+      "format": "uuid",
+      "type": "string"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "properties": {
+    "audience": {
+      "items": {
+        "$ref": "#/$defs/ResourceSelector"
+      },
+      "type": "array"
+    },
+    "expires_at": {
+      "format": "date-time",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "export_port": {
+      "$ref": "#/$defs/PortId"
+    },
+    "exposure_id": {
+      "$ref": "#/$defs/ExposureId"
+    },
+    "installation_id": {
+      "$ref": "#/$defs/InstallationId"
+    },
+    "run_id": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/RunId"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "status": {
+      "$ref": "#/$defs/ExposureStatus"
+    }
+  },
+  "required": [
+    "audience",
+    "export_port",
+    "exposure_id",
+    "installation_id",
+    "status"
+  ],
+  "title": "ExposureRecord",
+  "type": "object"
+}

@@ -1,0 +1,123 @@
+{
+  "$defs": {
+    "ArtifactDescriptor": {
+      "properties": {
+        "annotations": {
+          "additionalProperties": true,
+          "default": {},
+          "type": "object"
+        },
+        "artifact_type_uri": {
+          "type": "string"
+        },
+        "digest": {
+          "type": "string"
+        },
+        "media_type": {
+          "type": "string"
+        },
+        "references": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "size_bytes": {
+          "format": "uint64",
+          "minimum": 0.0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "artifact_type_uri",
+        "digest",
+        "media_type",
+        "size_bytes"
+      ],
+      "type": "object"
+    },
+    "ClaimStatus": {
+      "enum": [
+        "claimed",
+        "verified",
+        "refuted",
+        "unknown"
+      ],
+      "type": "string"
+    },
+    "SourceVisibility": {
+      "enum": [
+        "open",
+        "source_available",
+        "closed",
+        "unknown"
+      ],
+      "type": "string"
+    },
+    "StatePortability": {
+      "enum": [
+        "portable",
+        "opaque_exportable",
+        "host_bound",
+        "external_authority"
+      ],
+      "type": "string"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "properties": {
+    "evidence_refs": {
+      "items": {
+        "$ref": "#/$defs/ArtifactDescriptor"
+      },
+      "type": "array"
+    },
+    "provenance_refs": {
+      "items": {
+        "$ref": "#/$defs/ArtifactDescriptor"
+      },
+      "type": "array"
+    },
+    "reproducible_build_claim": {
+      "$ref": "#/$defs/ClaimStatus"
+    },
+    "sbom_refs": {
+      "items": {
+        "$ref": "#/$defs/ArtifactDescriptor"
+      },
+      "type": "array"
+    },
+    "signature_refs": {
+      "items": {
+        "$ref": "#/$defs/ArtifactDescriptor"
+      },
+      "type": "array"
+    },
+    "source_refs": {
+      "items": {
+        "$ref": "#/$defs/ArtifactDescriptor"
+      },
+      "type": "array"
+    },
+    "source_visibility": {
+      "$ref": "#/$defs/SourceVisibility"
+    },
+    "state_portability": {
+      "$ref": "#/$defs/StatePortability"
+    },
+    "telemetry_disclosures": {
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    }
+  },
+  "required": [
+    "reproducible_build_claim",
+    "source_visibility",
+    "state_portability"
+  ],
+  "title": "TransparencyDeclaration",
+  "type": "object"
+}

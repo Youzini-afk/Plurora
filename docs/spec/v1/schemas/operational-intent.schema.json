@@ -1,0 +1,459 @@
+{
+  "$defs": {
+    "AccessMode": {
+      "enum": [
+        "read_only",
+        "read_write",
+        "append_only"
+      ],
+      "type": "string"
+    },
+    "EndpointIntent": {
+      "properties": {
+        "annotations": {
+          "additionalProperties": true,
+          "type": "object"
+        },
+        "endpoint_id": {
+          "type": "string"
+        },
+        "port": {
+          "$ref": "#/$defs/PortEndpoint"
+        },
+        "protocol_hint": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "visibility": {
+          "$ref": "#/$defs/EndpointVisibility"
+        }
+      },
+      "required": [
+        "endpoint_id",
+        "port",
+        "visibility"
+      ],
+      "type": "object"
+    },
+    "EndpointVisibility": {
+      "enum": [
+        "private",
+        "shared",
+        "public"
+      ],
+      "type": "string"
+    },
+    "FilesystemImport": {
+      "properties": {
+        "access": {
+          "$ref": "#/$defs/AccessMode"
+        },
+        "import_id": {
+          "type": "string"
+        },
+        "resource_id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "access",
+        "import_id",
+        "resource_id"
+      ],
+      "type": "object"
+    },
+    "NetworkImport": {
+      "properties": {
+        "allowed_destinations": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "import_id": {
+          "type": "string"
+        },
+        "protocol": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "import_id",
+        "protocol"
+      ],
+      "type": "object"
+    },
+    "NodeId": {
+      "pattern": "^(?!.*\\.\\.)[A-Za-z0-9._-]+$",
+      "type": "string"
+    },
+    "PlacementConstraint": {
+      "properties": {
+        "constraint_id": {
+          "type": "string"
+        },
+        "hard": {
+          "type": "boolean"
+        },
+        "kind": {
+          "$ref": "#/$defs/PlacementConstraintKind"
+        },
+        "label": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "nodes": {
+          "items": {
+            "$ref": "#/$defs/NodeId"
+          },
+          "type": "array"
+        },
+        "value": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "constraint_id",
+        "hard",
+        "kind"
+      ],
+      "type": "object"
+    },
+    "PlacementConstraintKind": {
+      "enum": [
+        "co_locate",
+        "separate",
+        "require_label",
+        "prefer_label"
+      ],
+      "type": "string"
+    },
+    "PortEndpoint": {
+      "properties": {
+        "node_id": {
+          "$ref": "#/$defs/NodeId"
+        },
+        "port_id": {
+          "$ref": "#/$defs/PortId"
+        }
+      },
+      "required": [
+        "node_id",
+        "port_id"
+      ],
+      "type": "object"
+    },
+    "PortId": {
+      "pattern": "^(?!.*\\.\\.)[A-Za-z0-9._-]+$",
+      "type": "string"
+    },
+    "ReplicaPolicy": {
+      "properties": {
+        "max": {
+          "format": "uint16",
+          "minimum": 0.0,
+          "type": "integer"
+        },
+        "min": {
+          "format": "uint16",
+          "minimum": 0.0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "max",
+        "min"
+      ],
+      "type": "object"
+    },
+    "ResourceRequirements": {
+      "properties": {
+        "cpu_millis": {
+          "format": "uint64",
+          "minimum": 0.0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "duration_seconds": {
+          "format": "uint64",
+          "minimum": 0.0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "gpu_count": {
+          "format": "uint32",
+          "minimum": 0.0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "max_concurrency": {
+          "format": "uint32",
+          "minimum": 0.0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "memory_bytes": {
+          "format": "uint64",
+          "minimum": 0.0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "storage_bytes": {
+          "format": "uint64",
+          "minimum": 0.0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        }
+      },
+      "type": "object"
+    },
+    "RestartPolicy": {
+      "enum": [
+        "never",
+        "on_failure",
+        "always"
+      ],
+      "type": "string"
+    },
+    "SecretImport": {
+      "properties": {
+        "required": {
+          "default": false,
+          "type": "boolean"
+        },
+        "secret_id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "secret_id"
+      ],
+      "type": "object"
+    },
+    "StateDurability": {
+      "enum": [
+        "ephemeral",
+        "durable",
+        "external"
+      ],
+      "type": "string"
+    },
+    "StatePlacementIntent": {
+      "properties": {
+        "durability": {
+          "$ref": "#/$defs/StateDurability"
+        },
+        "replication": {
+          "default": 0,
+          "format": "uint16",
+          "minimum": 0.0,
+          "type": "integer"
+        },
+        "required_capabilities": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "state_slot_id": {
+          "$ref": "#/$defs/StateSlotId"
+        }
+      },
+      "required": [
+        "durability",
+        "state_slot_id"
+      ],
+      "type": "object"
+    },
+    "StateSlotId": {
+      "pattern": "^(?!.*\\.\\.)[A-Za-z0-9._-]+$",
+      "type": "string"
+    },
+    "UpdatePolicy": {
+      "properties": {
+        "health_timeout_seconds": {
+          "format": "uint64",
+          "minimum": 0.0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "max_unavailable": {
+          "default": 0,
+          "format": "uint16",
+          "minimum": 0.0,
+          "type": "integer"
+        },
+        "strategy": {
+          "$ref": "#/$defs/UpdateStrategy"
+        }
+      },
+      "required": [
+        "strategy"
+      ],
+      "type": "object"
+    },
+    "UpdateStrategy": {
+      "enum": [
+        "replace",
+        "rolling",
+        "recreate"
+      ],
+      "type": "string"
+    },
+    "WorkloadImports": {
+      "properties": {
+        "filesystem": {
+          "items": {
+            "$ref": "#/$defs/FilesystemImport"
+          },
+          "type": "array"
+        },
+        "network": {
+          "items": {
+            "$ref": "#/$defs/NetworkImport"
+          },
+          "type": "array"
+        },
+        "secret_imports": {
+          "items": {
+            "$ref": "#/$defs/SecretImport"
+          },
+          "type": "array"
+        }
+      },
+      "type": "object"
+    },
+    "WorkloadIntent": {
+      "properties": {
+        "annotations": {
+          "additionalProperties": true,
+          "type": "object"
+        },
+        "execution_classes": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "health_port": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PortEndpoint"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "imports": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/WorkloadImports"
+            }
+          ],
+          "default": {}
+        },
+        "node_id": {
+          "$ref": "#/$defs/NodeId"
+        },
+        "replicas": {
+          "$ref": "#/$defs/ReplicaPolicy"
+        },
+        "resources": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/ResourceRequirements"
+            }
+          ],
+          "default": {}
+        },
+        "restart_policy": {
+          "$ref": "#/$defs/RestartPolicy"
+        },
+        "workload_id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "execution_classes",
+        "node_id",
+        "replicas",
+        "restart_policy",
+        "workload_id"
+      ],
+      "type": "object"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "properties": {
+    "annotations": {
+      "additionalProperties": true,
+      "type": "object"
+    },
+    "endpoints": {
+      "items": {
+        "$ref": "#/$defs/EndpointIntent"
+      },
+      "type": "array"
+    },
+    "placement": {
+      "items": {
+        "$ref": "#/$defs/PlacementConstraint"
+      },
+      "type": "array"
+    },
+    "schema": {
+      "const": "plurora.operational-intent.v1",
+      "type": "string"
+    },
+    "state": {
+      "items": {
+        "$ref": "#/$defs/StatePlacementIntent"
+      },
+      "type": "array"
+    },
+    "update_policy": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/UpdatePolicy"
+        }
+      ],
+      "default": {
+        "max_unavailable": 1,
+        "strategy": "replace"
+      }
+    },
+    "workloads": {
+      "items": {
+        "$ref": "#/$defs/WorkloadIntent"
+      },
+      "type": "array"
+    }
+  },
+  "required": [
+    "schema"
+  ],
+  "title": "OperationalIntent",
+  "type": "object"
+}

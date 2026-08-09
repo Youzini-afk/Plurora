@@ -1,5 +1,68 @@
 components:
   schemas:
+    AccessMode:
+      enum:
+      - read_only
+      - read_write
+      - append_only
+      type: string
+    AcquisitionKind:
+      enum:
+      - work_bundle
+      - package
+      - git_snapshot
+      - local_import
+      - remote_catalog
+      - foreign_binding
+      type: string
+    AcquisitionRecord:
+      properties:
+        kind:
+          $ref: '#/components/schemas/AcquisitionKind'
+        provenance_refs:
+          items:
+            $ref: '#/components/schemas/ArtifactDescriptor'
+          type: array
+        source_ref:
+          anyOf:
+          - $ref: '#/components/schemas/ArtifactDescriptor'
+          - type: 'null'
+        update_channel:
+          type:
+          - string
+          - 'null'
+      required:
+      - kind
+      type: object
+    ActiveBindingRecord:
+      $schema: https://json-schema.org/draft/2020-12/schema
+      properties:
+        authority_handle_id:
+          type: string
+        binding_id:
+          $ref: '#/components/schemas/BindingId'
+        consumer_installation_id:
+          $ref: '#/components/schemas/InstallationId'
+        consumer_port:
+          $ref: '#/components/schemas/PortId'
+        expires_at:
+          format: date-time
+          type:
+          - string
+          - 'null'
+        exposure_id:
+          $ref: '#/components/schemas/ExposureId'
+        transport:
+          $ref: '#/components/schemas/SelectedTransport'
+      required:
+      - authority_handle_id
+      - binding_id
+      - consumer_installation_id
+      - consumer_port
+      - exposure_id
+      - transport
+      title: ActiveBindingRecord
+      type: object
     AppendEventRequest:
       $schema: https://json-schema.org/draft/2020-12/schema
       properties:
@@ -47,6 +110,159 @@ components:
       - media_type
       - size_bytes
       title: ArtifactDescriptor
+      type: object
+    AssemblyBinding:
+      properties:
+        annotations:
+          additionalProperties: true
+          type: object
+        binding_id:
+          type: string
+        consumer:
+          $ref: '#/components/schemas/PortEndpoint'
+        phase:
+          $ref: '#/components/schemas/BindingPhase'
+        provider:
+          $ref: '#/components/schemas/PortEndpoint'
+        transport_policy:
+          allOf:
+          - $ref: '#/components/schemas/TransportPolicy'
+          default:
+            requirements:
+              large_payload: false
+              local_only: false
+              ordered: false
+              reliable: false
+              same_process: false
+              shared_memory_allowed: false
+      required:
+      - binding_id
+      - consumer
+      - phase
+      - provider
+      type: object
+    AssemblyId:
+      pattern: ^(?!.*\.\.)[A-Za-z0-9._-]+(?:/[A-Za-z0-9._-]+)+$
+      type: string
+    AssemblyLock:
+      $schema: https://json-schema.org/draft/2020-12/schema
+      properties:
+        assembly:
+          $ref: '#/components/schemas/ArtifactDescriptor'
+        bindings:
+          items:
+            $ref: '#/components/schemas/BindingLock'
+          type: array
+        content_roots:
+          items:
+            $ref: '#/components/schemas/ArtifactDescriptor'
+          type: array
+        nodes:
+          items:
+            $ref: '#/components/schemas/NodeLock'
+          type: array
+        protocol_profiles:
+          items:
+            $ref: '#/components/schemas/ProtocolProfilePin'
+          type: array
+        schema:
+          const: plurora.assembly-lock.v1
+          type: string
+      required:
+      - assembly
+      - nodes
+      - schema
+      title: AssemblyLock
+      type: object
+    AssemblyNode:
+      properties:
+        annotations:
+          additionalProperties: true
+          type: object
+        configuration:
+          anyOf:
+          - $ref: '#/components/schemas/ArtifactDescriptor'
+          - type: 'null'
+        node_id:
+          $ref: '#/components/schemas/NodeId'
+        source:
+          $ref: '#/components/schemas/AssemblyNodeSource'
+      required:
+      - node_id
+      - source
+      type: object
+    AssemblyNodeSource:
+      oneOf:
+      - properties:
+          component:
+            $ref: '#/components/schemas/ArtifactDescriptor'
+          kind:
+            enum:
+            - component
+            type: string
+        required:
+        - component
+        - kind
+        type: object
+      - properties:
+          assembly:
+            $ref: '#/components/schemas/ArtifactDescriptor'
+          kind:
+            enum:
+            - assembly
+            type: string
+        required:
+        - assembly
+        - kind
+        type: object
+    AssemblyPortExposure:
+      properties:
+        annotations:
+          additionalProperties: true
+          type: object
+        direction:
+          $ref: '#/components/schemas/PortDirection'
+        port_id:
+          $ref: '#/components/schemas/PortId'
+        target:
+          $ref: '#/components/schemas/PortEndpoint'
+      required:
+      - direction
+      - port_id
+      - target
+      type: object
+    AssemblyRevision:
+      $schema: https://json-schema.org/draft/2020-12/schema
+      properties:
+        annotations:
+          additionalProperties: true
+          type: object
+        assembly_id:
+          $ref: '#/components/schemas/AssemblyId'
+        bindings:
+          items:
+            $ref: '#/components/schemas/AssemblyBinding'
+          type: array
+        exposed_ports:
+          items:
+            $ref: '#/components/schemas/AssemblyPortExposure'
+          type: array
+        nodes:
+          items:
+            $ref: '#/components/schemas/AssemblyNode'
+          type: array
+        schema:
+          const: plurora.assembly-revision.v1
+          type: string
+        state_slots:
+          items:
+            $ref: '#/components/schemas/StateSlotDescriptor'
+          type: array
+      required:
+      - assembly_id
+      - nodes
+      - schema
+      title: AssemblyRevision
       type: object
     AssetGetParams:
       $schema: https://json-schema.org/draft/2020-12/schema
@@ -231,6 +447,50 @@ components:
       type: array
     AuthorityHandleRevokeResult:
       type: object
+    AvailabilityPolicy:
+      enum:
+      - required
+      - degraded_without
+      - optional
+      type: string
+    BackupPolicy:
+      enum:
+      - required
+      - allowed
+      - forbidden
+      type: string
+    BindingId:
+      format: uuid
+      type: string
+    BindingLock:
+      properties:
+        binding_id:
+          type: string
+        consumer:
+          $ref: '#/components/schemas/PortEndpoint'
+        phase:
+          $ref: '#/components/schemas/BindingPhase'
+        provider:
+          $ref: '#/components/schemas/PortEndpoint'
+        provider_component:
+          $ref: '#/components/schemas/ArtifactDescriptor'
+        transport:
+          $ref: '#/components/schemas/SelectedTransport'
+      required:
+      - binding_id
+      - consumer
+      - phase
+      - provider
+      - provider_component
+      - transport
+      type: object
+    BindingPhase:
+      enum:
+      - authoring
+      - installation
+      - launch
+      - runtime
+      type: string
     BranchRecord:
       $schema: https://json-schema.org/draft/2020-12/schema
       properties:
@@ -256,6 +516,29 @@ components:
       - id
       - parent_session_id
       title: BranchRecord
+      type: object
+    BuildAction:
+      properties:
+        action_id:
+          type: string
+        builder_id:
+          type: string
+        input_refs:
+          items:
+            $ref: '#/components/schemas/ArtifactDescriptor'
+          type: array
+        node_id:
+          $ref: '#/components/schemas/NodeId'
+        output_id:
+          type: string
+        parameter_ref:
+          $ref: '#/components/schemas/ArtifactDescriptor'
+      required:
+      - action_id
+      - builder_id
+      - node_id
+      - output_id
+      - parameter_ref
       type: object
     CapAttenuateParams:
       $schema: https://json-schema.org/draft/2020-12/schema
@@ -784,6 +1067,13 @@ components:
       - intent_id
       title: ChangeSet
       type: object
+    ClaimStatus:
+      enum:
+      - claimed
+      - verified
+      - refuted
+      - unknown
+      type: string
     ComponentBoundaryClaims:
       properties:
         filesystem_isolation:
@@ -1237,6 +1527,14 @@ components:
       - routes_removed
       title: DeploymentReconcileSummary
       type: object
+    EffectClass:
+      enum:
+      - pure
+      - deterministic_stateful
+      - recorded_nondeterministic
+      - external_effecting
+      - realtime_best_effort
+      type: string
     EffectReceipt:
       $schema: https://json-schema.org/draft/2020-12/schema
       properties:
@@ -1368,6 +1666,51 @@ components:
       $schema: https://json-schema.org/draft/2020-12/schema
       title: EmptyParams
       type: object
+    EndpointAction:
+      properties:
+        action_id:
+          type: string
+        endpoint_id:
+          type: string
+        target_id:
+          type: string
+        transport:
+          $ref: '#/components/schemas/SelectedTransport'
+        visibility:
+          $ref: '#/components/schemas/EndpointVisibility'
+      required:
+      - action_id
+      - endpoint_id
+      - target_id
+      - transport
+      - visibility
+      type: object
+    EndpointIntent:
+      properties:
+        annotations:
+          additionalProperties: true
+          type: object
+        endpoint_id:
+          type: string
+        port:
+          $ref: '#/components/schemas/PortEndpoint'
+        protocol_hint:
+          type:
+          - string
+          - 'null'
+        visibility:
+          $ref: '#/components/schemas/EndpointVisibility'
+      required:
+      - endpoint_id
+      - port
+      - visibility
+      type: object
+    EndpointVisibility:
+      enum:
+      - private
+      - shared
+      - public
+      type: string
     EntryDescriptor:
       oneOf:
       - properties:
@@ -1792,6 +2135,47 @@ components:
         enum:
         - real
         type: string
+    ExposureId:
+      format: uuid
+      type: string
+    ExposureRecord:
+      $schema: https://json-schema.org/draft/2020-12/schema
+      properties:
+        audience:
+          items:
+            $ref: '#/components/schemas/ResourceSelector'
+          type: array
+        expires_at:
+          format: date-time
+          type:
+          - string
+          - 'null'
+        export_port:
+          $ref: '#/components/schemas/PortId'
+        exposure_id:
+          $ref: '#/components/schemas/ExposureId'
+        installation_id:
+          $ref: '#/components/schemas/InstallationId'
+        run_id:
+          anyOf:
+          - $ref: '#/components/schemas/RunId'
+          - type: 'null'
+        status:
+          $ref: '#/components/schemas/ExposureStatus'
+      required:
+      - audience
+      - export_port
+      - exposure_id
+      - installation_id
+      - status
+      title: ExposureRecord
+      type: object
+    ExposureStatus:
+      enum:
+      - active
+      - expired
+      - revoked
+      type: string
     ExtensionPointDescriptor:
       properties:
         id:
@@ -1861,6 +2245,19 @@ components:
       - managed
       - linked_local
       type: string
+    FilesystemImport:
+      properties:
+        access:
+          $ref: '#/components/schemas/AccessMode'
+        import_id:
+          type: string
+        resource_id:
+          type: string
+      required:
+      - access
+      - import_id
+      - resource_id
+      type: object
     FilesystemPermissions:
       properties:
         read:
@@ -1926,6 +2323,13 @@ components:
       required:
       - holder_package_id
       type: object
+    HealthStatus:
+      enum:
+      - unknown
+      - healthy
+      - degraded
+      - unhealthy
+      type: string
     HookSubscription:
       properties:
         extension_point:
@@ -2678,6 +3082,75 @@ components:
       type: array
     IdentityCurrentResult:
       type: 'null'
+    InstallationId:
+      format: uuid
+      type: string
+    InstallationRecord:
+      $schema: https://json-schema.org/draft/2020-12/schema
+      properties:
+        assembly_lock:
+          $ref: '#/components/schemas/ArtifactDescriptor'
+        created_at:
+          format: date-time
+          type: string
+        display_name:
+          type: string
+        installation_id:
+          $ref: '#/components/schemas/InstallationId'
+        schema_version:
+          const: 1
+          format: uint16
+          type: integer
+        secret_policy:
+          allOf:
+          - $ref: '#/components/schemas/InstallationSecretPolicy'
+          default:
+            allow_platform_fallback: false
+        source:
+          $ref: '#/components/schemas/AcquisitionRecord'
+        state_bindings:
+          items:
+            $ref: '#/components/schemas/StateBindingRecord'
+          type: array
+        status:
+          $ref: '#/components/schemas/InstallationStatus'
+        updated_at:
+          format: date-time
+          type: string
+        work_revision:
+          $ref: '#/components/schemas/ArtifactDescriptor'
+      required:
+      - assembly_lock
+      - created_at
+      - display_name
+      - installation_id
+      - schema_version
+      - source
+      - status
+      - updated_at
+      - work_revision
+      title: InstallationRecord
+      type: object
+    InstallationSecretPolicy:
+      properties:
+        allow_platform_fallback:
+          default: false
+          type: boolean
+        allowed_secret_refs:
+          items:
+            type: string
+          type: array
+      type: object
+    InstallationStatus:
+      enum:
+      - resolving
+      - ready
+      - updating
+      - blocked
+      - failed
+      - removing
+      - removed
+      type: string
     Intent:
       $schema: https://json-schema.org/draft/2020-12/schema
       properties:
@@ -2751,6 +3224,26 @@ components:
       type: array
     JournalSubscribeResult:
       type: 'null'
+    LaunchAction:
+      properties:
+        action_id:
+          type: string
+        artifact:
+          $ref: '#/components/schemas/ArtifactDescriptor'
+        node_id:
+          $ref: '#/components/schemas/NodeId'
+        parameter_ref:
+          anyOf:
+          - $ref: '#/components/schemas/ArtifactDescriptor'
+          - type: 'null'
+        target_id:
+          type: string
+      required:
+      - action_id
+      - artifact
+      - node_id
+      - target_id
+      type: object
     LocalExecDeclaration:
       properties:
         max_count:
@@ -3011,6 +3504,20 @@ components:
       required:
       - host
       type: object
+    NetworkImport:
+      properties:
+        allowed_destinations:
+          items:
+            type: string
+          type: array
+        import_id:
+          type: string
+        protocol:
+          type: string
+      required:
+      - import_id
+      - protocol
+      type: object
     NetworkPermissions:
       properties:
         declarations:
@@ -3025,6 +3532,70 @@ components:
           items:
             type: string
           type: array
+      type: object
+    NodeId:
+      pattern: ^(?!.*\.\.)[A-Za-z0-9._-]+$
+      type: string
+    NodeInstanceRecord:
+      properties:
+        instance_id:
+          type: string
+        node_id:
+          $ref: '#/components/schemas/NodeId'
+        realization_id:
+          anyOf:
+          - $ref: '#/components/schemas/RealizationId'
+          - type: 'null'
+        status:
+          $ref: '#/components/schemas/NodeInstanceStatus'
+      required:
+      - instance_id
+      - node_id
+      - status
+      type: object
+    NodeInstanceStatus:
+      enum:
+      - starting
+      - running
+      - degraded
+      - stopping
+      - stopped
+      - failed
+      - interrupted
+      type: string
+    NodeLock:
+      properties:
+        artifact:
+          $ref: '#/components/schemas/ArtifactDescriptor'
+        behavior_digest:
+          type:
+          - string
+          - 'null'
+        node_id:
+          $ref: '#/components/schemas/NodeId'
+        trust_class:
+          anyOf:
+          - $ref: '#/components/schemas/ComponentTrustClass'
+          - type: 'null'
+      required:
+      - artifact
+      - node_id
+      type: object
+    NodePlacement:
+      properties:
+        execution_class:
+          type: string
+        node_id:
+          $ref: '#/components/schemas/NodeId'
+        placement_id:
+          type: string
+        target_id:
+          type: string
+      required:
+      - execution_class
+      - node_id
+      - placement_id
+      - target_id
       type: object
     ObjectListResult:
       items:
@@ -3078,6 +3649,41 @@ components:
       - labels
       - metadata
       title: OpenSessionRequest
+      type: object
+    OperationalIntent:
+      $schema: https://json-schema.org/draft/2020-12/schema
+      properties:
+        annotations:
+          additionalProperties: true
+          type: object
+        endpoints:
+          items:
+            $ref: '#/components/schemas/EndpointIntent'
+          type: array
+        placement:
+          items:
+            $ref: '#/components/schemas/PlacementConstraint'
+          type: array
+        schema:
+          const: plurora.operational-intent.v1
+          type: string
+        state:
+          items:
+            $ref: '#/components/schemas/StatePlacementIntent'
+          type: array
+        update_policy:
+          allOf:
+          - $ref: '#/components/schemas/UpdatePolicy'
+          default:
+            max_unavailable: 1
+            strategy: replace
+        workloads:
+          items:
+            $ref: '#/components/schemas/WorkloadIntent'
+          type: array
+      required:
+      - schema
+      title: OperationalIntent
       type: object
     OutboundAuditParams:
       $schema: https://json-schema.org/draft/2020-12/schema
@@ -4254,6 +4860,38 @@ components:
             type: string
           type: array
       type: object
+    PlacementConstraint:
+      properties:
+        constraint_id:
+          type: string
+        hard:
+          type: boolean
+        kind:
+          $ref: '#/components/schemas/PlacementConstraintKind'
+        label:
+          type:
+          - string
+          - 'null'
+        nodes:
+          items:
+            $ref: '#/components/schemas/NodeId'
+          type: array
+        value:
+          type:
+          - string
+          - 'null'
+      required:
+      - constraint_id
+      - hard
+      - kind
+      type: object
+    PlacementConstraintKind:
+      enum:
+      - co_locate
+      - separate
+      - require_label
+      - prefer_label
+      type: string
     PolicyDecision:
       $schema: https://json-schema.org/draft/2020-12/schema
       properties:
@@ -4302,6 +4940,23 @@ components:
       enum:
       - loopback_only
       type: string
+    PortContract:
+      properties:
+        interface_id:
+          type: string
+        profiles:
+          items:
+            type: string
+          type: array
+        protocol_id:
+          type: string
+        version:
+          type: string
+      required:
+      - interface_id
+      - protocol_id
+      - version
+      type: object
     PortDeclaration:
       properties:
         max_count:
@@ -4321,6 +4976,55 @@ components:
       required:
       - target_id
       type: object
+    PortDescriptor:
+      $schema: https://json-schema.org/draft/2020-12/schema
+      properties:
+        annotations:
+          additionalProperties: true
+          type: object
+        contract:
+          $ref: '#/components/schemas/PortContract'
+        interaction:
+          type: string
+        port_id:
+          $ref: '#/components/schemas/PortId'
+        role:
+          $ref: '#/components/schemas/PortRole'
+        transport:
+          allOf:
+          - $ref: '#/components/schemas/TransportRequirements'
+          default:
+            large_payload: false
+            local_only: false
+            ordered: false
+            reliable: false
+            same_process: false
+            shared_memory_allowed: false
+      required:
+      - contract
+      - interaction
+      - port_id
+      - role
+      title: PortDescriptor
+      type: object
+    PortDirection:
+      enum:
+      - import
+      - export
+      type: string
+    PortEndpoint:
+      properties:
+        node_id:
+          $ref: '#/components/schemas/NodeId'
+        port_id:
+          $ref: '#/components/schemas/PortId'
+      required:
+      - node_id
+      - port_id
+      type: object
+    PortId:
+      pattern: ^(?!.*\.\.)[A-Za-z0-9._-]+$
+      type: string
     PortLeaseIdParams:
       $schema: https://json-schema.org/draft/2020-12/schema
       properties:
@@ -4397,6 +5101,21 @@ components:
       - reserved
       - released
       type: string
+    PortMultiplicity:
+      properties:
+        max:
+          format: uint16
+          minimum: 0.0
+          type:
+          - integer
+          - 'null'
+        min:
+          format: uint16
+          minimum: 0.0
+          type: integer
+      required:
+      - min
+      type: object
     PortPermissions:
       properties:
         declarations:
@@ -4417,6 +5136,44 @@ components:
       - tcp
       - udp
       type: string
+    PortRole:
+      oneOf:
+      - properties:
+          accepted_effects:
+            items:
+              $ref: '#/components/schemas/EffectClass'
+            type: array
+          availability:
+            $ref: '#/components/schemas/AvailabilityPolicy'
+          kind:
+            enum:
+            - import
+            type: string
+          latest_binding_phase:
+            $ref: '#/components/schemas/BindingPhase'
+          multiplicity:
+            $ref: '#/components/schemas/PortMultiplicity'
+        required:
+        - accepted_effects
+        - availability
+        - kind
+        - latest_binding_phase
+        - multiplicity
+        type: object
+      - properties:
+          effect_class:
+            $ref: '#/components/schemas/EffectClass'
+          kind:
+            enum:
+            - export
+            type: string
+          multiplicity:
+            $ref: '#/components/schemas/PortMultiplicity'
+        required:
+        - effect_class
+        - kind
+        - multiplicity
+        type: object
     PrincipalIdentity:
       oneOf:
       - properties:
@@ -5376,6 +6133,20 @@ components:
       - protocol_id
       - version
       type: object
+    ProtocolRequirement:
+      properties:
+        profiles:
+          items:
+            type: string
+          type: array
+        protocol_id:
+          type: string
+        version:
+          type: string
+      required:
+      - protocol_id
+      - version
+      type: object
     ProtocolResourceSelector:
       properties:
         id:
@@ -5598,6 +6369,165 @@ components:
       - tcp_port
       - http_get
       type: string
+    RealizationHealth:
+      properties:
+        evidence_refs:
+          items:
+            $ref: '#/components/schemas/ArtifactDescriptor'
+          type: array
+        reason_code:
+          type:
+          - string
+          - 'null'
+        status:
+          $ref: '#/components/schemas/HealthStatus'
+      required:
+      - status
+      type: object
+    RealizationId:
+      format: uuid
+      type: string
+    RealizationPlan:
+      $schema: https://json-schema.org/draft/2020-12/schema
+      properties:
+        assembly_lock:
+          $ref: '#/components/schemas/ArtifactDescriptor'
+        build_actions:
+          items:
+            $ref: '#/components/schemas/BuildAction'
+          type: array
+        endpoint_actions:
+          items:
+            $ref: '#/components/schemas/EndpointAction'
+          type: array
+        installation_id:
+          $ref: '#/components/schemas/InstallationId'
+        inventory_refs:
+          items:
+            $ref: '#/components/schemas/ArtifactDescriptor'
+          type: array
+        launch_actions:
+          items:
+            $ref: '#/components/schemas/LaunchAction'
+          type: array
+        operational_intent:
+          $ref: '#/components/schemas/ArtifactDescriptor'
+        placements:
+          items:
+            $ref: '#/components/schemas/NodePlacement'
+          type: array
+        preconditions:
+          items:
+            $ref: '#/components/schemas/ChangePrecondition'
+          type: array
+        required_authority:
+          items:
+            type: string
+          type: array
+        risk_summary:
+          items:
+            type: string
+          type: array
+        schema:
+          const: plurora.realization-plan.v1
+          type: string
+        state_actions:
+          items:
+            $ref: '#/components/schemas/StateAction'
+          type: array
+        transports:
+          items:
+            $ref: '#/components/schemas/TransportBindingPlan'
+          type: array
+        work_revision:
+          $ref: '#/components/schemas/ArtifactDescriptor'
+      required:
+      - assembly_lock
+      - installation_id
+      - inventory_refs
+      - operational_intent
+      - required_authority
+      - schema
+      - work_revision
+      title: RealizationPlan
+      type: object
+    RealizationRevision:
+      $schema: https://json-schema.org/draft/2020-12/schema
+      properties:
+        activated_at:
+          format: date-time
+          type:
+          - string
+          - 'null'
+        actual_resources:
+          items:
+            $ref: '#/components/schemas/RealizedResource'
+          type: array
+        created_at:
+          format: date-time
+          type: string
+        health:
+          $ref: '#/components/schemas/RealizationHealth'
+        installation_id:
+          $ref: '#/components/schemas/InstallationId'
+        parent_realization_id:
+          anyOf:
+          - $ref: '#/components/schemas/RealizationId'
+          - type: 'null'
+        plan_ref:
+          $ref: '#/components/schemas/ArtifactDescriptor'
+        realization_id:
+          $ref: '#/components/schemas/RealizationId'
+        receipts:
+          items:
+            $ref: '#/components/schemas/ArtifactDescriptor'
+          type: array
+        status:
+          $ref: '#/components/schemas/RealizationStatus'
+      required:
+      - created_at
+      - health
+      - installation_id
+      - plan_ref
+      - realization_id
+      - status
+      title: RealizationRevision
+      type: object
+    RealizationStatus:
+      enum:
+      - planned
+      - applying
+      - active
+      - degraded
+      - stopping
+      - stopped
+      - failed
+      - outcome_unknown
+      - recovery_required
+      type: string
+    RealizedResource:
+      properties:
+        backend_id:
+          type: string
+        properties:
+          additionalProperties: true
+          type: object
+        receipt_ref:
+          anyOf:
+          - $ref: '#/components/schemas/ArtifactDescriptor'
+          - type: 'null'
+        resource_id:
+          type: string
+        resource_type:
+          type: string
+        target_id:
+          type: string
+      required:
+      - backend_id
+      - resource_id
+      - resource_type
+      - target_id
+      type: object
     RedactionState:
       description: |-
         Redaction state for an outbound audit record.
@@ -5633,6 +6563,229 @@ components:
       required:
       - scheme
       type: object
+    ReplicaPolicy:
+      properties:
+        max:
+          format: uint16
+          minimum: 0.0
+          type: integer
+        min:
+          format: uint16
+          minimum: 0.0
+          type: integer
+      required:
+      - max
+      - min
+      type: object
+    ResourceCapacity:
+      properties:
+        cpu_millis:
+          default: 0
+          format: uint64
+          minimum: 0.0
+          type: integer
+        gpu_count:
+          default: 0
+          format: uint32
+          minimum: 0.0
+          type: integer
+        max_workloads:
+          default: 0
+          format: uint32
+          minimum: 0.0
+          type: integer
+        memory_bytes:
+          default: 0
+          format: uint64
+          minimum: 0.0
+          type: integer
+        storage_bytes:
+          default: 0
+          format: uint64
+          minimum: 0.0
+          type: integer
+      type: object
+    ResourceRequirements:
+      properties:
+        cpu_millis:
+          format: uint64
+          minimum: 0.0
+          type:
+          - integer
+          - 'null'
+        duration_seconds:
+          format: uint64
+          minimum: 0.0
+          type:
+          - integer
+          - 'null'
+        gpu_count:
+          format: uint32
+          minimum: 0.0
+          type:
+          - integer
+          - 'null'
+        max_concurrency:
+          format: uint32
+          minimum: 0.0
+          type:
+          - integer
+          - 'null'
+        memory_bytes:
+          format: uint64
+          minimum: 0.0
+          type:
+          - integer
+          - 'null'
+        storage_bytes:
+          format: uint64
+          minimum: 0.0
+          type:
+          - integer
+          - 'null'
+      type: object
+    ResourceSelector:
+      properties:
+        id:
+          type: string
+        kind:
+          type: string
+      required:
+      - id
+      - kind
+      type: object
+    RestartPolicy:
+      enum:
+      - never
+      - on_failure
+      - always
+      type: string
+    RightDisposition:
+      enum:
+      - allowed
+      - denied
+      - requires_entitlement
+      - unspecified
+      type: string
+    RightsDeclaration:
+      $schema: https://json-schema.org/draft/2020-12/schema
+      properties:
+        backup:
+          $ref: '#/components/schemas/RightDisposition'
+        copy_across_hosts:
+          $ref: '#/components/schemas/RightDisposition'
+        dedicated_server:
+          $ref: '#/components/schemas/RightDisposition'
+        derive:
+          $ref: '#/components/schemas/RightDisposition'
+        entitlement_requirements:
+          items:
+            $ref: '#/components/schemas/ProtocolRequirement'
+          type: array
+        evidence_refs:
+          items:
+            $ref: '#/components/schemas/ArtifactDescriptor'
+          type: array
+        execute:
+          $ref: '#/components/schemas/RightDisposition'
+        export_state:
+          $ref: '#/components/schemas/RightDisposition'
+        install:
+          $ref: '#/components/schemas/RightDisposition'
+        license_expression:
+          type:
+          - string
+          - 'null'
+        modding:
+          $ref: '#/components/schemas/RightDisposition'
+        modify:
+          $ref: '#/components/schemas/RightDisposition'
+        redistribute_artifacts:
+          $ref: '#/components/schemas/RightDisposition'
+        terms_uri:
+          type:
+          - string
+          - 'null'
+      required:
+      - backup
+      - copy_across_hosts
+      - dedicated_server
+      - derive
+      - execute
+      - export_state
+      - install
+      - modding
+      - modify
+      - redistribute_artifacts
+      title: RightsDeclaration
+      type: object
+    RunHealth:
+      properties:
+        diagnostic_refs:
+          items:
+            $ref: '#/components/schemas/ArtifactDescriptor'
+          type: array
+        reason_code:
+          type:
+          - string
+          - 'null'
+        status:
+          $ref: '#/components/schemas/HealthStatus'
+      required:
+      - status
+      type: object
+    RunId:
+      format: uuid
+      type: string
+    RunRecord:
+      $schema: https://json-schema.org/draft/2020-12/schema
+      properties:
+        bindings:
+          items:
+            $ref: '#/components/schemas/ActiveBindingRecord'
+          type: array
+        context_id:
+          type:
+          - string
+          - 'null'
+        health:
+          $ref: '#/components/schemas/RunHealth'
+        installation_id:
+          $ref: '#/components/schemas/InstallationId'
+        node_instances:
+          items:
+            $ref: '#/components/schemas/NodeInstanceRecord'
+          type: array
+        run_id:
+          $ref: '#/components/schemas/RunId'
+        started_at:
+          format: date-time
+          type: string
+        status:
+          $ref: '#/components/schemas/RunStatus'
+        stopped_at:
+          format: date-time
+          type:
+          - string
+          - 'null'
+      required:
+      - health
+      - installation_id
+      - run_id
+      - started_at
+      - status
+      title: RunRecord
+      type: object
+    RunStatus:
+      enum:
+      - starting
+      - running
+      - degraded
+      - stopping
+      - stopped
+      - failed
+      - interrupted
+      type: string
     SandboxPolicy:
       properties:
         cpu_quota_ms_per_invoke:
@@ -5660,6 +6813,16 @@ components:
       - id
       - schema
       type: object
+    SecretImport:
+      properties:
+        required:
+          default: false
+          type: boolean
+        secret_id:
+          type: string
+      required:
+      - secret_id
+      type: object
     SecretPolicy:
       properties:
         fallback_to_platform:
@@ -5672,6 +6835,16 @@ components:
           items:
             type: string
           type: array
+      type: object
+    SelectedTransport:
+      properties:
+        class_id:
+          type: string
+        properties:
+          additionalProperties: true
+          type: object
+      required:
+      - class_id
       type: object
     SessionBranchListParams:
       $schema: https://json-schema.org/draft/2020-12/schema
@@ -5761,6 +6934,136 @@ components:
       type: object
     ShellContributionListResult:
       type: array
+    SourceVisibility:
+      enum:
+      - open
+      - source_available
+      - closed
+      - unknown
+      type: string
+    StateAction:
+      properties:
+        action_id:
+          type: string
+        input_ref:
+          anyOf:
+          - $ref: '#/components/schemas/ArtifactDescriptor'
+          - type: 'null'
+        kind:
+          $ref: '#/components/schemas/StateActionKind'
+        state_slot_id:
+          $ref: '#/components/schemas/StateSlotId'
+        target_id:
+          type: string
+      required:
+      - action_id
+      - kind
+      - state_slot_id
+      - target_id
+      type: object
+    StateActionKind:
+      enum:
+      - provision
+      - attach
+      - snapshot
+      - restore
+      - migrate
+      type: string
+    StateBindingKind:
+      enum:
+      - host_managed
+      - external_provider
+      type: string
+    StateBindingRecord:
+      properties:
+        binding_id:
+          type: string
+        kind:
+          $ref: '#/components/schemas/StateBindingKind'
+        provider_ref:
+          anyOf:
+          - $ref: '#/components/schemas/ArtifactDescriptor'
+          - type: 'null'
+        state_slot_id:
+          $ref: '#/components/schemas/StateSlotId'
+      required:
+      - binding_id
+      - kind
+      - state_slot_id
+      type: object
+    StateDurability:
+      enum:
+      - ephemeral
+      - durable
+      - external
+      type: string
+    StatePlacementIntent:
+      properties:
+        durability:
+          $ref: '#/components/schemas/StateDurability'
+        replication:
+          default: 0
+          format: uint16
+          minimum: 0.0
+          type: integer
+        required_capabilities:
+          items:
+            type: string
+          type: array
+        state_slot_id:
+          $ref: '#/components/schemas/StateSlotId'
+      required:
+      - durability
+      - state_slot_id
+      type: object
+    StatePortability:
+      enum:
+      - portable
+      - opaque_exportable
+      - host_bound
+      - external_authority
+      type: string
+    StateScope:
+      enum:
+      - run
+      - installation
+      - user
+      - shared
+      - external
+      type: string
+    StateSlotDescriptor:
+      properties:
+        annotations:
+          additionalProperties: true
+          type: object
+        backup_policy:
+          $ref: '#/components/schemas/BackupPolicy'
+        migration_port:
+          anyOf:
+          - $ref: '#/components/schemas/PortEndpoint'
+          - type: 'null'
+        owner_node_id:
+          $ref: '#/components/schemas/NodeId'
+        portability:
+          $ref: '#/components/schemas/StatePortability'
+        schema_ref:
+          anyOf:
+          - $ref: '#/components/schemas/ArtifactDescriptor'
+          - type: 'null'
+        scope:
+          $ref: '#/components/schemas/StateScope'
+        state_slot_id:
+          $ref: '#/components/schemas/StateSlotId'
+      required:
+      - backup_policy
+      - owner_node_id
+      - portability
+      - scope
+      - state_slot_id
+      type: object
+    StateSlotId:
+      pattern: ^(?!.*\.\.)[A-Za-z0-9._-]+$
+      type: string
     StorageMeasurementStateSchema:
       enum:
       - measured
@@ -6134,6 +7437,26 @@ components:
       - asset_editor
       - assistant_action
       type: string
+    TargetCapabilityRecord:
+      properties:
+        available:
+          type: boolean
+        capability_id:
+          type: string
+        evidence_refs:
+          items:
+            $ref: '#/components/schemas/ArtifactDescriptor'
+          type: array
+        properties:
+          additionalProperties: true
+          type: object
+        version:
+          type: string
+      required:
+      - available
+      - capability_id
+      - version
+      type: object
     TargetIdParams:
       $schema: https://json-schema.org/draft/2020-12/schema
       properties:
@@ -6142,6 +7465,43 @@ components:
       required:
       - target_id
       title: TargetIdParams
+      type: object
+    TargetInventorySnapshot:
+      $schema: https://json-schema.org/draft/2020-12/schema
+      properties:
+        capabilities:
+          items:
+            $ref: '#/components/schemas/TargetCapabilityRecord'
+          type: array
+        capacity:
+          allOf:
+          - $ref: '#/components/schemas/ResourceCapacity'
+          default:
+            cpu_millis: 0
+            gpu_count: 0
+            max_workloads: 0
+            memory_bytes: 0
+            storage_bytes: 0
+        labels:
+          additionalProperties:
+            type: string
+          type: object
+        observed_at:
+          format: date-time
+          type: string
+        target_id:
+          type: string
+        topology:
+          items:
+            $ref: '#/components/schemas/TopologyRelation'
+          type: array
+        trust_zone:
+          type: string
+      required:
+      - observed_at
+      - target_id
+      - trust_zone
+      title: TargetInventorySnapshot
       type: object
     TighteningSuggestion:
       properties:
@@ -6155,6 +7515,136 @@ components:
       - kind
       - rationale
       - target
+      type: object
+    TopologyRelation:
+      properties:
+        latency_class:
+          type:
+          - string
+          - 'null'
+        other_target_id:
+          type: string
+        properties:
+          additionalProperties: true
+          type: object
+        relation_id:
+          type: string
+      required:
+      - other_target_id
+      - relation_id
+      type: object
+    TransparencyDeclaration:
+      $schema: https://json-schema.org/draft/2020-12/schema
+      properties:
+        evidence_refs:
+          items:
+            $ref: '#/components/schemas/ArtifactDescriptor'
+          type: array
+        provenance_refs:
+          items:
+            $ref: '#/components/schemas/ArtifactDescriptor'
+          type: array
+        reproducible_build_claim:
+          $ref: '#/components/schemas/ClaimStatus'
+        sbom_refs:
+          items:
+            $ref: '#/components/schemas/ArtifactDescriptor'
+          type: array
+        signature_refs:
+          items:
+            $ref: '#/components/schemas/ArtifactDescriptor'
+          type: array
+        source_refs:
+          items:
+            $ref: '#/components/schemas/ArtifactDescriptor'
+          type: array
+        source_visibility:
+          $ref: '#/components/schemas/SourceVisibility'
+        state_portability:
+          $ref: '#/components/schemas/StatePortability'
+        telemetry_disclosures:
+          items:
+            type: string
+          type: array
+      required:
+      - reproducible_build_claim
+      - source_visibility
+      - state_portability
+      title: TransparencyDeclaration
+      type: object
+    TransportBindingPlan:
+      properties:
+        binding_id:
+          type: string
+        consumer:
+          $ref: '#/components/schemas/PortEndpoint'
+        consumer_target_id:
+          type: string
+        phase:
+          $ref: '#/components/schemas/BindingPhase'
+        provider:
+          $ref: '#/components/schemas/PortEndpoint'
+        provider_target_id:
+          type: string
+        transport:
+          $ref: '#/components/schemas/SelectedTransport'
+      required:
+      - binding_id
+      - consumer
+      - consumer_target_id
+      - phase
+      - provider
+      - provider_target_id
+      - transport
+      type: object
+    TransportPolicy:
+      properties:
+        preferred_classes:
+          items:
+            type: string
+          type: array
+        requirements:
+          allOf:
+          - $ref: '#/components/schemas/TransportRequirements'
+          default:
+            large_payload: false
+            local_only: false
+            ordered: false
+            reliable: false
+            same_process: false
+            shared_memory_allowed: false
+      type: object
+    TransportRequirements:
+      properties:
+        allowed_classes:
+          items:
+            type: string
+          type: array
+        extensions:
+          additionalProperties: true
+          type: object
+        large_payload:
+          default: false
+          type: boolean
+        local_only:
+          default: false
+          type: boolean
+        max_latency_class:
+          type:
+          - string
+          - 'null'
+        ordered:
+          default: false
+          type: boolean
+        reliable:
+          default: false
+          type: boolean
+        same_process:
+          default: false
+          type: boolean
+        shared_memory_allowed:
+          default: false
+          type: boolean
       type: object
     TrustLevel:
       enum:
@@ -6183,6 +7673,30 @@ components:
       - network_hosts_unused
       - secret_refs_unused
       type: object
+    UpdatePolicy:
+      properties:
+        health_timeout_seconds:
+          format: uint64
+          minimum: 0.0
+          type:
+          - integer
+          - 'null'
+        max_unavailable:
+          default: 0
+          format: uint16
+          minimum: 0.0
+          type: integer
+        strategy:
+          $ref: '#/components/schemas/UpdateStrategy'
+      required:
+      - strategy
+      type: object
+    UpdateStrategy:
+      enum:
+      - replace
+      - rolling
+      - recreate
+      type: string
     UsedAuthority:
       properties:
         assets_read_count:
@@ -6227,6 +7741,156 @@ components:
       - events_read_count
       - network_hosts_used
       - secret_refs_used
+      type: object
+    WorkEntrypoint:
+      properties:
+        annotations:
+          additionalProperties: true
+          type: object
+        id:
+          type: string
+        intent_uri:
+          type: string
+        target:
+          $ref: '#/components/schemas/WorkEntrypointTarget'
+      required:
+      - id
+      - intent_uri
+      - target
+      type: object
+    WorkEntrypointTarget:
+      oneOf:
+      - properties:
+          kind:
+            enum:
+            - assembly_port
+            type: string
+          port_id:
+            $ref: '#/components/schemas/PortId'
+        required:
+        - kind
+        - port_id
+        type: object
+      - properties:
+          kind:
+            enum:
+            - surface
+            type: string
+          surface_id:
+            type: string
+        required:
+        - kind
+        - surface_id
+        type: object
+      - properties:
+          kind:
+            enum:
+            - foreign_launch
+            type: string
+          launch_id:
+            type: string
+        required:
+        - kind
+        - launch_id
+        type: object
+    WorkId:
+      pattern: ^(?!.*\.\.)[A-Za-z0-9._-]+(?:/[A-Za-z0-9._-]+)+$
+      type: string
+    WorkRevision:
+      $schema: https://json-schema.org/draft/2020-12/schema
+      properties:
+        annotations:
+          additionalProperties: true
+          type: object
+        assembly:
+          $ref: '#/components/schemas/ArtifactDescriptor'
+        content_roots:
+          items:
+            $ref: '#/components/schemas/ArtifactDescriptor'
+          type: array
+        description:
+          default: ''
+          type: string
+        entrypoints:
+          items:
+            $ref: '#/components/schemas/WorkEntrypoint'
+          type: array
+        operational_intent:
+          anyOf:
+          - $ref: '#/components/schemas/ArtifactDescriptor'
+          - type: 'null'
+        rights:
+          anyOf:
+          - $ref: '#/components/schemas/ArtifactDescriptor'
+          - type: 'null'
+        schema:
+          const: plurora.work-revision.v1
+          type: string
+        title:
+          type: string
+        transparency:
+          anyOf:
+          - $ref: '#/components/schemas/ArtifactDescriptor'
+          - type: 'null'
+        work_id:
+          $ref: '#/components/schemas/WorkId'
+      required:
+      - assembly
+      - schema
+      - title
+      - work_id
+      title: WorkRevision
+      type: object
+    WorkloadImports:
+      properties:
+        filesystem:
+          items:
+            $ref: '#/components/schemas/FilesystemImport'
+          type: array
+        network:
+          items:
+            $ref: '#/components/schemas/NetworkImport'
+          type: array
+        secret_imports:
+          items:
+            $ref: '#/components/schemas/SecretImport'
+          type: array
+      type: object
+    WorkloadIntent:
+      properties:
+        annotations:
+          additionalProperties: true
+          type: object
+        execution_classes:
+          items:
+            type: string
+          type: array
+        health_port:
+          anyOf:
+          - $ref: '#/components/schemas/PortEndpoint'
+          - type: 'null'
+        imports:
+          allOf:
+          - $ref: '#/components/schemas/WorkloadImports'
+          default: {}
+        node_id:
+          $ref: '#/components/schemas/NodeId'
+        replicas:
+          $ref: '#/components/schemas/ReplicaPolicy'
+        resources:
+          allOf:
+          - $ref: '#/components/schemas/ResourceRequirements'
+          default: {}
+        restart_policy:
+          $ref: '#/components/schemas/RestartPolicy'
+        workload_id:
+          type: string
+      required:
+      - execution_classes
+      - node_id
+      - replicas
+      - restart_policy
+      - workload_id
       type: object
     WorldBundleArchive:
       $schema: https://json-schema.org/draft/2020-12/schema

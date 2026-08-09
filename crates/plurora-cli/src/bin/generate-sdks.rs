@@ -733,6 +733,7 @@ fn schema_for_shared_rust_types(
     rewrite_local_definition_refs(&mut value, &aliases, registry)?;
     strip_definition_blocks(&mut value);
     strip_nested_schema_titles(&mut value, true);
+    normalize_root_discriminators_for_typify(&mut value);
     if let Some(map) = value.as_object_mut() {
         map.insert("title".to_string(), Value::String(name.to_string()));
     }
@@ -883,8 +884,19 @@ fn strip_nested_schema_titles(value: &mut Value, is_root: bool) {
                 map.remove("$id");
                 map.remove("$schema");
             }
-            for child in map.values_mut() {
-                strip_nested_schema_titles(child, false);
+            for (keyword, child) in map.iter_mut() {
+                if matches!(
+                    keyword.as_str(),
+                    "properties" | "patternProperties" | "dependentSchemas"
+                ) {
+                    if let Value::Object(schemas) = child {
+                        for schema in schemas.values_mut() {
+                            strip_nested_schema_titles(schema, false);
+                        }
+                    }
+                } else {
+                    strip_nested_schema_titles(child, false);
+                }
             }
         }
         Value::Array(values) => {
@@ -1249,5 +1261,84 @@ impl ShoutySnake for str {
         self.replace(['/', '.', '-'], "_")
             .to_snake_case()
             .to_uppercase()
+    }
+}
+
+fn normalize_root_discriminators_for_typify(value: &mut Value) {
+    let Some(properties) = value
+        .as_object_mut()
+        .and_then(|root| root.get_mut("properties"))
+        .and_then(Value::as_object_mut)
+    else {
+        return;
+    };
+    for field in ["schema", "schema_version"] {
+        let Some(schema) = properties.get_mut(field).and_then(Value::as_object_mut) else {
+            continue;
+        };
+        if let Some(constant) = schema.remove("const") {
+            schema.entry("enum").or_insert_with(|| json!([constant]));
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn nested_title_metadata_is_removed_without_deleting_a_title_property() {
+        let mut schema = json!({
+            "title": "Example",
+            "type": "object",
+            "required": ["title"],
+            "properties": {
+                "title": {
+                    "title": "Human-readable title",
+                    "type": "string"
+                }
+            }
+        });
+
+        strip_nested_schema_titles(&mut schema, true);
+
+        assert_eq!(
+            schema.pointer("/properties/title/type"),
+            Some(&json!("string"))
+        );
+        assert!(schema.pointer("/properties/title/title").is_none());
+    }
+
+    #[test]
+    fn root_discriminators_become_singleton_enums_for_typify() {
+        let mut schema = json!({
+            "type": "object",
+            "properties": {
+                "schema": {"type": "string", "const": "example.v1"},
+                "schema_version": {"type": "integer", "const": 1},
+                "nested": {
+                    "type": "object",
+                    "properties": {
+                        "schema": {"type": "string", "const": "nested.v1"}
+                    }
+                }
+            }
+        });
+
+        normalize_root_discriminators_for_typify(&mut schema);
+
+        assert_eq!(
+            schema.pointer("/properties/schema/enum"),
+            Some(&json!(["example.v1"]))
+        );
+        assert_eq!(
+            schema.pointer("/properties/schema_version/enum"),
+            Some(&json!([1]))
+        );
+        assert!(schema.pointer("/properties/schema/const").is_none());
+        assert_eq!(
+            schema.pointer("/properties/nested/properties/schema/const"),
+            Some(&json!("nested.v1"))
+        );
     }
 }

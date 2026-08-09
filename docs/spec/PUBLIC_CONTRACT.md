@@ -284,11 +284,11 @@ v1 仅允许 additive 变更：新增可选字段、新增方法、新增事件�
 
 - 方法 schema：`docs/spec/v1/schemas/methods/`（80）。
 - 事件 schema：`docs/spec/v1/schemas/events/`（59）。
-- 顶层 schema：`docs/spec/v1/schemas/*.schema.json`（22），包含 additive Protocol Commons、component/package-envelope、World Bundle 与 protocol-response descriptor。
+- 顶层 schema：`docs/spec/v1/schemas/*.schema.json`（37），包含 additive Protocol Commons、component/package-envelope、World Bundle、便携 Work / Assembly 契约与 Host-local Installation / Run / Exposure / Realization wire record。
 - 错误码：[`v1/ERROR_CODES.md`](v1/ERROR_CODES.md)。
 - 事件 registry：[`v1/EVENT_KIND_REGISTRY.md`](v1/EVENT_KIND_REGISTRY.md)。
 
-161 个 schema 必须通过 `cargo run -p plurora-cli --bin validate-schemas`。
+176 个 schema 必须通过 `cargo run -p plurora-cli --bin validate-schemas`。
 
 ## 内容无关不变量
 
@@ -464,7 +464,7 @@ Surface contribution 是 Package 声明的 UI/UX 入口 descriptor。Runtime 保
 
 1. 80 个方法 schema 可导出。
 2. 59 个事件 schema 可验证。
-3. 22 个顶层 schema 可验证。
+3. 37 个顶层 schema 可验证。
 4. 方法 registry 与 dispatcher 一致。
 5. capability handle mint/attenuate/revoke/list 行为可测试。
 6. invoke instrumentation 生成生命周期事件。

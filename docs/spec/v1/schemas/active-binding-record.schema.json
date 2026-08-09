@@ -1,0 +1,73 @@
+{
+  "$defs": {
+    "BindingId": {
+      "format": "uuid",
+      "type": "string"
+    },
+    "ExposureId": {
+      "format": "uuid",
+      "type": "string"
+    },
+    "InstallationId": {
+      "format": "uuid",
+      "type": "string"
+    },
+    "PortId": {
+      "pattern": "^(?!.*\\.\\.)[A-Za-z0-9._-]+$",
+      "type": "string"
+    },
+    "SelectedTransport": {
+      "properties": {
+        "class_id": {
+          "type": "string"
+        },
+        "properties": {
+          "additionalProperties": true,
+          "type": "object"
+        }
+      },
+      "required": [
+        "class_id"
+      ],
+      "type": "object"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "properties": {
+    "authority_handle_id": {
+      "type": "string"
+    },
+    "binding_id": {
+      "$ref": "#/$defs/BindingId"
+    },
+    "consumer_installation_id": {
+      "$ref": "#/$defs/InstallationId"
+    },
+    "consumer_port": {
+      "$ref": "#/$defs/PortId"
+    },
+    "expires_at": {
+      "format": "date-time",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "exposure_id": {
+      "$ref": "#/$defs/ExposureId"
+    },
+    "transport": {
+      "$ref": "#/$defs/SelectedTransport"
+    }
+  },
+  "required": [
+    "authority_handle_id",
+    "binding_id",
+    "consumer_installation_id",
+    "consumer_port",
+    "exposure_id",
+    "transport"
+  ],
+  "title": "ActiveBindingRecord",
+  "type": "object"
+}

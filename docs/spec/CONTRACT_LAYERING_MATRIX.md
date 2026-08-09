@@ -33,7 +33,7 @@
 
 - 80 个精确公开 method ID 与 80 个 method schema。
 - 59 个显式平台 event kind 与 59 个 payload schema。
-- 22 个顶层 schema；共 161 个 schema。
+- 37 个顶层 schema；共 176 个 schema。
 - Contract Registry `0.1.0` 对每个 method 只暴露一个 wire ID，不提供 alias。
 - Method ID 通过第一个 dot segment 声明 owner。
 - 平台 event owner 由显式 registry 定义；59 个 kind 都要求 writer `plurora/runtime`。
@@ -89,8 +89,8 @@ Owner 是语义归属；持久化仍统一使用 `EventEnvelope` 与 EventStore 
 ## 顶层 schema owner
 
 - **Substrate：** event envelope、protocol context/response、capability descriptor 与 invocation、permission set、artifact/effect evidence。
-- **Host：** Package Manifest envelope、本地安装/执行 descriptor、Host-facing record。
-- **Protocol Commons：** protocol descriptor、Change primitive、composition lock、World Bundle 与 World Head。
+- **Host：** Package Manifest envelope、Installation / Run / Exposure / Realization、本地执行 descriptor、Target Inventory 与 Host-facing record。
+- **Protocol Commons：** protocol descriptor、Change primitive、便携 Work / Assembly / Port / State Slot 契约、composition lock、World Bundle 与 World Head。
 - **Shell Profile：** 通过公开 schema 承载的 contribution 与 profile descriptor。
 
 部分顶层 schema 为 transport 连接多个 layer；字段仍必须说明 owner，而不能把所有 layer 压成一个 ontology。

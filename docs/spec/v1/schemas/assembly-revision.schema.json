@@ -1,0 +1,418 @@
+{
+  "$defs": {
+    "ArtifactDescriptor": {
+      "properties": {
+        "annotations": {
+          "additionalProperties": true,
+          "default": {},
+          "type": "object"
+        },
+        "artifact_type_uri": {
+          "type": "string"
+        },
+        "digest": {
+          "type": "string"
+        },
+        "media_type": {
+          "type": "string"
+        },
+        "references": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "size_bytes": {
+          "format": "uint64",
+          "minimum": 0.0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "artifact_type_uri",
+        "digest",
+        "media_type",
+        "size_bytes"
+      ],
+      "type": "object"
+    },
+    "AssemblyBinding": {
+      "properties": {
+        "annotations": {
+          "additionalProperties": true,
+          "type": "object"
+        },
+        "binding_id": {
+          "type": "string"
+        },
+        "consumer": {
+          "$ref": "#/$defs/PortEndpoint"
+        },
+        "phase": {
+          "$ref": "#/$defs/BindingPhase"
+        },
+        "provider": {
+          "$ref": "#/$defs/PortEndpoint"
+        },
+        "transport_policy": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/TransportPolicy"
+            }
+          ],
+          "default": {
+            "requirements": {
+              "large_payload": false,
+              "local_only": false,
+              "ordered": false,
+              "reliable": false,
+              "same_process": false,
+              "shared_memory_allowed": false
+            }
+          }
+        }
+      },
+      "required": [
+        "binding_id",
+        "consumer",
+        "phase",
+        "provider"
+      ],
+      "type": "object"
+    },
+    "AssemblyId": {
+      "pattern": "^(?!.*\\.\\.)[A-Za-z0-9._-]+(?:/[A-Za-z0-9._-]+)+$",
+      "type": "string"
+    },
+    "AssemblyNode": {
+      "properties": {
+        "annotations": {
+          "additionalProperties": true,
+          "type": "object"
+        },
+        "configuration": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ArtifactDescriptor"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "node_id": {
+          "$ref": "#/$defs/NodeId"
+        },
+        "source": {
+          "$ref": "#/$defs/AssemblyNodeSource"
+        }
+      },
+      "required": [
+        "node_id",
+        "source"
+      ],
+      "type": "object"
+    },
+    "AssemblyNodeSource": {
+      "oneOf": [
+        {
+          "properties": {
+            "component": {
+              "$ref": "#/$defs/ArtifactDescriptor"
+            },
+            "kind": {
+              "enum": [
+                "component"
+              ],
+              "type": "string"
+            }
+          },
+          "required": [
+            "component",
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "properties": {
+            "assembly": {
+              "$ref": "#/$defs/ArtifactDescriptor"
+            },
+            "kind": {
+              "enum": [
+                "assembly"
+              ],
+              "type": "string"
+            }
+          },
+          "required": [
+            "assembly",
+            "kind"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "AssemblyPortExposure": {
+      "properties": {
+        "annotations": {
+          "additionalProperties": true,
+          "type": "object"
+        },
+        "direction": {
+          "$ref": "#/$defs/PortDirection"
+        },
+        "port_id": {
+          "$ref": "#/$defs/PortId"
+        },
+        "target": {
+          "$ref": "#/$defs/PortEndpoint"
+        }
+      },
+      "required": [
+        "direction",
+        "port_id",
+        "target"
+      ],
+      "type": "object"
+    },
+    "BackupPolicy": {
+      "enum": [
+        "required",
+        "allowed",
+        "forbidden"
+      ],
+      "type": "string"
+    },
+    "BindingPhase": {
+      "enum": [
+        "authoring",
+        "installation",
+        "launch",
+        "runtime"
+      ],
+      "type": "string"
+    },
+    "NodeId": {
+      "pattern": "^(?!.*\\.\\.)[A-Za-z0-9._-]+$",
+      "type": "string"
+    },
+    "PortDirection": {
+      "enum": [
+        "import",
+        "export"
+      ],
+      "type": "string"
+    },
+    "PortEndpoint": {
+      "properties": {
+        "node_id": {
+          "$ref": "#/$defs/NodeId"
+        },
+        "port_id": {
+          "$ref": "#/$defs/PortId"
+        }
+      },
+      "required": [
+        "node_id",
+        "port_id"
+      ],
+      "type": "object"
+    },
+    "PortId": {
+      "pattern": "^(?!.*\\.\\.)[A-Za-z0-9._-]+$",
+      "type": "string"
+    },
+    "StatePortability": {
+      "enum": [
+        "portable",
+        "opaque_exportable",
+        "host_bound",
+        "external_authority"
+      ],
+      "type": "string"
+    },
+    "StateScope": {
+      "enum": [
+        "run",
+        "installation",
+        "user",
+        "shared",
+        "external"
+      ],
+      "type": "string"
+    },
+    "StateSlotDescriptor": {
+      "properties": {
+        "annotations": {
+          "additionalProperties": true,
+          "type": "object"
+        },
+        "backup_policy": {
+          "$ref": "#/$defs/BackupPolicy"
+        },
+        "migration_port": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PortEndpoint"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "owner_node_id": {
+          "$ref": "#/$defs/NodeId"
+        },
+        "portability": {
+          "$ref": "#/$defs/StatePortability"
+        },
+        "schema_ref": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ArtifactDescriptor"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "scope": {
+          "$ref": "#/$defs/StateScope"
+        },
+        "state_slot_id": {
+          "$ref": "#/$defs/StateSlotId"
+        }
+      },
+      "required": [
+        "backup_policy",
+        "owner_node_id",
+        "portability",
+        "scope",
+        "state_slot_id"
+      ],
+      "type": "object"
+    },
+    "StateSlotId": {
+      "pattern": "^(?!.*\\.\\.)[A-Za-z0-9._-]+$",
+      "type": "string"
+    },
+    "TransportPolicy": {
+      "properties": {
+        "preferred_classes": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "requirements": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/TransportRequirements"
+            }
+          ],
+          "default": {
+            "large_payload": false,
+            "local_only": false,
+            "ordered": false,
+            "reliable": false,
+            "same_process": false,
+            "shared_memory_allowed": false
+          }
+        }
+      },
+      "type": "object"
+    },
+    "TransportRequirements": {
+      "properties": {
+        "allowed_classes": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "extensions": {
+          "additionalProperties": true,
+          "type": "object"
+        },
+        "large_payload": {
+          "default": false,
+          "type": "boolean"
+        },
+        "local_only": {
+          "default": false,
+          "type": "boolean"
+        },
+        "max_latency_class": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "ordered": {
+          "default": false,
+          "type": "boolean"
+        },
+        "reliable": {
+          "default": false,
+          "type": "boolean"
+        },
+        "same_process": {
+          "default": false,
+          "type": "boolean"
+        },
+        "shared_memory_allowed": {
+          "default": false,
+          "type": "boolean"
+        }
+      },
+      "type": "object"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "properties": {
+    "annotations": {
+      "additionalProperties": true,
+      "type": "object"
+    },
+    "assembly_id": {
+      "$ref": "#/$defs/AssemblyId"
+    },
+    "bindings": {
+      "items": {
+        "$ref": "#/$defs/AssemblyBinding"
+      },
+      "type": "array"
+    },
+    "exposed_ports": {
+      "items": {
+        "$ref": "#/$defs/AssemblyPortExposure"
+      },
+      "type": "array"
+    },
+    "nodes": {
+      "items": {
+        "$ref": "#/$defs/AssemblyNode"
+      },
+      "type": "array"
+    },
+    "schema": {
+      "const": "plurora.assembly-revision.v1",
+      "type": "string"
+    },
+    "state_slots": {
+      "items": {
+        "$ref": "#/$defs/StateSlotDescriptor"
+      },
+      "type": "array"
+    }
+  },
+  "required": [
+    "assembly_id",
+    "nodes",
+    "schema"
+  ],
+  "title": "AssemblyRevision",
+  "type": "object"
+}

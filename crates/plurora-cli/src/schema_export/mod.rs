@@ -5,6 +5,7 @@ use std::path::PathBuf;
 
 use plurora_core::*;
 use plurora_runtime::*;
+use plurora_work::*;
 
 mod defs;
 mod events;
@@ -84,6 +85,66 @@ pub fn export_all() -> anyhow::Result<()> {
     write_json(
         out.join("composition-lock.schema.json"),
         &schema_value::<CompositionLock>(),
+    )?;
+    write_json(
+        out.join("work-revision.schema.json"),
+        &schema_value::<WorkRevision>(),
+    )?;
+    write_json(
+        out.join("port-descriptor.schema.json"),
+        &schema_value::<PortDescriptor>(),
+    )?;
+    write_json(
+        out.join("assembly-revision.schema.json"),
+        &schema_value::<AssemblyRevision>(),
+    )?;
+    write_json(
+        out.join("state-slot-descriptor.schema.json"),
+        &schema_value::<StateSlotDescriptor>(),
+    )?;
+    write_json(
+        out.join("assembly-lock.schema.json"),
+        &schema_value::<AssemblyLock>(),
+    )?;
+    write_json(
+        out.join("rights-declaration.schema.json"),
+        &schema_value::<RightsDeclaration>(),
+    )?;
+    write_json(
+        out.join("transparency-declaration.schema.json"),
+        &schema_value::<TransparencyDeclaration>(),
+    )?;
+    write_json(
+        out.join("installation-record.schema.json"),
+        &schema_value::<InstallationRecord>(),
+    )?;
+    write_json(
+        out.join("run-record.schema.json"),
+        &schema_value::<RunRecord>(),
+    )?;
+    write_json(
+        out.join("exposure-record.schema.json"),
+        &schema_value::<ExposureRecord>(),
+    )?;
+    write_json(
+        out.join("active-binding-record.schema.json"),
+        &schema_value::<ActiveBindingRecord>(),
+    )?;
+    write_json(
+        out.join("operational-intent.schema.json"),
+        &schema_value::<OperationalIntent>(),
+    )?;
+    write_json(
+        out.join("target-inventory.schema.json"),
+        &schema_value::<TargetInventorySnapshot>(),
+    )?;
+    write_json(
+        out.join("realization-plan.schema.json"),
+        &schema_value::<RealizationPlan>(),
+    )?;
+    write_json(
+        out.join("realization-revision.schema.json"),
+        &schema_value::<RealizationRevision>(),
     )?;
     write_json(
         out.join("world-bundle.schema.json"),

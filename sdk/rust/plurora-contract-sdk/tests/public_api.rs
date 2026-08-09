@@ -5,8 +5,9 @@ use async_trait::async_trait;
 use futures::Stream;
 use plurora_contract_sdk::{
     AppendEventRequest, AssetGetParams, ContractOwnerLayer, ContractSelection,
-    ContractVersionRequirement, EmptyParams, PluroraClient, PluroraTransport, ProtocolDescriptor,
-    ProtocolSelection, OBJECT_PUT,
+    ContractVersionRequirement, EmptyParams, InstallationRecordSchemaVersion, PluroraClient,
+    PluroraTransport, ProtocolDescriptor, ProtocolSelection, WorkId, WorkRevision,
+    WorkRevisionSchema, OBJECT_PUT,
 };
 
 #[derive(Clone, Debug, PartialEq)]
@@ -68,6 +69,11 @@ fn canonical_methods_are_available(client: &PluroraClient, params: EmptyParams) 
     let _target = client.host_target_list(params);
 }
 
+fn work_revision_identity_and_title_remain_typed(value: &WorkRevision) {
+    let _: &String = &value.title;
+    let _: &WorkId = &value.work_id;
+}
+
 #[test]
 fn generated_modules_are_exported_from_the_crate_root() {
     assert_eq!(OBJECT_PUT, "object/put");
@@ -77,6 +83,22 @@ fn generated_modules_are_exported_from_the_crate_root() {
     let _ = std::mem::size_of::<ProtocolDescriptor>();
     let _ = generated_method_is_available;
     let _ = canonical_methods_are_available;
+    let _ = work_revision_identity_and_title_remain_typed;
+}
+
+#[test]
+fn generated_work_discriminators_reject_unknown_values() {
+    assert!(serde_json::from_value::<WorkRevisionSchema>(serde_json::json!("wrong")).is_err());
+    assert!(
+        serde_json::from_value::<InstallationRecordSchemaVersion>(serde_json::json!(2)).is_err()
+    );
+    assert!(
+        serde_json::from_value::<WorkRevisionSchema>(serde_json::json!("plurora.work-revision.v1"))
+            .is_ok()
+    );
+    assert!(
+        serde_json::from_value::<InstallationRecordSchemaVersion>(serde_json::json!(1)).is_ok()
+    );
 }
 
 #[test]

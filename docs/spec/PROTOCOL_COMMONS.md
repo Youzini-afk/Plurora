@@ -21,12 +21,14 @@ Protocol Commons 是共享语义的注册表。只有 JSON 形状并不构成协
 
 仓库内文档引用可以暂时没有 digest。若 Package 或 World Bundle 要提出跨主机完整性声明，必须先把这些引用物化为内容寻址 Artifact。
 
-`host.info` 会公开 `protocol_commons_registry_version` 和完整描述符注册表。当前 registry 有意只注册：
+`host.info` 会公开 `protocol_commons_registry_version` 和完整描述符注册表。当前 registry 版本为 `0.2.0`，有意只注册：
 
 | 协议 | 版本 | Profile | 状态 |
 | --- | --- | --- | --- |
 | `plurora.change` | `1.0.0` | `plurora.change/default/v1` | Experimental |
 | `plurora.shell.default` | `1.0.0` | `plurora.shell.default/v1` | Experimental |
+| `plurora.work` | `1.0.0` | `plurora.work/experimental/v1` | Experimental |
+| `plurora.assembly` | `1.0.0` | `plurora.assembly/experimental/v1` | Experimental |
 | `plurora.world.bundle` | `1.0.0` | `plurora.world.bundle/experimental/v1` | Experimental |
 
 Projection 仍保留 Experimental canonical namespace，但不进入首批 Protocol Commons 描述符。至少要由两个实质不同的 Experience 验证后，才能声称它具有共享语义。
@@ -77,6 +79,30 @@ Change 协议引用增量的 Intent、ChangeSet、PolicyDecision、Commit 和 Ef
 - 替换 Shell 不改变 journal history、object identity 或 receipt。
 
 当前生命周期和 bridge 错误模型见 [`SURFACE_HOSTING.md`](../guides/SURFACE_HOSTING.md)。
+
+## Work Experimental Profile
+
+`plurora.work/experimental/v1` 定义不可变、内容寻址的 `WorkRevision`，把长期逻辑 `WorkId` 与精确 revision digest 分开。Work 引用 Assembly、内容 roots、入口、Rights、Transparency 与可选 OperationalIntent；它不保存本机绝对路径、raw secret、实际端口、进程 ID 或当前时间。未知 annotations 会保真往返，但仍受 raw-secret 与 host-path redline 约束。
+
+三个必需向量覆盖 canonical digest 稳定性、portable identity redline 和未知 annotation 保留。`plurora.work.model` 是普通 `plurora-work` crate 的实现声明，不获得执行权、路由优先级或第一方特权。
+
+## Assembly Experimental Profile
+
+`plurora.assembly/experimental/v1` 定义 Component 与 nested Assembly 的递归无环图，以及 typed Port、Binding、exposed Port 和 State Slot。Port 同时约束 protocol/interface/version/Profile、开放 interaction ID、effect class、binding phase、cardinality 与 transport 要求；未知 interaction 可以保真保存，但没有实现或显式 Adapter 时不能绑定或执行。
+
+三个必需向量覆盖递归包含闭包、Port 合同兼容和 State Slot 迁移边界。`AssemblyLock` 固定 artifact、behavior digest、trust class、provider、transport、Profile 与 content roots；它属于 Experimental Protocol Commons，不进入 Constitutional Substrate。
+
+## Work artifact lifecycle
+
+Work 的纯模型流程是 `构造 → 校验 → canonical JSON → SHA-256 descriptor → 显式持久化/传输`。校验和 canonicalization 没有外部 effect，也不授予 `object.write`；只有调用方已有明确 object authority 时才能持久化 descriptor。WorkRevision 永不原地修改，变化产生新的内容身份。
+
+## Assembly artifact lifecycle
+
+Assembly 的纯模型流程是 `构造图 → 校验局部 ID/引用 → 校验递归闭包无环 → 校验 Port/State → canonicalize → 持久化`。运行时 flatten 可以在后续实现中出现，但不能丢失 nested identity、node path、exposure mapping 或 provenance。Phase 1 的模型与 validation 不激活 Component，也不选择 installation/launch/runtime provider。
+
+## Work 与 Assembly 错误模型
+
+无效 ID、缺失或摘要不匹配的 Artifact、包含环、未解析或不兼容 Port、不支持的 interaction、无 schema 的 portable state、raw secret、host-local path 以及实现预算超限都结构化失败。错误只返回稳定 reason 和脱敏说明，不回显 secret、绝对路径或原始异常正文。未知 Artifact 与 annotation 可以保存和复制；未知语义只阻止解释、绑定与执行。
 
 ## World Bundle Experimental Profile
 

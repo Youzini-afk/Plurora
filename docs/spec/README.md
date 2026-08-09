@@ -10,14 +10,14 @@
 - [`OBJECT_STORE.md`](OBJECT_STORE.md) — Experimental SHA-256 ObjectStore、ArtifactDescriptor、asset 转换与 verified read
 - [`EFFECT_RECEIPTS.md`](EFFECT_RECEIPTS.md) — Experimental EffectReceipt、terminal evidence、historical replay 与 branch re-execute
 - [`CHANGE_WORKFLOW.md`](CHANGE_WORKFLOW.md) — Intent/ChangeSet/PolicyDecision/Commit 与 `change.proposal.*` facade
-- [`PROTOCOL_COMMONS.md`](PROTOCOL_COMMONS.md) — protocol descriptor、语义/Profile 协商、adapter 以及独立 protocol/implementation 报告
+- [`PROTOCOL_COMMONS.md`](PROTOCOL_COMMONS.md) — protocol descriptor、Work / Assembly 便携契约、语义/Profile 协商、adapter 以及独立 protocol/implementation 报告
 - [`COMPONENT_IDENTITY.md`](COMPONENT_IDENTITY.md) — package envelope、独立 component identity、trust claim、Foreign Capsule 与 composition lock
 - [`WORLD_BUNDLE.md`](WORLD_BUNDLE.md) — 跨 host archive 完整性、原始 journal envelope、离线回放、lineage 与 Shell 独立性
 - [`CONFORMANCE_MATRIX.md`](CONFORMANCE_MATRIX.md) — hostile conformance 用例清单（按 tag 与领域索引）
 - [`v1/EVENT_KIND_REGISTRY.md`](v1/EVENT_KIND_REGISTRY.md) — v1 事件类型 registry
 - [`v1/ERROR_CODES.md`](v1/ERROR_CODES.md) — v1 错误码
 - [`v1/VERSIONING.md`](v1/VERSIONING.md) — v1 additive-only 版本策略
-- [`v1/schemas/`](v1/schemas/) — 161 个 JSON Schema（80 methods + 59 events + 22 top-level），SDK 的单一可信源
+- [`v1/schemas/`](v1/schemas/) — 176 个 JSON Schema（80 methods + 59 events + 37 top-level），SDK 的单一可信源
 
 跑全套 conformance：
 

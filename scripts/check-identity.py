@@ -129,6 +129,46 @@ EXPECTED_METHOD_PREFIX_COUNTS = {
     "shell": 2,
 }
 
+EXPECTED_TOP_LEVEL_SCHEMAS = {
+    "active-binding-record.schema.json",
+    "artifact-descriptor.schema.json",
+    "assembly-lock.schema.json",
+    "assembly-revision.schema.json",
+    "capability-descriptor.schema.json",
+    "capability-invocation-request.schema.json",
+    "capability-invocation-result.schema.json",
+    "change-set.schema.json",
+    "commit.schema.json",
+    "component-descriptor.schema.json",
+    "composition-lock.schema.json",
+    "contract-selection.schema.json",
+    "effect-receipt.schema.json",
+    "event-envelope.schema.json",
+    "exposure-record.schema.json",
+    "installation-record.schema.json",
+    "intent.schema.json",
+    "manifest.schema.json",
+    "operational-intent.schema.json",
+    "package-envelope-descriptor.schema.json",
+    "permission-set.schema.json",
+    "policy-decision.schema.json",
+    "port-descriptor.schema.json",
+    "protocol-context.schema.json",
+    "protocol-descriptor.schema.json",
+    "protocol-response.schema.json",
+    "realization-plan.schema.json",
+    "realization-revision.schema.json",
+    "rights-declaration.schema.json",
+    "run-record.schema.json",
+    "state-slot-descriptor.schema.json",
+    "target-inventory.schema.json",
+    "transparency-declaration.schema.json",
+    "work-revision.schema.json",
+    "world-bundle.schema.json",
+    "world-head.schema.json",
+    "world-journal-range.schema.json",
+}
+
 EXPECTED_POSITIVE_MARKERS = {
     "crates/plurora-cli/src/cli.rs": ('#[command(name = "plurora")]',),
     "crates/plurora-core/src/paths.rs": ('"PLURORA_DATA_DIR"', 'join(".plurora")'),
@@ -264,10 +304,17 @@ def check_generated_contract() -> list[str]:
         errors.append(f"expected 80 method schemas, found {len(method_paths)}")
     if len(event_paths) != 59:
         errors.append(f"expected 59 event schemas, found {len(event_paths)}")
-    if len(top_paths) != 22:
-        errors.append(f"expected 22 top-level schemas, found {len(top_paths)}")
-    if len(method_paths) + len(event_paths) + len(top_paths) != 161:
-        errors.append("expected 161 total public-contract schemas")
+    actual_top_level_schemas = {path.name for path in top_paths}
+    missing_top_level = EXPECTED_TOP_LEVEL_SCHEMAS - actual_top_level_schemas
+    extra_top_level = actual_top_level_schemas - EXPECTED_TOP_LEVEL_SCHEMAS
+    if missing_top_level or extra_top_level:
+        errors.append(
+            "top-level schema set differs: "
+            f"missing={sorted(missing_top_level)}, extra={sorted(extra_top_level)}"
+        )
+    expected_total = 80 + 59 + len(EXPECTED_TOP_LEVEL_SCHEMAS)
+    if len(method_paths) + len(event_paths) + len(top_paths) != expected_total:
+        errors.append(f"expected {expected_total} total public-contract schemas")
 
     method_ids: set[str] = set()
     method_statuses: dict[str, str] = {}
@@ -439,7 +486,7 @@ def main() -> int:
 
     print(
         "Plurora identity check passed: "
-        "zero retired identities; 80 methods, 59 events, 22 top-level schemas; "
+        f"zero retired identities; 80 methods, 59 events, {len(EXPECTED_TOP_LEVEL_SCHEMAS)} top-level schemas; "
         "35 first-party Package manifests."
     )
     return 0
