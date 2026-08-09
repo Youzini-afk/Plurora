@@ -245,7 +245,7 @@ fn init_work(path: &Path, id: &str) -> ModelResult<Vec<&'static str>> {
         "assembly.yaml",
         &mut created,
     )?;
-    sync_capability_directory(&directory)?;
+    sync_capability_directory(&directory, &canonical_path)?;
     verify_capability_directory(&directory, &canonical_path)?;
     materialize_work(&path)?;
     Ok(created)
@@ -1159,7 +1159,7 @@ async fn persist_objects<'a>(
             algorithm_dir
                 .rename(&temporary, &algorithm_dir, hex)
                 .map_err(|_| object_store_error("ObjectStore atomic object publish failed"))?;
-            sync_capability_directory(&algorithm_dir)?;
+            sync_capability_directory(&algorithm_dir, &canonical_algorithm)?;
             verify_capability_object(&algorithm_dir, &canonical_algorithm, hex, object)
         })();
         if write_result.is_err() {
@@ -1326,17 +1326,27 @@ fn digest_reader(reader: &mut impl Read) -> ModelResult<(String, u64)> {
 }
 
 #[cfg(unix)]
-fn sync_capability_directory(directory: &CapabilityDir) -> ModelResult<()> {
-    directory
-        .try_clone()
-        .map_err(|_| io_error())?
-        .into_std_file()
-        .sync_all()
-        .map_err(|_| io_error())
+fn sync_capability_directory(directory: &CapabilityDir, expected: &Path) -> ModelResult<()> {
+    verify_capability_directory(directory, expected)?;
+    let sync_file = File::open(expected).map_err(|_| io_error())?;
+    let sync_handle = Handle::from_file(sync_file.try_clone().map_err(|_| io_error())?)
+        .map_err(|_| io_error())?;
+    let capability_handle = Handle::from_file(
+        directory
+            .try_clone()
+            .map_err(|_| io_error())?
+            .into_std_file(),
+    )
+    .map_err(|_| io_error())?;
+    if sync_handle != capability_handle {
+        return Err(raw_path());
+    }
+    sync_file.sync_all().map_err(|_| io_error())?;
+    verify_capability_directory(directory, expected)
 }
 
 #[cfg(not(unix))]
-fn sync_capability_directory(_directory: &CapabilityDir) -> ModelResult<()> {
+fn sync_capability_directory(_directory: &CapabilityDir, _expected: &Path) -> ModelResult<()> {
     Ok(())
 }
 
