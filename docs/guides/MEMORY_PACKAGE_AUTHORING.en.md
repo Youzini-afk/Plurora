@@ -122,8 +122,8 @@ This is an optional cross-reference. The board does not depend on memory-lab to 
 
 - Same 9 capabilities, 3 surfaces.
 - Same output shapes (`memory_record`, `retrieval_trace`, `update_draft`, `correction`, `redaction_plan`, `branch_view`, `provenance`).
-- Loaded via `examples/compositions/memory-lab-replacement/composition.yaml`.
-- First-party `memory-lab` is listed as a `replacement_candidate`, not a default provider.
+- Projected into a Work/Assembly node by `examples/works/memory-lab-replacement/work.yaml`.
+- First-party `memory-lab` is not a default provider; multiple compatible candidates require an explicit Binding or remain ambiguous.
 
 ## What This Is Not
 

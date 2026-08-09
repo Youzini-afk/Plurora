@@ -266,13 +266,13 @@ A World profile may reference:
 WorldHead
 ├── state_root
 ├── history_root
-├── composition_lock
+├── assembly_lock
 ├── protocol_profiles
 ├── policy_root
 └── provenance_root
 ```
 
-A World Bundle is readable and auditable without executing its original components. A component upgrade produces a new composition lock; re-executing a nondeterministic step creates a new branch; deleting a component cannot make history unreadable.
+A World Bundle is readable and auditable without executing its original components. A component upgrade produces a new AssemblyLock; re-executing a nondeterministic step creates a new branch; deleting a component cannot make history unreadable.
 
 ## Protocol maturity
 

@@ -18,7 +18,7 @@ WorldBundleArchive
 │   ├── world_head
 │   ├── journal_ranges
 │   ├── object_descriptors
-│   ├── composition_lock
+│   ├── assembly_lock
 │   ├── protocol_profiles
 │   ├── policy_refs
 │   ├── effect_receipts
@@ -41,7 +41,7 @@ digest 标识字节本身。Artifact type、media type、角色 annotation 等 d
 WorldHead
 ├── state_root
 ├── history_root
-├── composition_lock
+├── assembly_lock
 ├── protocol_profiles
 ├── policy_root
 ├── provenance_root
@@ -58,7 +58,7 @@ WorldHead
 当前实现的生命周期是：
 
 1. 选择一个或多个连续 journal range 与 state root。
-2. 固定 composition 和精确 protocol profile。
+2. 固定 AssemblyLock 和精确 protocol profile。
 3. 将 event envelope、receipt、policy/provenance 记录和全部传递对象物化进 SHA-256 ObjectStore。
 4. 计算并验证完整 reference closure。
 5. 导出 canonical manifest 与 base64 object payload。
@@ -91,7 +91,7 @@ plurora world-bundle import <archive.json> --data-dir <fresh-dir> [--json]
 - 同一 digest 声明了冲突的大小；
 - bundle manifest 或原始 event envelope 被修改；
 - journal range 不连续，或 envelope 的 session/sequence 与 range 不一致；
-- composition lock、world head、protocol version 或必需 profile 不匹配；
+- assembly lock、world head、protocol version 或必需 profile 不匹配；
 - policy 或 receipt reference 无法解析；
 - 目标 session scope 非空。
 

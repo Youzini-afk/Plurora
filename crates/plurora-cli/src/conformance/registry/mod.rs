@@ -37,7 +37,7 @@ pub(super) fn build_cases() -> Vec<ConformanceCase> {
     cases.extend(subprocess_packages::package_check_reload_cases());
     cases.extend(core_runtime::hooks_cases());
     cases.extend(subprocess_packages::generated_packages_cases());
-    cases.extend(core_runtime::composition_cases());
+    cases.extend(core_runtime::work_cases());
     cases.extend(subprocess_packages::inproc_cases());
     cases.extend(core_runtime::replacement_cases());
     cases.extend(core_runtime::secret_conformance_cases());

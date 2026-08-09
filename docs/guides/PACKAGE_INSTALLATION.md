@@ -138,7 +138,7 @@ plurora list-installed --profile alpha --data-dir /tmp/plurora-alpha
 
 ```yaml
 requires:
-  - id: "plurora/composition-lab"
+  - id: "plurora/asset-lab"
     source:
       kind: internal
     version: ">=1.0.0"

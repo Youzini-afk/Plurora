@@ -1,0 +1,10 @@
+schema: plurora.assembly-source.v1
+assembly:
+  id: example/playable-creation-board-agentic-forge/main
+  nodes:
+    - id: experience
+      assembly: experience-assembly.yaml
+  exposed_ports:
+    - id: play
+      direction: export
+      target: {node_id: experience, port_id: play}

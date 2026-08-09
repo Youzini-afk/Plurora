@@ -139,7 +139,7 @@ schema = "plurora.lock.v1"
 
 ### `component_pins`
 
-可选数组。每个 pin 记录独立 component ID、component artifact digest、behavior digest 与 trust class。Composition 因此不需要把 package ID 当作 component ID。
+可选数组。每个 pin 记录独立 component ID、component artifact digest、behavior digest 与 trust class。Assembly resolver 因此不需要把 package ID 当作 component ID。
 
 ### `protocol_profile_pins`
 

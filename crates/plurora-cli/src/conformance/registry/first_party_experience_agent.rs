@@ -237,9 +237,9 @@ pub(super) fn agentic_forge_phase_f_cases() -> Vec<ConformanceCase> {
     vec![
         // --- agentic forge Phase F ---
         c!(
-            "agentic_forge.thirdparty_replacement_shape_no_publisher_priority",
-            ["agentic", "replacement"],
-            crate::conformance::agentic_forge::agentic_forge_thirdparty_replacement_shape
+            "agentic_forge.thirdparty_work_shape_no_publisher_priority",
+            ["agentic", "replacement", "work"],
+            crate::conformance::agentic_forge::agentic_forge_thirdparty_work_shape
         ),
         c!(
             "agentic_forge.no_publisher_priority_ordinary_package",
@@ -553,9 +553,9 @@ pub(super) fn creator_loop_beta_5_cases() -> Vec<ConformanceCase> {
             crate::conformance::creator_loop::creator_loop_network_nondeterministic_hint
         ),
         c!(
-            "creator_loop.composition_experience_diagnostics",
-            ["experience", "composition", "generated"],
-            crate::conformance::creator_loop::creator_loop_composition_experience_diagnostics
+            "creator_loop.work_experience_diagnostics",
+            ["experience", "work", "generated"],
+            crate::conformance::creator_loop::creator_loop_work_experience_diagnostics
         ),
         c!(
             "creator_loop.walkthrough_reference",
@@ -579,13 +579,13 @@ pub(super) fn sharing_lab_beta_6_cases() -> Vec<ConformanceCase> {
             crate::conformance::sharing_lab::sharing_contract
         ),
         c!(
-            "sharing_lab.export_composition_bundle",
-            ["sharing", "composition"],
+            "sharing_lab.export_work_bundle",
+            ["sharing", "work"],
             crate::conformance::sharing_lab::sharing_export_bundle
         ),
         c!(
-            "sharing_lab.import_composition_bundle",
-            ["sharing", "composition"],
+            "sharing_lab.import_work_bundle",
+            ["sharing", "work"],
             crate::conformance::sharing_lab::sharing_import_bundle
         ),
         c!(

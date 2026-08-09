@@ -45,12 +45,12 @@ All scenarios avoid real network or provider dependencies. Inputs are fixed so d
 | scenario_id | Description |
 |---|---|
 | `inproc_echo_invoke` | Rust inproc package echo capability invocation. Uses `examples/packages/echo-rust-inproc/manifest.yaml`. |
-| `first_party_capability_invoke` | First-party Package capability invocation. Uses `plurora/composition-lab/describe`. |
+| `first_party_capability_invoke` | First-party Package capability invocation. Uses the network-free, side-effect-free `plurora/asset-lab/preview`. |
 | `event_store_append_list_range` | In-memory event store batch append (100 events), full list, range query. |
 | `event_store_append_list_range_1k` | In-memory event store atomic append (1,000 events), full list, kind-prefix query. |
 | `event_store_append_list_range_10k` | In-memory event store atomic append (10,000 events), full list, kind-prefix query. |
 | `event_store_append_list_range_100k` | In-memory event store atomic append (100,000 events), full list, kind-prefix query. Auto-capped to 1 iteration when iterations > 1. |
-| `composition_check` | Composition descriptor validation and package loading. Uses `examples/compositions/playable-seed-replacement/`. |
+| `work_check` | Safely reads Work/Assembly sources, projects Package/Component artifacts, and runs the authoring resolver. Uses `examples/works/playable-seed-replacement/work.yaml`. |
 | `profile_load` | Profile YAML parsing. Uses `profiles/forge-alpha.yaml`. |
 | `subprocess_echo_invoke` | Subprocess echo capability invocation (requires Python; status=skipped if unavailable). |
 | `subprocess_cold_start_ms` | Fresh subprocess package per iteration, measuring `load_package` handshake plus first invoke. |
@@ -61,6 +61,8 @@ All scenarios avoid real network or provider dependencies. Inputs are fixed so d
 | `outbound_execute_fake_throughput_req_s` | Throughput for 1,000 `execute_outbound_with_policy` calls on `FakeOutboundExecutor`. |
 | `outbound_stream_fake_ttft_ms` | Fake SSE stream first-event latency, drained to completion. |
 | `outbound_stream_fake_steady_events_s` | Planned 100-event steady stream measurement; currently `skipped` because the fake executor has no public N-frame fixture API. |
+
+The committed historical `perf/baseline.json` intentionally drops the old descriptor-check sample because it is not comparable with `work_check` filesystem containment, artifact projection, and recursive resolution. `first_party_capability_invoke` also moved from a retired Package to `plurora/asset-lab/preview`, so its old timing cannot be carried forward. The next run on the baseline Linux environment will establish the first comparable reference values for both scenarios.
 
 ## Output fields
 
@@ -130,7 +132,7 @@ Use these metrics for before/after comparisons during later optimization:
 1. In-process invoke latency — Watch this if a resolve cache or handler table is introduced.
 2. Event-store batch throughput — Compare append/list/range/kind-prefix latency for 100 events, 1k, 10k, and 100k.
 3. Event-store scale trend — Use the 1k/10k/100k scenarios to compare growth across versions.
-4. Composition check latency — Set/index-based diagnostics should improve this.
+4. Work-check latency — This should reflect changes in source containment, Package projection, and recursive resolution.
 5. Profile load latency — Use it as the YAML parsing baseline; re-measure when profiles grow.
 6. Subprocess invoke latency — Re-measure with a stable subprocess environment.
 7. Fake outbound executor and fake streams — Use them as the no-network reference for outbound audit/policy paths.

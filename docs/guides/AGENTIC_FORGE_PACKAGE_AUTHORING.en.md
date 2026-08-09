@@ -85,11 +85,11 @@ Inference failures return explicit kinds and recovery hints:
 The first-party `plurora/agentic-forge-lab` is an ordinary Package. It has no kernel privilege and no routing priority. Third-party packages can replace it:
 
 1. Create a package with equivalent capability shapes (e.g., `thirdparty/agentic-forge`)
-2. Create a composition that declares `replacement_candidates: [plurora/agentic-forge-lab]`
+2. Explicitly bind the required Assembly import to that third-party Component
 3. Both packages produce package-owned shapes: candidates, proposals, plan graphs, working state
 4. Neither package may directly mutate target branches or perform network
 
-See `examples/packages/thirdparty-agentic-forge/` and `examples/compositions/agentic-forge-replacement/`.
+See `examples/packages/thirdparty-agentic-forge/` and `examples/works/agentic-forge-replacement/`.
 
 ## Secret Safety
 

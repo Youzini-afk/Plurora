@@ -33,7 +33,7 @@ It answers:
 
 - 80 exact public method IDs and 80 method schemas.
 - 59 explicit platform-owned event kinds and 59 payload schemas.
-- 37 top-level schemas; 176 schemas total.
+- 36 top-level schemas; 175 schemas total.
 - Contract Registry `0.1.0` exposes one wire ID per method and no aliases.
 - Method IDs declare owner through their first dot segment.
 - Platform event ownership is explicit; all 59 kinds require writer `plurora/runtime`.
@@ -90,7 +90,7 @@ The owner is semantic. Persistence still uses one `EventEnvelope` and one EventS
 
 - **Substrate:** event envelope, protocol context/response, capability descriptor and invocation, permission set, artifact/effect evidence.
 - **Host:** Package Manifest envelopes, Installation / Run / Exposure / Realization, local execution descriptors, Target Inventory, and Host-facing records.
-- **Protocol Commons:** protocol descriptors, Change primitives, portable Work / Assembly / Port / State Slot contracts, composition locks, World Bundle, and World Head.
+- **Protocol Commons:** protocol descriptors, Change primitives, portable Work / Assembly / Port / State Slot contracts, AssemblyLock, World Bundle, and World Head.
 - **Shell Profile:** contribution and profile descriptors carried through public schemas.
 
 Some top-level schemas join multiple layers for transport. Their fields must still identify ownership rather than collapse the layers into one ontology.

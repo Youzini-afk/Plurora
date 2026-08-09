@@ -196,6 +196,8 @@ pub(crate) enum Command {
     Uninstall(crate::commands::uninstall::UninstallArgs),
     /// Manage installed projects.
     Project(crate::commands::project::ProjectArgs),
+    /// Create, validate, pack, or inspect portable Work sources.
+    Work(crate::commands::work::WorkArgs),
     /// List packages installed in a profile.
     ListInstalled(crate::commands::list_installed::ListInstalledArgs),
     /// Update installed packages.
@@ -215,17 +217,6 @@ pub(crate) enum Command {
         /// Defaults to auto-detected from --language (experience if language contains "experience", otherwise basic).
         #[arg(long, value_enum)]
         template: Option<PackageTemplate>,
-    },
-    /// Generate a local composition descriptor.
-    InitComposition {
-        path: PathBuf,
-        #[arg(long, default_value = "example/composition")]
-        id: String,
-    },
-    /// Validate composition descriptors.
-    Composition {
-        #[command(subcommand)]
-        command: CompositionCommand,
     },
     /// Run local kernel conformance checks.
     Conformance(ConformanceArgs),
@@ -473,11 +464,6 @@ pub enum TargetAgentCommand {
         #[arg(long, env = "PLURORA_TARGET_AGENT_CREDENTIAL", hide_env_values = true)]
         credential: String,
     },
-}
-
-#[derive(Debug, Subcommand)]
-pub enum CompositionCommand {
-    Check { path: PathBuf },
 }
 
 #[derive(Debug, Default, Deserialize)]
@@ -732,34 +718,6 @@ impl Default for HostEventStoreProfile {
     }
 }
 
-#[derive(Debug, Deserialize)]
-pub(crate) struct CompositionDescriptor {
-    pub(crate) id: String,
-    pub(crate) version: String,
-    pub(crate) entry_surface_id: String,
-    #[serde(default)]
-    pub(crate) packages: Vec<PathBuf>,
-    #[serde(default)]
-    pub(crate) required_surfaces: Vec<String>,
-    // v2 optional fields (backwards compatible — all defaulted)
-    #[serde(default)]
-    pub(crate) title: Option<String>,
-    #[serde(default)]
-    pub(crate) description: Option<String>,
-    #[serde(default)]
-    pub(crate) optional_packages: Vec<PathBuf>,
-    #[serde(default)]
-    pub(crate) required_capabilities: Vec<String>,
-    #[serde(default)]
-    pub(crate) default_activation: Option<serde_json::Value>,
-    #[serde(default)]
-    pub(crate) permission_expectations: Vec<String>,
-    #[serde(default)]
-    pub(crate) replacement_candidates: Vec<String>,
-    #[serde(default)]
-    pub(crate) compatibility_notes: Vec<String>,
-}
-
 #[derive(Debug, Subcommand)]
 pub(crate) enum CapabilityCommand {
     Invoke {
@@ -773,6 +731,29 @@ pub(crate) enum CapabilityCommand {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn parses_all_work_subcommands() {
+        for subcommand in ["check", "inspect"] {
+            let cli = Cli::try_parse_from(["plurora", "work", subcommand, "example"]).unwrap();
+            assert!(matches!(cli.command, Command::Work(_)));
+        }
+        let cli = Cli::try_parse_from([
+            "plurora",
+            "work",
+            "pack",
+            "example/work.yaml",
+            "--data-dir",
+            "objects",
+            "--json",
+        ])
+        .unwrap();
+        assert!(matches!(cli.command, Command::Work(_)));
+        let cli =
+            Cli::try_parse_from(["plurora", "work", "init", "example", "--id", "example/work"])
+                .unwrap();
+        assert!(matches!(cli.command, Command::Work(_)));
+    }
 
     #[test]
     fn parses_protocol_conformance_report_args() {

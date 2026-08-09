@@ -140,7 +140,6 @@ EXPECTED_TOP_LEVEL_SCHEMAS = {
     "change-set.schema.json",
     "commit.schema.json",
     "component-descriptor.schema.json",
-    "composition-lock.schema.json",
     "contract-selection.schema.json",
     "effect-receipt.schema.json",
     "event-envelope.schema.json",
@@ -189,6 +188,36 @@ FORBIDDEN_PATHS = {
     "docs/protocol/PROTOCOL_V0.en.md",
     "docs/architecture/PLATFORM_KERNEL.md",
     "docs/architecture/PLATFORM_KERNEL.en.md",
+    "crates/plurora-cli/src/commands/composition.rs",
+    "docs/spec/v1/schemas/composition-lock.schema.json",
+    "packages/plurora/composition-lab/manifest.yaml",
+    "examples/bundles/playable-creation-board-composition-bundle/bundle.json",
+}
+
+RETIRED_COMPOSITION_REFERENCES = (
+    "Composition" + "Descriptor",
+    "Composition" + "Lock",
+    "composition" + "_lock",
+    "init-" + "composition",
+    "composition" + " check",
+    "composition" + "-lab",
+    "composition" + "_lab",
+    "Composition" + " Lab",
+    "export_" + "composition" + "_bundle",
+    "import_" + "composition" + "_bundle",
+    "composition" + "_bundle",
+    "composition" + "_manifest",
+    "composition" + "_id",
+    "composition" + "_launch_plan",
+    "composition" + "_permission_preview",
+    "composition" + "_surface_graph",
+    "composition" + "_compat_report",
+    "asset:" + "composition" + ":",
+    "bundle:" + "composition" + ":",
+)
+COMPOSITION_MIGRATION_BRIEFS = {
+    "docs/roadmap/WORK_ASSEMBLY_REALIZATION.md",
+    "docs/roadmap/WORK_ASSEMBLY_REALIZATION.en.md",
 }
 
 
@@ -437,8 +466,8 @@ def check_first_party_manifests() -> list[str]:
     errors: list[str] = []
     root = ROOT / "packages/plurora"
     manifests = sorted(root.glob("*/manifest.yaml"))
-    if len(manifests) != 35:
-        errors.append(f"expected 35 first-party manifests, found {len(manifests)}")
+    if len(manifests) != 34:
+        errors.append(f"expected 34 first-party manifests, found {len(manifests)}")
     for manifest in manifests:
         package_id, provides = manifest_identity(manifest)
         expected = f"plurora/{manifest.parent.name}"
@@ -464,8 +493,25 @@ def check_positive_markers() -> list[str]:
 
 
 def check_forbidden_paths(paths: Iterable[str]) -> list[str]:
+    paths = {path for path in paths if (ROOT / path).exists()}
     present = sorted(FORBIDDEN_PATHS.intersection(paths))
+    present.extend(sorted(path for path in paths if path.endswith("/composition.yaml")))
     return [f"retired or temporary identity path is present: {path}" for path in present]
+
+
+def check_retired_composition_references(texts: Iterable[tuple[str, str]]) -> list[str]:
+    errors: list[str] = []
+    for relative, text in texts:
+        if relative in COMPOSITION_MIGRATION_BRIEFS or relative == "scripts/check-identity.py":
+            continue
+        for reference in RETIRED_COMPOSITION_REFERENCES:
+            offset = text.find(reference)
+            if offset >= 0:
+                errors.append(
+                    f"retired Composition identity {reference!r}: "
+                    f"{relative}:{line_number(text, offset)}"
+                )
+    return errors
 
 
 def main() -> int:
@@ -474,6 +520,7 @@ def main() -> int:
     errors = []
     errors.extend(check_forbidden_paths(paths))
     errors.extend(check_redlines(paths, texts))
+    errors.extend(check_retired_composition_references(texts))
     errors.extend(check_generated_contract())
     errors.extend(check_first_party_manifests())
     errors.extend(check_positive_markers())
@@ -487,7 +534,7 @@ def main() -> int:
     print(
         "Plurora identity check passed: "
         f"zero retired identities; 80 methods, 59 events, {len(EXPECTED_TOP_LEVEL_SCHEMAS)} top-level schemas; "
-        "35 first-party Package manifests."
+        "34 first-party Package manifests."
     )
     return 0
 

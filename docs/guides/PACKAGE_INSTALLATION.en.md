@@ -138,7 +138,7 @@ Packages declare dependencies in `manifest.yaml`:
 
 ```yaml
 requires:
-  - id: "plurora/composition-lab"
+  - id: "plurora/asset-lab"
     source:
       kind: internal
     version: ">=1.0.0"

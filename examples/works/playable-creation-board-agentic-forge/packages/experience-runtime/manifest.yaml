@@ -1,0 +1,15 @@
+schema_version: 1
+id: plurora/experience-runtime-lab
+version: 0.1.0
+display_name: Experience Runtime Lab
+entry:
+  kind: rust_inproc
+  crate_ref: plurora-experience-runtime-lab
+  symbol: register
+  abi_version: 1
+provides: []
+consumes: []
+requires: []
+contributes: {}
+permissions: {}
+sandbox_policy: {}

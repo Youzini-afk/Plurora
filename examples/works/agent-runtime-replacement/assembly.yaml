@@ -1,0 +1,6 @@
+schema: plurora.assembly-source.v1
+assembly:
+  id: example/agent-runtime/main
+  nodes:
+    - id: runtime
+      component: packages/agent-runtime/manifest.yaml

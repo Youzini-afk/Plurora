@@ -139,7 +139,7 @@ Optional string. Complete SHA-256 digest of the logical package envelope. Unlike
 
 ### `component_pins`
 
-Optional array. Each pin records an independent component ID, component artifact digest, behavior digest, and trust class. This lets a composition reason about implementation identity without treating the package ID as the component ID.
+Optional array. Each pin records an independent component ID, component artifact digest, behavior digest, and trust class. This lets the Assembly resolver reason about implementation identity without treating the package ID as the component ID.
 
 ### `protocol_profile_pins`
 

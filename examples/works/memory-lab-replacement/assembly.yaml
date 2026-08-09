@@ -1,0 +1,6 @@
+schema: plurora.assembly-source.v1
+assembly:
+  id: example/memory-lab/main
+  nodes:
+    - id: memory
+      component: packages/memory-lab/manifest.yaml

@@ -70,22 +70,22 @@ cargo run -p plurora-cli -- package reload /tmp/plurora-seed-package/manifest.ya
 
 `package check` 会打印创作诊断，例如 entry kind、trust level、能力数量、按 slot 分组的 surfaces、权限摘要、沙箱策略，以及缺少能力或 surface 的 warning。`package run-fixture` 用 fixture input 调用声明的非流式能力，并输出结构化 JSON 结果。`package reload` 练习本地 load/restart/unload 循环，并报告 package status 与 logs。
 
-## 3. 创建 composition descriptor
+## 3. 创建并检查 Work
 
 ```bash
-cargo run -p plurora-cli -- init-composition /tmp/plurora-seed-composition --id example/seed-package
-cargo run -p plurora-cli -- composition check /tmp/plurora-seed-composition/composition.yaml
+cargo run -p plurora-cli -- work init /tmp/plurora-seed-work --id example/seed-work
+cargo run -p plurora-cli -- work check /tmp/plurora-seed-work/work.yaml
 ```
 
-composition descriptor 描述哪些包提供可启动入口、必须有哪些 surface slots。它不是内核里的 `game` 或 `experience` 类型。
+`work.yaml` 声明 Work 的标题、入口、内容与 `assembly.yaml`；Assembly 用 Component 节点、typed Port、显式 Binding 和 exposed Port 表达可替换边界。源文件只是本地创作输入；`work pack` 才生成不可变、内容寻址的 WorkRevision、AssemblyRevision 与 authoring AssemblyLock。
 
-Composition descriptor 字段还能声明 optional packages、required capabilities、permission expectations、replacement candidates、default activation metadata 和 compatibility notes。`composition check` 会报告已加载 package paths、按 slot 分组的 surfaces、capabilities、缺失的 required surfaces/capabilities、optional-package warnings 与 replacement diagnostics。
+`work check` 安全读取相对 source、拒绝 traversal/symlink escape，投影 Package capability 为保守的 Port 合同，并输出结构化 binding diagnostics。完整 Port 合同进入 canonical AssemblyRevision，compatibility 语义变化会改变 Assembly、Work 与 Lock digest。`work pack` 通过已打开的目录 capability 原子写 ObjectStore；大内容用已验证的文件句柄流式哈希和导入，单个 canonical metadata artifact 仍受 4 MiB 预算约束。Installation、Launch 与 Runtime import 在到达对应阶段前保持未绑定；多个兼容 provider 会报告 `binding_ambiguous`，不会按 publisher 自动选择。
 
 要查看 replacement proof，可以检查内置第三方 example：
 
 ```bash
 cargo run -p plurora-cli -- package check examples/packages/thirdparty-playable-seed/manifest.yaml
-cargo run -p plurora-cli -- composition check examples/compositions/playable-seed-replacement/composition.yaml
+cargo run -p plurora-cli -- work check examples/works/playable-seed-replacement/work.yaml
 ```
 
 该 package id 是 `thirdparty/playable-seed`，不是 `plurora/*`。它在没有 publisher priority 的情况下暴露兼容的 Play/Forging/Assistant/Asset surfaces。
@@ -112,20 +112,19 @@ Forge 现在包含基于 public protocol data 的轻量 authoring panels：
 - 按 provider package 分组的 package 与 capability inventory；
 - 按 slot 分组的 surface inventory；
 - packages、capabilities、surfaces、assets、projections 与 entry surfaces 的创作诊断；
-- templates、package checks、fixture runs、reloads 与 compositions 的 CLI command guidance。
+- templates、package checks、fixture runs、reloads 与 Works 的 CLI command guidance。
 
 ## 5. 与第一方 Package 对比
 
 `packages/plurora/` 下的第一方 Package 是 reference implementations，不是特权路径：
 
-- `plurora/composition-lab` 解释 launch plans 与 surface graphs。
 - `plurora/asset-lab` preview assets 并草拟 import plans。
 - `plurora/projection-lab` 解释 projection rebuilds 与 source events。
 - `plurora/playable-seed` 证明 reference playable package。
 
 只要第三方包暴露兼容的 surfaces 与 capabilities，就应该能替换其中任意一个。
 
-`examples/packages/thirdparty-playable-seed` package 是当前 proof。检查会验证它的 surfaces 可发现、capabilities 通过普通 routing 调用、composition checks 通过。共享 capability id 在没有 explicit provider 时会被判定为 ambiguous。不存在隐式 publisher priority。
+`examples/packages/thirdparty-playable-seed` package 是当前 proof。检查会验证它的 surfaces 可发现、capabilities 通过普通 routing 调用，并能投影为 Work/Assembly 节点。共享 Port 合同出现多个 provider 且没有显式 Binding 时会被判定为 ambiguous。不存在隐式 publisher priority。
 
 ## 不变量
 
@@ -251,24 +250,24 @@ cargo run -p plurora-cli -- package reload /tmp/my-playable-board/manifest.yaml
 
 `package reload` 现在在包 restart 后处于 degraded 状态时发出警告。
 
-### 8.3 与其他包 composition
+### 8.3 与其他 Package 装配为 Work
 
 ```bash
-cargo run -p plurora-cli -- init-composition /tmp/my-board-composition --id thirdparty/my-playable-board
-cargo run -p plurora-cli -- composition check /tmp/my-board-composition/composition.yaml
+cargo run -p plurora-cli -- work init /tmp/my-board-work --id thirdparty/my-playable-board
+cargo run -p plurora-cli -- work check /tmp/my-board-work/work.yaml
 ```
 
-`composition check` 现在输出 experience 相关诊断：
+在生成的 `assembly.yaml` 中加入 Package Manifest 节点、明确 Port 与 Binding 后，`work check` 会输出：
 
-- Experience surface coverage：显示哪些 surface slots 已覆盖或缺失
-- Replacement candidates：显示声明的候选项及其加载状态
-- Replacement hint：当多个包提供相同 slot 时，建议声明 `replacement_candidates`
-- State capability coverage：显示 `create_checkpoint` 和 `draft_recovery` 的 provider 数量
-- Optional package coverage：提示 `memory-lab` 和 `experience-observability-lab` 以获得更丰富的体验
+- 每个节点的 Package/Component identity 与投影 Port；
+- protocol/interface/version/Profile、interaction、effect、transport 与 multiplicity 不兼容；
+- 未到阶段的 Installation/Launch/Runtime import；
+- 零候选与多候选 diagnostics；
+- nested Assembly exposure chain 和最终 authoring lock closure。
 
 ### 8.4 与第一方参考 Package 对比
 
-第一方 `plurora/playable-creation-board` Package 拥有相同的 surfaces 和 capabilities。你的第三方 Package 使用相同的公开 Manifest、capability 与 surface 路径，没有特权，也没有特殊路由。两者同时加载时，runtime 不会优先选择第一方 Package。若要在 composition 中替换它，将你的 Package 声明为主要 provider，并将第一方 Package 声明为 `replacement_candidate`。
+第一方 `plurora/playable-creation-board` Package 拥有相同的 surfaces 和 capabilities。你的第三方 Package 使用相同的公开 Manifest、capability 与 surface 路径，没有特权，也没有特殊路由。两者同时成为兼容候选时，Resolver 不会优先选择第一方 Package；作者必须在 Assembly 中写出目标 Binding，或把选择留给之后明确的 Host 阶段。
 
 ### 8.5 更丰富的生命周期：playable-experience template
 

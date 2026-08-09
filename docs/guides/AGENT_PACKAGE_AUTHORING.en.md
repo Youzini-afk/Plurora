@@ -105,15 +105,15 @@ It has no first-party privilege. It is not a real agent runtime and performs no 
 See:
 
 - `examples/packages/thirdparty-agent-runtime/manifest.yaml`
-- `examples/compositions/agent-runtime-replacement/composition.yaml`
+- `examples/works/agent-runtime-replacement/work.yaml`
 
-This example shows that a third-party agent runtime can expose equivalent surface, capability, proposal, and trace shapes. The first-party Package is only a `replacement_candidate`, not a priority path.
+This example shows that a third-party agent runtime can expose equivalent surface, capability, proposal, and trace shapes. The first-party Package has no priority; if both satisfy the Port contract, the Assembly must bind explicitly or the resolver reports ambiguity.
 
 Validate it:
 
 ```bash
 cargo run -p plurora-cli -- package check examples/packages/thirdparty-agent-runtime/manifest.yaml
-cargo run -p plurora-cli -- composition check examples/compositions/agent-runtime-replacement/composition.yaml
+cargo run -p plurora-cli -- work check examples/works/agent-runtime-replacement/work.yaml
 ```
 
 ## UI observability

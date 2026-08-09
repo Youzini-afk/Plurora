@@ -554,43 +554,33 @@ pub(super) fn hooks_cases() -> Vec<ConformanceCase> {
     ]
 }
 
-pub(super) fn composition_cases() -> Vec<ConformanceCase> {
+pub(super) fn work_cases() -> Vec<ConformanceCase> {
     vec![
-        // --- composition ---
+        // --- Work / Assembly authoring ---
         c!(
-            "composition.check_descriptor",
-            ["composition"],
-            crate::conformance::generated::composition_descriptor
+            "work.nested_exposure",
+            ["work", "assembly"],
+            crate::conformance::generated::work_source_nested_exposure
         ),
         c!(
-            "composition.check_descriptor_v2",
-            ["composition"],
-            crate::conformance::generated::composition_descriptor_v2
+            "work.digest_is_deterministic",
+            ["work", "assembly"],
+            crate::conformance::generated::work_source_digest_is_deterministic
         ),
         c!(
-            "composition.component_identity_independent_of_package_envelope",
-            ["composition", "phase7"],
+            "assembly.component_identity_independent_of_package_envelope",
+            ["work", "assembly", "phase7"],
             crate::conformance::generated::component_identity_independent_of_package_envelope
         ),
         c!(
-            "composition.component_replacement_preserves_content_roots",
-            ["composition", "phase7"],
+            "assembly.component_replacement_preserves_content_roots",
+            ["work", "assembly", "phase7"],
             crate::conformance::generated::component_replacement_preserves_content_roots
         ),
         c!(
-            "composition.contract_none_is_foreign_capsule",
-            ["composition", "phase7"],
+            "work.contract_none_is_foreign_capsule",
+            ["work", "assembly", "phase7"],
             crate::conformance::generated::contract_none_is_foreign_capsule
-        ),
-        c!(
-            "first_party.composition_lab",
-            ["first_party", "composition", "slow"],
-            crate::conformance::first_party_labs::composition_lab
-        ),
-        c!(
-            "first_party.composition_lab_diagnostics",
-            ["first_party", "composition", "slow"],
-            crate::conformance::first_party_labs::composition_lab_diagnostics
         ),
         c!(
             "first_party.asset_lab",
@@ -684,9 +674,9 @@ pub(super) fn replacement_cases() -> Vec<ConformanceCase> {
             crate::conformance::replacement::ambiguous_no_publisher_priority
         ),
         c!(
-            "replacement.composition_thirdparty",
-            ["replacement", "composition"],
-            crate::conformance::replacement::composition_thirdparty
+            "replacement.work_thirdparty",
+            ["replacement", "work"],
+            crate::conformance::replacement::work_thirdparty
         ),
         c!(
             "replacement.thirdparty_agent_runtime_surfaces",
@@ -699,9 +689,9 @@ pub(super) fn replacement_cases() -> Vec<ConformanceCase> {
             crate::conformance::replacement::thirdparty_agent_runtime_invocation
         ),
         c!(
-            "replacement.composition_agent_runtime_replacement",
-            ["replacement", "agentic", "composition"],
-            crate::conformance::replacement::composition_agent_runtime_replacement
+            "replacement.work_agent_runtime_replacement",
+            ["replacement", "agentic", "work"],
+            crate::conformance::replacement::work_agent_runtime_replacement
         ),
     ]
 }

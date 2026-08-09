@@ -1,4 +1,4 @@
-use std::collections::{BTreeMap, BTreeSet, HashMap};
+use std::collections::{BTreeMap, BTreeSet};
 
 use plurora_core::{ArtifactDescriptor, COMPONENT_DESCRIPTOR_TYPE_URI};
 use schemars::JsonSchema;
@@ -56,6 +56,8 @@ impl AssemblyNodeSource {
 pub struct AssemblyNode {
     pub node_id: NodeId,
     pub source: AssemblyNodeSource,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub ports: Vec<PortDescriptor>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub configuration: Option<ArtifactDescriptor>,
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
@@ -135,6 +137,29 @@ impl AssemblyRevision {
                 ));
             }
             node.source.validate()?;
+            if node.ports.len() > MAX_PORTS_PER_NODE {
+                return Err(ModelError::new(
+                    DiagnosticCode::WorkTooComplex,
+                    "assembly node exceeds the port implementation budget",
+                ));
+            }
+            if matches!(node.source, AssemblyNodeSource::Assembly { .. }) && !node.ports.is_empty()
+            {
+                return Err(ModelError::new(
+                    DiagnosticCode::WorkInvalid,
+                    "nested Assembly nodes expose Ports through the nested revision, not an inline catalog",
+                ));
+            }
+            let mut port_ids = BTreeSet::new();
+            for port in &node.ports {
+                port.validate()?;
+                if !port_ids.insert(&port.port_id) {
+                    return Err(ModelError::new(
+                        DiagnosticCode::WorkInvalid,
+                        "assembly node contains a duplicate Port id",
+                    ));
+                }
+            }
             if let Some(configuration) = &node.configuration {
                 validate_artifact_descriptor(configuration)?;
             }
@@ -210,12 +235,51 @@ impl AssemblyRevision {
             .iter()
             .map(|node| &node.node_id)
             .collect::<BTreeSet<_>>();
+        let component_node_ids = self
+            .nodes
+            .iter()
+            .filter_map(|node| {
+                matches!(node.source, AssemblyNodeSource::Component { .. }).then_some(&node.node_id)
+            })
+            .collect::<BTreeSet<_>>();
+        let declared_component_ports = self
+            .nodes
+            .iter()
+            .filter(|node| matches!(node.source, AssemblyNodeSource::Component { .. }))
+            .flat_map(|node| {
+                node.ports.iter().map(|port| {
+                    (
+                        PortEndpoint {
+                            node_id: node.node_id.clone(),
+                            port_id: port.port_id.clone(),
+                        },
+                        port,
+                    )
+                })
+            })
+            .collect::<BTreeMap<_, _>>();
+        for (endpoint, descriptor) in &declared_component_ports {
+            if ports.get(endpoint) != Some(*descriptor) {
+                return Err(ModelError::new(
+                    DiagnosticCode::ArtifactDigestMismatch,
+                    "port catalog differs from the canonical Assembly node contract",
+                ));
+            }
+        }
         let mut ports_per_node: BTreeMap<&NodeId, usize> = BTreeMap::new();
         for (endpoint, descriptor) in ports {
             if !node_ids.contains(&endpoint.node_id) || endpoint.port_id != descriptor.port_id {
                 return Err(ModelError::new(
                     DiagnosticCode::PortUnresolved,
                     "port catalog does not match the assembly graph",
+                ));
+            }
+            if component_node_ids.contains(&endpoint.node_id)
+                && !declared_component_ports.contains_key(endpoint)
+            {
+                return Err(ModelError::new(
+                    DiagnosticCode::ArtifactDigestMismatch,
+                    "port catalog contains a Component Port absent from the canonical Assembly node",
                 ));
             }
             descriptor.validate()?;
@@ -324,7 +388,7 @@ impl AssemblyRevision {
                     "state migration port is absent from the port catalog",
                 )
             })?;
-            if !descriptor.interaction.is_known() {
+            if !descriptor.interaction.is_directly_supported() {
                 return Err(ModelError::new(
                     DiagnosticCode::UnsupportedInteraction,
                     "state migration port uses an interaction without an implementation or adapter",
@@ -359,64 +423,16 @@ impl ArtifactModel for AssemblyRevision {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum VisitState {
-    Visiting,
-    Visited,
-}
-
 pub fn validate_assembly_closure(
     root: &ArtifactDescriptor,
     assemblies: &BTreeMap<String, AssemblyRevision>,
 ) -> ModelResult<()> {
     validate_descriptor_type(root, ASSEMBLY_REVISION_TYPE_URI)?;
-    let mut states: HashMap<String, VisitState> = HashMap::new();
-    let mut stack = vec![(root.digest.clone(), false, 1usize)];
-
-    while let Some((digest, leaving, depth)) = stack.pop() {
-        if leaving {
-            states.insert(digest, VisitState::Visited);
-            continue;
-        }
-        match states.get(&digest) {
-            Some(VisitState::Visiting) => {
-                return Err(ModelError::new(
-                    DiagnosticCode::AssemblyCycle,
-                    "nested assembly containment graph contains a cycle",
-                ));
-            }
-            Some(VisitState::Visited) => continue,
-            None => {}
-        }
-        if depth > MAX_ASSEMBLY_DEPTH {
-            return Err(ModelError::new(
-                DiagnosticCode::WorkTooComplex,
-                "nested assembly containment exceeds the maximum depth of 32",
-            ));
-        }
-        let assembly = assemblies.get(&digest).ok_or_else(|| {
-            ModelError::new(
-                DiagnosticCode::ArtifactMissing,
-                "nested assembly closure is incomplete",
-            )
-        })?;
-        states.insert(digest.clone(), VisitState::Visiting);
-        stack.push((digest, true, depth));
-        for child in assembly
-            .nodes
-            .iter()
-            .rev()
-            .filter_map(|node| match &node.source {
-                AssemblyNodeSource::Assembly { assembly } => Some(assembly.digest.clone()),
-                AssemblyNodeSource::Component { .. } => None,
-            })
-        {
-            stack.push((child, false, depth + 1));
-        }
-    }
-
+    let mut visiting = BTreeSet::new();
+    let mut heights = BTreeMap::new();
+    validate_assembly_subtree(&root.digest, 1, assemblies, &mut visiting, &mut heights)?;
     for (digest, assembly) in assemblies {
-        if states.get(digest) != Some(&VisitState::Visited) {
+        if !heights.contains_key(digest) {
             continue;
         }
         assembly.validate()?;
@@ -427,6 +443,68 @@ pub fn validate_assembly_closure(
                 "assembly closure key does not match canonical assembly bytes",
             ));
         }
+    }
+    Ok(())
+}
+
+fn validate_assembly_subtree(
+    digest: &str,
+    depth: usize,
+    assemblies: &BTreeMap<String, AssemblyRevision>,
+    visiting: &mut BTreeSet<String>,
+    heights: &mut BTreeMap<String, usize>,
+) -> ModelResult<usize> {
+    ensure_assembly_depth(depth, 1)?;
+    if let Some(height) = heights.get(digest).copied() {
+        ensure_assembly_depth(depth, height)?;
+        return Ok(height);
+    }
+    if !visiting.insert(digest.to_string()) {
+        return Err(ModelError::new(
+            DiagnosticCode::AssemblyCycle,
+            "nested assembly containment graph contains a cycle",
+        ));
+    }
+    let result = (|| {
+        let assembly = assemblies.get(digest).ok_or_else(|| {
+            ModelError::new(
+                DiagnosticCode::ArtifactMissing,
+                "nested assembly closure is incomplete",
+            )
+        })?;
+        let mut maximum_child_height = 0;
+        for child in assembly.nodes.iter().filter_map(|node| match &node.source {
+            AssemblyNodeSource::Assembly { assembly } => Some(assembly.digest.as_str()),
+            AssemblyNodeSource::Component { .. } => None,
+        }) {
+            let child_height =
+                validate_assembly_subtree(child, depth + 1, assemblies, visiting, heights)?;
+            maximum_child_height = maximum_child_height.max(child_height);
+        }
+        let height = maximum_child_height.checked_add(1).ok_or_else(|| {
+            ModelError::new(
+                DiagnosticCode::WorkTooComplex,
+                "nested assembly containment depth overflowed",
+            )
+        })?;
+        ensure_assembly_depth(depth, height)?;
+        Ok(height)
+    })();
+    visiting.remove(digest);
+    let height = result?;
+    heights.insert(digest.to_string(), height);
+    Ok(height)
+}
+
+fn ensure_assembly_depth(depth: usize, height: usize) -> ModelResult<()> {
+    if depth
+        .checked_add(height.saturating_sub(1))
+        .is_none_or(|deepest| deepest > MAX_ASSEMBLY_DEPTH)
+    {
+        return Err(ModelError::new(
+            DiagnosticCode::WorkTooComplex,
+            "nested assembly containment exceeds the maximum depth of 32",
+        ));
     }
     Ok(())
 }
@@ -470,6 +548,7 @@ mod tests {
                 .map(|assembly| AssemblyNode {
                     node_id: NodeId::parse("nested").unwrap(),
                     source: AssemblyNodeSource::Assembly { assembly },
+                    ports: Vec::new(),
                     configuration: None,
                     annotations: BTreeMap::new(),
                 })
@@ -479,6 +558,56 @@ mod tests {
             state_slots: Vec::new(),
             annotations: BTreeMap::new(),
         }
+    }
+
+    fn insert_assembly(
+        closure: &mut BTreeMap<String, AssemblyRevision>,
+        value: AssemblyRevision,
+    ) -> ArtifactDescriptor {
+        let descriptor = value.artifact_descriptor().unwrap();
+        closure.insert(descriptor.digest.clone(), value);
+        descriptor
+    }
+
+    fn shared_dag_closure(
+        wrapper_count: usize,
+    ) -> (ArtifactDescriptor, BTreeMap<String, AssemblyRevision>) {
+        let mut closure = BTreeMap::new();
+        let leaf = insert_assembly(&mut closure, assembly("example/shared-leaf", None));
+        let shared = insert_assembly(&mut closure, assembly("example/shared-target", Some(leaf)));
+        let mut deep = shared.clone();
+        for level in 0..wrapper_count {
+            deep = insert_assembly(
+                &mut closure,
+                assembly(&format!("example/shared-wrapper-{level}"), Some(deep)),
+            );
+        }
+        let root = AssemblyRevision {
+            schema: AssemblyRevision::SCHEMA.to_string(),
+            assembly_id: AssemblyId::parse("example/shared-root").unwrap(),
+            nodes: vec![
+                AssemblyNode {
+                    node_id: NodeId::parse("a-direct").unwrap(),
+                    source: AssemblyNodeSource::Assembly { assembly: shared },
+                    ports: Vec::new(),
+                    configuration: None,
+                    annotations: BTreeMap::new(),
+                },
+                AssemblyNode {
+                    node_id: NodeId::parse("z-deep").unwrap(),
+                    source: AssemblyNodeSource::Assembly { assembly: deep },
+                    ports: Vec::new(),
+                    configuration: None,
+                    annotations: BTreeMap::new(),
+                },
+            ],
+            bindings: Vec::new(),
+            exposed_ports: Vec::new(),
+            state_slots: Vec::new(),
+            annotations: BTreeMap::new(),
+        };
+        let root = insert_assembly(&mut closure, root);
+        (root, closure)
     }
 
     #[test]
@@ -496,6 +625,20 @@ mod tests {
     }
 
     #[test]
+    fn shared_dag_depth_is_checked_for_every_occurrence() {
+        let (valid_root, valid_closure) = shared_dag_closure(29);
+        validate_assembly_closure(&valid_root, &valid_closure).unwrap();
+
+        let (too_deep_root, too_deep_closure) = shared_dag_closure(30);
+        assert_eq!(
+            validate_assembly_closure(&too_deep_root, &too_deep_closure)
+                .unwrap_err()
+                .code,
+            DiagnosticCode::WorkTooComplex
+        );
+    }
+
+    #[test]
     fn unknown_annotations_survive_round_trip() {
         let mut value = assembly("example/main", None);
         value.annotations.insert(
@@ -509,6 +652,47 @@ mod tests {
     }
 
     #[test]
+    fn port_contract_semantics_are_content_addressed_by_the_assembly() {
+        let mut value = AssemblyRevision {
+            schema: AssemblyRevision::SCHEMA.to_string(),
+            assembly_id: AssemblyId::parse("example/ports").unwrap(),
+            nodes: vec![AssemblyNode {
+                node_id: NodeId::parse("provider").unwrap(),
+                source: AssemblyNodeSource::Component {
+                    component: component_ref('c'),
+                },
+                ports: vec![PortDescriptor {
+                    port_id: PortId::parse("out").unwrap(),
+                    contract: crate::PortContract {
+                        protocol_id: "example.protocol".to_string(),
+                        interface_id: "example/interface".to_string(),
+                        version: "1.0.0".to_string(),
+                        profiles: Vec::new(),
+                    },
+                    interaction: crate::InteractionModelId(
+                        crate::INTERACTION_CAPABILITY_UNARY.to_string(),
+                    ),
+                    role: PortRole::Export {
+                        multiplicity: crate::PortMultiplicity { min: 0, max: None },
+                        effect_class: crate::EffectClass::Pure,
+                    },
+                    transport: crate::TransportRequirements::default(),
+                    annotations: BTreeMap::new(),
+                }],
+                configuration: None,
+                annotations: BTreeMap::new(),
+            }],
+            bindings: Vec::new(),
+            exposed_ports: Vec::new(),
+            state_slots: Vec::new(),
+            annotations: BTreeMap::new(),
+        };
+        let original = value.digest().unwrap();
+        value.nodes[0].ports[0].contract.version = "2.0.0".to_string();
+        assert_ne!(value.digest().unwrap(), original);
+    }
+
+    #[test]
     fn state_migration_endpoint_must_exist_in_the_port_catalog() {
         let node_id = NodeId::parse("stateful").unwrap();
         let value = AssemblyRevision {
@@ -519,6 +703,7 @@ mod tests {
                 source: AssemblyNodeSource::Component {
                     component: component_ref('c'),
                 },
+                ports: Vec::new(),
                 configuration: None,
                 annotations: BTreeMap::new(),
             }],
@@ -552,7 +737,7 @@ mod tests {
             node_id: node_id.clone(),
             port_id: PortId::parse("migrate").unwrap(),
         };
-        let value = AssemblyRevision {
+        let mut value = AssemblyRevision {
             schema: AssemblyRevision::SCHEMA.to_string(),
             assembly_id: AssemblyId::parse("example/stateful").unwrap(),
             nodes: vec![AssemblyNode {
@@ -560,6 +745,7 @@ mod tests {
                 source: AssemblyNodeSource::Component {
                     component: component_ref('c'),
                 },
+                ports: Vec::new(),
                 configuration: None,
                 annotations: BTreeMap::new(),
             }],
@@ -596,6 +782,7 @@ mod tests {
             transport: crate::TransportRequirements::default(),
             annotations: BTreeMap::new(),
         };
+        value.nodes[0].ports = vec![port.clone()];
         assert_eq!(
             value
                 .validate_ports(&BTreeMap::from([(endpoint, port)]))

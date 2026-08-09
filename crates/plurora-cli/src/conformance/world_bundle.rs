@@ -3,8 +3,8 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use plurora_core::{
-    canonical_json_bytes, package_envelope_for_manifest, ArtifactDescriptor, ComponentLockPin,
-    CompositionLock, ProtocolProfilePin, WorldBundleArchive, WORLD_BUNDLE_EXPERIMENTAL_PROFILE,
+    canonical_json_bytes, ArtifactDescriptor, ComponentDescriptor, PackageManifest,
+    ProtocolProfilePin, WorldBundleArchive, WORLD_BUNDLE_EXPERIMENTAL_PROFILE,
     WORLD_BUNDLE_PROTOCOL_ID, WORLD_BUNDLE_PROTOCOL_VERSION,
 };
 use plurora_runtime::{
@@ -12,6 +12,12 @@ use plurora_runtime::{
     ArtifactCommitRequest, CapabilityInvocationRequest, EventStore, FilesystemObjectStore,
     InMemoryEventStore, Runtime, RuntimeConfig, SqliteEventStore, WorldBundleExportRequest,
     WorldJournalSelection,
+};
+use plurora_work::{
+    project_package_manifest, select_transport, ArtifactModel, AssemblyBinding, AssemblyId,
+    AssemblyLock, AssemblyNode, AssemblyNodeSource, AssemblyRevision, AvailabilityPolicy,
+    BindingLock, BindingPhase, EffectClass, NodeId, NodeLock, PortEndpoint, PortId,
+    PortMultiplicity, PortRole, TransportPolicy,
 };
 use serde_json::{json, Value};
 use tempfile::TempDir;
@@ -26,7 +32,7 @@ const UNKNOWN_ARTIFACT_TYPE_URI: &str = "urn:example:opaque-board-extension:v1";
 struct PortableBoardFixture {
     archive: WorldBundleArchive,
     source_sessions: Vec<String>,
-    composition_lock: CompositionLock,
+    assembly_lock: AssemblyLock,
     unknown_artifact: ArtifactDescriptor,
 }
 
@@ -35,6 +41,10 @@ pub(crate) async fn reference_closure() -> anyhow::Result<()> {
     verify_world_bundle_archive(&fixture.archive)?;
     let audit = audit_world_bundle_archive(&fixture.archive)?;
     anyhow::ensure!(audit.reference_closure_verified);
+    anyhow::ensure!(
+        fixture.archive.manifest.assembly_lock == fixture.assembly_lock.artifact_descriptor()?,
+        "World Bundle did not preserve the AssemblyLock's canonical artifact references"
+    );
     anyhow::ensure!(audit.effect_receipt_count >= 2);
     anyhow::ensure!(audit.non_plurora_namespace_artifact_count >= 1);
     anyhow::ensure!(
@@ -195,6 +205,7 @@ pub(crate) async fn offline_replay() -> anyhow::Result<()> {
 
 pub(crate) async fn reexecution_branch() -> anyhow::Result<()> {
     let fixture = portable_board_fixture().await?;
+    let original_archive = fixture.archive.clone();
     let temp = TempDir::new()?;
     let store = Arc::new(SqliteEventStore::open(temp.path().join("events.sqlite3"))?);
     let mut config = RuntimeConfig::default();
@@ -252,15 +263,16 @@ pub(crate) async fn reexecution_branch() -> anyhow::Result<()> {
             annotations: BTreeMap::new(),
         })
         .await?;
-    let replacement_envelope = package_envelope_for_manifest(&replacement_manifest)?;
-    let replacement_lock = CompositionLock::new(
-        replacement_envelope
-            .components
-            .iter()
-            .map(ComponentLockPin::from_descriptor)
-            .collect(),
-        fixture.composition_lock.protocol_profiles.clone(),
-        fixture.composition_lock.content_roots.clone(),
+    let replacement_component = commit_component_artifact(&host_b, &replacement_manifest).await?;
+    let mut replacement_lock = fixture.assembly_lock.clone();
+    replacement_lock.replace_node(
+        &NodeId::parse("board")?,
+        NodeLock {
+            node_id: NodeId::parse("board")?,
+            artifact: replacement_component.artifact,
+            behavior_digest: Some(replacement_component.behavior.digest),
+            trust_class: Some(replacement_component.trust_class),
+        },
     )?;
 
     let mut journal_selections = fixture
@@ -275,7 +287,7 @@ pub(crate) async fn reexecution_branch() -> anyhow::Result<()> {
             world_id: fixture.archive.manifest.world_id.clone(),
             state_root,
             journal_selections,
-            composition_lock: replacement_lock.clone(),
+            assembly_lock: replacement_lock.clone(),
             protocol_profiles: replacement_lock.protocol_profiles.clone(),
             policy_refs: fixture.archive.manifest.policy_refs.clone(),
             effect_receipts: vec![replacement_receipt],
@@ -301,15 +313,15 @@ pub(crate) async fn reexecution_branch() -> anyhow::Result<()> {
     );
     anyhow::ensure!(current.annotations["branch_id"] == branch.id);
     anyhow::ensure!(
-        replacement_lock.content_roots == fixture.composition_lock.content_roots,
+        replacement_lock.content_roots == fixture.assembly_lock.content_roots,
         "component replacement changed content roots"
     );
     anyhow::ensure!(
-        replacement_lock.components != fixture.composition_lock.components,
+        replacement_lock.nodes != fixture.assembly_lock.nodes,
         "re-execution did not use a different implementation"
     );
     anyhow::ensure!(
-        fixture.archive.manifest.lineage.len() == 1,
+        fixture.archive == original_archive && fixture.archive.manifest.lineage.len() == 1,
         "derivation mutated the imported archive"
     );
     Ok(())
@@ -393,16 +405,104 @@ async fn portable_board_fixture() -> anyhow::Result<PortableBoardFixture> {
         })
         .await?;
     let profile = world_bundle_profile();
-    let envelope = package_envelope_for_manifest(&package_manifest)?;
-    let composition_lock = CompositionLock::new(
-        envelope
-            .components
-            .iter()
-            .map(ComponentLockPin::from_descriptor)
-            .collect(),
-        vec![profile.clone()],
-        vec![unknown_artifact.clone()],
+    let component = commit_component_artifact(&host_a, &package_manifest).await?;
+    let provider_node_id = NodeId::parse("provider")?;
+    let board_node_id = NodeId::parse("board")?;
+    let provider = PortEndpoint {
+        node_id: provider_node_id.clone(),
+        port_id: PortId::parse("action-export")?,
+    };
+    let consumer = PortEndpoint {
+        node_id: board_node_id.clone(),
+        port_id: PortId::parse("action-import")?,
+    };
+    let mut provider_port = project_package_manifest(&package_manifest, Vec::new())?
+        .ports
+        .into_iter()
+        .find(|port| port.contract.interface_id == PLAYABLE_BOARD_CAPABILITY_ID)
+        .ok_or_else(|| anyhow::anyhow!("portable board capability Port is missing"))?;
+    provider_port.port_id = provider.port_id.clone();
+    let mut consumer_port = provider_port.clone();
+    consumer_port.port_id = consumer.port_id.clone();
+    consumer_port.role = PortRole::Import {
+        multiplicity: PortMultiplicity {
+            min: 1,
+            max: Some(1),
+        },
+        latest_binding_phase: BindingPhase::Authoring,
+        availability: AvailabilityPolicy::Required,
+        accepted_effects: vec![EffectClass::ExternalEffecting],
+    };
+    let selected_transport = select_transport(
+        &provider_port.transport,
+        &consumer_port.transport,
+        &TransportPolicy::default(),
     )?;
+    let assembly_revision = AssemblyRevision {
+        schema: AssemblyRevision::SCHEMA.to_string(),
+        assembly_id: AssemblyId::parse("plurora/portable-board")?,
+        nodes: vec![
+            AssemblyNode {
+                node_id: provider_node_id.clone(),
+                source: AssemblyNodeSource::Component {
+                    component: component.artifact.clone(),
+                },
+                ports: vec![provider_port],
+                configuration: None,
+                annotations: BTreeMap::new(),
+            },
+            AssemblyNode {
+                node_id: board_node_id.clone(),
+                source: AssemblyNodeSource::Component {
+                    component: component.artifact.clone(),
+                },
+                ports: vec![consumer_port],
+                configuration: None,
+                annotations: BTreeMap::new(),
+            },
+        ],
+        bindings: vec![AssemblyBinding {
+            binding_id: "action-binding".to_string(),
+            provider: provider.clone(),
+            consumer: consumer.clone(),
+            phase: BindingPhase::Authoring,
+            transport_policy: TransportPolicy::default(),
+            annotations: BTreeMap::new(),
+        }],
+        exposed_ports: Vec::new(),
+        state_slots: Vec::new(),
+        annotations: BTreeMap::new(),
+    };
+    let assembly = commit_assembly_revision(&host_a, &assembly_revision).await?;
+    let assembly_lock = AssemblyLock {
+        schema: AssemblyLock::SCHEMA.to_string(),
+        assembly,
+        nodes: vec![
+            NodeLock {
+                node_id: board_node_id,
+                artifact: component.artifact.clone(),
+                behavior_digest: Some(component.behavior.digest.clone()),
+                trust_class: Some(component.trust_class),
+            },
+            NodeLock {
+                node_id: provider_node_id,
+                artifact: component.artifact.clone(),
+                behavior_digest: Some(component.behavior.digest.clone()),
+                trust_class: Some(component.trust_class),
+            },
+        ],
+        bindings: vec![BindingLock {
+            binding_id: "action-binding".to_string(),
+            provider,
+            consumer,
+            provider_component: component.artifact,
+            transport: selected_transport,
+            phase: BindingPhase::Authoring,
+        }],
+        protocol_profiles: vec![profile.clone()],
+        content_roots: vec![unknown_artifact.clone()],
+    };
+    assembly_lock.validate()?;
     let receipts = [first.receipt, second.receipt]
         .into_iter()
         .flatten()
@@ -422,7 +522,7 @@ async fn portable_board_fixture() -> anyhow::Result<PortableBoardFixture> {
                 .cloned()
                 .map(WorldJournalSelection::all)
                 .collect(),
-            composition_lock: composition_lock.clone(),
+            assembly_lock: assembly_lock.clone(),
             protocol_profiles: vec![profile],
             policy_refs: Vec::new(),
             effect_receipts: receipts,
@@ -439,9 +539,50 @@ async fn portable_board_fixture() -> anyhow::Result<PortableBoardFixture> {
     Ok(PortableBoardFixture {
         archive,
         source_sessions,
-        composition_lock,
+        assembly_lock,
         unknown_artifact,
     })
+}
+
+async fn commit_component_artifact<S: EventStore>(
+    runtime: &Runtime<S>,
+    manifest: &PackageManifest,
+) -> anyhow::Result<ComponentDescriptor> {
+    let projection = project_package_manifest(manifest, Vec::new())?;
+    for object in projection.artifacts {
+        let stored = runtime
+            .commit_artifact(ArtifactCommitRequest {
+                artifact_type_uri: object.descriptor.artifact_type_uri.clone(),
+                media_type: object.descriptor.media_type.clone(),
+                bytes: object.bytes.into(),
+                references: object.descriptor.references.clone(),
+                annotations: object.descriptor.annotations.clone(),
+            })
+            .await?;
+        anyhow::ensure!(stored == object.descriptor);
+    }
+    Ok(projection.component)
+}
+
+async fn commit_assembly_revision<S: EventStore>(
+    runtime: &Runtime<S>,
+    assembly: &AssemblyRevision,
+) -> anyhow::Result<ArtifactDescriptor> {
+    let expected = assembly.artifact_descriptor()?;
+    let committed = runtime
+        .commit_artifact(ArtifactCommitRequest {
+            artifact_type_uri: expected.artifact_type_uri.clone(),
+            media_type: expected.media_type.clone(),
+            bytes: assembly.canonical_bytes()?.into(),
+            references: expected.references.clone(),
+            annotations: expected.annotations.clone(),
+        })
+        .await?;
+    anyhow::ensure!(
+        committed == expected,
+        "committed AssemblyRevision differs from its canonical descriptor"
+    );
+    Ok(committed)
 }
 
 async fn invoke_board_action(

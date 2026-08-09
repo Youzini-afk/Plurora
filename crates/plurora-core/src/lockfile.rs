@@ -5,7 +5,8 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
-use crate::{ArtifactDescriptor, ComponentLockPin, CompositionLock, ProtocolProfilePin};
+use crate::component::validate_package_lock_pins;
+use crate::{ArtifactDescriptor, ComponentLockPin, ProtocolProfilePin};
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Lockfile {
@@ -173,16 +174,16 @@ impl Lockfile {
             {
                 anyhow::ensure!(
                     pkg.package_envelope_digest.is_some(),
-                    "composition pins for {} require package_envelope_digest",
+                    "package artifact pins for {} require package_envelope_digest",
                     pkg.id
                 );
-                CompositionLock::new(
-                    pkg.component_pins.clone(),
-                    pkg.protocol_profile_pins.clone(),
-                    pkg.content_roots.clone(),
+                validate_package_lock_pins(
+                    &pkg.component_pins,
+                    &pkg.protocol_profile_pins,
+                    &pkg.content_roots,
                 )
                 .map_err(|error| {
-                    anyhow::anyhow!("invalid composition pins for {}: {error}", pkg.id)
+                    anyhow::anyhow!("invalid package artifact pins for {}: {error}", pkg.id)
                 })?;
             }
         }
@@ -329,7 +330,7 @@ mod tests {
     }
 
     #[test]
-    fn composition_pins_round_trip_and_validate() {
+    fn package_artifact_pins_round_trip_and_validate() {
         let mut lockfile = Lockfile::new("default", "sha256:profile");
         let mut entry = git_entry();
         entry.package_envelope_digest = Some(format!("sha256:{}", "a".repeat(64)));
@@ -353,7 +354,7 @@ mod tests {
             annotations: Default::default(),
         }];
         lockfile.package.push(entry);
-        lockfile.validate().expect("composition pins validate");
+        lockfile.validate().expect("package artifact pins validate");
 
         let encoded = toml::to_string(&lockfile).expect("serialize pins");
         let decoded: Lockfile = toml::from_str(&encoded).expect("deserialize pins");
@@ -368,7 +369,7 @@ mod tests {
     }
 
     #[test]
-    fn malformed_composition_digest_is_rejected() {
+    fn malformed_package_envelope_digest_is_rejected() {
         let mut lockfile = Lockfile::new("default", "sha256:profile");
         let mut entry = git_entry();
         entry.package_envelope_digest = Some("sha256:short".to_string());

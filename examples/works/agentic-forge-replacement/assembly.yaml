@@ -1,0 +1,6 @@
+schema: plurora.assembly-source.v1
+assembly:
+  id: example/agentic-forge/main
+  nodes:
+    - id: forge
+      component: packages/agentic-forge/manifest.yaml

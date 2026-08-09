@@ -717,6 +717,12 @@ impl ::std::convert::TryFrom<::std::string::String> for AssemblyLockSchema {
 ///    "node_id": {
 ///      "$ref": "#/definitions/NodeId"
 ///    },
+///    "ports": {
+///      "type": "array",
+///      "items": {
+///        "$ref": "#/definitions/PortDescriptor"
+///      }
+///    },
 ///    "source": {
 ///      "$ref": "#/definitions/AssemblyNodeSource"
 ///    }
@@ -732,6 +738,8 @@ pub struct AssemblyNode {
     #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
     pub configuration: ::std::option::Option<ArtifactDescriptor>,
     pub node_id: NodeId,
+    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
+    pub ports: ::std::vec::Vec<PortDescriptor>,
     pub source: AssemblyNodeSource,
 }
 ///`AssemblyNodeSource`
@@ -4217,45 +4225,6 @@ pub struct ComponentDescriptor {
     pub trust_class: ComponentTrustClass,
     pub version: ::std::string::String,
 }
-///`ComponentLockPin`
-///
-/// <details><summary>JSON schema</summary>
-///
-/// ```json
-///{
-///  "title": "ComponentLockPin",
-///  "type": "object",
-///  "required": [
-///    "behavior_digest",
-///    "component_id",
-///    "digest",
-///    "trust_class"
-///  ],
-///  "properties": {
-///    "behavior_digest": {
-///      "type": "string"
-///    },
-///    "component_id": {
-///      "type": "string"
-///    },
-///    "digest": {
-///      "type": "string"
-///    },
-///    "trust_class": {
-///      "$ref": "#/definitions/ComponentTrustClass"
-///    }
-///  }
-///}
-/// ```
-/// </details>
-#[allow(clippy::large_enum_variant)]
-#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
-pub struct ComponentLockPin {
-    pub behavior_digest: ::std::string::String,
-    pub component_id: ::std::string::String,
-    pub digest: ::std::string::String,
-    pub trust_class: ComponentTrustClass,
-}
 ///`ComponentTrustClass`
 ///
 /// <details><summary>JSON schema</summary>
@@ -4349,55 +4318,6 @@ impl ::std::convert::TryFrom<::std::string::String> for ComponentTrustClass {
     ) -> ::std::result::Result<Self, self::error::ConversionError> {
         value.parse()
     }
-}
-///`CompositionLock`
-///
-/// <details><summary>JSON schema</summary>
-///
-/// ```json
-///{
-///  "title": "CompositionLock",
-///  "type": "object",
-///  "required": [
-///    "components",
-///    "content_roots",
-///    "protocol_profiles",
-///    "schema"
-///  ],
-///  "properties": {
-///    "components": {
-///      "type": "array",
-///      "items": {
-///        "$ref": "#/definitions/ComponentLockPin"
-///      }
-///    },
-///    "content_roots": {
-///      "type": "array",
-///      "items": {
-///        "$ref": "#/definitions/ArtifactDescriptor"
-///      }
-///    },
-///    "protocol_profiles": {
-///      "type": "array",
-///      "items": {
-///        "$ref": "#/definitions/ProtocolProfilePin"
-///      }
-///    },
-///    "schema": {
-///      "type": "string"
-///    }
-///  },
-///  "$schema": "https://json-schema.org/draft/2020-12/schema"
-///}
-/// ```
-/// </details>
-#[allow(clippy::large_enum_variant)]
-#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
-pub struct CompositionLock {
-    pub components: ::std::vec::Vec<ComponentLockPin>,
-    pub content_roots: ::std::vec::Vec<ArtifactDescriptor>,
-    pub protocol_profiles: ::std::vec::Vec<ProtocolProfilePin>,
-    pub schema: ::std::string::String,
 }
 ///`ContextBranchListResult`
 ///
@@ -17122,8 +17042,7 @@ pub struct PortDeclaration {
 ///        }
 ///      ]
 ///    }
-///  },
-///  "$schema": "https://json-schema.org/draft/2020-12/schema"
+///  }
 ///}
 /// ```
 /// </details>
@@ -27092,8 +27011,8 @@ pub struct WorldBundleArchive {
 ///  "title": "WorldBundleManifest",
 ///  "type": "object",
 ///  "required": [
+///    "assembly_lock",
 ///    "bundle_type_uri",
-///    "composition_lock",
 ///    "journal_ranges",
 ///    "lineage",
 ///    "object_descriptors",
@@ -27111,11 +27030,11 @@ pub struct WorldBundleArchive {
 ///      "type": "object",
 ///      "additionalProperties": true
 ///    },
+///    "assembly_lock": {
+///      "$ref": "#/definitions/ArtifactDescriptor"
+///    },
 ///    "bundle_type_uri": {
 ///      "type": "string"
-///    },
-///    "composition_lock": {
-///      "$ref": "#/definitions/ArtifactDescriptor"
 ///    },
 ///    "effect_receipts": {
 ///      "type": "array",
@@ -27188,8 +27107,8 @@ pub struct WorldBundleArchive {
 pub struct WorldBundleManifest {
     #[serde(default, skip_serializing_if = "::serde_json::Map::is_empty")]
     pub annotations: ::serde_json::Map<::std::string::String, ::serde_json::Value>,
+    pub assembly_lock: ArtifactDescriptor,
     pub bundle_type_uri: ::std::string::String,
-    pub composition_lock: ArtifactDescriptor,
     #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
     pub effect_receipts: ::std::vec::Vec<ArtifactDescriptor>,
     pub journal_ranges: ::std::vec::Vec<WorldJournalRange>,
@@ -27244,7 +27163,7 @@ pub struct WorldBundleObject {
 ///  "title": "WorldHead",
 ///  "type": "object",
 ///  "required": [
-///    "composition_lock",
+///    "assembly_lock",
 ///    "head_type_uri",
 ///    "history_root",
 ///    "protocol_profiles",
@@ -27258,7 +27177,7 @@ pub struct WorldBundleObject {
 ///      "type": "object",
 ///      "additionalProperties": true
 ///    },
-///    "composition_lock": {
+///    "assembly_lock": {
 ///      "$ref": "#/definitions/ArtifactDescriptor"
 ///    },
 ///    "effect_receipts": {
@@ -27319,7 +27238,7 @@ pub struct WorldBundleObject {
 pub struct WorldHead {
     #[serde(default, skip_serializing_if = "::serde_json::Map::is_empty")]
     pub annotations: ::serde_json::Map<::std::string::String, ::serde_json::Value>,
-    pub composition_lock: ArtifactDescriptor,
+    pub assembly_lock: ArtifactDescriptor,
     #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
     pub effect_receipts: ::std::vec::Vec<ArtifactDescriptor>,
     pub head_type_uri: ::std::string::String,

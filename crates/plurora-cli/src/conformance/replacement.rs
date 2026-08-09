@@ -10,7 +10,7 @@ use plurora_runtime::{CapabilityInvocationRequest, ProtocolContext};
 use serde_json::json;
 
 use super::fixtures::*;
-use crate::commands::{composition, manifest};
+use crate::commands::{manifest, work};
 
 /// Proves that the third-party playable-seed replacement package loads and its
 /// surfaces are discoverable through `shell.contribution.list`.
@@ -247,13 +247,11 @@ pub(crate) async fn ambiguous_no_publisher_priority() -> anyhow::Result<()> {
     Ok(())
 }
 
-/// Proves that composition check passes with the third-party replacement
-/// composition descriptor.
-pub(crate) async fn composition_thirdparty() -> anyhow::Result<()> {
-    composition::composition_check(PathBuf::from(
-        "examples/compositions/playable-seed-replacement/composition.yaml",
-    ))
-    .await?;
+/// Proves that the third-party replacement is an ordinary component in a Work.
+pub(crate) async fn work_thirdparty() -> anyhow::Result<()> {
+    work::check_work_path(std::path::Path::new(
+        "examples/works/playable-seed-replacement/work.yaml",
+    ))?;
     Ok(())
 }
 
@@ -507,14 +505,10 @@ pub(crate) async fn thirdparty_agent_runtime_invocation() -> anyhow::Result<()> 
 }
 
 /// Proves that when both the first-party pi-agent-runtime-lab and the third-party
-/// agent-runtime are loaded, the composition check with the third-party as the
-/// required package and the first-party Package as replacement_candidate succeeds. This
-/// verifies no publisher priority: the third-party is the selected provider and
-/// the first-party Package is only a candidate.
-pub(crate) async fn composition_agent_runtime_replacement() -> anyhow::Result<()> {
-    composition::composition_check(PathBuf::from(
-        "examples/compositions/agent-runtime-replacement/composition.yaml",
-    ))
-    .await?;
+/// Proves the third-party agent runtime materializes as an ordinary Work component.
+pub(crate) async fn work_agent_runtime_replacement() -> anyhow::Result<()> {
+    work::check_work_path(std::path::Path::new(
+        "examples/works/agent-runtime-replacement/work.yaml",
+    ))?;
     Ok(())
 }

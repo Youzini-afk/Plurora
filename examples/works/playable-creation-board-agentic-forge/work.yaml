@@ -1,0 +1,10 @@
+schema: plurora.work-source.v1
+work:
+  id: example/playable-creation-board-agentic-forge
+  title: Playable Creation Board with Agentic Forge
+  description: A nested Assembly that exposes a precise play Port.
+  assembly: assembly.yaml
+  entrypoints:
+    - id: play
+      intent_uri: plurora.shell.default/play
+      port_id: play

@@ -8,7 +8,7 @@ For platform goals and principles, see [`CHARTER.md`](CHARTER.en.md) and [`archi
 
 ## Summary
 
-- **Conformance:** 473 named CLI cases pass, plus crate and service unit tests; 176 v1 schemas validate (80 methods + 59 events + 37 top-level).
+- **Conformance:** 471 named CLI cases pass, plus crate and service unit tests; 175 v1 schemas validate (80 methods + 59 events + 36 top-level).
 - **Charter discipline:** content-free kernel; no privilege for first-party Packages; public protocol only; equal entry forms; capability handles, binding injection, Path A / Path B, the conformance kit, and generated SDKs are implemented; trusted paths block raw secrets and use manifest-declared `secret_ref` everywhere; permission grants rehydrate; network permissions are audited and redacted; generic streaming and cancel lifecycle; outbound execution has a boundary, deny-all by default; public HTTPS outbound uses the same host-policy / audit / redaction boundary; unary outbound, SSE/NDJSON/raw streams, and WebSocket all emit completion audit events.
 - **Code health:** the CLI, runtime domain behavior, protocol dispatch, in-process handlers, and the event store are all split by domain. We're not stacking more onto single files.
 - **Human-testing substrate:** install warnings and schema shapes are stable; native project install now flows source → store → nested manifests/profile autoload → project registry → project dist → protected `/surface-bundles/projects/<project_id>/...` → a short-lived sandbox asset lease; `surface_bundle` is a static, non-executing entry; `dist/` is included in `tree_hash`, store schema migration clears old stores, and install/update/uninstall garbage-collect orphan stores; `plurora/install-lab` provides `check_for_updates` / `update_project`, and both CLI `plurora update` and the web project console route through it; the Surface bridge has converged on allowlists, stream ownership, redacted diagnostics, secret-input cleanup, CSP/CORS hardening, and typed `allowed_capability_ids`; Desktop manages a loopback Host sidecar and the Web shell is installable as a PWA; self-hosted deployment includes unified local/Agent target drivers, target / exec / port / proxy primitives, HTTP/WebSocket reverse proxy, the explicit Deploy broker, private-by-default / explicitly public routes, shared Host/project/target client context, and Verified ChangeSet → private preview → separate deployment approval → activation → reconcile/recover/rollback. Revocable scoped-device pairing lets phones control projects, deployments, and ChangeSets through the same Host API; Web/Desktop/PWA reuse one client core, while the remote CLI uses the same Bearer/public-Host boundary for project/target operations and the full ChangeSet draft/review/approve/reject/execute/export/recover lifecycle.
@@ -22,14 +22,14 @@ The repository now has a substantial operational surface, but neither the platfo
 - The Experimental SHA-256 ObjectStore and ArtifactDescriptor are implemented: in-memory/filesystem CAS, verified reads, streaming, and idempotent conversion of older FNV asset records; asset events now retain only descriptors/references rather than bodies.
 - Experimental EffectReceipt and Change primitives are implemented: capability/outbound/stream/WebSocket/exec terminal paths produce content-addressed receipts; historical replay calls no executor; capability re-execution creates a new branch and parent-linked receipt; the current `change.proposal.*` facade maps approval-gated operations into Intent/ChangeSet/PolicyDecision/Commit evidence.
 - The Experimental Protocol Commons registry is implemented: `host.info` publishes five descriptors for Change, Shell Default, World Bundle, Work, and Assembly; explicit protocol/profile negotiation precedes dispatch; unsupported majors reject with a structured reason; protocol, implementation, and package conformance are separate executable reports.
-- `plurora-work` provides content-free wire models for portable Work / Assembly / Port / State Slot, Rights / Transparency, Operational Intent / Target Inventory, Installation / Run / Exposure, and Realization. IDs, canonical JSON, SHA-256, closure-cycle, raw-secret, and host-path rules are executable; resolvers, Host lifecycle, and replacement of old Project / Composition / Deployment identities remain later phases.
-- Package envelopes and component identity are separated: explicit component/behavior digests survive repackaging, runtime and effect evidence carry component trust/boundary data, composition locks keep component/profile/content pins separate, and `contract:none` is reported as a non-portable Foreign Capsule.
+- `plurora-work` provides content-free wire models for portable Work / Assembly / Port / State Slot, Rights / Transparency, Operational Intent / Target Inventory, Installation / Run / Exposure, and Realization, plus safe source readers, Package/Foreign/content normalization, capability-to-Port projection, a digest-memoized recursive resolver, ordinary Component adapters, and bounded structured diagnostics. `plurora work init|check|pack|inspect` content-addresses the source and complete AssemblyLock closure; old Composition machine identities are removed. Host lifecycle and replacement of old Project / Deployment identities remain later phases.
+- Package envelopes and component identity are separated: explicit component/behavior digests survive repackaging, runtime and effect evidence carry component trust/boundary data, AssemblyLock keeps component/profile/content pins separate, and `contract:none` is reported as a non-portable Foreign Capsule.
 - The Experimental World Bundle is implemented and covered by the cross-Host conformance fixture in `plurora/playable-creation-board`: canonical archive descriptors preserve exact v1 envelopes and the complete SHA-256 closure; fresh SQLite/filesystem Hosts retain objects, lineage, and receipts; historical replay invokes no executor; replacement execution creates a child branch/head; and the headless CLI reads the same archive without Web Shell state.
 - A JSON Schema subset validates capability I/O and package-declared event payloads.
 - The Contract V1 principal union remains `host_admin`, `host_dev`, `package`, `human`, `assistant`, and `anonymous`. Paired devices use the fail-closed `anonymous` V1 sentinel at the remote RPC boundary while a Host-established authority envelope retains the grant, delegation chain, and resource constraints; an older runtime that ignores the envelope can only deny rather than amplify authority. Redacted Host control-plane audit records still identify the logical `host_device`; human and assistant principals get scoped grants.
 - Audit events: `authority/grant.created|revoked`, `authority/denied`, the `host/package.*` lifecycle, and the `change/proposal.*` lifecycle; the Host control plane also writes redacted `host/control/v1/authority.decision` records outside Contract V1.
 - Persistent grants: grant / revoke events rehydrate inside a SQLite-backed runtime.
-- Contract V1 is the public platform spec: 80 protocol methods, 59 event kinds, and 176 JSON Schemas. `authority.handle.*`, `host.package.audit`, capability handles, binding injection, Path B, the conformance kit, and SDK generation are implemented.
+- Contract V1 is the public platform spec: 80 protocol methods, 59 event kinds, and 175 JSON Schemas. `authority.handle.*`, `host.package.audit`, capability handles, binding injection, Path B, the conformance kit, and SDK generation are implemented.
 
 ## Secure execution
 
@@ -162,7 +162,7 @@ All ordinary packages, no kernel privilege. They live in `packages/plurora/` and
 
 **Platform foundation**
 
-- `package-lab`, `schema-tools`, `event-tools`, `composition-lab`, `asset-lab`, `projection-lab`, `assistant-lab`.
+- `package-lab`, `schema-tools`, `event-tools`, `asset-lab`, `projection-lab`, `assistant-lab`.
 - Package installation foundation: `plurora/git-tools-lab`, `plurora/integrity-lab`, and `plurora/install-lab`. Git tree fetches have bounded materialization by default and a measured, interruptible pack-download budget; direct callers cannot disable either hard ceiling.
 
 **Creative capability families**
@@ -223,7 +223,7 @@ Under `sdk/typescript/`:
 ## Contract v1 and SDK generation
 
 - `docs/spec/PUBLIC_CONTRACT.md` is the public platform spec.
-- `docs/spec/v1/schemas/` is the single source of truth for SDKs and conformance: 80 methods, 59 events, 37 top-level schemas, 176 total.
+- `docs/spec/v1/schemas/` is the single source of truth for SDKs and conformance: 80 methods, 59 events, 36 top-level schemas, 175 total.
 - `sdk/typescript/contract-sdk/` and `sdk/rust/plurora-contract-sdk/` are generated from schemas; the TypeScript package can be consumed through npm, workspace path, or independent codegen.
 - `plurora conformance package --contract v1 --path <package>` provides 8 third-party package acceptance checks.
 
@@ -261,17 +261,17 @@ The platform user-facing chrome — Home, Settings, Install flow, Project frame,
 ## Authoring flow
 
 - `plurora init-package` generates Python or TypeScript subprocess scaffolding. `--template` chooses the surface descriptors. `--language *-experience` without `--template` still generates the legacy 4-surface experience for back-compat.
-- `plurora init-composition` plus `plurora composition check` covers the local composition flow with v2 fields (title, description, optional packages, required capabilities, default activation, permission expectations, replacement candidates, compatibility notes).
+- `plurora work init/check/pack/inspect` provides the local Work/Assembly authoring flow: it safely reads `work.yaml` / `assembly.yaml` plus Package/Component sources, validates recursive Ports and Bindings, and emits content-addressed WorkRevision, AssemblyRevision, and authoring AssemblyLock artifacts. `pack` writes only to the ObjectStore; it never installs or runs the Work.
 - `plurora package check` prints structured diagnostics: entry kind, trust level, capability count, surfaces by slot, permission summary, sandbox policy. Warns on packages with no capabilities or no surfaces.
 - `plurora package conformance` validates a generated package locally.
 - `plurora package reload <manifest>` loads the package into an in-memory runtime, restarts (subprocess only), shows before / after status and log counts, and unloads.
 - `plurora package run-fixture` invokes every non-streaming capability with deterministic fixture input and prints a JSON summary.
 - `plurora play-create-demo` runs the blank play-creation loop end to end.
-- `plurora perf baseline` runs deterministic baseline measurements (in-process invoke, first-party capability invoke, event store append / list / range, composition check, profile load, subprocess echo) in text or JSON. See [`performance/BASELINE.md`](performance/BASELINE.en.md).
+- `plurora perf baseline` runs deterministic baseline measurements (in-process invoke, first-party capability invoke, event store append / list / range, Work check, profile load, subprocess echo) in text or JSON. See [`performance/BASELINE.md`](performance/BASELINE.en.md).
 
 ## Code organization
 
-- `crates/plurora-cli/src/main.rs` is a thin entry. CLI types live in `cli.rs`, commands under `commands/`, and package templates under `templates/`. The conformance runner and case registry are split: `conformance/runner.rs` owns `--list`, `--case`, `--tag`, `--fail-fast`, and `--slowest`; `conformance/registry/` registers the 473 `ConformanceCase { id, tags, run }` entries by domain.
+- `crates/plurora-cli/src/main.rs` is a thin entry. CLI types live in `cli.rs`, commands under `commands/`, and package templates under `templates/`. The conformance runner and case registry are split: `conformance/runner.rs` owns `--list`, `--case`, `--tag`, `--fail-fast`, and `--slowest`; `conformance/registry/` registers the 471 `ConformanceCase { id, tags, run }` entries by domain.
 - `crates/plurora-cli/src/schema_export/` owns v1 schema export; `src/bin/export-schemas.rs` is a thin entry. Generated files still come from the exporter only — SDKs and schemas are not hand-edited.
 - `crates/plurora-runtime/src/runtime/` splits runtime behavior into session, events, packages, capabilities, hooks, permissions, assets, branches, projections, and proposals. `runtime/protocol_dispatch.rs` is now the public router facade; concrete public-protocol handlers live under `runtime/protocol/` by domain. `runtime/mod.rs` keeps the public `Runtime<S>` API.
 - Protocol metadata and dispatch share a single source of truth (`PlatformMethod`), with a registry / dispatch consistency unit test.
@@ -282,7 +282,7 @@ These splits don't change behavior — they keep the codebase reviewable as more
 
 ## Conformance
 
-`cargo run -p plurora-cli -- conformance` runs 473 named CLI cases. Flags:
+`cargo run -p plurora-cli -- conformance` runs 471 named CLI cases. Flags:
 
 - `--list` — list ids and tags.
 - `--case <pattern>` — substring filter.

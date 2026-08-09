@@ -24,7 +24,7 @@ The following descriptors are canonical JSON hashed as `sha256:<64 lowercase hex
 
 - `ComponentDescriptor` — component artifact, behavior artifact, trust class, boundary claims, capabilities, protocol implementations, content roots, and surfaces;
 - `PackageEnvelopeDescriptor` — package manifest, component descriptors, packaged protocols, content roots, surfaces, and auxiliary artifacts;
-- `CompositionLock` — independently pinned component artifacts, protocol profiles, and content roots.
+- `AssemblyLock` — pinned AssemblyRevision, node artifacts, concrete binding providers, protocol profiles, and content roots.
 
 Object ordering is canonicalized, and unordered declaration sets are sorted and deduplicated before hashing. Package identity participates in the envelope digest, but not in an explicit component's behavior digest. Consequently, two packages may differ while preserving the same component ID and behavior claim.
 
@@ -89,17 +89,20 @@ Package records and lifecycle events expose the package-envelope digest and comp
 
 Conforming in-process packages receive the component ID and digest in `ComponentEnv`. Subprocess handshakes receive the package-envelope digest and component descriptors; a Foreign Capsule handshake receives empty v1 capability/permission/binding sets. These fields allow audit and replay code to identify the implementation independently from the installer envelope.
 
-## Composition lock
+The Component artifact payload also records the typed entry and contract mode. Validation re-derives `entry_kind`, trust class, and boundary claims from those facts, and strictly checks protocol/Surface reference types, secret references, and portable paths; self-reported payload fields cannot elevate trust.
 
-`CompositionLock` keeps three pin sets separate:
+## Assembly lock
+
+`AssemblyLock` keeps separate pins rooted at an AssemblyRevision:
 
 ```text
-components         component ID + artifact digest + behavior digest + trust class
+nodes              node ID + component/child AssemblyLock artifact + behavior digest + trust class
+bindings           provider/consumer Ports + concrete provider component + transport + phase
 protocol_profiles  protocol ID + version + selected profile
 content_roots      complete ArtifactDescriptor values
 ```
 
-Replacing a component pin does not mutate content roots. Installation lock entries persist the same component/profile/content pins plus the package-envelope digest. `check_lockfile` re-derives them from the installed manifest and reports drift independently from manifest, tree, and static-surface hashes.
+An Adapter is not a special side channel on BindingLock. It is an ordinary Component node, with provider→adapter-import and adapter-export→consumer represented as two ordinary Bindings, so both transports, multiplicities, behavior, provenance, and content roots enter the same lock DAG. A Component node's complete Port contracts are canonical AssemblyRevision content, so compatibility-semantic changes alter the Assembly, Work, and Lock digests instead of only changing transient resolver input. Replacing a node pin does not mutate content roots. Nested Assemblies form an auditable lock DAG through child `AssemblyLock` artifacts: execution may flatten while lock identity retains encapsulation. Package installation lock entries continue to persist package-envelope, component, profile, and content pins. `check_lockfile` re-derives them from the installed manifest and reports drift independently from manifest, tree, and static-surface hashes.
 
 ## Conformance meaning
 
@@ -115,6 +118,6 @@ Protocol and implementation conformance remain separate reports. Packaging an im
 
 - `component-descriptor.schema.json`
 - `package-envelope-descriptor.schema.json`
-- `composition-lock.schema.json`
+- `assembly-lock.schema.json`
 
 All are additive Experimental schemas under `docs/spec/v1/schemas/`.

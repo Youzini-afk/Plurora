@@ -104,6 +104,12 @@
         "node_id": {
           "$ref": "#/$defs/NodeId"
         },
+        "ports": {
+          "items": {
+            "$ref": "#/$defs/PortDescriptor"
+          },
+          "type": "array"
+        },
         "source": {
           "$ref": "#/$defs/AssemblyNodeSource"
         }
@@ -177,6 +183,14 @@
       ],
       "type": "object"
     },
+    "AvailabilityPolicy": {
+      "enum": [
+        "required",
+        "degraded_without",
+        "optional"
+      ],
+      "type": "string"
+    },
     "BackupPolicy": {
       "enum": [
         "required",
@@ -194,9 +208,86 @@
       ],
       "type": "string"
     },
+    "EffectClass": {
+      "enum": [
+        "pure",
+        "deterministic_stateful",
+        "recorded_nondeterministic",
+        "external_effecting",
+        "realtime_best_effort"
+      ],
+      "type": "string"
+    },
     "NodeId": {
       "pattern": "^(?!.*\\.\\.)[A-Za-z0-9._-]+$",
       "type": "string"
+    },
+    "PortContract": {
+      "properties": {
+        "interface_id": {
+          "type": "string"
+        },
+        "profiles": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "protocol_id": {
+          "type": "string"
+        },
+        "version": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "interface_id",
+        "protocol_id",
+        "version"
+      ],
+      "type": "object"
+    },
+    "PortDescriptor": {
+      "properties": {
+        "annotations": {
+          "additionalProperties": true,
+          "type": "object"
+        },
+        "contract": {
+          "$ref": "#/$defs/PortContract"
+        },
+        "interaction": {
+          "type": "string"
+        },
+        "port_id": {
+          "$ref": "#/$defs/PortId"
+        },
+        "role": {
+          "$ref": "#/$defs/PortRole"
+        },
+        "transport": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/TransportRequirements"
+            }
+          ],
+          "default": {
+            "large_payload": false,
+            "local_only": false,
+            "ordered": false,
+            "reliable": false,
+            "same_process": false,
+            "shared_memory_allowed": false
+          }
+        }
+      },
+      "required": [
+        "contract",
+        "interaction",
+        "port_id",
+        "role"
+      ],
+      "type": "object"
     },
     "PortDirection": {
       "enum": [
@@ -223,6 +314,86 @@
     "PortId": {
       "pattern": "^(?!.*\\.\\.)[A-Za-z0-9._-]+$",
       "type": "string"
+    },
+    "PortMultiplicity": {
+      "properties": {
+        "max": {
+          "format": "uint16",
+          "minimum": 0.0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "min": {
+          "format": "uint16",
+          "minimum": 0.0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "min"
+      ],
+      "type": "object"
+    },
+    "PortRole": {
+      "oneOf": [
+        {
+          "properties": {
+            "accepted_effects": {
+              "items": {
+                "$ref": "#/$defs/EffectClass"
+              },
+              "type": "array"
+            },
+            "availability": {
+              "$ref": "#/$defs/AvailabilityPolicy"
+            },
+            "kind": {
+              "enum": [
+                "import"
+              ],
+              "type": "string"
+            },
+            "latest_binding_phase": {
+              "$ref": "#/$defs/BindingPhase"
+            },
+            "multiplicity": {
+              "$ref": "#/$defs/PortMultiplicity"
+            }
+          },
+          "required": [
+            "accepted_effects",
+            "availability",
+            "kind",
+            "latest_binding_phase",
+            "multiplicity"
+          ],
+          "type": "object"
+        },
+        {
+          "properties": {
+            "effect_class": {
+              "$ref": "#/$defs/EffectClass"
+            },
+            "kind": {
+              "enum": [
+                "export"
+              ],
+              "type": "string"
+            },
+            "multiplicity": {
+              "$ref": "#/$defs/PortMultiplicity"
+            }
+          },
+          "required": [
+            "effect_class",
+            "kind",
+            "multiplicity"
+          ],
+          "type": "object"
+        }
+      ]
     },
     "StatePortability": {
       "enum": [

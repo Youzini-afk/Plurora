@@ -173,7 +173,6 @@ Surface/static bundle 与 bridge 还覆盖以下稳定断言：
 | host | profile 自动加载配置的包 | implemented |
 | surfaces | 包贡献的类型化 surface 描述符可以列出、描述和过滤 | implemented |
 | first-party Packages | 基础包无特权加载和调用 | implemented |
-| first-party Packages | composition-lab 以无特权方式暴露 launch-plan、surface-graph 与 compat-report capabilities，支持 v2 descriptor 诊断 | implemented |
 | first-party Packages | asset-lab 以无特权方式 preview assets 并生成需要审批的 import plans | implemented |
 | first-party Packages | projection-lab 以无特权方式生成 rebuild plans 并解释 source events | implemented |
 | first-party Packages | playable-seed 暴露 reference entry/play/Forge/assistant surfaces 以及需要审批的 edits | implemented |
@@ -209,16 +208,15 @@ Surface/static bundle 与 bridge 还覆盖以下稳定断言：
 | package authoring | 生成的 Python subprocess 包通过本地 conformance | implemented |
 | package authoring | 生成的 TypeScript subprocess 包通过本地 conformance | implemented |
 | package authoring | 生成的 experience 包 surface 通过本地 conformance | implemented |
-| composition | 本地 composition 描述符验证包提供的 surface | implemented |
-| composition | composition 描述符 v2：required capabilities 通过、optional 缺失仅警告、required 缺失失败 | implemented |
-| first-party Packages | composition-lab v2 诊断返回 surface/capability/permission/replacement 字段与 compat-report | implemented |
+| Work / Assembly | 嵌套 Assembly 暴露的 Port 可解析，且保留完整 exposure chain | implemented |
+| Work / Assembly | 相同 Work source 重复打包得到相同内容摘要 | implemented |
 | replacement | 第三方 playable-seed surface 通过 shell.contribution.list 可发现 | implemented |
 | replacement | 第三方 playable-seed 能力调用通过正常路由工作 | implemented |
 | replacement | 歧义的 first-party + third-party 等效 capability拒绝路由，无 publisher priority | implemented |
-| replacement | composition 描述符通过第三方 playable-seed 替换 | implemented |
+| replacement | Work source 通过第三方 playable-seed 替换形状校验 | implemented |
 | replacement | 第三方 agent-runtime surfaces（assistant_action/forge_panel/home_card）通过 shell.contribution.list 可发现 | implemented |
 | replacement | 第三方 agent-runtime 能力调用产生 no-inference/no-network、approval-gated proposal、provenance 匹配 | implemented |
-| replacement | composition 描述符通过第三方 agent-runtime 替换，第一方 Package 仅为 replacement_candidate | implemented |
+| replacement | Work source 通过第三方 agent-runtime 替换形状校验，且没有 publisher priority | implemented |
 | network | 无 network permission 的包被拒绝出站，产生 outbound.denied 审计 | implemented |
 | network | allowlisted host+method 允许，产生 redacted outbound.request 审计 | implemented |
 | network | host/method 不匹配被拒绝 | implemented |
@@ -305,8 +303,8 @@ Surface/static bundle 与 bridge 还覆盖以下稳定断言：
 | first-party Packages | memory-lab 任何输出不含 platform.memory.* / platform.experience.* namespace | implemented |
 | first-party Packages | memory-lab 所有能力输入阻断 raw secret | implemented |
 | first-party Packages | sharing-lab describe_sharing_contract 返回 9 项能力、3 个 surface、output shapes、red lines，无 forbidden namespace | implemented |
-| first-party Packages | sharing-lab export_composition_bundle 产出含 manifest/lockfile/disclosure 的自包含 bundle，no marketplace/billing fields | implemented |
-| first-party Packages | sharing-lab import_composition_bundle 验证 bundle 形状/兼容性/no raw secrets，plan-only | implemented |
+| first-party Packages | sharing-lab export_work_bundle 产出锁定 WorkRevision、根 AssemblyRevision、AssemblyLock 与 Package pins 的内容寻址 bundle，no marketplace/billing fields | implemented |
+| first-party Packages | sharing-lab import_work_bundle 重算 bundle/lock identity、验证 typed closure/no raw secrets，并保持 plan-only | implemented |
 | first-party Packages | sharing-lab create_branch_session_bundle 产出 branch/session bundle manifest 含 content_address 和 AI disclosure | implemented |
 | first-party Packages | sharing-lab create_package_set_lockfile 锁定包版本和 content_address | implemented |
 | first-party Packages | sharing-lab compatibility_report 对比两个 bundle 版本，deterministic 比较，检测 incompatibilities | implemented |
@@ -463,10 +461,11 @@ hook.unload_removes_subscription           PASS
 package.generated_subprocess_conformance   PASS
 package.generated_typescript_subprocess_conformance PASS
 package.generated_experience_template      PASS
-composition.check_descriptor               PASS
-composition.check_descriptor_v2             PASS
-first_party.composition_lab                   PASS
-first_party.composition_lab_diagnostics       PASS
+work.nested_exposure                       PASS
+work.digest_is_deterministic               PASS
+assembly.component_identity_independent_of_package_envelope PASS
+assembly.component_replacement_preserves_content_roots PASS
+work.contract_none_is_foreign_capsule      PASS
 first_party.asset_lab                         PASS
 first_party.projection_lab                    PASS
 first_party.playable_seed                     PASS
@@ -496,10 +495,10 @@ inproc.unknown_capability_errors           PASS
 replacement.thirdparty_seed_surfaces         PASS
 replacement.thirdparty_seed_invocation       PASS
 replacement.ambiguous_no_publisher_priority   PASS
-replacement.composition_thirdparty           PASS
+replacement.work_thirdparty                  PASS
 replacement.thirdparty_agent_runtime_surfaces   PASS
 replacement.thirdparty_agent_runtime_invocation PASS
-replacement.composition_agent_runtime_replacement PASS
+replacement.work_agent_runtime_replacement  PASS
 substrate.permission_grant_rehydrate         PASS
 secret.ref_validation                        PASS
 secret.raw_blocked_in_proposal               PASS
@@ -579,7 +578,7 @@ agentic_forge.record_observation_untrusted_large_output_redaction PASS
 agentic_forge.tool_risk_injection_exfiltration_outbound    PASS
 agentic_forge.replay_tool_plan_mismatch_flagged             PASS
 agentic_forge.plan_toolchain_requires_explicit_provider_nested_delegation_blocked PASS
-agentic_forge.thirdparty_replacement_shape_no_publisher_priority PASS
+agentic_forge.thirdparty_work_shape_no_publisher_priority PASS
 agentic_forge.no_publisher_priority_ordinary_package PASS
 agentic_forge.hostile_injection_secret_blocked_cross_package PASS
 agentic_forge.budget_deadline_contract_cancellation_consistent PASS
@@ -629,12 +628,12 @@ creator_loop.experience_surface_warnings PASS
 creator_loop.missing_checkpoint_warning PASS
 creator_loop.dangerous_permissions_warning PASS
 creator_loop.network_nondeterministic_hint PASS
-creator_loop.composition_experience_diagnostics PASS
+creator_loop.work_experience_diagnostics PASS
 creator_loop.walkthrough_reference PASS
 creator_loop.thirdparty_no_privilege PASS
 sharing_lab.contract_shape PASS
-sharing_lab.export_composition_bundle PASS
-sharing_lab.import_composition_bundle PASS
+sharing_lab.export_work_bundle PASS
+sharing_lab.import_work_bundle PASS
 sharing_lab.branch_session_bundle PASS
 sharing_lab.package_set_lockfile PASS
 sharing_lab.compatibility_report PASS

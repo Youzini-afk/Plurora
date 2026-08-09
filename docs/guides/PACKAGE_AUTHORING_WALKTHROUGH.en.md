@@ -70,22 +70,22 @@ These commands only inspect the manifest and invoke the package through the ordi
 
 `package check` prints authoring diagnostics such as entry kind, trust level, capability count, surfaces by slot, permission summary, sandbox policy, and warnings for packages with no capabilities or no surfaces. `package run-fixture` invokes declared non-streaming capabilities with deterministic fixture input and prints a structured JSON result. `package reload` exercises the local load/restart/unload loop and reports package status and logs.
 
-## 3. Create a composition descriptor
+## 3. Create and check a Work
 
 ```bash
-cargo run -p plurora-cli -- init-composition /tmp/plurora-seed-composition --id example/seed-package
-cargo run -p plurora-cli -- composition check /tmp/plurora-seed-composition/composition.yaml
+cargo run -p plurora-cli -- work init /tmp/plurora-seed-work --id example/seed-work
+cargo run -p plurora-cli -- work check /tmp/plurora-seed-work/work.yaml
 ```
 
-A composition descriptor says which packages provide the launchable entry and which surface slots must be present. It is not a kernel `game` or `experience` type.
+`work.yaml` names the Work's title, entrypoints, content, and `assembly.yaml`. The Assembly uses Component nodes, typed Ports, explicit Bindings, and exposed Ports to express replacement boundaries. These files are local authoring inputs; `work pack` emits immutable, content-addressed WorkRevision, AssemblyRevision, and authoring AssemblyLock artifacts.
 
-Composition descriptor v2 fields can also declare optional packages, required capabilities, permission expectations, replacement candidates, default activation metadata, and compatibility notes. `composition check` reports loaded package paths, surfaces by slot, capabilities, missing required surfaces/capabilities, optional-package warnings, and replacement diagnostics.
+`work check` safely opens relative sources, rejects traversal and symlink escape, projects Package capabilities into conservative Port contracts, and emits structured binding diagnostics. Complete Port contracts enter the canonical AssemblyRevision, so compatibility-semantic changes alter the Assembly, Work, and Lock digests. `work pack` atomically writes the ObjectStore through opened directory capabilities; large content is streamed from verified file handles for hashing and import, while each canonical metadata artifact remains subject to the 4 MiB budget. Installation-, Launch-, and Runtime-phase imports remain unresolved until their phase; multiple compatible providers produce `binding_ambiguous` and are never selected by publisher.
 
 For a replacement proof, inspect the included third-party example:
 
 ```bash
 cargo run -p plurora-cli -- package check examples/packages/thirdparty-playable-seed/manifest.yaml
-cargo run -p plurora-cli -- composition check examples/compositions/playable-seed-replacement/composition.yaml
+cargo run -p plurora-cli -- work check examples/works/playable-seed-replacement/work.yaml
 ```
 
 The package id is `thirdparty/playable-seed`, not `plurora/*`, and it exposes compatible Play/Forging/Assistant/Asset surfaces without publisher priority.
@@ -112,20 +112,19 @@ Forge now includes lightweight authoring panels over public protocol data:
 - package and capability inventory grouped by provider package;
 - surface inventory grouped by slot;
 - authoring diagnostics for packages, capabilities, surfaces, assets, projections, and entry surfaces;
-- copy-ready CLI command guidance for templates, package checks, fixture runs, reloads, and compositions.
+- copy-ready CLI command guidance for templates, package checks, fixture runs, reloads, and Works.
 
 ## 5. Compare with first-party Packages
 
 First-party Packages under `packages/plurora/` are reference implementations, not privileged routes:
 
-- `plurora/composition-lab` explains launch plans and surface graphs.
 - `plurora/asset-lab` previews assets and drafts import plans.
 - `plurora/projection-lab` explains projection rebuilds and source events.
 - `plurora/playable-seed` proves a reference playable package.
 
 A third-party package should be able to replace any of these when it exposes compatible surfaces and capabilities.
 
-The `examples/packages/thirdparty-playable-seed` package is the current proof. Checks verify that its surfaces are discoverable, capabilities invoke through normal routing, and composition checks pass. Shared capability ids are rejected as ambiguous unless an explicit provider is selected. There is no implicit publisher priority.
+The `examples/packages/thirdparty-playable-seed` package is the current proof. Checks verify that its surfaces are discoverable, capabilities invoke through normal routing, and it projects into a Work/Assembly node. Multiple providers for a shared Port contract are ambiguous unless the Assembly contains an explicit Binding. There is no implicit publisher priority.
 
 ## Invariants
 
@@ -251,24 +250,24 @@ cargo run -p plurora-cli -- package reload /tmp/my-playable-board/manifest.yaml
 
 `package reload` now warns if the package is degraded after restart.
 
-### 8.3 Compose with other packages
+### 8.3 Assemble a Work with other Packages
 
 ```bash
-cargo run -p plurora-cli -- init-composition /tmp/my-board-composition --id thirdparty/my-playable-board
-cargo run -p plurora-cli -- composition check /tmp/my-board-composition/composition.yaml
+cargo run -p plurora-cli -- work init /tmp/my-board-work --id thirdparty/my-playable-board
+cargo run -p plurora-cli -- work check /tmp/my-board-work/work.yaml
 ```
 
-`composition check` now prints experience-specific diagnostics:
+After adding Package Manifest nodes, explicit Ports, and Bindings to the generated `assembly.yaml`, `work check` reports:
 
-- Experience surface coverage: shows which surface slots are covered or missing
-- Replacement candidates: shows declared candidates and whether they are loaded
-- Replacement hint: if multiple packages provide the same slot, suggests declaring `replacement_candidates`
-- State capability coverage: shows `create_checkpoint` and `draft_recovery` provider counts
-- Optional package coverage: hints about `memory-lab` and `experience-observability-lab` for richer experiences
+- each node's Package/Component identity and projected Ports;
+- protocol/interface/version/Profile, interaction, effect, transport, and multiplicity incompatibilities;
+- Installation-, Launch-, and Runtime-phase imports that are not due yet;
+- zero-candidate and multiple-candidate diagnostics;
+- nested Assembly exposure chains and the final authoring lock closure.
 
 ### 8.4 Compare with the first-party reference
 
-The first-party `plurora/playable-creation-board` Package has the same surfaces and capabilities. Your third-party Package uses the same public Manifest, capability, and surface path. It has no privilege and no special routing. When both are loaded, the runtime does not prefer the first-party Package. If you want to replace it in a composition, declare your Package as the primary provider and the first-party Package as a `replacement_candidate`.
+The first-party `plurora/playable-creation-board` Package has the same surfaces and capabilities. Your third-party Package uses the same public Manifest, capability, and surface path. It has no privilege and no special routing. When both are compatible candidates, the resolver does not prefer the first-party Package; the author must write the intended Assembly Binding or leave selection to an explicit later Host phase.
 
 ### 8.5 For a richer lifecycle: playable-experience template
 

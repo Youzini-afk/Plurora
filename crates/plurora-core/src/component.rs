@@ -6,8 +6,8 @@ use serde_json::Value;
 use sha2::{Digest, Sha256};
 
 use crate::{
-    ArtifactDescriptor, CapabilityDescriptor, CapabilityId, ContractMode, PackageEntry,
-    PackageManifest, SurfaceContribution,
+    is_secret_field_name, looks_like_raw_secret, ArtifactDescriptor, CapabilityDescriptor,
+    CapabilityId, ContractMode, PackageEntry, PackageManifest, SecretRef, SurfaceContribution,
 };
 
 pub const COMPONENT_DESCRIPTOR_TYPE_URI: &str = "urn:plurora:component-descriptor:v1";
@@ -128,6 +128,269 @@ pub struct ComponentDescriptor {
     pub annotations: BTreeMap<String, Value>,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ComponentArtifactPayload {
+    pub component_id: String,
+    pub version: String,
+    pub behavior: ArtifactDescriptor,
+    pub entry_kind: String,
+    pub entry: PackageEntry,
+    pub contract: ContractMode,
+    pub trust_class: ComponentTrustClass,
+    pub claim_status: ComponentClaimStatus,
+    pub enforced_boundaries: ComponentBoundaryClaims,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub protocol_artifacts: Vec<ArtifactDescriptor>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub content_roots: Vec<ArtifactDescriptor>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub surface_artifacts: Vec<ArtifactDescriptor>,
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub annotations: BTreeMap<String, Value>,
+}
+
+pub fn decode_component_artifact_payload(
+    descriptor: &ArtifactDescriptor,
+    bytes: &[u8],
+) -> anyhow::Result<ComponentArtifactPayload> {
+    anyhow::ensure!(
+        descriptor.artifact_type_uri == COMPONENT_DESCRIPTOR_TYPE_URI
+            && descriptor.media_type == "application/json",
+        "component artifact descriptor has an unexpected type or media type"
+    );
+    let payload: ComponentArtifactPayload = serde_json::from_slice(bytes)?;
+    let canonical = canonical_json_bytes(&payload)?;
+    anyhow::ensure!(
+        canonical == bytes,
+        "component artifact JSON is not canonical"
+    );
+    anyhow::ensure!(
+        descriptor.digest == sha256(bytes) && descriptor.size_bytes == bytes.len() as u64,
+        "component artifact descriptor does not match its payload"
+    );
+    anyhow::ensure!(
+        !payload.component_id.trim().is_empty()
+            && !payload.version.trim().is_empty()
+            && !payload.entry_kind.trim().is_empty(),
+        "component artifact identity fields must not be empty"
+    );
+    anyhow::ensure!(
+        payload.entry_kind == package_entry_kind(&payload.entry),
+        "component artifact entry kind differs from its typed entry"
+    );
+    let expected_trust = component_trust_class_for(&payload.contract, &payload.entry);
+    anyhow::ensure!(
+        payload.trust_class == expected_trust,
+        "component artifact trust class differs from its typed entry and contract"
+    );
+    anyhow::ensure!(
+        payload.enforced_boundaries == boundary_claims(expected_trust),
+        "component artifact boundary claims differ from its derived trust class"
+    );
+    if expected_trust == ComponentTrustClass::ForeignCapsule {
+        anyhow::ensure!(
+            payload.claim_status == ComponentClaimStatus::ForeignCapsule
+                && payload.protocol_artifacts.is_empty(),
+            "foreign component artifact contains executable contract claims"
+        );
+    } else {
+        anyhow::ensure!(
+            payload.claim_status != ComponentClaimStatus::ForeignCapsule,
+            "contract component artifact uses the foreign claim status"
+        );
+    }
+    validate_component_payload_value(&serde_json::to_value((
+        &payload.entry,
+        &payload.annotations,
+    ))?)?;
+    validate_component_payload_descriptor(&payload.behavior)?;
+    anyhow::ensure!(
+        payload.behavior.artifact_type_uri == COMPONENT_BEHAVIOR_TYPE_URI,
+        "component artifact behavior has an unexpected type"
+    );
+    let mut required_references = BTreeSet::from([payload.behavior.digest.as_str()]);
+    for referenced in &payload.protocol_artifacts {
+        anyhow::ensure!(
+            referenced.artifact_type_uri == PACKAGED_PROTOCOL_TYPE_URI
+                && referenced.media_type == "application/json",
+            "component protocol reference has an unexpected type or media type"
+        );
+        validate_component_payload_descriptor(referenced)?;
+        anyhow::ensure!(
+            required_references.insert(referenced.digest.as_str()),
+            "component artifact payload contains a duplicate referenced digest"
+        );
+    }
+    for referenced in &payload.content_roots {
+        validate_component_payload_descriptor(referenced)?;
+        anyhow::ensure!(
+            required_references.insert(referenced.digest.as_str()),
+            "component artifact payload contains a duplicate referenced digest"
+        );
+    }
+    for referenced in &payload.surface_artifacts {
+        anyhow::ensure!(
+            referenced.artifact_type_uri == PACKAGED_SURFACE_TYPE_URI
+                && referenced.media_type == "application/json",
+            "component surface reference has an unexpected type or media type"
+        );
+        validate_component_payload_descriptor(referenced)?;
+        anyhow::ensure!(
+            required_references.insert(referenced.digest.as_str()),
+            "component artifact payload contains a duplicate referenced digest"
+        );
+    }
+    let mut descriptor_references = BTreeSet::new();
+    for digest in &descriptor.references {
+        validate_sha256(digest)?;
+        anyhow::ensure!(
+            descriptor_references.insert(digest.as_str()),
+            "component artifact descriptor contains a duplicate reference"
+        );
+    }
+    anyhow::ensure!(
+        required_references == descriptor_references,
+        "component artifact descriptor references differ from its payload"
+    );
+    anyhow::ensure!(
+        descriptor
+            .annotations
+            .get("component_id")
+            .and_then(Value::as_str)
+            == Some(payload.component_id.as_str()),
+        "component artifact descriptor identity annotation differs from its payload"
+    );
+    Ok(payload)
+}
+
+fn validate_component_payload_descriptor(descriptor: &ArtifactDescriptor) -> anyhow::Result<()> {
+    anyhow::ensure!(
+        !descriptor.artifact_type_uri.trim().is_empty() && !descriptor.media_type.trim().is_empty(),
+        "component payload reference has an empty type or media type"
+    );
+    validate_sha256(&descriptor.digest)?;
+    let mut references = BTreeSet::new();
+    for reference in &descriptor.references {
+        validate_sha256(reference)?;
+        anyhow::ensure!(
+            reference != &descriptor.digest && references.insert(reference.as_str()),
+            "component payload reference contains a duplicate or self reference"
+        );
+    }
+    validate_component_payload_value(&serde_json::to_value(&descriptor.annotations)?)?;
+    Ok(())
+}
+
+fn validate_component_payload_value(value: &Value) -> anyhow::Result<()> {
+    fn walk(value: &Value, field_name: Option<&str>) -> anyhow::Result<()> {
+        match value {
+            Value::Array(values) => {
+                for value in values {
+                    walk(value, field_name)?;
+                }
+            }
+            Value::Object(object) => {
+                for (key, value) in object {
+                    anyhow::ensure!(
+                        !looks_like_raw_secret(key) && !looks_like_host_path(key, None),
+                        "component artifact contains a non-portable object key"
+                    );
+                    if secret_value_field(key) {
+                        let valid = match value {
+                            Value::Null => true,
+                            Value::String(reference) => SecretRef::is_valid_ref(reference),
+                            Value::Array(references) => references
+                                .iter()
+                                .all(|value| value.as_str().is_some_and(SecretRef::is_valid_ref)),
+                            _ => false,
+                        };
+                        anyhow::ensure!(valid, "component artifact contains a raw secret field");
+                    }
+                    walk(value, Some(key))?;
+                }
+            }
+            Value::String(value) => {
+                anyhow::ensure!(
+                    !looks_like_raw_secret(value),
+                    "component artifact contains a value that looks like a raw secret"
+                );
+                anyhow::ensure!(
+                    !looks_like_host_path(value, field_name),
+                    "component artifact contains a host-local filesystem path"
+                );
+            }
+            Value::Null | Value::Bool(_) | Value::Number(_) => {}
+        }
+        Ok(())
+    }
+    walk(value, None)
+}
+
+fn secret_value_field(key: &str) -> bool {
+    let lower = key.to_ascii_lowercase();
+    is_secret_field_name(key)
+        && !lower.ends_with("_id")
+        && !lower.ends_with("_ids")
+        && !lower.ends_with("_policy")
+        && !lower.ends_with("_requirements")
+        && !lower.ends_with("_imports")
+        && !lower.ends_with("_scope")
+}
+
+fn looks_like_host_path(value: &str, field_name: Option<&str>) -> bool {
+    let trimmed = value.trim();
+    if trimmed.is_empty() {
+        return false;
+    }
+    let bytes = trimmed.as_bytes();
+    let drive_absolute = bytes.len() >= 3
+        && bytes[0].is_ascii_alphabetic()
+        && bytes[1] == b':'
+        && matches!(bytes[2], b'/' | b'\\');
+    let lower = trimmed.to_ascii_lowercase();
+    let is_json_pointer = field_name.is_some_and(|field| {
+        let field = field.to_ascii_lowercase();
+        (field.contains("json_pointer") || field.contains("json-pointer"))
+            && trimmed.starts_with('/')
+    });
+    drive_absolute
+        || (trimmed.starts_with('/') && !is_json_pointer)
+        || trimmed.starts_with("\\\\")
+        || trimmed.starts_with("~/")
+        || trimmed.starts_with("~\\")
+        || trimmed == ".."
+        || trimmed.starts_with("../")
+        || trimmed.starts_with("..\\")
+        || trimmed.contains("/../")
+        || trimmed.contains("\\..\\")
+        || lower.starts_with("file:")
+        || lower.starts_with("unix:")
+}
+
+fn package_entry_kind(entry: &PackageEntry) -> &'static str {
+    match entry {
+        PackageEntry::RustInproc { .. } => "rust_inproc",
+        PackageEntry::Subprocess { .. } => "subprocess",
+        PackageEntry::Wasm { .. } => "wasm",
+        PackageEntry::Remote { .. } => "remote",
+        PackageEntry::SurfaceBundle { .. } => "surface_bundle",
+    }
+}
+
+fn component_trust_class_for(contract: &ContractMode, entry: &PackageEntry) -> ComponentTrustClass {
+    if *contract == ContractMode::None {
+        return ComponentTrustClass::ForeignCapsule;
+    }
+    match entry {
+        PackageEntry::RustInproc { .. } => ComponentTrustClass::TrustedNative,
+        PackageEntry::Subprocess { .. } => ComponentTrustClass::IsolatedProcess,
+        PackageEntry::Wasm { .. } => ComponentTrustClass::SandboxedComponent,
+        PackageEntry::Remote { .. } => ComponentTrustClass::RemoteBoundary,
+        PackageEntry::SurfaceBundle { .. } => ComponentTrustClass::StaticResource,
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, PartialEq, Eq)]
 pub struct PackageEnvelopeDescriptor {
     pub package_id: String,
@@ -160,99 +423,55 @@ pub struct ProtocolProfilePin {
     pub profile: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, PartialEq, Eq)]
-pub struct CompositionLock {
-    pub schema: String,
-    pub components: Vec<ComponentLockPin>,
-    pub protocol_profiles: Vec<ProtocolProfilePin>,
-    pub content_roots: Vec<ArtifactDescriptor>,
-}
-
-impl CompositionLock {
-    pub const SCHEMA: &'static str = "plurora.composition-lock.v1";
-
-    pub fn new(
-        components: Vec<ComponentLockPin>,
-        protocol_profiles: Vec<ProtocolProfilePin>,
-        content_roots: Vec<ArtifactDescriptor>,
-    ) -> anyhow::Result<Self> {
-        let lock = Self {
-            schema: Self::SCHEMA.to_string(),
-            components,
-            protocol_profiles,
-            content_roots,
-        };
-        lock.validate()?;
-        Ok(lock)
-    }
-
-    pub fn validate(&self) -> anyhow::Result<()> {
+pub(crate) fn validate_package_lock_pins(
+    component_pins: &[ComponentLockPin],
+    protocol_profile_pins: &[ProtocolProfilePin],
+    content_roots: &[ArtifactDescriptor],
+) -> anyhow::Result<()> {
+    let mut components = BTreeSet::new();
+    for component in component_pins {
         anyhow::ensure!(
-            self.schema == Self::SCHEMA,
-            "unsupported composition lock schema"
+            !component.component_id.trim().is_empty(),
+            "component pin id must not be empty"
         );
-        let mut components = BTreeSet::new();
-        for component in &self.components {
-            anyhow::ensure!(
-                !component.component_id.trim().is_empty(),
-                "component pin id must not be empty"
-            );
-            anyhow::ensure!(
-                components.insert(component.component_id.as_str()),
-                "duplicate component pin '{}'",
-                component.component_id
-            );
-            validate_sha256(&component.digest)?;
-            validate_sha256(&component.behavior_digest)?;
-        }
-        let mut profiles = BTreeSet::new();
-        for profile in &self.protocol_profiles {
-            anyhow::ensure!(
-                !profile.protocol_id.trim().is_empty()
-                    && !profile.version.trim().is_empty()
-                    && !profile.profile.trim().is_empty(),
-                "protocol profile pin fields must not be empty"
-            );
-            anyhow::ensure!(
-                profiles.insert((
-                    profile.protocol_id.as_str(),
-                    profile.version.as_str(),
-                    profile.profile.as_str(),
-                )),
-                "duplicate protocol profile pin '{}@{}:{}'",
-                profile.protocol_id,
-                profile.version,
-                profile.profile
-            );
-        }
-        let mut roots = BTreeSet::new();
-        for root in &self.content_roots {
-            validate_sha256(&root.digest)?;
-            anyhow::ensure!(
-                roots.insert(root.digest.as_str()),
-                "duplicate content root '{}'",
-                root.digest
-            );
-        }
-        Ok(())
+        anyhow::ensure!(
+            components.insert(component.component_id.as_str()),
+            "duplicate component pin '{}'",
+            component.component_id
+        );
+        validate_sha256(&component.digest)?;
+        validate_sha256(&component.behavior_digest)?;
     }
-
-    pub fn replace_component(
-        &mut self,
-        component_id: &str,
-        replacement: ComponentLockPin,
-    ) -> anyhow::Result<()> {
-        let index = self
-            .components
-            .iter()
-            .position(|component| component.component_id == component_id)
-            .ok_or_else(|| anyhow::anyhow!("component pin '{component_id}' not found"))?;
-        let mut candidate = self.clone();
-        candidate.components[index] = replacement;
-        candidate.validate()?;
-        *self = candidate;
-        Ok(())
+    let mut profiles = BTreeSet::new();
+    for profile in protocol_profile_pins {
+        anyhow::ensure!(
+            !profile.protocol_id.trim().is_empty()
+                && !profile.version.trim().is_empty()
+                && !profile.profile.trim().is_empty(),
+            "protocol profile pin fields must not be empty"
+        );
+        anyhow::ensure!(
+            profiles.insert((
+                profile.protocol_id.as_str(),
+                profile.version.as_str(),
+                profile.profile.as_str(),
+            )),
+            "duplicate protocol profile pin '{}@{}:{}'",
+            profile.protocol_id,
+            profile.version,
+            profile.profile
+        );
     }
+    let mut roots = BTreeSet::new();
+    for root in content_roots {
+        validate_sha256(&root.digest)?;
+        anyhow::ensure!(
+            roots.insert(root.digest.as_str()),
+            "duplicate content root '{}'",
+            root.digest
+        );
+    }
+    Ok(())
 }
 
 impl ComponentLockPin {
@@ -404,16 +623,7 @@ pub fn component_descriptors_for_manifest(
 }
 
 pub fn component_trust_class(manifest: &PackageManifest) -> ComponentTrustClass {
-    if manifest.entry.contract == ContractMode::None {
-        return ComponentTrustClass::ForeignCapsule;
-    }
-    match &manifest.entry.kind {
-        PackageEntry::RustInproc { .. } => ComponentTrustClass::TrustedNative,
-        PackageEntry::Subprocess { .. } => ComponentTrustClass::IsolatedProcess,
-        PackageEntry::Wasm { .. } => ComponentTrustClass::SandboxedComponent,
-        PackageEntry::Remote { .. } => ComponentTrustClass::RemoteBoundary,
-        PackageEntry::SurfaceBundle { .. } => ComponentTrustClass::StaticResource,
-    }
+    component_trust_class_for(&manifest.entry.contract, &manifest.entry.kind)
 }
 
 pub fn protocol_profile_pins_for_envelope(
@@ -608,39 +818,26 @@ fn build_component_descriptor(
         annotation("component_id", &declaration.id),
     )?;
 
-    #[derive(Serialize)]
-    struct ComponentMaterial<'a> {
-        component_id: &'a str,
-        version: &'a str,
-        behavior_digest: &'a str,
-        entry_kind: &'a str,
-        entry: &'a PackageEntry,
-        trust_class: ComponentTrustClass,
-        claim_status: ComponentClaimStatus,
-        enforced_boundaries: &'a ComponentBoundaryClaims,
-        content_root_digests: Vec<&'a str>,
-        surface_digests: Vec<&'a str>,
-        annotations: &'a BTreeMap<String, Value>,
-    }
-    let material = ComponentMaterial {
-        component_id: &declaration.id,
-        version: &declaration.version,
-        behavior_digest: &behavior.digest,
-        entry_kind: manifest.entry_kind(),
-        entry: &manifest.entry.kind,
+    let material = ComponentArtifactPayload {
+        component_id: declaration.id.clone(),
+        version: declaration.version.clone(),
+        behavior: behavior.clone(),
+        entry_kind: manifest.entry_kind().to_string(),
+        entry: manifest.entry.kind.clone(),
+        contract: manifest.entry.contract.clone(),
         trust_class,
         claim_status,
-        enforced_boundaries: &enforced_boundaries,
-        content_root_digests: declaration
-            .content_roots
+        enforced_boundaries: enforced_boundaries.clone(),
+        protocol_artifacts: protocol_implementations
             .iter()
-            .map(|root| root.digest.as_str())
+            .map(|protocol| protocol.artifact.clone())
             .collect(),
-        surface_digests: surfaces
+        content_roots: declaration.content_roots.clone(),
+        surface_artifacts: surfaces
             .iter()
-            .map(|surface| surface.artifact.digest.as_str())
+            .map(|surface| surface.artifact.clone())
             .collect(),
-        annotations: &declaration.annotations,
+        annotations: declaration.annotations.clone(),
     };
     let references = std::iter::once(behavior.digest.clone())
         .chain(
@@ -907,63 +1104,6 @@ mod tests {
     }
 
     #[test]
-    fn composition_replacement_does_not_change_content_roots() {
-        let root = ArtifactDescriptor {
-            artifact_type_uri: "urn:test:content".to_string(),
-            media_type: "application/octet-stream".to_string(),
-            digest: format!("sha256:{}", "a".repeat(64)),
-            size_bytes: 1,
-            references: Vec::new(),
-            annotations: BTreeMap::new(),
-        };
-        let component = ComponentLockPin {
-            component_id: "org.example/component".to_string(),
-            digest: format!("sha256:{}", "b".repeat(64)),
-            behavior_digest: format!("sha256:{}", "c".repeat(64)),
-            trust_class: ComponentTrustClass::IsolatedProcess,
-        };
-        let mut lock = CompositionLock::new(vec![component], Vec::new(), vec![root.clone()])
-            .expect("composition lock");
-        lock.replace_component(
-            "org.example/component",
-            ComponentLockPin {
-                component_id: "org.example/component-v2".to_string(),
-                digest: format!("sha256:{}", "d".repeat(64)),
-                behavior_digest: format!("sha256:{}", "e".repeat(64)),
-                trust_class: ComponentTrustClass::SandboxedComponent,
-            },
-        )
-        .expect("replace component");
-        assert_eq!(lock.content_roots, vec![root]);
-    }
-
-    #[test]
-    fn rejected_component_replacement_leaves_lock_unchanged() {
-        let component = ComponentLockPin {
-            component_id: "org.example/component".to_string(),
-            digest: format!("sha256:{}", "b".repeat(64)),
-            behavior_digest: format!("sha256:{}", "c".repeat(64)),
-            trust_class: ComponentTrustClass::IsolatedProcess,
-        };
-        let mut lock = CompositionLock::new(vec![component], Vec::new(), Vec::new())
-            .expect("composition lock");
-        let before = lock.clone();
-        let error = lock
-            .replace_component(
-                "org.example/component",
-                ComponentLockPin {
-                    component_id: "org.example/replacement".to_string(),
-                    digest: "sha256:invalid".to_string(),
-                    behavior_digest: format!("sha256:{}", "e".repeat(64)),
-                    trust_class: ComponentTrustClass::SandboxedComponent,
-                },
-            )
-            .expect_err("invalid replacement must fail");
-        assert!(error.to_string().contains("complete SHA-256"));
-        assert_eq!(lock, before);
-    }
-
-    #[test]
     fn contract_none_is_always_a_foreign_capsule() {
         let mut manifest = manifest("vendor/foreign", Some(declaration()));
         manifest.entry.contract = ContractMode::None;
@@ -1042,5 +1182,79 @@ mod tests {
             first.components[0].artifact.digest,
             second.components[0].artifact.digest
         );
+    }
+
+    #[test]
+    fn component_payload_derives_trust_and_validates_typed_references() {
+        let manifest = manifest("vendor/one", Some(declaration()));
+        let component = package_envelope_for_manifest(&manifest).unwrap().components[0].clone();
+        let payload = ComponentArtifactPayload {
+            component_id: component.component_id.clone(),
+            version: component.version.clone(),
+            behavior: component.behavior.clone(),
+            entry_kind: manifest.entry_kind().to_string(),
+            entry: manifest.entry.kind.clone(),
+            contract: manifest.entry.contract.clone(),
+            trust_class: component.trust_class,
+            claim_status: component.claim_status,
+            enforced_boundaries: component.enforced_boundaries.clone(),
+            protocol_artifacts: component
+                .protocol_implementations
+                .iter()
+                .map(|protocol| protocol.artifact.clone())
+                .collect(),
+            content_roots: component.content_roots.clone(),
+            surface_artifacts: component
+                .surfaces
+                .iter()
+                .map(|surface| surface.artifact.clone())
+                .collect(),
+            annotations: component.annotations.clone(),
+        };
+
+        let encode = |payload: &ComponentArtifactPayload| {
+            let bytes = canonical_json_bytes(payload).unwrap();
+            let references = std::iter::once(payload.behavior.digest.clone())
+                .chain(
+                    payload
+                        .protocol_artifacts
+                        .iter()
+                        .chain(&payload.content_roots)
+                        .chain(&payload.surface_artifacts)
+                        .map(|artifact| artifact.digest.clone()),
+                )
+                .collect();
+            let descriptor = ArtifactDescriptor {
+                artifact_type_uri: COMPONENT_DESCRIPTOR_TYPE_URI.to_string(),
+                media_type: "application/json".to_string(),
+                digest: sha256(&bytes),
+                size_bytes: bytes.len() as u64,
+                references,
+                annotations: annotation("component_id", &payload.component_id),
+            };
+            (descriptor, bytes)
+        };
+
+        let (descriptor, bytes) = encode(&payload);
+        decode_component_artifact_payload(&descriptor, &bytes).unwrap();
+
+        let mut false_trust = payload.clone();
+        false_trust.trust_class = ComponentTrustClass::SandboxedComponent;
+        let (descriptor, bytes) = encode(&false_trust);
+        assert!(decode_component_artifact_payload(&descriptor, &bytes).is_err());
+
+        let mut wrong_protocol_type = payload.clone();
+        wrong_protocol_type.protocol_artifacts[0].artifact_type_uri =
+            PACKAGED_SURFACE_TYPE_URI.to_string();
+        let (descriptor, bytes) = encode(&wrong_protocol_type);
+        assert!(decode_component_artifact_payload(&descriptor, &bytes).is_err());
+
+        let mut host_path = payload;
+        host_path.entry = PackageEntry::Subprocess {
+            command: vec![r"C:\Users\creator\run.exe".to_string()],
+            transport: SubprocessTransport::JsonRpcStdio,
+        };
+        let (descriptor, bytes) = encode(&host_path);
+        assert!(decode_component_artifact_payload(&descriptor, &bytes).is_err());
     }
 }

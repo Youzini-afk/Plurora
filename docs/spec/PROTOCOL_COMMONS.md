@@ -86,19 +86,23 @@ Change 协议引用增量的 Intent、ChangeSet、PolicyDecision、Commit 和 Ef
 
 三个必需向量覆盖 canonical digest 稳定性、portable identity redline 和未知 annotation 保留。`plurora.work.model` 是普通 `plurora-work` crate 的实现声明，不获得执行权、路由优先级或第一方特权。
 
+`work.yaml` 与 `assembly.yaml` 是本地创作输入，不是可移植 Artifact 身份。CLI 在受 containment 与 symlink 防护的 source root 内读取它们，解析 Package/Component、内容与嵌套 Assembly，然后才生成 canonical `WorkRevision` / `AssemblyRevision` closure；源文件路径不会写入 revision。source wire 的 Port endpoint 是明确的 `{node_id, port_id}` 对象，因为两类 local ID 都允许 `.`，`node.port` 字符串无法无歧义解析。
+
 ## Assembly Experimental Profile
 
 `plurora.assembly/experimental/v1` 定义 Component 与 nested Assembly 的递归无环图，以及 typed Port、Binding、exposed Port 和 State Slot。Port 同时约束 protocol/interface/version/Profile、开放 interaction ID、effect class、binding phase、cardinality 与 transport 要求；未知 interaction 可以保真保存，但没有实现或显式 Adapter 时不能绑定或执行。
 
 三个必需向量覆盖递归包含闭包、Port 合同兼容和 State Slot 迁移边界。`AssemblyLock` 固定 artifact、behavior digest、trust class、provider、transport、Profile 与 content roots；它属于 Experimental Protocol Commons，不进入 Constitutional Substrate。
 
+Resolver 对 protocol/interface/version/Profile、interaction、transport、effect 与 multiplicity 同时求兼容，只接受显式普通 Component Adapter。零候选保留 unavailable diagnostic；多个候选保留 ambiguous diagnostic，不按 publisher、第一方身份或遍历顺序选择。执行用 flatten graph 会同时保留原始 Assembly identity、node path、每层 exposure mapping、provenance 与 lock reference。
+
 ## Work artifact lifecycle
 
-Work 的纯模型流程是 `构造 → 校验 → canonical JSON → SHA-256 descriptor → 显式持久化/传输`。校验和 canonicalization 没有外部 effect，也不授予 `object.write`；只有调用方已有明确 object authority 时才能持久化 descriptor。WorkRevision 永不原地修改，变化产生新的内容身份。
+Work 的纯模型流程是 `安全读取创作输入 → 构造 → 校验 → canonical JSON → SHA-256 descriptor → 显式持久化/传输`。纯 crate 只解析 bytes；CLI 负责文件 containment、symlink/TOCTOU 防护与 ObjectStore 写入。校验和 canonicalization 没有外部 effect，也不授予 `object.write`；只有调用方已有明确 object authority 时才能持久化 descriptor。WorkRevision 永不原地修改，变化产生新的内容身份。
 
 ## Assembly artifact lifecycle
 
-Assembly 的纯模型流程是 `构造图 → 校验局部 ID/引用 → 校验递归闭包无环 → 校验 Port/State → canonicalize → 持久化`。运行时 flatten 可以在后续实现中出现，但不能丢失 nested identity、node path、exposure mapping 或 provenance。Phase 1 的模型与 validation 不激活 Component，也不选择 installation/launch/runtime provider。
+Assembly 的纯模型流程是 `构造图 → 校验局部 ID/引用 → 校验递归闭包无环 → 校验 Port/State → 解析 authoring binding → canonicalize → 持久化`。Authoring binding 可进入 pack 产生的 AssemblyLock；Installation、Launch 与 Runtime import 在到达对应阶段前只产生结构化 diagnostic，不会被提前固定。解析器不激活 Component，也不把 provider 可见性变成调用 authority。
 
 ## Work 与 Assembly 错误模型
 

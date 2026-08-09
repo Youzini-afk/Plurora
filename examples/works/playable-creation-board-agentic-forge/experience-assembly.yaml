@@ -1,0 +1,25 @@
+schema: plurora.assembly-source.v1
+assembly:
+  id: example/playable-creation-board-agentic-forge/experience
+  nodes:
+    - id: board
+      component: packages/playable-creation-board/manifest.yaml
+      ports:
+        - port_id: play
+          contract:
+            protocol_id: example.playable
+            interface_id: play
+            version: 1.0.0
+          interaction: plurora.interaction.capability-unary/v1
+          role:
+            kind: export
+            multiplicity: {min: 0, max: 1}
+            effect_class: external_effecting
+    - id: runtime
+      component: packages/experience-runtime/manifest.yaml
+    - id: forge
+      component: packages/agentic-forge/manifest.yaml
+  exposed_ports:
+    - id: play
+      direction: export
+      target: {node_id: board, port_id: play}

@@ -173,7 +173,6 @@ Surface/static bundle and bridge coverage also includes these stable assertions:
 | host | profile autoload loads configured packages | implemented |
 | surfaces | package-contributed typed surface descriptors can be listed, described, and filtered | implemented |
 | first-party Packages | foundation packages load and invoke without privilege | implemented |
-| first-party Packages | composition-lab exposes launch-plan, surface-graph, and compat-report capabilities with v2 descriptor diagnostics without privilege | implemented |
 | first-party Packages | asset-lab previews assets and drafts approval-gated import plans without privilege | implemented |
 | first-party Packages | projection-lab drafts rebuild plans and explains source events without privilege | implemented |
 | first-party Packages | playable-seed exposes reference entry/play/Forge/assistant surfaces and approval-gated edits | implemented |
@@ -209,16 +208,15 @@ Surface/static bundle and bridge coverage also includes these stable assertions:
 | package authoring | generated Python subprocess package passes local conformance | implemented |
 | package authoring | generated TypeScript subprocess package passes local conformance | implemented |
 | package authoring | generated experience package surfaces pass local conformance | implemented |
-| composition | local composition descriptor validates package-provided surfaces | implemented |
-| composition | composition descriptor v2: required capabilities pass, optional missing warns, required missing fails | implemented |
-| first-party Packages | composition-lab v2 diagnostics return surface/capability/permission/replacement fields and compat-report | implemented |
+| Work / Assembly | nested Assembly Port exposure resolves while preserving the complete exposure chain | implemented |
+| Work / Assembly | repeated packing of the same Work source produces the same content digest | implemented |
 | replacement | third-party playable-seed surfaces discoverable through shell.contribution.list | implemented |
 | replacement | third-party playable-seed capability invocation works through normal routing | implemented |
 | replacement | ambiguous first-party + third-party equivalent capability rejects route without publisher priority | implemented |
-| replacement | composition descriptor passes with third-party playable-seed replacement | implemented |
+| replacement | Work source validates the third-party playable-seed replacement shape | implemented |
 | replacement | third-party agent-runtime surfaces (assistant_action/forge_panel/home_card) discoverable through shell.contribution.list | implemented |
 | replacement | third-party agent-runtime capability invocation produces no-inference/no-network, approval-gated proposal, provenance match | implemented |
-| replacement | composition descriptor passes with third-party agent-runtime replacement, the first-party Package is replacement_candidate only | implemented |
+| replacement | Work source validates the third-party agent-runtime replacement shape without publisher priority | implemented |
 | network | package without network permission denied outbound, produces outbound.denied audit | implemented |
 | network | allowlisted host+method allowed, produces redacted outbound.request audit | implemented |
 | network | host/method mismatch denied | implemented |
@@ -305,8 +303,8 @@ Surface/static bundle and bridge coverage also includes these stable assertions:
 | first-party Packages | memory-lab no output contains platform.memory.* / platform.experience.* namespace | implemented |
 | first-party Packages | memory-lab raw secret blocked in all capability inputs | implemented |
 | first-party Packages | sharing-lab describe_sharing_contract returns 9 capabilities, 3 surfaces, output shapes, red lines, no forbidden namespace | implemented |
-| first-party Packages | sharing-lab export_composition_bundle produces self-contained bundle with manifest/lockfile/disclosure, no marketplace/billing fields | implemented |
-| first-party Packages | sharing-lab import_composition_bundle validates bundle shape/compatibility/no raw secrets, plan-only | implemented |
+| first-party Packages | sharing-lab export_work_bundle produces a content-addressed bundle pinning WorkRevision, root AssemblyRevision, AssemblyLock, and Package pins, with no marketplace/billing fields | implemented |
+| first-party Packages | sharing-lab import_work_bundle recomputes bundle/lock identity, validates the typed closure and no raw secrets, and remains plan-only | implemented |
 | first-party Packages | sharing-lab create_branch_session_bundle produces branch/session bundle manifest with content_address and AI disclosure | implemented |
 | first-party Packages | sharing-lab create_package_set_lockfile pins package versions and content addresses | implemented |
 | first-party Packages | sharing-lab compatibility_report compares two bundle versions, deterministic, detects incompatibilities | implemented |
@@ -355,7 +353,7 @@ Surface/static bundle and bridge coverage also includes these stable assertions:
 | creator loop | missing create_checkpoint capability warns for experience packages | implemented |
 | creator loop | dangerous permissions (wildcard invoke, empty network methods) produce creator warnings | implemented |
 | creator loop | network access triggers non-deterministic hint in package diagnostics | implemented |
-| creator loop | composition check provides experience surface coverage, replacement hints, checkpoint/recovery coverage, memory/observability hints | implemented |
+| creator loop | Work check provides experience Port coverage, replacement hints, checkpoint/recovery coverage, and memory/observability hints | implemented |
 | creator loop | playable-creation-board package check output is verifiable with expected diagnostic fields | implemented |
 | creator loop | third-party playable-seed replaces first-party playable-seed without privilege | implemented |
 | capability handles | package load auto-mints capability handles from manifest declarations | implemented |
@@ -472,10 +470,11 @@ hook.unload_removes_subscription           PASS
 package.generated_subprocess_conformance   PASS
 package.generated_typescript_subprocess_conformance PASS
 package.generated_experience_template      PASS
-composition.check_descriptor               PASS
-composition.check_descriptor_v2             PASS
-first_party.composition_lab                    PASS
-first_party.composition_lab_diagnostics         PASS
+work.nested_exposure                       PASS
+work.digest_is_deterministic               PASS
+assembly.component_identity_independent_of_package_envelope PASS
+assembly.component_replacement_preserves_content_roots PASS
+work.contract_none_is_foreign_capsule      PASS
 first_party.asset_lab                         PASS
 first_party.projection_lab                    PASS
 first_party.playable_seed                     PASS
@@ -505,10 +504,10 @@ inproc.unknown_capability_errors           PASS
 replacement.thirdparty_seed_surfaces         PASS
 replacement.thirdparty_seed_invocation       PASS
 replacement.ambiguous_no_publisher_priority   PASS
-replacement.composition_thirdparty           PASS
+replacement.work_thirdparty                  PASS
 replacement.thirdparty_agent_runtime_surfaces   PASS
 replacement.thirdparty_agent_runtime_invocation PASS
-replacement.composition_agent_runtime_replacement PASS
+replacement.work_agent_runtime_replacement  PASS
 substrate.permission_grant_rehydrate          PASS
 secret.ref_validation                        PASS
 secret.raw_blocked_in_proposal               PASS
@@ -588,7 +587,7 @@ agentic_forge.record_observation_untrusted_large_output_redaction PASS
 agentic_forge.tool_risk_injection_exfiltration_outbound    PASS
 agentic_forge.replay_tool_plan_mismatch_flagged             PASS
 agentic_forge.plan_toolchain_requires_explicit_provider_nested_delegation_blocked PASS
-agentic_forge.thirdparty_replacement_shape_no_publisher_priority PASS
+agentic_forge.thirdparty_work_shape_no_publisher_priority PASS
 agentic_forge.no_publisher_priority_ordinary_package PASS
 agentic_forge.hostile_injection_secret_blocked_cross_package PASS
 agentic_forge.budget_deadline_contract_cancellation_consistent PASS
@@ -638,12 +637,12 @@ creator_loop.experience_surface_warnings PASS
 creator_loop.missing_checkpoint_warning PASS
 creator_loop.dangerous_permissions_warning PASS
 creator_loop.network_nondeterministic_hint PASS
-creator_loop.composition_experience_diagnostics PASS
+creator_loop.work_experience_diagnostics PASS
 creator_loop.walkthrough_reference PASS
 creator_loop.thirdparty_no_privilege PASS
 sharing_lab.contract_shape PASS
-sharing_lab.export_composition_bundle PASS
-sharing_lab.import_composition_bundle PASS
+sharing_lab.export_work_bundle PASS
+sharing_lab.import_work_bundle PASS
 sharing_lab.branch_session_bundle PASS
 sharing_lab.package_set_lockfile PASS
 sharing_lab.compatibility_report PASS

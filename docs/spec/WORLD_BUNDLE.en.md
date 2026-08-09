@@ -18,7 +18,7 @@ WorldBundleArchive
 │   ├── world_head
 │   ├── journal_ranges
 │   ├── object_descriptors
-│   ├── composition_lock
+│   ├── assembly_lock
 │   ├── protocol_profiles
 │   ├── policy_refs
 │   ├── effect_receipts
@@ -41,7 +41,7 @@ The digest identifies bytes. Artifact type, media type, role annotations, and ot
 WorldHead
 ├── state_root
 ├── history_root
-├── composition_lock
+├── assembly_lock
 ├── protocol_profiles
 ├── policy_root
 ├── provenance_root
@@ -58,7 +58,7 @@ The original envelope bytes produced at export are retained as objects. Import p
 The implemented lifecycle is:
 
 1. Select one or more contiguous journal ranges and a state root.
-2. Pin the composition and exact protocol profiles.
+2. Pin the AssemblyLock and exact protocol profiles.
 3. Materialize event envelopes, receipts, policy/provenance records, and all transitive objects in the SHA-256 ObjectStore.
 4. Compute and verify the complete reference closure.
 5. Export the canonical manifest plus base64 object payloads.
@@ -91,7 +91,7 @@ Verification or import fails explicitly for:
 - conflicting sizes for the same digest;
 - a changed bundle manifest or original event envelope;
 - a non-contiguous journal range or an envelope whose session/sequence differs from its range;
-- a composition lock, world head, protocol version, or required profile mismatch;
+- an assembly lock, world head, protocol version, or required profile mismatch;
 - an unresolved policy or receipt reference;
 - import into a non-empty destination session scope.
 

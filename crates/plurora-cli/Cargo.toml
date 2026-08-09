@@ -24,6 +24,8 @@ async-trait.workspace = true
 axum.workspace = true
 base64 = "0.22"
 chrono.workspace = true
+cap-fs-ext.workspace = true
+cap-std.workspace = true
 clap.workspace = true
 console = "0.15"
 dialoguer = "0.11"
@@ -39,6 +41,7 @@ serde.workspace = true
 serde_json.workspace = true
 serde_yaml.workspace = true
 sha2 = "0.10"
+same-file.workspace = true
 sequoia-openpgp = { version = "1.21", default-features = false, features = ["compression", "crypto-rust", "allow-experimental-crypto", "allow-variable-time-crypto"] }
 syn = "2"
 tempfile = "3"

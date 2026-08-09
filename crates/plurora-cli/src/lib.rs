@@ -6,14 +6,14 @@ pub mod schema_export;
 pub mod templates;
 
 use cli::{
-    CapabilityCommand, Cli, Command, CompositionCommand, ConformanceCommand, HostAccessCommand,
-    HostChangeCommand, HostCommand, HostConnectionCommand, ManifestCommand, PackageCommand,
-    PerfCommand, TargetAgentCommand, WorldBundleCommand,
+    CapabilityCommand, Cli, Command, ConformanceCommand, HostAccessCommand, HostChangeCommand,
+    HostCommand, HostConnectionCommand, ManifestCommand, PackageCommand, PerfCommand,
+    TargetAgentCommand, WorldBundleCommand,
 };
 use commands::audit;
 use commands::{
-    capability, composition, conformance_package, demo, host, install as install_command,
-    list_installed, lockfile, manifest, package, perf, project, uninstall, update, world_bundle,
+    capability, conformance_package, demo, host, install as install_command, list_installed,
+    lockfile, manifest, package, perf, project, uninstall, update, world_bundle,
 };
 
 pub async fn run_cli(cli: Cli) -> anyhow::Result<()> {
@@ -271,6 +271,7 @@ pub async fn run_cli(cli: Cli) -> anyhow::Result<()> {
         Command::Install(args) => install_command::run(args).await,
         Command::Uninstall(args) => uninstall::run(args).await,
         Command::Project(args) => project::run(args).await,
+        Command::Work(args) => commands::work::run(args).await,
         Command::ListInstalled(args) => list_installed::run(args).await,
         Command::Update(args) => update::run(args).await,
         Command::Lockfile(args) => lockfile::run(args).await,
@@ -281,10 +282,6 @@ pub async fn run_cli(cli: Cli) -> anyhow::Result<()> {
             language,
             template,
         } => package::init_package(path, id, entry, language, template).await,
-        Command::InitComposition { path, id } => composition::init_composition(path, id).await,
-        Command::Composition { command } => match command {
-            CompositionCommand::Check { path } => composition::composition_check(path).await,
-        },
         Command::Conformance(args) => match args.command {
             Some(ConformanceCommand::Package(package_args)) => {
                 conformance_package::run(package_args).await

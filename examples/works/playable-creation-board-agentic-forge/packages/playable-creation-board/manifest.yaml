@@ -1,0 +1,15 @@
+schema_version: 1
+id: plurora/playable-creation-board
+version: 0.1.0
+display_name: Playable Creation Board
+entry:
+  kind: rust_inproc
+  crate_ref: plurora-playable-creation-board
+  symbol: register
+  abi_version: 1
+provides: []
+consumes: []
+requires: []
+contributes: {}
+permissions: {}
+sandbox_policy: {}

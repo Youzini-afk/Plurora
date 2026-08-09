@@ -23,14 +23,14 @@ pub use change::{
     INTENT_TYPE_URI,
 };
 pub use component::{
-    component_descriptors_for_manifest, component_trust_class, package_envelope_for_manifest,
-    protocol_profile_pins_for_envelope, ComponentBoundaryClaims, ComponentClaimStatus,
-    ComponentDeclaration, ComponentDescriptor, ComponentLockPin, ComponentTrustClass,
-    CompositionLock, NamedPackageArtifact, PackageEnvelopeDescriptor, PackagedProtocolDescriptor,
-    PackagedSurfaceDescriptor, ProtocolImplementationDeclaration, ProtocolProfilePin,
-    COMPONENT_BEHAVIOR_TYPE_URI, COMPONENT_DESCRIPTOR_TYPE_URI, PACKAGED_PROTOCOL_TYPE_URI,
-    PACKAGED_SURFACE_TYPE_URI, PACKAGE_ENTRY_TYPE_URI, PACKAGE_ENVELOPE_TYPE_URI,
-    PACKAGE_MANIFEST_TYPE_URI, SCHEMA_CONTRIBUTION_TYPE_URI,
+    component_descriptors_for_manifest, component_trust_class, decode_component_artifact_payload,
+    package_envelope_for_manifest, protocol_profile_pins_for_envelope, ComponentArtifactPayload,
+    ComponentBoundaryClaims, ComponentClaimStatus, ComponentDeclaration, ComponentDescriptor,
+    ComponentLockPin, ComponentTrustClass, NamedPackageArtifact, PackageEnvelopeDescriptor,
+    PackagedProtocolDescriptor, PackagedSurfaceDescriptor, ProtocolImplementationDeclaration,
+    ProtocolProfilePin, COMPONENT_BEHAVIOR_TYPE_URI, COMPONENT_DESCRIPTOR_TYPE_URI,
+    PACKAGED_PROTOCOL_TYPE_URI, PACKAGED_SURFACE_TYPE_URI, PACKAGE_ENTRY_TYPE_URI,
+    PACKAGE_ENVELOPE_TYPE_URI, PACKAGE_MANIFEST_TYPE_URI, SCHEMA_CONTRIBUTION_TYPE_URI,
 };
 pub use conformance::{
     CheckResult, CheckStatus, ConformanceSummary, ImplementationConformanceReport,
@@ -105,9 +105,9 @@ pub use session::{SessionRecord, SessionStatus};
 pub use world_bundle::{
     canonical_json_bytes, sha256_digest as world_bundle_sha256_digest, validate_sha256,
     WorldBundleArchive, WorldBundleManifest, WorldBundleObject, WorldHead, WorldJournalRange,
-    WorldLineageEntry, WORLD_BUNDLE_ARCHIVE_FORMAT, WORLD_BUNDLE_EXPERIMENTAL_PROFILE,
-    WORLD_BUNDLE_MEDIA_TYPE, WORLD_BUNDLE_PROTOCOL_ID, WORLD_BUNDLE_PROTOCOL_VERSION,
-    WORLD_BUNDLE_TYPE_URI, WORLD_COMPOSITION_LOCK_MEDIA_TYPE, WORLD_COMPOSITION_LOCK_TYPE_URI,
+    WorldLineageEntry, WORLD_ASSEMBLY_LOCK_MEDIA_TYPE, WORLD_ASSEMBLY_LOCK_TYPE_URI,
+    WORLD_BUNDLE_ARCHIVE_FORMAT, WORLD_BUNDLE_EXPERIMENTAL_PROFILE, WORLD_BUNDLE_MEDIA_TYPE,
+    WORLD_BUNDLE_PROTOCOL_ID, WORLD_BUNDLE_PROTOCOL_VERSION, WORLD_BUNDLE_TYPE_URI,
     WORLD_EVENT_ENVELOPE_MEDIA_TYPE, WORLD_EVENT_ENVELOPE_TYPE_URI, WORLD_HEAD_MEDIA_TYPE,
     WORLD_HEAD_TYPE_URI, WORLD_JOURNAL_INDEX_MEDIA_TYPE, WORLD_JOURNAL_INDEX_TYPE_URI,
     WORLD_POLICY_INDEX_MEDIA_TYPE, WORLD_POLICY_INDEX_TYPE_URI, WORLD_PROVENANCE_MEDIA_TYPE,

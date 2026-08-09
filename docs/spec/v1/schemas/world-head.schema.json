@@ -63,7 +63,7 @@
       "additionalProperties": true,
       "type": "object"
     },
-    "composition_lock": {
+    "assembly_lock": {
       "$ref": "#/$defs/ArtifactDescriptor"
     },
     "effect_receipts": {
@@ -116,7 +116,7 @@
     }
   },
   "required": [
-    "composition_lock",
+    "assembly_lock",
     "head_type_uri",
     "history_root",
     "protocol_profiles",

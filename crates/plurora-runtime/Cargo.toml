@@ -28,6 +28,7 @@ tokio-stream.workspace = true
 url.workspace = true
 uuid.workspace = true
 plurora-core.workspace = true
+plurora-work.workspace = true
 reqwest.workspace = true
 schemars.workspace = true
 same-file.workspace = true

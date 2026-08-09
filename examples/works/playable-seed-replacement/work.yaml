@@ -1,0 +1,8 @@
+schema: plurora.work-source.v1
+work:
+  id: example/playable-seed
+  title: Community Playable Seed
+  description: A Work containing an ordinary third-party playable seed component.
+  assembly: assembly.yaml
+  annotations:
+    example.plurora.dev/proof: ordinary-third-party-component

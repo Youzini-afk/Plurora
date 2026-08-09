@@ -85,11 +85,11 @@ Capability tool bridge（`plurora/capability-tool-bridge-lab`）提供：
 第一方 `plurora/agentic-forge-lab` 是普通 Package。它没有 substrate 特权，也没有路由优先级。第三方 Package 可以替换它：
 
 1. 创建具有等价能力形状的包（如 `thirdparty/agentic-forge`）
-2. 创建声明 `replacement_candidates: [plurora/agentic-forge-lab]` 的 composition
+2. 在 Assembly 中把需要的 import 显式绑定到该第三方 Component
 3. 两个包都产生包拥有的形状：候选结果、提案、计划图和工作状态
 4. 两个包都不能直接修改目标分支或执行网络
 
-参见 `examples/packages/thirdparty-agentic-forge/` 和 `examples/compositions/agentic-forge-replacement/`。
+参见 `examples/packages/thirdparty-agentic-forge/` 和 `examples/works/agentic-forge-replacement/`。
 
 ## Secret 安全
 

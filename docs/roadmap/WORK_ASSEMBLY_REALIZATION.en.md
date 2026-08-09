@@ -446,6 +446,7 @@ pub struct AssemblyRevision {
 pub struct AssemblyNode {
     pub node_id: NodeId,
     pub source: AssemblyNodeSource,
+    pub ports: Vec<PortDescriptor>,
     pub configuration: Option<ArtifactDescriptor>,
     pub annotations: BTreeMap<String, Value>,
 }
@@ -480,6 +481,7 @@ pub struct AssemblyPortExposure {
 Validation rules:
 
 - node IDs, binding IDs, and exposed Port IDs are unique;
+- Component-node Port contracts are part of canonical AssemblyRevision content; changing a version, profile, interaction, transport, or effect changes the Assembly, Work, and Lock digests. Nested Assemblies expose their own boundary Ports instead of duplicating inline Ports;
 - the nested Assembly content closure is complete and the containment graph is acyclic;
 - provider endpoints are exports and consumer endpoints are imports;
 - protocol, interface, version, Profile, interaction, and multiplicity are compatible;
@@ -842,13 +844,15 @@ assembly:
       component: packages/ui/manifest.yaml#main
   bindings:
     - id: save-binding
-      from: save.save-export
-      to: simulation.save-import
+      from: {node_id: save, port_id: save-export}
+      to: {node_id: simulation, port_id: save-import}
   exposed_ports:
     - id: play
       direction: export
-      target: ui.play
+      target: {node_id: ui, port_id: play}
 ```
+
+Port endpoints use explicit `{node_id, port_id}` objects on the source wire. Both local ID classes allow `.`, so the source format does not use an ambiguous `node.port` shorthand.
 
 `plurora work pack`:
 

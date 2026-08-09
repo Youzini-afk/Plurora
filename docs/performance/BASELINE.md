@@ -45,12 +45,12 @@ cargo run -p plurora-cli -- perf baseline --format json
 | scenario_id | 说明 |
 |---|---|
 | `inproc_echo_invoke` | Rust inproc 包 echo 能力调用。使用 `examples/packages/echo-rust-inproc/manifest.yaml`。 |
-| `first_party_capability_invoke` | 第一方 Package 能力调用。使用 `plurora/composition-lab/describe`。 |
+| `first_party_capability_invoke` | 第一方 Package 能力调用。使用无网络、无副作用的 `plurora/asset-lab/preview`。 |
 | `event_store_append_list_range` | 内存 event store 批量追加（100 events）、全量 list、range 查询。 |
 | `event_store_append_list_range_1k` | 内存 event store 原子追加（1,000 events）、全量 list、kind-prefix 查询。 |
 | `event_store_append_list_range_10k` | 内存 event store 原子追加（10,000 events）、全量 list、kind-prefix 查询。 |
 | `event_store_append_list_range_100k` | 内存 event store 原子追加（100,000 events）、全量 list、kind-prefix 查询。当 iterations > 1 时自动限制为 1 次迭代。 |
-| `composition_check` | Composition descriptor 验证与包加载。使用 `examples/compositions/playable-seed-replacement/`。 |
+| `work_check` | 安全读取 Work/Assembly source、投影 Package/Component 并运行 authoring resolver。使用 `examples/works/playable-seed-replacement/work.yaml`。 |
 | `profile_load` | Profile YAML 解析。使用 `profiles/forge-alpha.yaml`。 |
 | `subprocess_echo_invoke` | Subprocess echo 能力调用（需要 Python；不可用时 status=skipped）。 |
 | `subprocess_cold_start_ms` | 每次迭代新建 subprocess 包，测量 `load_package` handshake + 首次 invoke。 |
@@ -61,6 +61,8 @@ cargo run -p plurora-cli -- perf baseline --format json
 | `outbound_execute_fake_throughput_req_s` | `FakeOutboundExecutor` 上的 1,000 次 `execute_outbound_with_policy` 调用吞吐。 |
 | `outbound_stream_fake_ttft_ms` | fake SSE stream 首事件延迟；drain 到完成。 |
 | `outbound_stream_fake_steady_events_s` | 计划测量 100 events steady stream；当前 fake executor 缺少 N-frame fixture API，已记录为 `skipped`。 |
+
+提交的历史 `perf/baseline.json` 已删除旧 descriptor-check 样本，因为它与 `work_check` 的安全文件读取、artifact projection 和递归解析成本不可比较；`first_party_capability_invoke` 也已从退役 Package 切换到 `plurora/asset-lab/preview`，旧耗时不能沿用。下一次在基准 Linux 环境采样时再为这两个场景建立首个可比较参考值。
 
 ## 输出字段
 
@@ -130,7 +132,7 @@ JSON 输出使用 envelope：
 1. in-process 调用延迟 — 如果引入 resolve cache 或 handler table，应观察该指标变化。
 2. 事件存储批量吞吐 — 100 个事件、1k、10k、100k 的 append/list/range/kind-prefix 延迟都可比较。
 3. 事件存储规模趋势 — 用 1k/10k/100k 场景观察跨版本增长曲线。
-4. composition check 延迟 — 诊断扫描改用 set/index 后应有改善。
+4. Work check 延迟 — source containment、Package projection 与递归 resolver 的变化应由该场景反映。
 5. profile load 延迟 — 作为 YAML 解析基线；profile 变大后应重新测量。
 6. 子进程调用延迟 — 需要稳定的子进程环境再做比较。
 7. 出站 fake executor 与 fake stream — 作为出站审计/策略路径的无网络参考。

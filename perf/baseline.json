@@ -28,22 +28,6 @@
       "notes": []
     },
     {
-      "scenario_id": "first_party_capability_invoke",
-      "iterations": 30,
-      "total_ms": 1.2131979999999998,
-      "avg_ms": 0.040439933333333324,
-      "min_ms": 0.036115999999999995,
-      "max_ms": 0.060254999999999996,
-      "p50_ms": 0.036898,
-      "p95_ms": 0.060013000000000004,
-      "p99_ms": 0.060254999999999996,
-      "memory_rss_mb_delta": 0.01171875,
-      "status": "ok",
-      "notes": [
-        "plurora/composition-lab/describe"
-      ]
-    },
-    {
       "scenario_id": "event_store_append_list_range",
       "iterations": 30,
       "total_ms": 122.43816100000002,
@@ -106,22 +90,6 @@
       "status": "ok",
       "notes": [
         "100000 events per iteration (capped to 1 iteration from 30)"
-      ]
-    },
-    {
-      "scenario_id": "composition_check",
-      "iterations": 30,
-      "total_ms": 12.976148999999998,
-      "avg_ms": 0.43253829999999993,
-      "min_ms": 0.366973,
-      "max_ms": 0.683405,
-      "p50_ms": 0.388295,
-      "p95_ms": 0.566352,
-      "p99_ms": 0.683405,
-      "memory_rss_mb_delta": 0.0,
-      "status": "ok",
-      "notes": [
-        "playable-seed-replacement"
       ]
     },
     {
@@ -285,7 +253,7 @@
     "tool": "plurora-cli perf baseline",
     "version": "0.1.0",
     "note": "developer-machine reference, not CI budget; no-network/deterministic",
-    "ok_count": 16,
+    "ok_count": 15,
     "skipped_count": 1,
     "error_count": 0
   }

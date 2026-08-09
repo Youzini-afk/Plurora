@@ -394,7 +394,7 @@ where
 }
 
 async fn scenario_first_party_capability_invoke(iterations: u32, warmup: u32) -> ScenarioResult {
-    let manifest_path = manifest_path("packages/plurora/composition-lab/manifest.yaml");
+    let manifest_path = manifest_path("packages/plurora/asset-lab/manifest.yaml");
     let manifest = match read_manifest(manifest_path).await {
         Ok(m) => m,
         Err(e) => return error_result("first_party_capability_invoke", iterations, e),
@@ -425,7 +425,7 @@ async fn scenario_first_party_capability_invoke(iterations: u32, warmup: u32) ->
         iterations,
         &durations,
         "ok",
-        vec!["plurora/composition-lab/describe".to_string()],
+        vec!["plurora/asset-lab/preview".to_string()],
         memory_delta,
         false,
     )
@@ -440,12 +440,16 @@ where
         runtime
             .invoke_capability(CapabilityInvocationRequest {
                 handle: None,
-                capability_id: Some("plurora/composition-lab/describe".to_string()),
+                capability_id: Some("plurora/asset-lab/preview".to_string()),
                 caller_package_id: None,
                 provider_package_id: None,
                 version: None,
                 session_id: None,
-                input: json!({}),
+                input: json!({
+                    "asset_id": "perf/asset",
+                    "mime": "application/json",
+                    "content": "{}"
+                }),
             })
             .await?;
         Ok(start.elapsed().as_secs_f64() * 1000.0)
@@ -625,47 +629,26 @@ fn scenario_event_store_scale_sample(event_count: u32, session_id: String) -> Re
     })
 }
 
-async fn scenario_composition_check(iterations: u32, warmup: u32) -> ScenarioResult {
-    let composition_path =
-        manifest_path("examples/compositions/playable-seed-replacement/composition.yaml");
-    let raw = match fs::read_to_string(&composition_path) {
-        Ok(r) => r,
-        Err(e) => return error_result("composition_check", iterations, e),
-    };
-    let composition: crate::cli::CompositionDescriptor =
-        match composition_path.extension().and_then(|ext| ext.to_str()) {
-            Some("yaml") | Some("yml") => match serde_yaml::from_str(&raw) {
-                Ok(c) => c,
-                Err(e) => return error_result("composition_check", iterations, e),
-            },
-            _ => match serde_json::from_str(&raw) {
-                Ok(c) => c,
-                Err(e) => return error_result("composition_check", iterations, e),
-            },
-        };
-
-    let base = composition_path
-        .parent()
-        .unwrap_or_else(|| std::path::Path::new("."));
-
+async fn scenario_work_check(iterations: u32, warmup: u32) -> ScenarioResult {
+    let work_path = manifest_path("examples/works/playable-seed-replacement/work.yaml");
     for _ in 0..warmup {
-        if let Err(e) = run_composition_check_body(&composition, base).await {
-            return error_result("composition_check", iterations, e);
+        if let Err(e) = run_work_check_body(&work_path) {
+            return error_result("work_check", iterations, e);
         }
     }
 
     let before_rss = read_rss_mb();
     let mut durations = Vec::with_capacity(iterations as usize);
     for _ in 0..iterations {
-        match run_composition_check_body(&composition, base).await {
+        match run_work_check_body(&work_path) {
             Ok(ms) => durations.push(ms),
-            Err(e) => return error_result("composition_check", iterations, e),
+            Err(e) => return error_result("work_check", iterations, e),
         }
     }
 
     let memory_delta = rss_delta(before_rss, read_rss_mb());
     build_result(
-        "composition_check",
+        "work_check",
         iterations,
         &durations,
         "ok",
@@ -675,31 +658,10 @@ async fn scenario_composition_check(iterations: u32, warmup: u32) -> ScenarioRes
     )
 }
 
-async fn run_composition_check_body(
-    composition: &crate::cli::CompositionDescriptor,
-    base: &Path,
-) -> Result<f64> {
+fn run_work_check_body(work_path: &Path) -> Result<f64> {
     let start = Instant::now();
-
-    // Validate fields
-    if composition.id.trim().is_empty() {
-        anyhow::bail!("composition id empty");
-    }
-    if composition.entry_surface_id.trim().is_empty() {
-        anyhow::bail!("entry surface empty");
-    }
-
-    // Load required packages
-    for pkg_path in &composition.packages {
-        let resolved = if pkg_path.is_absolute() {
-            pkg_path.clone()
-        } else {
-            base.join(pkg_path)
-        };
-        let manifest = read_manifest(resolved).await?;
-        manifest.validate_basic()?;
-    }
-
+    crate::commands::work::check_work_path(work_path)
+        .map_err(|error| anyhow::anyhow!(error.code.as_str()))?;
     Ok(start.elapsed().as_secs_f64() * 1000.0)
 }
 
@@ -1382,8 +1344,8 @@ async fn run_scenarios(iterations: u32, warmup: u32) -> Vec<ScenarioResult> {
     }
     results.push(scale_100k);
 
-    // 7. Composition check
-    results.push(scenario_composition_check(iterations, warmup).await);
+    // 7. Work authoring check
+    results.push(scenario_work_check(iterations, warmup).await);
 
     // 8. Profile load
     results.push(scenario_profile_load(iterations, warmup).await);

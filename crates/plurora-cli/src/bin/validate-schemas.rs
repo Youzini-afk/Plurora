@@ -15,7 +15,6 @@ const TOP_LEVEL_SCHEMAS: &[&str] = &[
     "change-set.schema.json",
     "commit.schema.json",
     "component-descriptor.schema.json",
-    "composition-lock.schema.json",
     "contract-selection.schema.json",
     "effect-receipt.schema.json",
     "event-envelope.schema.json",

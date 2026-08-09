@@ -1,6 +1,5 @@
 pub(crate) mod audit;
 pub(crate) mod capability;
-pub(crate) mod composition;
 pub(crate) mod conformance_package;
 pub(crate) mod demo;
 pub mod host;
@@ -18,4 +17,5 @@ pub mod project;
 pub mod target_agent;
 pub mod uninstall;
 pub mod update;
+pub(crate) mod work;
 pub(crate) mod world_bundle;

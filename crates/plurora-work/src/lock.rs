@@ -1,4 +1,4 @@
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 
 use plurora_core::{
     validate_sha256, ArtifactDescriptor, ComponentTrustClass, ProtocolProfilePin,
@@ -52,7 +52,7 @@ impl NodeLock {
                     ));
                 }
             }
-            ASSEMBLY_REVISION_TYPE_URI => {
+            ASSEMBLY_LOCK_TYPE_URI => {
                 if self.behavior_digest.is_some() || self.trust_class.is_some() {
                     return Err(ModelError::new(
                         DiagnosticCode::WorkInvalid,
@@ -121,6 +121,7 @@ impl AssemblyLock {
         }
         validate_descriptor_type(&self.assembly, ASSEMBLY_REVISION_TYPE_URI)?;
         let mut node_ids = BTreeSet::new();
+        let mut nodes_by_id = BTreeMap::new();
         for node in &self.nodes {
             node.validate()?;
             if !node_ids.insert(&node.node_id) {
@@ -129,6 +130,7 @@ impl AssemblyLock {
                     "assembly lock contains a duplicate node id",
                 ));
             }
+            nodes_by_id.insert(&node.node_id, node);
         }
         let mut binding_ids = BTreeSet::new();
         for binding in &self.bindings {
@@ -145,6 +147,15 @@ impl AssemblyLock {
                 return Err(ModelError::new(
                     DiagnosticCode::PortUnresolved,
                     "assembly lock binding references an unknown node",
+                ));
+            }
+            let provider_node = nodes_by_id[&binding.provider.node_id];
+            if provider_node.artifact.artifact_type_uri == COMPONENT_DESCRIPTOR_TYPE_URI
+                && provider_node.artifact != binding.provider_component
+            {
+                return Err(ModelError::new(
+                    DiagnosticCode::ArtifactDigestMismatch,
+                    "assembly lock binding provider pin differs from its direct component node",
                 ));
             }
         }
@@ -179,6 +190,12 @@ impl AssemblyLock {
     }
 
     pub fn replace_node(&mut self, node_id: &NodeId, replacement: NodeLock) -> ModelResult<()> {
+        if &replacement.node_id != node_id {
+            return Err(ModelError::new(
+                DiagnosticCode::WorkInvalid,
+                "assembly lock replacement must preserve the local node id",
+            ));
+        }
         let index = self
             .nodes
             .iter()
@@ -214,5 +231,110 @@ impl ArtifactModel for AssemblyLock {
             )
             .chain(self.content_roots.iter())
             .collect()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::collections::BTreeMap;
+
+    use super::*;
+
+    fn descriptor(kind: &str, byte: char) -> ArtifactDescriptor {
+        ArtifactDescriptor {
+            artifact_type_uri: kind.to_string(),
+            media_type: "application/json".to_string(),
+            digest: format!("sha256:{}", byte.to_string().repeat(64)),
+            size_bytes: 1,
+            references: Vec::new(),
+            annotations: BTreeMap::new(),
+        }
+    }
+
+    fn component_lock(byte: char) -> NodeLock {
+        NodeLock {
+            node_id: NodeId::parse("main").unwrap(),
+            artifact: descriptor(COMPONENT_DESCRIPTOR_TYPE_URI, byte),
+            behavior_digest: Some(format!("sha256:{}", byte.to_string().repeat(64))),
+            trust_class: Some(ComponentTrustClass::IsolatedProcess),
+        }
+    }
+
+    #[test]
+    fn replacement_preserves_content_roots_and_node_identity() {
+        let content = descriptor("urn:example:content:v1", 'c');
+        let mut lock = AssemblyLock {
+            schema: AssemblyLock::SCHEMA.to_string(),
+            assembly: descriptor(ASSEMBLY_REVISION_TYPE_URI, 'a'),
+            nodes: vec![component_lock('b')],
+            bindings: Vec::new(),
+            protocol_profiles: Vec::new(),
+            content_roots: vec![content.clone()],
+        };
+        lock.validate().unwrap();
+        lock.replace_node(&NodeId::parse("main").unwrap(), component_lock('d'))
+            .unwrap();
+        assert_eq!(lock.content_roots, vec![content]);
+
+        let mut invalid = component_lock('e');
+        invalid.node_id = NodeId::parse("other").unwrap();
+        assert_eq!(
+            lock.replace_node(&NodeId::parse("main").unwrap(), invalid)
+                .unwrap_err()
+                .code,
+            DiagnosticCode::WorkInvalid
+        );
+    }
+
+    #[test]
+    fn parent_node_lock_accepts_only_child_lock_identity() {
+        let nested = NodeLock {
+            node_id: NodeId::parse("nested").unwrap(),
+            artifact: descriptor(ASSEMBLY_LOCK_TYPE_URI, 'a'),
+            behavior_digest: None,
+            trust_class: None,
+        };
+        nested.validate().unwrap();
+        let mut revision = nested;
+        revision.artifact.artifact_type_uri = ASSEMBLY_REVISION_TYPE_URI.to_string();
+        assert_eq!(
+            revision.validate().unwrap_err().code,
+            DiagnosticCode::WorkInvalid
+        );
+    }
+
+    #[test]
+    fn direct_provider_binding_must_pin_the_node_component() {
+        let provider = component_lock('b');
+        let mut consumer = component_lock('c');
+        consumer.node_id = NodeId::parse("consumer").unwrap();
+        let lock = AssemblyLock {
+            schema: AssemblyLock::SCHEMA.to_string(),
+            assembly: descriptor(ASSEMBLY_REVISION_TYPE_URI, 'a'),
+            nodes: vec![provider, consumer],
+            bindings: vec![BindingLock {
+                binding_id: "binding".to_string(),
+                provider: PortEndpoint {
+                    node_id: NodeId::parse("main").unwrap(),
+                    port_id: crate::PortId::parse("out").unwrap(),
+                },
+                consumer: PortEndpoint {
+                    node_id: NodeId::parse("consumer").unwrap(),
+                    port_id: crate::PortId::parse("input").unwrap(),
+                },
+                provider_component: descriptor(COMPONENT_DESCRIPTOR_TYPE_URI, 'd'),
+                transport: SelectedTransport {
+                    class_id: "plurora.transport.capability/v1".to_string(),
+                    properties: BTreeMap::new(),
+                },
+                phase: BindingPhase::Authoring,
+            }],
+            protocol_profiles: Vec::new(),
+            content_roots: Vec::new(),
+        };
+        assert_eq!(
+            lock.validate().unwrap_err().code,
+            DiagnosticCode::ArtifactDigestMismatch
+        );
     }
 }

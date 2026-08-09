@@ -21,6 +21,19 @@ use write::{filename, write_json, write_method};
 
 pub fn export_all() -> anyhow::Result<()> {
     let out = PathBuf::from("docs/spec/v1/schemas");
+    if out.exists() {
+        for entry in fs::read_dir(&out)? {
+            let entry = entry?;
+            if entry.file_type()?.is_file()
+                && entry
+                    .file_name()
+                    .to_string_lossy()
+                    .ends_with(".schema.json")
+            {
+                fs::remove_file(entry.path())?;
+            }
+        }
+    }
     if out.join("methods").exists() {
         fs::remove_dir_all(out.join("methods"))?;
     }
@@ -81,10 +94,6 @@ pub fn export_all() -> anyhow::Result<()> {
     write_json(
         out.join("package-envelope-descriptor.schema.json"),
         &schema_value::<PackageEnvelopeDescriptor>(),
-    )?;
-    write_json(
-        out.join("composition-lock.schema.json"),
-        &schema_value::<CompositionLock>(),
     )?;
     write_json(
         out.join("work-revision.schema.json"),

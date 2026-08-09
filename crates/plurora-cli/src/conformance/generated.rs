@@ -1,7 +1,7 @@
 use std::fs;
 
 use crate::cli::PackageTemplate;
-use crate::commands::{composition, manifest, package};
+use crate::commands::{manifest, package, work};
 
 pub(crate) async fn generated_subprocess_package() -> anyhow::Result<()> {
     let path =
@@ -716,111 +716,28 @@ pub(crate) async fn faux_agent_readiness_package() -> anyhow::Result<()> {
     Ok(())
 }
 
-pub(crate) async fn composition_descriptor() -> anyhow::Result<()> {
-    let root = std::env::temp_dir().join(format!("plurora-composition-{}", std::process::id()));
-    let package_path = root.join("package");
-    let composition_path = root.join("composition");
-    if root.exists() {
-        fs::remove_dir_all(&root)?;
-    }
-    fs::create_dir_all(&root)?;
-    package::init_package(
-        package_path,
-        "example/composed-experience".to_string(),
-        "subprocess".to_string(),
-        "typescript-experience".to_string(),
-        None,
-    )
-    .await?;
-    composition::init_composition(
-        composition_path.clone(),
-        "example/composed-experience".to_string(),
-    )
-    .await?;
-    composition::composition_check(composition_path.join("composition.yaml")).await?;
-    fs::remove_dir_all(root)?;
+pub(crate) async fn work_source_nested_exposure() -> anyhow::Result<()> {
+    let report = work::check_work_path(std::path::Path::new(
+        "examples/works/playable-creation-board-agentic-forge/work.yaml",
+    ))?;
+    anyhow::ensure!(
+        report
+            .exposed_ports
+            .iter()
+            .any(|port| port.port_id.as_str() == "play"),
+        "nested Work must expose its play Port"
+    );
     Ok(())
 }
 
-/// Test composition descriptor v2 fields: required capabilities pass,
-/// optional missing only warning, required missing fails.
-pub(crate) async fn composition_descriptor_v2() -> anyhow::Result<()> {
-    let root = std::env::temp_dir().join(format!("plurora-composition-v2-{}", std::process::id()));
-    let package_path = root.join("package");
-    let composition_path = root.join("composition");
-    if root.exists() {
-        fs::remove_dir_all(&root)?;
-    }
-    fs::create_dir_all(&root)?;
-
-    // Create a package with experience surfaces
-    package::init_package(
-        package_path.clone(),
-        "example/composed-v2".to_string(),
-        "subprocess".to_string(),
-        "typescript-experience".to_string(),
-        None,
-    )
-    .await?;
-
-    // Create v2 composition with all new fields
-    fs::create_dir_all(&composition_path)?;
-    let manifest_yaml = package_path.join("manifest.yaml");
-    fs::write(
-        composition_path.join("composition.yaml"),
-        format!(
-            r#"id: example/composed-v2
-version: 0.1.0
-entry_surface_id: example/composed-v2/entry
-title: "V2 Test Composition"
-description: "A composition descriptor with v2 fields"
-packages:
-  - {}
-required_surfaces:
-  - experience_entry
-optional_packages:
-  - /nonexistent/optional-package/manifest.yaml
-required_capabilities:
-  - example/composed-v2/echo
-permission_expectations:
-  - capabilities.invoke
-replacement_candidates:
-  - example/experience-alt
-compatibility_notes:
-  - "Requires plurora.contract.default/v1"
-"#,
-            manifest_yaml.display()
-        ),
-    )?;
-
-    // This should succeed: required capabilities are provided, optional missing only warns
-    composition::composition_check(composition_path.join("composition.yaml")).await?;
-
-    // Now test that missing required capability fails
-    let fail_path = composition_path.join("composition-fail.yaml");
-    fs::write(
-        &fail_path,
-        format!(
-            r#"id: example/composed-v2-fail
-version: 0.1.0
-entry_surface_id: example/composed-v2/entry
-packages:
-  - {}
-required_surfaces:
-  - experience_entry
-required_capabilities:
-  - nonexistent/missing-capability
-"#,
-            manifest_yaml.display()
-        ),
-    )?;
-    let result = composition::composition_check(fail_path).await;
+pub(crate) async fn work_source_digest_is_deterministic() -> anyhow::Result<()> {
+    let path = std::path::Path::new("examples/works/playable-seed-replacement/work.yaml");
+    let first = work::check_work_path(path)?;
+    let second = work::check_work_path(path)?;
     anyhow::ensure!(
-        result.is_err(),
-        "composition check should fail when required capability is missing"
+        first.work == second.work,
+        "Work digest changed across identical checks"
     );
-
-    fs::remove_dir_all(root)?;
     Ok(())
 }
 
@@ -860,23 +777,49 @@ pub(crate) async fn component_replacement_preserves_content_roots() -> anyhow::R
         references: Vec::new(),
         annotations: Default::default(),
     };
-    let mut lock = plurora_core::CompositionLock::new(
-        vec![plurora_core::ComponentLockPin {
-            component_id: "org.example/component".to_string(),
+    let node_id = plurora_work::NodeId::parse("component")?;
+    let mut lock = plurora_work::AssemblyLock {
+        schema: plurora_work::AssemblyLock::SCHEMA.to_string(),
+        assembly: plurora_core::ArtifactDescriptor {
+            artifact_type_uri: plurora_work::ASSEMBLY_REVISION_TYPE_URI.to_string(),
+            media_type: "application/json".to_string(),
             digest: format!("sha256:{}", "b".repeat(64)),
-            behavior_digest: format!("sha256:{}", "c".repeat(64)),
-            trust_class: plurora_core::ComponentTrustClass::IsolatedProcess,
+            size_bytes: 1,
+            references: Vec::new(),
+            annotations: Default::default(),
+        },
+        nodes: vec![plurora_work::NodeLock {
+            node_id: node_id.clone(),
+            artifact: plurora_core::ArtifactDescriptor {
+                artifact_type_uri: plurora_core::COMPONENT_DESCRIPTOR_TYPE_URI.to_string(),
+                media_type: "application/json".to_string(),
+                digest: format!("sha256:{}", "c".repeat(64)),
+                size_bytes: 1,
+                references: Vec::new(),
+                annotations: Default::default(),
+            },
+            behavior_digest: Some(format!("sha256:{}", "d".repeat(64))),
+            trust_class: Some(plurora_core::ComponentTrustClass::IsolatedProcess),
         }],
-        Vec::new(),
-        vec![root.clone()],
-    )?;
-    lock.replace_component(
-        "org.example/component",
-        plurora_core::ComponentLockPin {
-            component_id: "org.example/replacement".to_string(),
-            digest: format!("sha256:{}", "d".repeat(64)),
-            behavior_digest: format!("sha256:{}", "e".repeat(64)),
-            trust_class: plurora_core::ComponentTrustClass::SandboxedComponent,
+        bindings: Vec::new(),
+        protocol_profiles: Vec::new(),
+        content_roots: vec![root.clone()],
+    };
+    lock.validate()?;
+    lock.replace_node(
+        &node_id,
+        plurora_work::NodeLock {
+            node_id: node_id.clone(),
+            artifact: plurora_core::ArtifactDescriptor {
+                artifact_type_uri: plurora_core::COMPONENT_DESCRIPTOR_TYPE_URI.to_string(),
+                media_type: "application/json".to_string(),
+                digest: format!("sha256:{}", "e".repeat(64)),
+                size_bytes: 1,
+                references: Vec::new(),
+                annotations: Default::default(),
+            },
+            behavior_digest: Some(format!("sha256:{}", "f".repeat(64))),
+            trust_class: Some(plurora_core::ComponentTrustClass::SandboxedComponent),
         },
     )?;
     anyhow::ensure!(

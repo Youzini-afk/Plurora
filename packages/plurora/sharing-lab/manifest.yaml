@@ -2,7 +2,7 @@ schema_version: 1
 id: plurora/sharing-lab
 version: 0.1.0
 display_name: Plurora Sharing Lab
-description: Package-owned sharing and distribution — export/import composition bundles, branch/session bundle manifests, package-set lockfiles, compatibility/migration reports, AI disclosure metadata, read-only shared session manifests, and async fork sharing plans. Deterministic, no-network, local-file proof. Ordinary package capability with no privileged platform access.
+description: Package-owned sharing and distribution — export/import content-addressed Work bundles, branch/session bundle manifests, package-set lockfiles, compatibility reports, AI disclosure metadata, read-only shared session manifests, and async fork sharing plans. Deterministic, no-network, local-file proof. Ordinary package capability with no privileged platform access.
 license: AGPL-3.0-only
 entry:
   kind: rust_inproc
@@ -13,19 +13,115 @@ provides:
   - id: plurora/sharing-lab/describe_sharing_contract
     version: 0.1.0
     input_schema: {}
-    output_schema: {}
+    output_schema:
+      type: object
+      required: [kind, package_id, package_kind, capabilities, surfaces, output_shapes, red_lines]
     streaming: false
     side_effects: []
-  - id: plurora/sharing-lab/export_composition_bundle
+  - id: plurora/sharing-lab/export_work_bundle
     version: 0.1.0
-    input_schema: {}
-    output_schema: {}
+    input_schema:
+      type: object
+      additionalProperties: false
+      required: [work_id, work_revision, assembly_revision, assembly_lock]
+      properties:
+        work_id: { type: string }
+        work_revision:
+          type: object
+          additionalProperties: false
+          required: [artifact_type_uri, media_type, digest, size_bytes, references]
+          properties:
+            artifact_type_uri: { type: string, const: "urn:plurora:work-revision:v1" }
+            media_type: { type: string, const: "application/json" }
+            digest: { type: string, pattern: "^sha256:[0-9a-f]{64}$" }
+            size_bytes: { type: integer, minimum: 1 }
+            references:
+              type: array
+              minItems: 1
+              uniqueItems: true
+              items: { type: string, pattern: "^sha256:[0-9a-f]{64}$" }
+            annotations: { type: object }
+        assembly_revision:
+          type: object
+          additionalProperties: false
+          required: [artifact_type_uri, media_type, digest, size_bytes, references]
+          properties:
+            artifact_type_uri: { type: string, const: "urn:plurora:assembly-revision:v1" }
+            media_type: { type: string, const: "application/json" }
+            digest: { type: string, pattern: "^sha256:[0-9a-f]{64}$" }
+            size_bytes: { type: integer, minimum: 1 }
+            references:
+              type: array
+              uniqueItems: true
+              items: { type: string, pattern: "^sha256:[0-9a-f]{64}$" }
+            annotations: { type: object }
+        assembly_lock:
+          type: object
+          additionalProperties: false
+          required: [artifact_type_uri, media_type, digest, size_bytes, references]
+          properties:
+            artifact_type_uri: { type: string, const: "urn:plurora:assembly-lock:v1" }
+            media_type: { type: string, const: "application/json" }
+            digest: { type: string, pattern: "^sha256:[0-9a-f]{64}$" }
+            size_bytes: { type: integer, minimum: 1 }
+            references:
+              type: array
+              minItems: 1
+              uniqueItems: true
+              items: { type: string, pattern: "^sha256:[0-9a-f]{64}$" }
+            annotations: { type: object }
+        packages: { type: array }
+    output_schema:
+      oneOf:
+        - type: object
+          required: [kind, bundle_id, format_version, work_id, work_revision, assembly_revision, assembly_lock, package_set_lockfile, ai_disclosure]
+          properties:
+            kind: { type: string, const: work_bundle }
+        - type: object
+          required: [kind, redaction_state, reason, inference_performed, network_performed, provenance]
+          properties:
+            kind: { type: string, const: sharing_lab_rejected }
     streaming: false
     side_effects: []
-  - id: plurora/sharing-lab/import_composition_bundle
+  - id: plurora/sharing-lab/import_work_bundle
     version: 0.1.0
-    input_schema: {}
-    output_schema: {}
+    input_schema:
+      type: object
+      additionalProperties: false
+      required: [kind, bundle_id, format_version, work_id, work_revision, assembly_revision, assembly_lock, package_set_lockfile, ai_disclosure]
+      properties:
+        kind: { type: string, const: work_bundle }
+        bundle_id: { type: string }
+        format_version: { type: string }
+        work_id: { type: string }
+        work_revision: { type: object }
+        assembly_revision: { type: object }
+        assembly_lock: { type: object }
+        package_set_lockfile: { type: object }
+        ai_disclosure: { type: object }
+        no_marketplace_fields: { type: boolean, const: true }
+        no_billing_fields: { type: boolean, const: true }
+        no_signing_network_fields: { type: boolean, const: true }
+        inference_performed: { type: boolean, const: false }
+        network_performed: { type: boolean, const: false }
+        provenance:
+          type: object
+          additionalProperties: false
+          required: [package_id, capability_id]
+          properties:
+            package_id: { type: string, const: "plurora/sharing-lab" }
+            capability_id: { type: string, const: "plurora/sharing-lab/export_work_bundle" }
+        missing_packages: { type: array }
+    output_schema:
+      oneOf:
+        - type: object
+          required: [kind, bundle_id, format_version, work_id, work_revision, assembly_revision, assembly_lock, ai_disclosure, compatibility_status, diagnostics, requires_user_approval, plan_only]
+          properties:
+            kind: { type: string, const: work_bundle_import }
+        - type: object
+          required: [kind, redaction_state, reason, inference_performed, network_performed, provenance]
+          properties:
+            kind: { type: string, const: sharing_lab_rejected }
     streaming: false
     side_effects: []
   - id: plurora/sharing-lab/create_branch_session_bundle
@@ -73,13 +169,13 @@ contributes:
     - id: plurora/sharing-lab/forge-panel
       slot: forge_panel
       title: Sharing Lab
-      description: Inspect sharing contracts, export/import bundles, lockfiles, compatibility reports, AI disclosure, and sharing manifests.
+      description: Inspect Work sharing contracts, export/import bundles, lockfiles, compatibility reports, AI disclosure, and sharing manifests.
       capability_id: plurora/sharing-lab/describe_sharing_contract
     - id: plurora/sharing-lab/assistant-action
       slot: assistant_action
       title: Draft Sharing Action
-      description: Draft approval-gated export/import, compatibility check, or async fork sharing plan.
-      capability_id: plurora/sharing-lab/export_composition_bundle
+      description: Draft an approval-gated Work export/import, compatibility check, or async fork sharing plan.
+      capability_id: plurora/sharing-lab/export_work_bundle
       approval_policy: user_approval
     - id: plurora/sharing-lab/home-card
       slot: home_card

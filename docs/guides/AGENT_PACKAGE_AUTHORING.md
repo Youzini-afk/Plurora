@@ -105,15 +105,15 @@ const plan = await adapter.invokeCapabilityTool(tool, {
 参考：
 
 - `examples/packages/thirdparty-agent-runtime/manifest.yaml`
-- `examples/compositions/agent-runtime-replacement/composition.yaml`
+- `examples/works/agent-runtime-replacement/work.yaml`
 
-这个例子证明第三方 agent runtime 可以提供同等 surface、能力、提案和追踪形状。第一方 Package 只是 `replacement_candidate`，没有优先级。
+这个例子证明第三方 agent runtime 可以提供同等 surface、能力、提案和追踪形状。第一方 Package 没有优先级；若两者同时满足 Port 合同，Assembly 必须显式绑定，否则 Resolver 报告 ambiguous。
 
 验证：
 
 ```bash
 cargo run -p plurora-cli -- package check examples/packages/thirdparty-agent-runtime/manifest.yaml
-cargo run -p plurora-cli -- composition check examples/compositions/agent-runtime-replacement/composition.yaml
+cargo run -p plurora-cli -- work check examples/works/agent-runtime-replacement/work.yaml
 ```
 
 ## UI 观察

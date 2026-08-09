@@ -1459,7 +1459,7 @@ mod tests {
                 "run_id": "run_inf",
                 "node_id": "node_infer_1",
                 "provider_kind": "deterministic",
-                "objective": "analyze composition",
+                "objective": "analyze work",
             }),
         );
         let result = try_handle(&req).unwrap().unwrap();

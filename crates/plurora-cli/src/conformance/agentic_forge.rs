@@ -545,7 +545,7 @@ pub(crate) async fn agentic_forge_create_candidate() -> anyhow::Result<()> {
                 "target_branch_ref": "branch:target:main",
                 "scratch_branch_ref": "branch:scratch:s1",
                 "target_revision": 1,
-                "changed_asset_refs": ["asset:composition:demo"],
+                "changed_asset_refs": ["asset:work:demo"],
             }),
         })
         .await?;
@@ -644,8 +644,8 @@ pub(crate) async fn agentic_forge_compare_candidate() -> anyhow::Result<()> {
                 "scratch_branch_ref": "branch:scratch:s1",
                 "target_revision": 1,
                 "current_target_revision": 1,
-                "changed_asset_refs": ["asset:composition:demo"],
-                "diff_summary": "modified composition",
+                "changed_asset_refs": ["asset:work:demo"],
+                "diff_summary": "modified work",
             }),
         })
         .await?;
@@ -706,7 +706,7 @@ pub(crate) async fn agentic_forge_draft_promote_proposal() -> anyhow::Result<()>
                 "scratch_branch_ref": "branch:scratch:s1",
                 "target_revision": 1,
                 "current_target_revision": 1,
-                "changed_asset_refs": ["asset:composition:demo"],
+                "changed_asset_refs": ["asset:work:demo"],
             }),
         })
         .await?;
@@ -873,7 +873,7 @@ pub(crate) async fn agentic_forge_inference_node_deterministic() -> anyhow::Resu
                 "run_id": "run_inf_conf",
                 "node_id": "node_infer_1",
                 "provider_kind": "deterministic",
-                "objective": "analyze composition",
+                "objective": "analyze work",
             }),
         })
         .await?;
@@ -1221,7 +1221,7 @@ pub(crate) async fn agentic_forge_explain_tool_call_scoped() -> anyhow::Result<(
                 "plan_node_id": "node_infer_1",
                 "target_branch_scope": "branch:target:main",
                 "scratch_branch_scope": "branch:scratch:s1",
-                "asset_scope": "asset:composition:demo",
+                "asset_scope": "asset:work:demo",
                 "approval_policy": "fork_then_approve",
             }),
         })
@@ -1589,57 +1589,20 @@ pub(crate) async fn agentic_forge_plan_toolchain_requires_provider() -> anyhow::
 // Phase F conformance cases: third-party replacement, hostile, budget/deadline
 // ---------------------------------------------------------------------------
 
-/// Phase F case 1: third-party agentic forge manifest passes package check,
-/// and replacement composition has correct shape with no publisher priority.
-pub(crate) async fn agentic_forge_thirdparty_replacement_shape() -> anyhow::Result<()> {
-    use crate::commands::package;
+/// Phase F case 1: a third-party agentic forge is an ordinary Work component.
+pub(crate) async fn agentic_forge_thirdparty_work_shape() -> anyhow::Result<()> {
+    use crate::commands::{package, work};
 
     // Package check on thirdparty manifest
     let thirdparty_path = PathBuf::from("examples/packages/thirdparty-agentic-forge/manifest.yaml");
     package::package_check(thirdparty_path).await?;
 
-    // Verify composition YAML can be loaded
-    let comp_path =
-        PathBuf::from("examples/compositions/agentic-forge-replacement/composition.yaml");
-    let comp_content = tokio::fs::read_to_string(&comp_path).await?;
-    let comp: serde_yaml::Value = serde_yaml::from_str(&comp_content)?;
-
+    let report = work::check_work_path(std::path::Path::new(
+        "examples/works/agentic-forge-replacement/work.yaml",
+    ))?;
     anyhow::ensure!(
-        comp["id"].as_str() == Some("example/agentic-forge-replacement"),
-        "composition must have correct id"
-    );
-    anyhow::ensure!(
-        comp["replacement_candidates"].is_sequence(),
-        "composition must have replacement_candidates"
-    );
-
-    // No publisher priority: the first-party implementation is a candidate, not auto-selected
-    let candidates = comp["replacement_candidates"].as_sequence().unwrap();
-    let has_first_party = candidates
-        .iter()
-        .any(|c| c.as_str() == Some("plurora/agentic-forge-lab"));
-    anyhow::ensure!(
-        has_first_party,
-        "plurora/agentic-forge-lab must appear as replacement candidate"
-    );
-    // The first-party implementation is just a candidate — no priority field
-    anyhow::ensure!(
-        comp.get("priority").is_none(),
-        "composition must not have priority field — the first-party implementation has no routing priority"
-    );
-
-    // Verify required capabilities align with agentic-forge-lab
-    let req_caps = comp["required_capabilities"].as_sequence().unwrap();
-    anyhow::ensure!(
-        req_caps.len() >= 7,
-        "composition must require at least 7 capabilities"
-    );
-
-    // Verify surfaces match
-    let req_surfaces = comp["required_surfaces"].as_sequence().unwrap();
-    anyhow::ensure!(
-        req_surfaces.len() >= 3,
-        "composition must require at least 3 surfaces"
+        report.nodes.len() == 1,
+        "replacement Work must have one component node"
     );
 
     Ok(())

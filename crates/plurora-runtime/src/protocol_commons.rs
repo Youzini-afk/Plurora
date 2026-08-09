@@ -658,7 +658,7 @@ fn world_bundle_protocol_descriptor() -> ProtocolDescriptor {
         compatibility_profiles: vec![profile(
             WORLD_BUNDLE_EXPERIMENTAL_PROFILE,
             WORLD_BUNDLE_PROTOCOL_VERSION,
-            "Portable object, journal, receipt, lineage, policy, and composition closure.",
+            "Portable object, journal, receipt, lineage, policy, and assembly closure.",
         )],
         migrations: Vec::new(),
         conforming_implementations: vec![ProtocolImplementationClaim {

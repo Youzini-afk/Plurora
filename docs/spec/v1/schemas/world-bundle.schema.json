@@ -62,11 +62,11 @@
           "additionalProperties": true,
           "type": "object"
         },
+        "assembly_lock": {
+          "$ref": "#/$defs/ArtifactDescriptor"
+        },
         "bundle_type_uri": {
           "type": "string"
-        },
-        "composition_lock": {
-          "$ref": "#/$defs/ArtifactDescriptor"
         },
         "effect_receipts": {
           "items": {
@@ -132,8 +132,8 @@
         }
       },
       "required": [
+        "assembly_lock",
         "bundle_type_uri",
-        "composition_lock",
         "journal_ranges",
         "lineage",
         "object_descriptors",

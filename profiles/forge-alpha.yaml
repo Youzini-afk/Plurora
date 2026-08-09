@@ -12,7 +12,6 @@ autoload:
   - ../packages/plurora/package-lab/manifest.yaml
   - ../packages/plurora/schema-tools/manifest.yaml
   - ../packages/plurora/event-tools/manifest.yaml
-  - ../packages/plurora/composition-lab/manifest.yaml
   - ../packages/plurora/asset-lab/manifest.yaml
   - ../packages/plurora/projection-lab/manifest.yaml
   - ../packages/plurora/persona-lab/manifest.yaml

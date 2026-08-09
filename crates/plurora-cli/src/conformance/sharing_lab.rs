@@ -2,8 +2,8 @@
 //!
 //! Covers:
 //! 1. Sharing contract shape (9 capabilities, 3 surfaces, ordinary package, red lines)
-//! 2. Export composition bundle produces bundle with lockfile and disclosure
-//! 3. Import composition bundle validates shape and compatibility
+//! 2. Export Work bundle produces content-addressed WorkRevision / AssemblyLock references
+//! 3. Import Work bundle validates descriptor shape and compatibility without effects
 //! 4. Branch/session bundle manifest shape
 //! 5. Package-set lockfile pins versions with content addresses
 //! 6. Compatibility report detects incompatibilities
@@ -21,6 +21,37 @@ use super::fixtures::*;
 use crate::commands::manifest;
 
 const PACKAGE_ID: &str = "plurora/sharing-lab";
+const WORK_REVISION_TYPE_URI: &str = "urn:plurora:work-revision:v1";
+const ASSEMBLY_REVISION_TYPE_URI: &str = "urn:plurora:assembly-revision:v1";
+const ASSEMBLY_LOCK_TYPE_URI: &str = "urn:plurora:assembly-lock:v1";
+
+fn digest(byte: char) -> String {
+    format!("sha256:{}", byte.to_string().repeat(64))
+}
+
+fn artifact_descriptor(type_uri: &str, byte: char, references: &[char]) -> serde_json::Value {
+    json!({
+        "artifact_type_uri": type_uri,
+        "media_type": "application/json",
+        "digest": digest(byte),
+        "size_bytes": 512,
+        "references": references.iter().copied().map(digest).collect::<Vec<_>>(),
+        "annotations": {},
+    })
+}
+
+fn work_bundle_input() -> serde_json::Value {
+    json!({
+        "work_id": "example/test-work",
+        "work_revision": artifact_descriptor(WORK_REVISION_TYPE_URI, 'a', &['c']),
+        "assembly_revision": artifact_descriptor(ASSEMBLY_REVISION_TYPE_URI, 'c', &['d']),
+        "assembly_lock": artifact_descriptor(ASSEMBLY_LOCK_TYPE_URI, 'b', &['c', 'd']),
+        "packages": [
+            {"package_id": "plurora/playable-seed", "version": "0.1.0"},
+            {"package_id": "plurora/memory-lab", "version": "0.1.0"},
+        ],
+    })
+}
 
 async fn load_sharing_lab(
 ) -> anyhow::Result<plurora_runtime::Runtime<plurora_runtime::InMemoryEventStore>> {
@@ -97,8 +128,8 @@ pub(crate) async fn sharing_contract() -> anyhow::Result<()> {
         "must have output_shapes"
     );
     anyhow::ensure!(
-        contract.output["output_shapes"]["composition_bundle"].is_array(),
-        "output_shapes must have composition_bundle"
+        contract.output["output_shapes"]["work_bundle"].is_array(),
+        "output_shapes must have work_bundle"
     );
     anyhow::ensure!(
         contract.output["output_shapes"]["package_set_lockfile"].is_array(),
@@ -119,30 +150,28 @@ pub(crate) async fn sharing_contract() -> anyhow::Result<()> {
     Ok(())
 }
 
-/// Case 2: Export composition bundle — produces bundle with lockfile, AI disclosure, no marketplace fields.
+/// Case 2: Export Work bundle with typed content references and no marketplace fields.
 pub(crate) async fn sharing_export_bundle() -> anyhow::Result<()> {
     let rt = load_sharing_lab().await?;
 
-    let export = invoke(
-        &rt,
-        "export_composition_bundle",
-        json!({
-            "composition_id": "test-composition",
-            "packages": [
-                {"package_id": "plurora/playable-seed", "version": "0.1.0"},
-                {"package_id": "plurora/memory-lab", "version": "0.1.0"},
-            ],
-            "composition_manifest": {
-                "title": "Test Composition",
-                "required_capabilities": ["plurora/playable-seed/launch"],
-            }
-        }),
-    )
-    .await?;
+    let export = invoke(&rt, "export_work_bundle", work_bundle_input()).await?;
 
-    anyhow::ensure!(export.output["kind"] == json!("composition_bundle"));
+    anyhow::ensure!(export.output["kind"] == json!("work_bundle"));
     anyhow::ensure!(export.output["bundle_id"].is_string());
     anyhow::ensure!(export.output["format_version"] == json!("1"));
+    anyhow::ensure!(export.output["work_id"] == json!("example/test-work"));
+    anyhow::ensure!(
+        export.output["work_revision"]["artifact_type_uri"] == json!(WORK_REVISION_TYPE_URI)
+    );
+    anyhow::ensure!(
+        export.output["assembly_revision"]["artifact_type_uri"]
+            == json!(ASSEMBLY_REVISION_TYPE_URI)
+    );
+    anyhow::ensure!(
+        export.output["assembly_lock"]["artifact_type_uri"] == json!(ASSEMBLY_LOCK_TYPE_URI)
+    );
+    anyhow::ensure!(export.output["work_revision"]["size_bytes"] == json!(512));
+    anyhow::ensure!(export.output["assembly_lock"]["references"].is_array());
     anyhow::ensure!(export.output["package_set_lockfile"].is_object());
     anyhow::ensure!(export.output["ai_disclosure"].is_object());
     anyhow::ensure!(export.output["no_marketplace_fields"] == json!(true));
@@ -153,60 +182,69 @@ pub(crate) async fn sharing_export_bundle() -> anyhow::Result<()> {
     Ok(())
 }
 
-/// Case 3: Import composition bundle — validates shape, compatibility status, plan-only.
+/// Case 3: Import Work bundle — validates typed references and remains plan-only.
 pub(crate) async fn sharing_import_bundle() -> anyhow::Result<()> {
     let rt = load_sharing_lab().await?;
 
-    // Compatible import
-    let import_ok = invoke(
-        &rt,
-        "import_composition_bundle",
-        json!({
-            "bundle_id": "bundle:test:abc",
-            "format_version": "1",
-            "packages": [{"package_id": "plurora/playable-seed", "version": "0.1.0"}],
-            "missing_packages": [],
-        }),
-    )
-    .await?;
+    let exported = invoke(&rt, "export_work_bundle", work_bundle_input()).await?;
+    let sharing_manifest =
+        manifest::read_manifest(PathBuf::from("packages/plurora/sharing-lab/manifest.yaml"))
+            .await?;
+    let import_schema = &sharing_manifest
+        .provides
+        .iter()
+        .find(|capability| capability.id == "plurora/sharing-lab/import_work_bundle")
+        .ok_or_else(|| anyhow::anyhow!("sharing-lab import capability is not declared"))?
+        .input_schema;
+    let compiled_import_schema = jsonschema::JSONSchema::compile(import_schema)
+        .map_err(|error| anyhow::anyhow!("compile import_work_bundle schema: {error}"))?;
+    let schema_errors = compiled_import_schema
+        .validate(&exported.output)
+        .err()
+        .map(|errors| errors.map(|error| error.to_string()).collect::<Vec<_>>())
+        .unwrap_or_default();
+    anyhow::ensure!(
+        schema_errors.is_empty(),
+        "export_work_bundle output must satisfy import_work_bundle input schema: {}",
+        schema_errors.join("; ")
+    );
 
-    anyhow::ensure!(import_ok.output["kind"] == json!("composition_bundle_import"));
+    // Compatible import of the exact exported Work bundle.
+    let import_ok = invoke(&rt, "import_work_bundle", exported.output.clone()).await?;
+
+    anyhow::ensure!(import_ok.output["kind"] == json!("work_bundle_import"));
     anyhow::ensure!(import_ok.output["compatibility_status"] == json!("compatible"));
     anyhow::ensure!(import_ok.output["requires_user_approval"] == json!(true));
     anyhow::ensure!(import_ok.output["plan_only"] == json!(true));
     anyhow::ensure!(import_ok.output["no_raw_secrets"] == json!(true));
 
-    // Incompatible import (missing packages)
-    let import_missing = invoke(
-        &rt,
-        "import_composition_bundle",
-        json!({
-            "bundle_id": "bundle:test:abc",
-            "format_version": "1",
-            "packages": [],
-            "missing_packages": [{"package_id": "plurora/missing-pkg", "version": "0.1.0"}],
-        }),
-    )
-    .await?;
+    // Incompatible import (missing packages).
+    let mut missing_input = exported.output.clone();
+    missing_input.as_object_mut().unwrap().insert(
+        "missing_packages".to_string(),
+        json!([{"package_id": "plurora/missing-pkg", "version": "0.1.0"}]),
+    );
+    let import_missing = invoke(&rt, "import_work_bundle", missing_input).await?;
 
     anyhow::ensure!(
         import_missing.output["compatibility_status"] == json!("minor_incompatibility")
     );
 
-    // Format mismatch (migration required)
-    let import_migrate = invoke(
-        &rt,
-        "import_composition_bundle",
-        json!({
-            "bundle_id": "bundle:test:old",
-            "format_version": "0",
-            "packages": [],
-            "missing_packages": [],
-        }),
-    )
-    .await?;
+    // Another format is unsupported; this capability is not an old-format reader.
+    let mut unsupported_input = exported.output;
+    unsupported_input["format_version"] = json!("0");
+    let import_migrate = invoke(&rt, "import_work_bundle", unsupported_input).await?;
 
-    anyhow::ensure!(import_migrate.output["compatibility_status"] == json!("migration_required"));
+    anyhow::ensure!(import_migrate.output["compatibility_status"] == json!("unsupported"));
+
+    let fixture: serde_json::Value = serde_json::from_str(&std::fs::read_to_string(
+        "examples/bundles/playable-creation-board-work-bundle/bundle.json",
+    )?)?;
+    let imported_fixture = invoke(&rt, "import_work_bundle", fixture).await?;
+    anyhow::ensure!(
+        imported_fixture.output["compatibility_status"] == json!("compatible"),
+        "the checked-in Work bundle fixture must retain valid content identities"
+    );
 
     Ok(())
 }
@@ -284,8 +322,8 @@ pub(crate) async fn sharing_compatibility_report() -> anyhow::Result<()> {
         &rt,
         "compatibility_report",
         json!({
-            "source_ref": "bundle:composition:v1",
-            "target_ref": "bundle:composition:v2",
+            "source_ref": "bundle:work:v1",
+            "target_ref": "bundle:work:v2",
             "source_packages": [
                 {"package_id": "plurora/playable-seed", "version": "0.1.0"},
                 {"package_id": "plurora/old-deprecated-pkg", "version": "0.1.0"},
@@ -404,42 +442,66 @@ pub(crate) async fn sharing_async_fork_plan() -> anyhow::Result<()> {
 pub(crate) async fn sharing_no_marketplace_no_raw_secrets() -> anyhow::Result<()> {
     let rt = load_sharing_lab().await?;
 
-    // Export with raw secret should be rejected
-    let export_secret = invoke(
-        &rt,
-        "export_composition_bundle",
-        json!({
-            "composition_id": "test",
-            "api_key": "RawSecretExample1234567890abcdefABCDEF123456",
-        }),
-    )
-    .await?;
+    // Export with raw secret should be rejected.
+    let mut secret_input = work_bundle_input();
+    secret_input.as_object_mut().unwrap().insert(
+        "api_key".to_string(),
+        json!("RawSecretExample1234567890abcdefABCDEF123456"),
+    );
+    let export_secret = invoke(&rt, "export_work_bundle", secret_input).await?;
     anyhow::ensure!(export_secret.output["kind"] == json!("sharing_lab_rejected"));
     anyhow::ensure!(export_secret.output["redaction_state"] == json!("unsafe_blocked"));
 
-    // Export with marketplace field should be rejected
-    let export_marketplace = invoke(
-        &rt,
-        "export_composition_bundle",
-        json!({
-            "composition_id": "test",
-            "marketplace_category": "games",
-        }),
-    )
-    .await?;
+    // Export with marketplace field should be rejected.
+    let mut marketplace_input = work_bundle_input();
+    marketplace_input
+        .as_object_mut()
+        .unwrap()
+        .insert("marketplace_category".to_string(), json!("games"));
+    let export_marketplace = invoke(&rt, "export_work_bundle", marketplace_input).await?;
     anyhow::ensure!(export_marketplace.output["kind"] == json!("sharing_lab_rejected"));
 
-    // Import with billing field should be rejected
-    let import_billing = invoke(
-        &rt,
-        "import_composition_bundle",
-        json!({
-            "bundle_id": "test",
-            "billing_token": "bt-12345",
-        }),
-    )
-    .await?;
+    // Import with billing field should be rejected.
+    let exported = invoke(&rt, "export_work_bundle", work_bundle_input()).await?;
+    let mut billing_input = exported.output;
+    billing_input
+        .as_object_mut()
+        .unwrap()
+        .insert("billing_token".to_string(), json!("bt-12345"));
+    let import_billing = invoke(&rt, "import_work_bundle", billing_input).await?;
     anyhow::ensure!(import_billing.output["kind"] == json!("sharing_lab_rejected"));
+
+    // Descriptor type, digest, size, and references are executable wire checks.
+    let mut invalid_inputs = Vec::new();
+    let mut wrong_type = work_bundle_input();
+    wrong_type["work_revision"]["artifact_type_uri"] = json!(ASSEMBLY_LOCK_TYPE_URI);
+    invalid_inputs.push(wrong_type);
+
+    let mut bad_digest = work_bundle_input();
+    bad_digest["work_revision"]["digest"] = json!("sha256:bad");
+    invalid_inputs.push(bad_digest);
+
+    let mut bad_size = work_bundle_input();
+    bad_size["assembly_lock"]["size_bytes"] = json!("512");
+    invalid_inputs.push(bad_size);
+
+    let mut bad_reference = work_bundle_input();
+    bad_reference["assembly_lock"]["references"] = json!(["sha256:bad"]);
+    invalid_inputs.push(bad_reference);
+
+    for invalid_input in invalid_inputs {
+        match invoke(&rt, "export_work_bundle", invalid_input).await {
+            Ok(rejected) => {
+                anyhow::ensure!(rejected.output["kind"] == json!("sharing_lab_rejected"));
+            }
+            Err(error) => {
+                anyhow::ensure!(
+                    error.to_string().contains("schema"),
+                    "invalid Work descriptor failed outside the schema or structured rejection boundary: {error}"
+                );
+            }
+        }
+    }
 
     // Contract output must not contain platform.sharing/marketplace/billing namespace
     let contract = invoke(&rt, "describe_sharing_contract", json!({})).await?;

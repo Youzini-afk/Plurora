@@ -88,7 +88,7 @@ cargo run -p plurora-cli -- conformance --case sharing_lab --tag secret
 | asset | 资产注册表 |
 | projection | projection 注册表 |
 | substrate | SQLite 底座 |
-| composition | composition descriptor |
+| work | Work/Assembly source、resolver 与 pack |
 | replacement | 第三方替换证明 |
 | generated | 生成的包模板 conformance（通常较慢） |
 | secret | Secret reference 与 raw-secret blocking |

@@ -446,6 +446,7 @@ pub struct AssemblyRevision {
 pub struct AssemblyNode {
     pub node_id: NodeId,
     pub source: AssemblyNodeSource,
+    pub ports: Vec<PortDescriptor>,
     pub configuration: Option<ArtifactDescriptor>,
     pub annotations: BTreeMap<String, Value>,
 }
@@ -480,6 +481,7 @@ pub struct AssemblyPortExposure {
 验证规则：
 
 - 节点 ID、binding ID、exposed port ID 唯一。
+- Component 节点的 Port 合同直接进入 AssemblyRevision 的 canonical 内容；修改版本、profile、interaction、transport 或 effect 必须改变 Assembly/Work/Lock digest。嵌套 Assembly 通过自身 exposed ports 提供边界，不重复声明 inline ports。
 - 嵌套 Assembly 的内容引用闭包完整，包含图无环。
 - provider 必须是 export，consumer 必须是 import。
 - protocol、interface、version、profile、interaction 和 multiplicity 兼容。
@@ -841,13 +843,15 @@ assembly:
       component: packages/ui/manifest.yaml#main
   bindings:
     - id: save-binding
-      from: save.save-export
-      to: simulation.save-import
+      from: {node_id: save, port_id: save-export}
+      to: {node_id: simulation, port_id: save-import}
   exposed_ports:
     - id: play
       direction: export
-      target: ui.play
+      target: {node_id: ui, port_id: play}
 ```
+
+Port endpoint 在 source wire 中使用明确的 `{node_id, port_id}` 对象。两类 local ID 都允许 `.`，因此不使用无法无歧义解析的 `node.port` 简写。
 
 `plurora work pack`：
 

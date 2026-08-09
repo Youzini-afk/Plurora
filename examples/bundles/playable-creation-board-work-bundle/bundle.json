@@ -1,0 +1,96 @@
+{
+  "kind": "work_bundle",
+  "bundle_id": "work-bundle:example/playable-creation-board:sha256:bc23cc458ae0890c9695af5222b62278a60dc659275dcd66905ace07a052e09e",
+  "format_version": "1",
+  "work_id": "example/playable-creation-board",
+  "work_revision": {
+    "artifact_type_uri": "urn:plurora:work-revision:v1",
+    "media_type": "application/json",
+    "digest": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+    "size_bytes": 768,
+    "references": [
+      "sha256:3333333333333333333333333333333333333333333333333333333333333333"
+    ],
+    "annotations": {
+      "example.plurora/title": "Playable Creation Board"
+    }
+  },
+  "assembly_revision": {
+    "artifact_type_uri": "urn:plurora:assembly-revision:v1",
+    "media_type": "application/json",
+    "digest": "sha256:3333333333333333333333333333333333333333333333333333333333333333",
+    "size_bytes": 896,
+    "references": [
+      "sha256:4444444444444444444444444444444444444444444444444444444444444444"
+    ],
+    "annotations": {}
+  },
+  "assembly_lock": {
+    "artifact_type_uri": "urn:plurora:assembly-lock:v1",
+    "media_type": "application/json",
+    "digest": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+    "size_bytes": 1024,
+    "references": [
+      "sha256:3333333333333333333333333333333333333333333333333333333333333333",
+      "sha256:4444444444444444444444444444444444444444444444444444444444444444"
+    ],
+    "annotations": {}
+  },
+  "package_set_lockfile": {
+    "lockfile_id": "lockfile:sha256:758be5dc8e03fc3bff85d889ff4b6f832b80d65e4523a3d559eaa9e2dbabebd9",
+    "format_version": "1",
+    "packages": [
+      {
+        "package_id": "plurora/playable-creation-board",
+        "version": "0.1.0",
+        "content_address": "sha256:1b6d7f605b8d106a43c0f13fb41996552011e0101e10ffae9ea00796edef566e"
+      },
+      {
+        "package_id": "plurora/agentic-forge-lab",
+        "version": "0.1.0",
+        "content_address": "sha256:295f516f423e026ef5ba1ca20a2936270ddeea410947441655e47a285c2b8471"
+      },
+      {
+        "package_id": "plurora/blank-experience",
+        "version": "0.1.0",
+        "content_address": "sha256:ac74b32f1315c6ab9d80405b3c5964a09fd3b21f5c0c3d9de3eb27322128c917"
+      },
+      {
+        "package_id": "plurora/memory-lab",
+        "version": "0.1.0",
+        "content_address": "sha256:3b7681c8346f59abe68ce2769b699171cd653c33168078745c2bb24c32f389e2"
+      },
+      {
+        "package_id": "plurora/experience-observability-lab",
+        "version": "0.1.0",
+        "content_address": "sha256:a71ed19a9b6eaab0ebd0452716d0690289ef59f2da326b710be648d425adb1a6"
+      },
+      {
+        "package_id": "plurora/experience-runtime-lab",
+        "version": "0.1.0",
+        "content_address": "sha256:bae2ae0bd8d65c9efa7d4c7b363791dc1b4e95e74ba6d1efc0acb91e11c40f9f"
+      }
+    ],
+    "content_address": "sha256:758be5dc8e03fc3bff85d889ff4b6f832b80d65e4523a3d559eaa9e2dbabebd9"
+  },
+  "ai_disclosure": {
+    "disclosure_id": "ai-disclosure:sha256:5758295a886ffad108a6eee14628a7ec02c15b89f31cda336294d4e4c0bf560c",
+    "items": [
+      {
+        "content_ref": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+        "disclosure_kind": "mixed",
+        "description": "Work bundle with AI-generated and human-created content"
+      }
+    ],
+    "content_address": "sha256:5758295a886ffad108a6eee14628a7ec02c15b89f31cda336294d4e4c0bf560c"
+  },
+  "no_marketplace_fields": true,
+  "no_billing_fields": true,
+  "no_signing_network_fields": true,
+  "inference_performed": false,
+  "network_performed": false,
+  "provenance": {
+    "package_id": "plurora/sharing-lab",
+    "capability_id": "plurora/sharing-lab/export_work_bundle"
+  }
+}

@@ -86,19 +86,23 @@ The current lifecycle and bridge error model are documented in [`SURFACE_HOSTING
 
 Its three required vectors cover canonical-digest stability, portable-identity redlines, and unknown-annotation preservation. `plurora.work.model` is an ordinary implementation claim by the `plurora-work` crate; it receives no execution authority, routing priority, or first-party privilege.
 
+`work.yaml` and `assembly.yaml` are local authoring inputs, not portable Artifact identity. The CLI reads them inside a source root protected by containment and symlink checks, resolves Package/Component inputs, content, and nested Assemblies, and only then emits the canonical `WorkRevision` / `AssemblyRevision` closure. Source-file paths never enter the revision. Port endpoints use explicit `{node_id, port_id}` objects on this source wire because both local ID classes permit `.`, making a `node.port` string ambiguous.
+
 ## Assembly Experimental profile
 
 `plurora.assembly/experimental/v1` defines an acyclic recursive graph of Components and nested Assemblies, plus typed Ports, Bindings, exposed Ports, and State Slots. A Port constrains protocol/interface/version/Profile, an open interaction ID, effect class, binding phase, cardinality, and transport requirements. Unknown interactions remain losslessly preservable but cannot bind or execute without an implementation or explicit Adapter.
 
 Its three required vectors cover recursive containment closure, Port-contract compatibility, and State Slot migration boundaries. `AssemblyLock` pins artifacts, behavior digests, trust classes, providers, transports, Profiles, and content roots. It belongs to the Experimental Protocol Commons, not the Constitutional Substrate.
 
+The resolver checks protocol/interface/version/Profile, interaction, transport, effect, and multiplicity together and accepts only an explicit ordinary Component Adapter. Zero candidates remain an unavailable diagnostic; multiple candidates remain ambiguous and are never selected by publisher, first-party identity, or traversal order. The execution flatten graph also retains original Assembly identity, node paths, every exposure mapping, provenance, and lock references.
+
 ## Work artifact lifecycle
 
-The pure Work-model flow is `construct → validate → canonical JSON → SHA-256 descriptor → explicit persistence/transfer`. Validation and canonicalization have no external effect and grant no `object.write`; persistence requires authority the caller already holds. A WorkRevision is never modified in place—change creates a new content identity.
+The pure Work-model flow is `safely read authoring input → construct → validate → canonical JSON → SHA-256 descriptor → explicit persistence/transfer`. The pure crate parses bytes only; the CLI owns filesystem containment, symlink/TOCTOU defenses, and ObjectStore writes. Validation and canonicalization have no external effect and grant no `object.write`; persistence requires authority the caller already holds. A WorkRevision is never modified in place—change creates a new content identity.
 
 ## Assembly artifact lifecycle
 
-The pure Assembly-model flow is `construct graph → validate local IDs/references → validate an acyclic recursive closure → validate Ports/State → canonicalize → persist`. A later runtime may flatten execution, but it cannot discard nested identity, node paths, exposure mappings, or provenance. Phase 1 model validation does not activate Components or select installation-, launch-, or runtime-phase providers.
+The pure Assembly-model flow is `construct graph → validate local IDs/references → validate an acyclic recursive closure → validate Ports/State → resolve authoring bindings → canonicalize → persist`. Authoring bindings may enter the AssemblyLock produced by packing; Installation, Launch, and Runtime imports produce structured diagnostics until their phase is reached and are not pinned early. The resolver does not activate Components or turn provider visibility into invocation authority.
 
 ## Work and Assembly error model
 

@@ -5,9 +5,12 @@ pub mod host;
 pub mod ids;
 pub mod lock;
 pub mod operational;
+pub mod package;
 pub mod port;
 pub mod realization;
+pub mod resolver;
 pub mod rights;
+pub mod source;
 pub mod state;
 pub mod work;
 
@@ -21,7 +24,9 @@ pub use canonical::{
     validate_descriptor_type, validate_portable_model, validate_portable_value, ArtifactModel,
     CANONICAL_JSON_MEDIA_TYPE, MAX_CANONICAL_METADATA_BYTES,
 };
-pub use diagnostic::{DiagnosticCode, ModelError, ModelResult, WorkDiagnostic};
+pub use diagnostic::{
+    DiagnosticCode, DiagnosticReport, DiagnosticSeverity, ModelError, ModelResult, WorkDiagnostic,
+};
 pub use host::{
     AcquisitionKind, AcquisitionRecord, ActiveBindingRecord, ExposureRecord, ExposureStatus,
     HealthStatus, InstallationRecord, InstallationSecretPolicy, InstallationStatus,
@@ -41,22 +46,42 @@ pub use operational::{
     UpdatePolicy, UpdateStrategy, WorkloadImports, WorkloadIntent, OPERATIONAL_INTENT_TYPE_URI,
     TARGET_INVENTORY_TYPE_URI,
 };
+pub use package::{
+    normalize_content_only, normalize_foreign_capsule, normalize_package_manifest,
+    project_capability_ports, project_package_manifest, CanonicalArtifactObject,
+    ForeignCapsuleDescriptor, ForeignLaunchKind, ForeignLaunchRequirement, NormalizedWork,
+    NormalizedWorkKind, PackageProjection, SourceRepositoryCandidate, CAPABILITY_PROTOCOL_ID,
+    SOURCE_REPOSITORY_CANDIDATE_SCHEMA, SOURCE_REPOSITORY_CANDIDATE_TYPE_URI,
+};
 pub use port::{
-    check_port_compatibility, check_transport_policy_compatibility, AvailabilityPolicy,
-    BindingPhase, EffectClass, InteractionModelId, PortContract, PortDescriptor, PortDirection,
-    PortEndpoint, PortMultiplicity, PortRole, SelectedTransport, TransportPolicy,
-    TransportRequirements, INTERACTION_ARTIFACT, INTERACTION_CAPABILITY_STREAM,
-    INTERACTION_CAPABILITY_UNARY, INTERACTION_DUPLEX_STREAM, INTERACTION_ENDPOINT,
-    INTERACTION_EVENT_STREAM, INTERACTION_SNAPSHOT, KNOWN_INTERACTION_MODELS,
+    check_port_compatibility, check_transport_policy_compatibility, merged_transport_requirements,
+    select_transport, AvailabilityPolicy, BindingPhase, EffectClass, InteractionModelId,
+    PortContract, PortDescriptor, PortDirection, PortEndpoint, PortMultiplicity, PortRole,
+    SelectedTransport, TransportPolicy, TransportRequirements, INTERACTION_ARTIFACT,
+    INTERACTION_CAPABILITY_STREAM, INTERACTION_CAPABILITY_UNARY, INTERACTION_DUPLEX_STREAM,
+    INTERACTION_ENDPOINT, INTERACTION_EVENT_STREAM, INTERACTION_SNAPSHOT, KNOWN_INTERACTION_MODELS,
 };
 pub use realization::{
     BuildAction, EndpointAction, LaunchAction, NodePlacement, RealizationHealth, RealizationPlan,
     RealizationRevision, RealizationStatus, RealizedResource, StateAction, StateActionKind,
     TransportBindingPlan, MAX_REALIZATION_PLAN_ACTIONS, REALIZATION_PLAN_TYPE_URI,
 };
+pub use resolver::{
+    resolve_assembly, resolve_assembly_at_phase, validate_resolver_containment, ExposureHop,
+    FlattenedNode, NodeEvidence, NodeEvidenceKey, NodePath, ResolvedBinding, ResolvedExposedPort,
+    ResolvedStateSlot, ResolverInput, ResolverOutput, MAX_PROVIDER_CANDIDATES,
+    MAX_RESOLVER_DIAGNOSTICS,
+};
 pub use rights::{
     ClaimStatus, ProtocolRequirement, RightDisposition, RightsDeclaration, SourceVisibility,
     TransparencyDeclaration, RIGHTS_DECLARATION_TYPE_URI, TRANSPARENCY_DECLARATION_TYPE_URI,
+};
+pub use source::{
+    parse_assembly_source, parse_work_source, AssemblyBindingSourceDescriptor,
+    AssemblyExposureSourceDescriptor, AssemblyNodeSourceDescriptor, AssemblySourceDescriptor,
+    AssemblySourceDocument, SourcePathRef, SourcePortEndpoint, StateSlotSourceDescriptor,
+    WorkSourceDescriptor, WorkSourceDocument, WorkSourceEntrypoint, ASSEMBLY_SOURCE_SCHEMA,
+    MAX_SOURCE_DESCRIPTOR_BYTES, WORK_SOURCE_SCHEMA,
 };
 pub use state::{
     validate_state_replacement, BackupPolicy, StatePortability, StateScope, StateSlotDescriptor,

@@ -88,7 +88,7 @@ cargo run -p plurora-cli -- conformance --case sharing_lab --tag secret
 | asset | Asset registry |
 | projection | Projection registry |
 | substrate | SQLite substrate |
-| composition | Composition descriptor |
+| work | Work/Assembly sources, resolver, and packing |
 | replacement | Third-party replacement proof |
 | generated | Generated package template conformance (typically slow) |
 | secret | Secret reference / raw-secret blocking |

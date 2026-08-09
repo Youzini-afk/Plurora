@@ -63,6 +63,7 @@ export interface AssemblyNode {
   "annotations"?: Record<string, unknown>;
   "configuration"?: ArtifactDescriptor | null;
   "node_id": NodeId;
+  "ports"?: Array<PortDescriptor>;
   "source": AssemblyNodeSource;
 }
 
@@ -423,21 +424,7 @@ export interface ComponentDescriptor {
   "version": string;
 }
 
-export interface ComponentLockPin {
-  "behavior_digest": string;
-  "component_id": string;
-  "digest": string;
-  "trust_class": ComponentTrustClass;
-}
-
 export type ComponentTrustClass = "sandboxed_component" | "isolated_process" | "remote_boundary" | "trusted_native" | "static_resource" | "foreign_capsule";
-
-export interface CompositionLock {
-  "components": Array<ComponentLockPin>;
-  "content_roots": Array<ArtifactDescriptor>;
-  "protocol_profiles": Array<ProtocolProfilePin>;
-  "schema": string;
-}
 
 export type ContextBranchListResult = Array<{
   "child_session_id": string;
@@ -2995,8 +2982,8 @@ export interface WorldBundleArchive {
 
 export interface WorldBundleManifest {
   "annotations"?: Record<string, unknown>;
+  "assembly_lock": ArtifactDescriptor;
   "bundle_type_uri": string;
-  "composition_lock": ArtifactDescriptor;
   "effect_receipts"?: Array<ArtifactDescriptor>;
   "journal_ranges": Array<WorldJournalRange>;
   "lineage": Array<WorldLineageEntry>;
@@ -3019,7 +3006,7 @@ export interface WorldBundleObject {
 
 export interface WorldHead {
   "annotations"?: Record<string, unknown>;
-  "composition_lock": ArtifactDescriptor;
+  "assembly_lock": ArtifactDescriptor;
   "effect_receipts"?: Array<ArtifactDescriptor>;
   "head_type_uri": string;
   "history_root": ArtifactDescriptor;

@@ -4,16 +4,24 @@ use base64::{engine::general_purpose::STANDARD as BASE64_STANDARD, Engine as _};
 use bytes::Bytes;
 use chrono::Utc;
 use plurora_core::{
-    canonical_json_bytes, ArtifactDescriptor, CompositionLock, EffectReceipt, EventEnvelope,
+    canonical_json_bytes, decode_component_artifact_payload, ArtifactDescriptor,
+    ComponentArtifactPayload, EffectReceipt, EventEnvelope, ProtocolImplementationDeclaration,
     ProtocolProfilePin, SessionRecord, SessionStatus, WorldBundleArchive, WorldBundleManifest,
-    WorldBundleObject, WorldHead, WorldJournalRange, WorldLineageEntry, EFFECT_RECEIPT_TYPE_URI,
-    EVENT_SESSION_CLOSED, EVENT_SESSION_OPENED, WORLD_BUNDLE_ARCHIVE_FORMAT,
-    WORLD_BUNDLE_EXPERIMENTAL_PROFILE, WORLD_BUNDLE_PROTOCOL_ID, WORLD_BUNDLE_PROTOCOL_VERSION,
-    WORLD_BUNDLE_TYPE_URI, WORLD_COMPOSITION_LOCK_MEDIA_TYPE, WORLD_COMPOSITION_LOCK_TYPE_URI,
+    WorldBundleObject, WorldHead, WorldJournalRange, WorldLineageEntry,
+    COMPONENT_DESCRIPTOR_TYPE_URI, EFFECT_RECEIPT_TYPE_URI, EVENT_SESSION_CLOSED,
+    EVENT_SESSION_OPENED, PACKAGED_PROTOCOL_TYPE_URI, WORLD_ASSEMBLY_LOCK_MEDIA_TYPE,
+    WORLD_ASSEMBLY_LOCK_TYPE_URI, WORLD_BUNDLE_ARCHIVE_FORMAT, WORLD_BUNDLE_EXPERIMENTAL_PROFILE,
+    WORLD_BUNDLE_PROTOCOL_ID, WORLD_BUNDLE_PROTOCOL_VERSION, WORLD_BUNDLE_TYPE_URI,
     WORLD_EVENT_ENVELOPE_MEDIA_TYPE, WORLD_EVENT_ENVELOPE_TYPE_URI, WORLD_HEAD_MEDIA_TYPE,
     WORLD_HEAD_TYPE_URI, WORLD_JOURNAL_INDEX_MEDIA_TYPE, WORLD_JOURNAL_INDEX_TYPE_URI,
     WORLD_POLICY_INDEX_MEDIA_TYPE, WORLD_POLICY_INDEX_TYPE_URI, WORLD_PROVENANCE_MEDIA_TYPE,
     WORLD_PROVENANCE_TYPE_URI,
+};
+use plurora_work::{
+    check_port_compatibility, select_transport, ArtifactModel, AssemblyLock, AssemblyNodeSource,
+    AssemblyRevision, AvailabilityPolicy, BindingPhase, PortDescriptor, PortDirection,
+    PortEndpoint, PortRole, TransportPolicy, ASSEMBLY_LOCK_TYPE_URI, ASSEMBLY_REVISION_TYPE_URI,
+    MAX_ASSEMBLY_DEPTH,
 };
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -47,7 +55,7 @@ pub struct WorldBundleExportRequest {
     pub world_id: String,
     pub state_root: ArtifactDescriptor,
     pub journal_selections: Vec<WorldJournalSelection>,
-    pub composition_lock: CompositionLock,
+    pub assembly_lock: AssemblyLock,
     pub protocol_profiles: Vec<ProtocolProfilePin>,
     pub policy_refs: Vec<ArtifactDescriptor>,
     pub effect_receipts: Vec<ArtifactDescriptor>,
@@ -127,8 +135,8 @@ where
             !request.relation.trim().is_empty(),
             "World Bundle lineage relation is empty"
         );
-        normalize_composition_lock(&mut request.composition_lock);
-        request.composition_lock.validate()?;
+        normalize_assembly_lock(&mut request.assembly_lock);
+        request.assembly_lock.validate()?;
         normalize_profiles(&mut request.protocol_profiles);
         request.journal_selections.sort_by(|left, right| {
             (&left.session_id, left.first_sequence, left.last_sequence).cmp(&(
@@ -146,25 +154,30 @@ where
         }
         ensure_world_bundle_profile(&request.protocol_profiles)?;
         anyhow::ensure!(
-            request.composition_lock.protocol_profiles == request.protocol_profiles,
-            "composition lock and world head protocol profile pins differ"
+            request.assembly_lock.protocol_profiles == request.protocol_profiles,
+            "assembly lock and world head protocol profile pins differ"
         );
         self.verify_artifact(&request.state_root).await?;
 
-        let composition_lock = self
-            .commit_json_artifact(
-                WORLD_COMPOSITION_LOCK_TYPE_URI,
-                WORLD_COMPOSITION_LOCK_MEDIA_TYPE,
-                &request.composition_lock,
-                request
-                    .composition_lock
-                    .content_roots
-                    .iter()
-                    .map(|root| root.digest.clone())
-                    .collect(),
-                BTreeMap::new(),
-            )
+        let expected_lock_descriptor = request.assembly_lock.artifact_descriptor()?;
+        anyhow::ensure!(
+            expected_lock_descriptor.artifact_type_uri == WORLD_ASSEMBLY_LOCK_TYPE_URI
+                && expected_lock_descriptor.media_type == WORLD_ASSEMBLY_LOCK_MEDIA_TYPE,
+            "AssemblyLock artifact contract differs from the World Bundle contract"
+        );
+        let assembly_lock = self
+            .commit_artifact(ArtifactCommitRequest {
+                artifact_type_uri: expected_lock_descriptor.artifact_type_uri.clone(),
+                media_type: expected_lock_descriptor.media_type.clone(),
+                bytes: Bytes::from(request.assembly_lock.canonical_bytes()?),
+                references: expected_lock_descriptor.references.clone(),
+                annotations: expected_lock_descriptor.annotations.clone(),
+            })
             .await?;
+        anyhow::ensure!(
+            assembly_lock == expected_lock_descriptor,
+            "stored AssemblyLock differs from its canonical descriptor"
+        );
 
         let mut journal_ranges = Vec::new();
         let mut original_v1_envelopes = Vec::new();
@@ -275,7 +288,7 @@ where
             "world_id": request.world_id,
             "state_root": request.state_root,
             "history_root": history_root,
-            "composition_lock": composition_lock,
+            "assembly_lock": assembly_lock,
             "protocol_profiles": request.protocol_profiles,
             "policy_refs": policy_refs,
             "effect_receipts": effect_receipts,
@@ -299,7 +312,7 @@ where
             world_id: request.world_id.clone(),
             state_root: request.state_root.clone(),
             history_root: history_root.clone(),
-            composition_lock: composition_lock.clone(),
+            assembly_lock: assembly_lock.clone(),
             protocol_profiles: request.protocol_profiles.clone(),
             policy_root,
             provenance_root: provenance_root.clone(),
@@ -337,7 +350,7 @@ where
             head_ref.clone(),
             request.state_root,
             history_root,
-            composition_lock.clone(),
+            assembly_lock.clone(),
             provenance_root,
         ];
         roots.extend(original_v1_envelopes.iter().cloned());
@@ -365,7 +378,7 @@ where
             world_head: head_ref,
             journal_ranges,
             object_descriptors,
-            composition_lock,
+            assembly_lock,
             protocol_profiles: request.protocol_profiles,
             policy_refs,
             effect_receipts,
@@ -752,8 +765,8 @@ fn verify_archive_internal(archive: &WorldBundleArchive) -> anyhow::Result<Verif
         "world head id differs"
     );
     anyhow::ensure!(
-        head.composition_lock == archive.manifest.composition_lock,
-        "world head composition lock differs from the bundle manifest"
+        head.assembly_lock == archive.manifest.assembly_lock,
+        "world head assembly lock differs from the bundle manifest"
     );
     anyhow::ensure!(
         head.protocol_profiles == archive.manifest.protocol_profiles,
@@ -778,19 +791,23 @@ fn verify_archive_internal(archive: &WorldBundleArchive) -> anyhow::Result<Verif
     );
     let _: Value = decode_json_object(&objects, &head.provenance_root, "world provenance")?;
 
-    let composition_lock: CompositionLock = decode_json_object(
+    let mut visiting_locks = BTreeSet::new();
+    let mut verified_locks = BTreeMap::new();
+    let mut visiting_revisions = BTreeSet::new();
+    let mut verified_revisions = BTreeMap::new();
+    let verified_root_lock = verify_assembly_lock_tree(
         &objects,
-        &archive.manifest.composition_lock,
-        "composition lock",
+        &archive.manifest.assembly_lock,
+        0,
+        &mut visiting_locks,
+        &mut verified_locks,
+        &mut visiting_revisions,
+        &mut verified_revisions,
     )?;
-    composition_lock.validate()?;
     anyhow::ensure!(
-        composition_lock.protocol_profiles == archive.manifest.protocol_profiles,
-        "composition lock protocol profiles differ from the bundle manifest"
+        verified_root_lock.protocol_profiles == archive.manifest.protocol_profiles,
+        "assembly lock protocol profiles differ from the bundle manifest"
     );
-    for root in &composition_lock.content_roots {
-        verify_descriptor_present(&objects, root, "composition content root")?;
-    }
 
     let journal_ranges: Vec<WorldJournalRange> =
         decode_json_object(&objects, &head.history_root, "journal index")?;
@@ -895,6 +912,529 @@ fn verify_archive_internal(archive: &WorldBundleArchive) -> anyhow::Result<Verif
         events,
         head,
     })
+}
+
+#[derive(Debug, Clone)]
+struct VerifiedAssemblyLock {
+    descriptor: ArtifactDescriptor,
+    assembly: ArtifactDescriptor,
+    height: usize,
+    protocol_profiles: Vec<ProtocolProfilePin>,
+    components: BTreeMap<String, ArtifactDescriptor>,
+    external_ports: BTreeMap<plurora_work::PortId, PortDescriptor>,
+    exposed_providers: BTreeMap<plurora_work::PortId, BTreeMap<String, ArtifactDescriptor>>,
+}
+
+fn verify_assembly_lock_tree(
+    objects: &BTreeMap<String, (ArtifactDescriptor, Bytes)>,
+    descriptor: &ArtifactDescriptor,
+    depth: usize,
+    visiting: &mut BTreeSet<String>,
+    memo: &mut BTreeMap<String, VerifiedAssemblyLock>,
+    visiting_revisions: &mut BTreeSet<String>,
+    revision_memo: &mut BTreeMap<String, (ArtifactDescriptor, AssemblyRevision, usize)>,
+) -> anyhow::Result<VerifiedAssemblyLock> {
+    anyhow::ensure!(
+        depth < MAX_ASSEMBLY_DEPTH,
+        "AssemblyLock tree exceeds the supported nesting depth"
+    );
+    anyhow::ensure!(
+        descriptor.artifact_type_uri == ASSEMBLY_LOCK_TYPE_URI
+            && descriptor.media_type == WORLD_ASSEMBLY_LOCK_MEDIA_TYPE,
+        "nested AssemblyLock has an unexpected artifact type or media type"
+    );
+    if let Some(verified) = memo.get(&descriptor.digest) {
+        anyhow::ensure!(
+            verified.descriptor == *descriptor,
+            "the same AssemblyLock digest is described inconsistently"
+        );
+        anyhow::ensure!(
+            depth
+                .checked_add(verified.height)
+                .is_some_and(|levels| levels <= MAX_ASSEMBLY_DEPTH),
+            "AssemblyLock tree exceeds the supported nesting depth"
+        );
+        return Ok(verified.clone());
+    }
+    anyhow::ensure!(
+        visiting.insert(descriptor.digest.clone()),
+        "AssemblyLock tree contains a cycle"
+    );
+
+    let result = (|| {
+        let lock: AssemblyLock = decode_json_object(objects, descriptor, "assembly lock")?;
+        lock.validate()?;
+        anyhow::ensure!(
+            lock.artifact_descriptor()? == *descriptor,
+            "assembly lock descriptor does not match its canonical artifact and references"
+        );
+
+        let (assembly, _) = verify_assembly_revision_tree(
+            objects,
+            &lock.assembly,
+            0,
+            visiting_revisions,
+            revision_memo,
+        )?;
+
+        let revision_nodes = assembly
+            .nodes
+            .iter()
+            .map(|node| (&node.node_id, node))
+            .collect::<BTreeMap<_, _>>();
+        let locked_nodes = lock
+            .nodes
+            .iter()
+            .map(|node| (&node.node_id, node))
+            .collect::<BTreeMap<_, _>>();
+        anyhow::ensure!(
+            revision_nodes.keys().eq(locked_nodes.keys()),
+            "AssemblyLock node set differs from its AssemblyRevision"
+        );
+
+        let mut components = BTreeMap::new();
+        let mut components_by_node = BTreeMap::new();
+        let mut nested_exposed_providers = BTreeMap::new();
+        let mut local_ports = BTreeMap::<PortEndpoint, PortDescriptor>::new();
+        let mut expected_protocol_profiles = Vec::new();
+        let mut maximum_child_height = 0;
+        for node_id in revision_nodes.keys().copied() {
+            let revision_node = revision_nodes[node_id];
+            let node_lock = locked_nodes[node_id];
+            let node_components = match (
+                &revision_node.source,
+                node_lock.artifact.artifact_type_uri.as_str(),
+            ) {
+                (AssemblyNodeSource::Component { .. }, COMPONENT_DESCRIPTOR_TYPE_URI) => {
+                    let payload = verify_component_node(objects, node_lock)?;
+                    expected_protocol_profiles
+                        .extend(component_protocol_profiles(objects, &payload)?);
+                    for port in &revision_node.ports {
+                        local_ports.insert(
+                            PortEndpoint {
+                                node_id: node_id.clone(),
+                                port_id: port.port_id.clone(),
+                            },
+                            port.clone(),
+                        );
+                    }
+                    BTreeMap::from([(
+                        node_lock.artifact.digest.clone(),
+                        node_lock.artifact.clone(),
+                    )])
+                }
+                (AssemblyNodeSource::Assembly { assembly: declared }, ASSEMBLY_LOCK_TYPE_URI) => {
+                    let child = verify_assembly_lock_tree(
+                        objects,
+                        &node_lock.artifact,
+                        depth + 1,
+                        visiting,
+                        memo,
+                        visiting_revisions,
+                        revision_memo,
+                    )?;
+                    maximum_child_height = maximum_child_height.max(child.height);
+                    anyhow::ensure!(
+                        child.assembly == *declared,
+                        "nested AssemblyLock resolves a different AssemblyRevision than its parent node"
+                    );
+                    for (port_id, port) in &child.external_ports {
+                        local_ports.insert(
+                            PortEndpoint {
+                                node_id: node_id.clone(),
+                                port_id: port_id.clone(),
+                            },
+                            port.clone(),
+                        );
+                    }
+                    nested_exposed_providers
+                        .insert(node_id.clone(), child.exposed_providers.clone());
+                    expected_protocol_profiles.extend(child.protocol_profiles.clone());
+                    child.components
+                }
+                _ => anyhow::bail!(
+                    "AssemblyLock node kind differs from its AssemblyRevision node source"
+                ),
+            };
+            for (digest, component) in &node_components {
+                if let Some(existing) = components.insert(digest.clone(), component.clone()) {
+                    anyhow::ensure!(
+                        existing == *component,
+                        "component digest is described inconsistently across AssemblyLocks"
+                    );
+                }
+            }
+            components_by_node.insert(node_id.clone(), node_components);
+        }
+        if depth == 0 {
+            expected_protocol_profiles.push(world_bundle_profile_pin());
+        }
+        normalize_profiles(&mut expected_protocol_profiles);
+        anyhow::ensure!(
+            lock.protocol_profiles == expected_protocol_profiles,
+            "AssemblyLock protocol profiles differ from component, nested lock, and explicit World Bundle profile sources"
+        );
+
+        let declared_bindings = assembly
+            .bindings
+            .iter()
+            .map(|binding| (binding.binding_id.as_str(), binding))
+            .collect::<BTreeMap<_, _>>();
+        let mut provider_counts = BTreeMap::<PortEndpoint, usize>::new();
+        let mut consumer_counts = BTreeMap::<PortEndpoint, usize>::new();
+        for binding in &lock.bindings {
+            let provider_port = local_ports.get(&binding.provider).ok_or_else(|| {
+                anyhow::anyhow!(
+                    "AssemblyLock binding provider Port is absent from the AssemblyRevision"
+                )
+            })?;
+            let consumer_port = local_ports.get(&binding.consumer).ok_or_else(|| {
+                anyhow::anyhow!(
+                    "AssemblyLock binding consumer Port is absent from the AssemblyRevision"
+                )
+            })?;
+            check_port_compatibility(provider_port, consumer_port)?;
+            let default_policy = TransportPolicy::default();
+            let policy = if let Some(declared) = declared_bindings.get(binding.binding_id.as_str())
+            {
+                anyhow::ensure!(
+                    declared.provider == binding.provider
+                        && declared.consumer == binding.consumer
+                        && declared.phase == binding.phase,
+                    "AssemblyLock changed an explicitly declared Binding"
+                );
+                &declared.transport_policy
+            } else {
+                &default_policy
+            };
+            anyhow::ensure!(
+                select_transport(&provider_port.transport, &consumer_port.transport, policy)?
+                    == binding.transport,
+                "AssemblyLock selected transport differs from the canonical Port requirements"
+            );
+            if let PortRole::Import {
+                latest_binding_phase,
+                ..
+            } = consumer_port.role
+            {
+                anyhow::ensure!(
+                    binding.phase <= latest_binding_phase,
+                    "AssemblyLock binding occurs after the consumer Port deadline"
+                );
+            }
+            *provider_counts.entry(binding.provider.clone()).or_default() += 1;
+            *consumer_counts.entry(binding.consumer.clone()).or_default() += 1;
+            let provider_node = locked_nodes[&binding.provider.node_id];
+            let candidates =
+                if provider_node.artifact.artifact_type_uri == COMPONENT_DESCRIPTOR_TYPE_URI {
+                    components_by_node
+                        .get(&binding.provider.node_id)
+                        .expect("AssemblyLock validation requires the provider node")
+                } else {
+                    nested_exposed_providers
+                        .get(&binding.provider.node_id)
+                        .and_then(|ports| ports.get(&binding.provider.port_id))
+                        .ok_or_else(|| {
+                            anyhow::anyhow!(
+                            "binding provider does not resolve through the nested Assembly exposure"
+                        )
+                        })?
+                };
+            anyhow::ensure!(
+                candidates
+                    .get(&binding.provider_component.digest)
+                    .is_some_and(|candidate| candidate == &binding.provider_component),
+                "binding provider pin is not owned by its provider node closure"
+            );
+        }
+        for declared in assembly
+            .bindings
+            .iter()
+            .filter(|binding| binding.phase == BindingPhase::Authoring)
+        {
+            anyhow::ensure!(
+                lock.bindings.iter().any(|binding| {
+                    binding.binding_id == declared.binding_id
+                        && binding.provider == declared.provider
+                        && binding.consumer == declared.consumer
+                        && binding.phase == declared.phase
+                }),
+                "AssemblyLock is missing an explicitly declared authoring Binding"
+            );
+        }
+        let outward_imports = assembly
+            .exposed_ports
+            .iter()
+            .filter(|exposure| exposure.direction == PortDirection::Import)
+            .map(|exposure| exposure.target.clone())
+            .collect::<BTreeSet<_>>();
+        for (endpoint, port) in &local_ports {
+            let count = match port.role {
+                PortRole::Import { .. } => consumer_counts.get(endpoint).copied().unwrap_or(0),
+                PortRole::Export { .. } => provider_counts.get(endpoint).copied().unwrap_or(0),
+            };
+            anyhow::ensure!(
+                !port
+                    .role
+                    .multiplicity()
+                    .max
+                    .is_some_and(|maximum| count > usize::from(maximum)),
+                "AssemblyLock binding count exceeds canonical Port cardinality"
+            );
+            if let PortRole::Import {
+                multiplicity,
+                latest_binding_phase: BindingPhase::Authoring,
+                availability: AvailabilityPolicy::Required,
+                ..
+            } = &port.role
+            {
+                let deferred_to_parent = depth > 0 && outward_imports.contains(endpoint);
+                anyhow::ensure!(
+                    deferred_to_parent || count >= usize::from(multiplicity.min),
+                    "AssemblyLock binding count is below the minimum for a required authoring Import"
+                );
+            }
+        }
+        for root in &lock.content_roots {
+            verify_descriptor_present(objects, root, "AssemblyLock content root")?;
+        }
+
+        let height = maximum_child_height
+            .checked_add(1)
+            .ok_or_else(|| anyhow::anyhow!("AssemblyLock tree nesting depth overflow"))?;
+        anyhow::ensure!(
+            depth
+                .checked_add(height)
+                .is_some_and(|levels| levels <= MAX_ASSEMBLY_DEPTH),
+            "AssemblyLock tree exceeds the supported nesting depth"
+        );
+
+        let mut exposed_providers = BTreeMap::new();
+        let mut external_ports = BTreeMap::new();
+        for exposure in &assembly.exposed_ports {
+            let mut port = local_ports.get(&exposure.target).cloned().ok_or_else(|| {
+                anyhow::anyhow!("Assembly exposure target Port is absent from the canonical graph")
+            })?;
+            let direction_matches = matches!(
+                (exposure.direction, &port.role),
+                (PortDirection::Import, PortRole::Import { .. })
+                    | (PortDirection::Export, PortRole::Export { .. })
+            );
+            anyhow::ensure!(
+                direction_matches,
+                "Assembly exposure direction differs from its target Port role"
+            );
+            port.port_id = exposure.port_id.clone();
+            external_ports.insert(exposure.port_id.clone(), port);
+            if exposure.direction != PortDirection::Export {
+                continue;
+            }
+            let target_node = locked_nodes[&exposure.target.node_id];
+            let candidates =
+                if target_node.artifact.artifact_type_uri == COMPONENT_DESCRIPTOR_TYPE_URI {
+                    components_by_node
+                        .get(&exposure.target.node_id)
+                        .expect("AssemblyLock validation requires the exposure target node")
+                        .clone()
+                } else {
+                    nested_exposed_providers
+                        .get(&exposure.target.node_id)
+                        .and_then(|ports| ports.get(&exposure.target.port_id))
+                        .cloned()
+                        .ok_or_else(|| {
+                            anyhow::anyhow!(
+                            "Assembly export does not resolve through its nested exposure chain"
+                        )
+                        })?
+                };
+            exposed_providers.insert(exposure.port_id.clone(), candidates);
+        }
+
+        Ok(VerifiedAssemblyLock {
+            descriptor: descriptor.clone(),
+            assembly: lock.assembly,
+            height,
+            protocol_profiles: lock.protocol_profiles,
+            components,
+            external_ports,
+            exposed_providers,
+        })
+    })();
+    visiting.remove(&descriptor.digest);
+    let verified = result?;
+    memo.insert(descriptor.digest.clone(), verified.clone());
+    Ok(verified)
+}
+
+fn verify_assembly_revision_tree(
+    objects: &BTreeMap<String, (ArtifactDescriptor, Bytes)>,
+    descriptor: &ArtifactDescriptor,
+    depth: usize,
+    visiting: &mut BTreeSet<String>,
+    memo: &mut BTreeMap<String, (ArtifactDescriptor, AssemblyRevision, usize)>,
+) -> anyhow::Result<(AssemblyRevision, usize)> {
+    anyhow::ensure!(
+        depth < MAX_ASSEMBLY_DEPTH,
+        "AssemblyRevision tree exceeds the supported nesting depth"
+    );
+    anyhow::ensure!(
+        descriptor.artifact_type_uri == ASSEMBLY_REVISION_TYPE_URI
+            && descriptor.media_type == "application/json",
+        "AssemblyRevision has an unexpected artifact type or media type"
+    );
+    if let Some((verified_descriptor, revision, height)) = memo.get(&descriptor.digest) {
+        anyhow::ensure!(
+            verified_descriptor == descriptor,
+            "the same AssemblyRevision digest is described inconsistently"
+        );
+        anyhow::ensure!(
+            depth
+                .checked_add(*height)
+                .is_some_and(|levels| levels <= MAX_ASSEMBLY_DEPTH),
+            "AssemblyRevision tree exceeds the supported nesting depth"
+        );
+        return Ok((revision.clone(), *height));
+    }
+    anyhow::ensure!(
+        visiting.insert(descriptor.digest.clone()),
+        "AssemblyRevision tree contains a cycle"
+    );
+    let result = (|| {
+        let revision: AssemblyRevision =
+            decode_json_object(objects, descriptor, "assembly revision")?;
+        revision.validate()?;
+        anyhow::ensure!(
+            revision.artifact_descriptor()? == *descriptor,
+            "assembly revision descriptor does not match its canonical artifact and references"
+        );
+        let mut maximum_child_height = 0;
+        for node in &revision.nodes {
+            match &node.source {
+                AssemblyNodeSource::Component { component } => {
+                    verify_component_artifact(objects, component)?;
+                }
+                AssemblyNodeSource::Assembly { assembly } => {
+                    let (_, child_height) = verify_assembly_revision_tree(
+                        objects,
+                        assembly,
+                        depth + 1,
+                        visiting,
+                        memo,
+                    )?;
+                    maximum_child_height = maximum_child_height.max(child_height);
+                }
+            }
+            if let Some(configuration) = &node.configuration {
+                verify_descriptor_present(objects, configuration, "Assembly node configuration")?;
+            }
+        }
+        for slot in &revision.state_slots {
+            if let Some(schema) = &slot.schema_ref {
+                verify_descriptor_present(objects, schema, "State Slot schema")?;
+            }
+        }
+        let height = maximum_child_height
+            .checked_add(1)
+            .ok_or_else(|| anyhow::anyhow!("AssemblyRevision tree nesting depth overflow"))?;
+        anyhow::ensure!(
+            depth
+                .checked_add(height)
+                .is_some_and(|levels| levels <= MAX_ASSEMBLY_DEPTH),
+            "AssemblyRevision tree exceeds the supported nesting depth"
+        );
+        Ok((revision, height))
+    })();
+    visiting.remove(&descriptor.digest);
+    let (revision, height) = result?;
+    memo.insert(
+        descriptor.digest.clone(),
+        (descriptor.clone(), revision.clone(), height),
+    );
+    Ok((revision, height))
+}
+
+fn verify_component_artifact(
+    objects: &BTreeMap<String, (ArtifactDescriptor, Bytes)>,
+    descriptor: &ArtifactDescriptor,
+) -> anyhow::Result<ComponentArtifactPayload> {
+    anyhow::ensure!(
+        descriptor.artifact_type_uri == COMPONENT_DESCRIPTOR_TYPE_URI,
+        "component artifact has an unexpected artifact type"
+    );
+    verify_descriptor_present(objects, descriptor, "component artifact")?;
+    let (_, bytes) = objects
+        .get(&descriptor.digest)
+        .expect("verified component artifact exists");
+    let payload = decode_component_artifact_payload(descriptor, bytes)?;
+    for referenced in std::iter::once(&payload.behavior)
+        .chain(&payload.protocol_artifacts)
+        .chain(&payload.content_roots)
+        .chain(&payload.surface_artifacts)
+    {
+        verify_descriptor_present(objects, referenced, "component payload reference")?;
+    }
+    Ok(payload)
+}
+
+fn verify_component_node(
+    objects: &BTreeMap<String, (ArtifactDescriptor, Bytes)>,
+    node: &plurora_work::NodeLock,
+) -> anyhow::Result<ComponentArtifactPayload> {
+    let payload = verify_component_artifact(objects, &node.artifact)?;
+    anyhow::ensure!(
+        node.behavior_digest.as_deref() == Some(payload.behavior.digest.as_str()),
+        "component NodeLock behavior pin differs from its artifact payload"
+    );
+    anyhow::ensure!(
+        node.trust_class == Some(payload.trust_class),
+        "component NodeLock trust pin differs from its artifact payload"
+    );
+    let (behavior, _) = objects
+        .get(&payload.behavior.digest)
+        .ok_or_else(|| anyhow::anyhow!("component behavior artifact is missing"))?;
+    anyhow::ensure!(
+        behavior == &payload.behavior,
+        "component behavior descriptor differs from its payload reference"
+    );
+    Ok(payload)
+}
+
+fn component_protocol_profiles(
+    objects: &BTreeMap<String, (ArtifactDescriptor, Bytes)>,
+    payload: &ComponentArtifactPayload,
+) -> anyhow::Result<Vec<ProtocolProfilePin>> {
+    let mut profiles = Vec::new();
+    for descriptor in &payload.protocol_artifacts {
+        anyhow::ensure!(
+            descriptor.artifact_type_uri == PACKAGED_PROTOCOL_TYPE_URI
+                && descriptor.media_type == "application/json",
+            "component protocol artifact has an unexpected type or media type"
+        );
+        let implementation: ProtocolImplementationDeclaration =
+            decode_json_object(objects, descriptor, "component protocol declaration")?;
+        let (_, bytes) = objects
+            .get(&descriptor.digest)
+            .expect("verified component protocol declaration exists");
+        anyhow::ensure!(
+            canonical_json_bytes(&implementation)?.as_slice() == bytes.as_ref(),
+            "component protocol declaration JSON is not canonical"
+        );
+        for profile in implementation.profiles {
+            anyhow::ensure!(
+                !implementation.protocol_id.trim().is_empty()
+                    && !implementation.version.trim().is_empty()
+                    && !profile.trim().is_empty(),
+                "component protocol profile declaration contains an empty field"
+            );
+            profiles.push(ProtocolProfilePin {
+                protocol_id: implementation.protocol_id.clone(),
+                version: implementation.version.clone(),
+                profile,
+            });
+        }
+    }
+    normalize_profiles(&mut profiles);
+    Ok(profiles)
 }
 
 fn ensure_decoded_size_within_limit(
@@ -1074,9 +1614,11 @@ fn normalize_profiles(profiles: &mut Vec<ProtocolProfilePin>) {
     profiles.dedup();
 }
 
-fn normalize_composition_lock(lock: &mut CompositionLock) {
-    lock.components
-        .sort_by(|left, right| left.component_id.cmp(&right.component_id));
+fn normalize_assembly_lock(lock: &mut AssemblyLock) {
+    lock.nodes
+        .sort_by(|left, right| left.node_id.cmp(&right.node_id));
+    lock.bindings
+        .sort_by(|left, right| left.binding_id.cmp(&right.binding_id));
     normalize_profiles(&mut lock.protocol_profiles);
     lock.content_roots
         .sort_by(|left, right| left.digest.cmp(&right.digest));
@@ -1092,6 +1634,14 @@ fn ensure_world_bundle_profile(profiles: &[ProtocolProfilePin]) -> anyhow::Resul
         "World Bundle export requires the Experimental World Bundle profile pin"
     );
     Ok(())
+}
+
+fn world_bundle_profile_pin() -> ProtocolProfilePin {
+    ProtocolProfilePin {
+        protocol_id: WORLD_BUNDLE_PROTOCOL_ID.to_string(),
+        version: WORLD_BUNDLE_PROTOCOL_VERSION.to_string(),
+        profile: WORLD_BUNDLE_EXPERIMENTAL_PROFILE.to_string(),
+    }
 }
 
 fn imported_sessions(
@@ -1172,7 +1722,1160 @@ mod tests {
 
     use super::*;
     use crate::{InMemoryEventStore, RuntimeConfig};
-    use plurora_core::{new_id, ComponentLockPin, ComponentTrustClass};
+    use plurora_core::{
+        new_id, ComponentArtifactPayload, ComponentBoundaryClaims, ComponentClaimStatus,
+        ComponentTrustClass, ContractMode, PackageEntry, COMPONENT_BEHAVIOR_TYPE_URI,
+        COMPONENT_DESCRIPTOR_TYPE_URI,
+    };
+    use plurora_work::{
+        AssemblyBinding, AssemblyId, AssemblyNode, AssemblyNodeSource, AssemblyPortExposure,
+        AssemblyRevision, AvailabilityPolicy, BindingLock, BindingPhase, EffectClass,
+        InteractionModelId, NodeId, NodeLock, PortContract, PortDescriptor, PortEndpoint, PortId,
+        PortMultiplicity, PortRole, TransportRequirements, INTERACTION_CAPABILITY_UNARY,
+    };
+
+    async fn test_assembly_lock(
+        runtime: &Runtime<InMemoryEventStore>,
+        protocol_profiles: Vec<ProtocolProfilePin>,
+    ) -> anyhow::Result<AssemblyLock> {
+        let behavior = runtime
+            .commit_artifact(ArtifactCommitRequest {
+                artifact_type_uri: COMPONENT_BEHAVIOR_TYPE_URI.to_string(),
+                media_type: "application/json".to_string(),
+                bytes: Bytes::from(canonical_json_bytes(&json!({"capabilities": []}))?),
+                references: Vec::new(),
+                annotations: BTreeMap::new(),
+            })
+            .await?;
+        let component_payload = ComponentArtifactPayload {
+            component_id: "example/component".to_string(),
+            version: "1.0.0".to_string(),
+            behavior: behavior.clone(),
+            entry_kind: "wasm".to_string(),
+            entry: PackageEntry::Wasm {
+                module: "component.wasm".to_string(),
+                abi_version: 1,
+                memory_limit_mb: 64,
+            },
+            contract: ContractMode::V1,
+            trust_class: ComponentTrustClass::SandboxedComponent,
+            claim_status: ComponentClaimStatus::Declared,
+            enforced_boundaries: ComponentBoundaryClaims::default(),
+            protocol_artifacts: Vec::new(),
+            content_roots: Vec::new(),
+            surface_artifacts: Vec::new(),
+            annotations: BTreeMap::new(),
+        };
+        let component = runtime
+            .commit_artifact(ArtifactCommitRequest {
+                artifact_type_uri: COMPONENT_DESCRIPTOR_TYPE_URI.to_string(),
+                media_type: "application/json".to_string(),
+                bytes: Bytes::from(canonical_json_bytes(&component_payload)?),
+                references: vec![behavior.digest.clone()],
+                annotations: BTreeMap::from([(
+                    "component_id".to_string(),
+                    json!(component_payload.component_id),
+                )]),
+            })
+            .await?;
+        let node_id = NodeId::parse("component")?;
+        let revision = AssemblyRevision {
+            schema: AssemblyRevision::SCHEMA.to_string(),
+            assembly_id: AssemblyId::parse("example/world")?,
+            nodes: vec![AssemblyNode {
+                node_id: node_id.clone(),
+                source: AssemblyNodeSource::Component {
+                    component: component.clone(),
+                },
+                ports: Vec::new(),
+                configuration: None,
+                annotations: BTreeMap::new(),
+            }],
+            bindings: Vec::new(),
+            exposed_ports: Vec::new(),
+            state_slots: Vec::new(),
+            annotations: BTreeMap::new(),
+        };
+        let expected_assembly = revision.artifact_descriptor()?;
+        let assembly = runtime
+            .commit_artifact(ArtifactCommitRequest {
+                artifact_type_uri: expected_assembly.artifact_type_uri.clone(),
+                media_type: expected_assembly.media_type.clone(),
+                bytes: Bytes::from(revision.canonical_bytes()?),
+                references: expected_assembly.references.clone(),
+                annotations: expected_assembly.annotations.clone(),
+            })
+            .await?;
+        anyhow::ensure!(assembly == expected_assembly);
+        let lock = AssemblyLock {
+            schema: AssemblyLock::SCHEMA.to_string(),
+            assembly,
+            nodes: vec![NodeLock {
+                node_id,
+                artifact: component,
+                behavior_digest: Some(behavior.digest),
+                trust_class: Some(ComponentTrustClass::SandboxedComponent),
+            }],
+            bindings: Vec::new(),
+            protocol_profiles,
+            content_roots: Vec::new(),
+        };
+        lock.validate()?;
+        Ok(lock)
+    }
+
+    fn insert_model<T: ArtifactModel>(
+        objects: &mut BTreeMap<String, (ArtifactDescriptor, Bytes)>,
+        model: &T,
+    ) -> anyhow::Result<ArtifactDescriptor> {
+        let descriptor = model.artifact_descriptor()?;
+        objects.insert(
+            descriptor.digest.clone(),
+            (descriptor.clone(), Bytes::from(model.canonical_bytes()?)),
+        );
+        Ok(descriptor)
+    }
+
+    fn insert_raw_json(
+        objects: &mut BTreeMap<String, (ArtifactDescriptor, Bytes)>,
+        artifact_type_uri: &str,
+        value: Value,
+        references: Vec<String>,
+        annotations: BTreeMap<String, Value>,
+    ) -> anyhow::Result<ArtifactDescriptor> {
+        let bytes = canonical_json_bytes(&value)?;
+        let descriptor = ArtifactDescriptor {
+            artifact_type_uri: artifact_type_uri.to_string(),
+            media_type: "application/json".to_string(),
+            digest: sha256_digest(&bytes),
+            size_bytes: bytes.len() as u64,
+            references,
+            annotations,
+        };
+        objects.insert(
+            descriptor.digest.clone(),
+            (descriptor.clone(), Bytes::from(bytes)),
+        );
+        Ok(descriptor)
+    }
+
+    fn insert_component(
+        objects: &mut BTreeMap<String, (ArtifactDescriptor, Bytes)>,
+        component_id: &str,
+    ) -> anyhow::Result<(ArtifactDescriptor, ArtifactDescriptor)> {
+        insert_component_with_protocol(objects, component_id, None)
+    }
+
+    fn insert_component_with_protocol(
+        objects: &mut BTreeMap<String, (ArtifactDescriptor, Bytes)>,
+        component_id: &str,
+        protocol: Option<ProtocolImplementationDeclaration>,
+    ) -> anyhow::Result<(ArtifactDescriptor, ArtifactDescriptor)> {
+        let behavior = insert_raw_json(
+            objects,
+            COMPONENT_BEHAVIOR_TYPE_URI,
+            json!({"component_id": component_id, "capabilities": []}),
+            Vec::new(),
+            BTreeMap::from([("component_id".to_string(), json!(component_id))]),
+        )?;
+        let protocol_artifacts = protocol
+            .map(|implementation| {
+                insert_raw_json(
+                    objects,
+                    PACKAGED_PROTOCOL_TYPE_URI,
+                    serde_json::to_value(&implementation)?,
+                    Vec::new(),
+                    BTreeMap::from([(
+                        "protocol_id".to_string(),
+                        json!(implementation.protocol_id),
+                    )]),
+                )
+            })
+            .into_iter()
+            .collect::<anyhow::Result<Vec<_>>>()?;
+        let payload = ComponentArtifactPayload {
+            component_id: component_id.to_string(),
+            version: "1.0.0".to_string(),
+            behavior: behavior.clone(),
+            entry_kind: "wasm".to_string(),
+            entry: PackageEntry::Wasm {
+                module: "component.wasm".to_string(),
+                abi_version: 1,
+                memory_limit_mb: 64,
+            },
+            contract: ContractMode::V1,
+            trust_class: ComponentTrustClass::SandboxedComponent,
+            claim_status: ComponentClaimStatus::Declared,
+            enforced_boundaries: ComponentBoundaryClaims::default(),
+            protocol_artifacts: protocol_artifacts.clone(),
+            content_roots: Vec::new(),
+            surface_artifacts: Vec::new(),
+            annotations: BTreeMap::new(),
+        };
+        let component = insert_raw_json(
+            objects,
+            COMPONENT_DESCRIPTOR_TYPE_URI,
+            serde_json::to_value(payload)?,
+            std::iter::once(behavior.digest.clone())
+                .chain(
+                    protocol_artifacts
+                        .iter()
+                        .map(|protocol| protocol.digest.clone()),
+                )
+                .collect(),
+            BTreeMap::from([("component_id".to_string(), json!(component_id))]),
+        )?;
+        Ok((component, behavior))
+    }
+
+    fn insert_binding_fixture(
+        objects: &mut BTreeMap<String, (ArtifactDescriptor, Bytes)>,
+        declare_binding: bool,
+        include_binding_lock: bool,
+    ) -> anyhow::Result<ArtifactDescriptor> {
+        let (provider_component, provider_behavior) =
+            insert_component(objects, "example/provider")?;
+        let (consumer_component, consumer_behavior) =
+            insert_component(objects, "example/consumer")?;
+        let provider_id = NodeId::parse("provider")?;
+        let consumer_id = NodeId::parse("consumer")?;
+        let provider = PortEndpoint {
+            node_id: provider_id.clone(),
+            port_id: PortId::parse("out")?,
+        };
+        let consumer = PortEndpoint {
+            node_id: consumer_id.clone(),
+            port_id: PortId::parse("in")?,
+        };
+        let revision = AssemblyRevision {
+            schema: AssemblyRevision::SCHEMA.to_string(),
+            assembly_id: AssemblyId::parse("example/binding-fixture")?,
+            nodes: vec![
+                AssemblyNode {
+                    node_id: provider_id.clone(),
+                    source: AssemblyNodeSource::Component {
+                        component: provider_component.clone(),
+                    },
+                    ports: vec![export_port("out")?],
+                    configuration: None,
+                    annotations: BTreeMap::new(),
+                },
+                AssemblyNode {
+                    node_id: consumer_id.clone(),
+                    source: AssemblyNodeSource::Component {
+                        component: consumer_component.clone(),
+                    },
+                    ports: vec![import_port("in")?],
+                    configuration: None,
+                    annotations: BTreeMap::new(),
+                },
+            ],
+            bindings: declare_binding
+                .then(|| AssemblyBinding {
+                    binding_id: "pipe".to_string(),
+                    provider: provider.clone(),
+                    consumer: consumer.clone(),
+                    phase: BindingPhase::Authoring,
+                    transport_policy: TransportPolicy::default(),
+                    annotations: BTreeMap::new(),
+                })
+                .into_iter()
+                .collect(),
+            exposed_ports: Vec::new(),
+            state_slots: Vec::new(),
+            annotations: BTreeMap::new(),
+        };
+        let revision_ref = insert_model(objects, &revision)?;
+        let bindings = if include_binding_lock {
+            vec![BindingLock {
+                binding_id: if declare_binding { "pipe" } else { "auto-in" }.to_string(),
+                provider,
+                consumer,
+                provider_component: provider_component.clone(),
+                transport: select_transport(
+                    &export_port("out")?.transport,
+                    &import_port("in")?.transport,
+                    &TransportPolicy::default(),
+                )?,
+                phase: BindingPhase::Authoring,
+            }]
+        } else {
+            Vec::new()
+        };
+        let lock = AssemblyLock {
+            schema: AssemblyLock::SCHEMA.to_string(),
+            assembly: revision_ref,
+            nodes: vec![
+                NodeLock {
+                    node_id: provider_id,
+                    artifact: provider_component,
+                    behavior_digest: Some(provider_behavior.digest),
+                    trust_class: Some(ComponentTrustClass::SandboxedComponent),
+                },
+                NodeLock {
+                    node_id: consumer_id,
+                    artifact: consumer_component,
+                    behavior_digest: Some(consumer_behavior.digest),
+                    trust_class: Some(ComponentTrustClass::SandboxedComponent),
+                },
+            ],
+            bindings,
+            protocol_profiles: vec![world_bundle_profile_pin()],
+            content_roots: Vec::new(),
+        };
+        insert_model(objects, &lock)
+    }
+
+    fn export_port(id: &str) -> anyhow::Result<PortDescriptor> {
+        Ok(PortDescriptor {
+            port_id: PortId::parse(id)?,
+            contract: PortContract {
+                protocol_id: "example.pipe".to_string(),
+                interface_id: "example/pipe".to_string(),
+                version: "1.0.0".to_string(),
+                profiles: Vec::new(),
+            },
+            interaction: InteractionModelId(INTERACTION_CAPABILITY_UNARY.to_string()),
+            role: PortRole::Export {
+                multiplicity: PortMultiplicity { min: 0, max: None },
+                effect_class: EffectClass::Pure,
+            },
+            transport: TransportRequirements::default(),
+            annotations: BTreeMap::new(),
+        })
+    }
+
+    fn import_port(id: &str) -> anyhow::Result<PortDescriptor> {
+        Ok(PortDescriptor {
+            port_id: PortId::parse(id)?,
+            contract: PortContract {
+                protocol_id: "example.pipe".to_string(),
+                interface_id: "example/pipe".to_string(),
+                version: "^1.0".to_string(),
+                profiles: Vec::new(),
+            },
+            interaction: InteractionModelId(INTERACTION_CAPABILITY_UNARY.to_string()),
+            role: PortRole::Import {
+                multiplicity: PortMultiplicity {
+                    min: 1,
+                    max: Some(1),
+                },
+                latest_binding_phase: BindingPhase::Authoring,
+                availability: AvailabilityPolicy::Required,
+                accepted_effects: vec![EffectClass::Pure],
+            },
+            transport: TransportRequirements::default(),
+            annotations: BTreeMap::new(),
+        })
+    }
+
+    fn insert_nested_pair(
+        objects: &mut BTreeMap<String, (ArtifactDescriptor, Bytes)>,
+        assembly_id: &str,
+        child_revision: ArtifactDescriptor,
+        child_lock: ArtifactDescriptor,
+        protocol_profiles: Vec<ProtocolProfilePin>,
+    ) -> anyhow::Result<(ArtifactDescriptor, ArtifactDescriptor)> {
+        let node_id = NodeId::parse("nested")?;
+        let revision = AssemblyRevision {
+            schema: AssemblyRevision::SCHEMA.to_string(),
+            assembly_id: AssemblyId::parse(assembly_id)?,
+            nodes: vec![AssemblyNode {
+                node_id: node_id.clone(),
+                source: AssemblyNodeSource::Assembly {
+                    assembly: child_revision,
+                },
+                ports: Vec::new(),
+                configuration: None,
+                annotations: BTreeMap::new(),
+            }],
+            bindings: Vec::new(),
+            exposed_ports: Vec::new(),
+            state_slots: Vec::new(),
+            annotations: BTreeMap::new(),
+        };
+        let revision_ref = insert_model(objects, &revision)?;
+        let lock = AssemblyLock {
+            schema: AssemblyLock::SCHEMA.to_string(),
+            assembly: revision_ref.clone(),
+            nodes: vec![NodeLock {
+                node_id,
+                artifact: child_lock,
+                behavior_digest: None,
+                trust_class: None,
+            }],
+            bindings: Vec::new(),
+            protocol_profiles,
+            content_roots: Vec::new(),
+        };
+        let lock_ref = insert_model(objects, &lock)?;
+        Ok((revision_ref, lock_ref))
+    }
+
+    #[test]
+    fn assembly_lock_tree_rejects_a_deleted_declared_authoring_binding() -> anyhow::Result<()> {
+        let mut objects = BTreeMap::new();
+        let lock_ref = insert_binding_fixture(&mut objects, true, false)?;
+
+        let error = verify_assembly_lock_tree(
+            &objects,
+            &lock_ref,
+            0,
+            &mut BTreeSet::new(),
+            &mut BTreeMap::new(),
+            &mut BTreeSet::new(),
+            &mut BTreeMap::new(),
+        )
+        .expect_err("deleting an explicit authoring BindingLock must fail offline verification");
+        assert!(error
+            .to_string()
+            .contains("missing an explicitly declared authoring Binding"));
+        Ok(())
+    }
+
+    #[test]
+    fn assembly_lock_tree_enforces_required_authoring_import_minimum() -> anyhow::Result<()> {
+        let mut objects = BTreeMap::new();
+        let lock_ref = insert_binding_fixture(&mut objects, false, false)?;
+
+        let error = verify_assembly_lock_tree(
+            &objects,
+            &lock_ref,
+            0,
+            &mut BTreeSet::new(),
+            &mut BTreeMap::new(),
+            &mut BTreeSet::new(),
+            &mut BTreeMap::new(),
+        )
+        .expect_err("a required authoring Import below multiplicity.min must fail");
+        assert!(error
+            .to_string()
+            .contains("below the minimum for a required authoring Import"));
+        Ok(())
+    }
+
+    #[test]
+    fn nested_authoring_import_may_defer_once_but_must_close_at_the_root() -> anyhow::Result<()> {
+        let mut objects = BTreeMap::new();
+        let (component, behavior) = insert_component(&mut objects, "example/nested-consumer")?;
+        let component_node = NodeId::parse("consumer")?;
+        let component_port = PortId::parse("in")?;
+        let child_revision = AssemblyRevision {
+            schema: AssemblyRevision::SCHEMA.to_string(),
+            assembly_id: AssemblyId::parse("example/nested-import-child")?,
+            nodes: vec![AssemblyNode {
+                node_id: component_node.clone(),
+                source: AssemblyNodeSource::Component {
+                    component: component.clone(),
+                },
+                ports: vec![import_port(component_port.as_str())?],
+                configuration: None,
+                annotations: BTreeMap::new(),
+            }],
+            bindings: Vec::new(),
+            exposed_ports: vec![AssemblyPortExposure {
+                port_id: PortId::parse("incoming")?,
+                direction: PortDirection::Import,
+                target: PortEndpoint {
+                    node_id: component_node.clone(),
+                    port_id: component_port,
+                },
+                annotations: BTreeMap::new(),
+            }],
+            state_slots: Vec::new(),
+            annotations: BTreeMap::new(),
+        };
+        let child_revision_ref = insert_model(&mut objects, &child_revision)?;
+        let child_lock = AssemblyLock {
+            schema: AssemblyLock::SCHEMA.to_string(),
+            assembly: child_revision_ref.clone(),
+            nodes: vec![NodeLock {
+                node_id: component_node,
+                artifact: component,
+                behavior_digest: Some(behavior.digest),
+                trust_class: Some(ComponentTrustClass::SandboxedComponent),
+            }],
+            bindings: Vec::new(),
+            protocol_profiles: Vec::new(),
+            content_roots: Vec::new(),
+        };
+        let child_lock_ref = insert_model(&mut objects, &child_lock)?;
+
+        verify_assembly_lock_tree(
+            &objects,
+            &child_lock_ref,
+            1,
+            &mut BTreeSet::new(),
+            &mut BTreeMap::new(),
+            &mut BTreeSet::new(),
+            &mut BTreeMap::new(),
+        )?;
+
+        let nested_node = NodeId::parse("nested")?;
+        let root_revision = AssemblyRevision {
+            schema: AssemblyRevision::SCHEMA.to_string(),
+            assembly_id: AssemblyId::parse("example/nested-import-root")?,
+            nodes: vec![AssemblyNode {
+                node_id: nested_node.clone(),
+                source: AssemblyNodeSource::Assembly {
+                    assembly: child_revision_ref,
+                },
+                ports: Vec::new(),
+                configuration: None,
+                annotations: BTreeMap::new(),
+            }],
+            bindings: Vec::new(),
+            exposed_ports: Vec::new(),
+            state_slots: Vec::new(),
+            annotations: BTreeMap::new(),
+        };
+        let root_revision_ref = insert_model(&mut objects, &root_revision)?;
+        let root_lock = AssemblyLock {
+            schema: AssemblyLock::SCHEMA.to_string(),
+            assembly: root_revision_ref,
+            nodes: vec![NodeLock {
+                node_id: nested_node,
+                artifact: child_lock_ref,
+                behavior_digest: None,
+                trust_class: None,
+            }],
+            bindings: Vec::new(),
+            protocol_profiles: vec![world_bundle_profile_pin()],
+            content_roots: Vec::new(),
+        };
+        let root_lock_ref = insert_model(&mut objects, &root_lock)?;
+
+        let error = verify_assembly_lock_tree(
+            &objects,
+            &root_lock_ref,
+            0,
+            &mut BTreeSet::new(),
+            &mut BTreeMap::new(),
+            &mut BTreeSet::new(),
+            &mut BTreeMap::new(),
+        )
+        .expect_err("a nested required authoring Import must be closed at the root");
+        assert!(error
+            .to_string()
+            .contains("below the minimum for a required authoring Import"));
+        Ok(())
+    }
+
+    #[test]
+    fn assembly_lock_tree_rejects_a_deleted_component_profile_pin() -> anyhow::Result<()> {
+        let mut objects = BTreeMap::new();
+        let component_profile = ProtocolProfilePin {
+            protocol_id: "example.protocol".to_string(),
+            version: "1.0.0".to_string(),
+            profile: "example.protocol/default/v1".to_string(),
+        };
+        let (component, behavior) = insert_component_with_protocol(
+            &mut objects,
+            "example/profiled-component",
+            Some(ProtocolImplementationDeclaration {
+                protocol_id: component_profile.protocol_id.clone(),
+                version: component_profile.version.clone(),
+                profiles: vec![component_profile.profile.clone()],
+                conformance_vectors: Vec::new(),
+            }),
+        )?;
+        let node_id = NodeId::parse("component")?;
+        let revision = AssemblyRevision {
+            schema: AssemblyRevision::SCHEMA.to_string(),
+            assembly_id: AssemblyId::parse("example/profile-fixture")?,
+            nodes: vec![AssemblyNode {
+                node_id: node_id.clone(),
+                source: AssemblyNodeSource::Component {
+                    component: component.clone(),
+                },
+                ports: Vec::new(),
+                configuration: None,
+                annotations: BTreeMap::new(),
+            }],
+            bindings: Vec::new(),
+            exposed_ports: Vec::new(),
+            state_slots: Vec::new(),
+            annotations: BTreeMap::new(),
+        };
+        let revision_ref = insert_model(&mut objects, &revision)?;
+        let lock = AssemblyLock {
+            schema: AssemblyLock::SCHEMA.to_string(),
+            assembly: revision_ref,
+            nodes: vec![NodeLock {
+                node_id,
+                artifact: component,
+                behavior_digest: Some(behavior.digest),
+                trust_class: Some(ComponentTrustClass::SandboxedComponent),
+            }],
+            bindings: Vec::new(),
+            protocol_profiles: vec![world_bundle_profile_pin()],
+            content_roots: Vec::new(),
+        };
+        let lock_ref = insert_model(&mut objects, &lock)?;
+
+        let error = verify_assembly_lock_tree(
+            &objects,
+            &lock_ref,
+            0,
+            &mut BTreeSet::new(),
+            &mut BTreeMap::new(),
+            &mut BTreeSet::new(),
+            &mut BTreeMap::new(),
+        )
+        .expect_err("deleting a component-declared profile pin must fail offline verification");
+        assert!(error
+            .to_string()
+            .contains("protocol profiles differ from component"));
+        Ok(())
+    }
+
+    #[test]
+    fn assembly_lock_tree_rejects_thirty_three_levels() -> anyhow::Result<()> {
+        let mut objects = BTreeMap::new();
+        let leaf_revision = AssemblyRevision {
+            schema: AssemblyRevision::SCHEMA.to_string(),
+            assembly_id: AssemblyId::parse("example/depth-0")?,
+            nodes: Vec::new(),
+            bindings: Vec::new(),
+            exposed_ports: Vec::new(),
+            state_slots: Vec::new(),
+            annotations: BTreeMap::new(),
+        };
+        let mut child_revision_ref = insert_model(&mut objects, &leaf_revision)?;
+        let leaf_lock = AssemblyLock {
+            schema: AssemblyLock::SCHEMA.to_string(),
+            assembly: child_revision_ref.clone(),
+            nodes: Vec::new(),
+            bindings: Vec::new(),
+            protocol_profiles: Vec::new(),
+            content_roots: Vec::new(),
+        };
+        let mut child_lock_ref = insert_model(&mut objects, &leaf_lock)?;
+        for level in 1..33 {
+            let node_id = NodeId::parse("nested")?;
+            let revision = AssemblyRevision {
+                schema: AssemblyRevision::SCHEMA.to_string(),
+                assembly_id: AssemblyId::parse(format!("example/depth-{level}"))?,
+                nodes: vec![AssemblyNode {
+                    node_id: node_id.clone(),
+                    source: AssemblyNodeSource::Assembly {
+                        assembly: child_revision_ref,
+                    },
+                    ports: Vec::new(),
+                    configuration: None,
+                    annotations: BTreeMap::new(),
+                }],
+                bindings: Vec::new(),
+                exposed_ports: Vec::new(),
+                state_slots: Vec::new(),
+                annotations: BTreeMap::new(),
+            };
+            child_revision_ref = insert_model(&mut objects, &revision)?;
+            let lock = AssemblyLock {
+                schema: AssemblyLock::SCHEMA.to_string(),
+                assembly: child_revision_ref.clone(),
+                nodes: vec![NodeLock {
+                    node_id,
+                    artifact: child_lock_ref,
+                    behavior_digest: None,
+                    trust_class: None,
+                }],
+                bindings: Vec::new(),
+                protocol_profiles: if level == 32 {
+                    vec![world_bundle_profile_pin()]
+                } else {
+                    Vec::new()
+                },
+                content_roots: Vec::new(),
+            };
+            child_lock_ref = insert_model(&mut objects, &lock)?;
+        }
+
+        let error = verify_assembly_lock_tree(
+            &objects,
+            &child_lock_ref,
+            0,
+            &mut BTreeSet::new(),
+            &mut BTreeMap::new(),
+            &mut BTreeSet::new(),
+            &mut BTreeMap::new(),
+        )
+        .expect_err("a 33-level AssemblyLock hierarchy must be rejected");
+        assert!(error.to_string().contains("nesting depth"));
+        Ok(())
+    }
+
+    #[test]
+    fn assembly_lock_tree_enforces_depth_when_a_shallow_child_is_reused_deeply(
+    ) -> anyhow::Result<()> {
+        let mut objects = BTreeMap::new();
+        let leaf_revision = AssemblyRevision {
+            schema: AssemblyRevision::SCHEMA.to_string(),
+            assembly_id: AssemblyId::parse("example/shared-leaf")?,
+            nodes: Vec::new(),
+            bindings: Vec::new(),
+            exposed_ports: Vec::new(),
+            state_slots: Vec::new(),
+            annotations: BTreeMap::new(),
+        };
+        let leaf_revision_ref = insert_model(&mut objects, &leaf_revision)?;
+        let leaf_lock = AssemblyLock {
+            schema: AssemblyLock::SCHEMA.to_string(),
+            assembly: leaf_revision_ref.clone(),
+            nodes: Vec::new(),
+            bindings: Vec::new(),
+            protocol_profiles: Vec::new(),
+            content_roots: Vec::new(),
+        };
+        let leaf_lock_ref = insert_model(&mut objects, &leaf_lock)?;
+        let (shared_revision, shared_lock) = insert_nested_pair(
+            &mut objects,
+            "example/shared-target",
+            leaf_revision_ref,
+            leaf_lock_ref,
+            Vec::new(),
+        )?;
+
+        let mut deep_revision = shared_revision.clone();
+        let mut deep_lock = shared_lock.clone();
+        for level in 0..30 {
+            (deep_revision, deep_lock) = insert_nested_pair(
+                &mut objects,
+                &format!("example/shared-wrapper-{level}"),
+                deep_revision,
+                deep_lock,
+                Vec::new(),
+            )?;
+        }
+
+        let direct_node = NodeId::parse("a-direct")?;
+        let deep_node = NodeId::parse("z-deep")?;
+        let root_revision = AssemblyRevision {
+            schema: AssemblyRevision::SCHEMA.to_string(),
+            assembly_id: AssemblyId::parse("example/shared-root")?,
+            nodes: vec![
+                AssemblyNode {
+                    node_id: direct_node.clone(),
+                    source: AssemblyNodeSource::Assembly {
+                        assembly: shared_revision,
+                    },
+                    ports: Vec::new(),
+                    configuration: None,
+                    annotations: BTreeMap::new(),
+                },
+                AssemblyNode {
+                    node_id: deep_node.clone(),
+                    source: AssemblyNodeSource::Assembly {
+                        assembly: deep_revision,
+                    },
+                    ports: Vec::new(),
+                    configuration: None,
+                    annotations: BTreeMap::new(),
+                },
+            ],
+            bindings: Vec::new(),
+            exposed_ports: Vec::new(),
+            state_slots: Vec::new(),
+            annotations: BTreeMap::new(),
+        };
+        let root_revision_ref = insert_model(&mut objects, &root_revision)?;
+        let root_lock = AssemblyLock {
+            schema: AssemblyLock::SCHEMA.to_string(),
+            assembly: root_revision_ref,
+            nodes: vec![
+                NodeLock {
+                    node_id: direct_node,
+                    artifact: shared_lock,
+                    behavior_digest: None,
+                    trust_class: None,
+                },
+                NodeLock {
+                    node_id: deep_node,
+                    artifact: deep_lock,
+                    behavior_digest: None,
+                    trust_class: None,
+                },
+            ],
+            bindings: Vec::new(),
+            protocol_profiles: vec![world_bundle_profile_pin()],
+            content_roots: Vec::new(),
+        };
+        let root_lock_ref = insert_model(&mut objects, &root_lock)?;
+
+        let error = verify_assembly_lock_tree(
+            &objects,
+            &root_lock_ref,
+            0,
+            &mut BTreeSet::new(),
+            &mut BTreeMap::new(),
+            &mut BTreeSet::new(),
+            &mut BTreeMap::new(),
+        )
+        .expect_err("memoized shallow children must still count against a deeper path");
+        assert!(error.to_string().contains("nesting depth"));
+        Ok(())
+    }
+
+    #[test]
+    fn assembly_lock_tree_rejects_an_untyped_nested_lock_payload() -> anyhow::Result<()> {
+        let mut objects = BTreeMap::new();
+        let child_revision = AssemblyRevision {
+            schema: AssemblyRevision::SCHEMA.to_string(),
+            assembly_id: AssemblyId::parse("example/child")?,
+            nodes: Vec::new(),
+            bindings: Vec::new(),
+            exposed_ports: Vec::new(),
+            state_slots: Vec::new(),
+            annotations: BTreeMap::new(),
+        };
+        let child_revision_ref = insert_model(&mut objects, &child_revision)?;
+        let invalid_child_lock = insert_raw_json(
+            &mut objects,
+            ASSEMBLY_LOCK_TYPE_URI,
+            json!({}),
+            Vec::new(),
+            BTreeMap::new(),
+        )?;
+        let nested_id = NodeId::parse("nested")?;
+        let root_revision = AssemblyRevision {
+            schema: AssemblyRevision::SCHEMA.to_string(),
+            assembly_id: AssemblyId::parse("example/root")?,
+            nodes: vec![AssemblyNode {
+                node_id: nested_id.clone(),
+                source: AssemblyNodeSource::Assembly {
+                    assembly: child_revision_ref,
+                },
+                ports: Vec::new(),
+                configuration: None,
+                annotations: BTreeMap::new(),
+            }],
+            bindings: Vec::new(),
+            exposed_ports: Vec::new(),
+            state_slots: Vec::new(),
+            annotations: BTreeMap::new(),
+        };
+        let root_revision_ref = insert_model(&mut objects, &root_revision)?;
+        let root_lock = AssemblyLock {
+            schema: AssemblyLock::SCHEMA.to_string(),
+            assembly: root_revision_ref,
+            nodes: vec![NodeLock {
+                node_id: nested_id,
+                artifact: invalid_child_lock,
+                behavior_digest: None,
+                trust_class: None,
+            }],
+            bindings: Vec::new(),
+            protocol_profiles: vec![world_bundle_profile_pin()],
+            content_roots: Vec::new(),
+        };
+        let root_lock_ref = insert_model(&mut objects, &root_lock)?;
+
+        verify_assembly_lock_tree(
+            &objects,
+            &root_lock_ref,
+            0,
+            &mut BTreeSet::new(),
+            &mut BTreeMap::new(),
+            &mut BTreeSet::new(),
+            &mut BTreeMap::new(),
+        )
+        .expect_err("an AssemblyLock type URI must not bless an untyped JSON payload");
+        Ok(())
+    }
+
+    #[test]
+    fn nested_lock_must_resolve_the_revision_declared_by_its_parent() -> anyhow::Result<()> {
+        let mut objects = BTreeMap::new();
+        let revision = |id: &str| AssemblyRevision {
+            schema: AssemblyRevision::SCHEMA.to_string(),
+            assembly_id: AssemblyId::parse(id).unwrap(),
+            nodes: Vec::new(),
+            bindings: Vec::new(),
+            exposed_ports: Vec::new(),
+            state_slots: Vec::new(),
+            annotations: BTreeMap::new(),
+        };
+        let declared_revision = revision("example/declared-child");
+        let selected_revision = revision("example/other-child");
+        let declared_ref = insert_model(&mut objects, &declared_revision)?;
+        let selected_ref = insert_model(&mut objects, &selected_revision)?;
+        let child_lock = AssemblyLock {
+            schema: AssemblyLock::SCHEMA.to_string(),
+            assembly: selected_ref,
+            nodes: Vec::new(),
+            bindings: Vec::new(),
+            protocol_profiles: Vec::new(),
+            content_roots: Vec::new(),
+        };
+        let child_lock_ref = insert_model(&mut objects, &child_lock)?;
+        let nested = NodeId::parse("nested")?;
+        let root_revision = AssemblyRevision {
+            schema: AssemblyRevision::SCHEMA.to_string(),
+            assembly_id: AssemblyId::parse("example/root")?,
+            nodes: vec![AssemblyNode {
+                node_id: nested.clone(),
+                source: AssemblyNodeSource::Assembly {
+                    assembly: declared_ref,
+                },
+                ports: Vec::new(),
+                configuration: None,
+                annotations: BTreeMap::new(),
+            }],
+            bindings: Vec::new(),
+            exposed_ports: Vec::new(),
+            state_slots: Vec::new(),
+            annotations: BTreeMap::new(),
+        };
+        let root_revision_ref = insert_model(&mut objects, &root_revision)?;
+        let root_lock = AssemblyLock {
+            schema: AssemblyLock::SCHEMA.to_string(),
+            assembly: root_revision_ref,
+            nodes: vec![NodeLock {
+                node_id: nested,
+                artifact: child_lock_ref,
+                behavior_digest: None,
+                trust_class: None,
+            }],
+            bindings: Vec::new(),
+            protocol_profiles: Vec::new(),
+            content_roots: Vec::new(),
+        };
+        let root_lock_ref = insert_model(&mut objects, &root_lock)?;
+        let error = verify_assembly_lock_tree(
+            &objects,
+            &root_lock_ref,
+            0,
+            &mut BTreeSet::new(),
+            &mut BTreeMap::new(),
+            &mut BTreeSet::new(),
+            &mut BTreeMap::new(),
+        )
+        .unwrap_err();
+        assert!(error.to_string().contains("different AssemblyRevision"));
+        Ok(())
+    }
+
+    #[test]
+    fn assembly_lock_tree_rejects_a_malformed_component_payload() -> anyhow::Result<()> {
+        let mut objects = BTreeMap::new();
+        let behavior = insert_raw_json(
+            &mut objects,
+            COMPONENT_BEHAVIOR_TYPE_URI,
+            json!({"capabilities": []}),
+            Vec::new(),
+            BTreeMap::new(),
+        )?;
+        let malformed_component = insert_raw_json(
+            &mut objects,
+            COMPONENT_DESCRIPTOR_TYPE_URI,
+            json!({"component_id": "example/component", "version": "1.0.0"}),
+            vec![behavior.digest.clone()],
+            BTreeMap::from([("component_id".to_string(), json!("example/component"))]),
+        )?;
+        let node_id = NodeId::parse("component")?;
+        let revision = AssemblyRevision {
+            schema: AssemblyRevision::SCHEMA.to_string(),
+            assembly_id: AssemblyId::parse("example/root")?,
+            nodes: vec![AssemblyNode {
+                node_id: node_id.clone(),
+                source: AssemblyNodeSource::Component {
+                    component: malformed_component.clone(),
+                },
+                ports: Vec::new(),
+                configuration: None,
+                annotations: BTreeMap::new(),
+            }],
+            bindings: Vec::new(),
+            exposed_ports: Vec::new(),
+            state_slots: Vec::new(),
+            annotations: BTreeMap::new(),
+        };
+        let revision_ref = insert_model(&mut objects, &revision)?;
+        let lock = AssemblyLock {
+            schema: AssemblyLock::SCHEMA.to_string(),
+            assembly: revision_ref,
+            nodes: vec![NodeLock {
+                node_id,
+                artifact: malformed_component,
+                behavior_digest: Some(behavior.digest),
+                trust_class: Some(ComponentTrustClass::SandboxedComponent),
+            }],
+            bindings: Vec::new(),
+            protocol_profiles: Vec::new(),
+            content_roots: Vec::new(),
+        };
+        let lock_ref = insert_model(&mut objects, &lock)?;
+
+        verify_assembly_lock_tree(
+            &objects,
+            &lock_ref,
+            0,
+            &mut BTreeSet::new(),
+            &mut BTreeMap::new(),
+            &mut BTreeSet::new(),
+            &mut BTreeMap::new(),
+        )
+        .expect_err("a Component type URI must not bless an incomplete payload");
+        Ok(())
+    }
+
+    #[test]
+    fn nested_binding_provider_must_follow_the_exposed_port_chain() -> anyhow::Result<()> {
+        let mut objects = BTreeMap::new();
+        let (component_a, behavior_a) = insert_component(&mut objects, "example/component-a")?;
+        let (component_b, behavior_b) = insert_component(&mut objects, "example/component-b")?;
+        let (consumer_component, consumer_behavior) =
+            insert_component(&mut objects, "example/consumer")?;
+        let node_a = NodeId::parse("a")?;
+        let node_b = NodeId::parse("b")?;
+        let child_revision = AssemblyRevision {
+            schema: AssemblyRevision::SCHEMA.to_string(),
+            assembly_id: AssemblyId::parse("example/child")?,
+            nodes: vec![
+                AssemblyNode {
+                    node_id: node_a.clone(),
+                    source: AssemblyNodeSource::Component {
+                        component: component_a.clone(),
+                    },
+                    ports: vec![export_port("out")?],
+                    configuration: None,
+                    annotations: BTreeMap::new(),
+                },
+                AssemblyNode {
+                    node_id: node_b.clone(),
+                    source: AssemblyNodeSource::Component {
+                        component: component_b.clone(),
+                    },
+                    ports: Vec::new(),
+                    configuration: None,
+                    annotations: BTreeMap::new(),
+                },
+            ],
+            bindings: Vec::new(),
+            exposed_ports: vec![AssemblyPortExposure {
+                port_id: PortId::parse("out")?,
+                direction: PortDirection::Export,
+                target: PortEndpoint {
+                    node_id: node_a.clone(),
+                    port_id: PortId::parse("out")?,
+                },
+                annotations: BTreeMap::new(),
+            }],
+            state_slots: Vec::new(),
+            annotations: BTreeMap::new(),
+        };
+        let child_revision_ref = insert_model(&mut objects, &child_revision)?;
+        let child_lock = AssemblyLock {
+            schema: AssemblyLock::SCHEMA.to_string(),
+            assembly: child_revision_ref.clone(),
+            nodes: vec![
+                NodeLock {
+                    node_id: node_a,
+                    artifact: component_a,
+                    behavior_digest: Some(behavior_a.digest),
+                    trust_class: Some(ComponentTrustClass::SandboxedComponent),
+                },
+                NodeLock {
+                    node_id: node_b,
+                    artifact: component_b.clone(),
+                    behavior_digest: Some(behavior_b.digest),
+                    trust_class: Some(ComponentTrustClass::SandboxedComponent),
+                },
+            ],
+            bindings: Vec::new(),
+            protocol_profiles: Vec::new(),
+            content_roots: Vec::new(),
+        };
+        let child_lock_ref = insert_model(&mut objects, &child_lock)?;
+        let nested = NodeId::parse("nested")?;
+        let consumer_node = NodeId::parse("consumer")?;
+        let root_revision = AssemblyRevision {
+            schema: AssemblyRevision::SCHEMA.to_string(),
+            assembly_id: AssemblyId::parse("example/root")?,
+            nodes: vec![
+                AssemblyNode {
+                    node_id: nested.clone(),
+                    source: AssemblyNodeSource::Assembly {
+                        assembly: child_revision_ref,
+                    },
+                    ports: Vec::new(),
+                    configuration: None,
+                    annotations: BTreeMap::new(),
+                },
+                AssemblyNode {
+                    node_id: consumer_node.clone(),
+                    source: AssemblyNodeSource::Component {
+                        component: consumer_component.clone(),
+                    },
+                    ports: vec![import_port("in")?],
+                    configuration: None,
+                    annotations: BTreeMap::new(),
+                },
+            ],
+            bindings: Vec::new(),
+            exposed_ports: Vec::new(),
+            state_slots: Vec::new(),
+            annotations: BTreeMap::new(),
+        };
+        let root_revision_ref = insert_model(&mut objects, &root_revision)?;
+        let provider = PortEndpoint {
+            node_id: nested.clone(),
+            port_id: PortId::parse("out")?,
+        };
+        let consumer = PortEndpoint {
+            node_id: consumer_node.clone(),
+            port_id: PortId::parse("in")?,
+        };
+        let selected = select_transport(
+            &export_port("out")?.transport,
+            &import_port("in")?.transport,
+            &TransportPolicy::default(),
+        )?;
+        let root_lock = AssemblyLock {
+            schema: AssemblyLock::SCHEMA.to_string(),
+            assembly: root_revision_ref,
+            nodes: vec![
+                NodeLock {
+                    node_id: nested,
+                    artifact: child_lock_ref,
+                    behavior_digest: None,
+                    trust_class: None,
+                },
+                NodeLock {
+                    node_id: consumer_node,
+                    artifact: consumer_component,
+                    behavior_digest: Some(consumer_behavior.digest),
+                    trust_class: Some(ComponentTrustClass::SandboxedComponent),
+                },
+            ],
+            bindings: vec![BindingLock {
+                binding_id: "wrong-provider".to_string(),
+                provider,
+                consumer,
+                provider_component: component_b,
+                transport: selected,
+                phase: BindingPhase::Authoring,
+            }],
+            protocol_profiles: vec![world_bundle_profile_pin()],
+            content_roots: Vec::new(),
+        };
+        let root_lock_ref = insert_model(&mut objects, &root_lock)?;
+
+        let error = verify_assembly_lock_tree(
+            &objects,
+            &root_lock_ref,
+            0,
+            &mut BTreeSet::new(),
+            &mut BTreeMap::new(),
+            &mut BTreeSet::new(),
+            &mut BTreeMap::new(),
+        )
+        .expect_err("provider B must not satisfy an exposure that resolves to component A");
+        assert!(error
+            .to_string()
+            .contains("provider pin is not owned by its provider node closure"));
+        Ok(())
+    }
 
     #[tokio::test]
     async fn archive_verification_rejects_tampered_object() -> anyhow::Result<()> {
@@ -1194,22 +2897,13 @@ mod tests {
             version: WORLD_BUNDLE_PROTOCOL_VERSION.to_string(),
             profile: WORLD_BUNDLE_EXPERIMENTAL_PROFILE.to_string(),
         };
-        let lock = CompositionLock::new(
-            vec![ComponentLockPin {
-                component_id: "example/component".to_string(),
-                digest: sha256_digest(b"component"),
-                behavior_digest: sha256_digest(b"behavior"),
-                trust_class: ComponentTrustClass::SandboxedComponent,
-            }],
-            vec![profile.clone()],
-            Vec::new(),
-        )?;
+        let lock = test_assembly_lock(&runtime, vec![profile.clone()]).await?;
         let mut archive = runtime
             .export_world_bundle(WorldBundleExportRequest {
                 world_id: "example/world".to_string(),
                 state_root,
                 journal_selections: vec![WorldJournalSelection::all(session.id)],
-                composition_lock: lock,
+                assembly_lock: lock,
                 protocol_profiles: vec![profile],
                 policy_refs: Vec::new(),
                 effect_receipts: Vec::new(),

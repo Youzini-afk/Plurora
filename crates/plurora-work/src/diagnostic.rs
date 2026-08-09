@@ -4,6 +4,11 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
+use plurora_core::ArtifactDescriptor;
+
+use crate::ids::{NodeId, PortId};
+use crate::port::BindingPhase;
+
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, JsonSchema, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum DiagnosticCode {
@@ -76,12 +81,55 @@ impl fmt::Display for DiagnosticCode {
     }
 }
 
+#[derive(
+    Debug, Clone, Copy, Serialize, Deserialize, JsonSchema, PartialEq, Eq, PartialOrd, Ord,
+)]
+#[serde(rename_all = "snake_case")]
+pub enum DiagnosticSeverity {
+    Error,
+    Warning,
+    Info,
+}
+
+impl DiagnosticSeverity {
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Error => "error",
+            Self::Warning => "warning",
+            Self::Info => "info",
+        }
+    }
+}
+
+impl fmt::Display for DiagnosticSeverity {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str(self.as_str())
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, PartialEq, Eq)]
 pub struct WorkDiagnostic {
     pub code: DiagnosticCode,
+    pub severity: DiagnosticSeverity,
     pub message: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub field: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub phase: Option<BindingPhase>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub node_path: Vec<NodeId>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub port_id: Option<PortId>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub candidate_refs: Vec<ArtifactDescriptor>,
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema, PartialEq, Eq)]
+pub struct DiagnosticReport {
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub diagnostics: Vec<WorkDiagnostic>,
+    #[serde(default)]
+    pub omitted_count: u64,
 }
 
 #[derive(Debug, Clone, Error, PartialEq, Eq)]
@@ -102,8 +150,13 @@ impl ModelError {
     pub fn diagnostic(&self) -> WorkDiagnostic {
         WorkDiagnostic {
             code: self.code,
+            severity: DiagnosticSeverity::Error,
             message: self.message.clone(),
             field: None,
+            phase: None,
+            node_path: Vec::new(),
+            port_id: None,
+            candidate_refs: Vec::new(),
         }
     }
 }

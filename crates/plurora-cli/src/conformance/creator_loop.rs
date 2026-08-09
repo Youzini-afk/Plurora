@@ -7,7 +7,7 @@
 //! 4. Package diagnostics: missing checkpoint capability warns for experience packages
 //! 5. Package diagnostics: dangerous permissions (wildcard invoke, empty network methods) warn
 //! 6. Package diagnostics: network access triggers non-deterministic hint
-//! 7. Composition diagnostics: experience surface coverage, replacement hint, checkpoint/recovery coverage
+//! 7. Work materialization diagnostics: experience Port projection and replacement coverage
 //! 8. Walkthrough reference: playable-creation-board package check output is verifiable
 //! 9. No privileged first-party dependency: third-party playable-seed replaces first-party playable-seed
 
@@ -15,7 +15,8 @@ use std::fs;
 use std::path::PathBuf;
 
 use crate::cli::PackageTemplate;
-use crate::commands::{composition, manifest, package};
+use crate::commands::{manifest, package, work};
+use plurora_core::PackageEntry;
 use serde_json;
 
 /// Case 1: Generated playable-board template passes check/conformance with
@@ -372,54 +373,55 @@ pub(crate) async fn creator_loop_network_nondeterministic_hint() -> anyhow::Resu
     Ok(())
 }
 
-/// Case 7: Composition diagnostics provide experience surface coverage,
-/// replacement hint, and checkpoint/recovery coverage.
-pub(crate) async fn creator_loop_composition_experience_diagnostics() -> anyhow::Result<()> {
-    let root = std::env::temp_dir().join(format!("plurora-creator-comp-{}", std::process::id()));
+/// Case 7: Work materialization preserves an experience package's projected Ports.
+pub(crate) async fn creator_loop_work_experience_diagnostics() -> anyhow::Result<()> {
+    let root = std::env::temp_dir().join(format!("plurora-creator-work-{}", std::process::id()));
     if root.exists() {
         fs::remove_dir_all(&root)?;
     }
     fs::create_dir_all(&root)?;
 
     // Create a playable-board package
-    let package_path = root.join("package");
+    let package_path = root.join("packages/experience");
     package::init_package(
         package_path.clone(),
-        "example/creator-comp-experience".to_string(),
+        "example/creator-work-experience".to_string(),
         "subprocess".to_string(),
         "typescript".to_string(),
         Some(PackageTemplate::PlayableBoard),
     )
     .await?;
+    // Package init emits a directly runnable host path; a portable Work source keeps only the
+    // package-relative entry and leaves its concrete location to Installation.
+    let manifest_path = package_path.join("manifest.yaml");
+    let mut generated_manifest = manifest::read_manifest(manifest_path.clone()).await?;
+    let PackageEntry::Subprocess { command, .. } = &mut generated_manifest.entry.kind else {
+        anyhow::bail!("playable-board template did not generate a subprocess entry");
+    };
+    *command = vec!["node".to_string(), "package.mjs".to_string()];
+    fs::write(&manifest_path, serde_yaml::to_string(&generated_manifest)?)?;
 
-    // Create a composition descriptor with the experience package
-    let manifest_yaml = package_path.join("manifest.yaml");
-    let composition_content = format!(
-        r#"id: example/creator-comp-experience
-version: 0.1.0
-entry_surface_id: example/creator-comp-experience/entry
-title: "Creator Loop Composition Test"
-description: "A composition with experience package for diagnostics"
-packages:
-  - {}
-required_surfaces:
-  - experience_entry
-  - play_renderer
-  - forge_panel
-  - assistant_action
-permission_expectations:
-  - capabilities.invoke
-replacement_candidates:
-  - example/alt-playable-board
-compatibility_notes:
-  - "Deterministic by default"
+    fs::write(
+        root.join("work.yaml"),
+        r#"schema: plurora.work-source.v1
+work:
+  id: example/creator-work-experience
+  title: Creator Loop Work Test
+  assembly: assembly.yaml
 "#,
-        manifest_yaml.display()
-    );
-    fs::write(root.join("composition.yaml"), composition_content)?;
+    )?;
+    fs::write(
+        root.join("assembly.yaml"),
+        r#"schema: plurora.assembly-source.v1
+assembly:
+  id: example/creator-work-experience/main
+  nodes:
+    - id: experience
+      component: packages/experience/manifest.yaml
+"#,
+    )?;
 
-    // composition check should succeed and print diagnostics
-    composition::composition_check(root.join("composition.yaml")).await?;
+    work::check_work_path(&root)?;
 
     fs::remove_dir_all(root)?;
     Ok(())
@@ -488,7 +490,7 @@ pub(crate) async fn creator_loop_walkthrough_reference() -> anyhow::Result<()> {
 }
 
 /// Case 9: No privileged first-party dependency — third-party playable-seed
-/// replaces first-party playable-seed through composition.
+/// materializes through the same Work path as any first-party Package.
 pub(crate) async fn creator_loop_thirdparty_no_privilege() -> anyhow::Result<()> {
     // Verify the third-party playable-seed package passes package check
     let tp_manifest_path =
@@ -511,11 +513,9 @@ pub(crate) async fn creator_loop_thirdparty_no_privilege() -> anyhow::Result<()>
         "thirdparty/playable-seed must not contain platform.experience."
     );
 
-    // Verify composition with third-party playable-seed passes
-    composition::composition_check(PathBuf::from(
-        "examples/compositions/playable-seed-replacement/composition.yaml",
-    ))
-    .await?;
+    work::check_work_path(std::path::Path::new(
+        "examples/works/playable-seed-replacement/work.yaml",
+    ))?;
 
     Ok(())
 }

@@ -25,9 +25,8 @@ pub const WORLD_POLICY_INDEX_MEDIA_TYPE: &str =
 pub const WORLD_EVENT_ENVELOPE_TYPE_URI: &str = "urn:plurora:event-envelope:v1";
 pub const WORLD_EVENT_ENVELOPE_MEDIA_TYPE: &str =
     "application/vnd.plurora.event-envelope+json;version=1";
-pub const WORLD_COMPOSITION_LOCK_TYPE_URI: &str = "urn:plurora:composition-lock:v1";
-pub const WORLD_COMPOSITION_LOCK_MEDIA_TYPE: &str =
-    "application/vnd.plurora.composition-lock+json;version=1";
+pub const WORLD_ASSEMBLY_LOCK_TYPE_URI: &str = "urn:plurora:assembly-lock:v1";
+pub const WORLD_ASSEMBLY_LOCK_MEDIA_TYPE: &str = "application/json";
 pub const WORLD_BUNDLE_PROTOCOL_ID: &str = "plurora.world.bundle";
 pub const WORLD_BUNDLE_PROTOCOL_VERSION: &str = "1.0.0";
 pub const WORLD_BUNDLE_EXPERIMENTAL_PROFILE: &str = "plurora.world.bundle/experimental/v1";
@@ -81,7 +80,7 @@ pub struct WorldHead {
     pub world_id: String,
     pub state_root: ArtifactDescriptor,
     pub history_root: ArtifactDescriptor,
-    pub composition_lock: ArtifactDescriptor,
+    pub assembly_lock: ArtifactDescriptor,
     pub protocol_profiles: Vec<ProtocolProfilePin>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub policy_root: Option<ArtifactDescriptor>,
@@ -112,10 +111,10 @@ impl WorldHead {
             "world history root",
         )?;
         ensure_artifact_type(
-            &self.composition_lock,
-            WORLD_COMPOSITION_LOCK_TYPE_URI,
-            WORLD_COMPOSITION_LOCK_MEDIA_TYPE,
-            "world composition lock",
+            &self.assembly_lock,
+            WORLD_ASSEMBLY_LOCK_TYPE_URI,
+            WORLD_ASSEMBLY_LOCK_MEDIA_TYPE,
+            "world assembly lock",
         )?;
         ensure_artifact_type(
             &self.provenance_root,
@@ -156,7 +155,7 @@ impl WorldHead {
         let mut descriptors = vec![
             &self.state_root,
             &self.history_root,
-            &self.composition_lock,
+            &self.assembly_lock,
             &self.provenance_root,
         ];
         descriptors.extend(self.policy_root.iter());
@@ -223,7 +222,7 @@ pub struct WorldBundleManifest {
     pub world_head: ArtifactDescriptor,
     pub journal_ranges: Vec<WorldJournalRange>,
     pub object_descriptors: Vec<ArtifactDescriptor>,
-    pub composition_lock: ArtifactDescriptor,
+    pub assembly_lock: ArtifactDescriptor,
     pub protocol_profiles: Vec<ProtocolProfilePin>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub policy_refs: Vec<ArtifactDescriptor>,
@@ -258,7 +257,7 @@ impl WorldBundleManifest {
         );
         anyhow::ensure!(!self.lineage.is_empty(), "world bundle has no lineage");
         validate_descriptor(&self.world_head)?;
-        validate_descriptor(&self.composition_lock)?;
+        validate_descriptor(&self.assembly_lock)?;
         ensure_artifact_type(
             &self.world_head,
             WORLD_HEAD_TYPE_URI,
@@ -266,10 +265,10 @@ impl WorldBundleManifest {
             "bundle world head",
         )?;
         ensure_artifact_type(
-            &self.composition_lock,
-            WORLD_COMPOSITION_LOCK_TYPE_URI,
-            WORLD_COMPOSITION_LOCK_MEDIA_TYPE,
-            "bundle composition lock",
+            &self.assembly_lock,
+            WORLD_ASSEMBLY_LOCK_TYPE_URI,
+            WORLD_ASSEMBLY_LOCK_MEDIA_TYPE,
+            "bundle assembly lock",
         )?;
         validate_profile_pins(&self.protocol_profiles)?;
         for range in &self.journal_ranges {
@@ -357,7 +356,7 @@ impl WorldBundleManifest {
     }
 
     pub fn required_root_descriptors(&self) -> Vec<&ArtifactDescriptor> {
-        let mut descriptors = vec![&self.world_head, &self.composition_lock];
+        let mut descriptors = vec![&self.world_head, &self.assembly_lock];
         descriptors.extend(
             self.journal_ranges
                 .iter()
@@ -566,7 +565,7 @@ mod tests {
         let media_type = match kind {
             WORLD_EVENT_ENVELOPE_TYPE_URI => WORLD_EVENT_ENVELOPE_MEDIA_TYPE,
             WORLD_JOURNAL_INDEX_TYPE_URI => WORLD_JOURNAL_INDEX_MEDIA_TYPE,
-            WORLD_COMPOSITION_LOCK_TYPE_URI => WORLD_COMPOSITION_LOCK_MEDIA_TYPE,
+            WORLD_ASSEMBLY_LOCK_TYPE_URI => WORLD_ASSEMBLY_LOCK_MEDIA_TYPE,
             WORLD_PROVENANCE_TYPE_URI => WORLD_PROVENANCE_MEDIA_TYPE,
             WORLD_HEAD_TYPE_URI => WORLD_HEAD_MEDIA_TYPE,
             _ => "application/json",
@@ -614,7 +613,7 @@ mod tests {
             b"history",
             vec![event.digest.clone()],
         );
-        let lock = descriptor(WORLD_COMPOSITION_LOCK_TYPE_URI, b"lock", Vec::new());
+        let lock = descriptor(WORLD_ASSEMBLY_LOCK_TYPE_URI, b"lock", Vec::new());
         let provenance = descriptor(WORLD_PROVENANCE_TYPE_URI, b"provenance", Vec::new());
         let head = descriptor(
             WORLD_HEAD_TYPE_URI,
@@ -653,7 +652,7 @@ mod tests {
                 provenance,
                 state,
             ],
-            composition_lock: lock,
+            assembly_lock: lock,
             protocol_profiles: vec![profile],
             policy_refs: Vec::new(),
             effect_receipts: Vec::new(),

@@ -1,0 +1,8 @@
+schema: plurora.work-source.v1
+work:
+  id: example/agent-runtime
+  title: Community Agent Runtime
+  description: A Work containing an ordinary third-party agent runtime component.
+  assembly: assembly.yaml
+  annotations:
+    example.plurora.dev/proof: ordinary-third-party-component

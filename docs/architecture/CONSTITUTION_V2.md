@@ -266,13 +266,13 @@ Experience 是声明式组合，World 是运行后持续存在的上层实体。
 WorldHead
 ├── state_root
 ├── history_root
-├── composition_lock
+├── assembly_lock
 ├── protocol_profiles
 ├── policy_root
 └── provenance_root
 ```
 
-World bundle 必须能在不执行原组件的情况下被读取和审计。升级组件产生新的 composition lock；重新执行非确定性步骤产生新分支；删除组件不能使历史变得不可读。
+World bundle 必须能在不执行原组件的情况下被读取和审计。升级组件产生新的 AssemblyLock；重新执行非确定性步骤产生新分支；删除组件不能使历史变得不可读。
 
 ## 协议成熟度
 

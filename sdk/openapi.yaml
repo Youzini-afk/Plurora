@@ -185,6 +185,10 @@ components:
           - type: 'null'
         node_id:
           $ref: '#/components/schemas/NodeId'
+        ports:
+          items:
+            $ref: '#/components/schemas/PortDescriptor'
+          type: array
         source:
           $ref: '#/components/schemas/AssemblyNodeSource'
       required:
@@ -1187,22 +1191,6 @@ components:
       - version
       title: ComponentDescriptor
       type: object
-    ComponentLockPin:
-      properties:
-        behavior_digest:
-          type: string
-        component_id:
-          type: string
-        digest:
-          type: string
-        trust_class:
-          $ref: '#/components/schemas/ComponentTrustClass'
-      required:
-      - behavior_digest
-      - component_id
-      - digest
-      - trust_class
-      type: object
     ComponentTrustClass:
       enum:
       - sandboxed_component
@@ -1212,30 +1200,6 @@ components:
       - static_resource
       - foreign_capsule
       type: string
-    CompositionLock:
-      $schema: https://json-schema.org/draft/2020-12/schema
-      properties:
-        components:
-          items:
-            $ref: '#/components/schemas/ComponentLockPin'
-          type: array
-        content_roots:
-          items:
-            $ref: '#/components/schemas/ArtifactDescriptor'
-          type: array
-        protocol_profiles:
-          items:
-            $ref: '#/components/schemas/ProtocolProfilePin'
-          type: array
-        schema:
-          type: string
-      required:
-      - components
-      - content_roots
-      - protocol_profiles
-      - schema
-      title: CompositionLock
-      type: object
     ContextBranchListResult:
       items:
         $schema: https://json-schema.org/draft/2020-12/schema
@@ -4977,7 +4941,6 @@ components:
       - target_id
       type: object
     PortDescriptor:
-      $schema: https://json-schema.org/draft/2020-12/schema
       properties:
         annotations:
           additionalProperties: true
@@ -5005,7 +4968,6 @@ components:
       - interaction
       - port_id
       - role
-      title: PortDescriptor
       type: object
     PortDirection:
       enum:
@@ -7917,10 +7879,10 @@ components:
         annotations:
           additionalProperties: true
           type: object
+        assembly_lock:
+          $ref: '#/components/schemas/ArtifactDescriptor'
         bundle_type_uri:
           type: string
-        composition_lock:
-          $ref: '#/components/schemas/ArtifactDescriptor'
         effect_receipts:
           items:
             $ref: '#/components/schemas/ArtifactDescriptor'
@@ -7964,8 +7926,8 @@ components:
         world_id:
           type: string
       required:
+      - assembly_lock
       - bundle_type_uri
-      - composition_lock
       - journal_ranges
       - lineage
       - object_descriptors
@@ -7994,7 +7956,7 @@ components:
         annotations:
           additionalProperties: true
           type: object
-        composition_lock:
+        assembly_lock:
           $ref: '#/components/schemas/ArtifactDescriptor'
         effect_receipts:
           items:
@@ -8027,7 +7989,7 @@ components:
         world_id:
           type: string
       required:
-      - composition_lock
+      - assembly_lock
       - head_type_uri
       - history_root
       - protocol_profiles

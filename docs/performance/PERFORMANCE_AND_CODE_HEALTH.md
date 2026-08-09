@@ -46,7 +46,7 @@ tsc -p clients/web/tsconfig.json --noEmit
 - subprocess echo invoke（Python 可用时）。
 - in-memory event store append/list/range。
 - scale scenarios：1k / 10k / 100k events。
-- composition check。
+- Work source check 与递归 Assembly 解析。
 - profile YAML load。
 - subprocess / outbound scenarios：cold start、handshake、1/10/100 KiB steady invoke、fake outbound execute throughput、fake stream TTFT，以及一个记录为 skipped 的 steady-stream slot。
 
@@ -78,7 +78,7 @@ Conformance 支持：
 - protocol dispatch 按 domain helper 拆分，同时保持 `PlatformMethod` 为单一事实源。
 - first-party in-process dispatch 从线性链改为 provider-indexed table。它仍使用 package-aware routing，不给 first-party fast path。
 - shared inproc safety helper 收敛 raw-secret 和拒绝逻辑。
-- composition/package diagnostics 使用 set/index，避免明显的 O(n²) 扫描。
+- Work/Package diagnostics 使用 set/index，避免明显的 O(n²) 扫描。
 
 后续结构拆分应继续遵守：
 

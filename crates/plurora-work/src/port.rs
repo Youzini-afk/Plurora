@@ -38,6 +38,17 @@ impl InteractionModelId {
         KNOWN_INTERACTION_MODELS.contains(&self.0.as_str())
     }
 
+    pub fn is_directly_supported(&self) -> bool {
+        matches!(
+            self.0.as_str(),
+            INTERACTION_CAPABILITY_UNARY
+                | INTERACTION_CAPABILITY_STREAM
+                | INTERACTION_ARTIFACT
+                | INTERACTION_SNAPSHOT
+                | INTERACTION_ENDPOINT
+        )
+    }
+
     pub fn validate(&self) -> ModelResult<()> {
         validate_protocol_text(&self.0, "interaction model")
     }
@@ -181,8 +192,15 @@ pub struct TransportPolicy {
 impl TransportPolicy {
     pub fn validate(&self) -> ModelResult<()> {
         self.requirements.validate()?;
+        let mut classes = BTreeSet::new();
         for class in &self.preferred_classes {
             validate_protocol_text(class, "preferred transport class")?;
+            if !classes.insert(class) {
+                return Err(ModelError::new(
+                    DiagnosticCode::PortIncompatible,
+                    "transport policy contains a duplicate preferred class",
+                ));
+            }
         }
         Ok(())
     }
@@ -284,11 +302,21 @@ pub fn check_transport_policy_compatibility(
     consumer: &TransportRequirements,
     policy: &TransportPolicy,
 ) -> ModelResult<()> {
-    policy.validate()?;
-    check_transport_requirement_sets(&[provider, consumer, &policy.requirements])
+    merged_transport_requirements(provider, consumer, policy).map(|_| ())
 }
 
-fn check_transport_requirement_sets(requirements: &[&TransportRequirements]) -> ModelResult<()> {
+pub fn merged_transport_requirements(
+    provider: &TransportRequirements,
+    consumer: &TransportRequirements,
+    policy: &TransportPolicy,
+) -> ModelResult<TransportRequirements> {
+    policy.validate()?;
+    merge_transport_requirement_sets(&[provider, consumer, &policy.requirements])
+}
+
+fn merge_transport_requirement_sets(
+    requirements: &[&TransportRequirements],
+) -> ModelResult<TransportRequirements> {
     for requirement in requirements {
         requirement.validate()?;
         if !requirement.extensions.is_empty() {
@@ -314,13 +342,94 @@ fn check_transport_requirement_sets(requirements: &[&TransportRequirements]) -> 
             Some(existing) => existing.intersection(&allowed).copied().collect(),
         });
     }
-    if candidates.is_some_and(|values| values.is_empty()) {
+    if candidates.as_ref().is_some_and(BTreeSet::is_empty) {
         return Err(ModelError::new(
             DiagnosticCode::PortIncompatible,
             "port and binding transport constraints have no common class",
         ));
     }
-    Ok(())
+    let latency_classes = requirements
+        .iter()
+        .filter_map(|requirement| requirement.max_latency_class.as_deref())
+        .collect::<BTreeSet<_>>();
+    if latency_classes.len() > 1 {
+        return Err(ModelError::new(
+            DiagnosticCode::PortIncompatible,
+            "port and binding latency classes have no declared compatibility",
+        ));
+    }
+    Ok(TransportRequirements {
+        same_process: requirements
+            .iter()
+            .any(|requirement| requirement.same_process),
+        local_only: requirements
+            .iter()
+            .any(|requirement| requirement.local_only),
+        ordered: requirements.iter().any(|requirement| requirement.ordered),
+        reliable: requirements.iter().any(|requirement| requirement.reliable),
+        max_latency_class: latency_classes.into_iter().next().map(str::to_string),
+        large_payload: requirements
+            .iter()
+            .any(|requirement| requirement.large_payload),
+        // This field is permission rather than a requirement. Shared memory is
+        // selectable only when every participant and the policy allow it.
+        shared_memory_allowed: requirements
+            .iter()
+            .all(|requirement| requirement.shared_memory_allowed),
+        allowed_classes: candidates
+            .unwrap_or_default()
+            .into_iter()
+            .map(str::to_string)
+            .collect(),
+        extensions: BTreeMap::new(),
+    })
+}
+
+pub fn select_transport(
+    provider: &TransportRequirements,
+    consumer: &TransportRequirements,
+    policy: &TransportPolicy,
+) -> ModelResult<SelectedTransport> {
+    let merged = merged_transport_requirements(provider, consumer, policy)?;
+    let allowed = merged.allowed_classes.iter().collect::<BTreeSet<_>>();
+    let class_id = policy
+        .preferred_classes
+        .iter()
+        .find(|class| allowed.is_empty() || allowed.contains(class))
+        .cloned()
+        .or_else(|| merged.allowed_classes.first().cloned())
+        .unwrap_or_else(|| {
+            if merged.same_process {
+                "plurora.transport.same-process/v1".to_string()
+            } else if merged.local_only {
+                "plurora.transport.local/v1".to_string()
+            } else {
+                "plurora.transport.capability/v1".to_string()
+            }
+        });
+    let mut properties = BTreeMap::from([
+        ("same_process".to_string(), Value::Bool(merged.same_process)),
+        ("local_only".to_string(), Value::Bool(merged.local_only)),
+        ("ordered".to_string(), Value::Bool(merged.ordered)),
+        ("reliable".to_string(), Value::Bool(merged.reliable)),
+        (
+            "large_payload".to_string(),
+            Value::Bool(merged.large_payload),
+        ),
+        (
+            "shared_memory".to_string(),
+            Value::Bool(merged.shared_memory_allowed),
+        ),
+    ]);
+    if let Some(latency) = merged.max_latency_class {
+        properties.insert("max_latency_class".to_string(), Value::String(latency));
+    }
+    let selected = SelectedTransport {
+        class_id,
+        properties,
+    };
+    selected.validate()?;
+    Ok(selected)
 }
 
 pub fn check_port_compatibility(
@@ -331,7 +440,7 @@ pub fn check_port_compatibility(
     consumer.validate()?;
     let PortRole::Export {
         effect_class,
-        multiplicity: _,
+        ref multiplicity,
     } = provider.role
     else {
         return Err(ModelError::new(
@@ -341,6 +450,7 @@ pub fn check_port_compatibility(
     };
     let PortRole::Import {
         ref accepted_effects,
+        multiplicity: ref consumer_multiplicity,
         ..
     } = consumer.role
     else {
@@ -349,8 +459,10 @@ pub fn check_port_compatibility(
             "binding consumer is not an import port",
         ));
     };
-    check_transport_requirement_sets(&[&provider.transport, &consumer.transport])?;
-    if !provider.interaction.is_known() || !consumer.interaction.is_known() {
+    merge_transport_requirement_sets(&[&provider.transport, &consumer.transport])?;
+    if !provider.interaction.is_directly_supported()
+        || !consumer.interaction.is_directly_supported()
+    {
         return Err(ModelError::new(
             DiagnosticCode::UnsupportedInteraction,
             "binding uses an interaction model without an implementation or adapter",
@@ -386,6 +498,8 @@ pub fn check_port_compatibility(
         || !import_requirement.matches(&export_version)
         || !consumer_profiles.is_subset(&provider_profiles)
         || !accepted_effects.contains(&effect_class)
+        || multiplicity.max == Some(0)
+        || consumer_multiplicity.max == Some(0)
     {
         return Err(ModelError::new(
             DiagnosticCode::PortIncompatible,
@@ -532,6 +646,42 @@ mod tests {
     }
 
     #[test]
+    fn described_but_unimplemented_interactions_require_an_adapter() {
+        let mut provider = port(
+            PortRole::Export {
+                multiplicity: PortMultiplicity {
+                    min: 0,
+                    max: Some(1),
+                },
+                effect_class: EffectClass::Pure,
+            },
+            "1.0.0",
+        );
+        let mut consumer = port(
+            PortRole::Import {
+                multiplicity: PortMultiplicity {
+                    min: 1,
+                    max: Some(1),
+                },
+                latest_binding_phase: BindingPhase::Authoring,
+                availability: AvailabilityPolicy::Required,
+                accepted_effects: vec![EffectClass::Pure],
+            },
+            "^1.0",
+        );
+        provider.interaction = InteractionModelId(INTERACTION_EVENT_STREAM.to_string());
+        consumer.interaction = provider.interaction.clone();
+        assert!(provider.interaction.is_known());
+        assert!(!provider.interaction.is_directly_supported());
+        assert_eq!(
+            check_port_compatibility(&provider, &consumer)
+                .unwrap_err()
+                .code,
+            DiagnosticCode::UnsupportedInteraction
+        );
+    }
+
+    #[test]
     fn unknown_transport_extensions_round_trip_but_cannot_bind() {
         let mut provider = port(
             PortRole::Export {
@@ -584,6 +734,127 @@ mod tests {
         };
         assert_eq!(
             check_transport_policy_compatibility(&provider, &consumer, &policy)
+                .unwrap_err()
+                .code,
+            DiagnosticCode::PortIncompatible
+        );
+    }
+
+    #[test]
+    fn every_port_contract_dimension_filters_incompatible_candidates() {
+        let provider = port(
+            PortRole::Export {
+                multiplicity: PortMultiplicity {
+                    min: 0,
+                    max: Some(1),
+                },
+                effect_class: EffectClass::ExternalEffecting,
+            },
+            "1.2.0",
+        );
+        let consumer = port(
+            PortRole::Import {
+                multiplicity: PortMultiplicity {
+                    min: 1,
+                    max: Some(1),
+                },
+                latest_binding_phase: BindingPhase::Installation,
+                availability: AvailabilityPolicy::Required,
+                accepted_effects: vec![EffectClass::ExternalEffecting],
+            },
+            "^1.0",
+        );
+        check_port_compatibility(&provider, &consumer).unwrap();
+
+        for mismatch in [
+            "protocol",
+            "interface",
+            "version",
+            "profile",
+            "interaction",
+            "effect",
+            "multiplicity",
+        ] {
+            let mut changed_provider = provider.clone();
+            let mut changed_consumer = consumer.clone();
+            match mismatch {
+                "protocol" => changed_provider.contract.protocol_id = "other.protocol".to_string(),
+                "interface" => changed_provider.contract.interface_id = "other".to_string(),
+                "version" => changed_consumer.contract.version = "^2.0".to_string(),
+                "profile" => changed_consumer
+                    .contract
+                    .profiles
+                    .push("required/extra/v1".to_string()),
+                "interaction" => {
+                    changed_consumer.interaction =
+                        InteractionModelId(INTERACTION_CAPABILITY_STREAM.to_string())
+                }
+                "effect" => {
+                    if let PortRole::Import {
+                        ref mut accepted_effects,
+                        ..
+                    } = changed_consumer.role
+                    {
+                        *accepted_effects = vec![EffectClass::Pure];
+                    }
+                }
+                "multiplicity" => {
+                    if let PortRole::Export {
+                        ref mut multiplicity,
+                        ..
+                    } = changed_provider.role
+                    {
+                        multiplicity.max = Some(0);
+                    }
+                }
+                _ => unreachable!(),
+            }
+            assert_eq!(
+                check_port_compatibility(&changed_provider, &changed_consumer)
+                    .unwrap_err()
+                    .code,
+                DiagnosticCode::PortIncompatible,
+                "{mismatch}"
+            );
+        }
+    }
+
+    #[test]
+    fn transport_boolean_constraints_merge_without_silent_downgrade() {
+        let provider = TransportRequirements {
+            same_process: true,
+            ordered: true,
+            large_payload: true,
+            shared_memory_allowed: true,
+            allowed_classes: vec!["inproc".to_string(), "ipc".to_string()],
+            ..TransportRequirements::default()
+        };
+        let consumer = TransportRequirements {
+            local_only: true,
+            reliable: true,
+            shared_memory_allowed: false,
+            max_latency_class: Some("interactive".to_string()),
+            allowed_classes: vec!["inproc".to_string()],
+            ..TransportRequirements::default()
+        };
+        let merged =
+            merged_transport_requirements(&provider, &consumer, &TransportPolicy::default())
+                .unwrap();
+        assert!(merged.same_process && merged.local_only && merged.ordered && merged.reliable);
+        assert!(merged.large_payload);
+        assert!(!merged.shared_memory_allowed);
+        assert_eq!(merged.allowed_classes, vec!["inproc"]);
+        assert_eq!(merged.max_latency_class.as_deref(), Some("interactive"));
+
+        let mismatch = TransportPolicy {
+            requirements: TransportRequirements {
+                max_latency_class: Some("batch".to_string()),
+                ..TransportRequirements::default()
+            },
+            preferred_classes: Vec::new(),
+        };
+        assert_eq!(
+            merged_transport_requirements(&provider, &consumer, &mismatch)
                 .unwrap_err()
                 .code,
             DiagnosticCode::PortIncompatible

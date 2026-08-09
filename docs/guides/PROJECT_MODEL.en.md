@@ -262,16 +262,16 @@ host/project.stopped
 host/project.uninstalled
 ```
 
-## Difference from Composition
+## Boundary with Work / Assembly
 
-| Composition (existing) | Project (new) |
+| Work / Assembly | Project (transitional legacy Host lifecycle) |
 |---|---|
-| Static package-set descriptor | Runtime instance + state |
-| Validated by `plurora composition check` | Managed by `plurora project list/start/stop` |
-| Used for share/import bundles | Used for Home + install lifecycle |
-| `plurora-cli` internal type | `plurora-core` public type |
+| Portable content and component-assembly Artifact DAG | Runtime record and state on one Host |
+| Validated and packed by `plurora work check/pack` | Temporarily managed by `plurora project list/start/stop` |
+| Shared as an Artifact closure without host paths or secrets | May contain Host-local runtime information |
+| Work, Assembly, Ports, and AssemblyLock | Legacy Project identity; never the permanent Work identity |
 
-In the future, one composition template can instantiate multiple projects with different ids and the same package set. The current version does not require that; one project is usually one concrete composition instance.
+One WorkRevision can produce multiple independent Installations and Runs on different Hosts. The current Project API remains a transitional Host-lifecycle implementation; it does not replace WorkRevision and must not write host-local state back into Work content identity.
 
 ## Install detection
 

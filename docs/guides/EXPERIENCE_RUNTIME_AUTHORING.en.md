@@ -189,7 +189,7 @@ Experience-runtime packages are ordinary packages. Any third-party package that 
 - Same surface slots (experience_entry, play_renderer, forge_panel, assistant_action)
 - Same capability shape
 - No publisher priority
-- Declare replacement via composition descriptor
+- Select the implementation through an explicit Assembly Port Binding; never choose among multiple candidates by publisher
 
 ## Red Lines
 

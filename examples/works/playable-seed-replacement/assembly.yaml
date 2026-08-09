@@ -1,0 +1,6 @@
+schema: plurora.assembly-source.v1
+assembly:
+  id: example/playable-seed/main
+  nodes:
+    - id: seed
+      component: packages/playable-seed/manifest.yaml

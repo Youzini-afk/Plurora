@@ -13,7 +13,6 @@ autoload:
   - ../packages/plurora/event-tools/manifest.yaml
   - ../packages/plurora/assistant-lab/manifest.yaml
   - ../packages/plurora/blank-experience/manifest.yaml
-  - ../packages/plurora/composition-lab/manifest.yaml
   - ../packages/plurora/asset-lab/manifest.yaml
   - ../packages/plurora/projection-lab/manifest.yaml
   - ../packages/plurora/playable-seed/manifest.yaml

@@ -46,7 +46,7 @@ tsc -p clients/web/tsconfig.json --noEmit
 - Subprocess echo invocation when Python is available.
 - In-memory event store append/list/range.
 - Scale scenarios: 1k / 10k / 100k events.
-- Composition check.
+- Work-source checking and recursive Assembly resolution.
 - Profile YAML load.
 - Subprocess / outbound scenarios: cold start, handshake, 1/10/100 KiB steady invoke, fake outbound execute throughput, fake stream TTFT, and a steady-stream slot documented as skipped.
 
@@ -78,7 +78,7 @@ Completed low-risk structural improvements:
 - Protocol dispatch split into domain helpers while preserving `PlatformMethod` as the source of truth.
 - First-party in-process dispatch moved from a linear chain to a provider-indexed table. It still preserves package-aware routing and avoids first-party fast paths.
 - Shared in-process safety helper for raw-secret and rejection logic.
-- Composition/package diagnostics use sets/indexes to avoid obvious O(n²) scans.
+- Work/Package diagnostics use sets/indexes to avoid obvious O(n²) scans.
 
 Future structural splits should keep:
 

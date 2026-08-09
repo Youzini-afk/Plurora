@@ -269,17 +269,16 @@ host/project.stopped
 host/project.uninstalled
 ```
 
-## 与 Composition 的区别
+## 与 Work / Assembly 的边界
 
-| Composition (现有) | Project (新) |
+| Work / Assembly | Project（过渡中的旧 Host 生命周期） |
 |---|---|
-| 静态 package-set 描述符 | 运行时实例 + 状态 |
-| `plurora composition check` 校验 | `plurora project list/start/stop` |
-| 用于 share/import bundles | 用于 Home + 安装 lifecycle |
-| `plurora-cli` 内部类型 | `plurora-core` 公开类型 |
+| 可移植的内容与组件装配 Artifact DAG | 某台 Host 上的运行时记录与状态 |
+| 由 `plurora work check/pack` 校验和打包 | 暂由 `plurora project list/start/stop` 管理 |
+| 可通过 Artifact closure 分享，不携带本机路径与 secret | 可包含 Host-local 运行信息 |
+| Work、Assembly、Port 与 AssemblyLock | 旧 Project identity；不会成为 Work 的永久身份 |
 
-未来一个 composition 模板可以实例化为多个项目（不同 id，同一个包集）。当前
-版本不强求这一点 —— 一个项目通常就是一个 composition 的具体实例。
+同一个 WorkRevision 可以在不同 Host 上产生多个独立的 Installation 与 Run。当前 Project API 仍是 Host 生命周期的过渡实现；它不能替代 WorkRevision，也不能把本机状态写回 Work 内容身份。
 
 ## 安装检测
 

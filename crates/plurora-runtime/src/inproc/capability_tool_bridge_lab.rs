@@ -1348,7 +1348,7 @@ mod tests {
                 "plan_node_id": "node_infer_1",
                 "target_branch_scope": "branch:target:main",
                 "scratch_branch_scope": "branch:scratch:s1",
-                "asset_scope": "asset:composition:demo",
+                "asset_scope": "asset:work:demo",
                 "approval_policy": "fork_then_approve",
             }),
         );

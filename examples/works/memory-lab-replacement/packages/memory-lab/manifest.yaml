@@ -1,0 +1,15 @@
+schema_version: 1
+id: thirdparty/memory-lab
+version: 0.1.0
+display_name: Community Memory Lab
+entry:
+  kind: rust_inproc
+  crate_ref: thirdparty-memory-lab
+  symbol: register
+  abi_version: 1
+provides: []
+consumes: []
+requires: []
+contributes: {}
+permissions: {}
+sandbox_policy: {}

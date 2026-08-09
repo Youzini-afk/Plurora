@@ -189,7 +189,7 @@ Experience-runtime Package 是普通 Package。任何满足相同 surface 与 ca
 - 同等 surface slot（experience_entry、play_renderer、forge_panel、assistant_action）
 - 同等能力形状
 - 无 publisher priority
-- 通过 composition descriptor 声明替换
+- 通过 Assembly 的显式 Port Binding 选择实现；多候选时不按 publisher 选择
 
 ## 红线
 

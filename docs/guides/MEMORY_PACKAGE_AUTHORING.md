@@ -122,8 +122,8 @@
 
 - 相同 9 项能力、3 个 surface。
 - 相同输出形态（`memory_record`、`retrieval_trace`、`update_draft`、`correction`、`redaction_plan`、`branch_view`、`provenance`）。
-- 通过 `examples/compositions/memory-lab-replacement/composition.yaml` 加载。
-- 官方 `memory-lab` 列为 `replacement_candidate`，不是默认 provider。
+- 通过 `examples/works/memory-lab-replacement/work.yaml` 投影为 Work/Assembly 节点。
+- 官方 `memory-lab` 不是默认 provider；多个兼容候选必须显式 Binding，否则保持 ambiguous。
 
 ## 这不是什么
 

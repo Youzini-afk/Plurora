@@ -5,7 +5,6 @@ These packages are infrastructure examples and host tooling batteries. They are 
 - `plurora/package-lab`
 - `plurora/schema-tools`
 - `plurora/event-tools`
-- `plurora/composition-lab`
 - `plurora/asset-lab`
 - `plurora/projection-lab`
 - `plurora/persona-lab`
@@ -23,8 +22,6 @@ These packages are infrastructure examples and host tooling batteries. They are 
 - `plurora/playable-seed`
 
 They load through ordinary manifests, provide ordinary capabilities, and contribute ordinary surface descriptors.
-
-`plurora/composition-lab` explains package compositions, launch plans, permission previews, and surface graphs without private host access.
 
 `plurora/asset-lab` inspects opaque assets and drafts import/diff plans; asset writes still go through protocol/proposal paths.
 

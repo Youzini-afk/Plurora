@@ -24,7 +24,7 @@ Plurora 将“软件如何被获取”与“软件声称实现什么行为”分
 
 - `ComponentDescriptor`：component artifact、behavior artifact、trust class、边界声明、capability、协议实现、内容根与 surface；
 - `PackageEnvelopeDescriptor`：package manifest、component descriptor、packaged protocol、内容根、surface 与辅助 artifact；
-- `CompositionLock`：分别锁定 component artifact、protocol profile 与 content root。
+- `AssemblyLock`：锁定 AssemblyRevision、节点 artifact、具体 binding provider、protocol profile 与 content root。
 
 对象键会 canonicalize；无序声明集合在散列前排序、去重。package identity 参与 envelope digest，但不参与显式 component 的 behavior digest。因此两个 package 可以不同，同时保持相同 component ID 与行为声明。
 
@@ -89,17 +89,20 @@ Package record 与 lifecycle event 会公开 package-envelope digest 和 compone
 
 Conforming in-process package 通过 `ComponentEnv` 收到 component ID 与 digest；subprocess handshake 收到 package-envelope digest 与 component descriptor，Foreign Capsule handshake 的 v1 capability/permission/binding 集合为空。这样 audit 与 replay 可以在 installer envelope 之外独立识别具体实现。
 
-## Composition lock
+Component artifact payload 同时保存 typed entry 与 contract mode。验证器由这两个事实重新推导 `entry_kind`、trust class 与 boundary claims，并严格核对 protocol/Surface 引用类型、secret reference 与 portable path；payload 不能靠自报字段提升 trust。
 
-`CompositionLock` 分别维护三组 pin：
+## Assembly lock
+
+`AssemblyLock` 从 AssemblyRevision 根开始维护相互分离的 pin：
 
 ```text
-components         component ID + artifact digest + behavior digest + trust class
+nodes              node ID + component/子 AssemblyLock artifact + behavior digest + trust class
+bindings           provider/consumer Port + 具体 provider component + transport + phase
 protocol_profiles  protocol ID + version + selected profile
 content_roots      完整 ArtifactDescriptor
 ```
 
-替换 component pin 不会修改 content root。安装 lock entry 持久化相同的 component/profile/content pin，并额外记录 package-envelope digest。`check_lockfile` 会从已安装 manifest 重新派生这些值，并将其漂移与 manifest、tree、静态 surface hash 的漂移分别报告。
+Adapter 不是 BindingLock 上的特殊旁路字段：它是普通 Component node，provider→adapter import 与 adapter export→consumer 分别形成普通 Binding，因此两段 transport、multiplicity、behavior、provenance 与 content roots 都进入同一 lock DAG。Component node 的完整 Port 合同属于 canonical AssemblyRevision，因此 compatibility 语义变化会改变 Assembly、Work 和 Lock digest，而不是只改变一次 resolver 的临时输入。替换 node pin 不会修改 content root。嵌套 Assembly 通过子 `AssemblyLock` artifact 形成可审计的 lock DAG；执行层可以 flatten，lock 身份不会丢失封装边界。Package 安装 lock entry 继续持久化 package-envelope、component/profile/content pin；`check_lockfile` 会从已安装 manifest 重新派生这些值，并将其漂移与 manifest、tree、静态 surface hash 的漂移分别报告。
 
 ## Conformance 含义
 
@@ -115,6 +118,6 @@ Protocol 与 implementation conformance 仍是独立报告。把实现装进 pac
 
 - `component-descriptor.schema.json`
 - `package-envelope-descriptor.schema.json`
-- `composition-lock.schema.json`
+- `assembly-lock.schema.json`
 
 三者均为 `docs/spec/v1/schemas/` 下的 additive Experimental schema。

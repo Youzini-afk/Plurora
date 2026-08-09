@@ -1,0 +1,8 @@
+schema: plurora.work-source.v1
+work:
+  id: example/memory-lab
+  title: Community Memory Lab
+  description: A Work containing an ordinary third-party memory component.
+  assembly: assembly.yaml
+  annotations:
+    example.plurora.dev/proof: ordinary-third-party-component

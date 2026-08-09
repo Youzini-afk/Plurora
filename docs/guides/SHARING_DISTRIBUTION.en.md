@@ -2,56 +2,96 @@
 
 > [English](./SHARING_DISTRIBUTION.en.md) · [中文](./SHARING_DISTRIBUTION.md)
 
-This document describes shareable, reproducible, and importable composition and Session distribution under the current Contract V1. `plurora/sharing-lab` is the current ordinary Package and Component implementation; long-term shared meaning may enter an optional Sharing Protocol rather than the constitutional substrate.
+This guide describes shareable, verifiable, and importable Work and Session distribution under the current Contract V1. `plurora/sharing-lab` is an ordinary Package and Component; shared meaning may belong to an optional Sharing Protocol, not the constitutional substrate.
 
-## Core Principles
+## Core principles
 
-- Share first, marketplace later: the current implementation is local/file-level sharing. It covers composition bundles, branch/session bundle manifests, package-set lockfiles, compatibility/migration reports, AI disclosure metadata, read-only shared session manifests, and async fork sharing plans.
-- No marketplace: no package signing network, dependency resolver economy, or hosted billing. Distribution is local file exchange, not a commercial marketplace.
-- No `platform.sharing.*`: shared Sharing meaning belongs to an optional Protocol, while concrete import/export behavior is implemented by ordinary Components and Products rather than the constitutional substrate.
-- No raw secrets: only `secret_ref` references are allowed in bundles; raw secrets are never stored.
-- No public network required: the current sharing fixtures use local files and need no remote service or public network access.
+- A Work Bundle only transports immutable `WorkRevision` / root `AssemblyRevision` / `AssemblyLock` content references and their closure. `work_id` is a logical name, not a substitute for content digest identity.
+- A package-set lockfile is distribution metadata. It does not own Work identity and cannot replace `AssemblyLock`.
+- The current implementation exchanges local files only. It introduces no marketplace, signing network, dependency-resolution economy, or hosted billing.
+- A bundle never stores a raw secret. A `secret_ref` is an unresolved reference only.
+- Import only validates input and produces a user-approval-gated plan. It does not install, run, use the network, or derive execution authority from agent output.
 
-## Sharing Contract
+## Sharing contract
 
-`plurora/sharing-lab` provides 9 capabilities and 3 surfaces (forge_panel, assistant_action, home_card). The core contract:
+`plurora/sharing-lab` provides nine capabilities and three surfaces (`forge_panel`, `assistant_action`, and `home_card`):
 
 | Capability | Purpose |
 |---|---|
-| `describe_sharing_contract` | Describe the sharing contract: capabilities, surfaces, output shapes, red-line constraints |
-| `export_composition_bundle` | Export a composition as a self-contained bundle: manifest + lockfile + disclosure |
-| `import_composition_bundle` | Import a bundle, validating shape, compatibility, and no-raw-secrets constraints |
-| `create_branch_session_bundle` | Create a branch/session bundle manifest for sharing a specific session state |
-| `create_package_set_lockfile` | Create a package-set lockfile pinning exact package versions and content addresses |
-| `compatibility_report` | Produce a compatibility/migration report between two bundle versions or package sets |
-| `ai_disclosure_bundle` | Produce AI disclosure metadata bundle for composition or session content |
-| `read_only_share_manifest` | Create a read-only shared session manifest (current local/file-level implementation) |
-| `async_fork_share_plan` | Create an async fork sharing plan (current local implementation for deferred/async session fork sharing) |
+| `describe_sharing_contract` | Describe capabilities, surfaces, output shapes, and red lines |
+| `export_work_bundle` | Export `WorkRevision` + root `AssemblyRevision` + `AssemblyLock` references, distribution locks, and disclosures |
+| `import_work_bundle` | Validate a Work Bundle and return a `plan_only` import result |
+| `create_branch_session_bundle` | Create a branch/session bundle manifest for specific Session state |
+| `create_package_set_lockfile` | Pin exact Package versions and content addresses |
+| `compatibility_report` | Compare two bundles or Package sets and produce a compatibility report |
+| `ai_disclosure_bundle` | Record AI-origin disclosure for Work, Artifact, or Session content |
+| `read_only_share_manifest` | Create a local-file read-only Session share manifest |
+| `async_fork_share_plan` | Create an approval-gated asynchronous fork sharing plan |
 
-## Bundle Shapes
+There is no alias for the retired bundle capabilities, no prior-field reader, and no format fallback.
 
-### Composition Bundle
+## Work Bundle wire shape
 
 ```json
 {
-  "bundle_id": "bundle:<composition_id>:<content_address>",
+  "kind": "work_bundle",
+  "bundle_id": "work-bundle:example/playable-creation-board:sha256:e329fd36961fcf2b2e6a4b5e6796f3b761a602b5a0c7bcbecfeff9fe62b38539",
   "format_version": "1",
-  "composition_id": "...",
-  "composition_manifest": { ... },
+  "work_id": "example/playable-creation-board",
+  "work_revision": {
+    "artifact_type_uri": "urn:plurora:work-revision:v1",
+    "media_type": "application/json",
+    "digest": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+    "size_bytes": 768,
+    "references": [
+      "sha256:3333333333333333333333333333333333333333333333333333333333333333",
+      "sha256:4444444444444444444444444444444444444444444444444444444444444444"
+    ],
+    "annotations": {}
+  },
+  "assembly_revision": {
+    "artifact_type_uri": "urn:plurora:assembly-revision:v1",
+    "media_type": "application/json",
+    "digest": "sha256:3333333333333333333333333333333333333333333333333333333333333333",
+    "size_bytes": 896,
+    "references": [
+      "sha256:4444444444444444444444444444444444444444444444444444444444444444"
+    ],
+    "annotations": {}
+  },
+  "assembly_lock": {
+    "artifact_type_uri": "urn:plurora:assembly-lock:v1",
+    "media_type": "application/json",
+    "digest": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+    "size_bytes": 1024,
+    "references": [
+      "sha256:3333333333333333333333333333333333333333333333333333333333333333",
+      "sha256:4444444444444444444444444444444444444444444444444444444444444444"
+    ],
+    "annotations": {}
+  },
   "package_set_lockfile": {
-    "lockfile_id": "lockfile:<content_address>",
+    "lockfile_id": "lockfile:sha256:5c4415f0c1f5b3d7bab60554c5520da7526e845cbe05f421a824479f2d83de90",
     "format_version": "1",
     "packages": [
-      { "package_id": "...", "version": "...", "content_address": "sha256:0000000000000000000000000000000000000000000000000000000000000000" }
+      {
+        "package_id": "plurora/playable-creation-board",
+        "version": "0.1.0",
+        "content_address": "sha256:1b6d7f605b8d106a43c0f13fb41996552011e0101e10ffae9ea00796edef566e"
+      }
     ],
-    "content_address": "sha256:0000000000000000000000000000000000000000000000000000000000000000"
+    "content_address": "sha256:5c4415f0c1f5b3d7bab60554c5520da7526e845cbe05f421a824479f2d83de90"
   },
   "ai_disclosure": {
-    "disclosure_id": "disclosure:<bundle_id>",
+    "disclosure_id": "ai-disclosure:sha256:5758295a886ffad108a6eee14628a7ec02c15b89f31cda336294d4e4c0bf560c",
     "items": [
-      { "content_ref": "...", "disclosure_kind": "ai_generated|ai_assisted|human_created|mixed", "description": "..." }
+      {
+        "content_ref": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+        "disclosure_kind": "mixed",
+        "description": "Work bundle with AI-generated and human-created content"
+      }
     ],
-    "content_address": "sha256:0000000000000000000000000000000000000000000000000000000000000000"
+    "content_address": "sha256:5758295a886ffad108a6eee14628a7ec02c15b89f31cda336294d4e4c0bf560c"
   },
   "no_marketplace_fields": true,
   "no_billing_fields": true,
@@ -59,91 +99,68 @@ This document describes shareable, reproducible, and importable composition and 
 }
 ```
 
-### Branch/Session Bundle
+`work_revision`, `assembly_revision`, and `assembly_lock` all use the complete `plurora_core::ArtifactDescriptor` wire shape. The handler reuses `plurora_work` type constants and validators:
+
+- `artifact_type_uri` exactly matches the corresponding type;
+- `media_type` is canonical JSON, `application/json`;
+- `digest` and every `references[]` item are complete SHA-256 values;
+- `size_bytes` is a non-zero integer;
+- references are neither duplicated nor self-referential;
+- annotations satisfy the portable-value rules;
+- both `work_revision` and `assembly_lock` exactly reference `assembly_revision.digest`; a shared ordinary content root cannot impersonate the same Assembly;
+- package-set lockfile identity is recomputed from Package pins, AI disclosure identity covers the actual items, and `bundle_id` then covers the three root descriptors, Package pins, and disclosure.
+
+Missing fields, out-of-contract fields, wrong types, incomplete digests, invalid size/reference shapes, and unrelated closures return `sharing_lab_rejected`. The handler never synthesizes a Work from Package names, titles, or defaults.
+
+## Import result
+
+`import_work_bundle` accepts the `kind: work_bundle` shape above. A supported format validates to:
 
 ```json
 {
-  "bundle_id": "branch-bundle:<session_id>:<branch_ref>:<content_address>",
+  "kind": "work_bundle_import",
+  "bundle_id": "...",
   "format_version": "1",
-  "session_id": "...",
-  "branch_ref": "branch:main",
-  "sequence": 42,
-  "content_address": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
-  "ai_disclosure": { ... }
+  "work_id": "example/playable-creation-board",
+  "work_revision": { "artifact_type_uri": "urn:plurora:work-revision:v1", "media_type": "application/json", "digest": "sha256:...", "size_bytes": 768, "references": ["sha256:..."] },
+  "assembly_revision": { "artifact_type_uri": "urn:plurora:assembly-revision:v1", "media_type": "application/json", "digest": "sha256:...", "size_bytes": 896, "references": ["sha256:..."] },
+  "assembly_lock": { "artifact_type_uri": "urn:plurora:assembly-lock:v1", "media_type": "application/json", "digest": "sha256:...", "size_bytes": 1024, "references": ["sha256:..."] },
+  "ai_disclosure": { "disclosure_id": "ai-disclosure:sha256:...", "items": [{ "content_ref": "sha256:...", "disclosure_kind": "mixed", "description": "..." }], "content_address": "sha256:..." },
+  "compatibility_status": "compatible",
+  "diagnostics": [],
+  "requires_user_approval": true,
+  "plan_only": true
 }
 ```
 
-### Package-Set Lockfile
+Another `format_version` returns `unsupported`; it does not activate an old-format migration or read retired fields. Missing Packages produce a structured `minor_incompatibility`. The result remains only a plan: a later Installation/resolver flow rechecks current authority, policy, and content digests.
 
-```json
-{
-  "lockfile_id": "lockfile:<content_address>",
-  "format_version": "1",
-  "packages": [
-    { "package_id": "...", "version": "...", "content_address": "sha256:0000000000000000000000000000000000000000000000000000000000000000" }
-  ],
-  "content_address": "sha256:0000000000000000000000000000000000000000000000000000000000000000"
-}
-```
+## Session sharing, AI disclosure, and asynchronous fork
 
-### Compatibility Report
+Branch/session bundles, read-only share manifests, and asynchronous fork plans retain Session-layer identity and do not pretend to be Work artifacts. Read-only sharing uses `share_scope: local_file` and `no_remote_service: true`. An asynchronous fork returns `status: draft`, `requires_user_approval: true`, and `plan_only: true`.
 
-```json
-{
-  "report_id": "compat-report:<source>:<content_address>",
-  "source_ref": "bundle:v1",
-  "target_ref": "bundle:v2",
-  "status": "compatible|minor_incompatibility|major_incompatibility|migration_required",
-  "incompatibilities": [
-    { "package_id": "...", "kind": "missing_in_target|version_mismatch|added_in_target", "severity": "minor|major" }
-  ],
-  "migration_steps": [ { "action": "...", "package_id": "..." } ]
-}
-```
+AI disclosure kinds are `ai_generated`, `ai_assisted`, `human_created`, `ai_reviewed`, `mixed`, and `undisclosed`. A disclosure is a claim, not authority, a billing credential, or a legal judgment.
 
-## AI Disclosure
+## Red lines
 
-Every bundle can carry AI disclosure metadata marking content provenance:
+- Reject marketplace, payment, subscription, billing, signing-network, and license-key fields.
+- Reject raw API keys, tokens, and passwords; references only.
+- Do not create constitutional `platform.sharing.*`, `platform.marketplace.*`, or `platform.billing.*` namespaces.
+- Require no public network, remote service, or hidden first-party authority.
+- Export/import, Session sharing, and asynchronous fork perform no external effect.
 
-| `disclosure_kind` | Meaning |
-|---|---|
-| `ai_generated` | Content fully AI-generated |
-| `ai_assisted` | Human-authored with AI assistance |
-| `human_created` | Human original content |
-| `ai_reviewed` | Human-authored with AI review |
-| `mixed` | Mixed provenance |
-| `undisclosed` | Provenance not disclosed |
+## Examples and verification
 
-## Read-Only Sharing & Async Fork
+The complete fixture is under `examples/bundles/playable-creation-board-work-bundle/`:
 
-Read-only sharing (`read_only_share_manifest`): Creates a read-only snapshot proof of a session that can be viewed but not modified by recipients. `share_scope: local_file`, `no_remote_service: true`.
-
-Async fork sharing (`async_fork_share_plan`): Creates an async fork plan allowing recipients to later fork their own session. Status is `draft`, `plan_only: true`, requires user approval.
-
-## Red Lines
-
-The following are explicitly forbidden in the sharing contract:
-
-- Marketplace fields (`marketplace_id`, `marketplace_category`)
-- Billing fields (`billing_token`, `payment_method`, `subscription`)
-- Signing network fields (`signing_network`, `license_key`)
-- Raw secrets (`api_key`, `token`, `password` raw values; only `secret_ref` references allowed)
-- Kernel sharing namespaces (`platform.sharing.*`, `platform.marketplace.*`, `platform.billing.*`)
-- Public network or remote service dependency
-
-## Examples
-
-See `examples/bundles/playable-creation-board-composition-bundle/` for a complete example containing:
-- `bundle.json` — composition bundle + lockfile + compatibility report + AI disclosure
-- `branch-session-bundle.json` — branch/session bundle manifest
-- `read-only-share-manifest.json` — read-only shared session manifest
-- `async-fork-share-plan.json` — async fork sharing plan
-
-## Verification
+- `bundle.json` — WorkRevision, root AssemblyRevision, AssemblyLock references, package-set lockfile, and AI disclosure;
+- `branch-session-bundle.json` — branch/session bundle manifest;
+- `read-only-share-manifest.json` — read-only Session share manifest;
+- `async-fork-share-plan.json` — asynchronous fork sharing plan.
 
 ```bash
-cargo test --workspace
-cargo run -p plurora-cli -- conformance
+cargo test -p plurora-runtime sharing_lab
+cargo run -p plurora-cli -- conformance --tag sharing --fail-fast
 ```
 
-Validation covers contract shape, export/import, lockfile, compatibility report, AI disclosure, read-only sharing, async fork, and red-line constraints.
+Validation covers capability discovery, Work/Assembly descriptor type and portable shape, export/import, format rejection, lockfiles, compatibility reports, AI disclosure, read-only sharing, asynchronous fork, and red lines.
