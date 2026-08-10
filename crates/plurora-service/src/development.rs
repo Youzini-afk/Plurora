@@ -5277,7 +5277,7 @@ where
             "linked-local workspaces are proposal-only; import a managed workspace before Host verification",
         ));
     }
-    let base_summary = workspace_tree_hash(&workspace.root)
+    let base_summary = workspace_tree_hash(&workspace.root, workspace.record.source_kind)
         .await
         .map_err(|error| {
             internal_development_error("failed to inspect installation workspace", error)
@@ -5558,12 +5558,19 @@ struct WorkspaceRecord {
     schema: String,
     workspace_id: WorkspaceId,
     ownership: WorkspaceRecordOwnership,
-    source_kind: String,
+    source_kind: WorkspaceSourceKind,
     source_locator: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     source_ref: Option<String>,
     source_digest: String,
     display_name: String,
+}
+
+#[derive(Debug, Clone, Copy, Deserialize, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+enum WorkspaceSourceKind {
+    Local,
+    Git,
 }
 
 #[derive(Debug, Clone)]
@@ -5866,10 +5873,16 @@ fn file_is_executable(_metadata: &fs::Metadata) -> bool {
     false
 }
 
-async fn workspace_tree_hash(path: &FsPath) -> anyhow::Result<plurora_runtime::WorkspaceTreeHash> {
+async fn workspace_tree_hash(
+    path: &FsPath,
+    source_kind: WorkspaceSourceKind,
+) -> anyhow::Result<plurora_runtime::WorkspaceTreeHash> {
     let path = path.to_path_buf();
-    tokio::task::spawn_blocking(move || {
-        plurora_runtime::compute_external_workspace_tree_hash(&path)
+    tokio::task::spawn_blocking(move || match source_kind {
+        WorkspaceSourceKind::Local => plurora_runtime::compute_external_workspace_tree_hash(&path),
+        WorkspaceSourceKind::Git => {
+            plurora_runtime::compute_external_git_workspace_tree_hash(&path)
+        }
     })
     .await
     .context("workspace hashing task failed")?
@@ -6279,7 +6292,8 @@ where
         source.ownership == initial.workspace_ownership,
         "workspace ownership changed after approval"
     );
-    let live_base = workspace_tree_hash(&source.root).await?;
+    let source_kind = source.record.source_kind;
+    let live_base = workspace_tree_hash(&source.root, source_kind).await?;
     ensure_record_matches_workspace(&source, &live_base.sha256)?;
     anyhow::ensure!(
         live_base.sha256 == initial.base_tree_digest,
@@ -6287,17 +6301,18 @@ where
     );
 
     let scratch = create_development_scratch(&initial.subject, change_set_id)?;
-    if let Err(error) = copy_workspace_snapshot(&source.root, &scratch.workspace).await {
+    if let Err(error) = copy_workspace_snapshot(&source.root, &scratch.workspace, source_kind).await
+    {
         cleanup_change_root(&initial.subject, change_set_id);
         return Err(error);
     }
-    let copied = workspace_tree_hash(&scratch.workspace).await?;
+    let copied = workspace_tree_hash(&scratch.workspace, source_kind).await?;
     anyhow::ensure!(
         copied.sha256 == initial.base_tree_digest,
         "scratch snapshot did not reproduce the approved workspace tree"
     );
     apply_change_set_to_scratch(state.runtime.as_ref(), &initial, &scratch.workspace).await?;
-    let proposed = workspace_tree_hash(&scratch.workspace).await?;
+    let proposed = workspace_tree_hash(&scratch.workspace, source_kind).await?;
 
     let verifying = update_development_record(state, change_set_id, |record| {
         record.status = DevelopmentChangeStatus::Verifying;
@@ -6382,7 +6397,11 @@ struct WorkspaceCopyStats {
     bytes: u64,
 }
 
-async fn copy_workspace_snapshot(source: &FsPath, destination: &FsPath) -> anyhow::Result<()> {
+async fn copy_workspace_snapshot(
+    source: &FsPath,
+    destination: &FsPath,
+    source_kind: WorkspaceSourceKind,
+) -> anyhow::Result<()> {
     let source = source.to_path_buf();
     let destination = destination.to_path_buf();
     tokio::task::spawn_blocking(move || {
@@ -6393,7 +6412,7 @@ async fn copy_workspace_snapshot(source: &FsPath, destination: &FsPath) -> anyho
             "source and scratch workspace roots must not overlap"
         );
         let mut stats = WorkspaceCopyStats::default();
-        copy_workspace_directory(&source, &source, &destination, &mut stats)
+        copy_workspace_directory(&source, &source, &destination, source_kind, &mut stats)
     })
     .await
     .context("workspace copy task failed")?
@@ -6403,6 +6422,7 @@ fn copy_workspace_directory(
     source_root: &FsPath,
     source_dir: &FsPath,
     destination_dir: &FsPath,
+    source_kind: WorkspaceSourceKind,
     stats: &mut WorkspaceCopyStats,
 ) -> anyhow::Result<()> {
     let directory_handle = validated_snapshot_directory_handle(source_root, source_dir)?;
@@ -6412,7 +6432,7 @@ fn copy_workspace_directory(
         let name = entry.file_name();
         if name
             .to_str()
-            .is_some_and(development_snapshot_excluded_name)
+            .is_some_and(|name| development_snapshot_excluded_name(source_kind, name))
         {
             continue;
         }
@@ -6432,7 +6452,7 @@ fn copy_workspace_directory(
                 "development workspace directory limit exceeded"
             );
             fs::create_dir(&destination)?;
-            copy_workspace_directory(source_root, &source, &destination, stats)?;
+            copy_workspace_directory(source_root, &source, &destination, source_kind, stats)?;
         } else if metadata.is_file() {
             stats.files = stats.files.saturating_add(1);
             anyhow::ensure!(
@@ -6543,22 +6563,25 @@ fn ensure_single_link_source(_metadata: &fs::Metadata) -> anyhow::Result<()> {
     Ok(())
 }
 
-fn development_snapshot_excluded_name(name: &str) -> bool {
-    matches!(
-        name,
-        ".git"
-            | ".hg"
-            | ".svn"
-            | ".DS_Store"
-            | "node_modules"
-            | "target"
-            | ".venv"
-            | "venv"
-            | "__pycache__"
-            | ".pytest_cache"
-            | ".mypy_cache"
-            | ".ruff_cache"
-    )
+fn development_snapshot_excluded_name(source_kind: WorkspaceSourceKind, name: &str) -> bool {
+    match source_kind {
+        WorkspaceSourceKind::Git => false,
+        WorkspaceSourceKind::Local => matches!(
+            name,
+            ".git"
+                | ".hg"
+                | ".svn"
+                | ".DS_Store"
+                | "node_modules"
+                | "target"
+                | ".venv"
+                | "venv"
+                | "__pycache__"
+                | ".pytest_cache"
+                | ".mypy_cache"
+                | ".ruff_cache"
+        ),
+    }
 }
 
 async fn apply_change_set_to_scratch<S>(
@@ -7386,6 +7409,132 @@ mod tests {
         assert!(safe_workspace_relative_path(".git/config").is_err());
         assert!(safe_workspace_relative_path("config/.env").is_err());
         assert!(safe_workspace_relative_path("C:\\outside").is_err());
+    }
+
+    #[tokio::test]
+    async fn git_clone_writer_persists_the_development_git_profile_digest() -> anyhow::Result<()> {
+        let temporary = tempfile::tempdir()?;
+        let workspace_id = WorkspaceId::parse("33333333-3333-4333-8333-333333333333")?;
+        let workspace_root = temporary.path().join(workspace_id.as_str());
+        let source = workspace_root.join("source");
+        let tracked_cache = source.join("target/node_modules/.venv/tracked.txt");
+        fs::create_dir_all(tracked_cache.parent().expect("tracked cache has a parent"))?;
+        let workspace_root = fs::canonicalize(workspace_root)?;
+        let source = fs::canonicalize(source)?;
+        let tracked_cache = source.join("target/node_modules/.venv/tracked.txt");
+        fs::write(&tracked_cache, "tracked")?;
+        let script = source.join("run.sh");
+        fs::write(&script, "#!/bin/sh\necho stable\n")?;
+        let request = crate::WorkspaceCloneRequest {
+            workspace_id: workspace_id.clone(),
+            source_url: "https://example.com/repository.git".to_string(),
+            ref_name: "refs/heads/main".to_string(),
+        };
+        let commit_sha = "0123456789abcdef0123456789abcdef01234567";
+        let git_tree_id = "89abcdef0123456789abcdef0123456789abcdef";
+
+        let written =
+            crate::persist_git_workspace_record(&workspace_root, &source, &request, commit_sha)
+                .await?;
+        let (record, _) =
+            read_workspace_record(&workspace_root.join("workspace.json"), &workspace_id)?;
+        let development_hash = workspace_tree_hash(&source, WorkspaceSourceKind::Git).await?;
+        let resolved = ResolvedWorkspace {
+            record: record.clone(),
+            root: source.clone(),
+            ownership: DevelopmentWorkspaceOwnership::Managed,
+        };
+
+        assert_eq!(record.source_ref.as_deref(), Some(commit_sha));
+        assert_ne!(record.source_digest, git_tree_id);
+        assert!(record.source_digest.starts_with("sha256:"));
+        assert_eq!(record.source_digest.len(), "sha256:".len() + 64);
+        assert_eq!(record.source_digest, written.sha256);
+        assert_eq!(record.source_digest, development_hash.sha256);
+        ensure_record_matches_workspace(&resolved, &development_hash.sha256)?;
+
+        fs::write(&tracked_cache, "changed")?;
+        let cache_changed = workspace_tree_hash(&source, WorkspaceSourceKind::Git).await?;
+        assert_ne!(cache_changed.sha256, development_hash.sha256);
+        assert!(ensure_record_matches_workspace(&resolved, &cache_changed.sha256).is_err());
+
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+
+            fs::write(&tracked_cache, "tracked")?;
+            fs::set_permissions(&script, fs::Permissions::from_mode(0o755))?;
+            let mode_changed = workspace_tree_hash(&source, WorkspaceSourceKind::Git).await?;
+            assert_ne!(mode_changed.sha256, development_hash.sha256);
+            assert!(ensure_record_matches_workspace(&resolved, &mode_changed.sha256).is_err());
+        }
+        Ok(())
+    }
+
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn managed_git_workspace_snapshot_preserves_git_profile_and_executable_mode(
+    ) -> anyhow::Result<()> {
+        use std::os::unix::fs::PermissionsExt;
+
+        let temporary = tempfile::tempdir()?;
+        let source = temporary.path().join("source");
+        let snapshot = temporary.path().join("snapshot");
+        fs::create_dir_all(source.join("target/node_modules/.venv"))?;
+        fs::create_dir(&snapshot)?;
+        fs::write(
+            source.join("target/node_modules/.venv/tracked.txt"),
+            "tracked",
+        )?;
+        let script = source.join("run.sh");
+        fs::write(&script, "#!/bin/sh\necho stable\n")?;
+        fs::set_permissions(&script, fs::Permissions::from_mode(0o755))?;
+
+        let expected = workspace_tree_hash(&source, WorkspaceSourceKind::Git).await?;
+        copy_workspace_snapshot(&source, &snapshot, WorkspaceSourceKind::Git).await?;
+        let copied = workspace_tree_hash(&snapshot, WorkspaceSourceKind::Git).await?;
+
+        assert_eq!(copied.sha256, expected.sha256);
+        assert!(snapshot
+            .join("target/node_modules/.venv/tracked.txt")
+            .is_file());
+        fs::set_permissions(snapshot.join("run.sh"), fs::Permissions::from_mode(0o644))?;
+        let mode_changed = workspace_tree_hash(&snapshot, WorkspaceSourceKind::Git).await?;
+        assert_ne!(mode_changed.sha256, expected.sha256);
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn managed_local_workspace_snapshot_keeps_external_workspace_profile(
+    ) -> anyhow::Result<()> {
+        let temporary = tempfile::tempdir()?;
+        let source = temporary.path().join("source");
+        let snapshot = temporary.path().join("snapshot");
+        fs::create_dir_all(source.join("node_modules"))?;
+        fs::create_dir_all(source.join("target"))?;
+        fs::create_dir(&snapshot)?;
+        fs::write(source.join("app.txt"), "stable")?;
+        fs::write(source.join("node_modules/dependency.js"), "one")?;
+        fs::write(source.join("target/cache.bin"), "one")?;
+
+        let expected = workspace_tree_hash(&source, WorkspaceSourceKind::Local).await?;
+        let git_expected = workspace_tree_hash(&source, WorkspaceSourceKind::Git).await?;
+        copy_workspace_snapshot(&source, &snapshot, WorkspaceSourceKind::Local).await?;
+        let copied = workspace_tree_hash(&snapshot, WorkspaceSourceKind::Local).await?;
+
+        assert_eq!(copied.sha256, expected.sha256);
+        assert!(!snapshot.join("node_modules").exists());
+        assert!(!snapshot.join("target").exists());
+        fs::write(source.join("node_modules/dependency.js"), "two")?;
+        fs::write(source.join("target/cache.bin"), "two")?;
+        let cache_changed = workspace_tree_hash(&source, WorkspaceSourceKind::Local).await?;
+        let git_cache_changed = workspace_tree_hash(&source, WorkspaceSourceKind::Git).await?;
+        assert_eq!(cache_changed.sha256, expected.sha256);
+        assert_ne!(git_cache_changed.sha256, git_expected.sha256);
+        fs::write(source.join("app.txt"), "changed")?;
+        let content_changed = workspace_tree_hash(&source, WorkspaceSourceKind::Local).await?;
+        assert_ne!(content_changed.sha256, expected.sha256);
+        Ok(())
     }
 
     #[test]

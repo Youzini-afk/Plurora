@@ -50,7 +50,10 @@ mod text_transform_lab;
 mod thirdparty_agent_runtime;
 mod workspace_lab;
 
-pub use integrity_lab::{compute_external_workspace_tree_hash, WorkspaceTreeHash};
+pub use integrity_lab::{
+    compute_external_git_workspace_tree_hash, compute_external_workspace_tree_hash,
+    WorkspaceTreeHash,
+};
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct InprocInvocation {

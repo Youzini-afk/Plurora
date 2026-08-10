@@ -126,7 +126,7 @@ pub fn compute_external_workspace_tree_hash(dir: &Path) -> Result<WorkspaceTreeH
     compute_workspace_tree_hash(dir, EXTERNAL_WORKSPACE_EXCLUDED_NAMES, true, false)
 }
 
-fn compute_external_git_workspace_tree_hash(dir: &Path) -> Result<WorkspaceTreeHash> {
+pub fn compute_external_git_workspace_tree_hash(dir: &Path) -> Result<WorkspaceTreeHash> {
     compute_workspace_tree_hash(dir, &[], true, true)
 }
 
@@ -788,7 +788,6 @@ mod tests {
         Ok(())
     }
 
-    #[cfg(unix)]
     #[test]
     fn external_git_hash_includes_tracked_cache_names() -> Result<()> {
         let tmp = tempfile::tempdir()?;

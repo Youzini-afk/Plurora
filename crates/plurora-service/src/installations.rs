@@ -1,5 +1,7 @@
 use std::collections::{BTreeMap, BTreeSet};
-use std::fs::{self, OpenOptions};
+use std::fs;
+#[cfg(windows)]
+use std::fs::OpenOptions;
 use std::io::{Read, Write};
 use std::path::{Component, Path, PathBuf};
 use std::sync::{Arc, Mutex, RwLock};
@@ -1924,11 +1926,8 @@ impl InstallationRegistry {
         if !windows_path_matches_directory(&directory, &state, staging_identity)? {
             bail!("replace installation state failed: staged state identity changed");
         }
-        if let Err(error) = remove_safe_tree(&installation, &backup) {
-            // The active state is already atomically installed. Leaving a validated backup
-            // is safer than attempting a second destructive transition.
-            tracing::warn!(target: "plurora_service::installations", %error, "state backup cleanup failed");
-        }
+        remove_safe_tree(&installation, &backup)
+            .map_err(|error| anyhow!("installation state cleanup failed: {error}"))?;
         Ok(())
     }
 
@@ -4001,12 +4000,32 @@ fn write_snapshot_tree(root: &cap_std::fs::Dir, snapshot: &StateSnapshot) -> any
             .map_err(|_| anyhow!("write installation state file failed"))?;
     }
     #[cfg(unix)]
-    root.try_clone()
-        .map_err(|_| anyhow!("clone state staging root failed"))?
-        .into_std_file()
-        .sync_all()
-        .map_err(|_| anyhow!("sync state staging root failed"))?;
+    sync_capability_directory(root, "state staging root")?;
     Ok(())
+}
+
+#[cfg(unix)]
+fn sync_capability_directory(directory: &cap_std::fs::Dir, label: &str) -> anyhow::Result<()> {
+    // `cap_std::fs::Dir::open_dir` deliberately returns an `O_PATH` descriptor
+    // on Linux. It is suitable for handle-relative traversal and identity checks,
+    // but `fsync(2)` rejects it with EBADF. Re-open `.` relative to the already
+    // held capability to obtain a readable directory descriptor without
+    // reintroducing an ambient pathname or following a caller-controlled link.
+    let mut options = cap_std::fs::OpenOptions::new();
+    options.read(true);
+    let durable = directory
+        .open_with(Path::new("."), &options)
+        .map_err(|_| anyhow!("open {label} for sync failed"))?;
+    ensure!(
+        durable
+            .metadata()
+            .map_err(|_| anyhow!("inspect {label} for sync failed"))?
+            .is_dir(),
+        "{label} is not a real directory"
+    );
+    durable
+        .sync_all()
+        .map_err(|_| anyhow!("sync {label} failed"))
 }
 
 fn create_snapshot_directories(
@@ -4070,7 +4089,8 @@ fn remove_safe_tree(owner: &AnchoredDirectory, name: &Path) -> anyhow::Result<()
             .rename(name, &owner_directory, &quarantine)
             .map_err(|_| anyhow!("quarantine installation temporary state failed"))?;
         if !windows_path_matches_directory(&owner_directory, &quarantine, tree_identity)? {
-            let _ = owner_directory.rename(&quarantine, &owner_directory, name);
+            // The stable name has already been detached. Never restore or delete
+            // a quarantine whose identity is not the Host-owned tree we opened.
             bail!("installation temporary state identity changed before removal");
         }
         owner_directory
@@ -4112,13 +4132,22 @@ fn remove_safe_tree(owner: &AnchoredDirectory, name: &Path) -> anyhow::Result<()
         .unwrap_or(false);
     #[cfg(not(windows))]
     if !identity_matches {
-        let _ = owner_directory.rename(&quarantine, &owner_directory, name);
+        // The quarantine now names an exchanged object rather than the opened
+        // Host-owned tree. Restoring or deleting it would mutate an identity we
+        // never authorized, so preserve it under the unpredictable quarantine
+        // name and fail closed.
         bail!("installation temporary state identity changed before removal");
     }
     #[cfg(not(windows))]
     let quarantined = quarantined.expect("identity match requires an open directory");
     #[cfg(not(windows))]
-    remove_inventory_tree(&quarantined, Path::new(""), &inventory)?;
+    if let Err(error) = remove_inventory_tree(&quarantined, Path::new(""), &inventory) {
+        // Some entries may already be gone, so this tree no longer represents a
+        // valid stable state. Keep the exact Host-owned identity under its random
+        // quarantine name for diagnosis/recovery and fail the enclosing effect.
+        // A second name-based move would reopen a TOCTOU substitution window.
+        return Err(error);
+    }
     #[cfg(not(windows))]
     ensure!(
         capability_path_matches_directory(&owner_directory, &quarantine, &tree_handle)?,
@@ -7620,6 +7649,21 @@ mod tests {
         Ok(())
     }
 
+    #[cfg(any(target_os = "linux", target_os = "android"))]
+    #[test]
+    fn capability_directory_sync_reopens_linux_o_path_handle() -> anyhow::Result<()> {
+        let data = tempfile::tempdir()?;
+        let anchor = open_anchored_directory(data.path(), "test sync owner")?;
+        let owner = anchor.capability("test sync owner")?;
+        owner.create_dir("staging")?;
+        let staging = owner.open_dir("staging")?;
+        staging.write("state.bin", b"durable")?;
+
+        sync_capability_directory(&staging, "test staging directory")?;
+        assert_eq!(fs::read(data.path().join("staging/state.bin"))?, b"durable");
+        Ok(())
+    }
+
     #[cfg(all(unix, not(any(target_os = "linux", target_os = "android"))))]
     #[test]
     fn anchored_atomic_replacement_uses_handle_relative_non_linux_unix_io() -> anyhow::Result<()> {
@@ -7724,17 +7768,18 @@ mod tests {
 
     #[cfg(unix)]
     #[test]
-    fn safe_tree_removal_fails_closed_on_post_validation_leaf_and_nested_swaps(
-    ) -> anyhow::Result<()> {
+    fn safe_tree_removal_quarantines_post_validation_leaf_replacement() -> anyhow::Result<()> {
         let owner_root = tempfile::tempdir()?;
         let owner = open_anchored_directory(owner_root.path(), "test removal owner")?;
 
         let leaf = owner_root.path().join("leaf");
         fs::create_dir(&leaf)?;
         fs::write(leaf.join("owned.bin"), b"owned")?;
+        let leaf_identity = same_file::Handle::from_path(&leaf)?;
         let leaf_parked = owner_root.path().join("leaf-parked");
         let outside_leaf = tempfile::tempdir()?;
         fs::write(outside_leaf.path().join("external.bin"), b"external")?;
+        let outside_identity = same_file::Handle::from_path(outside_leaf.path())?;
         inject_remove_tree_swap(
             leaf.clone(),
             leaf.clone(),
@@ -7744,16 +7789,47 @@ mod tests {
         let error = remove_safe_tree(&owner, Path::new("leaf"))
             .expect_err("a replaced leaf must not be recursively removed");
         assert!(error.to_string().contains("identity changed"));
+        assert!(!error
+            .to_string()
+            .contains(owner_root.path().to_string_lossy().as_ref()));
+        assert!(matches!(
+            fs::symlink_metadata(&leaf),
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound
+        ));
+        let mut exchanged_quarantines = fs::read_dir(owner_root.path())?
+            .map(|entry| entry.map(|entry| entry.path()))
+            .collect::<Result<Vec<_>, _>>()?;
+        exchanged_quarantines.retain(|path| {
+            path.file_name()
+                .and_then(|name| name.to_str())
+                .is_some_and(|name| name.starts_with(".removal-") && name.ends_with(".tmp"))
+        });
+        assert_eq!(exchanged_quarantines.len(), 1);
+        let exchanged_quarantine = &exchanged_quarantines[0];
+        assert!(fs::symlink_metadata(exchanged_quarantine)?
+            .file_type()
+            .is_symlink());
+        assert!(same_file::Handle::from_path(exchanged_quarantine)? == outside_identity);
+        assert!(same_file::Handle::from_path(&leaf_parked)? == leaf_identity);
         assert_eq!(fs::read(leaf_parked.join("owned.bin"))?, b"owned");
         assert_eq!(
             fs::read(outside_leaf.path().join("external.bin"))?,
             b"external"
         );
+        Ok(())
+    }
 
+    #[cfg(unix)]
+    #[test]
+    fn safe_tree_removal_keeps_original_quarantine_when_inventory_changes() -> anyhow::Result<()> {
+        let owner_root = tempfile::tempdir()?;
+        let owner = open_anchored_directory(owner_root.path(), "test removal owner")?;
         let nested_root = owner_root.path().join("nested-root");
         let nested = nested_root.join("nested");
         fs::create_dir_all(&nested)?;
         fs::write(nested.join("owned.bin"), b"nested-owned")?;
+        let root_identity = same_file::Handle::from_path(&nested_root)?;
+        let nested_identity = same_file::Handle::from_path(&nested)?;
         let nested_parked = nested_root.join("nested-parked");
         let outside_nested = tempfile::tempdir()?;
         fs::write(
@@ -7766,12 +7842,63 @@ mod tests {
             nested_parked.clone(),
             outside_nested.path().to_path_buf(),
         )?;
-        assert!(remove_safe_tree(&owner, Path::new("nested-root")).is_err());
-        assert_eq!(fs::read(nested_parked.join("owned.bin"))?, b"nested-owned");
+        let error = remove_safe_tree(&owner, Path::new("nested-root"))
+            .expect_err("an inventory change must fail without restoring the stable name");
+        assert!(error.to_string().contains("changed before removal"));
+        assert!(!error
+            .to_string()
+            .contains(owner_root.path().to_string_lossy().as_ref()));
+        assert!(matches!(
+            fs::symlink_metadata(&nested_root),
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound
+        ));
+
+        let mut quarantines = fs::read_dir(owner_root.path())?
+            .map(|entry| entry.map(|entry| entry.path()))
+            .collect::<Result<Vec<_>, _>>()?;
+        quarantines.retain(|path| {
+            path.file_name()
+                .and_then(|name| name.to_str())
+                .is_some_and(|name| name.starts_with(".removal-") && name.ends_with(".tmp"))
+        });
+        assert_eq!(quarantines.len(), 1);
+        let quarantine = &quarantines[0];
+        assert!(fs::symlink_metadata(quarantine)?.file_type().is_dir());
+        assert!(same_file::Handle::from_path(quarantine)? == root_identity);
+        assert!(same_file::Handle::from_path(quarantine.join("nested-parked"))? == nested_identity);
+        assert!(fs::symlink_metadata(quarantine.join("nested"))?
+            .file_type()
+            .is_symlink());
+        assert_eq!(
+            fs::read(quarantine.join("nested-parked/owned.bin"))?,
+            b"nested-owned"
+        );
         assert_eq!(
             fs::read(outside_nested.path().join("external.bin"))?,
             b"nested-external"
         );
+        Ok(())
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn safe_tree_removal_deletes_unchanged_tree_without_quarantine() -> anyhow::Result<()> {
+        let owner_root = tempfile::tempdir()?;
+        let owner = open_anchored_directory(owner_root.path(), "test removal owner")?;
+        let stable = owner_root.path().join("stable");
+        fs::create_dir_all(stable.join("nested"))?;
+        fs::write(stable.join("root.bin"), b"root")?;
+        fs::write(stable.join("nested/leaf.bin"), b"leaf")?;
+
+        remove_safe_tree(&owner, Path::new("stable"))?;
+        assert!(matches!(
+            fs::symlink_metadata(&stable),
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound
+        ));
+        let leftovers = fs::read_dir(owner_root.path())?
+            .map(|entry| entry.map(|entry| entry.file_name()))
+            .collect::<Result<Vec<_>, _>>()?;
+        assert!(leftovers.is_empty());
         Ok(())
     }
 

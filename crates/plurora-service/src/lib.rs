@@ -5428,20 +5428,13 @@ where
     let output = fetch_result?;
 
     let tree_hash = required_string(&output, "tree_hash", "git fetch_tree")?;
-    let record = serde_json::json!({
-        "schema": "plurora.workspace-record.v1",
-        "workspace_id": request.workspace_id.clone(),
-        "ownership": "managed",
-        "source_kind": "git",
-        "source_locator": request.source_url.clone(),
-        "source_ref": commit_sha.clone(),
-        "source_digest": tree_hash.clone(),
-        "display_name": "Git workspace",
-    });
-    write_workspace_record_atomic(
-        &owned_workspace_root.join("workspace.json"),
-        &serde_json::to_vec_pretty(&record)?,
-    )?;
+    persist_git_workspace_record(
+        &owned_workspace_root,
+        &invocation.workspace_dir,
+        &request,
+        &commit_sha,
+    )
+    .await?;
 
     Ok(WorkspaceCloneResult {
         workspace_id: request.workspace_id,
@@ -5451,6 +5444,35 @@ where
         files_written: output.get("files_written").and_then(Value::as_u64),
         total_bytes: output.get("total_bytes").and_then(Value::as_u64),
     })
+}
+
+async fn persist_git_workspace_record(
+    workspace_root: &FsPath,
+    source: &FsPath,
+    request: &WorkspaceCloneRequest,
+    commit_sha: &str,
+) -> anyhow::Result<plurora_runtime::WorkspaceTreeHash> {
+    let source = source.to_path_buf();
+    let source_summary = tokio::task::spawn_blocking(move || {
+        plurora_runtime::compute_external_git_workspace_tree_hash(&source)
+    })
+    .await
+    .context("workspace hashing task failed")??;
+    let record = serde_json::json!({
+        "schema": "plurora.workspace-record.v1",
+        "workspace_id": request.workspace_id.clone(),
+        "ownership": "managed",
+        "source_kind": "git",
+        "source_locator": request.source_url.clone(),
+        "source_ref": commit_sha,
+        "source_digest": source_summary.sha256.clone(),
+        "display_name": "Git workspace",
+    });
+    write_workspace_record_atomic(
+        &workspace_root.join("workspace.json"),
+        &serde_json::to_vec_pretty(&record)?,
+    )?;
+    Ok(source_summary)
 }
 
 fn write_workspace_record_atomic(path: &FsPath, bytes: &[u8]) -> anyhow::Result<()> {

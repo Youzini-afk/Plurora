@@ -35,9 +35,9 @@ pub use contract::{
 pub use event_store::PostgresEventStore;
 pub use event_store::{EventStore, InMemoryEventStore, SqliteEventStore};
 pub use inproc::{
-    compute_external_workspace_tree_hash, prepare_docker_build_context, ComponentEnv,
-    DockerDeploymentReconcileSource, InprocInvocation, InprocPackage, InprocPackageCatalog,
-    PreparedDockerBuildContext, WorkspaceTreeHash,
+    compute_external_git_workspace_tree_hash, compute_external_workspace_tree_hash,
+    prepare_docker_build_context, ComponentEnv, DockerDeploymentReconcileSource, InprocInvocation,
+    InprocPackage, InprocPackageCatalog, PreparedDockerBuildContext, WorkspaceTreeHash,
 };
 pub use installation_control::{
     validate_idempotency_key, InstallationAuthorityRefresh, InstallationAuthoritySubject,
