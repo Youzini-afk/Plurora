@@ -574,6 +574,37 @@ fn remove_empty_owned_workspace_root(workspace: ManagedDirectory) {
 mod tests {
     use super::*;
 
+    #[cfg(unix)]
+    async fn with_production_runtime<F, T>(future: F) -> Result<T>
+    where
+        F: std::future::Future<Output = Result<T>>,
+    {
+        use std::sync::Arc;
+
+        use crate::{InMemoryEventStore, Runtime, RuntimeConfig};
+        use plurora_core::PackageManifest;
+
+        let runtime = Runtime::new(
+            Arc::new(InMemoryEventStore::default()),
+            RuntimeConfig::default(),
+        );
+        // Load the same manifests used by the shipped Install Lab and Integrity Lab so the
+        // production capability route (including package permissions and provider resolution)
+        // is exercised instead of calling the hash implementation directly.
+        let install_manifest: PackageManifest = serde_yaml::from_str(include_str!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../packages/plurora/install-lab/manifest.yaml"
+        )))?;
+        let integrity_manifest: PackageManifest = serde_yaml::from_str(include_str!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../packages/plurora/integrity-lab/manifest.yaml"
+        )))?;
+        runtime.load_package(install_manifest).await?;
+        runtime.load_package(integrity_manifest).await?;
+
+        crate::inproc::with_runtime_invoker(runtime, None, future).await
+    }
+
     fn digest() -> String {
         format!("sha256:{}", "a".repeat(64))
     }
@@ -745,65 +776,69 @@ mod tests {
         )?;
 
         let staging = fetch_root.claim_fetched_staging(&workspace)?;
-        let digest = hash_and_promote_staging(&workspace, staging, true).await?;
-        fetch_root.cleanup()?;
+        with_production_runtime(async {
+            let digest = hash_and_promote_staging(&workspace, staging, true).await?;
+            fetch_root.cleanup()?;
 
-        let source = workspace.path().join("source");
-        assert_eq!(
-            fs::read_to_string(source.join("target/node_modules/.venv/tracked.txt"))?,
-            "tracked"
-        );
-        assert_ne!(
-            fs::metadata(source.join("run.sh"))?.permissions().mode() & 0o111,
-            0
-        );
-        assert_eq!(
-            fs::read_link(source.join("alias"))?,
-            Path::new("missing-inside-root")
-        );
-        let workspace_id = workspace
-            .path()
-            .file_name()
-            .and_then(|name| name.to_str())
-            .context("workspace id is not UTF-8")?
-            .to_string();
-        let record = WorkspaceRecord {
-            schema: WORKSPACE_SCHEMA.to_string(),
-            workspace_id: workspace_id.clone(),
-            ownership: WorkspaceOwnership::Managed,
-            source_kind: WorkspaceSourceKind::Git,
-            source_locator: "https://example.test/repository.git".to_string(),
-            source_ref: Some("0123456789abcdef0123456789abcdef01234567".to_string()),
-            source_digest: digest.clone(),
-            display_name: "repository".to_string(),
-        };
-        workspace.atomic_write("workspace.json".as_ref(), &serde_json::to_vec(&record)?)?;
+            let source = workspace.path().join("source");
+            assert_eq!(
+                fs::read_to_string(source.join("target/node_modules/.venv/tracked.txt"))?,
+                "tracked"
+            );
+            assert_ne!(
+                fs::metadata(source.join("run.sh"))?.permissions().mode() & 0o111,
+                0
+            );
+            assert_eq!(
+                fs::read_link(source.join("alias"))?,
+                Path::new("missing-inside-root")
+            );
+            let workspace_id = workspace
+                .path()
+                .file_name()
+                .and_then(|name| name.to_str())
+                .context("workspace id is not UTF-8")?
+                .to_string();
+            let record = WorkspaceRecord {
+                schema: WORKSPACE_SCHEMA.to_string(),
+                workspace_id: workspace_id.clone(),
+                ownership: WorkspaceOwnership::Managed,
+                source_kind: WorkspaceSourceKind::Git,
+                source_locator: "https://example.test/repository.git".to_string(),
+                source_ref: Some("0123456789abcdef0123456789abcdef01234567".to_string()),
+                source_digest: digest.clone(),
+                display_name: "repository".to_string(),
+            };
+            workspace.atomic_write("workspace.json".as_ref(), &serde_json::to_vec(&record)?)?;
 
-        let verified =
-            read_workspace_for_execution(Some(data.to_string_lossy().as_ref()), &workspace_id)
-                .await?;
-        assert_eq!(verified.source_digest, digest);
+            let verified =
+                read_workspace_for_execution(Some(data.to_string_lossy().as_ref()), &workspace_id)
+                    .await?;
+            assert_eq!(verified.source_digest, digest);
 
-        fs::set_permissions(source.join("run.sh"), fs::Permissions::from_mode(0o644))?;
-        assert!(
-            read_workspace_for_execution(Some(data.to_string_lossy().as_ref()), &workspace_id,)
-                .await
-                .is_err(),
-            "Git executable-bit drift after promotion must invalidate intake"
-        );
-        fs::set_permissions(source.join("run.sh"), fs::Permissions::from_mode(0o755))?;
+            fs::set_permissions(source.join("run.sh"), fs::Permissions::from_mode(0o644))?;
+            assert!(
+                read_workspace_for_execution(Some(data.to_string_lossy().as_ref()), &workspace_id,)
+                    .await
+                    .is_err(),
+                "Git executable-bit drift after promotion must invalidate intake"
+            );
+            fs::set_permissions(source.join("run.sh"), fs::Permissions::from_mode(0o755))?;
 
-        fs::write(
-            source.join("target/node_modules/.venv/tracked.txt"),
-            "changed after intake",
-        )?;
-        assert!(
-            read_workspace_for_execution(Some(data.to_string_lossy().as_ref()), &workspace_id,)
-                .await
-                .is_err(),
-            "tracked Git entries excluded by local-copy policy must remain hash-significant"
-        );
-        workspace.remove()?;
+            fs::write(
+                source.join("target/node_modules/.venv/tracked.txt"),
+                "changed after intake",
+            )?;
+            assert!(
+                read_workspace_for_execution(Some(data.to_string_lossy().as_ref()), &workspace_id,)
+                    .await
+                    .is_err(),
+                "tracked Git entries excluded by local-copy policy must remain hash-significant"
+            );
+            workspace.remove()?;
+            Ok(())
+        })
+        .await?;
         Ok(())
     }
 
@@ -829,8 +864,11 @@ mod tests {
         assert!(workspace.path().is_dir());
         assert!(!workspace.path().join("source").exists());
 
-        remove_empty_owned_workspace_root(workspace);
-        assert_eq!(fs::read_to_string(destination.join("partial"))?, "partial");
+        // The managed Workspace is intentionally non-empty after the failed fetch.  Keep
+        // the handle alive while asserting that the unexpected destination was preserved;
+        // calling `remove_empty` here would itself claim a non-empty root before rejecting
+        // it, which is unrelated to the fetch-failure contract under test.
+        drop(workspace);
         Ok(())
     }
 

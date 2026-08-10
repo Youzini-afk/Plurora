@@ -322,15 +322,40 @@ def prepare_external_work(
     return workspace_id, candidate
 
 
+def work_id_from_candidate(candidate: dict[str, Any]) -> str:
+    work_revision = candidate.get("work_revision")
+    require(
+        isinstance(work_revision, dict),
+        "Installation candidate is missing its WorkRevision descriptor",
+    )
+    require(
+        work_revision.get("artifact_type_uri") == "urn:plurora:work-revision:v1",
+        "Installation candidate does not contain a WorkRevision descriptor",
+    )
+    annotations = work_revision.get("annotations")
+    require(
+        isinstance(annotations, dict),
+        "WorkRevision descriptor is missing typed annotations",
+    )
+    work_id = annotations.get("work_id")
+    require(
+        isinstance(work_id, str) and work_id,
+        "WorkRevision descriptor is missing its typed work_id",
+    )
+    return work_id
+
+
 def create_installation(
     host: Host,
     candidate: dict[str, Any],
     idempotency_key: str,
 ) -> dict[str, Any]:
+    work_id = work_id_from_candidate(candidate)
     created = rpc(
         host,
         "host.installation.create",
         {
+            "work_id": work_id,
             "source": candidate["source"],
             "work_revision": candidate["work_revision"],
             "assembly_lock": candidate["assembly_lock"],
