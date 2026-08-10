@@ -4,7 +4,7 @@
 
 Host 开发控制平面把“为一个项目提出源码变更”与“在主机上执行任意命令”严格分开。它使用现有宪法对象 `Intent -> ChangeSet -> PolicyDecision -> ChangeCommit -> EffectReceipt` 表达因果、审批和效果，但项目解析、scratch、Docker 验证和 workspace promotion 都属于 Host 控制面，不新增 `platform.project.*`、`platform.workspace.*` 或 IDE 产品本体。
 
-`plurora/workspace-lab` 仍是普通、无执行权限的规划包。真实变更只能经受 access-token 保护的 `/host/v1/development/:subject_kind/:subject_id/changes` API 进入 Host，其中 subject 明确为 `workspace` 或 `installation`。Docker 验证由同样普通的 `plurora/docker-runtime-lab` 执行；它没有内核特权。
+`plurora/workspace-lab` 仍是普通、无执行权限的规划包。真实变更只能经受 access-token 保护的 `/host/v1/development/:subject_kind/:subject_id/changes` API 进入 Host，其中 subject 明确为 `workspace` 或 `installation`。Docker 验证作为持久化 Target operation 交给 Managed Target driver 执行；第一方 Package 没有私有执行接口或内核特权。
 
 ## 生命周期
 
@@ -16,12 +16,10 @@ flowchart LR
   P -->|"reject"| R["Rejected"]
   A --> S["Host-owned scratch"]
   S --> V["Static or Docker verification"]
-  V -->|"managed external"| M["Content-addressed promotion"]
-  V -->|"native managed"| B["Verified bundle only"]
-  M --> K["ChangeCommit + EffectReceipt"]
-  M -->|"interrupted"| X["Recovery required"]
-  X --> Q["Descriptor/tree reconciliation"]
-  K -->|"committed Docker verification"| D["Private deployment preview"]
+  V -->|"success"| B["Verified bundle + ChangeCommit + EffectReceipt"]
+  V -->|"interrupted"| X["Recovery required"]
+  X --> Q["Durable Target receipt reconciliation"]
+  B -->|"verified Docker context"| D["Private deployment preview"]
   D --> E["Exact-candidate deployment approval"]
   E -->|"approve"| A2["Health-gated activation"]
   A2 --> R2["Durable VerifiedActivate revision"]
@@ -33,7 +31,7 @@ flowchart LR
 
 源码审批与执行是两个独立请求。审批记录的是服务端返回的精确 operations、verification plan、`required_authority` 和 `expected_effects`；批准后不能替换 ChangeSet 内容。Web 项目控制台在批准按钮旁展示这四类信息。
 
-部署是第二个独立事务。只有已提交、由 Docker 验证的 `managed_external` ChangeSet 才能创建 preview；preview 就绪后还必须单独批准，部署审批 artifact 会绑定精确 target、candidate receipt、verification/build-context refs 与 authority。源码审批不会自动授权部署。
+部署是第二个独立事务。只有已生成不可变 bundle、并由 Docker 验证为 `verified` 的 managed Workspace ChangeSet 才能创建 preview；preview 就绪后还必须单独批准，部署审批 artifact 会绑定精确 target、candidate receipt、verification/build-context refs 与 authority。源码审批不会自动授权部署，也不会自动写回 Workspace。
 
 ## Host API
 
@@ -43,8 +41,8 @@ flowchart LR
 | `GET` | `/host/v1/development/:subject_kind/:subject_id/changes/:change_set_id` | 读取状态与 durable refs |
 | `GET` | `.../:change_set_id/bundle` | 导出 artifact-backed JSON patch bundle |
 | `POST` | `.../:change_set_id/approve` | 一次性批准或拒绝精确 ChangeSet |
-| `POST` | `.../:change_set_id/execute` | 异步暂存、验证，并按所有权决定是否 promotion |
-| `POST` | `.../:change_set_id/recover` | 对账中断的 Docker image 或 managed promotion |
+| `POST` | `.../:change_set_id/execute` | 异步暂存、验证，并生成不可变 verified bundle |
+| `POST` | `.../:change_set_id/recover` | 对账中断的 Docker verification |
 | `POST` | `.../:change_set_id/deployment/preview` | 在显式 target 上从 verified build context 创建 Host 认证 preview |
 | `POST` | `.../:change_set_id/deployment/approve` | 批准或拒绝精确 preview candidate |
 | `POST` | `.../:change_set_id/deployment/activate` | 健康检查后激活已批准 candidate 并提交 durable revision |
@@ -92,11 +90,10 @@ plurora host access --access-token "$PLURORA_HTTP_ACCESS_TOKEN" \
 
 | Workspace ownership | 草拟 | scratch 验证 | 自动写回 |
 |---|---:|---:|---:|
-| `managed_external` | 是 | 是 | 是；只生成新的不可变 digest tree，再原子更新 descriptor |
-| `native_managed` | 是 | 是 | 否；首版只生成 verified bundle |
+| `managed` | 是 | 是 | 否；生成不可变 verified bundle，不原地写回 |
 | `linked_local` | 否 | 否 | 永不；先导入 managed 副本才能进入 Host 验证 |
 
-linked-local 是用户可并发修改的目录。首版不会用“先检查路径、再按路径读取”的竞态方案复制它，也不会自动写用户源码。native workspace 虽由 Host 管理，首版仍不做多文件原地事务；验证结果以 bundle 交付。只有 content-addressed managed external tree 进入自动 promotion。
+linked-local 是用户可并发修改的目录。首版不会用“先检查路径、再按路径读取”的竞态方案复制它，也不会自动写用户源码。managed Workspace 虽由 Host 管理，首版仍不做多文件原地事务；验证结果统一以不可变 bundle 交付。
 
 ## Verified Artifact 到部署
 
@@ -133,10 +130,10 @@ linked-local 是用户可并发修改的目录。首版不会用“先检查路�
 
 - 每个 Installation 或 Workspace subject 使用独立 development journal session。状态转换通过 EventStore 的 `append_with_sequence_if_next` 做 expected-tail compare-and-append；内存、SQLite 和 PostgreSQL 后端提供同一原子语义。
 - 带 idempotency key 的 change id 由 subject + key 确定性派生；同 key 的不同请求在 durable journal 中冲突，而不是只靠进程内 map。
-- development control plane 使用 30 秒全局 Host lease、10 秒心跳。缺少租约会 fail-closed；每次变更写入会核对本地过期时间和 durable lease tail，promotion 前主动续租，并在 descriptor 激活前再次核对。第二个 Host 不能在共享 store 上同时恢复或执行；租约丢失后审批、执行和 promotion 停止。
+- development control plane 使用 30 秒全局 Host lease、10 秒心跳。缺少租约会 fail-closed；每次变更写入会核对本地过期时间和 durable lease tail，并在 Docker 与 verified artifact 效果边界再次核对。第二个 Host 不能在共享 store 上同时恢复或执行；租约丢失后审批、执行和后续效果停止。
 - staging 或静态验证中断没有 workspace promotion，可标记失败并清理 scratch。
-- Docker 验证中断进入 `recovery_required`；恢复按稳定 build id 和完整 ownership labels 删除或确认镜像不存在，然后记录失败终态。
-- managed promotion 在可见效果前持久化旧/新 digest 与 destination 是否预先存在。恢复读取真实 descriptor 和 tree digest：descriptor 已指向新 digest 时补齐成功 commit；仍指向旧 digest 时只清理由本次创建且内容匹配的 orphan；其他状态保持 recovery required。
+- Docker 验证中断进入 `recovery_required`；只有 journal 证明 operation 从未创建，或既有成功 receipt 已证明精确验证镜像被删除时，显式恢复才能记录失败终态。`failed` / `outcome_unknown` 不会自动重建或清理。
+- verified bundle 不修改 live Workspace，因此不存在自动 promotion 或 promotion recovery；中断恢复只对账 durable Target operation，并保留已提交的 content-addressed artifact。
 - deployment preview 或 activation 中断不会自动重放 target effect；journal 回放把事务标记为 `recovery_required`，等待持有有效 project/target authority 的显式 reconcile。
 - reconcile 只会采用 provenance 与 candidate identity 完全一致的 durable active revision，或清理精确的 candidate/route/lease。缺失 durable identity、歧义 lease、所有权冲突或 revision provenance 不一致时继续阻断，不猜测成功。
 - 系统永不自动重放任意项目命令，也不把不确定的部分效果伪装成普通 `failed`。

@@ -1411,7 +1411,7 @@ where
     let mut record = change_for_subject(&state, &subject, &change_set_id)?;
     let installation_id = require_target_installation(&record)?.clone();
     require_identity_installation(&identity, installation_id.as_str())?;
-    if record.status != DevelopmentChangeStatus::Verified
+    if !development_change_allows_deployment(record.status)
         || record.workspace_ownership != DevelopmentWorkspaceOwnership::Managed
     {
         return Err(ServiceError::with_status(
@@ -3992,8 +3992,8 @@ where
         .get(change_set_id)
         .ok_or_else(|| anyhow::anyhow!("development change disappeared"))?;
     anyhow::ensure!(
-        record.status == DevelopmentChangeStatus::Committed,
-        "deployment parent change is no longer committed"
+        development_change_allows_deployment(record.status),
+        "deployment parent change is no longer verified"
     );
     let deployment = record
         .deployment
@@ -4005,6 +4005,10 @@ where
     record.updated_at_ms = now_millis();
     persist_record(state, record.clone()).await?;
     Ok(record)
+}
+
+fn development_change_allows_deployment(status: DevelopmentChangeStatus) -> bool {
+    status == DevelopmentChangeStatus::Verified
 }
 
 async fn await_target_operation<S>(
@@ -5300,8 +5304,7 @@ where
         &base_summary.sha256,
     )
     .await?;
-    let required_authority =
-        required_development_authority(workspace.ownership, &request.verification);
+    let required_authority = required_development_authority(&request.verification);
     let change_set = ChangeSet {
         id: change_set_id.clone(),
         change_set_type_uri: plurora_core::CHANGE_SET_TYPE_URI.to_string(),
@@ -5310,11 +5313,7 @@ where
         preconditions,
         required_authority,
         expected_effects: json!({
-            "kind": if workspace.ownership == DevelopmentWorkspaceOwnership::Managed {
-                "workspace_tree_promotion"
-            } else {
-                "verified_patch_bundle"
-            },
+            "kind": "verified_patch_bundle",
             "subject": subject,
             "target_installation_id": request.target_installation_id,
             "verification": request.verification,
@@ -5492,17 +5491,11 @@ where
     Ok((operations, preconditions))
 }
 
-fn required_development_authority(
-    ownership: DevelopmentWorkspaceOwnership,
-    verification: &DevelopmentVerificationPlan,
-) -> Vec<String> {
+fn required_development_authority(verification: &DevelopmentVerificationPlan) -> Vec<String> {
     let mut authority = vec![
         HostAccessScope::DevelopExecute.as_str().to_string(),
         "host.workspace.stage".to_string(),
     ];
-    if ownership == DevelopmentWorkspaceOwnership::Managed {
-        authority.push("host.workspace.promote".to_string());
-    }
     if let DevelopmentVerificationPlan::DockerBuild { network_mode, .. } = verification {
         authority.push("host.docker.build".to_string());
         if *network_mode == DevelopmentNetworkMode::Bridge {
@@ -6872,7 +6865,7 @@ where
         "workspace_ownership": record.workspace_ownership,
         "base_tree_digest": record.base_tree_digest,
         "proposed_tree_digest": record.proposed_tree_digest,
-        "source_workspace_modified": status == DevelopmentChangeStatus::Committed,
+        "source_workspace_modified": false,
         "linked_local_source_write": false,
     });
     let mut result_references = vec![
@@ -7935,7 +7928,7 @@ mod tests {
 
     #[test]
     fn deployment_preview_requires_exact_verification_provenance() {
-        let mut record = record(DevelopmentChangeStatus::Committed);
+        let mut record = record(DevelopmentChangeStatus::Verified);
         record.verification_plan = DevelopmentVerificationPlan::DockerBuild {
             dockerfile: "Dockerfile".to_string(),
             network_mode: DevelopmentNetworkMode::None,
@@ -8017,8 +8010,50 @@ mod tests {
     }
 
     #[test]
+    fn deployment_parent_requires_verified_bundle() {
+        assert!(development_change_allows_deployment(
+            DevelopmentChangeStatus::Verified
+        ));
+        for status in [
+            DevelopmentChangeStatus::Drafted,
+            DevelopmentChangeStatus::Approved,
+            DevelopmentChangeStatus::Rejected,
+            DevelopmentChangeStatus::Staging,
+            DevelopmentChangeStatus::Verifying,
+            DevelopmentChangeStatus::Promoting,
+            DevelopmentChangeStatus::Committed,
+            DevelopmentChangeStatus::RecoveryRequired,
+            DevelopmentChangeStatus::Failed,
+        ] {
+            assert!(!development_change_allows_deployment(status));
+        }
+    }
+
+    #[test]
+    fn verified_bundle_authority_does_not_claim_workspace_promotion() {
+        let static_authority =
+            required_development_authority(&DevelopmentVerificationPlan::StaticValidation);
+        assert_eq!(
+            static_authority,
+            vec![
+                HostAccessScope::DevelopExecute.as_str().to_string(),
+                "host.workspace.stage".to_string(),
+            ]
+        );
+
+        let docker_authority =
+            required_development_authority(&DevelopmentVerificationPlan::DockerBuild {
+                dockerfile: "Dockerfile".to_string(),
+                network_mode: DevelopmentNetworkMode::None,
+                timeout_secs: None,
+            });
+        assert!(docker_authority.contains(&"host.docker.build".to_string()));
+        assert!(!docker_authority.contains(&"host.workspace.promote".to_string()));
+    }
+
+    #[test]
     fn deployment_reconciliation_adopts_only_the_exact_durable_activation() {
-        let mut record = record(DevelopmentChangeStatus::Committed);
+        let mut record = record(DevelopmentChangeStatus::Verified);
         let mut deployment = deployment(DevelopmentDeploymentStatus::RecoveryRequired);
         let preview_ref = artifact('7');
         let approval_ref = artifact('8');
@@ -8520,7 +8555,7 @@ mod tests {
     async fn development_hydration_requires_recovery_for_interrupted_preview() -> anyhow::Result<()>
     {
         let store = Arc::new(InMemoryEventStore::default());
-        let mut record = record(DevelopmentChangeStatus::Committed);
+        let mut record = record(DevelopmentChangeStatus::Verified);
         record.deployment = Some(deployment(DevelopmentDeploymentStatus::Previewing));
         let snapshot = DevelopmentChangeSnapshot {
             record,
@@ -8534,7 +8569,7 @@ mod tests {
         let lease = acquire_development_host_lease(store.clone(), registry.clone()).await?;
         hydrate_development_control_plane(store.clone(), registry.clone()).await?;
         let restored = registry.get("chg-0123456789abcdef").unwrap();
-        assert_eq!(restored.status, DevelopmentChangeStatus::Committed);
+        assert_eq!(restored.status, DevelopmentChangeStatus::Verified);
         assert_eq!(
             restored.deployment.unwrap().status,
             DevelopmentDeploymentStatus::RecoveryRequired

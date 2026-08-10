@@ -4,7 +4,7 @@
 
 The Host development control plane separates “propose a source change for a project” from “run an arbitrary command on the host.” It uses the existing constitutional sequence `Intent -> ChangeSet -> PolicyDecision -> ChangeCommit -> EffectReceipt` for causality, approval, and effects. Project resolution, scratch workspaces, Docker verification, and workspace promotion remain Host control-plane concerns; no `platform.project.*`, `platform.workspace.*`, or IDE product ontology is added.
 
-`plurora/workspace-lab` remains an ordinary planning package with no execution authority. Real changes enter only through the access-token-protected `/host/v1/development/:subject_kind/:subject_id/changes` API, where the subject is explicitly `workspace` or `installation`. Docker verification is performed by the equally ordinary `plurora/docker-runtime-lab`; it has no kernel privilege.
+`plurora/workspace-lab` remains an ordinary planning package with no execution authority. Real changes enter only through the access-token-protected `/host/v1/development/:subject_kind/:subject_id/changes` API, where the subject is explicitly `workspace` or `installation`. Docker verification is submitted as a durable Target operation to the Managed Target driver; first-party Packages have no private execution API or kernel privilege.
 
 ## Lifecycle
 
@@ -16,12 +16,10 @@ flowchart LR
   P -->|"reject"| R["Rejected"]
   A --> S["Host-owned scratch"]
   S --> V["Static or Docker verification"]
-  V -->|"managed external"| M["Content-addressed promotion"]
-  V -->|"native managed"| B["Verified bundle only"]
-  M --> K["ChangeCommit + EffectReceipt"]
-  M -->|"interrupted"| X["Recovery required"]
-  X --> Q["Descriptor/tree reconciliation"]
-  K -->|"committed Docker verification"| D["Private deployment preview"]
+  V -->|"success"| B["Verified bundle + ChangeCommit + EffectReceipt"]
+  V -->|"interrupted"| X["Recovery required"]
+  X --> Q["Durable Target receipt reconciliation"]
+  B -->|"verified Docker context"| D["Private deployment preview"]
   D --> E["Exact-candidate deployment approval"]
   E -->|"approve"| A2["Health-gated activation"]
   A2 --> R2["Durable VerifiedActivate revision"]
@@ -33,7 +31,7 @@ flowchart LR
 
 Source approval and execution are separate requests. Approval covers the exact server-returned operations, verification plan, `required_authority`, and `expected_effects`; ChangeSet content cannot be replaced after approval. The Web project console renders all four next to the approval action.
 
-Deployment is a second independent transaction. Only a committed `managed_external` ChangeSet verified by Docker can create a preview. Once the preview is ready it needs separate approval, whose artifact binds the exact target, candidate receipt, verification/build-context refs, and authority. Source approval never implies deployment approval.
+Deployment is a second independent transaction. Only a managed Workspace ChangeSet with an immutable bundle and a Docker-verified `verified` result can create a preview. Once the preview is ready it needs separate approval, whose artifact binds the exact target, candidate receipt, verification/build-context refs, and authority. Source approval never implies deployment approval or automatic Workspace write-back.
 
 ## Host API
 
@@ -43,8 +41,8 @@ Deployment is a second independent transaction. Only a committed `managed_extern
 | `GET` | `/host/v1/development/:subject_kind/:subject_id/changes/:change_set_id` | Read state and durable refs |
 | `GET` | `.../:change_set_id/bundle` | Export the artifact-backed JSON patch bundle |
 | `POST` | `.../:change_set_id/approve` | Approve or reject the exact ChangeSet once |
-| `POST` | `.../:change_set_id/execute` | Stage, verify, and promote according to ownership |
-| `POST` | `.../:change_set_id/recover` | Reconcile an interrupted Docker image or managed promotion |
+| `POST` | `.../:change_set_id/execute` | Stage, verify, and produce an immutable verified bundle |
+| `POST` | `.../:change_set_id/recover` | Reconcile an interrupted Docker verification |
 | `POST` | `.../:change_set_id/deployment/preview` | Build a Host-authenticated preview from the verified context on an explicit target |
 | `POST` | `.../:change_set_id/deployment/approve` | Approve or reject the exact preview candidate |
 | `POST` | `.../:change_set_id/deployment/activate` | Health-check, activate, and commit a durable revision |
@@ -92,11 +90,10 @@ plurora host access --access-token "$PLURORA_HTTP_ACCESS_TOKEN" \
 
 | Workspace ownership | Draft | Scratch verification | Automatic write-back |
 |---|---:|---:|---:|
-| `managed_external` | Yes | Yes | Yes; create a new immutable digest tree, then atomically update the descriptor |
-| `native_managed` | Yes | Yes | No; the first version emits a verified bundle only |
+| `managed` | Yes | Yes | No; emit an immutable verified bundle without in-place write-back |
 | `linked_local` | No | No | Never; import a managed copy before Host verification |
 
-A linked-local directory is user-owned and may change concurrently. The first version does not copy it with a check-then-use path scheme and never writes user source. Although a native workspace is Host-managed, this version still avoids an in-place multi-file transaction and delivers a verified bundle instead. Only a content-addressed managed external tree enters automatic promotion.
+A linked-local directory is user-owned and may change concurrently. The first version does not copy it with a check-then-use path scheme and never writes user source. Although a managed Workspace is Host-owned, this version still avoids an in-place multi-file transaction and always delivers an immutable verified bundle instead.
 
 ## Verified Artifact to deployment
 
@@ -133,10 +130,10 @@ A linked-local directory is user-owned and may change concurrently. The first ve
 
 - Each Installation or Workspace subject has its own development journal session. Transitions use EventStore `append_with_sequence_if_next` expected-tail compare-and-append; memory, SQLite, and PostgreSQL implement the same atomic semantics.
 - With an idempotency key, the change id is deterministically derived from subject + key. Different requests using one key conflict in the durable journal instead of relying only on a process-local map.
-- The development control plane holds a global 30-second Host lease with a 10-second heartbeat. Missing lease state fails closed. Every change write checks local expiry and the durable lease tail; promotion renews before effects and checks again before descriptor activation. A second Host cannot recover or execute against the shared store concurrently, and approval, execution, and promotion stop after lease loss.
+- The development control plane holds a global 30-second Host lease with a 10-second heartbeat. Missing lease state fails closed. Every change write checks local expiry and the durable lease tail, with another check at Docker and verified-artifact effect boundaries. A second Host cannot recover or execute against the shared store concurrently, and approval, execution, and later effects stop after lease loss.
 - Interrupted staging or static verification has not promoted a workspace and can fail with scratch cleanup.
-- Interrupted Docker verification enters `recovery_required`; recovery uses the stable build id and full ownership labels to remove the image or confirm it is absent before recording a failed terminal state.
-- Managed promotion persists old/new digests and whether the destination pre-existed before visible effects. Recovery reads the real descriptor and tree: if the descriptor points at the proposed digest, it completes the success commit; if it still points at the previous digest, it removes only a newly created, digest-matching orphan. Anything else remains recovery-required.
+- Interrupted Docker verification enters `recovery_required`. Explicit recovery records a failed terminal only when the journal proves that no operation was created, or an existing successful receipt already proves removal of the exact verifier image. `failed` and `outcome_unknown` are never rebuilt or cleaned automatically.
+- A verified bundle does not mutate the live Workspace, so there is no automatic promotion or promotion recovery. Interrupted recovery reconciles only the durable Target operation and retains already committed content-addressed artifacts.
 - Interrupted deployment preview or activation never automatically replays target effects. Journal replay marks the transaction `recovery_required` until an explicit reconcile runs with valid project/target authority.
 - Reconcile only adopts a durable active revision whose provenance and candidate identity match exactly, or cleans the exact candidate/route/lease. Missing durable identity, ambiguous leases, ownership conflicts, or inconsistent revision provenance remain blocked instead of guessing success.
 - The system never replays arbitrary project commands automatically and never disguises uncertain partial effects as an ordinary failure.
