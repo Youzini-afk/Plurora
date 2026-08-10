@@ -1,11 +1,10 @@
 #!/usr/bin/env python3
-"""Black-box acceptance for external-project development and deployment."""
+"""Black-box acceptance for external Work development and deployment."""
 
 from __future__ import annotations
 
 import json
 import os
-import re
 import secrets
 import socket
 import subprocess
@@ -15,6 +14,7 @@ import time
 import urllib.error
 import urllib.parse
 import urllib.request
+import uuid
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -68,30 +68,6 @@ def run_checked(command: list[str], *, timeout: int = 600) -> subprocess.Complet
             f"command failed with exit code {result.returncode}: {' '.join(command)}\n{result.stdout}"
         )
     return result
-
-
-def install_project(source: str, data_dir: Path) -> str:
-    result = run_checked(
-        [
-            str(PLURORA_BIN),
-            "install",
-            source,
-            "--profile",
-            "default",
-            "--data-dir",
-            str(data_dir),
-            "--workspace-only",
-            "--yes",
-            "--format",
-            "json",
-        ],
-        timeout=300,
-    )
-    match = re.search(r"^Project registered: (\S+)\s*$", result.stdout, re.MULTILINE)
-    require(match is not None, f"install output did not contain a registered project id\n{result.stdout}")
-    project_id = match.group(1)
-    note(f"registered {project_id} from {source}")
-    return project_id
 
 
 def reserve_loopback_port() -> int:
@@ -243,14 +219,26 @@ def start_host(
         raise AcceptanceError(f"Host failed to start; log: {log_path}\n{log[-4000:]}")
 
 
-def project_path(project_id: str, suffix: str) -> str:
-    return f"/host/v1/projects/{urllib.parse.quote(project_id, safe='')}{suffix}"
+def development_path(subject_kind: str, subject_id: str, suffix: str) -> str:
+    require(subject_kind in {"workspace", "installation"}, "invalid development subject kind")
+    return (
+        f"/host/v1/development/{subject_kind}/"
+        f"{urllib.parse.quote(subject_id, safe='')}{suffix}"
+    )
 
 
-def change_path(project_id: str, change_id: str, suffix: str = "") -> str:
-    return project_path(
-        project_id,
+def change_path(workspace_id: str, change_id: str, suffix: str = "") -> str:
+    return development_path(
+        "workspace",
+        workspace_id,
         f"/changes/{urllib.parse.quote(change_id, safe='')}{suffix}",
+    )
+
+
+def installation_deployments_path(installation_id: str, suffix: str = "") -> str:
+    return (
+        f"/host/v1/installations/{urllib.parse.quote(installation_id, safe='')}"
+        f"/deployments{suffix}"
     )
 
 
@@ -267,13 +255,173 @@ def rpc(host: Host, method: str, params: dict[str, Any] | None = None) -> Any:
     return result
 
 
-def assert_public_inventory(host: Host, project_ids: set[str]) -> None:
-    project_result = rpc(host, "host.project.list")
-    require(isinstance(project_result, dict), "host.project.list did not return an object")
-    projects = project_result.get("projects")
-    require(isinstance(projects, list), "host.project.list did not return projects")
-    listed = {project.get("id") for project in projects if isinstance(project, dict)}
-    require(project_ids <= listed, f"public project inventory is missing {project_ids - listed}")
+def invoke_capability(host: Host, capability_id: str, input_value: dict[str, Any]) -> dict[str, Any]:
+    invoked = rpc(
+        host,
+        "capability.invoke",
+        {
+            "capability_id": capability_id,
+            "provider_package_id": "plurora/install-lab",
+            "input": input_value,
+        },
+    )
+    require(isinstance(invoked, dict), f"{capability_id} did not return an invocation object")
+    output = invoked.get("output")
+    require(isinstance(output, dict), f"{capability_id} did not return an object output")
+    return output
+
+
+def prepare_external_work(
+    host: Host,
+    source: str,
+    data_dir: Path,
+) -> tuple[str, dict[str, Any]]:
+    intake = invoke_capability(
+        host,
+        "plurora/install-lab/prepare_external_intake",
+        {"source": source, "data_dir": str(data_dir)},
+    )
+    workspace = intake.get("workspace")
+    plan = intake.get("plan")
+    require(isinstance(workspace, dict), "external intake is missing its Workspace record")
+    require(isinstance(plan, dict), "external intake is missing its Work candidate plan")
+    workspace_id = workspace.get("workspace_id")
+    require(isinstance(workspace_id, str), "external intake is missing workspace_id")
+    try:
+        uuid.UUID(workspace_id)
+    except ValueError as error:
+        raise AcceptanceError("external intake returned a non-UUID workspace_id") from error
+    require(workspace.get("ownership") == "managed", "external intake did not create a managed Workspace")
+
+    executed = invoke_capability(
+        host,
+        "plurora/install-lab/execute_plan",
+        {
+            "plan": plan,
+            "consent": {},
+            "workspace_id": workspace_id,
+            "data_dir": str(data_dir),
+        },
+    )
+    require(
+        executed.get("next_step") == "host.installation.create",
+        "Install Lab did not hand authority to host.installation.create",
+    )
+    candidate = executed.get("installation_candidate")
+    require(isinstance(candidate, dict), "Install Lab did not return an Installation candidate")
+    for field in (
+        "work_revision",
+        "assembly_lock",
+        "display_name",
+        "source",
+        "state_bindings",
+        "secret_policy",
+    ):
+        require(field in candidate, f"Installation candidate is missing {field}")
+    note(f"prepared managed Workspace {workspace_id} from {source}")
+    return workspace_id, candidate
+
+
+def create_installation(
+    host: Host,
+    candidate: dict[str, Any],
+    idempotency_key: str,
+) -> dict[str, Any]:
+    created = rpc(
+        host,
+        "host.installation.create",
+        {
+            "source": candidate["source"],
+            "work_revision": candidate["work_revision"],
+            "assembly_lock": candidate["assembly_lock"],
+            "display_name": candidate["display_name"],
+            "state_bindings": candidate["state_bindings"],
+            "secret_policy": candidate["secret_policy"],
+            "idempotency_key": idempotency_key,
+        },
+    )
+    require(isinstance(created, dict), "host.installation.create did not return an object")
+    view = created.get("installation")
+    require(isinstance(view, dict), "host.installation.create is missing the Installation view")
+    record = view.get("record")
+    require(isinstance(record, dict), "host.installation.create is missing the Installation record")
+    installation_id = record.get("installation_id")
+    require(isinstance(installation_id, str), "Installation record is missing installation_id")
+    try:
+        uuid.UUID(installation_id)
+    except ValueError as error:
+        raise AcceptanceError("host.installation.create returned a non-UUID identity") from error
+    require(record.get("status") == "ready", "new Installation is not ready")
+    require(view.get("revision") == 1, "new Installation did not start at revision 1")
+    note(f"created Installation {installation_id}")
+    return view
+
+
+def exercise_installation_mutations(
+    host: Host,
+    candidate: dict[str, Any],
+) -> str:
+    created = create_installation(host, candidate, "lifecycle-create")
+    installation_id = created["record"]["installation_id"]
+    updated = rpc(
+        host,
+        "host.installation.update",
+        {
+            "installation_id": installation_id,
+            "expected_revision": created["revision"],
+            "work_revision": candidate["work_revision"],
+            "assembly_lock": candidate["assembly_lock"],
+            "display_name": "Acceptance lifecycle updated",
+            "state_action": {"kind": "preserve"},
+            "idempotency_key": "lifecycle-update",
+        },
+    )
+    require(isinstance(updated, dict), "host.installation.update did not return an object")
+    updated_view = updated.get("installation")
+    require(isinstance(updated_view, dict), "host.installation.update is missing its view")
+    require(updated_view.get("revision") == 2, "Installation update did not advance CAS revision")
+    require(updated_view.get("record", {}).get("display_name") == "Acceptance lifecycle updated", "Installation update did not change display_name")
+    require(updated.get("diff", {}).get("display_name_changed") is True, "Installation update did not report its display-name diff")
+
+    removed = rpc(
+        host,
+        "host.installation.remove",
+        {
+            "installation_id": installation_id,
+            "expected_revision": updated_view["revision"],
+            "state_disposition": "keep",
+            "idempotency_key": "lifecycle-remove",
+        },
+    )
+    require(isinstance(removed, dict), "host.installation.remove did not return an object")
+    removed_view = removed.get("installation")
+    require(isinstance(removed_view, dict), "host.installation.remove is missing its view")
+    require(removed_view.get("revision") == 3, "Installation removal did not advance CAS revision")
+    require(removed_view.get("record", {}).get("status") == "removed", "Installation was not retired")
+    fetched = rpc(host, "host.installation.get", {"installation_id": installation_id})
+    require(isinstance(fetched, dict) and fetched.get("record", {}).get("status") == "removed", "removed Installation did not remain auditable")
+    return installation_id
+
+
+def assert_public_inventory(host: Host, installation_ids: set[str]) -> None:
+    installations = rpc(host, "host.installation.list")
+    require(isinstance(installations, list), "host.installation.list did not return a list")
+    listed = {
+        view.get("record", {}).get("installation_id")
+        for view in installations
+        if isinstance(view, dict) and isinstance(view.get("record"), dict)
+    }
+    require(
+        installation_ids <= listed,
+        f"public Installation inventory is missing {installation_ids - listed}",
+    )
+    for installation_id in installation_ids:
+        view = rpc(host, "host.installation.get", {"installation_id": installation_id})
+        require(
+            isinstance(view, dict)
+            and view.get("record", {}).get("installation_id") == installation_id,
+            f"host.installation.get did not return {installation_id}",
+        )
 
     targets = rpc(host, "host.target.list")
     require(isinstance(targets, list), "host.target.list did not return targets")
@@ -284,11 +432,11 @@ def assert_public_inventory(host: Host, project_ids: set[str]) -> None:
     require(local is not None and local.get("status") == "available", "local target is not available")
 
 
-def wait_for_change(host: Host, project_id: str, change_id: str, wanted: str, timeout: int = 600) -> dict[str, Any]:
+def wait_for_change(host: Host, workspace_id: str, change_id: str, wanted: str, timeout: int = 600) -> dict[str, Any]:
     deadline = time.monotonic() + timeout
     previous = None
     while time.monotonic() < deadline:
-        record = http_json(host, change_path(project_id, change_id))
+        record = http_json(host, change_path(workspace_id, change_id))
         status = record.get("status")
         if status != previous:
             note(f"change {change_id}: {status}")
@@ -303,7 +451,7 @@ def wait_for_change(host: Host, project_id: str, change_id: str, wanted: str, ti
 
 def wait_for_deployment(
     host: Host,
-    project_id: str,
+    workspace_id: str,
     change_id: str,
     wanted: str,
     timeout: int = 600,
@@ -311,7 +459,7 @@ def wait_for_deployment(
     deadline = time.monotonic() + timeout
     previous = None
     while time.monotonic() < deadline:
-        record = http_json(host, change_path(project_id, change_id))
+        record = http_json(host, change_path(workspace_id, change_id))
         deployment = record.get("deployment")
         status = deployment.get("status") if isinstance(deployment, dict) else None
         if status != previous:
@@ -348,15 +496,22 @@ def wait_for_deployment(
     raise AcceptanceError(f"deployment for {change_id} did not reach {wanted} within {timeout}s")
 
 
-def wait_for_project_readiness(host: Host, project_id: str, ready: bool, timeout: int = 40) -> dict[str, Any]:
+def wait_for_installation_readiness(
+    host: Host,
+    installation_id: str,
+    ready: bool,
+    timeout: int = 40,
+) -> dict[str, Any]:
     deadline = time.monotonic() + timeout
-    path = project_path(project_id, "/deployments")
+    path = installation_deployments_path(installation_id)
     while time.monotonic() < deadline:
         status = http_json(host, path)
         if status.get("runtime_ready") is ready:
             return status
         time.sleep(1)
-    raise AcceptanceError(f"project {project_id} runtime_ready did not become {ready}")
+    raise AcceptanceError(
+        f"Installation {installation_id} runtime_ready did not become {ready}"
+    )
 
 
 def assert_route(host: Host, route_id: str, marker: bytes) -> None:
@@ -365,9 +520,44 @@ def assert_route(host: Host, route_id: str, marker: bytes) -> None:
     require(marker in body, f"route {route_id} response did not contain {marker!r}")
 
 
+def assert_typed_build_context(
+    host: Host,
+    deployment: dict[str, Any],
+    installation_id: str,
+    workspace_id: str,
+) -> None:
+    target_id = deployment.get("target_id")
+    operation_id = deployment.get("build_operation_id")
+    require(isinstance(target_id, str), "deployment is missing its target_id")
+    require(isinstance(operation_id, str), "deployment is missing its build operation")
+    operation = http_json(
+        host,
+        f"/host/v1/targets/{urllib.parse.quote(target_id, safe='')}"
+        f"/operations/{urllib.parse.quote(operation_id, safe='')}",
+    )
+    require(
+        operation.get("installation_id") == installation_id,
+        "Docker verifier operation is not bound to its Installation",
+    )
+    verifier = operation.get("spec", {}).get("verifier")
+    require(
+        isinstance(verifier, dict) and verifier.get("kind") == "docker_build",
+        "target operation is not a typed Docker build verifier",
+    )
+    require(
+        verifier.get("workspace_id") == workspace_id,
+        "Docker verifier operation is not bound to its Workspace",
+    )
+    require(
+        verifier.get("network_mode") == "none",
+        "Docker verifier operation did not retain network-none isolation",
+    )
+
+
 def deploy_approved_change(
     host: Host,
-    project_id: str,
+    workspace_id: str,
+    installation_id: str,
     *,
     goal: str,
     dockerfile: str,
@@ -381,11 +571,12 @@ def deploy_approved_change(
 ) -> tuple[dict[str, Any], dict[str, Any]]:
     drafted = http_json(
         host,
-        project_path(project_id, "/changes"),
+        development_path("workspace", workspace_id, "/changes"),
         method="POST",
         payload={
             "goal": goal,
             "operations": [{"op": "file_write", "path": "Dockerfile", "content": dockerfile}],
+            "target_installation_id": installation_id,
             "verification": {
                 "kind": "docker_build",
                 "dockerfile": "Dockerfile",
@@ -401,14 +592,14 @@ def deploy_approved_change(
 
     approved = http_json(
         host,
-        change_path(project_id, change_id, "/approve"),
+        change_path(workspace_id, change_id, "/approve"),
         method="POST",
-        payload={"approved": True, "reason": "GitHub CI external-project acceptance"},
+        payload={"approved": True, "reason": "GitHub CI external Work acceptance"},
     )
     require(approved.get("status") == "approved", "ChangeSet approval was not recorded")
-    execute = http_json(host, change_path(project_id, change_id, "/execute"), method="POST", payload={})
+    execute = http_json(host, change_path(workspace_id, change_id, "/execute"), method="POST", payload={})
     require(execute.get("accepted") is True, "approved ChangeSet execution was not accepted")
-    committed = wait_for_change(host, project_id, change_id, "committed")
+    committed = wait_for_change(host, workspace_id, change_id, "committed")
     verification = committed.get("verification_result")
     require(isinstance(verification, dict) and verification.get("succeeded") is True, "Docker verification did not succeed")
     require(verification.get("network_mode") == "none", "Docker verification did not fail closed to network none")
@@ -416,7 +607,7 @@ def deploy_approved_change(
 
     preview_started = http_json(
         host,
-        change_path(project_id, change_id, "/deployment/preview"),
+        change_path(workspace_id, change_id, "/deployment/preview"),
         method="POST",
         payload={
             "target_id": "local",
@@ -430,22 +621,32 @@ def deploy_approved_change(
     )
     preview_deployment = preview_started.get("deployment")
     require(isinstance(preview_deployment, dict), "deployment preview did not create a durable record")
+    require(
+        preview_deployment.get("workspace_id") == workspace_id,
+        "deployment preview is not bound to its typed Workspace",
+    )
     cleanup_routes.add(preview_deployment["preview_route_id"])
-    preview_ready = wait_for_deployment(host, project_id, change_id, "preview_ready")
+    preview_ready = wait_for_deployment(host, workspace_id, change_id, "preview_ready")
+    assert_typed_build_context(
+        host,
+        preview_ready["deployment"],
+        installation_id,
+        workspace_id,
+    )
     preview = preview_ready["deployment"]["preview"]
     cleanup_containers.add(preview["container_id"])
     assert_route(host, preview["route_id"], marker)
 
     deployment_approved = http_json(
         host,
-        change_path(project_id, change_id, "/deployment/approve"),
+        change_path(workspace_id, change_id, "/deployment/approve"),
         method="POST",
         payload={"approved": True, "reason": "verified preview accepted by CI"},
     )
     require(deployment_approved["deployment"]["status"] == "approved", "deployment approval was not recorded")
     activated = http_json(
         host,
-        change_path(project_id, change_id, "/deployment/activate"),
+        change_path(workspace_id, change_id, "/deployment/activate"),
         method="POST",
         payload={},
         timeout=180,
@@ -453,9 +654,11 @@ def deploy_approved_change(
     require(activated["deployment"]["status"] == "active", "approved deployment was not activated")
     assert_route(host, route_id, marker)
 
-    deployments = http_json(host, project_path(project_id, "/deployments"))
+    deployments = http_json(host, installation_deployments_path(installation_id))
     active = deployments.get("active_revision")
-    require(isinstance(active, dict), "project has no active deployment revision")
+    require(isinstance(active, dict), "Installation has no active deployment revision")
+    require(active.get("installation_id") == installation_id, "revision owner is not the target Installation")
+    require(active.get("workspace_id") == workspace_id, "revision source is not the verified Workspace")
     require(active.get("operation") == "verified_activate", "activation did not create a verified revision")
     require(active.get("verified_change_set_id") == change_id, "revision is not bound to its verified ChangeSet")
     cleanup_containers.add(active["receipt"]["container_id"])
@@ -478,7 +681,7 @@ def remove_container(container_ref: str) -> None:
     run_checked(["docker", "rm", "--force", docker_container_id(container_ref)], timeout=60)
 
 
-def cleanup_docker(routes: set[str], containers: set[str], projects: set[str]) -> None:
+def cleanup_docker(routes: set[str], containers: set[str], installations: set[str]) -> None:
     for container_ref in containers:
         subprocess.run(
             ["docker", "rm", "--force", docker_container_id(container_ref)],
@@ -501,9 +704,16 @@ def cleanup_docker(routes: set[str], containers: set[str], projects: set[str]) -
                 stderr=subprocess.DEVNULL,
                 check=False,
             )
-    for project_id in projects:
+    for installation_id in installations:
         listed = subprocess.run(
-            ["docker", "image", "ls", "--quiet", "--filter", f"label=plurora.project_id={project_id}"],
+            [
+                "docker",
+                "image",
+                "ls",
+                "--quiet",
+                "--filter",
+                f"label=plurora.installation_id={installation_id}",
+            ],
             text=True,
             stdout=subprocess.PIPE,
             stderr=subprocess.DEVNULL,
@@ -521,14 +731,20 @@ def cleanup_docker(routes: set[str], containers: set[str], projects: set[str]) -
 
 def write_profile(path: Path) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    docker_manifest = ROOT / "packages" / "plurora" / "docker-runtime-lab" / "manifest.yaml"
+    package_root = ROOT / "packages" / "plurora"
+    manifests = [
+        package_root / "git-tools-lab" / "manifest.yaml",
+        package_root / "integrity-lab" / "manifest.yaml",
+        package_root / "install-lab" / "manifest.yaml",
+        package_root / "docker-runtime-lab" / "manifest.yaml",
+    ]
     path.write_text(
         "title: Host operations acceptance\n"
         "event_store:\n"
         "  kind: sqlite\n"
         "  path: events.sqlite3\n"
         "autoload:\n"
-        f"  - {json.dumps(str(docker_manifest))}\n",
+        + "".join(f"  - {json.dumps(str(manifest))}\n" for manifest in manifests),
         encoding="utf-8",
     )
 
@@ -549,7 +765,7 @@ def main() -> None:
     host: Host | None = None
     cleanup_routes = {"acceptance-mdn", "acceptance-python"}
     cleanup_containers: set[str] = set()
-    project_ids: set[str] = set()
+    installation_ids: set[str] = set()
     temporary = tempfile.TemporaryDirectory(prefix="plurora-host-operations-")
 
     try:
@@ -557,19 +773,28 @@ def main() -> None:
         profile = data_dir / "profiles" / "default.yaml"
         write_profile(profile)
 
-        real_project = install_project(REAL_SOURCE, data_dir)
-        fixture_project = install_project(str(FIXTURE_SOURCE), data_dir)
-        project_ids.update({real_project, fixture_project})
-
         host = start_host(data_dir, profile, token, output_dir)
-        assert_public_inventory(host, project_ids)
+        real_workspace, real_candidate = prepare_external_work(host, REAL_SOURCE, data_dir)
+        fixture_workspace, fixture_candidate = prepare_external_work(
+            host,
+            str(FIXTURE_SOURCE),
+            data_dir,
+        )
+        real_installation_view = create_installation(host, real_candidate, "real-create")
+        fixture_installation_view = create_installation(host, fixture_candidate, "fixture-create")
+        real_installation = real_installation_view["record"]["installation_id"]
+        fixture_installation = fixture_installation_view["record"]["installation_id"]
+        installation_ids.update({real_installation, fixture_installation})
+        retired_installation = exercise_installation_mutations(host, fixture_candidate)
+        assert_public_inventory(host, installation_ids | {retired_installation})
 
         nginx_v1 = """FROM nginx:1.27-alpine
 COPY . /usr/share/nginx/html
 """
         _, real_v1 = deploy_approved_change(
             host,
-            real_project,
+            real_workspace,
+            real_installation,
             goal="Add a reviewed, network-isolated deployment description",
             dockerfile=nginx_v1,
             container_port=80,
@@ -587,7 +812,8 @@ COPY . /usr/share/nginx/html
 """
         _, real_v2 = deploy_approved_change(
             host,
-            real_project,
+            real_workspace,
+            real_installation,
             goal="Produce a second independently verified deployment revision",
             dockerfile=nginx_v2,
             container_port=80,
@@ -610,7 +836,8 @@ CMD ["python", "/srv/server.py"]
 """
         _, fixture_revision = deploy_approved_change(
             host,
-            fixture_project,
+            fixture_workspace,
+            fixture_installation,
             goal="Deploy the structurally different standard-library HTTP service",
             dockerfile=python_dockerfile,
             container_port=8000,
@@ -624,12 +851,12 @@ CMD ["python", "/srv/server.py"]
 
         failed_container = real_v2["receipt"]["container_id"]
         remove_container(failed_container)
-        degraded = wait_for_project_readiness(host, real_project, False)
+        degraded = wait_for_installation_readiness(host, real_installation, False)
         require(degraded.get("recovery_required") is True, "target failure did not require recovery")
 
         recovered = http_json(
             host,
-            project_path(real_project, "/deployments/recover"),
+            installation_deployments_path(real_installation, "/recover"),
             method="POST",
             payload={},
             timeout=180,
@@ -638,20 +865,29 @@ CMD ["python", "/srv/server.py"]
         recovered_revision = recovered["revision"]
         require(recovered_revision["source_commit"] == real_v2["source_commit"], "recovery rebuilt source instead of replaying the revision")
         cleanup_containers.add(recovered_revision["receipt"]["container_id"])
-        wait_for_project_readiness(host, real_project, True)
+        wait_for_installation_readiness(host, real_installation, True)
         assert_route(host, "acceptance-mdn", b"Mozilla is cool")
 
         note("crashing Host to exercise SQLite and runtime projection recovery")
         host.stop(crash=True)
         host = None
         host = start_host(data_dir, profile, token, output_dir, retry_stale_lease=True)
-        assert_public_inventory(host, project_ids)
-        restarted_real = wait_for_project_readiness(host, real_project, True)
+        assert_public_inventory(host, installation_ids | {retired_installation})
+        retired_after_restart = rpc(
+            host,
+            "host.installation.get",
+            {"installation_id": retired_installation},
+        )
+        require(
+            retired_after_restart.get("record", {}).get("status") == "removed",
+            "Host restart did not rehydrate the removed Installation terminal state",
+        )
+        restarted_real = wait_for_installation_readiness(host, real_installation, True)
         require(
             restarted_real.get("active_revision_id") == recovered_revision["revision_id"],
             "Host restart did not restore the durable active revision",
         )
-        restarted_fixture = wait_for_project_readiness(host, fixture_project, True)
+        restarted_fixture = wait_for_installation_readiness(host, fixture_installation, True)
         require(
             restarted_fixture.get("active_revision_id") == fixture_revision["revision_id"],
             "Host restart did not restore the second fixture revision",
@@ -661,7 +897,7 @@ CMD ["python", "/srv/server.py"]
 
         rolled_back = http_json(
             host,
-            project_path(real_project, "/deployments/rollback"),
+            installation_deployments_path(real_installation, "/rollback"),
             method="POST",
             payload={"revision_id": real_v1["revision_id"]},
             timeout=180,
@@ -674,13 +910,16 @@ CMD ["python", "/srv/server.py"]
             "rollback revision does not descend from the recovered active revision",
         )
         cleanup_containers.add(rollback_revision["receipt"]["container_id"])
-        wait_for_project_readiness(host, real_project, True)
+        wait_for_installation_readiness(host, real_installation, True)
         assert_route(host, "acceptance-mdn", b"Mozilla is cool")
 
         summary = {
             "real_source": REAL_SOURCE,
-            "real_project_id": real_project,
-            "fixture_project_id": fixture_project,
+            "real_workspace_id": real_workspace,
+            "fixture_workspace_id": fixture_workspace,
+            "real_installation_id": real_installation,
+            "fixture_installation_id": fixture_installation,
+            "retired_installation_id": retired_installation,
             "verified_revisions": [real_v1["revision_id"], real_v2["revision_id"]],
             "recovered_revision": recovered_revision["revision_id"],
             "rollback_revision": rollback_revision["revision_id"],
@@ -690,12 +929,12 @@ CMD ["python", "/srv/server.py"]
             json.dumps(summary, indent=2, sort_keys=True) + "\n",
             encoding="utf-8",
         )
-        note("external-project Host operations acceptance passed")
+        note("external Work Host operations acceptance passed")
     finally:
         try:
             if host is not None:
                 host.stop()
-            cleanup_docker(cleanup_routes, cleanup_containers, project_ids)
+            cleanup_docker(cleanup_routes, cleanup_containers, installation_ids)
         finally:
             temporary.cleanup()
 

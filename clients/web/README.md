@@ -75,7 +75,7 @@ src/
 │   ├── plurora-client.tsx       # PluroraProvider, usePlurora, useAsync, useEventTail
 │   ├── format.ts               # Shared display helpers (relative time, bytes, etc)
 │   ├── home-data.ts            # Legacy sample data helpers; production screens read host protocol
-│   ├── project-deployment.ts   # Docker and Build & Deploy descriptor parsers for explicit deploy brokers
+│   ├── installation-deployment.ts   # Docker and Build & Deploy descriptor parsers for explicit deploy brokers
 │   └── cn.ts                   # clsx + tailwind-merge composer
 ├── components/
 │   ├── icons.tsx               # Phosphor re-exports with semantic names
@@ -99,7 +99,7 @@ src/
 │   │   ├── hero.tsx
 │   │   ├── continue-card.tsx
 │   │   ├── utility-strip.tsx
-│   │   ├── project-card.tsx
+│   │   ├── installation-card.tsx
 │   │   ├── install-card.tsx
 │   │   ├── activity-timeline.tsx
 │   │   └── workshop-utilities.tsx
@@ -115,7 +115,7 @@ src/
 │   ├── home.tsx
 │   ├── home/                   # Home hooks/helpers (projects, disk, timeline, failure diagnostics)
 │   ├── pairing.tsx             # one-time HTTPS device pairing screen
-│   ├── project-frame.tsx       # iframe wrapper + project/deploy/development console
+│   ├── installation-frame.tsx       # iframe wrapper + project/deploy/development console
 │   └── settings/
 │       ├── index.tsx           # Tab dispatcher
 │       ├── api-connections.tsx # secret-store-lab wired
@@ -148,7 +148,7 @@ src/
 | `#/settings/host-access` | Settings — Host identities, pairing, scopes, revoke |
 | `#/settings/about` | Settings — version, license, links |
 | `/pair?pairing_token=...` | HTTPS one-time device pairing; token is scrubbed immediately |
-| `/project/<id>` | Standalone project tab with a full-viewport mounted surface |
+| `/installation/<id>` | Standalone project tab with a full-viewport mounted surface |
 
 Home and Settings keep hash routing because:
 
@@ -158,7 +158,7 @@ Home and Settings keep hash routing because:
 - It composes naturally with the surface iframe (the surface owns its own
   internal navigation independent of the shell route).
 
-Projects use a path route instead. Home opens `/project/<id>` in a separate
+Projects use a path route instead. Home opens `/installation/<id>` in a separate
 named tab with `noopener,noreferrer`. The project page bypasses the platform
 topbar and fills the viewport with the sandboxed surface iframe. Closing that
 tab does not stop the project session; `⌘ .` / `Ctrl .` stops the current
@@ -186,21 +186,20 @@ mode for legibility on bark backgrounds.
 
 | Page | Source |
 | ---- | ------ |
-| Home — projects | `host.project.list` + per-project `storage_summary` |
+| Home — projects | `host.installation.list` + installation records |
 | Home — shell contributions | `shell.contribution.list` filtered to `quick_action`, `workshop_card`, and schema-versioned `home_card` |
 | Settings — API Connections | `plurora/secret-store-lab/{list,put,delete}_secret` + `health` |
-| Settings — Installed Packages | `host.package.list` + `host.project.list` (project flag) |
+| Settings — Installed Packages | `host.package.list` + `host.installation.list` (installation flag) |
 | Settings — Profiles | `host.diagnostics` (active profile, packages_loaded, allowlist) |
 | Settings — Storage | storage-area summary + event store kind |
 | Settings — Host Access | `/host/v1/access*` identity, pairing, grant, and revoke APIs |
-| Project tab | `host.project.get/start/stop` + `host.surface.bundle.resolve` |
-| Project deployment | `platform.port.*` + `platform.proxy.*` + `plurora/docker-runtime-lab/{start_container,stop_container}` |
-| Install Modal | `plurora/install-lab/{resolve_plan,detect_kind,execute_plan}` through `capability.invoke` |
+| Project tab | `host.installation.get`; Run is unavailable until Phase 4 |
+| Project deployment | `platform.port.*` + `platform.proxy.*` (Phase 4+ surface) |
+| Install Modal | `host.installation.create` with a typed Installation DTO |
 | Failure Modal | `host.package.list/status/logs` redacted failure summaries |
 
 All async views show a shimmer skeleton during load and an `EmptyState` with a
-retry action when the call fails. Mutating actions (delete secret, stop
-project, install) push toast feedback and re-query the underlying resource.
+retry action when the call fails. Mutating actions (delete secret, installation create) push toast feedback and re-query the underlying resource.
 
 The shell never reads raw secret values. Provider keys move from the secret
 store into outbound requests via host-injected `secret_ref` references; the UI
@@ -219,8 +218,7 @@ Project deployment is also explicit. If a project exposes
 controls. Deploy leases a loopback port, invokes `plurora/docker-runtime-lab`,
 then registers a reverse-proxy route. Route exposure defaults to
 `host_authenticated`; the user must explicitly select `public` before a vhost
-can bypass Host identity. `host.project.start` does not deploy
-anything automatically.
+can bypass Host identity. Run lifecycle is unavailable in the Phase 3 Web shell; deployment and realization controls are deferred to later phases.
 
 The Host exposes authenticated routes through `/p/<route_id>/...`. When a route
 is explicitly public and `PLURORA_APP_BASE_DOMAIN` / `--app-base-domain` is
@@ -322,8 +320,8 @@ Production hosting still needs a static fileserver route (deferred).
   — Editorial Workshop design system reference.
 - [`../../docs/guides/SURFACE_HOSTING.md`](../../docs/guides/SURFACE_HOSTING.md)
   — Surface bundle contract and mount lifecycle.
-- [`../../docs/guides/PROJECT_MODEL.md`](../../docs/guides/PROJECT_MODEL.md)
-  — Project lifecycle and Home card semantics.
+- [`../../docs/guides/INSTALLATION_MODEL.md`](../../docs/guides/INSTALLATION_MODEL.md)
+  — Work / Installation lifecycle and Home card semantics.
 - [`../../docs/guides/SECRET_MANAGEMENT.md`](../../docs/guides/SECRET_MANAGEMENT.md)
   — `secret_ref` contract and platform/project scoping.
 - [`../../docs/architecture/HOST_REMOTE_ACCESS.md`](../../docs/architecture/HOST_REMOTE_ACCESS.md)

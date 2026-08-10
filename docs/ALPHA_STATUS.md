@@ -8,10 +8,10 @@
 
 ## 概要
 
-- **Conformance：** 471 个具名 CLI 用例通过，外加 crate / service 单元测试；175 个 v1 schema（80 methods + 59 events + 36 top-level）通过校验。
+- **Conformance：** 具名 CLI conformance 外加 crate / service 单元测试持续通过；177 个 v1 schema（80 methods + 58 events + 39 top-level）通过校验。
 - **章程纪律：** 内核对内容无意见；第一方 Package 没有特权；公开协议是唯一入口；入口形态平等；能力句柄、bindings 注入、Path A / Path B、conformance kit 与生成 SDK 已落地；可信路径阻断 raw secret，全部走 manifest 声明的 `secret_ref`；权限授权可重新水化；网络声明带审计与脱敏；通用流式与取消生命周期；外发执行有边界，默认全拒；公开 HTTPS 出站走同样的 host policy / 审计 / 脱敏边界；一元、SSE/NDJSON/raw 流和 WebSocket 三个原语都有完成审计事件。
 - **代码健康：** CLI、运行时各域行为、协议分发、in-process 处理器、事件存储——都已按域拆分，不再继续往单文件里堆。
-- **人测底座：** 安装 warning 与 schema 形状已稳定；原生项目安装链路从 source → store → nested manifests/profile autoload → project registry → project dist → 受保护的 `/surface-bundles/projects/<project_id>/...` → 短期 sandbox asset lease；`surface_bundle` 是 static、non-executing 入口；`dist/` 已进入 `tree_hash`，store schema 迁移会清掉旧 store，install/update/uninstall 后会回收孤立 store；`plurora/install-lab` 提供 `check_for_updates` / `update_project`，CLI `plurora update` 与 Web 项目控制台都通过它更新；Surface bridge 已收敛 allowlist、stream ownership、诊断脱敏、secret 输入清理、CSP/CORS 加固与 typed `allowed_capability_ids`；桌面端管理 loopback Host sidecar，Web shell 可安装为 PWA；自托管部署底座包含统一 local/Agent target driver、target / exec / port / proxy、HTTP/WebSocket 反代、显式 Deploy broker、默认私有/显式公开 route、共享 Host/project/target 客户端 context，以及 Verified ChangeSet → private preview → 独立部署审批 → activation → reconcile/recover/rollback。可撤销 scoped device pairing 让手机通过同一 Host API 控制项目、部署与 ChangeSet；Web/Desktop/PWA 复用同一 client core，远程 CLI 通过同一 Bearer/public Host 边界完成 project/target 操作以及 ChangeSet 的草拟、审阅、批准/拒绝、执行、导出和恢复完整生命周期。
+- **人测底座：** Work source 可安全 pack 为内容寻址 WorkRevision、AssemblyRevision 与 AssemblyLock；Install Lab 产出 Installation candidate，`host.installation.*` 以 durable journal、幂等键和 revision CAS 创建、更新与移除 Installation；Workspace 与 Installation 分离，linked-local source 永不删除。Web/Desktop/PWA 复用同一 public client core，Home 已读取 Installation projection；真正的 Run / Exposure 生命周期留到下一 Phase。Surface bridge 继续使用 allowlist、stream ownership、诊断脱敏、secret 输入清理与 CSP/CORS；现有 target / exec / port / proxy 与 Deployment broker 会在后续 Realization Phase 被替换。
 
 当前已经形成较大的可运行面，但平台和官方产品都不等于“完成”。后续建设同时关注开放性、多样性、先进执行与协议能力、长期数据演化，以及普通用户和创作者的完整体验。
 
@@ -22,20 +22,21 @@
 - Experimental SHA-256 ObjectStore 与 ArtifactDescriptor 已落地：内存/文件系统 CAS、读取后校验、stream、较早 FNV asset record 的幂等转换；asset 事件只保存 descriptor/ref，不再保存正文。
 - Experimental EffectReceipt 与 Change primitive 已落地：capability/outbound/stream/WebSocket/exec terminal path 生成内容寻址 receipt；历史 replay 不调用 executor；capability re-execute 创建新 branch 与 parent-linked receipt；当前 `change.proposal.*` facade 把 approval-gated operation 映射为 Intent/ChangeSet/PolicyDecision/Commit evidence。
 - Experimental Protocol Commons 注册表已落地：`host.info` 发布 Change、Shell Default、World Bundle、Work 与 Assembly 五个描述符；显式协议/Profile 协商先于 dispatch；不支持的 major 以结构化原因拒绝；protocol、implementation 与 package conformance 使用独立可执行报告。
-- `plurora-work` 已提供内容无关的便携 Work / Assembly / Port / State Slot、Rights / Transparency、Operational Intent / Target Inventory、Installation / Run / Exposure 与 Realization wire 模型，并实现安全 source reader、Package/Foreign/content 归一化、capability-to-Port 投影、带 digest memoization 的递归 resolver、普通 Component Adapter 与有界结构化诊断。`plurora work init|check|pack|inspect` 将 source 与完整 AssemblyLock 闭包内容寻址；旧 Composition 机器身份已移除。Host lifecycle 与旧 Project / Deployment 身份替换仍属于后续 Phase。
+- `plurora-work` 已提供内容无关的便携 Work / Assembly / Port / State Slot、Rights / Transparency、Operational Intent / Target Inventory、Installation / Run / Exposure 与 Realization wire 模型，并实现安全 source reader、Package/Foreign/content 归一化、capability-to-Port 投影、带 digest memoization 的递归 resolver、普通 Component Adapter 与有界结构化诊断。`plurora work init|check|pack|inspect` 将 source 与完整 AssemblyLock 闭包内容寻址；旧 Composition 机器身份已移除。
+- Host Installation lifecycle 已替换旧实例模型：EventStore journal 是唯一 mutable authority，`installation.json` 只是可重建 projection；create/update/remove 支持幂等重放、revision CAS、显式 state keep/delete、state snapshot 与失败回滚。数据布局分为 `objects/`、`installations/`、`workspaces/` 与 `runtime/`，启动不读取旧目录。
 - Package envelope 与 component identity 已分离：显式 component/behavior digest 在重新打包后保持稳定；runtime 与 effect evidence 携带 component trust/边界数据；AssemblyLock 分离 component/profile/content pin；`contract:none` 明确报告为不可移植 Foreign Capsule。
 - Experimental World Bundle 已落地，并由 `plurora/playable-creation-board` 的跨 Host conformance fixture 覆盖：canonical archive descriptor 保留原始 v1 envelope 与完整 SHA-256 closure；全新 SQLite/filesystem Host 保持 object、lineage 与 receipt；historical replay 不调用 executor；替代实现生成 child branch/head；headless CLI 无需 Web Shell 状态即可读取同一 archive。
 - 用 JSON Schema 子集校验能力 I/O 与能力包声明的事件 payload。
 - Contract V1 身份 union 继续保持 `host_admin`、`host_dev`、`package`、`human`、`assistant`、`anonymous`。配对设备在远程 RPC 边界使用 fail-closed 的 `anonymous` V1 sentinel，并通过 Host 建立的 authority envelope 保留 grant、delegation 与资源约束；旧 runtime 忽略新 envelope 时只会拒绝而不会扩大权限。脱敏 Host 控制面审计仍以逻辑 `host_device` 记录设备；human 与 assistant 身份支持作用域授权。
 - 审计事件：`authority/grant.created|revoked`、`authority/denied`、`host/package.*` 生命周期与 `change/proposal.*` 生命周期；Contract V1 之外另有脱敏的 `host/control/v1/authority.decision` Host 控制面授权判定日志。
 - 持久授权：grant / revoke 事件可在 SQLite-backed 运行时中重新水化。
-- Contract V1 是公开平台规范：80 个协议方法、59 个事件类型、175 个 JSON Schema。`authority.handle.*`、`host.package.audit`、能力句柄、bindings 注入、Path B、conformance kit 与 SDK 生成均为 implemented。
+- Contract V1 是公开平台规范：80 个协议方法、58 个事件类型、177 个 JSON Schema。`authority.handle.*`、`host.package.audit`、能力句柄、bindings 注入、Path B、conformance kit 与 SDK 生成均为 implemented。
 
 ## 安全执行
 
 - **`secret_ref` 引用：** 支持 `secret_ref:<vault>:<key>`、`secretRef:`、`secret-ref:`、`host:` 各种前缀。能力包通过引用提及 secret，原始值不出现在事件、提案、日志、审计里。
 - **环境变量解析器：** host 拥有的解析器，带显式 allowlist。默认全拒；env 名要先放行才能解析。错误只带 env 名，绝不带原始值。
-- **本地加密 secret store：** `secret_ref:store:NAME` 通过 `StoreSecretResolver` 从 `~/.plurora/secrets.dat` 解析；`secret_ref:project:NAME` 先读项目级 store，再按 `secret_policy` 回退平台 store；store 使用 age (X25519) 加密，主密钥来自 OS keyring（延后启用）或 0600 本地 key 文件。
+- **本地加密 secret store：** `secret_ref:store:NAME` 通过 `StoreSecretResolver` 从 `~/.plurora/secrets.dat` 解析；`secret_ref:installation:NAME` 先读当前 Installation 的 `secrets.dat`，再按 `secret_policy.allow_platform_fallback` 决定是否回退平台 store；store 使用 age (X25519) 加密，主密钥来自 OS keyring（延后启用）或 0600 本地 key 文件。
 - **Raw secret 阻断：** 提案的 operations / expected effects 与资产 metadata 会被保守扫描，明显的 API key、token、password 字段被拒绝。资产内容与普通文本不扫描，避免误伤用户内容。
 - **网络权限声明：** 清单中的 `permissions.network` 同时支持扁平 `hosts`（向后兼容）和结构化 `declarations`（带 `host` / `methods` / `purpose`）。无声明的 Package 不能出网；第一方 Package 也没有绕过。
 - **外发审计与脱敏：** 每条出站请求都生成审计记录，只含身份、能力包 id、目标主机、方法、用途、脱敏状态、用到的 `secret_ref`，不含原始 body / header / 提示词 / 响应。
@@ -51,7 +52,7 @@
 - Contract Registry `0.1.0` 发布 80 个精确 owner-based method ID、两个显式 contract profile、逐层版本要求与 fail-closed Protocol Commons negotiation。HTTP RPC、Host stdio、in-process 调用与 subprocess reverse stdio 使用同一个精确 resolver；生成 SDK 对每个 wire ID 只暴露一个 method identity，Web client 也只发送这些 ID。
 - 通过 SSE 订阅事件，支持 `after_sequence` 回放和实时追尾。
 - 基于 profile 的 `plurora host serve` 自动加载能力包，对外暴露 `/rpc` 与 SSE。
-- Host 控制平面在 Contract V1 之外保持独立：root token 是根凭据；持久化设备 grant 同时按 action scope 与 `project` / `target` 资源选择器衰减，支持有界委托、祖先撤销级联、过期、单项撤销和原子的管理员批量撤销。HTTP 与 RPC 在进入运行时前保留同一设备身份和 authority，项目会话必须显式绑定项目；每次设备协议调用都会写入脱敏的 allow/deny 判定日志。开发长操作会在 Docker 与 managed-workspace 效应前、以及阻塞验证结束后刷新 grant/祖先状态。移动 PWA 与 `plurora host access` CLI 通过同一 Host API 管理授权，pairing 仍只经 HTTPS 一次性交换为 Secure/HttpOnly Cookie。详见 [`architecture/HOST_REMOTE_ACCESS.md`](architecture/HOST_REMOTE_ACCESS.md)。
+- Host 控制平面在 Contract V1 之外保持独立：root token 是根凭据；持久化设备 grant 同时按 action scope 与 Work / Workspace / Installation / Run / Target / Exposure / Binding / Realization 资源选择器衰减，支持有界委托、祖先撤销级联、过期、单项撤销和原子的管理员批量撤销。HTTP 与 RPC 在进入运行时前保留同一设备身份和 authority；每次设备协议调用都会写入脱敏的 allow/deny 判定日志。移动 PWA 与 `plurora host access` CLI 通过同一 Host API 管理授权，pairing 仍只经 HTTPS 一次性交换为 Secure/HttpOnly Cookie。详见 [`architecture/HOST_REMOTE_ACCESS.md`](architecture/HOST_REMOTE_ACCESS.md)。
 - TCP 传输留作后续工作；WASM 与远程入口在清单中已是一等形式，执行延后。
 
 ## 包执行
@@ -68,65 +69,38 @@
 - 资产注册表：不透明的 `id` / `mime` / `hash` / `size` / `origin_package_id` / `metadata`，可从 SQLite 重新水化。权限执行与内容寻址 blob 存储留待后续。
 - 会话 fork / 分支沿革，可从事件日志重新水化。
 - 通用 projection 注册表：通过 `kind_prefix` 与 `writer_package_id` 过滤事件来重建，写入 `projection/updated`。包持有的 projection 执行留待后续。
-- 项目运行时：`ProjectDescriptor`、`ProjectRegistry`、`~/.plurora/projects/<id>/` 布局、项目级 secret policy、Home 项目卡、项目级 storage summary、redacted package failure summary，以及 `plurora project list/info/status/start/stop` 已落地。
+- Installation 控制面：EventStore journal、可重建 projection、ObjectStore artifact 校验、显式 state action、restart rehydrate，以及 `plurora installation list/info/create/update/remove` 已落地。
 - 部署运行时：`host.target.*`、`host.exec.*`、`host.port.*`、`host.proxy.*` 已落地；默认 deny-all，profile 可显式启用 `LiveLocalExecExecutor`；内置 `local` 与 enrolled Agent 使用相同的 durable operation/artifact/verifier/deployment receipt 合同，端口只绑定 loopback，proxy upstream 必须引用 active port lease，Agent 流量只经认证 tunnel 返回 Host proxy。`ProxyRouteAccess` 默认 `host_authenticated`，只有显式 `public` route 才启用可选 `<slug>.apps.<host>/` 免 Host 认证 vhost，`/p/<route_id>/...` 始终保留在 Host auth 内。Web 项目控制台支持显式 Docker Deploy / Stop、Dockerfile / nixpacks Build & Deploy，以及由 immutable build-context artifact 驱动的 verified ChangeSet private preview、独立审批、`VerifiedActivate` revision、显式 reconcile/recover/rollback；verified replay 在记录的 target 上重建，不读取 live workspace 或重新抓取源码。真实 MDN 仓库与结构不同的 Python fixture 已在 GitHub CI 覆盖故障、Host restart 和 rollback。
 - Surface 贡献：带版本、slot、激活方式、所需权限、审批策略、metadata 的描述符。Slot 包括 `experience_entry`、`home_card`、`quick_action`、`workshop_card`、`play_renderer`、`forge_panel`、`asset_editor`、`assistant_action`。`quick_action`、`workshop_card` 与带 `metadata.shell_schema_version: 1` 的 `home_card` 是结构化 shell descriptor：Web shell 只读取受限文本、icon hint、排序和同包 target，由平台渲染；不加载包 JS、不解析 HTML、不 mount iframe。复杂项目 surface 继续走 `surface_bundle` + sandbox iframe。通过 `shell.contribution.list` 与 `.describe` 发现。
-- Surface bundle：`surface_bundle` 是清单里的静态浏览器 bundle 入口，不是可执行 package entry；安装后的项目 bundle 内部位于 `/surface-bundles/projects/<project_id>/...`，原始路径要求 Host 身份。opaque-origin sandbox 在项目授权后获得绑定 grant/bundle root 的五分钟 `/surface-assets/<lease>/...` 只读句柄，不携带 Host credential。`dist/` 参与 `tree_hash`，因此只改浏览器 bundle 也会触发更新；project dist 通过临时目录 + 原子替换刷新。
+- Surface bundle：`surface_bundle` 是清单里的静态浏览器 bundle 入口，不是可执行 package entry；bundle 按 Package source 解析，原始路径要求 Host 身份。opaque-origin sandbox 获得绑定 grant/bundle root 的五分钟 `/surface-assets/<lease>/...` 只读句柄，不携带 Host credential。
 - 提案生命周期：`change.proposal.create|get|list|approve|reject|apply`。当前 `apply` 只跑通用操作 `asset.put` 与 `projection.rebuild`。更广泛的事务和回滚留待后续。
 
-## 包安装与项目模型
+## Work、Workspace 与 Installation
 
 | 能力 | 状态 |
 |---|---|
-| `manifest.requires` 字段 | implemented |
-| Lockfile schema (`plurora.lock.v1`) | implemented |
-| `plurora/git-tools-lab`（基于 gix） | implemented |
-| `plurora/integrity-lab`（sequoia GPG + sha256） | implemented |
-| `plurora/install-lab` 编排器 | implemented |
-| `plurora install` / `uninstall` / `list-installed` / `update` / `lockfile` CLI | implemented |
-| `~/.plurora` 文件系统约定 | implemented |
-| 交互式同意提示 | implemented |
-| 静态 conformance 集成（默认 warning，`--strict` 阻断） | implemented |
-| GPG 签名验证（默认关闭，`--require-signed` 启用） | implemented |
-| 循环依赖检测 | implemented |
-| 真实 GitHub smoke（opt-in） | implemented |
-| `dist/` 纳入 `tree_hash` | implemented |
-| store schema 迁移清理旧 store | implemented |
-| 孤立 store GC（安装 / 更新 / 卸载后） | implemented |
-| `plurora/install-lab/check_for_updates` | implemented |
-| `plurora/install-lab/update_project` | implemented |
-| `plurora/secret-store-lab` 加密存储 | implemented |
-| `plurora/docker-runtime-lab`（Docker 容器生命周期，bollard） | implemented |
-| `StoreSecretResolver` + `CompositeSecretResolver` | implemented |
-| age (X25519) 加密 + 0600 文件权限 | implemented |
-| OS keyring 集成 | deferred（libdbus-sys 系统依赖） |
-| `plurora secret put / list / delete` CLI | deferred |
-| Sigstore 验签 | deferred |
-| Tauri UI 安装路径 | deferred |
-| 自动更新守护 | deferred |
-| 二进制包分发 | deferred |
-| 项目作为一等运行时概念 | implemented |
-| `ProjectDescriptor` + `ProjectId` + `ProjectType` + `SecretPolicy` | implemented |
-| `~/.plurora/projects/<id>/` 布局 | implemented |
-| `secret_ref:project:NAME` + 平台 fallback | implemented |
-| `ProjectRegistry`（内存 + 磁盘扫描） | implemented |
-| `ProtocolContext.session_id` 传递 | implemented |
-| 安装识别（原生 vs 外部） | implemented |
-| 外部项目 wizard（wrap / workspace） | implemented |
-| `plurora project list/info/status/start/stop` | implemented |
-| `plurora uninstall` 归档提示 | implemented |
-| `host.project.list/get/start/stop/status` | implemented |
-| `host/project.installed/started/stopped/uninstalled` | implemented |
-| Home 项目卡 | implemented |
-| YdlTavern `project.yaml` | implemented |
-| 原生项目安装到 profile、project registry 与 project dist | implemented |
-| `surface_bundle` 静态入口与 installed project bundle route | implemented |
-| typed `allowed_capability_ids` bridge 声明 | implemented |
-| CLI `plurora update` 通过 install-lab 更新项目 | implemented |
-| 多租户级 `project_id` 进入 `ProtocolContext` | deferred |
-| 项目归档超过 30 天自动清理 | deferred |
+| `plurora work init/check/pack/inspect` | implemented |
+| Work / Assembly source、Package、Foreign 与 content-only 归一化 | implemented |
+| 递归 resolver、显式 Adapter、Port / Binding 诊断 | implemented |
+| AssemblyLock 与完整内容寻址闭包 | implemented |
+| `plurora/install-lab` Work candidate 编排 | implemented |
+| ObjectStore 持久化 Work / Assembly / Lock closure | implemented |
+| `plurora installation list/info/create/update/remove` | implemented |
+| `host.installation.list/get/create/update/remove` | implemented |
+| `host/installation.created/updated/removed` | implemented |
+| Installation journal / projection restart rehydrate | implemented |
+| idempotency fingerprint 与 revision CAS | implemented |
+| update state snapshot、显式 migration/reset、失败回滚 | implemented |
+| remove `keep` / `delete` state decision | implemented |
+| linked-local source 永不删除 | implemented |
+| managed Workspace containment / symlink 防护 | implemented |
+| `objects/`、`installations/`、`workspaces/`、`runtime/` 新布局 | implemented |
+| `secret_ref:installation:NAME` + 可选平台 fallback | implemented |
+| Web Home Installation cards / detail | implemented |
+| Run / Exposure lifecycle | Phase 4 |
+| Planner / Realization | Phase 5–6 |
 
-安装默认值已放宽到 cargo / npm / pip 技术基线：HTTPS-only、内容哈希、原子写入始终启用；签名验证与 conformance 阻断分别通过 `--require-signed` / `--strict` opt-in。
+Work pack 与 Installation create 分离：pack 只产生不可变 artifact；create/update/remove 才修改 Host journal。Workspace 位置是 Host-local 绑定，不进入便携 Work identity。
 
 ## 真实模型端到端路径
 
@@ -136,16 +110,13 @@
 | Surface bundle 解析由 metadata 驱动 | implemented |
 | `host.surface.bundle.resolve` | implemented |
 | 需 Host 身份的 `/surface-bundles/<prefix>/<file>` 路由 | implemented |
-| 需精确 project authority 的 `/surface-bundles/projects/<id>/<file>` 路由 | implemented |
 | grant/root-bound 五分钟 `/surface-assets/<lease>/...` sandbox 句柄 | implemented |
-| `project.start` 打开项目 session 并设置 `metadata.project_id` | implemented |
-| `project.start` 返回 `session_id` + `already_running` | implemented |
-| `project.get` / `status` 返回 `running_session_id` | implemented |
-| `project.stop` 关闭项目 session 并发出事件 | implemented |
+| Installation-scoped secret 与 authority context | implemented |
+| Installation → Run / Exposure 启动与停止 | Phase 4 |
 | Surface 通过 `initialProps` 接收 `session_id` | implemented |
 | TavernProvider.sendMessage 调用 engine `model.live_call` | implemented |
-| API Connections 抽屉支持 platform / project 范围切换 | implemented |
-| Engine manifest 声明 `secret_ref:project:*` | implemented |
+| API Connections 抽屉支持 platform / Installation 范围切换 | implemented |
+| Engine manifest 声明 `secret_ref:installation:*` | implemented |
 | Surface 流式响应 UX | implemented |
 | Surface-host stream postMessage 协议 | implemented |
 | Surface bridge allowlist / stream ownership / diagnostics redaction / secret input cleanup / CSP/CORS hardening | implemented |
@@ -223,7 +194,7 @@ Forge profile (`profiles/forge-alpha.yaml`) 会自动加载这些包以及示例
 ## Contract v1 与 SDK 生成
 
 - `docs/spec/PUBLIC_CONTRACT.md` 是公开平台规范。
-- `docs/spec/v1/schemas/` 是 SDK 与 conformance 的单一可信源：80 methods、59 events、36 top-level，共 175 个 schema。
+- `docs/spec/v1/schemas/` 是 SDK 与 conformance 的单一可信源：80 methods、58 events、39 top-level，共 177 个 schema。
 - `sdk/typescript/contract-sdk/` 与 `sdk/rust/plurora-contract-sdk/` 由 schema 生成；TypeScript 包可通过 npm、工作空间路径或自行 codegen 使用。
 - `plurora conformance package --contract v1 --path <package>` 提供第三方包 8 项验收检查。
 
@@ -233,18 +204,18 @@ Forge profile (`profiles/forge-alpha.yaml`) 会自动加载这些包以及示例
 
 ## Web shell（`clients/web`）
 
-平台用户面 chrome —— Home、Settings、Install 流程、Project frame、Toast 系统。基于 React 19 + Tailwind v4 + Motion + Radix + Phosphor 的 SPA，由 Vite 构建，路由 / modal 已 lazy-split。视觉规则与设计系统见 [`design/PLATFORM_UI_DESIGN.md`](design/PLATFORM_UI_DESIGN.md)；shell 详细文档见 [`../clients/web/README.md`](../clients/web/README.md)。
+平台用户面 chrome —— Home、Settings、Installation 流程、Installation frame、Toast 系统。基于 React 19 + Tailwind v4 + Motion + Radix + Phosphor 的 SPA，由 Vite 构建，路由 / modal 已 lazy-split。视觉规则与设计系统见 [`design/PLATFORM_UI_DESIGN.md`](design/PLATFORM_UI_DESIGN.md)；shell 详细文档见 [`../clients/web/README.md`](../clients/web/README.md)。
 
-- **Home：** 项目货架（卡片网格 + 状态 pill + Hero + utility strip + 活动 timeline + 工坊工具 bento），数据来自 `host.project.list`，磁盘用量来自项目 `storage_summary`。Home 也消费结构化 shell descriptor：平台内置 quick actions 保留，包贡献的 `quick_action` / `workshop_card` / schema-versioned `home_card` 作为发现入口进入平台渲染器；包 action 首批只提示发现，不绕过 proposal / permission / audit。`⌘N` 打开 Install 模态。
+- **Home：** Installation 货架数据来自 `host.installation.list`；detail 使用 `host.installation.get`。Home 也消费结构化 shell descriptor；包 action 只提供发现入口，不绕过 proposal / permission / audit。`⌘N` 打开 Installation 创建模态。
 - **Settings：** 六个面板都接真实数据。
   - API Connections —— `plurora/secret-store-lab/{list,put,delete}_secret` + health。UI 永远不读 raw secret 值，secret-edit modal 关闭时清掉输入态。
-  - Installed Packages —— `host.package.list` + 项目标记 + Cmd/Ctrl+F focus。
+  - Installed Packages —— `host.package.list` + Cmd/Ctrl+F focus。
   - Profiles —— `host.diagnostics`（active profile、packages_loaded、network allowlist）。
   - Storage —— storage area summary + 真实 event store kind（sqlite/postgres/memory），不在 Web UI 暴露 host 绝对路径。
-  - Host Access —— 当前 root / device 身份、action scope、项目/目标资源选择器、委托链、HTTPS pairing link、pending 邀请、设备期限与级联 grant 撤销；默认邀请只选择 `observe`。
+  - Host Access —— 当前 root / device 身份、action scope、Work / Workspace / Installation / Run / Target / Exposure / Binding / Realization 资源选择器、委托链、HTTPS pairing link、pending 邀请、设备期限与级联 grant 撤销；默认邀请只选择 `observe`。
   - About —— 平台身份、license、links、致谢。
-- **Install / Update 流程：** Install modal 通过 `capability.invoke` 调用 `plurora/install-lab` 的 `resolve_plan` / `detect_kind` / `execute_plan`；原生项目走快速通道，外部项目进入 wrap-vs-workspace wizard。项目控制台展示 bundle / package / event 诊断，并通过 `check_for_updates` / `update_project` 提供更新入口。没有 `host.install.*`。
-- **Project Frame：** Home 以独立 `/project/<id>` 标签页打开项目；项目页没有平台顶栏或返回按钮，只用全屏 sandbox iframe 挂载项目自有前端。关闭标签页不停止项目；项目页用 `⌘ .` / `Ctrl .` 停止当前项目。
+- **Installation 流程：** UI 通过 `host.installation.create|update|remove` 使用真实 public DTO；update 带 expected revision 与显式 state action，remove 必须选择 keep/delete。
+- **Installation Frame：** `/installation/<id>` 展示 Installation detail 与状态。Phase 4 前不会伪造 Run；页面返回结构化 `run_unavailable_phase4` 原因。
 - **Failure Modal：** Deep Rust accent stripe、诊断 / 影响双列、redacted stderr 日志面板（含 Copy log）、Restart / Stop-and-uninstall / Close 三选项；数据来自 `host.package.list/status/logs`，不复制 raw log。
 - **Toast 系统：** 5 个 variant（info/success/warning/error/progress），右下队列，`prefers-reduced-motion` 自动收敛。
 - **响应式与暗色模式：** 显式 `data-theme` 切换（system/light/dark）；`@custom-variant dark` 把 Tailwind `dark:` 绑定到属性；modal overlay 用单独的 `--color-overlay` token 不随主题翻转；`prefers-reduced-motion` 收敛动效；`:focus-visible` 键盘导航 ring。
@@ -271,18 +242,18 @@ Forge profile (`profiles/forge-alpha.yaml`) 会自动加载这些包以及示例
 
 ## 代码组织
 
-- `crates/plurora-cli/src/main.rs` 是薄入口。CLI 类型在 `cli.rs`，命令在 `commands/`，包模板在 `templates/`。conformance runner 与 case registry 已拆分：`conformance/runner.rs` 负责 `--list`、`--case`、`--tag`、`--fail-fast`、`--slowest`，`conformance/registry/` 按域注册 471 个 `ConformanceCase { id, tags, run }`。
+- `crates/plurora-cli/src/main.rs` 是薄入口。CLI 类型在 `cli.rs`，命令在 `commands/`，包模板在 `templates/`。conformance runner 与 case registry 已拆分：`conformance/runner.rs` 负责 `--list`、`--case`、`--tag`、`--fail-fast`、`--slowest`，`conformance/registry/` 按域注册 453 个 `ConformanceCase { id, tags, run }`。
 - `crates/plurora-cli/src/schema_export/` 负责 v1 schema 导出；`src/bin/export-schemas.rs` 只是薄入口。生成文件仍只来自 exporter，不手改 SDK 或 schema。
 - `crates/plurora-runtime/src/runtime/` 按 session、events、packages、capabilities、hooks、permissions、assets、branches、projections、proposals 分模块；`runtime/protocol_dispatch.rs` 只保留 public router，具体 public protocol 处理器在 `runtime/protocol/` 下按 domain 拆分。`runtime/mod.rs` 保持公开 `Runtime<S>` API。
 - 协议方法的元数据与分发共享 `PlatformMethod` 这一份事实来源，并有注册表 / 分发的一致性单测。
-- `crates/plurora-runtime/src/inproc/` 把第一方 Package 行为按域拆开；`plurora/install-lab` 已拆成 `install_lab/` 子模块（types/source/planner/executor/layout/project_kind/fs_copy），公共 helper 走 provider package + 本地能力名路由，不再用 suffix-only 兜底。
+- `crates/plurora-runtime/src/inproc/` 把第一方 Package 行为按域拆开；`plurora/install-lab` 已拆成 `install_lab/` 子模块（types/source/detection/planner/candidate/executor/layout/intake/fs_copy），公共 helper 走 provider package + 本地能力名路由，不再用 suffix-only 兜底。
 - `clients/web` 的 Home 与 Install flow 已拆成 page shell + hooks/helpers/step components；UI 继续只走公开协议，不读本地文件系统或 runtime 私有状态。
 
 这些拆分不改变行为，只是让后续新增能力包、conformance、handler 与 UI flow 时仍然可审查。
 
 ## Conformance
 
-`cargo run -p plurora-cli -- conformance` 跑 471 个具名 CLI 用例。支持：
+`cargo run -p plurora-cli -- conformance` 跑 453 个具名 CLI 用例。支持：
 
 - `--list` 列出 id 与 tag；
 - `--case <pattern>` 子串过滤；

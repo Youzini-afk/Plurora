@@ -9,7 +9,6 @@ pub mod ids;
 pub mod lockfile;
 pub mod manifest;
 pub mod paths;
-pub mod project;
 pub mod protocol_descriptor;
 pub mod secret_ref;
 pub mod session;
@@ -60,8 +59,8 @@ pub use event::{
     EVENT_PROXY_REGISTERED, EVENT_PROXY_UNREGISTERED, EVENT_SESSION_CLOSED, EVENT_SESSION_FORKED,
     EVENT_SESSION_OPENED, EVENT_STREAM_CANCELLED, EVENT_STREAM_CHUNK, EVENT_STREAM_ENDED,
     EVENT_STREAM_ERROR, EVENT_STREAM_PROGRESS, EVENT_STREAM_STARTED, EVENT_STREAM_TIMEOUT,
-    PLATFORM_EVENT_KINDS, PLATFORM_RUNTIME_ID, PROJECT_INSTALLED, PROJECT_STARTED, PROJECT_STOPPED,
-    PROJECT_UNINSTALLED,
+    INSTALLATION_CREATED, INSTALLATION_REMOVED, INSTALLATION_UPDATED, PLATFORM_EVENT_KINDS,
+    PLATFORM_RUNTIME_ID,
 };
 pub use ids::{
     new_id, AssetId, CapabilityId, EventId, ExtensionPointId, HookId, InvocationId, PackageId,
@@ -80,15 +79,9 @@ pub use manifest::{
     SurfaceSlot,
 };
 pub use paths::{
-    archived_project_dir, archived_projects_dir, cache_dir, data_dir, ensure_initialized,
-    ensure_project_initialized, keys_dir, lockfile_path, profile_path, profiles_dir,
-    project_descriptor_path, project_dir, project_lockfile_path, project_secret_store_path,
-    project_sessions_dir, project_state_dir, project_workspace_dir, project_workspace_dir_in,
-    projects_dir, secret_store_key_path, secret_store_path, store_dir, store_path_for_hash,
-};
-pub use project::{
-    ExternalProjectData, ExternalSourceKind, ExternalWorkspaceOwnership, ProjectDescriptor,
-    ProjectId, ProjectInner, ProjectState, ProjectType, SecretPolicy,
+    cache_dir, data_dir, ensure_initialized, installations_dir, keys_dir, lockfile_path,
+    objects_dir, profile_path, profiles_dir, runtime_dir, secret_store_key_path, secret_store_path,
+    store_dir, store_path_for_hash, workspaces_dir,
 };
 pub use protocol_descriptor::{
     NegotiatedProtocol, ProtocolAuthorityRequirement, ProtocolCompatibilityProfile,
@@ -97,7 +90,7 @@ pub use protocol_descriptor::{
     ProtocolSchemaKind, ProtocolSchemaReference, ProtocolSelection, PROTOCOL_DESCRIPTOR_TYPE_URI,
 };
 pub use secret_ref::{
-    extract_project_name, extract_store_name, is_env_backed_ref, is_project_backed_ref,
+    extract_installation_name, extract_store_name, is_env_backed_ref, is_installation_backed_ref,
     is_secret_field_name, is_store_backed_ref, looks_like_raw_secret, SecretRef,
     SECRET_FIELD_NAMES, SECRET_REF_PREFIX,
 };

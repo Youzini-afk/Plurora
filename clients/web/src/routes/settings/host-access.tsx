@@ -20,11 +20,16 @@ import { useT } from "@/lib/locale";
 
 const SCOPE_ORDER: HostAccessScope[] = [
   "observe",
-  "project_operate",
+  "installation.manage",
+  "run",
+  "binding.manage",
+  "exposure.manage",
+  "realization.plan",
+  "realization.apply",
   "deploy",
-  "develop_propose",
-  "develop_approve",
-  "develop_execute",
+  "develop.propose",
+  "develop.approve",
+  "develop.execute",
   "access_manage",
 ];
 
@@ -38,8 +43,8 @@ export function HostAccessPanel() {
   const [error, setError] = useState<string | null>(null);
   const [deviceName, setDeviceName] = useState("");
   const [grantDays, setGrantDays] = useState("90");
-  const [allProjects, setAllProjects] = useState(true);
-  const [projectIds, setProjectIds] = useState("");
+  const [allInstallations, setAllInstallations] = useState(true);
+  const [installationIds, setInstallationIds] = useState("");
   const [allTargets, setAllTargets] = useState(true);
   const [targetIds, setTargetIds] = useState("");
   const [linkBase, setLinkBase] = useState(() =>
@@ -71,16 +76,16 @@ export function HostAccessPanel() {
 
   useEffect(() => {
     if (!identity || identity.kind === "root" || !identity.resources) {
-      setAllProjects(true);
-      setProjectIds("");
+      setAllInstallations(true);
+      setInstallationIds("");
       setAllTargets(true);
       setTargetIds("");
       return;
     }
-    const projectResources = identity.resources.filter((resource) => resource.kind === "project");
+    const installationResources = identity.resources.filter((resource) => resource.kind === "installation");
     const targetResources = identity.resources.filter((resource) => resource.kind === "target");
-    setAllProjects(projectResources.some((resource) => !resource.id));
-    setProjectIds(projectResources.flatMap((resource) => resource.id ? [resource.id] : []).join(", "));
+    setAllInstallations(installationResources.some((resource) => !resource.id));
+    setInstallationIds(installationResources.flatMap((resource) => resource.id ? [resource.id] : []).join(", "));
     setAllTargets(targetResources.some((resource) => !resource.id));
     setTargetIds(targetResources.flatMap((resource) => resource.id ? [resource.id] : []).join(", "));
   }, [identity]);
@@ -132,11 +137,11 @@ export function HostAccessPanel() {
     setCreated(null);
     try {
       const resources: HostAccessResourceSelector[] = [
-        ...(allProjects
-          ? [{ kind: "project" as const }]
-          : parseResourceIds(projectIds).map((id) => ({ kind: "project" as const, id }))),
+        ...(allInstallations
+          ? [{ kind: "installation" as const, id: null }]
+          : parseResourceIds(installationIds).map((id) => ({ kind: "installation" as const, id }))),
         ...(allTargets
-          ? [{ kind: "target" as const }]
+          ? [{ kind: "target" as const, id: null }]
           : parseResourceIds(targetIds).map((id) => ({ kind: "target" as const, id }))),
       ];
       const result = await createHostPairing(
@@ -317,18 +322,18 @@ export function HostAccessPanel() {
               </div>
             </CardSection>
             <CardSection divided className="grid gap-5 md:grid-cols-2">
-              <Field label={t("accessProjectResources")} helper={t("accessProjectResourcesBody")}>
+              <Field label={t("accessInstallationResources")} helper={t("accessInstallationResourcesBody")}>
                 <div className="space-y-3">
                   <Checkbox
-                    checked={allProjects}
-                    onCheckedChange={setAllProjects}
-                    label={t("accessAllProjects")}
+                    checked={allInstallations}
+                    onCheckedChange={setAllInstallations}
+                    label={t("accessAllInstallations")}
                   />
                   <Input
-                    value={projectIds}
-                    disabled={allProjects}
-                    placeholder={t("accessProjectIdsPlaceholder")}
-                    onChange={(event) => setProjectIds(event.target.value)}
+                    value={installationIds}
+                    disabled={allInstallations}
+                    placeholder={t("accessInstallationIdsPlaceholder")}
+                    onChange={(event) => setInstallationIds(event.target.value)}
                   />
                 </div>
               </Field>
@@ -536,7 +541,8 @@ function resourceLabel(
   id: string | null | undefined,
   t: ReturnType<typeof useT>,
 ): string {
-  if (kind === "project") return id ? t("accessProjectResource", id) : t("accessAllProjects");
+  if (kind === "installation") return id ? t("accessInstallationResource", id) : t("accessAllInstallations");
+  if (kind !== "target") return id ? `${kind} · ${id}` : `${kind} · all`;
   return id ? t("accessTargetResource", id) : t("accessAllTargets");
 }
 
@@ -560,11 +566,16 @@ function normalizePairingBase(input: string): string | null {
 function scopeLabel(scope: HostAccessScope, t: ReturnType<typeof useT>): string {
   return t({
     observe: "accessScopeObserve",
-    project_operate: "accessScopeProjectOperate",
+    "installation.manage": "accessScopeInstallationOperate",
+    run: "accessScopeInstallationOperate",
+    "binding.manage": "accessScopeManage",
+    "exposure.manage": "accessScopeManage",
+    "realization.plan": "accessScopeDeploy",
+    "realization.apply": "accessScopeDeploy",
     deploy: "accessScopeDeploy",
-    develop_propose: "accessScopeDevelopPropose",
-    develop_approve: "accessScopeDevelopApprove",
-    develop_execute: "accessScopeDevelopExecute",
+    "develop.propose": "accessScopeDevelopPropose",
+    "develop.approve": "accessScopeDevelopApprove",
+    "develop.execute": "accessScopeDevelopExecute",
     access_manage: "accessScopeManage",
   }[scope] as "accessScopeObserve");
 }
@@ -572,11 +583,16 @@ function scopeLabel(scope: HostAccessScope, t: ReturnType<typeof useT>): string 
 function scopeDescription(scope: HostAccessScope, t: ReturnType<typeof useT>): string {
   return t({
     observe: "accessScopeObserveBody",
-    project_operate: "accessScopeProjectOperateBody",
+    "installation.manage": "accessScopeInstallationOperateBody",
+    run: "accessScopeInstallationOperateBody",
+    "binding.manage": "accessScopeManageBody",
+    "exposure.manage": "accessScopeManageBody",
+    "realization.plan": "accessScopeDeployBody",
+    "realization.apply": "accessScopeDeployBody",
     deploy: "accessScopeDeployBody",
-    develop_propose: "accessScopeDevelopProposeBody",
-    develop_approve: "accessScopeDevelopApproveBody",
-    develop_execute: "accessScopeDevelopExecuteBody",
+    "develop.propose": "accessScopeDevelopProposeBody",
+    "develop.approve": "accessScopeDevelopApproveBody",
+    "develop.execute": "accessScopeDevelopExecuteBody",
     access_manage: "accessScopeManageBody",
   }[scope] as "accessScopeObserveBody");
 }

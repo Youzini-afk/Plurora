@@ -11,12 +11,12 @@ export interface FailureDiagnosticLabels {
 }
 
 export function noFailureDiagnostic(
-  projectName: string,
+  installationName: string,
   reason: string,
   labels?: Pick<FailureDiagnosticLabels, "noDiagnosticAvailable" | "unavailableCause">,
 ): FailureDetail {
   return {
-    projectName,
+    installationName,
     title: labels?.noDiagnosticAvailable ?? "No diagnostic available",
     summary: reason,
     cause: labels?.unavailableCause ?? "unavailable",
@@ -25,7 +25,7 @@ export function noFailureDiagnostic(
 }
 
 export function failureDetailFromPackage(
-  projectName: string,
+  installationName: string,
   record: PackageRecord,
   _logs: SubprocessLogLine[],
   labels?: FailureDiagnosticLabels,
@@ -34,7 +34,7 @@ export function failureDetailFromPackage(
   const redactionSafe = failure?.redaction_state === "redacted" || failure?.redaction_state === "safe";
   const stderrLines = redactionSafe ? tail(failure?.stderr_tail_redacted ?? [], 8) : [];
   return {
-    projectName,
+    installationName,
     title: labels?.packageFailureTitle(record.id, record.state) ?? `Package ${record.id} ${record.state}`,
     summary: failure?.reason ?? labels?.packageDegradedSummary ?? "Package status is degraded, but no failure summary was reported.",
     cause: failure?.reason ?? record.state,

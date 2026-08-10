@@ -2,13 +2,13 @@
 
 > [English](./SECRET_MANAGEMENT.en.md) · [中文](./SECRET_MANAGEMENT.md)
 
-Plurora references secrets through `secret_ref`. The host resolves those references into real values only while executing a capability call. Packages never receive raw secrets. This guide explains the four resolver paths, the security model, and how to move from environment variables to the local encrypted store or project-level store.
+Plurora references secrets through `secret_ref`. The host resolves those references into real values only while executing a capability call. Packages never receive raw secrets. This guide explains the four resolver paths, the security model, and how to move from environment variables to platform or Installation-level encrypted storage.
 
 ## Design principles
 
 - Packages use `secret_ref` values and do not touch raw values.
 - The host resolves only at capability-call time; raw values do not enter events, audits, proposals, or logs.
-- The env, store, project, and future vault types are implemented by separate resolvers.
+- The env, store, installation, and future vault types are implemented by separate resolvers.
 - Missing, denied, or malformed references fail closed.
 - Error messages do not leak values.
 - A `secret_ref` is runtime authority input, not a container for raw secrets.
@@ -27,7 +27,7 @@ Currently supported:
 ```text
 secret_ref:env:OPENAI_API_KEY
 secret_ref:store:OPENAI_API_KEY
-secret_ref:project:OPENAI_API_KEY
+secret_ref:installation:OPENAI_API_KEY
 ```
 
 Compatibility prefixes still parse:
@@ -83,32 +83,33 @@ secret_refs:
 The host uses `StoreSecretResolver` during capability execution to read and decrypt the store. The package still sees only `secret_ref:store:OPENAI_API_KEY`.
 
 
-### `secret_ref:project:NAME` — project-level encrypted store
+### `secret_ref:installation:NAME` — Installation-level encrypted store
 
-Reads `~/.plurora/projects/<project_id>/secrets.dat` for the current project. The project store uses the same age encryption model and master key as the platform store, but the data file is per project.
+Reads `~/.plurora/installations/<installation-id>/secrets.dat` for the current Installation. The Installation store uses the same age encryption model and master key as the platform store, but the data file is isolated per Installation.
 
 Resolution path:
 
-1. Find the active project from the current `ProtocolContext.session_id`.
-2. Read that project's `secrets.dat`.
-3. If `NAME` exists, return the project value.
-4. If it is missing and `secret_policy.fallback_to_platform: true`, fall back to platform `secret_ref:store:NAME`.
-5. If `NAME` is in `secret_policy.require_per_project`, platform fallback is blocked.
+1. Obtain the active `installation_id` from a Host-verified call context.
+2. Require the exact full ref in `secret_policy.allowed_secret_refs`.
+3. Read that Installation's `secrets.dat`.
+4. If `NAME` exists, return the Installation value.
+5. If it is missing and `secret_policy.allow_platform_fallback: true`, fall back to platform `secret_ref:store:NAME`.
 6. If still missing, fail closed.
 
-- Use for: project-specific provider keys or configuration that should be visible as project state.
-- Advantages: one project can override a provider key without affecting other projects.
-- Tradeoffs: requires project context; without an active project/session it must fail.
+- Use for: Installation-specific provider keys or configuration that should be visible as Installation state.
+- Advantages: one Installation can override a provider key without affecting others.
+- Tradeoffs: requires a Host-verified Installation context; without one it must fail.
 
 Example:
 
 ```yaml
 secret_refs:
-  - secret_ref:project:OPENAI_API_KEY
+  - secret_ref:installation:OPENAI_API_KEY
 
 secret_policy:
-  fallback_to_platform: true
-  require_per_project: []
+  allow_platform_fallback: true
+  allowed_secret_refs:
+    - secret_ref:installation:OPENAI_API_KEY
 ```
 
 ### `secret_ref:vault:KEY` — remote vault (future)
@@ -126,8 +127,8 @@ Reserved for future HashiCorp Vault / AWS Secrets Manager / Doppler integrations
 | Local development | env |
 | CI / automation | env |
 | Desktop product | store |
-| Plurora project default | project (with policy-based store fallback) |
-| One project must use its own key | project + `require_per_project` |
+| Local override for installed Work | installation (with policy-based store fallback) |
+| One Installation must use its own key | installation + `allow_platform_fallback: false` |
 | Docker single-service deployment | env |
 | Shared multi-user deployment | env (export per user) |
 | Team-shared secret source | future vault |
@@ -136,7 +137,7 @@ General rule:
 
 - One-shot automation: use env.
 - Long-lived desktop UX: use store.
-- Project-level override of platform configuration: use project.
+- Installation-level override of platform configuration: use installation.
 - Team rotation and central policy: wait for a vault capability.
 
 ## Using the store
@@ -152,7 +153,7 @@ YdlTavern's API Connections drawer supports paste + save:
 5. The UI sets the profile `secretRef` to `secret_ref:store:OPENAI_API_KEY`.
 6. Later calls carry only the reference, never the raw key.
 
-If the store is unavailable, the env path still works as a fallback. For installed projects, a profile can use `secret_ref:project:*`; when the project store is missing a value, it falls back to the platform store according to `secret_policy`.
+If the store is unavailable, env remains an independent path. Installed Work can use `secret_ref:installation:*`; `secret_policy` explicitly controls whether a missing Installation value may fall back to the platform store.
 
 ### Through the command line
 
@@ -233,7 +234,7 @@ If you previously used `secret_ref:env:OPENAI_API_KEY`:
 4. The UI switches the profile to `secret_ref:store:OPENAI_API_KEY`.
 5. Optionally unset the environment variable.
 
-The env path remains available, and the platform store path remains available. Existing platform secrets keep working unchanged. A project can gradually switch a profile to `secret_ref:project:NAME`; if the project store has no value, policy can fall back to the platform store. The paths do not conflict, and different profiles can use different resolvers for the same provider.
+The env and platform-store paths remain available. An Installation can explicitly use `secret_ref:installation:NAME`; a missing local value falls back only when policy permits it. The three paths do not widen each other's authority.
 
 ## Errors and diagnostics
 
@@ -245,8 +246,8 @@ Common failures:
 | resolver denied | unsupported or disallowed vault | check allowlist / resolver config |
 | missing env var | environment variable is absent | export it or migrate to store |
 | missing store entry | store has no entry for the name | save through UI or capability |
-| missing project context | project ref used without active project | call from a project session, or use store/env |
-| project secret required | policy requires project-level config | write the secret in project settings |
+| missing installation context | installation ref used without an active Installation | call through a Host-bound Installation, or use store/env |
+| installation secret not allowed | ref is absent from the policy allowlist | update Installation secret policy, then retry |
 | decrypt failed | store and key file do not match | check data directory and permissions |
 
 Diagnostics must not include raw values. To check existence, use boolean or name-level capabilities such as `has_secret` / `list_secrets`; they do not return the secret value.
@@ -270,28 +271,25 @@ Model provider packages should accept `secret_ref`, for example:
 
 The provider adapter constructs the request shape; the host outbound executor resolves and injects the header at the last moment. Responses, audits, and stream frames continue to contain only references.
 
-## How project scope works
+## How Installation scope works
 
-The scope for `secret_ref:project:*` comes from the project session, not from a `projectId` string the surface claims:
+The scope for `secret_ref:installation:*` comes from a Host-verified Installation context, not an arbitrary string or path supplied by a surface:
 
-1. Home Play or `plurora project start` calls `host.project.start`.
-2. The host creates or reuses a project session and writes `session.metadata.project_id`.
-3. `clients/web` injects `session_id` into the surface as `initialProps.sessionId`.
-4. Later surface RPCs automatically carry `session_id`.
-5. Host dispatch sets `ProtocolContext.session_id`.
-6. Before outbound dispatch resolves secrets, it reads `metadata.project_id` from that session.
-7. The runtime sets the `ACTIVE_PROJECT_SCOPE` task-local with a `ProjectScopeContext`.
-8. `ProjectStoreSecretResolver` first reads `~/.plurora/projects/<id>/secrets.dat`.
-9. If the entry is missing, the project's `secret_policy` decides whether platform fallback is allowed.
-10. When fallback is allowed, resolution reads `secret_ref:store:NAME`; when fallback is disabled or `require_per_project` matches, it fails closed.
+1. Host protocol / runtime dispatch verifies the caller's authority for the exact Installation.
+2. The Host obtains `InstallationSecretPolicy` and the secret-store path from the Installation projection.
+3. Runtime sets `ACTIVE_INSTALLATION_SCOPE` with the typed InstallationId, policy, and verified store path.
+4. `InstallationStoreSecretResolver` requires the full ref to appear exactly in `allowed_secret_refs`.
+5. The resolver first reads `~/.plurora/installations/<id>/secrets.dat`.
+6. Only when the value is absent and `allow_platform_fallback` is true does it resolve `secret_ref:store:NAME`; otherwise it fails closed.
 
-The resolution order is therefore: project store → fallback policy → platform store. For the full real model call path, see [`REAL_MODEL_END_TO_END.md`](REAL_MODEL_END_TO_END.en.md); for where the project session comes from, see [`PROJECT_MODEL.md`](PROJECT_MODEL.en.md).
+The resolution order is therefore: exact allowlist → Installation store → fallback policy → platform store. See [`INSTALLATION_MODEL.md`](INSTALLATION_MODEL.en.md) for the Installation boundary.
 
 ## Implementation locations
 
 - `crates/plurora-core/src/secret_ref.rs` — `secret_ref` parsing and validation.
 - `crates/plurora-core/src/paths.rs` — filesystem paths (`secret_store_path` / `secret_store_key_path`).
-- `crates/plurora-runtime/src/secret.rs` — `HostSecretResolver` / `EnvSecretResolver` / `StoreSecretResolver` / `ProjectSecretResolver` / `CompositeSecretResolver`.
+- `crates/plurora-runtime/src/secret.rs` — `HostSecretResolver` / `EnvSecretResolver` / `StoreSecretResolver` / `CompositeSecretResolver`.
+- `crates/plurora-runtime/src/installation_secret.rs` — `InstallationStoreSecretResolver` and verified scope.
 - `crates/plurora-runtime/src/secret_store.rs` — shared encrypted file load/save.
 - `crates/plurora-runtime/src/inproc/secret_store_lab.rs` — capability implementation.
 - `packages/plurora/secret-store-lab/manifest.yaml` — package manifest.
@@ -302,6 +300,6 @@ The resolution order is therefore: project store → fallback policy → platfor
 - `plurora secret put / list / delete` CLI is deferred.
 - Remote vault resolvers are not implemented.
 - The store is a local user-level store, not a team-shared vault.
-- The project store is soft isolation, not a multi-tenant security boundary.
+- Installation stores are selected by exact Host resource authority, but are still not a team-shared vault.
 
 These limits do not change the core boundary: packages hold references, the host resolves, and errors fail closed.

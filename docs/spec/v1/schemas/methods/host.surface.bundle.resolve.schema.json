@@ -38,13 +38,19 @@
     "Result": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "properties": {
+        "bundle_fingerprint": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "bundle_url": {
           "type": "string"
         },
         "export_name": {
           "type": "string"
         },
-        "project_id": {
+        "package_id": {
           "type": [
             "string",
             "null"
@@ -81,7 +87,7 @@
     },
     "SurfaceBundleSourceSchema": {
       "enum": [
-        "installed_project",
+        "package",
         "dev_path"
       ],
       "type": "string"

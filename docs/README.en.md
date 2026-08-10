@@ -38,7 +38,7 @@ Then enter the relevant guide, spec, or roadmap as needed.
 - [`guides/CAPABILITY_HANDLES.md`](guides/CAPABILITY_HANDLES.en.md) — authority handles, attenuation, revocation, and effect audit
 - [`guides/CONFORMANCE_KIT.md`](guides/CONFORMANCE_KIT.en.md) — Contract V1 behavioral checks for third-party implementations
 - [`guides/PACKAGE_INSTALLATION.md`](guides/PACKAGE_INSTALLATION.en.md) — installation, updates, lockfiles, content-addressed store, and consent prompts
-- [`guides/PROJECT_MODEL.md`](guides/PROJECT_MODEL.en.md) — current official Host Project installation-instance model and boundary
+- [`guides/INSTALLATION_MODEL.md`](guides/INSTALLATION_MODEL.en.md) — Work / Workspace / Installation object and lifecycle boundaries
 - [`guides/SECRET_MANAGEMENT.md`](guides/SECRET_MANAGEMENT.en.md) — `secret_ref`, local encrypted store, and API key management
 - [`guides/REAL_MODEL_END_TO_END.md`](guides/REAL_MODEL_END_TO_END.en.md) — real-provider end-to-end invocation
 - [`guides/PATH_B_SELF_CONTAINED.md`](guides/PATH_B_SELF_CONTAINED.en.md) — `entry.contract: "none"` self-contained path
@@ -60,7 +60,7 @@ Then enter the relevant guide, spec, or roadmap as needed.
 | Review long-term contract boundaries | [`architecture/CONSTITUTION_V2.md`](architecture/CONSTITUTION_V2.en.md) → [`spec/CONTRACT_LAYERING_MATRIX.md`](spec/CONTRACT_LAYERING_MATRIX.en.md) → [`spec/CONTRACT_REGISTRY.md`](spec/CONTRACT_REGISTRY.en.md) |
 | Use public contracts | [`protocol/PUBLIC_PROTOCOL.md`](protocol/PUBLIC_PROTOCOL.en.md) → [`spec/PUBLIC_CONTRACT.md`](spec/PUBLIC_CONTRACT.en.md) |
 | Write a first Package / Component | [`guides/PACKAGE_AUTHORING_WALKTHROUGH.md`](guides/PACKAGE_AUTHORING_WALKTHROUGH.en.md) |
-| Install a Package / Project | [`guides/PACKAGE_INSTALLATION.md`](guides/PACKAGE_INSTALLATION.en.md) → [`guides/PROJECT_MODEL.md`](guides/PROJECT_MODEL.en.md) |
+| Pack Work / create Installation | [`guides/PACKAGE_INSTALLATION.md`](guides/PACKAGE_INSTALLATION.en.md) → [`guides/INSTALLATION_MODEL.md`](guides/INSTALLATION_MODEL.en.md) |
 | Manage API keys / secrets | [`guides/SECRET_MANAGEMENT.md`](guides/SECRET_MANAGEMENT.en.md) |
 | Run real model invocation | [`guides/REAL_MODEL_END_TO_END.md`](guides/REAL_MODEL_END_TO_END.en.md) |
 | Host third-party Web Surfaces | [`guides/SURFACE_HOSTING.md`](guides/SURFACE_HOSTING.en.md) |

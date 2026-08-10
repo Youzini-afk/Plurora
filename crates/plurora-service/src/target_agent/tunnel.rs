@@ -661,12 +661,15 @@ mod tests {
     use axum::http::{header, HeaderMap, HeaderValue, StatusCode};
     use axum::routing::any;
     use axum::Router;
-    use plurora_core::project::{ProjectDescriptor, ProjectInner, ProjectType, SecretPolicy};
-    use plurora_core::ProjectId;
     use plurora_runtime::{
         ExecutionTarget, ExecutionTargetCapability, ExecutionTargetId, InMemoryEventStore,
-        PortLeaseRequest, PortProtocol, ProjectRegistry, ProxyProtocol, ProxyRouteAccess,
-        ProxyRouteRegisterRequest, ProxyRouteUpstream, Runtime, RuntimeConfig,
+        InstallationCreateRequest, InstallationMutationResult, ObjectStore, PortLeaseRequest,
+        PortProtocol, ProtocolContext, ProxyProtocol, ProxyRouteAccess, ProxyRouteRegisterRequest,
+        ProxyRouteUpstream, Runtime, RuntimeConfig,
+    };
+    use plurora_work::{
+        AcquisitionKind, AcquisitionRecord, ArtifactModel, AssemblyId, AssemblyLock,
+        AssemblyRevision, InstallationId, WorkId, WorkRevision,
     };
     use serde_json::Value;
     use tokio::net::{TcpListener, TcpStream};
@@ -1009,25 +1012,90 @@ mod tests {
             .await;
     }
 
-    fn acceptance_project(project_id: &str) -> ProjectDescriptor {
-        ProjectDescriptor {
-            schema_version: 1,
-            project: ProjectInner {
-                id: ProjectId::new(project_id).expect("valid acceptance project id"),
-                title: "Remote tunnel acceptance".to_string(),
-                description: String::new(),
-                project_type: ProjectType::PluroraNative,
-                icon: None,
-                entry_surface_id: Some("packages/test/main".to_string()),
-                packages: vec!["packages/test/manifest.yaml".to_string()],
-                optional_packages: Vec::new(),
-                required_surfaces: Vec::new(),
-                required_capabilities: Vec::new(),
-                secret_policy: SecretPolicy::default(),
-                external: None,
-                metadata: BTreeMap::new(),
-            },
+    async fn create_acceptance_installation(
+        store: &Arc<InMemoryEventStore>,
+        registry: &Arc<crate::InstallationRegistry>,
+        objects: &Arc<plurora_runtime::InMemoryObjectStore>,
+    ) -> anyhow::Result<InstallationId> {
+        async fn put_model<T: ArtifactModel>(
+            objects: &plurora_runtime::InMemoryObjectStore,
+            value: &T,
+        ) -> anyhow::Result<plurora_core::ArtifactDescriptor> {
+            let bytes = value.canonical_bytes()?;
+            let descriptor = value.artifact_descriptor()?;
+            let info = objects.put(bytes.into()).await?;
+            anyhow::ensure!(
+                info.digest == descriptor.digest && info.size_bytes == descriptor.size_bytes,
+                "test artifact descriptor does not match stored canonical bytes"
+            );
+            Ok(descriptor)
         }
+
+        let assembly = AssemblyRevision {
+            schema: AssemblyRevision::SCHEMA.to_string(),
+            assembly_id: AssemblyId::parse("tests/remote-tunnel-assembly")?,
+            nodes: Vec::new(),
+            bindings: Vec::new(),
+            exposed_ports: Vec::new(),
+            state_slots: Vec::new(),
+            annotations: BTreeMap::new(),
+        };
+        let assembly = put_model(objects, &assembly).await?;
+        let work = WorkRevision {
+            schema: WorkRevision::SCHEMA.to_string(),
+            work_id: WorkId::parse("tests/remote-tunnel")?,
+            title: "Remote tunnel acceptance".to_string(),
+            description: String::new(),
+            assembly: assembly.clone(),
+            content_roots: Vec::new(),
+            entrypoints: Vec::new(),
+            rights: None,
+            transparency: None,
+            operational_intent: None,
+            annotations: BTreeMap::new(),
+        };
+        let lock = AssemblyLock {
+            schema: AssemblyLock::SCHEMA.to_string(),
+            assembly,
+            nodes: Vec::new(),
+            bindings: Vec::new(),
+            protocol_profiles: Vec::new(),
+            content_roots: Vec::new(),
+        };
+        let runtime = Runtime::new(
+            store.clone(),
+            RuntimeConfig {
+                object_store: objects.clone(),
+                installation_control: registry.clone(),
+                ..RuntimeConfig::default()
+            },
+        );
+        let result: InstallationMutationResult = serde_json::from_value(
+            runtime
+                .call_protocol(
+                    &ProtocolContext::host_dev("remote-tunnel-installation-fixture"),
+                    "host.installation.create",
+                    serde_json::to_value(InstallationCreateRequest {
+                        work_id: work.work_id.clone(),
+                        work_revision: put_model(objects, &work).await?,
+                        assembly_lock: put_model(objects, &lock).await?,
+                        display_name: "Remote tunnel acceptance".to_string(),
+                        source: AcquisitionRecord {
+                            kind: AcquisitionKind::WorkBundle,
+                            source_ref: None,
+                            provenance_refs: Vec::new(),
+                            update_channel: None,
+                        },
+                        state_bindings: Vec::new(),
+                        secret_policy: Default::default(),
+                        idempotency_key: "remote-tunnel-acceptance".to_string(),
+                        authority: None,
+                    })?,
+                )
+                .await
+                .map_err(|error| anyhow::anyhow!("{}: {}", error.code, error.message))?,
+        )?;
+        Ok(result.installation.record.installation_id)
     }
 
     async fn apply_remote_test_deployment(
@@ -1036,7 +1104,7 @@ mod tests {
         host_token: &str,
         credential: &str,
         target_id: &str,
-        project_id: &ProjectId,
+        installation_id: &InstallationId,
         route_id: &str,
         port_lease_id: &str,
         port_name: &str,
@@ -1047,7 +1115,7 @@ mod tests {
             .post(format!("{base_url}/host/v1/targets/{target_id}/operations"))
             .bearer_auth(host_token)
             .json(&json!({
-                "project_id": project_id,
+                "installation_id": installation_id,
                 "spec": {
                     "kind": "deployment_apply",
                     "deployment": {
@@ -1205,7 +1273,6 @@ mod tests {
 
     async fn remote_tunnel_acceptance() -> anyhow::Result<()> {
         const TARGET_ID: &str = "remote-ci";
-        const PROJECT_ID: &str = "remote_tunnel__abc12345";
         const HTTP_ROUTE: &str = "remote-http";
         const WS_ROUTE: &str = "remote-ws";
         const HOST_TOKEN: &str = "phase4-host-token";
@@ -1223,13 +1290,16 @@ mod tests {
                 .expect("remote acceptance upstream serves");
         });
 
-        let projects = Arc::new(ProjectRegistry::new());
-        projects.register(acceptance_project(PROJECT_ID))?;
         let store = Arc::new(InMemoryEventStore::default());
+        let objects = Arc::new(plurora_runtime::InMemoryObjectStore::default());
+        let installations = crate::InstallationRegistry::ephemeral(store.clone(), objects.clone())?;
+        let installation_id =
+            create_acceptance_installation(&store, &installations, &objects).await?;
         let runtime = Arc::new(Runtime::new(
             store,
             RuntimeConfig {
-                project_registry: projects,
+                object_store: objects,
+                installation_control: installations.clone(),
                 ..RuntimeConfig::default()
             },
         ));
@@ -1290,6 +1360,7 @@ mod tests {
             build_jobs: Arc::new(BuildDeployJobRegistry::default()),
             development: development_registry(),
             host_access: host_access_registry(),
+            installations,
             target_agents: target_agent_registry(),
         };
         let host_listener = TcpListener::bind("127.0.0.1:0").await?;
@@ -1345,14 +1416,13 @@ mod tests {
         );
         let claim: ClaimTargetEnrollmentResponse = claim.json().await?;
 
-        let project_id = ProjectId::new(PROJECT_ID)?;
         apply_remote_test_deployment(
             &client,
             &base_url,
             HOST_TOKEN,
             &claim.agent_credential,
             TARGET_ID,
-            &project_id,
+            &installation_id,
             HTTP_ROUTE,
             &http_lease.id,
             &http_lease.port_name,
@@ -1366,7 +1436,7 @@ mod tests {
             HOST_TOKEN,
             &claim.agent_credential,
             TARGET_ID,
-            &project_id,
+            &installation_id,
             WS_ROUTE,
             &ws_lease.id,
             &ws_lease.port_name,

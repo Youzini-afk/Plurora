@@ -262,7 +262,6 @@ pub(crate) async fn layered_namespace_smoke() -> anyhow::Result<()> {
 
     for (method, params) in [
         ("host.info", json!({})),
-        ("host.project.list", json!({})),
         ("host.target.list", json!({})),
         ("host.exec.list", json!({})),
         ("host.port.list", json!({})),

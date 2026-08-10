@@ -165,7 +165,7 @@ Current clients and third-party integrations use these exact v1 identities. New 
 
 ### SurfaceHost
 
-Third-party Web surfaces are mounted in sandboxed iframes. A surface has no kernel access by default. The Host forwards only explicit methods and capability allowlists, and binds stream ownership, session, project/grant, and short-lived asset leases to the current mount. See [`../guides/SURFACE_HOSTING.md`](../guides/SURFACE_HOSTING.en.md).
+Third-party Web surfaces are mounted in sandboxed iframes. A surface has no kernel access by default. The Host forwards only explicit methods and capability allowlists, and binds stream ownership, session, Installation/Run grants, and short-lived asset leases to the current mount. See [`../guides/SURFACE_HOSTING.md`](../guides/SURFACE_HOSTING.en.md).
 
 ### Desktop
 
@@ -175,13 +175,13 @@ Desktop, Web/PWA, and remote Host connections reuse the same client core and pub
 
 ### CLI and headless use
 
-`plurora-cli` exposes Host, installation, Project, package, composition, contract, conformance, and operational entry points. Running locally does not allow the CLI to gain product authority by inspecting the Host data directory outside the public boundary.
+`plurora-cli` exposes Host, Work, Installation, Package, Contract, conformance, and operational entry points. Running locally does not allow the CLI to gain product authority by inspecting the Host data directory outside the public boundary.
 
-## Current Project model
+## Work / Workspace / Installation model
 
-Project is the official Host's installable and runnable instance model, composed of `ProjectDescriptor`, `ProjectRegistry`, data directories, secret policy, and lifecycle. It is a Host and distribution concept, not constitutional substrate and not a root object required by every product.
+WorkRevision is portable content identity, Workspace is a mutable source location on one Host, and Installation is the Host journal's adoption record for Work. Run and Exposure are separate repeatable runtime facts; Installation `ready` cannot stand in for them.
 
-World, Document, Service, Workspace, and other protocol objects may exist independently. When the current official Home needs to manage them, an adapter or product mapping may associate them with a Project without destroying their identity. See [`../guides/PROJECT_MODEL.md`](../guides/PROJECT_MODEL.en.md) and [`../product/PLATFORM_PRODUCT_MODEL.md`](../product/PLATFORM_PRODUCT_MODEL.en.md).
+World, Document, Service, and other protocol objects may exist independently. Components, Ports, and Adapters can compose them into Work without destroying their identity. See [`../guides/INSTALLATION_MODEL.md`](../guides/INSTALLATION_MODEL.en.md) and [`../product/PLATFORM_PRODUCT_MODEL.md`](../product/PLATFORM_PRODUCT_MODEL.en.md).
 
 ## Repository map
 
@@ -210,6 +210,6 @@ The code layout still reflects historical Contract V1 aggregation. Permanent own
 - [`CONSTITUTIONAL_SUBSTRATE.md`](CONSTITUTIONAL_SUBSTRATE.en.md) — substrate responsibility and the current kernel compatibility boundary;
 - [`CAPABILITY_PACKAGE.md`](CAPABILITY_PACKAGE.en.md) — Packages, components, content, and execution trust;
 - [`../product/PLATFORM_PRODUCT_MODEL.md`](../product/PLATFORM_PRODUCT_MODEL.en.md) — product responsibility of the official distribution;
-- [`../guides/PROJECT_MODEL.md`](../guides/PROJECT_MODEL.en.md) — the current official Project model;
+- [`../guides/INSTALLATION_MODEL.md`](../guides/INSTALLATION_MODEL.en.md) — Work / Workspace / Installation boundaries;
 - [`../ALPHA_STATUS.md`](../ALPHA_STATUS.en.md) — actual implementation status;
 - [`../roadmap/NEXT_STEPS.md`](../roadmap/NEXT_STEPS.en.md) — current construction direction.

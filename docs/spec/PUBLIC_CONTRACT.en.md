@@ -147,15 +147,15 @@ Git installation is not a transport primitive; it belongs in the ordinary first-
 | `host.proxy.list` | partial | HostAdmin/HostDev only; list routes. |
 
 
-### `host.project.*` (5)
+### `host.installation.*` (5)
 
 | Method | Status | Contract |
 |---|---:|---|
-| `host.project.list` | implemented | HostAdmin/HostDev only; list installed projects and state. |
-| `host.project.get` | implemented | HostAdmin/HostDev only; return one project's full descriptor and registry record; includes `running_session_id` when running. |
-| `host.project.start` | implemented | HostAdmin/HostDev only; transition an Installed/Stopped project to Running, open a project session, return `session_id` and `already_running`, and emit lifecycle events. |
-| `host.project.stop` | implemented | HostAdmin/HostDev only; stop a Running project and emit lifecycle events. |
-| `host.project.status` | implemented | HostAdmin/HostDev only; return project state and last error; includes `running_session_id` when running. |
+| `host.installation.list` | implemented | `observe` authority; list Installation projections rebuilt from the Host journal. |
+| `host.installation.get` | implemented | `observe` authority; return one Installation, its current revision, and an optional rollback pointer. |
+| `host.installation.create` | implemented | `installation.manage` plus exact Work authority; carry a typed `work_id` that must match canonical CAS `WorkRevision.work_id`; refresh the current grant at durable boundaries; replaying the same idempotency key and fingerprint returns the same result. |
+| `host.installation.update` | implemented | `installation.manage` plus exact Installation authority; refresh the current grant at durable/effect boundaries for every state action, including Preserve; require an expected revision and CAS-switch active Work/Lock pointers; for Reset/Replace the Host persists authority evidence plus a decision receipt before the real state effect, while failure preserves the prior pointer. |
+| `host.installation.remove` | implemented | `installation.manage` plus exact Installation authority; require an explicit `keep` or `delete` state decision and refresh the current grant at durable/effect boundaries; delete only Host-owned state and never a linked-local source. |
 
 ### `host.*` / `identity.current` (4)
 
@@ -178,12 +178,12 @@ Git installation is not a transport primitive; it belongs in the ordinary first-
 |---|---:|---|
 | `shell.contribution.list` | partial | List typed package-declared surface contributions. |
 | `shell.contribution.describe` | partial | Describe one contribution. |
-| `host.surface.bundle.resolve` | partial | HostAdmin/HostDev only; resolve a mountable bundle URL from a surface contribution, project dev path, or installed project; cross-source parity continues to harden. |
+| `host.surface.bundle.resolve` | partial | HostAdmin/HostDev only; resolve a mountable bundle URL from a package surface contribution; cross-source parity continues to harden. |
 | `protocol.extension.list` | implemented | List extension points. |
 | `protocol.extension.describe` | planned | Describe one extension point. |
 | `protocol.hook.list` | partial | List hook subscriptions. |
 
-## Event kind matrix (59)
+## Event kind matrix (58)
 
 The full registry is [`v1/EVENT_KIND_REGISTRY.md`](v1/EVENT_KIND_REGISTRY.en.md). Event payload schemas live under `docs/spec/v1/schemas/events/`.
 
@@ -191,7 +191,7 @@ The full registry is [`v1/EVENT_KIND_REGISTRY.md`](v1/EVENT_KIND_REGISTRY.en.md)
 |---|---:|---|
 | context | 3 | `context/opened`, `context/closed`, `context/forked` |
 | Package lifecycle | 9 | `host/package.loading`, `.starting`, `.ready`, `.loaded`, `.stopping`, `.stopped`, `.unloaded`, `.degraded`, `.log` |
-| Project lifecycle | 4 | `host/project.installed`, `.started`, `.stopped`, `.uninstalled` |
+| Installation lifecycle | 3 | `host/installation.created`, `.updated`, `.removed` |
 | Capability lifecycle | 3 | `capability/invoked`, `capability/completed`, `capability/failed` |
 | Stream lifecycle | 7 | `capability/stream.started`, `.chunk`, `.progress`, `.ended`, `.error`, `.cancelled`, `.timeout` |
 | Authority | 3 | `authority/grant.created`, `authority/grant.revoked`, `authority/denied` |
@@ -283,12 +283,12 @@ v1 only allows additive changes: optional fields, new methods, new events, new e
 ## Schemas and error codes
 
 - Method schemas: `docs/spec/v1/schemas/methods/` (80).
-- Event schemas: `docs/spec/v1/schemas/events/` (59).
-- Top-level schemas: `docs/spec/v1/schemas/*.schema.json` (36), including additive Protocol Commons, component/package-envelope, World Bundle, portable Work / Assembly contracts, and Host-local Installation / Run / Exposure / Realization wire records.
+- Event schemas: `docs/spec/v1/schemas/events/` (58).
+- Top-level schemas: `docs/spec/v1/schemas/*.schema.json` (39), including additive Protocol Commons, component/package-envelope, World Bundle, portable Work / Assembly contracts, Host-local Installation / Run / Exposure / Realization wire records, and Installation state snapshot, decision receipt, and authority evidence.
 - Error codes: [`v1/ERROR_CODES.md`](v1/ERROR_CODES.en.md).
 - Event registry: [`v1/EVENT_KIND_REGISTRY.md`](v1/EVENT_KIND_REGISTRY.en.md).
 
-All 175 schemas must pass `cargo run -p plurora-cli --bin validate-schemas`.
+All 177 schemas must pass `cargo run -p plurora-cli --bin validate-schemas`.
 
 ## Content-free invariant
 
@@ -359,9 +359,9 @@ Host-dev operations must be explicit in protocol context. Anonymous host calls m
 
 ## Namespace rules
 
-Public method IDs are exact owner-based dot names. The first segment identifies Substrate, Host, Protocol, or Shell ownership, for example `context.open`, `host.project.list`, `change.proposal.apply`, and `shell.contribution.list`.
+Public method IDs are exact owner-based dot names. The first segment identifies Substrate, Host, Protocol, or Shell ownership, for example `context.open`, `host.installation.list`, `change.proposal.apply`, and `shell.contribution.list`.
 
-Platform-owned event kinds are the explicit 59-entry registry and may be written only by `plurora/runtime`. Package-owned event kinds must begin with the exact Package ID followed by `/`. Package capability IDs follow the same Package-owned slash namespace convention.
+Platform-owned event kinds are the explicit 58-entry registry and may be written only by `plurora/runtime`. Package-owned event kinds must begin with the exact Package ID followed by `/`. Package capability IDs follow the same Package-owned slash namespace convention.
 
 Reserved rules:
 
@@ -437,10 +437,10 @@ Packages pass references such as `secret_ref:<vault>:<key>`. The host resolver r
 ```yaml
 secret_ref:env:OPENAI_API_KEY    # resolved via host env var (allowlisted)
 secret_ref:store:OPENAI_API_KEY  # resolved via local encrypted store
-secret_ref:project:OPENAI_API_KEY # resolved via project store, then policy fallback
+secret_ref:installation:OPENAI_API_KEY # resolved via the active Installation store, then policy fallback
 ```
 
-Project-backed references resolve from the active project store first, then fall back to the platform store when `secret_policy.fallback_to_platform` allows it and the key is not listed in `require_per_project`.
+Installation-backed references resolve from the active Installation store first, then fall back to the platform store only when `secret_policy.allow_platform_fallback` permits it.
 
 Store-backed references are resolved via the `StoreSecretResolver` against an age-encrypted file at `~/.plurora/secrets.dat`. See [`docs/guides/SECRET_MANAGEMENT.md`](../guides/SECRET_MANAGEMENT.en.md).
 
@@ -463,8 +463,8 @@ First-party and third-party surfaces use the same descriptors, permission declar
 A v1 implementation must at least prove:
 
 1. 80 method schemas export.
-2. 59 event schemas validate.
-3. 36 top-level schemas validate.
+2. 58 event schemas validate.
+3. 39 top-level schemas validate.
 4. Method registry and dispatcher are consistent.
 5. Capability handle mint/attenuate/revoke/list behavior is testable.
 6. Invoke instrumentation emits lifecycle events.

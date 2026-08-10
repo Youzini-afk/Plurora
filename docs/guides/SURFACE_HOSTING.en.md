@@ -9,7 +9,7 @@ This guide explains the two surface forms handled by the platform shell: structu
 Capability packages declare surfaces under `contributes.surfaces`. The host chooses the presentation from the descriptor:
 
 - `quick_action`, `workshop_card`, and `home_card` entries with `metadata.shell_schema_version: 1` are rendered directly by the platform;
-- projects that own a frontend use `entry.kind: surface_bundle` to provide a static ESM bundle mounted by `SurfaceHost` in an isolated iframe.
+- Packages that own a frontend use `entry.kind: surface_bundle` to provide a static ESM bundle mounted by `SurfaceHost` in an isolated iframe.
 
 Structured descriptors contain only bounded text, icon hints, ordering, and same-package targets. The platform does not load package JavaScript, parse HTML, or create an iframe for them. They are discovery affordances today; any future execution wiring still crosses public protocol, permission, proposal, and audit boundaries.
 
@@ -19,7 +19,7 @@ A minimal manifest:
 
 ```yaml
 schema_version: 1
-id: example/project-surface
+id: example/surface
 version: 0.1.0
 license: AGPL-3.0-only
 entry:
@@ -27,21 +27,21 @@ entry:
   bundle: dist/bundle.mjs
 contributes:
   surfaces:
-    - id: example/project-entry
+    - id: example/entry
       version: 0.1.0
       slot: experience_entry
-      title: Example project
+      title: Example surface
       allowed_capability_ids:
-        - example/project/inspect
+        - example/surface/inspect
       activation:
         input_schema: {}
       required_permissions: []
 permissions: {}
 ```
 
-`surface_bundle` is a static, non-executing package entry. The Host does not start it as Rust, subprocess, WASM, or remote package code; installation only places the bundle and sibling static assets into project dist and includes them in the install `tree_hash`.
+`surface_bundle` is a static, non-executing package entry. The Host does not start it as Rust, subprocess, WASM, or remote package code. The bundle and sibling static assets remain in Package source / artifact closure.
 
-The raw `/surface-bundles/projects/<project_id>/...` path requires Host identity and exact project authority. After `host.surface.bundle.resolve` succeeds, the Host issues a random, five-minute, read-only `/surface-assets/<lease>/...` URL bound to the current grant and bundle root. Relative modules, stylesheets, fonts, and images must stay under that lease root. Revoking or expiring the grant invalidates the lease immediately.
+The raw `/surface-bundles/packages/<package-id>/...` path requires Host identity. After `host.surface.bundle.resolve` succeeds, the Host issues a random, five-minute, read-only `/surface-assets/<lease>/...` URL bound to the current grant and bundle root. Relative modules, stylesheets, fonts, and images must stay under that lease root. Revoking or expiring the grant invalidates the lease immediately.
 
 Do not place secrets, tokens, private configuration, host paths, or source maps in `dist/`. Private data must be reached through capabilities, `secret_ref`, outbound audit, and bridge authority.
 
@@ -168,7 +168,7 @@ The Host does not expose raw runtime objects, administrative methods, secrets, o
 
 ## Stream bridge
 
-A surface may subscribe only to a stream it created through `capability.stream`. The host filters the current project session's event subscription for matching `capability/stream.*` events and maps them to:
+A surface may subscribe only to a stream it created through `capability.stream`. The host filters the current verified session's event subscription for matching `capability/stream.*` events and maps them to:
 
 - `stream.frame` for `started`, `chunk`, and `progress`;
 - `stream.ended`;
@@ -176,11 +176,11 @@ A surface may subscribe only to a stream it created through `capability.stream`.
 
 The implementation places hard limits on owned streams and concurrent subscriptions per surface, and closes every subscription during unmount. A surface cannot use the subscription API to enumerate other streams in the same session.
 
-## Project-page lifecycle
+## Installation / Run boundary
 
-After Home starts a project, it opens `/project/<project_id>`. The project page omits the platform top bar and retains only the full-screen SurfaceHost and project-console boundary. Closing the tab does not stop the project session automatically; the host page performs stop through `host.project.stop`, not through implicit iframe authority.
+Phase 3 `/installation/<installation-id>` displays the Installation projection only; it neither mounts a surface nor fabricates a Run. Phase 4 establishes sessions and endpoints through a separate Run / Exposure journal before mounting. Closing an iframe grants no implicit stop authority; the host page still uses an explicit public Run method.
 
-Iframe memory is not persistent state. Recoverable state belongs in project capabilities, events, assets, or projections and is reloaded through public contracts. `initialProps` is suitable only for session, descriptor, and read-only startup information.
+Iframe memory is not persistent state. Recoverable state belongs in Package capabilities, events, assets, or projections and is reloaded through public contracts. `initialProps` is suitable only for session, descriptor, and read-only startup information.
 
 ## Current boundaries
 
@@ -191,8 +191,8 @@ Iframe memory is not persistent state. Recoverable state belongs in project capa
 
 ## Related documentation
 
-- [`../architecture/ARCHITECTURE.md`](../architecture/ARCHITECTURE.en.md) — the architectural position of shells, projects, and packages.
-- [`PROJECT_MODEL.md`](PROJECT_MODEL.en.md) — project installation, startup, and session binding.
+- [`../architecture/ARCHITECTURE.md`](../architecture/ARCHITECTURE.en.md) — the architectural position of shells, Work, and Packages.
+- [`INSTALLATION_MODEL.md`](INSTALLATION_MODEL.en.md) — Work, Installation, and later Run boundaries.
 - [`CAPABILITY_HANDLES.md`](CAPABILITY_HANDLES.en.md) — capability authority and attenuation.
 - [`SECRET_MANAGEMENT.md`](SECRET_MANAGEMENT.en.md) — `secret_ref` and secret boundaries.
 - [`../ALPHA_STATUS.md`](../ALPHA_STATUS.en.md) — current implementation status.

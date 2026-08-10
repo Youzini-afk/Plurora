@@ -9,7 +9,7 @@
 能力包通过 manifest 的 `contributes.surfaces` 声明 surface。宿主根据 descriptor 决定如何呈现：
 
 - `quick_action`、`workshop_card` 和带 `metadata.shell_schema_version: 1` 的 `home_card` 由平台直接渲染；
-- 需要自有前端的项目通过 `entry.kind: surface_bundle` 提供静态 ESM bundle，并由 `SurfaceHost` 放入隔离 iframe。
+- 需要自有前端的 Package 通过 `entry.kind: surface_bundle` 提供静态 ESM bundle，并由 `SurfaceHost` 放入隔离 iframe。
 
 结构化 descriptor 只允许受限文本、icon hint、排序和同包 target。平台不会为它加载包 JS、解析 HTML 或创建 iframe。它们当前是发现入口；未来接线执行时仍必须经过公开协议、权限、proposal 和审计。
 
@@ -19,7 +19,7 @@
 
 ```yaml
 schema_version: 1
-id: example/project-surface
+id: example/surface
 version: 0.1.0
 license: AGPL-3.0-only
 entry:
@@ -27,21 +27,21 @@ entry:
   bundle: dist/bundle.mjs
 contributes:
   surfaces:
-    - id: example/project-entry
+    - id: example/entry
       version: 0.1.0
       slot: experience_entry
-      title: Example project
+      title: Example surface
       allowed_capability_ids:
-        - example/project/inspect
+        - example/surface/inspect
       activation:
         input_schema: {}
       required_permissions: []
 permissions: {}
 ```
 
-`surface_bundle` 是静态、不可执行的 package entry。Host 不把它作为 Rust、subprocess、WASM 或 remote package 启动；安装器只把 bundle 与同目录静态资源纳入项目 dist 和 `tree_hash`。
+`surface_bundle` 是静态、不可执行的 package entry。Host 不把它作为 Rust、subprocess、WASM 或 remote package 启动；bundle 与同目录静态资源保留在 Package source / artifact closure 中。
 
-原始 `/surface-bundles/projects/<project_id>/...` 路径要求 Host 身份与精确项目权威。`host.surface.bundle.resolve` 成功后，Host 为当前 grant 和 bundle root 签发随机、五分钟、只读的 `/surface-assets/<lease>/...` URL。相对 module、stylesheet、font 和 image 必须留在同一 lease root。Grant 撤销或过期会立即使 lease 失效。
+原始 `/surface-bundles/packages/<package-id>/...` 路径要求 Host 身份。`host.surface.bundle.resolve` 成功后，Host 为当前 grant 和 bundle root 签发随机、五分钟、只读的 `/surface-assets/<lease>/...` URL。相对 module、stylesheet、font 和 image 必须留在同一 lease root。Grant 撤销或过期会立即使 lease 失效。
 
 不要把 secret、token、私有配置、主机路径或 source map 放进 `dist/`。私有数据必须通过 capability、`secret_ref`、出站审计和 bridge 权限取得。
 
@@ -168,7 +168,7 @@ Host 不把 raw runtime object、管理员方法、secret 或未过滤诊断传�
 
 ## Stream bridge
 
-Surface 只能订阅自己通过 `capability.stream` 创建的 stream。宿主从当前项目 session 的事件订阅中筛选对应 `capability/stream.*` 事件，再转成：
+Surface 只能订阅自己通过 `capability.stream` 创建的 stream。宿主从当前经过验证的 session 事件订阅中筛选对应 `capability/stream.*` 事件，再转成：
 
 - `stream.frame`：`started`、`chunk`、`progress`；
 - `stream.ended`；
@@ -176,11 +176,11 @@ Surface 只能订阅自己通过 `capability.stream` 创建的 stream。宿主�
 
 当前实现对每个 surface 的 owned streams 和并发 subscriptions 设置硬上限，并在 unmount 时关闭全部订阅。Surface 不能用 subscription API 枚举同 session 的其他 stream。
 
-## 项目页生命周期
+## Installation / Run 边界
 
-Home 启动项目后打开 `/project/<project_id>`。项目页不加载平台顶栏，只保留全屏 SurfaceHost 和项目控制台边界。关闭标签页不会自动停止项目 session；停止操作由宿主页通过 `host.project.stop` 执行，不作为 iframe 的隐式能力。
+Phase 3 的 `/installation/<installation-id>` 只展示 Installation projection，不会挂载 surface 或伪造 Run。Phase 4 会在独立 Run / Exposure journal 中建立 session 与 endpoint 后再挂载；关闭 iframe 不会自动获得停止 Run 的权威，停止仍由宿主页通过公开 Run 方法显式执行。
 
-Iframe 内存不是持久状态。可恢复状态应由项目能力包、事件、asset 或 projection 持有，并通过公开协议重新获取。`initialProps` 只适合 session、descriptor 和只读启动信息。
+Iframe 内存不是持久状态。可恢复状态应由 Package capability、事件、asset 或 projection 持有，并通过公开协议重新获取。`initialProps` 只适合 session、descriptor 和只读启动信息。
 
 ## 当前边界
 
@@ -191,8 +191,8 @@ Iframe 内存不是持久状态。可恢复状态应由项目能力包、事件�
 
 ## 相关文档
 
-- [`../architecture/ARCHITECTURE.md`](../architecture/ARCHITECTURE.md) — shell、项目和能力包的架构位置。
-- [`PROJECT_MODEL.md`](PROJECT_MODEL.md) — 项目安装、启动和 session 绑定。
+- [`../architecture/ARCHITECTURE.md`](../architecture/ARCHITECTURE.md) — shell、Work 与能力包的架构位置。
+- [`INSTALLATION_MODEL.md`](INSTALLATION_MODEL.md) — Work、Installation 与后续 Run 的边界。
 - [`CAPABILITY_HANDLES.md`](CAPABILITY_HANDLES.md) — capability 权威与衰减。
 - [`SECRET_MANAGEMENT.md`](SECRET_MANAGEMENT.md) — `secret_ref` 和 secret 边界。
 - [`../ALPHA_STATUS.md`](../ALPHA_STATUS.md) — 当前实现状态。

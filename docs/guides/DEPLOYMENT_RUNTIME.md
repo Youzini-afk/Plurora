@@ -33,7 +33,7 @@ Docker、git、安装、secret store、workspace、adapter 都不是内核概念
 
 ## Docker 部署描述符
 
-原生项目可以在 `project.yaml` 的 `project.metadata.deployment.docker` 写入最小部署信息：
+Phase 6 Realization 替换完成前，显式 deployment 请求仍可提交最小 Docker 信息；这些字段属于 Host-local operation，不写入 WorkRevision：
 
 ```yaml
 project:
@@ -43,7 +43,7 @@ project:
         image: ghcr.io/example/app:latest
         container_port: 3000
         port_name: web        # optional, default: web
-        route_id: my-app-web  # optional, default: <project_id>-web
+        route_id: my-app-web  # optional, default derived from Installation
         route_access: host_authenticated # optional; host_authenticated | public
         health_path: /healthz # optional, 用于 readiness probe
         pull_if_missing: false
@@ -132,8 +132,8 @@ Build & Deploy 使用 `POST /host/v1/build-deploy`。默认立即返回 `job_id`
 1. 校验源码 URL、策略、runtime env、runtime mounts 和用户批准。
 2. 通过 `git-tools-lab` 克隆到项目工作区；project/workspace 祖先必须是 canonical data root 下的真实目录，选定 tree 的 materialization 超过 100,000 个文件、100,000 个目录或 1 GiB 时 fail-closed。submodule entry、绝对/逃逸根目录的 symlink，以及无法保留 symlink 的平台上的 symlink entry 都会明确失败。当前 transport 仍会执行临时 bare fetch，因此这些 tree 上限尚不能视为 repository download budget。
 3. 若策略为 `nixpacks`，先生成 Dockerfile / context。
-4. 调用 `plurora/docker-runtime-lab/build_image` 构建镜像，打上 `project_id`、`build_id`、`source_commit`、`strategy`、`build_descriptor_hash` 等 label。
-5. 如果项目已有活动修订，构建完成后先清理旧容器、route 和 lease；旧修订在新修订提交前仍是 durable active pointer，因而替换失败会明确进入“需要恢复”状态。
+4. 调用 `plurora/docker-runtime-lab/build_image` 构建镜像，打上 `installation_id`、`workspace_id`、`build_id`、`source_commit`、`strategy`、`build_descriptor_hash` 等 label。
+5. 如果 Installation 已有活动修订，构建完成后再处理旧容器、route 和 lease；旧修订在新修订提交前仍是 durable active pointer，因而替换失败会明确进入“需要恢复”状态。
 6. 进入普通部署链路：port lease → 容器启动 → proxy 注册 → readiness probe。
 7. readiness 成功后先原子追加修订激活事件，再把内存状态翻成 Ready；事件提交失败会回滚新部署。
 
@@ -145,23 +145,23 @@ job intent、最新状态快照、不可变部署修订和 active pointer 都写
 
 这条路径只接受已提交的 `managed_external` ChangeSet、`docker_build` 验证结果和完整 provenance。验证镜像在验证后删除；部署输入是不可变 build-context artifact，而不是镜像或 live workspace。
 
-1. `POST /host/v1/projects/<project_id>/changes/<change_set_id>/deployment/preview` 重新校验 descriptor、tree、verification/build-context artifact 与 project/target authority，再在显式 `local` 或 Agent target 上执行类型化 artifact transfer、Docker build 和 deployment apply。生成的 preview route 固定为 `host_authenticated`。
+1. `POST /host/v1/development/workspace/<workspace_id>/changes/<change_set_id>/deployment/preview` 重新校验 descriptor、tree、verification/build-context artifact 与 Workspace/Installation/Target authority，再在显式 `local` 或 Agent target 上执行类型化 artifact transfer、Docker build 和 deployment apply。生成的 preview route 固定为 `host_authenticated`。
 2. `POST .../deployment/approve` 单独批准或拒绝精确 preview；approval artifact 绑定 candidate receipt、artifact refs、target 与 authority，源码审批不会隐式批准部署。
 3. `POST .../deployment/activate` 再次验证全部证据和 readiness，把用户请求的私有或显式公开 route 指向同一 candidate，提交不可变 `VerifiedActivate` revision 后才 drain 上一修订。
 4. Host 在 preview/activation 期间崩溃或 effect 结果不确定时，事务进入 `recovery_required`。`POST .../deployment/reconcile` 只采用 provenance 完全匹配的 durable activation，或清理精确 candidate/route/lease；歧义状态继续阻断。
 
 项目级 host API：
 
-- `GET /host/v1/projects/<project_id>/deployments`：活动修订、runtime readiness、恢复需求、任务和修订历史。
-- `POST /host/v1/projects/<project_id>/deployments/recover`：显式恢复活动修订。普通 `GitClone` 修订复用保留的本地镜像，不重新 clone/build；`VerifiedArtifact` 修订重新校验证据并在记录的 target 上从 durable build context 重建。
-- `POST /host/v1/projects/<project_id>/deployments/rollback`：把历史修订激活为新的不可变 rollback revision；普通修订复用保留镜像，verified 修订从其 durable context 在记录的 target 上重建。显式 stop 清除 active pointer 后仍可回滚，旧记录不会被修改。
+- `GET /host/v1/installations/<installation_id>/deployments`：活动修订、runtime readiness、恢复需求、任务和修订历史。
+- `POST /host/v1/installations/<installation_id>/deployments/recover`：显式恢复活动修订。普通 `GitClone` 修订复用保留的本地镜像，不重新 clone/build；`VerifiedArtifact` 修订重新校验证据并在记录的 target 上从 durable build context 重建。
+- `POST /host/v1/installations/<installation_id>/deployments/rollback`：把历史修订激活为新的不可变 rollback revision；普通修订复用保留镜像，verified 修订从其 durable context 在记录的 target 上重建。显式 stop 清除 active pointer 后仍可回滚，旧记录不会被修改。
 - `POST /host/v1/deploy/stop`：清理 route 对应的 host 资源；如果它属于活动 durable 修订，同时追加 deactivation 事件。
 
 recover / rollback 都是显式用户动作。普通修订要求 replay-safe、本地镜像仍存在且 secret 仍可解析；verified 修订要求 artifact closure、preview/approval evidence 与当前 project/target authority 仍有效。verified replay 永不读取 live workspace 或重新抓取源码。任何失败都会保留原 active pointer 并显示 recovery required，不会静默声称已经恢复。直接的预构建镜像 `/host/v1/deploy` 目前仍是临时 broker 操作，不会创建 durable revision。
 
 ## `project.start` 不自动部署
 
-`host.project.start` 仍是项目状态机：打开或复用项目 session，标记 Running，返回 `session_id`。它不启动进程、不分配端口、不注册 proxy。
+Installation `ready` 只表示采用记录有效；它不启动进程、不分配端口、不注册 proxy。Phase 4 使用独立 Run / Exposure lifecycle，Phase 6 再用 Realization 取代本页的过渡 deployment controller。
 
 部署是单独的、显式的 host-broker 行为。这样可以保留“打开项目 UI”和“运行外部服务”之间的可见边界。
 

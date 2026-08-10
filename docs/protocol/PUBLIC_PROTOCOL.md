@@ -64,7 +64,7 @@ Host 附加 principal 与 transport context。调用者不能通过 request JSON
 
 每个方法具有：
 
-- `id`：精确的 owner-based 公开方法 ID，例如 `context.open`、`host.project.list` 或 `shell.contribution.list`。
+- `id`：精确的 owner-based 公开方法 ID，例如 `context.open`、`host.installation.list` 或 `shell.contribution.list`。
 - `input`：根据已发布 schema 验证的 JSON 值。
 - `output`：JSON 值，可能是流。
 - `errors`：包含 `code`、`message`、`details` 的结构化错误模型。

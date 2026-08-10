@@ -1,4 +1,5 @@
 use std::collections::{BTreeSet, HashMap};
+use std::fmt;
 use std::sync::{Arc, Mutex};
 
 use axum::extract::{Extension, Path, Request, State};
@@ -9,9 +10,13 @@ use axum::routing::{get, post};
 use axum::{Json, Router};
 use chrono::Utc;
 use plurora_core::{EventEnvelope, EventSequence};
-use plurora_runtime::{EventStore, ProtocolContext, ProtocolResourceSelector};
+use plurora_runtime::{
+    AssetPutRequest, EventStore, ObjectPutScope, ProtocolContext, ProtocolError,
+    ProtocolResourceSelector,
+};
+use serde::de::{self, MapAccess, Visitor};
 use serde::{Deserialize, Serialize};
-use serde_json::json;
+use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 
 use crate::{AppState, ServiceError, HOST_SESSION_COOKIE};
@@ -29,78 +34,216 @@ const MAX_DELEGATION_DEPTH: u16 = 32;
 const MAX_BULK_GRANT_REVOCATIONS: usize = 256;
 
 #[derive(Debug, Clone, Copy, Deserialize, Serialize, PartialEq, Eq, PartialOrd, Ord, Hash)]
-#[serde(rename_all = "snake_case")]
 pub enum HostAccessScope {
+    #[serde(rename = "observe")]
     Observe,
-    ProjectOperate,
-    Deploy,
+    #[serde(rename = "installation.manage")]
+    InstallationManage,
+    #[serde(rename = "run")]
+    Run,
+    #[serde(rename = "binding.manage")]
+    BindingManage,
+    #[serde(rename = "exposure.manage")]
+    ExposureManage,
+    #[serde(rename = "realization.plan")]
+    RealizationPlan,
+    #[serde(rename = "realization.apply")]
+    RealizationApply,
+    #[serde(rename = "develop.propose")]
     DevelopPropose,
+    #[serde(rename = "develop.approve")]
     DevelopApprove,
+    #[serde(rename = "develop.execute")]
     DevelopExecute,
+    /// Transitional Phase 3 scope for existing target/deployment methods.
+    /// Realization methods must migrate to `realization.plan` or
+    /// `realization.apply` before the Phase 6 boundary.
+    #[serde(rename = "deploy")]
+    Deploy,
+    #[serde(rename = "access_manage")]
     AccessManage,
 }
 
 impl HostAccessScope {
-    pub const ALL: [Self; 7] = [
+    pub const ALL: [Self; 12] = [
         Self::Observe,
-        Self::ProjectOperate,
-        Self::Deploy,
+        Self::InstallationManage,
+        Self::Run,
+        Self::BindingManage,
+        Self::ExposureManage,
+        Self::RealizationPlan,
+        Self::RealizationApply,
         Self::DevelopPropose,
         Self::DevelopApprove,
         Self::DevelopExecute,
+        Self::Deploy,
         Self::AccessManage,
     ];
 
     pub fn as_str(self) -> &'static str {
         match self {
             Self::Observe => "observe",
-            Self::ProjectOperate => "project_operate",
+            Self::InstallationManage => "installation.manage",
+            Self::Run => "run",
+            Self::BindingManage => "binding.manage",
+            Self::ExposureManage => "exposure.manage",
+            Self::RealizationPlan => "realization.plan",
+            Self::RealizationApply => "realization.apply",
+            Self::DevelopPropose => "develop.propose",
+            Self::DevelopApprove => "develop.approve",
+            Self::DevelopExecute => "develop.execute",
             Self::Deploy => "deploy",
-            Self::DevelopPropose => "develop_propose",
-            Self::DevelopApprove => "develop_approve",
-            Self::DevelopExecute => "develop_execute",
             Self::AccessManage => "access_manage",
         }
     }
 }
 
+pub(crate) fn object_put_authorization(
+    params: &Value,
+) -> Result<(HostAccessScope, Vec<ProtocolResourceSelector>), ProtocolError> {
+    let request: AssetPutRequest = serde_json::from_value(params.clone()).map_err(|error| {
+        ProtocolError::invalid_request(format!("object.put params are invalid: {error}"))
+    })?;
+    let Some(upload) = request.artifact else {
+        return Ok((HostAccessScope::AccessManage, Vec::new()));
+    };
+    let resources = match upload.scope {
+        ObjectPutScope::InstallationCreate { work_id } => vec![ProtocolResourceSelector {
+            owner: "host".to_string(),
+            kind: "work".to_string(),
+            id: Some(work_id.to_string()),
+        }],
+        ObjectPutScope::InstallationUpdate {
+            installation_id,
+            work_id,
+        } => vec![
+            ProtocolResourceSelector {
+                owner: "host".to_string(),
+                kind: "work".to_string(),
+                id: Some(work_id.to_string()),
+            },
+            ProtocolResourceSelector {
+                owner: "host".to_string(),
+                kind: "installation".to_string(),
+                id: Some(installation_id.to_string()),
+            },
+        ],
+    };
+    Ok((HostAccessScope::InstallationManage, resources))
+}
+
 #[derive(Debug, Clone, Copy, Deserialize, Serialize, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[serde(rename_all = "snake_case")]
 pub enum HostAccessResourceKind {
-    Project,
+    Work,
+    Workspace,
+    Installation,
+    Run,
     Target,
+    Exposure,
+    Binding,
+    Realization,
 }
 
 impl HostAccessResourceKind {
     pub fn as_str(self) -> &'static str {
         match self {
-            Self::Project => "project",
+            Self::Work => "work",
+            Self::Workspace => "workspace",
+            Self::Installation => "installation",
+            Self::Run => "run",
             Self::Target => "target",
+            Self::Exposure => "exposure",
+            Self::Binding => "binding",
+            Self::Realization => "realization",
         }
     }
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq, PartialOrd, Ord, Hash)]
-#[serde(deny_unknown_fields)]
+#[derive(Debug, Clone, Serialize, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct HostAccessResourceSelector {
     pub kind: HostAccessResourceKind,
-    /// Omitted means every resource of this kind. Exact ids are compared
-    /// structurally and never by prefix.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    /// `null` is an explicit wildcard for every resource of this kind.
+    /// Resource ids are compared structurally and never by prefix.
     pub id: Option<String>,
 }
 
-fn default_host_access_resources() -> BTreeSet<HostAccessResourceSelector> {
+impl<'de> Deserialize<'de> for HostAccessResourceSelector {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        struct ResourceSelectorVisitor;
+
+        impl<'de> Visitor<'de> for ResourceSelectorVisitor {
+            type Value = HostAccessResourceSelector;
+
+            fn expecting(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+                formatter.write_str("a resource selector with explicit kind and id fields")
+            }
+
+            fn visit_map<M>(self, mut map: M) -> Result<Self::Value, M::Error>
+            where
+                M: MapAccess<'de>,
+            {
+                let mut kind = None;
+                let mut id = None;
+                while let Some(key) = map.next_key::<String>()? {
+                    match key.as_str() {
+                        "kind" => {
+                            if kind.is_some() {
+                                return Err(de::Error::duplicate_field("kind"));
+                            }
+                            kind = Some(map.next_value()?);
+                        }
+                        "id" => {
+                            if id.is_some() {
+                                return Err(de::Error::duplicate_field("id"));
+                            }
+                            // An explicit null is the wildcard; a missing id
+                            // remains distinguishable as the outer None.
+                            id = Some(map.next_value::<Option<String>>()?);
+                        }
+                        _ => return Err(de::Error::unknown_field(&key, &["kind", "id"])),
+                    }
+                }
+                let kind = kind.ok_or_else(|| de::Error::missing_field("kind"))?;
+                let id = id.ok_or_else(|| de::Error::missing_field("id"))?;
+                Ok(HostAccessResourceSelector { kind, id })
+            }
+        }
+
+        deserializer.deserialize_map(ResourceSelectorVisitor)
+    }
+}
+
+fn root_host_access_resources() -> BTreeSet<HostAccessResourceSelector> {
     BTreeSet::from([
         HostAccessResourceSelector {
-            kind: HostAccessResourceKind::Project,
+            kind: HostAccessResourceKind::Work,
+            id: None,
+        },
+        HostAccessResourceSelector {
+            kind: HostAccessResourceKind::Installation,
+            id: None,
+        },
+        HostAccessResourceSelector {
+            kind: HostAccessResourceKind::Run,
             id: None,
         },
         HostAccessResourceSelector {
             kind: HostAccessResourceKind::Target,
             id: None,
         },
+        HostAccessResourceSelector {
+            kind: HostAccessResourceKind::Realization,
+            id: None,
+        },
     ])
+}
+
+fn default_host_access_scopes() -> BTreeSet<HostAccessScope> {
+    BTreeSet::from([HostAccessScope::Observe])
 }
 
 #[derive(Debug, Clone, Copy, Deserialize, Serialize, PartialEq, Eq)]
@@ -128,7 +271,7 @@ impl HostAccessIdentity {
             grant_id: None,
             device_name: "Host root credential".to_string(),
             scopes: HostAccessScope::ALL.into_iter().collect(),
-            resources: default_host_access_resources(),
+            resources: root_host_access_resources(),
             delegation_chain: Vec::new(),
             expires_at_ms: None,
         }
@@ -146,12 +289,36 @@ impl HostAccessIdentity {
             })
     }
 
-    pub fn allows_project(&self, project_id: &str) -> bool {
-        self.allows_resource(HostAccessResourceKind::Project, project_id)
+    pub fn allows_work(&self, work_id: &str) -> bool {
+        self.allows_resource(HostAccessResourceKind::Work, work_id)
+    }
+
+    pub fn allows_workspace(&self, workspace_id: &str) -> bool {
+        self.allows_resource(HostAccessResourceKind::Workspace, workspace_id)
+    }
+
+    pub fn allows_installation(&self, installation_id: &str) -> bool {
+        self.allows_resource(HostAccessResourceKind::Installation, installation_id)
+    }
+
+    pub fn allows_run(&self, run_id: &str) -> bool {
+        self.allows_resource(HostAccessResourceKind::Run, run_id)
     }
 
     pub fn allows_target(&self, target_id: &str) -> bool {
         self.allows_resource(HostAccessResourceKind::Target, target_id)
+    }
+
+    pub fn allows_exposure(&self, exposure_id: &str) -> bool {
+        self.allows_resource(HostAccessResourceKind::Exposure, exposure_id)
+    }
+
+    pub fn allows_binding(&self, binding_id: &str) -> bool {
+        self.allows_resource(HostAccessResourceKind::Binding, binding_id)
+    }
+
+    pub fn allows_realization(&self, realization_id: &str) -> bool {
+        self.allows_resource(HostAccessResourceKind::Realization, realization_id)
     }
 
     pub fn allows_all(&self, kind: HostAccessResourceKind) -> bool {
@@ -203,7 +370,6 @@ struct StoredPairing {
     id: String,
     device_name: String,
     scopes: BTreeSet<HostAccessScope>,
-    #[serde(default = "default_host_access_resources")]
     resources: BTreeSet<HostAccessResourceSelector>,
     #[serde(default)]
     parent_grant_id: Option<String>,
@@ -234,7 +400,6 @@ struct StoredGrant {
     id: String,
     device_name: String,
     scopes: BTreeSet<HostAccessScope>,
-    #[serde(default = "default_host_access_resources")]
     resources: BTreeSet<HostAccessResourceSelector>,
     #[serde(default)]
     parent_grant_id: Option<String>,
@@ -429,8 +594,8 @@ impl StoredPairing {
 #[serde(deny_unknown_fields)]
 struct CreatePairingRequest {
     device_name: String,
+    #[serde(default = "default_host_access_scopes")]
     scopes: BTreeSet<HostAccessScope>,
-    #[serde(default = "default_host_access_resources")]
     resources: BTreeSet<HostAccessResourceSelector>,
     #[serde(default)]
     pairing_ttl_secs: Option<u64>,
@@ -521,6 +686,59 @@ impl HostAccessRegistry {
             current = grant.parent_grant_id.as_deref();
         }
         true
+    }
+
+    fn grant_allows_current_in_state(
+        state: &HostAccessState,
+        grant_id: &str,
+        scope: HostAccessScope,
+        resource: &HostAccessResourceSelector,
+        now_ms: i64,
+    ) -> bool {
+        let Some(leaf) = state.grants.get(grant_id) else {
+            return false;
+        };
+        if !leaf.scopes.contains(&scope)
+            || !leaf
+                .resources
+                .iter()
+                .any(|owned| selector_covers(owned, resource))
+        {
+            return false;
+        }
+
+        let mut current = leaf;
+        let mut visited = BTreeSet::new();
+        loop {
+            if !visited.insert(current.id.as_str())
+                || visited.len() > usize::from(MAX_DELEGATION_DEPTH) + 1
+                || current.revoked_at_ms.is_some()
+                || current.expires_at_ms <= now_ms
+            {
+                return false;
+            }
+            let Some(parent_id) = current.parent_grant_id.as_deref() else {
+                return current.delegation_depth == 0;
+            };
+            let Some(parent) = state.grants.get(parent_id) else {
+                return false;
+            };
+            if current.delegation_depth == 0
+                || parent.delegation_depth.saturating_add(1) != current.delegation_depth
+                || !current.scopes.is_subset(&parent.scopes)
+                || current.scopes.contains(&HostAccessScope::AccessManage)
+                || !current.resources.iter().all(|candidate| {
+                    parent
+                        .resources
+                        .iter()
+                        .any(|owned| selector_covers(owned, candidate))
+                })
+                || current.expires_at_ms > parent.expires_at_ms
+            {
+                return false;
+            }
+            current = parent;
+        }
     }
 
     fn next_sequence(&self) -> EventSequence {
@@ -705,6 +923,27 @@ impl HostAccessRegistry {
         let now_ms = Utc::now().timestamp_millis();
         let state = self.state.lock().expect("Host access state lock poisoned");
         Self::grant_is_active(&state, grant_id, now_ms)
+    }
+
+    pub(crate) fn grant_allows_current(
+        &self,
+        grant_id: &str,
+        scope: HostAccessScope,
+        kind: HostAccessResourceKind,
+        id: &str,
+    ) -> bool {
+        let now_ms = Utc::now().timestamp_millis();
+        let state = self.state.lock().expect("Host access state lock poisoned");
+        Self::grant_allows_current_in_state(
+            &state,
+            grant_id,
+            scope,
+            &HostAccessResourceSelector {
+                kind,
+                id: Some(id.to_string()),
+            },
+            now_ms,
+        )
     }
 
     fn overview(&self, identity: &HostAccessIdentity) -> HostAccessOverview {
@@ -915,7 +1154,7 @@ where
     {
         return Err(ServiceError::with_status(
             StatusCode::FORBIDDEN,
-            "a Host access grant cannot exceed the caller's project or target resources",
+            "a Host access grant cannot exceed the caller's selected resources",
         ));
     }
     if request.scopes.contains(&HostAccessScope::AccessManage)
@@ -1652,17 +1891,91 @@ mod tests {
     use super::*;
     use plurora_runtime::InMemoryEventStore;
 
+    #[test]
+    fn object_put_authorization_is_params_aware_and_fail_closed() {
+        let ordinary = json!({"mime": "text/plain", "content": "asset", "metadata": {}});
+        assert_eq!(
+            object_put_authorization(&ordinary).unwrap(),
+            (HostAccessScope::AccessManage, Vec::new())
+        );
+
+        let artifact = json!({
+            "descriptor": {
+                "artifact_type_uri": "urn:plurora:test-object:v1",
+                "media_type": "application/octet-stream",
+                "digest": format!("sha256:{}", "a".repeat(64)),
+                "size_bytes": 1,
+                "references": [],
+                "annotations": {}
+            },
+            "content_encoding": "hex",
+            "scope": {
+                "kind": "installation_update",
+                "installation_id": "11111111-1111-4111-8111-111111111111",
+                "work_id": "tests/scoped-object"
+            }
+        });
+        let (scope, resources) = object_put_authorization(&json!({
+            "mime": "application/octet-stream",
+            "content": "00",
+            "artifact": artifact,
+        }))
+        .unwrap();
+        assert_eq!(scope, HostAccessScope::InstallationManage);
+        assert_eq!(
+            resources,
+            vec![
+                ProtocolResourceSelector {
+                    owner: "host".into(),
+                    kind: "work".into(),
+                    id: Some("tests/scoped-object".into()),
+                },
+                ProtocolResourceSelector {
+                    owner: "host".into(),
+                    kind: "installation".into(),
+                    id: Some("11111111-1111-4111-8111-111111111111".into()),
+                },
+            ]
+        );
+
+        assert!(object_put_authorization(&json!({
+            "mime": "application/octet-stream",
+            "content": "00",
+            "artifact": {
+                "descriptor": {
+                    "artifact_type_uri": "urn:plurora:test-object:v1",
+                    "media_type": "application/octet-stream",
+                    "digest": format!("sha256:{}", "a".repeat(64)),
+                    "size_bytes": 1,
+                    "references": [],
+                    "annotations": {}
+                },
+                "content_encoding": "hex"
+            }
+        }))
+        .is_err());
+        assert!(object_put_authorization(&json!({
+            "mime": "text/plain",
+            "content": "asset",
+            "scope": {"kind": "installation_create", "work_id": "tests/scoped-object"}
+        }))
+        .is_err());
+    }
+
     #[tokio::test]
     async fn pairing_is_single_use_and_grants_are_revocable() -> anyhow::Result<()> {
         let store = InMemoryEventStore::default();
         let registry = HostAccessRegistry::default();
-        let scopes = BTreeSet::from([HostAccessScope::Observe, HostAccessScope::ProjectOperate]);
+        let scopes = BTreeSet::from([
+            HostAccessScope::Observe,
+            HostAccessScope::InstallationManage,
+        ]);
         let (_, pairing_token) = create_pairing_record(
             &store,
             &registry,
             "Phone".to_string(),
             scopes.clone(),
-            default_host_access_resources(),
+            root_host_access_resources(),
             None,
             0,
             300,
@@ -1697,7 +2010,7 @@ mod tests {
                 &registry,
                 device_name.to_string(),
                 BTreeSet::from([HostAccessScope::Observe]),
-                default_host_access_resources(),
+                root_host_access_resources(),
                 None,
                 0,
                 300,
@@ -1748,7 +2061,7 @@ mod tests {
             &source,
             "Tablet".to_string(),
             BTreeSet::from([HostAccessScope::Observe]),
-            default_host_access_resources(),
+            root_host_access_resources(),
             None,
             0,
             300,
@@ -1775,85 +2088,132 @@ mod tests {
         Ok(())
     }
 
-    #[tokio::test]
-    async fn legacy_access_journal_without_resources_hydrates_as_wildcard() -> anyhow::Result<()> {
-        let store = Arc::new(InMemoryEventStore::default());
-        let registry = Arc::new(HostAccessRegistry::default());
-        let now_ms = Utc::now().timestamp_millis();
-        let pairing_id = "legacy-pairing";
-        let grant_id = "legacy-grant";
-        let access_token = format!("plurora_access.{grant_id}.{}", "a".repeat(64));
-
-        let created = json!({
-            "kind": "pairing_created",
-            "pairing": {
-                "id": pairing_id,
-                "device_name": "Legacy device",
-                "scopes": ["observe"],
-                "secret_digest": credential_digest("pairing", "legacy-pairing-token"),
-                "created_at_ms": now_ms,
-                "expires_at_ms": now_ms + 60_000,
-                "grant_expires_at_ms": now_ms + 3_600_000,
-                "status": { "kind": "pending" }
-            }
-        });
-        let claimed = json!({
-            "kind": "pairing_claimed",
-            "pairing_id": pairing_id,
-            "claimed_at_ms": now_ms + 1,
-            "grant": {
-                "id": grant_id,
-                "device_name": "Legacy device",
-                "scopes": ["observe"],
-                "token_digest": credential_digest("access", &access_token),
-                "created_at_ms": now_ms + 1,
-                "expires_at_ms": now_ms + 3_600_000,
-                "revoked_at_ms": null
-            }
-        });
-
-        for (sequence, payload) in [(0, created), (1, claimed)] {
-            store
-                .append_with_sequence_if_next(
-                    HOST_ACCESS_JOURNAL_SESSION.to_string(),
-                    sequence,
-                    HOST_ACCESS_JOURNAL_WRITER.to_string(),
-                    HOST_ACCESS_JOURNAL_EVENT.to_string(),
-                    1,
-                    payload,
-                    json!({"legacy_fixture": true}),
-                )
-                .await?
-                .expect("legacy journal event appends contiguously");
+    #[test]
+    fn scopes_and_resource_kinds_use_the_new_wire_names() -> anyhow::Result<()> {
+        let scopes = [
+            (HostAccessScope::Observe, "observe"),
+            (HostAccessScope::InstallationManage, "installation.manage"),
+            (HostAccessScope::Run, "run"),
+            (HostAccessScope::BindingManage, "binding.manage"),
+            (HostAccessScope::ExposureManage, "exposure.manage"),
+            (HostAccessScope::RealizationPlan, "realization.plan"),
+            (HostAccessScope::RealizationApply, "realization.apply"),
+            (HostAccessScope::DevelopPropose, "develop.propose"),
+            (HostAccessScope::DevelopApprove, "develop.approve"),
+            (HostAccessScope::DevelopExecute, "develop.execute"),
+            (HostAccessScope::AccessManage, "access_manage"),
+            (HostAccessScope::Deploy, "deploy"),
+        ];
+        for (scope, wire_name) in scopes {
+            assert_eq!(scope.as_str(), wire_name);
+            assert_eq!(serde_json::to_value(scope)?, json!(wire_name));
+            assert_eq!(
+                serde_json::from_value::<HostAccessScope>(json!(wire_name))?,
+                scope
+            );
         }
+        assert!(serde_json::from_value::<HostAccessScope>(json!("develop_propose")).is_err());
 
+        let kinds = [
+            (HostAccessResourceKind::Work, "work"),
+            (HostAccessResourceKind::Workspace, "workspace"),
+            (HostAccessResourceKind::Installation, "installation"),
+            (HostAccessResourceKind::Run, "run"),
+            (HostAccessResourceKind::Target, "target"),
+            (HostAccessResourceKind::Exposure, "exposure"),
+            (HostAccessResourceKind::Binding, "binding"),
+            (HostAccessResourceKind::Realization, "realization"),
+        ];
+        for (kind, wire_name) in kinds {
+            assert_eq!(kind.as_str(), wire_name);
+            assert_eq!(serde_json::to_value(kind)?, json!(wire_name));
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn pairing_resources_and_selector_ids_are_explicit_on_the_wire() -> anyhow::Result<()> {
+        assert!(serde_json::from_value::<CreatePairingRequest>(json!({
+            "device_name": "Phone"
+        }))
+        .is_err());
+
+        let request: CreatePairingRequest = serde_json::from_value(json!({
+            "device_name": "Phone",
+            "resources": []
+        }))?;
+        assert_eq!(request.scopes, BTreeSet::from([HostAccessScope::Observe]));
+        assert!(request.resources.is_empty());
+
+        let wildcard: HostAccessResourceSelector = serde_json::from_value(json!({
+            "kind": "work",
+            "id": null
+        }))?;
+        assert_eq!(wildcard.id, None);
         assert_eq!(
-            hydrate_host_access_control_plane(store, registry.clone()).await?,
-            2
+            serde_json::to_value(&wildcard)?,
+            json!({"kind": "work", "id": null})
         );
-        let identity = registry
-            .authenticate(&access_token)
-            .expect("legacy grant remains authenticatable");
-        assert!(identity.allows_project("any-project"));
-        assert!(identity.allows_target("any-target"));
+        assert!(serde_json::from_value::<HostAccessResourceSelector>(json!({
+            "kind": "work"
+        }))
+        .is_err());
+
+        let now_ms = Utc::now().timestamp_millis();
+        let mut stored_pairing = serde_json::to_value(StoredPairing {
+            id: "pairing".to_string(),
+            device_name: "Phone".to_string(),
+            scopes: BTreeSet::from([HostAccessScope::Observe]),
+            resources: BTreeSet::new(),
+            parent_grant_id: None,
+            delegation_depth: 0,
+            secret_digest: "digest".to_string(),
+            created_at_ms: now_ms,
+            expires_at_ms: now_ms + 60_000,
+            grant_expires_at_ms: now_ms + 3_600_000,
+            status: HostPairingStatus::Pending,
+        })?;
+        stored_pairing
+            .as_object_mut()
+            .expect("stored pairing is an object")
+            .remove("resources");
+        assert!(serde_json::from_value::<StoredPairing>(stored_pairing).is_err());
+
+        let mut stored_grant = serde_json::to_value(StoredGrant {
+            id: "grant".to_string(),
+            device_name: "Phone".to_string(),
+            scopes: BTreeSet::from([HostAccessScope::Observe]),
+            resources: BTreeSet::new(),
+            parent_grant_id: None,
+            delegation_depth: 0,
+            token_digest: "digest".to_string(),
+            created_at_ms: now_ms,
+            expires_at_ms: now_ms + 3_600_000,
+            revoked_at_ms: None,
+        })?;
+        stored_grant
+            .as_object_mut()
+            .expect("stored grant is an object")
+            .remove("resources");
+        assert!(serde_json::from_value::<StoredGrant>(stored_grant).is_err());
         Ok(())
     }
 
     #[tokio::test]
-    async fn delegated_grant_is_project_exact_and_parent_revocation_cascades() -> anyhow::Result<()>
-    {
+    async fn delegated_grant_is_installation_exact_and_parent_revocation_cascades(
+    ) -> anyhow::Result<()> {
         let store = InMemoryEventStore::default();
         let registry = HostAccessRegistry::default();
-        let project_a = BTreeSet::from([HostAccessResourceSelector {
-            kind: HostAccessResourceKind::Project,
-            id: Some("project-a".to_string()),
+        let installation_a = BTreeSet::from([HostAccessResourceSelector {
+            kind: HostAccessResourceKind::Installation,
+            id: Some("installation-a".to_string()),
         }]);
         let (_, parent_pairing_token) = create_pairing_record(
             &store,
             &registry,
             "Admin tablet".to_string(),
             BTreeSet::from([HostAccessScope::Observe, HostAccessScope::AccessManage]),
-            project_a.clone(),
+            installation_a.clone(),
             None,
             0,
             300,
@@ -1865,9 +2225,9 @@ mod tests {
         let (_, child_pairing_token) = create_pairing_record(
             &store,
             &registry,
-            "Project phone".to_string(),
+            "Installation phone".to_string(),
             BTreeSet::from([HostAccessScope::Observe]),
-            project_a,
+            installation_a,
             Some(parent.id.clone()),
             1,
             300,
@@ -1879,8 +2239,8 @@ mod tests {
         let child = authenticate_host_access_token(&store, &registry, &child_access_token)
             .await?
             .expect("child grant authenticates while its parent is active");
-        assert!(child.allows_project("project-a"));
-        assert!(!child.allows_project("project-ab"));
+        assert!(child.allows_resource(HostAccessResourceKind::Installation, "installation-a"));
+        assert!(!child.allows_resource(HostAccessResourceKind::Installation, "installation-ab"));
         assert_eq!(child.delegation_chain, vec![parent.id.clone()]);
 
         revoke_grant_record(&store, &registry, &parent.id).await?;
@@ -1897,16 +2257,16 @@ mod tests {
     async fn hydration_rejects_an_overbroad_delegated_authority() -> anyhow::Result<()> {
         let store = Arc::new(InMemoryEventStore::default());
         let source = HostAccessRegistry::default();
-        let project_a = BTreeSet::from([HostAccessResourceSelector {
-            kind: HostAccessResourceKind::Project,
-            id: Some("project-a".to_string()),
+        let installation_a = BTreeSet::from([HostAccessResourceSelector {
+            kind: HostAccessResourceKind::Installation,
+            id: Some("installation-a".to_string()),
         }]);
         let (_, parent_pairing_token) = create_pairing_record(
             store.as_ref(),
             &source,
             "Parent".to_string(),
             BTreeSet::from([HostAccessScope::Observe, HostAccessScope::AccessManage]),
-            project_a,
+            installation_a,
             None,
             0,
             300,
@@ -1921,8 +2281,8 @@ mod tests {
             device_name: "Malformed child".to_string(),
             scopes: BTreeSet::from([HostAccessScope::Observe]),
             resources: BTreeSet::from([HostAccessResourceSelector {
-                kind: HostAccessResourceKind::Project,
-                id: Some("project-b".to_string()),
+                kind: HostAccessResourceKind::Installation,
+                id: Some("installation-b".to_string()),
             }]),
             parent_grant_id: Some(parent.id),
             delegation_depth: 1,
@@ -1967,7 +2327,7 @@ mod tests {
             registry.as_ref(),
             "Concurrent revoke device".to_string(),
             BTreeSet::from([HostAccessScope::Observe]),
-            default_host_access_resources(),
+            root_host_access_resources(),
             None,
             0,
             300,
@@ -2015,7 +2375,7 @@ mod tests {
             &registry,
             "Expired device".to_string(),
             BTreeSet::from([HostAccessScope::Observe]),
-            default_host_access_resources(),
+            root_host_access_resources(),
             None,
             0,
             300,

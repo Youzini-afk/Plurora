@@ -7,8 +7,8 @@ const HomePage = lazy(() => import("@/routes/home").then((module) => ({ default:
 const SettingsPage = lazy(() =>
   import("@/routes/settings").then((module) => ({ default: module.SettingsPage })),
 );
-const ProjectFrame = lazy(() =>
-  import("@/routes/project-frame").then((module) => ({ default: module.ProjectFrame })),
+const InstallationFrame = lazy(() =>
+  import("@/routes/installation-frame").then((module) => ({ default: module.InstallationFrame })),
 );
 
 export function Shell() {
@@ -43,7 +43,7 @@ function renderRoute(route: Route) {
       return <HomePage />;
     case "settings":
       return <SettingsPage tab={route.tab} />;
-    case "project":
-      return <ProjectFrame projectId={route.projectId} />;
+    case "installation":
+      return <InstallationFrame installationId={route.installationId} />;
   }
 }

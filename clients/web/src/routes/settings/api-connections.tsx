@@ -217,7 +217,7 @@ export function ApiConnectionsPanel() {
             <CardSection>
               <EyebrowSm>{t("apiHowUsed")}</EyebrowSm>
               <p className="mt-3 text-[12px] leading-relaxed text-steel-secondary">
-                Projects reference keys with{" "}
+                Installations reference keys with{" "}
                 <span className="font-mono text-charcoal-ink">secret_ref:store:NAME</span>. {t("apiHowUsedBody")}
               </p>
               <button
@@ -425,7 +425,7 @@ function AddSecretModal({
           <div className="flex flex-wrap gap-2">
             {[
               { id: "platform", label: t("apiScopePlatform") },
-              { id: "project", label: t("apiScopeProject") },
+              { id: "installation", label: t("apiScopeInstallation") },
             ].map((option) => (
               <button
                 key={option.id}

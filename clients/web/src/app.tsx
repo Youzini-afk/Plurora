@@ -10,10 +10,10 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthGateScreen, AuthChecking, HostUnavailable } from "@/components/auth-gate";
 import { Shell } from "@/components/layout/shell";
 import { Skeleton } from "@/components/ui/skeleton";
-import { usePathProjectRoute } from "@/lib/router";
+import { usePathInstallationRoute } from "@/lib/router";
 
-const ProjectFrame = lazy(() =>
-  import("@/routes/project-frame").then((module) => ({ default: module.ProjectFrame })),
+const InstallationFrame = lazy(() =>
+  import("@/routes/installation-frame").then((module) => ({ default: module.InstallationFrame })),
 );
 const PairingPage = lazy(() =>
   import("@/routes/pairing").then((module) => ({ default: module.PairingPage })),
@@ -42,7 +42,7 @@ export function App({ children }: { children?: ReactNode }) {
 
 function AppInner({ children }: { children?: ReactNode }) {
   const { status, token } = useAuth();
-  const pathProjectRoute = usePathProjectRoute();
+  const pathInstallationRoute = usePathInstallationRoute();
   const isPairingPath = typeof window !== "undefined" && window.location.pathname === "/pair";
 
   if (isPairingPath) {
@@ -71,9 +71,9 @@ function AppInner({ children }: { children?: ReactNode }) {
       <MotionConfig reducedMotion="user">
         <TooltipProvider>
           <ToastProvider>
-            {children ?? (pathProjectRoute ? (
-              <Suspense fallback={<ProjectTabSkeleton />}>
-                <ProjectFrame projectId={pathProjectRoute.projectId} chrome="none" />
+            {children ?? (pathInstallationRoute ? (
+              <Suspense fallback={<InstallationTabSkeleton />}>
+                <InstallationFrame installationId={pathInstallationRoute.installationId} chrome="none" />
               </Suspense>
             ) : (
               <Shell />
@@ -85,7 +85,7 @@ function AppInner({ children }: { children?: ReactNode }) {
   );
 }
 
-function ProjectTabSkeleton() {
+function InstallationTabSkeleton() {
   return (
     <div className="flex min-h-[100dvh] flex-col gap-4 bg-warm-bone p-6">
       <Skeleton className="h-5 w-44" />

@@ -281,46 +281,168 @@ mod y2_tests {
 
 #[cfg(test)]
 mod host_resource_authority_tests {
-    use std::collections::BTreeMap;
     use std::sync::Arc;
 
     use crate::{
-        InMemoryEventStore, ProjectRegistry, ProtocolContext, ProtocolResourceSelector, Runtime,
-        RuntimeConfig,
+        InMemoryEventStore, InstallationAuthorityRefresh, InstallationAuthoritySubject,
+        InstallationAuthorityValidator, InstallationControl, InstallationCreateRequest,
+        InstallationListRequest, InstallationMutationResult, InstallationRemoveRequest,
+        InstallationUpdateRequest, InstallationView, OpenSessionRequest, ProtocolContext,
+        ProtocolResourceSelector, Runtime, RuntimeConfig,
     };
-    use plurora_core::project::{
-        ProjectDescriptor, ProjectId, ProjectInner, ProjectType, SecretPolicy,
+    use async_trait::async_trait;
+    use plurora_core::ArtifactDescriptor;
+    use plurora_work::{
+        AcquisitionKind, AcquisitionRecord, InstallationId, InstallationRecord,
+        InstallationSecretPolicy, InstallationStatus, WorkId, ASSEMBLY_LOCK_TYPE_URI,
+        WORK_REVISION_TYPE_URI,
     };
 
-    fn project(id: &str, title: &str) -> ProjectDescriptor {
-        ProjectDescriptor {
-            schema_version: 1,
-            project: ProjectInner {
-                id: ProjectId::new(id).expect("valid project id"),
-                title: title.to_string(),
-                description: String::new(),
-                project_type: ProjectType::PluroraNative,
-                icon: None,
-                entry_surface_id: Some("test/surface/main".to_string()),
-                packages: vec!["packages/test/manifest.yaml".to_string()],
-                optional_packages: Vec::new(),
-                required_surfaces: Vec::new(),
-                required_capabilities: Vec::new(),
-                secret_policy: SecretPolicy::default(),
-                external: None,
-                metadata: BTreeMap::new(),
-            },
+    #[derive(Clone)]
+    struct FakeInstallationControl {
+        installations: Vec<InstallationView>,
+    }
+
+    struct ExactWorkAuthority(WorkId);
+
+    #[async_trait]
+    impl InstallationAuthorityValidator for ExactWorkAuthority {
+        async fn validate_current(
+            &self,
+            grant_id: &str,
+            subject: &InstallationAuthoritySubject,
+        ) -> anyhow::Result<()> {
+            anyhow::ensure!(grant_id == "grant-exact-work", "unexpected test grant");
+            anyhow::ensure!(
+                subject == &InstallationAuthoritySubject::Work(self.0.clone()),
+                "unexpected test authority subject"
+            );
+            Ok(())
         }
     }
 
-    fn project_device(project_id: &str) -> ProtocolContext {
+    #[async_trait]
+    impl InstallationControl for FakeInstallationControl {
+        async fn list(
+            &self,
+            request: InstallationListRequest,
+        ) -> anyhow::Result<Vec<InstallationView>> {
+            Ok(self
+                .installations
+                .iter()
+                .filter(|view| {
+                    request
+                        .status
+                        .is_none_or(|status| view.record.status == status)
+                })
+                .cloned()
+                .collect())
+        }
+
+        async fn get(
+            &self,
+            installation_id: &InstallationId,
+        ) -> anyhow::Result<Option<InstallationView>> {
+            Ok(self
+                .installations
+                .iter()
+                .find(|view| &view.record.installation_id == installation_id)
+                .cloned())
+        }
+
+        async fn create(
+            &self,
+            request: InstallationCreateRequest,
+        ) -> anyhow::Result<InstallationMutationResult> {
+            request.validate()?;
+            let now = chrono::DateTime::parse_from_rfc3339("2026-01-01T00:00:00Z")?
+                .with_timezone(&chrono::Utc);
+            Ok(InstallationMutationResult {
+                installation: InstallationView {
+                    record: InstallationRecord {
+                        schema_version: InstallationRecord::SCHEMA_VERSION,
+                        installation_id: InstallationId::new(),
+                        work_revision: request.work_revision,
+                        assembly_lock: request.assembly_lock,
+                        display_name: request.display_name,
+                        source: request.source,
+                        state_bindings: request.state_bindings,
+                        secret_policy: request.secret_policy,
+                        created_at: now,
+                        updated_at: now,
+                        status: InstallationStatus::Ready,
+                    },
+                    revision: 1,
+                    rollback: None,
+                },
+                diff: None,
+                receipts: Vec::new(),
+                idempotent: false,
+            })
+        }
+
+        async fn update(
+            &self,
+            _request: InstallationUpdateRequest,
+        ) -> anyhow::Result<InstallationMutationResult> {
+            anyhow::bail!("not used")
+        }
+
+        async fn remove(
+            &self,
+            _request: InstallationRemoveRequest,
+        ) -> anyhow::Result<InstallationMutationResult> {
+            anyhow::bail!("not used")
+        }
+    }
+
+    fn artifact(kind: &str, byte: char) -> ArtifactDescriptor {
+        ArtifactDescriptor {
+            artifact_type_uri: kind.to_string(),
+            media_type: "application/json".to_string(),
+            digest: format!("sha256:{}", byte.to_string().repeat(64)),
+            size_bytes: 1,
+            references: Vec::new(),
+            annotations: Default::default(),
+        }
+    }
+
+    fn installation(id: InstallationId, title: &str, byte: char) -> InstallationView {
+        let now = chrono::DateTime::parse_from_rfc3339("2026-01-01T00:00:00Z")
+            .unwrap()
+            .with_timezone(&chrono::Utc);
+        InstallationView {
+            record: InstallationRecord {
+                schema_version: InstallationRecord::SCHEMA_VERSION,
+                installation_id: id,
+                work_revision: artifact(WORK_REVISION_TYPE_URI, byte),
+                assembly_lock: artifact(ASSEMBLY_LOCK_TYPE_URI, byte),
+                display_name: title.to_string(),
+                source: AcquisitionRecord {
+                    kind: AcquisitionKind::WorkBundle,
+                    source_ref: None,
+                    provenance_refs: Vec::new(),
+                    update_channel: None,
+                },
+                state_bindings: Vec::new(),
+                secret_policy: InstallationSecretPolicy::default(),
+                created_at: now,
+                updated_at: now,
+                status: InstallationStatus::Ready,
+            },
+            revision: 1,
+            rollback: None,
+        }
+    }
+
+    fn installation_device(installation_id: &str) -> ProtocolContext {
         ProtocolContext::host_device(
-            "grant-project-a",
-            vec!["observe".into(), "project_operate".into()],
+            "grant-installation-a",
+            vec!["observe".into(), "run".into()],
             vec![ProtocolResourceSelector {
                 owner: "host".into(),
-                kind: "project".into(),
-                id: Some(project_id.into()),
+                kind: "installation".into(),
+                id: Some(installation_id.into()),
             }],
             Vec::new(),
             "test",
@@ -328,55 +450,62 @@ mod host_resource_authority_tests {
     }
 
     #[tokio::test]
-    async fn project_device_cannot_list_or_open_another_project() {
-        let project_a = "authority_project_a__abc12345";
-        let project_b = "authority_project_b__abc12345";
-        let registry = Arc::new(ProjectRegistry::new());
-        registry
-            .register(project(project_a, "Project A"))
-            .expect("register A");
-        registry
-            .register(project(project_b, "Project B"))
-            .expect("register B");
+    async fn installation_device_sees_only_its_exact_installation() {
+        let installation_a = InstallationId::new();
+        let installation_b = InstallationId::new();
+        let control = Arc::new(FakeInstallationControl {
+            installations: vec![
+                installation(installation_a.clone(), "Installation A", 'a'),
+                installation(installation_b.clone(), "Installation B", 'b'),
+            ],
+        });
         let runtime = Runtime::new(
             Arc::new(InMemoryEventStore::default()),
             RuntimeConfig {
-                project_registry: registry,
+                installation_control: control,
                 ..RuntimeConfig::default()
             },
         );
-        let context = project_device(project_a);
+        let context = installation_device(installation_a.as_str());
         let listed = runtime
-            .call_protocol(&context, "host.project.list", serde_json::json!({}))
+            .call_protocol(&context, "host.installation.list", serde_json::json!({}))
             .await
-            .expect("list allowed projects");
-        let projects = listed["projects"].as_array().expect("projects array");
-        assert_eq!(projects.len(), 1);
-        assert_eq!(projects[0]["id"], project_a);
+            .expect("list visible installations");
+        let installations = listed.as_array().expect("installations array");
+        assert_eq!(installations.len(), 1);
+        assert_eq!(
+            installations[0]["record"]["installation_id"],
+            installation_a.as_str()
+        );
 
         assert!(runtime
             .call_protocol(
                 &context,
-                "host.project.get",
-                serde_json::json!({"project_id": project_b}),
+                "host.installation.get",
+                serde_json::json!({"installation_id": installation_b}),
             )
             .await
             .is_err());
 
-        let started = runtime
+        let opened = runtime
             .call_protocol(
                 &context,
-                "host.project.start",
-                serde_json::json!({"project_id": project_a}),
+                "context.open",
+                serde_json::to_value(OpenSessionRequest {
+                    labels: vec![format!("installation:{}", installation_a)],
+                    active_package_set: Vec::new(),
+                    metadata: serde_json::json!({"installation_id": installation_a}),
+                })
+                .expect("serialize open-session request"),
             )
             .await
-            .expect("start allowed project");
-        let session_id = started["session_id"].as_str().expect("session id");
+            .expect("open allowed installation context");
+        let session_id = opened["id"].as_str().expect("session id");
         let session = runtime
             .get_session(session_id)
             .await
             .expect("session exists");
-        assert_eq!(session.metadata["project_id"], project_a);
+        assert_eq!(session.metadata["installation_id"], installation_a.as_str());
 
         let forked = runtime
             .call_protocol(
@@ -389,7 +518,7 @@ mod host_resource_authority_tests {
                 }),
             )
             .await
-            .expect("fork allowed project session");
+            .expect("fork allowed Installation session");
         let child_session_id = forked["child_session_id"]
             .as_str()
             .expect("child session id");
@@ -397,7 +526,7 @@ mod host_resource_authority_tests {
             .get_session(child_session_id)
             .await
             .expect("forked session exists");
-        assert_eq!(child.metadata["project_id"], project_a);
+        assert_eq!(child.metadata["installation_id"], installation_a.as_str());
         runtime
             .call_protocol(
                 &context,
@@ -405,7 +534,141 @@ mod host_resource_authority_tests {
                 serde_json::json!({"session_id": child_session_id}),
             )
             .await
-            .expect("forked session retains the project authority binding");
+            .expect("forked session retains the Installation authority binding");
+    }
+
+    #[tokio::test]
+    async fn installation_create_requires_idempotency_and_exact_work_authority() {
+        let control = Arc::new(FakeInstallationControl {
+            installations: Vec::new(),
+        });
+        let runtime = Runtime::new(
+            Arc::new(InMemoryEventStore::default()),
+            RuntimeConfig {
+                installation_control: control,
+                ..RuntimeConfig::default()
+            },
+        );
+        let work = artifact(WORK_REVISION_TYPE_URI, 'c');
+        let work_id = WorkId::parse("tests/installation-create").unwrap();
+        let params = serde_json::json!({
+            "work_id": work_id,
+            "work_revision": work,
+            "assembly_lock": artifact(ASSEMBLY_LOCK_TYPE_URI, 'd'),
+            "display_name": "Example",
+            "source": {"kind": "work_bundle"},
+            "state_bindings": [],
+            "secret_policy": {},
+            "idempotency_key": ""
+        });
+        let blank = runtime
+            .call_protocol(
+                &ProtocolContext::host_dev("test"),
+                "host.installation.create",
+                params.clone(),
+            )
+            .await
+            .expect_err("blank idempotency key must fail before control invocation");
+        assert!(blank.message.contains("non-empty idempotency_key"));
+
+        let mut valid = params;
+        valid["idempotency_key"] = serde_json::json!("install-1");
+        let denied = ProtocolContext::host_device(
+            "grant-wrong-work",
+            vec!["installation.manage".into()],
+            vec![ProtocolResourceSelector {
+                owner: "host".into(),
+                kind: "work".into(),
+                id: Some("tests/wrong-work".into()),
+            }],
+            Vec::new(),
+            "test",
+        );
+        let error = runtime
+            .call_protocol(&denied, "host.installation.create", valid.clone())
+            .await
+            .expect_err("create must require the exact Work identity");
+        assert!(error.message.contains("exact Work"));
+
+        let authorized = ProtocolContext::host_device(
+            "grant-exact-work",
+            vec!["installation.manage".into()],
+            vec![ProtocolResourceSelector {
+                owner: "host".into(),
+                kind: "work".into(),
+                id: Some(work_id.to_string()),
+            }],
+            Vec::new(),
+            "test",
+        )
+        .with_verified_authority_expiry(Some(chrono::Utc::now().timestamp_millis() + 60_000))
+        .with_installation_authority_refresh(InstallationAuthorityRefresh::new(Arc::new(
+            ExactWorkAuthority(work_id),
+        )));
+        let created = runtime
+            .call_protocol(&authorized, "host.installation.create", valid)
+            .await
+            .expect("an explicit test control receives an exactly authorized create");
+        assert_eq!(created["installation"]["record"]["display_name"], "Example");
+    }
+
+    #[tokio::test]
+    async fn installation_update_and_remove_require_the_exact_installation() {
+        let installation_a = InstallationId::new();
+        let installation_b = InstallationId::new();
+        let runtime = Runtime::new(
+            Arc::new(InMemoryEventStore::default()),
+            RuntimeConfig {
+                installation_control: Arc::new(FakeInstallationControl {
+                    installations: vec![installation(
+                        installation_b.clone(),
+                        "Installation B",
+                        'b',
+                    )],
+                }),
+                ..RuntimeConfig::default()
+            },
+        );
+        let context = ProtocolContext::host_device(
+            "grant-installation-a-manage",
+            vec!["installation.manage".into()],
+            vec![ProtocolResourceSelector {
+                owner: "host".into(),
+                kind: "installation".into(),
+                id: Some(installation_a.as_str().to_string()),
+            }],
+            Vec::new(),
+            "test",
+        );
+
+        for (method, params) in [
+            (
+                "host.installation.update",
+                serde_json::json!({
+                    "installation_id": installation_b.as_str(),
+                    "expected_revision": 1,
+                    "work_revision": artifact(WORK_REVISION_TYPE_URI, 'c'),
+                    "assembly_lock": artifact(ASSEMBLY_LOCK_TYPE_URI, 'd'),
+                    "state_action": {"kind": "preserve"},
+                    "idempotency_key": "update-1"
+                }),
+            ),
+            (
+                "host.installation.remove",
+                serde_json::json!({
+                    "installation_id": installation_b.as_str(),
+                    "expected_revision": 1,
+                    "state_disposition": "keep",
+                    "idempotency_key": "remove-1"
+                }),
+            ),
+        ] {
+            let error = runtime
+                .call_protocol(&context, method, params)
+                .await
+                .expect_err("a different exact installation must be denied");
+            assert!(error.message.contains("exact installation"));
+        }
     }
 
     #[tokio::test]
@@ -441,12 +704,13 @@ mod host_resource_authority_tests {
     }
 
     #[tokio::test]
-    async fn exact_project_device_cannot_enumerate_global_surface_catalogue() {
+    async fn exact_installation_device_cannot_enumerate_global_surface_catalogue() {
         let runtime = Runtime::new(
             Arc::new(InMemoryEventStore::default()),
             RuntimeConfig::default(),
         );
-        let exact = project_device("authority_project_a__abc12345");
+        let exact_id = InstallationId::new();
+        let exact = installation_device(exact_id.as_str());
         assert!(runtime
             .call_protocol(&exact, "shell.contribution.list", serde_json::json!({}),)
             .await
@@ -454,24 +718,28 @@ mod host_resource_authority_tests {
         for method in [
             "host.package.list",
             "capability.discover",
+            "object.put",
+            "object.get",
             "object.list",
             "projection.list",
         ] {
+            let params = if method == "object.get" {
+                serde_json::json!({"asset_id": "missing"})
+            } else {
+                serde_json::json!({})
+            };
             assert!(
-                runtime
-                    .call_protocol(&exact, method, serde_json::json!({}))
-                    .await
-                    .is_err(),
-                "exact-project authority must not enumerate Host-global method {method}"
+                runtime.call_protocol(&exact, method, params).await.is_err(),
+                "exact-installation authority must not enumerate Host-global method {method}"
             );
         }
 
         let global = ProtocolContext::host_device(
-            "grant-all-projects",
+            "grant-all-installations",
             vec!["observe".into()],
             vec![ProtocolResourceSelector {
                 owner: "host".into(),
-                kind: "project".into(),
+                kind: "installation".into(),
                 id: None,
             }],
             Vec::new(),
@@ -481,60 +749,189 @@ mod host_resource_authority_tests {
             runtime
                 .call_protocol(&global, "shell.contribution.list", serde_json::json!({}),)
                 .await
-                .expect("all-project device can enumerate the Host catalogue"),
+                .expect("all-installation device can enumerate the Host catalogue"),
             serde_json::json!([])
         );
+    }
+
+    #[tokio::test]
+    async fn object_put_authority_distinguishes_exact_artifacts_from_ordinary_assets() {
+        fn exact_params(scope: serde_json::Value) -> serde_json::Value {
+            let bytes = b"scoped exact artifact";
+            serde_json::json!({
+                "mime": "application/octet-stream",
+                "content": bytes.iter().map(|byte| format!("{byte:02x}")).collect::<String>(),
+                "metadata": {},
+                "artifact": {
+                    "descriptor": {
+                        "artifact_type_uri": "urn:plurora:test-scoped-object:v1",
+                        "media_type": "application/octet-stream",
+                        "digest": crate::sha256_digest(bytes),
+                        "size_bytes": bytes.len(),
+                        "references": [],
+                        "annotations": {}
+                    },
+                    "content_encoding": "hex",
+                    "scope": scope
+                }
+            })
+        }
+
+        let runtime = Runtime::new(
+            Arc::new(InMemoryEventStore::default()),
+            RuntimeConfig::default(),
+        );
+        let work_id = WorkId::parse("tests/scoped-object").unwrap();
+        let other_work_id = WorkId::parse("tests/other-object").unwrap();
+        let installation_id = InstallationId::new();
+        let other_installation_id = InstallationId::new();
+        let exact = ProtocolContext::host_device(
+            "grant-exact-object",
+            vec!["installation.manage".into()],
+            vec![
+                ProtocolResourceSelector {
+                    owner: "host".into(),
+                    kind: "work".into(),
+                    id: Some(work_id.to_string()),
+                },
+                ProtocolResourceSelector {
+                    owner: "host".into(),
+                    kind: "installation".into(),
+                    id: Some(installation_id.to_string()),
+                },
+            ],
+            Vec::new(),
+            "test",
+        );
+
+        let create_scope = serde_json::json!({
+            "kind": "installation_create",
+            "work_id": work_id,
+        });
+        let created = runtime
+            .call_protocol(&exact, "object.put", exact_params(create_scope))
+            .await
+            .expect("exact Work-scoped upload");
+        assert!(created["asset"].is_null());
+        assert!(runtime
+            .call_protocol(
+                &exact,
+                "object.put",
+                exact_params(serde_json::json!({
+                    "kind": "installation_create",
+                    "work_id": other_work_id,
+                })),
+            )
+            .await
+            .is_err());
+        assert!(runtime
+            .call_protocol(
+                &exact,
+                "object.put",
+                exact_params(serde_json::json!({
+                    "kind": "installation_update",
+                    "installation_id": other_installation_id,
+                    "work_id": work_id,
+                })),
+            )
+            .await
+            .is_err());
+
+        let ordinary = serde_json::json!({
+            "mime": "text/plain",
+            "content": "ordinary Asset",
+            "metadata": {}
+        });
+        assert!(runtime
+            .call_protocol(&exact, "object.put", ordinary.clone())
+            .await
+            .is_err());
+        let access_manager = ProtocolContext::host_device(
+            "grant-assets",
+            vec!["access_manage".into(), "observe".into()],
+            vec![ProtocolResourceSelector {
+                owner: "host".into(),
+                kind: "installation".into(),
+                id: None,
+            }],
+            Vec::new(),
+            "test",
+        );
+        let stored = runtime
+            .call_protocol(&access_manager, "object.put", ordinary)
+            .await
+            .expect("ordinary Asset upload");
+        assert!(stored["asset"]["id"].is_string());
+        let asset_id = stored["asset"]["id"].as_str().unwrap();
+        let fetched = runtime
+            .call_protocol(
+                &access_manager,
+                "object.get",
+                serde_json::json!({"asset_id": asset_id}),
+            )
+            .await
+            .expect("original ordinary Asset object.get request");
+        assert_eq!(fetched["record"], stored["asset"]);
+        assert_eq!(fetched["content"], "ordinary Asset");
+        assert!(fetched
+            .as_object()
+            .is_some_and(|response| response.len() == 2));
+        assert!(runtime
+            .call_protocol(
+                &access_manager,
+                "object.get",
+                serde_json::json!({"kind": "asset", "asset_id": asset_id}),
+            )
+            .await
+            .is_err());
+        assert_eq!(runtime.list_assets().await.len(), 1);
     }
 }
 
 #[cfg(test)]
 mod surface_tests {
-    use std::collections::BTreeMap;
     use std::sync::Arc;
 
-    use crate::{InMemoryEventStore, ProjectRegistry, ProtocolContext, Runtime, RuntimeConfig};
-    use plurora_core::project::{
-        ProjectDescriptor, ProjectId, ProjectInner, ProjectType, SecretPolicy,
-    };
+    use crate::{InMemoryEventStore, ProtocolContext, Runtime, RuntimeConfig};
+    use plurora_core::PackageManifest;
 
     #[tokio::test]
-    async fn resolve_bundle_does_not_return_project_metadata() {
-        let registry = Arc::new(ProjectRegistry::new());
-        let mut metadata = BTreeMap::new();
-        metadata.insert(
-            "requested_capabilities".to_string(),
-            serde_json::json!(["attacker/metadata_grant"]),
-        );
-        metadata.insert("host_path".to_string(), serde_json::json!("/secret/path"));
+    async fn resolve_bundle_uses_a_loaded_package_root_without_exposing_metadata() {
+        let package_root = tempfile::tempdir().expect("package root");
+        std::fs::create_dir(package_root.path().join("dist")).expect("dist dir");
+        std::fs::write(
+            package_root.path().join("dist/bundle.mjs"),
+            "export const ok = true;",
+        )
+        .expect("write bundle");
+        let manifest: PackageManifest = serde_yaml::from_str(
+            r#"
+schema_version: 1
+id: example/surface-package
+version: 0.1.0
+entry:
+  kind: surface_bundle
+  bundle: dist/bundle.mjs
+contributes:
+  surfaces:
+    - id: pkg/surface/entry
+      version: 0.1.0
+      slot: experience_entry
+      title: Package Surface
+      metadata:
+        host_path: /secret/path
+        requested_capabilities: [attacker/metadata_grant]
+permissions: {}
+"#,
+        )
+        .expect("manifest");
 
-        registry
-            .register(ProjectDescriptor {
-                schema_version: 1,
-                project: ProjectInner {
-                    id: ProjectId::new("surface_meta_test__abc12345").unwrap(),
-                    title: "Surface metadata test".to_string(),
-                    description: String::new(),
-                    project_type: ProjectType::PluroraNative,
-                    icon: None,
-                    entry_surface_id: Some("pkg/surface/entry".to_string()),
-                    packages: vec!["packages/pkg/manifest.yaml".to_string()],
-                    optional_packages: Vec::new(),
-                    required_surfaces: Vec::new(),
-                    required_capabilities: Vec::new(),
-                    secret_policy: SecretPolicy::default(),
-                    external: None,
-                    metadata,
-                },
-            })
-            .expect("register project");
-
-        let runtime = Runtime::new(
-            Arc::new(InMemoryEventStore::default()),
-            RuntimeConfig {
-                project_registry: registry,
-                ..RuntimeConfig::default()
-            },
-        );
+        let mut config = RuntimeConfig::default();
+        config
+            .package_roots
+            .insert(manifest.id.clone(), package_root.path().to_path_buf());
+        let runtime = Runtime::new(Arc::new(InMemoryEventStore::default()), config);
+        runtime.load_package(manifest).await.expect("load package");
         let value = runtime
             .call_protocol(
                 &ProtocolContext::host_dev("test"),
@@ -546,8 +943,13 @@ mod surface_tests {
 
         assert!(
             value.get("metadata").is_none(),
-            "resolve_bundle must not expose arbitrary project metadata: {value:?}"
+            "resolve_bundle must not expose arbitrary package metadata: {value:?}"
         );
+        assert_eq!(value["package_id"], "example/surface-package");
+        assert!(value["bundle_url"]
+            .as_str()
+            .unwrap()
+            .starts_with("/surface-bundles/packages/example/surface-package/dist/bundle.mjs?v="));
     }
 
     #[tokio::test]

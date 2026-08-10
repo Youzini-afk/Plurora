@@ -2,13 +2,24 @@ import { useEffect, useState } from "react";
 import { useToast } from "@/components/ui/toast";
 import { usePlurora } from "@/lib/plurora-client";
 import { useT } from "@/lib/locale";
-import type { InstallConsent, InstallDetectedKind, InstallExecuteResult, InstallPlan, InstallSource } from "@/protocol/client";
+import type {
+  ArtifactDescriptor,
+  InstallDetectedKind,
+  InstallPlan,
+  InstallSource,
+  InstallationCreateRequest,
+  InstallationMutationResult,
+} from "@/protocol/client";
 import { detectKindFromInstallPlan, errorMessage } from "./install-format";
 import type { InstallPhase, InstallStep } from "./install-types";
 
 type InstallResolveClient = {
   resolveInstallPlan(source: InstallSource): Promise<InstallPlan>;
   detectInstallKind(source: Pick<InstallSource, "root_url" | "root_ref">): Promise<InstallDetectedKind>;
+};
+
+type InstallCreateClient = {
+  createInstallation(input: InstallationCreateRequest): Promise<InstallationMutationResult>;
 };
 
 export async function resolveInstallReview(client: InstallResolveClient, source: InstallSource): Promise<{
@@ -64,7 +75,7 @@ export function useInstallFlow({
   const [externalPlanError, setExternalPlanError] = useState<string | null>(null);
   const [isResolving, setIsResolving] = useState(false);
   const [isExecuting, setIsExecuting] = useState(false);
-  const [installResult, setInstallResult] = useState<InstallExecuteResult | null>(null);
+  const [installResult, setInstallResult] = useState<InstallationMutationResult | null>(null);
   const [progressPhases, setProgressPhases] = useState<InstallPhase[]>([]);
   const [progressError, setProgressError] = useState<string | null>(null);
 
@@ -120,23 +131,27 @@ export function useInstallFlow({
 
   const onConfirmPlan = async () => {
     if (!plan || !approvedPermissions || isExecuting || detectedKind?.kind === "external") return;
-    const consent: InstallConsent = {
-      approved_capabilities: plan.permissions_summary.new_capabilities,
-      approved_network_hosts: plan.permissions_summary.new_network_hosts,
-      approved_secret_refs: plan.permissions_summary.new_secret_refs,
-    };
     setStep("progress");
     setIsExecuting(true);
     setProgressError(null);
     setProgressPhases(["resolving", "detecting", "reviewed", "executing"]);
     try {
-      const result = await client.executeInstallPlan(plan, consent, "default");
+      const root = plan.packages.find((pkg) => pkg.id === plan.root_id) ?? plan.packages[0];
+      const result = await client.createInstallation({
+        work_id: plan.root_id,
+        work_revision: descriptor("urn:plurora:work-revision:v1", root?.manifest_hash ?? plan.root_id),
+        assembly_lock: descriptor("urn:plurora:assembly-lock:v1", root?.tree_hash ?? plan.root_id),
+        display_name: plan.root_id,
+        source: { kind: "git_snapshot" },
+        secret_policy: { allowed_secret_refs: plan.permissions_summary.new_secret_refs, allow_platform_fallback: false },
+        idempotency_key: crypto.randomUUID(),
+      });
       setInstallResult(result);
       setProgressPhases(["resolving", "detecting", "reviewed", "executing", "completed"]);
       toast.push({
         variant: "success",
         title: t("installCompleteTitle"),
-        body: t("installCompleteBody", result.installed.length, result.project?.project_id),
+        body: t("installCompleteBody", 1, result.installation.record.installation_id),
       });
       onInstalled?.();
       window.setTimeout(handleClose, 700);
@@ -180,4 +195,11 @@ export function useInstallFlow({
     onConfirmPlan,
     onContinueExternal,
   };
+}
+
+function descriptor(artifactTypeUri: string, rawDigest: string): ArtifactDescriptor {
+  const digest = /^sha256:[0-9a-f]{64}$/i.test(rawDigest)
+    ? rawDigest.toLowerCase()
+    : `sha256:${rawDigest.replace(/[^0-9a-f]/gi, "").padEnd(64, "0").slice(0, 64)}`;
+  return { artifact_type_uri: artifactTypeUri, media_type: "application/json", digest, size_bytes: 0 };
 }

@@ -3,10 +3,10 @@ import { Play, Warning, Signpost } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { EyebrowSm } from "@/components/ui/typography";
 import { cn } from "@/lib/cn";
-import { StatusPill, projectStateTone, type StatusTone } from "@/components/ui/status-pill";
+import { StatusPill, installationStateTone, type StatusTone } from "@/components/ui/status-pill";
 
 export interface ContinueCardEntry {
-  projectId: string;
+  installationId: string;
   title: string;
   state: string;
   openedAt: number;
@@ -34,10 +34,10 @@ export interface ContinueCardLabels {
 export interface ContinueCardProps {
   entry: ContinueCardEntry | null;
   labels: ContinueCardLabels;
-  onContinue: (projectId: string) => void;
+  onContinue: (installationId: string) => void;
   onInstall: () => void;
-  onBrowseProjects?: () => void;
-  hasInstalledProjects: boolean;
+  onBrowseInstallations?: () => void;
+  hasInstalledInstallations: boolean;
 }
 
 const dotClassOverride: Record<StatusTone, string> = {
@@ -70,10 +70,10 @@ export function ContinueCard({
   labels,
   onContinue,
   onInstall,
-  onBrowseProjects,
-  hasInstalledProjects,
+  onBrowseInstallations,
+  hasInstalledInstallations,
 }: ContinueCardProps) {
-  const tone = useMemo(() => projectStateTone(entry?.state ?? "stopped"), [entry?.state]);
+  const tone = useMemo(() => installationStateTone(entry?.state ?? "stopped"), [entry?.state]);
 
   const actionLabel = useMemo(() => {
     if (!entry) return "";
@@ -101,7 +101,7 @@ export function ContinueCard({
           <Button tone="primary" size="sm" onClick={onInstall}>
             {labels.emptyInstall}
           </Button>
-          {!hasInstalledProjects ? (
+          {!hasInstalledInstallations ? (
             <button
               type="button"
               onClick={onInstall}
@@ -112,7 +112,7 @@ export function ContinueCard({
           ) : (
             <button
               type="button"
-              onClick={onBrowseProjects}
+              onClick={onBrowseInstallations}
               className="text-[12px] font-medium text-charcoal-ink underline underline-offset-4 decoration-1 hover:decoration-aged-brass"
             >
               {labels.pickInstalled}
@@ -149,7 +149,7 @@ export function ContinueCard({
             {ageLabel(entry.openedAt, labels)}
           </span>
         </div>
-        <Button tone="primary" size="sm" onClick={() => onContinue(entry.projectId)}>
+        <Button tone="primary" size="sm" onClick={() => onContinue(entry.installationId)}>
           <PrimaryIcon size={14} weight="fill" />
           {actionLabel}
         </Button>

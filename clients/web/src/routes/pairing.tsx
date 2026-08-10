@@ -186,11 +186,16 @@ function PairingDetail({ label, value }: { label: string; value: string }) {
 function scopeLabel(scope: HostAccessScope, t: ReturnType<typeof useT>): string {
   const keys: Record<HostAccessScope, Parameters<typeof t>[0]> = {
     observe: "accessScopeObserve",
-    project_operate: "accessScopeProjectOperate",
+    "installation.manage": "accessScopeInstallationOperate",
+    run: "accessScopeInstallationOperate",
+    "binding.manage": "accessScopeManage",
+    "exposure.manage": "accessScopeManage",
+    "realization.plan": "accessScopeDeploy",
+    "realization.apply": "accessScopeDeploy",
     deploy: "accessScopeDeploy",
-    develop_propose: "accessScopeDevelopPropose",
-    develop_approve: "accessScopeDevelopApprove",
-    develop_execute: "accessScopeDevelopExecute",
+    "develop.propose": "accessScopeDevelopPropose",
+    "develop.approve": "accessScopeDevelopApprove",
+    "develop.execute": "accessScopeDevelopExecute",
     access_manage: "accessScopeManage",
   };
   return t(keys[scope]);
@@ -200,8 +205,9 @@ function pairingResourceLabel(
   resource: HostAccessResourceSelector,
   t: ReturnType<typeof useT>,
 ): string {
-  if (resource.kind === "project") {
-    return resource.id ? t("accessProjectResource", resource.id) : t("accessAllProjects");
+  if (resource.kind === "installation") {
+    return resource.id ? t("accessInstallationResource", resource.id) : t("accessAllInstallations");
   }
-  return resource.id ? t("accessTargetResource", resource.id) : t("accessAllTargets");
+  if (resource.kind === "target") return resource.id ? t("accessTargetResource", resource.id) : t("accessAllTargets");
+  return resource.id ? `${resource.kind} · ${resource.id}` : `${resource.kind} · all`;
 }

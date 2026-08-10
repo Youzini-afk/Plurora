@@ -32,11 +32,11 @@ It answers:
 ## Current factual baseline
 
 - 80 exact public method IDs and 80 method schemas.
-- 59 explicit platform-owned event kinds and 59 payload schemas.
-- 36 top-level schemas; 175 schemas total.
+- 58 explicit platform-owned event kinds and 58 payload schemas.
+- 39 top-level schemas; 177 schemas total.
 - Contract Registry `0.1.0` exposes one wire ID per method and no aliases.
 - Method IDs declare owner through their first dot segment.
-- Platform event ownership is explicit; all 59 kinds require writer `plurora/runtime`.
+- Platform event ownership is explicit; all 58 kinds require writer `plurora/runtime`.
 - Package event and capability IDs remain under the exact Package ID slash namespace.
 - Explicit contract and Protocol Commons negotiation occurs before dispatch and fails closed.
 

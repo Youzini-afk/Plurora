@@ -1,6 +1,6 @@
 use serde_json::{json, Value};
 
-use super::Runtime;
+use super::{AssetPutRequest, ObjectPutScope, Runtime};
 use crate::{
     negotiate_contract, resolve_contract_method, ContractSelection, EventStore, PlatformMethod,
     ProtocolContext, ProtocolPrincipal,
@@ -310,12 +310,22 @@ where
             PlatformMethod::PackageRestart => self.dispatch_package_restart(&params).await,
             PlatformMethod::PackageLogs => self.dispatch_package_logs(&params).await,
 
-            // Project domain
-            PlatformMethod::ProjectList => self.dispatch_project_list(context, &params).await,
-            PlatformMethod::ProjectGet => self.dispatch_project_get(context, &params).await,
-            PlatformMethod::ProjectStart => self.dispatch_project_start(context, &params).await,
-            PlatformMethod::ProjectStop => self.dispatch_project_stop(context, &params).await,
-            PlatformMethod::ProjectStatus => self.dispatch_project_status(context, &params).await,
+            // Installation domain
+            PlatformMethod::InstallationList => {
+                self.dispatch_installation_list(context, params).await
+            }
+            PlatformMethod::InstallationGet => {
+                self.dispatch_installation_get(context, params).await
+            }
+            PlatformMethod::InstallationCreate => {
+                self.dispatch_installation_create(context, params).await
+            }
+            PlatformMethod::InstallationUpdate => {
+                self.dispatch_installation_update(context, params).await
+            }
+            PlatformMethod::InstallationRemove => {
+                self.dispatch_installation_remove(context, params).await
+            }
 
             // Deployment Hub Phase 1 primitives
             PlatformMethod::TargetList => self.dispatch_target_list(context).await,
@@ -368,9 +378,11 @@ where
             )?),
 
             // Asset domain
-            PlatformMethod::AssetPut => Ok(serde_json::to_value(
-                self.put_asset(serde_json::from_value(params)?).await?,
-            )?),
+            PlatformMethod::AssetPut => {
+                let request: AssetPutRequest = serde_json::from_value(params)?;
+                ensure_object_put_access(context, &request)?;
+                Ok(serde_json::to_value(self.put_object(request).await?)?)
+            }
             PlatformMethod::AssetGet => self.dispatch_asset_get(&params).await,
             PlatformMethod::AssetList => Ok(serde_json::to_value(self.list_assets().await)?),
 
@@ -443,7 +455,6 @@ fn ensure_global_host_catalog_access(
             | PlatformMethod::ExtensionPointList
             | PlatformMethod::ExtensionPointDescribe
             | PlatformMethod::HookList
-            | PlatformMethod::AssetPut
             | PlatformMethod::AssetGet
             | PlatformMethod::AssetList
             | PlatformMethod::ProjectionRegister
@@ -461,20 +472,59 @@ fn ensure_global_host_catalog_access(
         method
     );
     anyhow::ensure!(
-        context.allows_all_host_resources("host", "project"),
-        "{} permission denied: Host-global objects require all-project authority",
+        context.allows_all_host_resources("host", "installation"),
+        "{} permission denied: Host-global objects require all-installation authority",
         method
     );
     Ok(())
 }
 
+fn ensure_object_put_access(
+    context: &ProtocolContext,
+    request: &AssetPutRequest,
+) -> anyhow::Result<()> {
+    let Some(upload) = request.artifact.as_ref() else {
+        anyhow::ensure!(
+            context.allows_host_action("access_manage")
+                && context.allows_all_host_resources("host", "installation"),
+            "object.put permission denied: ordinary Assets require access_manage and all-installation authority"
+        );
+        return Ok(());
+    };
+
+    anyhow::ensure!(
+        context.allows_host_action("installation.manage"),
+        "object.put permission denied: exact artifacts require installation.manage"
+    );
+    match &upload.scope {
+        ObjectPutScope::InstallationCreate { work_id } => anyhow::ensure!(
+            context.allows_host_resource("host", "work", work_id.as_str()),
+            "object.put permission denied: exact artifact Work authority does not match"
+        ),
+        ObjectPutScope::InstallationUpdate {
+            installation_id,
+            work_id,
+        } => anyhow::ensure!(
+            context.allows_host_resource("host", "work", work_id.as_str())
+                && context.allows_host_resource(
+                    "host",
+                    "installation",
+                    installation_id.as_str()
+                ),
+            "object.put permission denied: exact artifact Work or Installation authority does not match"
+        ),
+    }
+    Ok(())
+}
+
 fn host_action_for_method(method: PlatformMethod) -> &'static str {
     match method {
-        PlatformMethod::ProjectStart
-        | PlatformMethod::ProjectStop
-        | PlatformMethod::SessionOpen
+        PlatformMethod::SessionOpen
         | PlatformMethod::SessionClose
-        | PlatformMethod::SessionFork => "project_operate",
+        | PlatformMethod::SessionFork => "run",
+        PlatformMethod::InstallationCreate
+        | PlatformMethod::InstallationUpdate
+        | PlatformMethod::InstallationRemove => "installation.manage",
         PlatformMethod::ProposalCreate => "develop_propose",
         PlatformMethod::ProposalApprove | PlatformMethod::ProposalReject => "develop_approve",
         PlatformMethod::ProposalApply => "develop_execute",
@@ -489,9 +539,8 @@ fn host_action_for_method(method: PlatformMethod) -> &'static str {
         PlatformMethod::HostInfo
         | PlatformMethod::HostPing
         | PlatformMethod::HostDiagnostics
-        | PlatformMethod::ProjectList
-        | PlatformMethod::ProjectGet
-        | PlatformMethod::ProjectStatus
+        | PlatformMethod::InstallationList
+        | PlatformMethod::InstallationGet
         | PlatformMethod::TargetList
         | PlatformMethod::TargetStatus
         | PlatformMethod::ExecStatus

@@ -37,57 +37,15 @@
       ],
       "type": "object"
     },
-    "Errors": {
-      "items": {
-        "$schema": "https://json-schema.org/draft/2020-12/schema",
-        "properties": {
-          "code": {
-            "type": "string"
-          },
-          "details": true,
-          "message": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "code",
-          "details",
-          "message"
-        ],
-        "title": "ErrorShape",
-        "type": "object"
-      },
-      "type": "array"
-    },
-    "Params": {
-      "$schema": "https://json-schema.org/draft/2020-12/schema",
-      "properties": {
-        "content": {
-          "type": "string"
-        },
-        "metadata": {
-          "default": null
-        },
-        "mime": {
-          "type": "string"
-        },
-        "origin_package_id": {
-          "default": null,
-          "type": [
-            "string",
-            "null"
-          ]
-        }
-      },
-      "required": [
-        "content",
-        "mime"
+    "AssetContentEncoding": {
+      "description": "Encoding used by the public `object.put` and `object.get` content field.",
+      "enum": [
+        "utf8",
+        "hex"
       ],
-      "title": "AssetPutRequest",
-      "type": "object"
+      "type": "string"
     },
-    "Result": {
-      "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "AssetRecord": {
       "properties": {
         "created_at": {
           "format": "date-time",
@@ -132,8 +90,167 @@
         "origin_package_id",
         "size_bytes"
       ],
-      "title": "AssetRecord",
       "type": "object"
+    },
+    "Errors": {
+      "items": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "details": true,
+          "message": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "details",
+          "message"
+        ],
+        "title": "ErrorShape",
+        "type": "object"
+      },
+      "type": "array"
+    },
+    "ExactArtifactUpload": {
+      "additionalProperties": false,
+      "description": "Explicit request contract for transporting an exact portable artifact.",
+      "properties": {
+        "content_encoding": {
+          "$ref": "#/$defs/AssetContentEncoding"
+        },
+        "descriptor": {
+          "$ref": "#/$defs/ArtifactDescriptor"
+        },
+        "scope": {
+          "$ref": "#/$defs/ObjectPutScope"
+        }
+      },
+      "required": [
+        "content_encoding",
+        "descriptor",
+        "scope"
+      ],
+      "type": "object"
+    },
+    "InstallationId": {
+      "format": "uuid",
+      "type": "string"
+    },
+    "ObjectPutScope": {
+      "description": "Installation mutation which may consume an exact portable artifact upload.",
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "enum": [
+                "installation_create"
+              ],
+              "type": "string"
+            },
+            "work_id": {
+              "$ref": "#/$defs/WorkId"
+            }
+          },
+          "required": [
+            "kind",
+            "work_id"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "installation_id": {
+              "$ref": "#/$defs/InstallationId"
+            },
+            "kind": {
+              "enum": [
+                "installation_update"
+              ],
+              "type": "string"
+            },
+            "work_id": {
+              "$ref": "#/$defs/WorkId"
+            }
+          },
+          "required": [
+            "installation_id",
+            "kind",
+            "work_id"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "Params": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {
+        "artifact": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ExactArtifactUpload"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "content": {
+          "type": "string"
+        },
+        "metadata": {
+          "default": null
+        },
+        "mime": {
+          "type": "string"
+        },
+        "origin_package_id": {
+          "default": null,
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "content",
+        "mime"
+      ],
+      "title": "AssetPutRequest",
+      "type": "object"
+    },
+    "Result": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "properties": {
+        "asset": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/AssetRecord"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "descriptor": {
+          "$ref": "#/$defs/ArtifactDescriptor"
+        }
+      },
+      "required": [
+        "asset",
+        "descriptor"
+      ],
+      "title": "ObjectPutResponse",
+      "type": "object"
+    },
+    "WorkId": {
+      "pattern": "^(?!.*\\.\\.)[A-Za-z0-9._-]+(?:/[A-Za-z0-9._-]+)+$",
+      "type": "string"
     }
   },
   "$id": "urn:plurora:schema:method:object.put:v1",

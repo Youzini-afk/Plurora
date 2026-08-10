@@ -74,8 +74,7 @@ pub(super) fn build_cases() -> Vec<ConformanceCase> {
     cases
         .extend(external_project_install::integrity_lab_package_installation_foundation_i3_cases());
     cases.extend(external_project_install::secret_store_lab_round_10a_1_phase_b_cases());
-    cases.extend(external_project_install::project_scoped_secrets_round_10a_2_wave_2c_cases());
-    cases.extend(external_project_install::project_lifecycle_round_10a_2_wave_3_cases());
+    cases.extend(external_project_install::installation_scoped_secret_cases());
     cases.extend(first_party_experience_agent::sharing_lab_beta_6_cases());
     cases.extend(storage_tdb::storage_backend_neutrality_s1_cases());
     cases.extend(storage_tdb::storage_backend_neutrality_s1_postgresql_opt_in_cases());

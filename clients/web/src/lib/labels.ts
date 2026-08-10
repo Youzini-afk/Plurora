@@ -41,7 +41,7 @@ export interface LocaleDictionary {
 
   topbarHome: string;
   topbarSettings: string;
-  topbarProject: (projectId: string) => string;
+  topbarInstallation: (installationId: string) => string;
   topbarNotifications: string;
   topbarThemeSystem: (theme: string) => string;
   topbarThemeLight: string;
@@ -106,8 +106,8 @@ export interface LocaleDictionary {
   homeActionViewLogs: string;
   homeActionUninstall: string;
   homeMore: string;
-  homeProjectPopupBlockedTitle: string;
-  homeProjectPopupBlockedBody: string;
+  homeInstallationPopupBlockedTitle: string;
+  homeInstallationPopupBlockedBody: string;
 
   homeStoppedToast: (title: string) => string;
   homeStopFailedTitle: string;
@@ -169,7 +169,7 @@ export interface LocaleDictionary {
   installResolving: string;
   installPlanFailedTitle: string;
   installCompleteTitle: string;
-  installCompleteBody: (count: number, projectId?: string) => string;
+  installCompleteBody: (count: number, installationId?: string) => string;
   installFailedTitle: string;
   installListMore: (count: number) => string;
   installKindNative: string;
@@ -185,7 +185,7 @@ export interface LocaleDictionary {
   installRootPrefix: string;
   installExternalCliOnlyTitle: string;
   installExternalCliOnlyBody: string;
-  installProjectSection: string;
+  installInstallationSection: string;
   installKindLabel: string;
   installRootPackageLabel: string;
   installVersionLabel: string;
@@ -240,7 +240,7 @@ export interface LocaleDictionary {
   installActivityStatusFailed: string;
   installActivityStatusCompleted: string;
   installActivityStatusRunning: string;
-  installActivityRegisteredProject: (projectId: string) => string;
+  installActivityRegisteredInstallation: (installationId: string) => string;
   installActivityProfileUpdated: string;
   installExternalEyebrow: string;
   installExternalTitle: string;
@@ -261,9 +261,9 @@ export interface LocaleDictionary {
   installRecommended: string;
   installContinueDisabled: string;
 
-  failureProjectFallback: string;
-  failureContentLabel: (projectName: string) => string;
-  failureEyebrow: (projectName: string) => string;
+  failureInstallationFallback: string;
+  failureContentLabel: (installationName: string) => string;
+  failureEyebrow: (installationName: string) => string;
   failureTitle: string;
   failureDescription: string;
   failureLogCopied: string;
@@ -280,284 +280,284 @@ export interface LocaleDictionary {
   failureNoRedactedLog: string;
   failureNoDiagnosticLog: string;
   failureStopAndUninstall: string;
-  failureRestartProject: string;
+  failureRestartInstallation: string;
 
-  projectFrameStartFailedTitle: string;
-  projectFrameStartFailedBody: string;
-  projectFrameMountFailedTitle: string;
-  projectFrameMountFailedBody: string;
-  projectFrameStopped: (title: string) => string;
-  projectFrameStopFailedTitle: string;
-  projectFrameStopFailedBody: string;
-  projectFrameBackHome: string;
-  projectFrameAuditLog: string;
-  projectFrameAuditLogUnavailable: string;
-  projectFrameStopProject: string;
-  projectFrameStop: string;
-  projectFrameMore: string;
-  projectFrameMoreUnavailable: string;
-  projectFrameState: (state: string) => string;
-  projectFrameLoadingSurface: string;
-  projectFrameStoppedTitle: string;
-  projectFrameStoppedBody: string;
-  projectFrameConsoleTitle: string;
-  projectFrameConsoleBody: string;
-  projectFrameOpenProjectTab: string;
-  projectFrameProjectTabBlockedTitle: string;
-  projectFrameProjectTabBlockedBody: string;
-  projectFrameRefresh: string;
-  projectFrameRefreshing: string;
-  projectFrameRefreshDiagnostics: string;
-  projectFrameUpdateProject: string;
-  projectFrameUpdating: string;
-  projectFrameUpdateCompleteTitle: string;
-  projectFrameUpdateCompleteBody: (count: number) => string;
-  projectFrameUpdateCurrentTitle: string;
-  projectFrameUpdateCurrentBody: string;
-  projectFrameUpdateFailedTitle: string;
-  projectFrameStopConfirm: string;
-  projectFrameDiagnosticsLoading: string;
-  projectFrameStatus: string;
-  projectFramePackages: string;
-  projectFrameUpdates: string;
-  projectFrameActivity: string;
-  projectFramePackageHealth: (healthy: number, total: number) => string;
-  projectFrameRecentEvents: (count: number) => string;
-  projectFrameUpdatesAvailable: (count: number) => string;
-  projectFrameUpdatesCurrent: string;
-  projectFrameUpdateUnavailable: string;
-  projectFrameDeploymentMetric: string;
-  projectFrameDeploymentSummary: (targets: number, executions: number, running: number, ports: number, proxies: number) => string;
-  projectFrameProjectId: string;
-  projectFrameProjectType: string;
-  projectFrameSession: string;
-  projectFrameActiveSession: string;
-  projectFrameStorage: string;
-  projectFrameInterfaceSection: string;
-  projectFrameInterfaceDescription: string;
-  projectFrameEntrySurface: string;
-  projectFrameBundleUrl: string;
-  projectFrameBundleFingerprint: string;
-  projectFrameBundleUnavailable: string;
-  projectFrameLastResolved: string;
-  projectFrameUpdatesSection: string;
-  projectFrameUpdatesDescription: string;
-  projectFrameNoUpdateRecords: string;
-  projectFramePackagesSection: string;
-  projectFramePackagesDescription: string;
-  projectFrameNoPackages: string;
-  projectFramePackageCounts: (capabilities: number, hooks: number) => string;
-  projectFrameActivitySection: string;
-  projectFrameActivityDescription: string;
-  projectFrameNoEvents: string;
-  projectFrameNoSession: string;
-  projectFrameDiagnosticsWarnings: string;
-  projectFrameDevelopmentSection: string;
-  projectFrameDevelopmentDescription: string;
-  projectFrameDevelopmentLoadFailed: string;
-  projectFrameDevelopmentGoal: string;
-  projectFrameDevelopmentGoalPlaceholder: string;
-  projectFrameDevelopmentTarget: string;
-  projectFrameDevelopmentOperation: string;
-  projectFrameDevelopmentWrite: string;
-  projectFrameDevelopmentDelete: string;
-  projectFrameDevelopmentExecutable: string;
-  projectFrameDevelopmentDockerBuild: string;
-  projectFrameDevelopmentAllowNetwork: string;
-  projectFrameDevelopmentDockerfile: string;
-  projectFrameDevelopmentContent: string;
-  projectFrameDevelopmentSafetyHint: string;
-  projectFrameDevelopmentDrafting: string;
-  projectFrameDevelopmentDraft: string;
-  projectFrameDevelopmentHistory: string;
-  projectFrameDevelopmentHistoryDescription: string;
-  projectFrameDevelopmentRefresh: string;
-  projectFrameDevelopmentEmpty: string;
-  projectFrameDevelopmentDrafted: string;
-  projectFrameDevelopmentDraftFailed: string;
-  projectFrameDevelopmentApproveConfirm: string;
-  projectFrameDevelopmentDecisionFailed: string;
-  projectFrameDevelopmentExecuteConfirm: string;
-  projectFrameDevelopmentExecutionStarted: string;
-  projectFrameDevelopmentExecutionAlreadyActive: string;
-  projectFrameDevelopmentExecutionFailed: string;
-  projectFrameDevelopmentRecovered: string;
-  projectFrameDevelopmentRecoveryFailed: string;
-  projectFrameDevelopmentExportFailed: string;
-  projectFrameDevelopmentLinkedHint: string;
-  projectFrameDevelopmentReviewOperations: string;
-  projectFrameDevelopmentReviewVerification: string;
-  projectFrameDevelopmentReviewAuthority: string;
-  projectFrameDevelopmentReviewEffects: string;
-  projectFrameDevelopmentApprovalRecord: string;
-  projectFrameDevelopmentRecoveryTarget: string;
-  projectFrameDevelopmentVerificationStatic: string;
-  projectFrameDevelopmentVerificationDocker: string;
-  projectFrameDevelopmentStatusDrafted: string;
-  projectFrameDevelopmentStatusApproved: string;
-  projectFrameDevelopmentStatusRejected: string;
-  projectFrameDevelopmentStatusStaging: string;
-  projectFrameDevelopmentStatusVerifying: string;
-  projectFrameDevelopmentStatusPromoting: string;
-  projectFrameDevelopmentStatusVerified: string;
-  projectFrameDevelopmentStatusCommitted: string;
-  projectFrameDevelopmentStatusRecoveryRequired: string;
-  projectFrameDevelopmentStatusFailed: string;
-  projectFrameDevelopmentExport: string;
-  projectFrameDevelopmentReject: string;
-  projectFrameDevelopmentApprove: string;
-  projectFrameDevelopmentExecute: string;
-  projectFrameDevelopmentRecover: string;
-  projectFrameDevelopmentDeploymentTitle: string;
-  projectFrameDevelopmentDeploymentDescription: string;
-  projectFrameDevelopmentDeploymentStatusPreparing: string;
-  projectFrameDevelopmentDeploymentStatusBuilding: string;
-  projectFrameDevelopmentDeploymentStatusPreviewing: string;
-  projectFrameDevelopmentDeploymentStatusActivating: string;
-  projectFrameDevelopmentDeploymentInvalidConfig: string;
-  projectFrameDevelopmentDeploymentPreview: string;
-  projectFrameDevelopmentDeploymentPreviewing: string;
-  projectFrameDevelopmentDeploymentPreviewConfirm: (targetId: string, routeId: string) => string;
-  projectFrameDevelopmentDeploymentPreviewStarted: string;
-  projectFrameDevelopmentDeploymentPreviewFailed: string;
-  projectFrameDevelopmentDeploymentSourceTree: string;
-  projectFrameDevelopmentDeploymentBuildContext: string;
-  projectFrameDevelopmentDeploymentCandidate: string;
-  projectFrameDevelopmentDeploymentOpenPreview: string;
-  projectFrameDevelopmentDeploymentApproveConfirm: (targetId: string, routeId: string, exposure: string) => string;
-  projectFrameDevelopmentDeploymentApproved: string;
-  projectFrameDevelopmentDeploymentRejected: string;
-  projectFrameDevelopmentDeploymentActivate: string;
-  projectFrameDevelopmentDeploymentActivating: string;
-  projectFrameDevelopmentDeploymentActivateConfirm: (targetId: string, routeId: string, exposure: string) => string;
-  projectFrameDevelopmentDeploymentActivated: string;
-  projectFrameDevelopmentDeploymentActivationFailed: string;
-  projectFrameDevelopmentDeploymentRecoveryHint: string;
-  projectFrameDevelopmentDeploymentReconcile: string;
-  projectFrameDevelopmentDeploymentReconciling: string;
-  projectFrameDevelopmentDeploymentReconcileConfirm: string;
-  projectFrameDevelopmentDeploymentReconciled: string;
-  projectFrameDevelopmentDeploymentReconciliationFailed: string;
-  projectFrameDevelopmentDeploymentOpenProduction: string;
-  projectFrameDeploymentSection: string;
-  projectFrameDeploymentDescription: string;
-  projectFrameRemoteTargetOperationsOnly: string;
-  projectFrameTargetOperations: string;
-  projectFrameTargetOperationEmpty: string;
-  projectFrameTargetOperationShowDetails: string;
-  projectFrameTargetOperationHideDetails: string;
-  projectFrameTargetOperationRevision: string;
-  projectFrameTargetOperationExecution: string;
-  projectFrameTargetOperationUpdatedAt: string;
-  projectFrameTargetOperationRequestDigest: string;
-  projectFrameTargetOperationAuthorityDigest: string;
-  projectFrameTargetOperationOutput: string;
-  projectFrameTargetOperationDiagnostics: string;
-  projectFrameTargetOperationNoDiagnostics: string;
-  projectFrameTargetOperationReceiptPending: string;
-  projectFrameTargetOperationShowingRecent: (shown: number, total: number) => string;
-  projectFrameDeploymentExecutions: string;
-  projectFrameDeploymentPortLeases: string;
-  projectFrameDeploymentProxyRoutes: string;
-  projectFrameDeploymentEmpty: string;
-  projectFrameDeploymentReady: string;
-  projectFrameDeploymentExitCode: string;
-  projectFrameDeploymentHistoryTitle: string;
-  projectFrameDeploymentHistoryDescription: string;
-  projectFrameDeploymentActiveRevision: string;
-  projectFrameDeploymentRecoveryRequired: string;
-  projectFrameDeploymentRecover: string;
-  projectFrameDeploymentRecovering: string;
-  projectFrameDeploymentRecoverConfirm: string;
-  projectFrameDeploymentRecoveredTitle: string;
-  projectFrameDeploymentRecoveryFailedTitle: string;
-  projectFrameDeploymentRevisionHistory: string;
-  projectFrameDeploymentRollback: string;
-  projectFrameDeploymentRollingBack: string;
-  projectFrameDeploymentRollbackConfirm: (revisionId: string) => string;
-  projectFrameDeploymentRolledBackTitle: string;
-  projectFrameDeploymentRollbackFailedTitle: string;
-  projectFrameDeploymentNotRecoverable: string;
-  projectFrameDeploymentNoActiveOnTarget: (targetId: string) => string;
-  projectFrameDeploymentJobHistory: string;
-  projectFrameDeploymentCreatedAt: string;
-  projectFrameDeploymentSourceCommit: string;
-  projectFrameDeploymentBuildDigest: string;
-  projectFrameDeploymentParentRevision: string;
-  projectFrameRouteExposure: string;
-  projectFrameRoutePrivate: string;
-  projectFrameRoutePrivateBody: string;
-  projectFrameRoutePublic: string;
-  projectFrameRoutePublicBody: string;
-  projectFrameRoutePublicWarning: string;
-  projectFrameDeployActionTitle: string;
-  projectFrameDeployActionDescription: string;
-  projectFrameDeployInvalidTitle: string;
-  projectFrameDeploy: string;
-  projectFrameDeploying: string;
-  projectFrameStopDeployment: string;
-  projectFrameStoppingDeployment: string;
-  projectFrameDeployImage: string;
-  projectFrameDeployContainerPort: string;
-  projectFrameDeployRouteId: string;
-  projectFrameDeployPortName: string;
-  projectFrameDeployHealthPath: string;
-  projectFrameDeployContainerId: string;
-  projectFrameDeployPullWarning: string;
-  projectFrameDeployActiveHint: string;
-  projectFrameDeployConfirm: (image: string) => string;
-  projectFrameStopDeploymentConfirm: (routeId: string) => string;
-  projectFrameDeploySuccessTitle: string;
-  projectFrameDeploySuccessBody: (routeId: string) => string;
-  projectFrameDeployFailedTitle: string;
-  projectFrameDeployFailedBody: string;
-  projectFrameStopDeploymentSuccessTitle: string;
-  projectFrameStopDeploymentPartialTitle: string;
-  projectFrameBuildDeployTitle: string;
-  projectFrameBuildDeployDescription: string;
-  projectFrameBuildDeployInvalidTitle: string;
-  projectFrameBuildDeployButton: string;
-  projectFrameBuildDeployRunning: string;
-  projectFrameBuildDeployCancel: string;
-  projectFrameBuildDeployCancelConfirmTitle: string;
-  projectFrameBuildDeployCancelConfirmBody: string;
-  projectFrameBuildDeployStrategy: string;
-  projectFrameBuildDeploySource: string;
-  projectFrameBuildDeployRef: string;
-  projectFrameBuildDeployEnv: string;
-  projectFrameBuildDeploySecretRef: string;
-  projectFrameBuildDeployPlainEnv: string;
-  projectFrameBuildDeployMounts: string;
-  projectFrameBuildDeployApproveMount: string;
-  projectFrameBuildDeployApproveRisk: string;
-  projectFrameBuildDeployHighRiskBadge: string;
-  projectFrameBuildDeployJob: string;
-  projectFrameBuildDeployTracker: string;
-  projectFrameBuildDeployCopyLogs: string;
-  projectFrameBuildDeployNoLogs: string;
-  projectFrameBuildDeployResultReady: string;
-  projectFrameBuildDeployResultFailed: string;
-  projectFrameBuildDeployResultCancelled: string;
-  projectFrameBuildDeployNewBuild: string;
-  projectFrameBuildDeployRestart: string;
-  projectFrameBuildDeployEditConfig: string;
-  projectFrameBuildDeployConfirm: (routeId: string) => string;
-  projectFrameBuildDeployStartedTitle: string;
-  projectFrameBuildDeployStartedBody: (jobId: string) => string;
-  projectFrameBuildDeployFailedTitle: string;
-  projectFrameBuildDeployCancelTitle: string;
-  projectFrameBuildDeployReady: (url: string) => string;
-  projectFrameStatusReady: string;
-  projectFrameStatusNotReady: string;
-  projectFrameShowLogs: string;
-  projectFrameHideLogs: string;
-  projectFrameLogsLoading: string;
-  projectFrameNoLogs: string;
-  projectFrameCopyAddress: string;
-  projectFrameCopyUrl: string;
-  projectFrameOpenUrl: string;
-  projectFramePublicUrl: string;
-  projectFrameIframeUrl: string;
+  installationFrameStartFailedTitle: string;
+  installationFrameStartFailedBody: string;
+  installationFrameMountFailedTitle: string;
+  installationFrameMountFailedBody: string;
+  installationFrameStopped: (title: string) => string;
+  installationFrameStopFailedTitle: string;
+  installationFrameStopFailedBody: string;
+  installationFrameBackHome: string;
+  installationFrameAuditLog: string;
+  installationFrameAuditLogUnavailable: string;
+  installationFrameStopInstallation: string;
+  installationFrameStop: string;
+  installationFrameMore: string;
+  installationFrameMoreUnavailable: string;
+  installationFrameState: (state: string) => string;
+  installationFrameLoadingSurface: string;
+  installationFrameStoppedTitle: string;
+  installationFrameStoppedBody: string;
+  installationFrameConsoleTitle: string;
+  installationFrameConsoleBody: string;
+  installationFrameOpenInstallationTab: string;
+  installationFrameInstallationTabBlockedTitle: string;
+  installationFrameInstallationTabBlockedBody: string;
+  installationFrameRefresh: string;
+  installationFrameRefreshing: string;
+  installationFrameRefreshDiagnostics: string;
+  installationFrameUpdateInstallation: string;
+  installationFrameUpdating: string;
+  installationFrameUpdateCompleteTitle: string;
+  installationFrameUpdateCompleteBody: (count: number) => string;
+  installationFrameUpdateCurrentTitle: string;
+  installationFrameUpdateCurrentBody: string;
+  installationFrameUpdateFailedTitle: string;
+  installationFrameStopConfirm: string;
+  installationFrameDiagnosticsLoading: string;
+  installationFrameStatus: string;
+  installationFramePackages: string;
+  installationFrameUpdates: string;
+  installationFrameActivity: string;
+  installationFramePackageHealth: (healthy: number, total: number) => string;
+  installationFrameRecentEvents: (count: number) => string;
+  installationFrameUpdatesAvailable: (count: number) => string;
+  installationFrameUpdatesCurrent: string;
+  installationFrameUpdateUnavailable: string;
+  installationFrameDeploymentMetric: string;
+  installationFrameDeploymentSummary: (targets: number, executions: number, running: number, ports: number, proxies: number) => string;
+  installationFrameInstallationId: string;
+  installationFrameInstallationType: string;
+  installationFrameSession: string;
+  installationFrameActiveSession: string;
+  installationFrameStorage: string;
+  installationFrameInterfaceSection: string;
+  installationFrameInterfaceDescription: string;
+  installationFrameEntrySurface: string;
+  installationFrameBundleUrl: string;
+  installationFrameBundleFingerprint: string;
+  installationFrameBundleUnavailable: string;
+  installationFrameLastResolved: string;
+  installationFrameUpdatesSection: string;
+  installationFrameUpdatesDescription: string;
+  installationFrameNoUpdateRecords: string;
+  installationFramePackagesSection: string;
+  installationFramePackagesDescription: string;
+  installationFrameNoPackages: string;
+  installationFramePackageCounts: (capabilities: number, hooks: number) => string;
+  installationFrameActivitySection: string;
+  installationFrameActivityDescription: string;
+  installationFrameNoEvents: string;
+  installationFrameNoSession: string;
+  installationFrameDiagnosticsWarnings: string;
+  installationFrameDevelopmentSection: string;
+  installationFrameDevelopmentDescription: string;
+  installationFrameDevelopmentLoadFailed: string;
+  installationFrameDevelopmentGoal: string;
+  installationFrameDevelopmentGoalPlaceholder: string;
+  installationFrameDevelopmentTarget: string;
+  installationFrameDevelopmentOperation: string;
+  installationFrameDevelopmentWrite: string;
+  installationFrameDevelopmentDelete: string;
+  installationFrameDevelopmentExecutable: string;
+  installationFrameDevelopmentDockerBuild: string;
+  installationFrameDevelopmentAllowNetwork: string;
+  installationFrameDevelopmentDockerfile: string;
+  installationFrameDevelopmentContent: string;
+  installationFrameDevelopmentSafetyHint: string;
+  installationFrameDevelopmentDrafting: string;
+  installationFrameDevelopmentDraft: string;
+  installationFrameDevelopmentHistory: string;
+  installationFrameDevelopmentHistoryDescription: string;
+  installationFrameDevelopmentRefresh: string;
+  installationFrameDevelopmentEmpty: string;
+  installationFrameDevelopmentDrafted: string;
+  installationFrameDevelopmentDraftFailed: string;
+  installationFrameDevelopmentApproveConfirm: string;
+  installationFrameDevelopmentDecisionFailed: string;
+  installationFrameDevelopmentExecuteConfirm: string;
+  installationFrameDevelopmentExecutionStarted: string;
+  installationFrameDevelopmentExecutionAlreadyActive: string;
+  installationFrameDevelopmentExecutionFailed: string;
+  installationFrameDevelopmentRecovered: string;
+  installationFrameDevelopmentRecoveryFailed: string;
+  installationFrameDevelopmentExportFailed: string;
+  installationFrameDevelopmentLinkedHint: string;
+  installationFrameDevelopmentReviewOperations: string;
+  installationFrameDevelopmentReviewVerification: string;
+  installationFrameDevelopmentReviewAuthority: string;
+  installationFrameDevelopmentReviewEffects: string;
+  installationFrameDevelopmentApprovalRecord: string;
+  installationFrameDevelopmentRecoveryTarget: string;
+  installationFrameDevelopmentVerificationStatic: string;
+  installationFrameDevelopmentVerificationDocker: string;
+  installationFrameDevelopmentStatusDrafted: string;
+  installationFrameDevelopmentStatusApproved: string;
+  installationFrameDevelopmentStatusRejected: string;
+  installationFrameDevelopmentStatusStaging: string;
+  installationFrameDevelopmentStatusVerifying: string;
+  installationFrameDevelopmentStatusPromoting: string;
+  installationFrameDevelopmentStatusVerified: string;
+  installationFrameDevelopmentStatusCommitted: string;
+  installationFrameDevelopmentStatusRecoveryRequired: string;
+  installationFrameDevelopmentStatusFailed: string;
+  installationFrameDevelopmentExport: string;
+  installationFrameDevelopmentReject: string;
+  installationFrameDevelopmentApprove: string;
+  installationFrameDevelopmentExecute: string;
+  installationFrameDevelopmentRecover: string;
+  installationFrameDevelopmentDeploymentTitle: string;
+  installationFrameDevelopmentDeploymentDescription: string;
+  installationFrameDevelopmentDeploymentStatusPreparing: string;
+  installationFrameDevelopmentDeploymentStatusBuilding: string;
+  installationFrameDevelopmentDeploymentStatusPreviewing: string;
+  installationFrameDevelopmentDeploymentStatusActivating: string;
+  installationFrameDevelopmentDeploymentInvalidConfig: string;
+  installationFrameDevelopmentDeploymentPreview: string;
+  installationFrameDevelopmentDeploymentPreviewing: string;
+  installationFrameDevelopmentDeploymentPreviewConfirm: (targetId: string, routeId: string) => string;
+  installationFrameDevelopmentDeploymentPreviewStarted: string;
+  installationFrameDevelopmentDeploymentPreviewFailed: string;
+  installationFrameDevelopmentDeploymentSourceTree: string;
+  installationFrameDevelopmentDeploymentBuildContext: string;
+  installationFrameDevelopmentDeploymentCandidate: string;
+  installationFrameDevelopmentDeploymentOpenPreview: string;
+  installationFrameDevelopmentDeploymentApproveConfirm: (targetId: string, routeId: string, exposure: string) => string;
+  installationFrameDevelopmentDeploymentApproved: string;
+  installationFrameDevelopmentDeploymentRejected: string;
+  installationFrameDevelopmentDeploymentActivate: string;
+  installationFrameDevelopmentDeploymentActivating: string;
+  installationFrameDevelopmentDeploymentActivateConfirm: (targetId: string, routeId: string, exposure: string) => string;
+  installationFrameDevelopmentDeploymentActivated: string;
+  installationFrameDevelopmentDeploymentActivationFailed: string;
+  installationFrameDevelopmentDeploymentRecoveryHint: string;
+  installationFrameDevelopmentDeploymentReconcile: string;
+  installationFrameDevelopmentDeploymentReconciling: string;
+  installationFrameDevelopmentDeploymentReconcileConfirm: string;
+  installationFrameDevelopmentDeploymentReconciled: string;
+  installationFrameDevelopmentDeploymentReconciliationFailed: string;
+  installationFrameDevelopmentDeploymentOpenProduction: string;
+  installationFrameDeploymentSection: string;
+  installationFrameDeploymentDescription: string;
+  installationFrameRemoteTargetOperationsOnly: string;
+  installationFrameTargetOperations: string;
+  installationFrameTargetOperationEmpty: string;
+  installationFrameTargetOperationShowDetails: string;
+  installationFrameTargetOperationHideDetails: string;
+  installationFrameTargetOperationRevision: string;
+  installationFrameTargetOperationExecution: string;
+  installationFrameTargetOperationUpdatedAt: string;
+  installationFrameTargetOperationRequestDigest: string;
+  installationFrameTargetOperationAuthorityDigest: string;
+  installationFrameTargetOperationOutput: string;
+  installationFrameTargetOperationDiagnostics: string;
+  installationFrameTargetOperationNoDiagnostics: string;
+  installationFrameTargetOperationReceiptPending: string;
+  installationFrameTargetOperationShowingRecent: (shown: number, total: number) => string;
+  installationFrameDeploymentExecutions: string;
+  installationFrameDeploymentPortLeases: string;
+  installationFrameDeploymentProxyRoutes: string;
+  installationFrameDeploymentEmpty: string;
+  installationFrameDeploymentReady: string;
+  installationFrameDeploymentExitCode: string;
+  installationFrameDeploymentHistoryTitle: string;
+  installationFrameDeploymentHistoryDescription: string;
+  installationFrameDeploymentActiveRevision: string;
+  installationFrameDeploymentRecoveryRequired: string;
+  installationFrameDeploymentRecover: string;
+  installationFrameDeploymentRecovering: string;
+  installationFrameDeploymentRecoverConfirm: string;
+  installationFrameDeploymentRecoveredTitle: string;
+  installationFrameDeploymentRecoveryFailedTitle: string;
+  installationFrameDeploymentRevisionHistory: string;
+  installationFrameDeploymentRollback: string;
+  installationFrameDeploymentRollingBack: string;
+  installationFrameDeploymentRollbackConfirm: (revisionId: string) => string;
+  installationFrameDeploymentRolledBackTitle: string;
+  installationFrameDeploymentRollbackFailedTitle: string;
+  installationFrameDeploymentNotRecoverable: string;
+  installationFrameDeploymentNoActiveOnTarget: (targetId: string) => string;
+  installationFrameDeploymentJobHistory: string;
+  installationFrameDeploymentCreatedAt: string;
+  installationFrameDeploymentSourceCommit: string;
+  installationFrameDeploymentBuildDigest: string;
+  installationFrameDeploymentParentRevision: string;
+  installationFrameRouteExposure: string;
+  installationFrameRoutePrivate: string;
+  installationFrameRoutePrivateBody: string;
+  installationFrameRoutePublic: string;
+  installationFrameRoutePublicBody: string;
+  installationFrameRoutePublicWarning: string;
+  installationFrameDeployActionTitle: string;
+  installationFrameDeployActionDescription: string;
+  installationFrameDeployInvalidTitle: string;
+  installationFrameDeploy: string;
+  installationFrameDeploying: string;
+  installationFrameStopDeployment: string;
+  installationFrameStoppingDeployment: string;
+  installationFrameDeployImage: string;
+  installationFrameDeployContainerPort: string;
+  installationFrameDeployRouteId: string;
+  installationFrameDeployPortName: string;
+  installationFrameDeployHealthPath: string;
+  installationFrameDeployContainerId: string;
+  installationFrameDeployPullWarning: string;
+  installationFrameDeployActiveHint: string;
+  installationFrameDeployConfirm: (image: string) => string;
+  installationFrameStopDeploymentConfirm: (routeId: string) => string;
+  installationFrameDeploySuccessTitle: string;
+  installationFrameDeploySuccessBody: (routeId: string) => string;
+  installationFrameDeployFailedTitle: string;
+  installationFrameDeployFailedBody: string;
+  installationFrameStopDeploymentSuccessTitle: string;
+  installationFrameStopDeploymentPartialTitle: string;
+  installationFrameBuildDeployTitle: string;
+  installationFrameBuildDeployDescription: string;
+  installationFrameBuildDeployInvalidTitle: string;
+  installationFrameBuildDeployButton: string;
+  installationFrameBuildDeployRunning: string;
+  installationFrameBuildDeployCancel: string;
+  installationFrameBuildDeployCancelConfirmTitle: string;
+  installationFrameBuildDeployCancelConfirmBody: string;
+  installationFrameBuildDeployStrategy: string;
+  installationFrameBuildDeploySource: string;
+  installationFrameBuildDeployRef: string;
+  installationFrameBuildDeployEnv: string;
+  installationFrameBuildDeploySecretRef: string;
+  installationFrameBuildDeployPlainEnv: string;
+  installationFrameBuildDeployMounts: string;
+  installationFrameBuildDeployApproveMount: string;
+  installationFrameBuildDeployApproveRisk: string;
+  installationFrameBuildDeployHighRiskBadge: string;
+  installationFrameBuildDeployJob: string;
+  installationFrameBuildDeployTracker: string;
+  installationFrameBuildDeployCopyLogs: string;
+  installationFrameBuildDeployNoLogs: string;
+  installationFrameBuildDeployResultReady: string;
+  installationFrameBuildDeployResultFailed: string;
+  installationFrameBuildDeployResultCancelled: string;
+  installationFrameBuildDeployNewBuild: string;
+  installationFrameBuildDeployRestart: string;
+  installationFrameBuildDeployEditConfig: string;
+  installationFrameBuildDeployConfirm: (routeId: string) => string;
+  installationFrameBuildDeployStartedTitle: string;
+  installationFrameBuildDeployStartedBody: (jobId: string) => string;
+  installationFrameBuildDeployFailedTitle: string;
+  installationFrameBuildDeployCancelTitle: string;
+  installationFrameBuildDeployReady: (url: string) => string;
+  installationFrameStatusReady: string;
+  installationFrameStatusNotReady: string;
+  installationFrameShowLogs: string;
+  installationFrameHideLogs: string;
+  installationFrameLogsLoading: string;
+  installationFrameNoLogs: string;
+  installationFrameCopyAddress: string;
+  installationFrameCopyUrl: string;
+  installationFrameOpenUrl: string;
+  installationFramePublicUrl: string;
+  installationFrameIframeUrl: string;
 
   settingsTitle: string;
   settingsHelper: string;
@@ -587,15 +587,15 @@ export interface LocaleDictionary {
   accessPublicHostUrlHelper: string;
   accessHttpsRequired: string;
   accessPermissions: string;
-  accessProjectResources: string;
-  accessProjectResourcesBody: string;
-  accessAllProjects: string;
-  accessProjectIdsPlaceholder: string;
+  accessInstallationResources: string;
+  accessInstallationResourcesBody: string;
+  accessAllInstallations: string;
+  accessInstallationIdsPlaceholder: string;
   accessTargetResources: string;
   accessTargetResourcesBody: string;
   accessAllTargets: string;
   accessTargetIdsPlaceholder: string;
-  accessProjectResource: (id: string) => string;
+  accessInstallationResource: (id: string) => string;
   accessTargetResource: (id: string) => string;
   accessCreateValidation: string;
   accessCreating: string;
@@ -624,8 +624,8 @@ export interface LocaleDictionary {
   accessCancelTicket: string;
   accessScopeObserve: string;
   accessScopeObserveBody: string;
-  accessScopeProjectOperate: string;
-  accessScopeProjectOperateBody: string;
+  accessScopeInstallationOperate: string;
+  accessScopeInstallationOperateBody: string;
   accessScopeDeploy: string;
   accessScopeDeployBody: string;
   accessScopeDevelopPropose: string;
@@ -689,7 +689,7 @@ export interface LocaleDictionary {
   apiValueHelper: string;
   apiScope: string;
   apiScopePlatform: string;
-  apiScopeProject: string;
+  apiScopeInstallation: string;
   cancel: string;
   apiSaveKey: string;
 
@@ -699,7 +699,7 @@ export interface LocaleDictionary {
   packagesDescription: string;
   packagesFilterPlaceholder: string;
   packagesFilterAll: string;
-  packagesFilterProjects: string;
+  packagesFilterInstallations: string;
   packagesFilterPlurora: string;
   packagesFilterThirdParty: string;
   packagesRefreshing: string;
@@ -774,8 +774,8 @@ export interface LocaleDictionary {
   storageTitle: string;
   storageDescription: string;
   storageAreas: string;
-  storageAreaProjectData: string;
-  storageAreaProjectDataDesc: string;
+  storageAreaInstallationData: string;
+  storageAreaInstallationDataDesc: string;
   storageAreaPackageStore: string;
   storageAreaPackageStoreDesc: string;
   storageAreaProfiles: string;
@@ -864,7 +864,7 @@ export const labels = {
 
     topbarHome: "Home",
     topbarSettings: "Settings",
-    topbarProject: (projectId) => `Projects / ${projectId}`,
+    topbarInstallation: (installationId) => `Installations / ${installationId}`,
     topbarNotifications: "Notifications",
     topbarThemeSystem: (theme) => `System (${theme === "dark" ? "Dark" : "Light"})`,
     topbarThemeLight: "Light mode",
@@ -873,20 +873,20 @@ export const labels = {
     topbarLogout: "Log out",
 
     homeGreeting: "Welcome back",
-    homeEmptyWorkshop: "Your workshop is empty. Install a project to begin.",
+    homeEmptyWorkshop: "Your workshop is empty. Install a installation to begin.",
     homeReading: "Reading your workshop…",
     homeShelfSummary: (all, running, stopped, failed) =>
-      `${all} projects on the shelf. ${running} running, ${stopped} idle. ${failed > 0 ? `${failed} need attention.` : "No pending updates."}`,
-    homeInstalledEyebrow: (count) => `Projects — ${count.toString().padStart(2, "0")} installed`,
-    homeEmptyTitle: "No projects installed yet",
+      `${all} installations on the shelf. ${running} running, ${stopped} idle. ${failed > 0 ? `${failed} need attention.` : "No pending updates."}`,
+    homeInstalledEyebrow: (count) => `Installations — ${count.toString().padStart(2, "0")} installed`,
+    homeEmptyTitle: "No installations installed yet",
     homeEmptyBody:
-      "Plurora is your workshop. Install a project to begin — projects can be a Plurora-native source like YdlTavern, or any external git/local repo.",
-    homeInstallLabel: "Install a project",
+      "Plurora is your workshop. Install a installation to begin — installations can be a Plurora-native source like YdlTavern, or any external git/local repo.",
+    homeInstallLabel: "Install a installation",
     homeInstallHint: "Paste a GitHub URL or local path",
     homeErrorTitle: "Couldn't reach the host",
-    homeErrorBody: "Project inventory is unavailable. Try again from the local UI.",
+    homeErrorBody: "Installation inventory is unavailable. Try again from the local UI.",
     retry: "Retry",
-    homeSearchPlaceholder: "Search projects, packages...",
+    homeSearchPlaceholder: "Search installations, packages...",
     homeSortPrefix: "Sort",
     homeSortRecent: "Recent",
     homeFilterAll: "All",
@@ -906,7 +906,7 @@ export const labels = {
     homeDiskUsed: (value) => `${value} used`,
     homeUnknown: "Unknown",
     homeMeasuring: "Measuring",
-    homeNoStorageMeasured: "No project storage measured.",
+    homeNoStorageMeasured: "No installation storage measured.",
     homeManageStorage: "Manage storage →",
     homeWorkshopCards: "Workshop cards",
     homeWorkshopCategoryTool: "Tool",
@@ -932,21 +932,21 @@ export const labels = {
     homeActionViewLogs: "View logs",
     homeActionUninstall: "Uninstall…",
     homeMore: "More",
-    homeProjectPopupBlockedTitle: "Project tab was blocked",
-    homeProjectPopupBlockedBody: "Allow pop-ups for this site, then open the project interface from the console.",
+    homeInstallationPopupBlockedTitle: "Installation tab was blocked",
+    homeInstallationPopupBlockedBody: "Allow pop-ups for this site, then open the installation interface from the console.",
 
     homeStoppedToast: (title) => `Stopped ${title}`,
     homeStopFailedTitle: "Stop failed",
-    homeStopFailedBody: "The project could not be stopped. Check the local host and try again.",
+    homeStopFailedBody: "The installation could not be stopped. Check the local host and try again.",
     homeUninstallTitle: (title) => `Uninstall ${title}`,
-    homeUninstallingBody: "Removing installed packages from the active profile and archiving project data.",
+    homeUninstallingBody: "Removing installed packages from the active profile and archiving installation data.",
     homeUninstalledTitle: (title) => `Uninstalled ${title}`,
-    homeUninstalledBody: "Project data was archived locally. Reinstall the project to use it again.",
+    homeUninstalledBody: "Installation data was archived locally. Reinstall the installation to use it again.",
     homeUninstallFailedTitle: "Uninstall failed",
-    homeUninstallFailedBody: "The project could not be uninstalled from the web shell. Check host diagnostics and retry.",
+    homeUninstallFailedBody: "The installation could not be uninstalled from the web shell. Check host diagnostics and retry.",
     homeLoadingDiagnostics: "Loading diagnostics…",
     homeLoadingDiagnosticsSummary: "Reading bounded package failure details from the kernel.",
-    homeDescriptorNoPackages: "Project descriptor does not list packages.",
+    homeDescriptorNoPackages: "Installation descriptor does not list packages.",
     homeNoPackageStatus: "No associated package status was available.",
     homeDiagnosticsUnavailable: "Diagnostics are unavailable. Try again from the local UI.",
     homeNow: "now",
@@ -970,11 +970,11 @@ export const labels = {
     homeContinueResumeAction: "Continue",
     homeContinueDiagnoseAction: "View diagnostics",
     homeContinueAgeNow: "just now",
-    homeContinueEmptyTitle: "No project opened yet",
-    homeContinueEmptyBody: "Install a project to continue from here.",
-    homeContinueEmptyInstall: "Install project",
+    homeContinueEmptyTitle: "No installation opened yet",
+    homeContinueEmptyBody: "Install a installation to continue from here.",
+    homeContinueEmptyInstall: "Install installation",
     homeContinueEmptyTryYdltavern: "Try YdlTavern",
-    homeContinuePickInstalled: "Pick one of your installed projects",
+    homeContinuePickInstalled: "Pick one of your installed installations",
 
     close: "Close",
     back: "Back",
@@ -983,11 +983,11 @@ export const labels = {
     uiModalClose: "Close",
     uiToastDismiss: "Dismiss",
 
-    installModalContentLabel: "Install project",
+    installModalContentLabel: "Install installation",
     installUrlEyebrow: "Install — Step 1 of 3",
-    installUrlTitle: "Where is the project?",
+    installUrlTitle: "Where is the installation?",
     installUrlDescription:
-      "Plurora installs from public Git repositories or local folders. We'll review the project before anything runs.",
+      "Plurora installs from public Git repositories or local folders. We'll review the installation before anything runs.",
     installSourceLabel: "Source URL or path",
     installSourceHelper:
       "Public HTTPS Git only in the web shell. Local folders use the CLI or a native file picker flow.",
@@ -997,11 +997,11 @@ export const labels = {
     installResolving: "Resolving…",
     installPlanFailedTitle: "Install plan failed",
     installCompleteTitle: "Install complete",
-    installCompleteBody: (count, projectId) =>
-      `${count} package${count === 1 ? "" : "s"} installed${projectId ? ` · project ${projectId}` : ""}`,
+    installCompleteBody: (count, installationId) =>
+      `${count} package${count === 1 ? "" : "s"} installed${installationId ? ` · installation ${installationId}` : ""}`,
     installFailedTitle: "Install failed",
     installListMore: (count) => `+${count} more`,
-    installKindNative: "Native project",
+    installKindNative: "Native installation",
     installKindDeclaredExternal: "Declared external",
     installKindExternal: "External",
     installKindDetected: "Detected",
@@ -1017,8 +1017,8 @@ export const labels = {
     installRootPrefix: "root:",
     installExternalCliOnlyTitle: "External adapter generation is CLI-only in this build.",
     installExternalCliOnlyBody:
-      "The package plan is real, but the web UI will not execute it without a project descriptor.",
-    installProjectSection: "Project",
+      "The package plan is real, but the web UI will not execute it without a installation descriptor.",
+    installInstallationSection: "Installation",
     installKindLabel: "Kind",
     installRootPackageLabel: "Root package",
     installVersionLabel: "Version",
@@ -1051,11 +1051,11 @@ export const labels = {
     installProgressEyebrow: "Install — Step 3 of 3",
     installProgressTitleFailed: "Install failed",
     installProgressTitleComplete: "Install complete",
-    installProgressTitleInstalling: "Installing project",
+    installProgressTitleInstalling: "Installing installation",
     installPhaseResolvedPlan: "Resolved install plan",
     installPhasePackageCount: (count) => `${count} package${count === 1 ? "" : "s"}`,
     installPhaseComplete: "complete",
-    installPhaseDetectedKind: "Detected project kind",
+    installPhaseDetectedKind: "Detected installation kind",
     installPhasePermissionsApproved: "Permissions approved",
     installPhaseExecutingPlan: "Executing install plan",
     installPhaseInProgress: "in progress",
@@ -1074,16 +1074,16 @@ export const labels = {
     installActivityStatusFailed: "failed",
     installActivityStatusCompleted: "completed",
     installActivityStatusRunning: "running",
-    installActivityRegisteredProject: (projectId) => `registered project ${projectId}`,
+    installActivityRegisteredInstallation: (installationId) => `registered installation ${installationId}`,
     installActivityProfileUpdated: "profile updated · lockfile refreshed",
 
-    installExternalEyebrow: "Install — External project",
+    installExternalEyebrow: "Install — External installation",
     installExternalTitle: "External adapter generation is CLI-only",
     installExternalDescription:
-      "This source does not declare a Plurora project descriptor. The web UI will not execute the package install without one.",
+      "This source does not declare a Plurora installation descriptor. The web UI will not execute the package install without one.",
     installExternalStatus: "EXTERNAL",
     installExternalInfo:
-      "Use the CLI to generate a descriptor for wrap/workspace mode, then install the declared project from web.",
+      "Use the CLI to generate a descriptor for wrap/workspace mode, then install the declared installation from web.",
     installExternalPackagesResolved: (count) => `${count} package${count === 1 ? "" : "s"} resolved`,
     installExternalPlanUnavailable: "Package plan not available",
     installExternalChoiceWrapTitle: "Wrap with adapter",
@@ -1096,15 +1096,15 @@ export const labels = {
     installExternalChipNoWebExecution: "No web execution",
     installExternalChipCliOnlyDescriptor: "CLI-only descriptor",
     installExternalChipInstallBlocked: "Install blocked here",
-    installExternalHelp: "Generate a project descriptor with the CLI, then return here.",
+    installExternalHelp: "Generate a installation descriptor with the CLI, then return here.",
     installRecommended: "RECOMMENDED",
     installContinueDisabled: "Continue disabled",
 
-    failureProjectFallback: "Project",
-    failureContentLabel: (projectName) => `${projectName} failure details`,
-    failureEyebrow: (projectName) => `Failure — ${projectName.toUpperCase()}`,
-    failureTitle: "Project failed",
-    failureDescription: "Project state is preserved. See the log below for the failure.",
+    failureInstallationFallback: "Installation",
+    failureContentLabel: (installationName) => `${installationName} failure details`,
+    failureEyebrow: (installationName) => `Failure — ${installationName.toUpperCase()}`,
+    failureTitle: "Installation failed",
+    failureDescription: "Installation state is preserved. See the log below for the failure.",
     failureLogCopied: "Log copied",
     failureDiagnosis: "Diagnosis",
     failureExitCode: "Exit code",
@@ -1119,286 +1119,286 @@ export const labels = {
     failureNoRedactedLog: "No redacted log",
     failureNoDiagnosticLog: "No diagnostic log tail is available for this package.",
     failureStopAndUninstall: "Stop and uninstall",
-    failureRestartProject: "Restart project",
+    failureRestartInstallation: "Restart installation",
 
-    projectFrameStartFailedTitle: "Failed to start project",
-    projectFrameStartFailedBody: "The project frame could not be started. Check the local host and try again.",
-    projectFrameMountFailedTitle: "Project surface failed to mount",
-    projectFrameMountFailedBody: "The project is running, but its browser surface could not be loaded. Check the local host and surface bundle.",
-    projectFrameStopped: (title) => `Stopped ${title}`,
-    projectFrameStopFailedTitle: "Stop failed",
-    projectFrameStopFailedBody: "The project could not be stopped. Check the local host and try again.",
-    projectFrameBackHome: "Back to Home",
-    projectFrameAuditLog: "Audit log",
-    projectFrameAuditLogUnavailable: "Audit log is not wired yet",
-    projectFrameStopProject: "Stop project",
-    projectFrameStop: "Stop",
-    projectFrameMore: "More",
-    projectFrameMoreUnavailable: "More project actions are not wired yet",
-    projectFrameState: (state) => state.toUpperCase(),
-    projectFrameLoadingSurface: "Loading project interface…",
-    projectFrameStoppedTitle: "Project stopped",
-    projectFrameStoppedBody: "This tab can be closed. Reopen the project from Home when you want to resume.",
-    projectFrameConsoleTitle: "Project console",
-    projectFrameConsoleBody: "The project is running from this Plurora tab. Its own interface opens in a separate project tab so the console controls remain available here.",
-    projectFrameOpenProjectTab: "Open project interface",
-    projectFrameProjectTabBlockedTitle: "Project tab was blocked",
-    projectFrameProjectTabBlockedBody: "Allow pop-ups for this site, then open the project interface from the console.",
-    projectFrameRefresh: "Refresh",
-    projectFrameRefreshing: "Refreshing…",
-    projectFrameRefreshDiagnostics: "Refresh diagnostics",
-    projectFrameUpdateProject: "Update project",
-    projectFrameUpdating: "Updating…",
-    projectFrameUpdateCompleteTitle: "Project updated",
-    projectFrameUpdateCompleteBody: (count) => `Updated ${count} package${count === 1 ? "" : "s"}.`,
-    projectFrameUpdateCurrentTitle: "Project is current",
-    projectFrameUpdateCurrentBody: "No package updates are available.",
-    projectFrameUpdateFailedTitle: "Update failed",
-    projectFrameStopConfirm: "Stopping will terminate the running session and project packages. Open work in the project UI may be lost. Stop this project?",
-    projectFrameDiagnosticsLoading: "Loading diagnostics…",
-    projectFrameStatus: "Status",
-    projectFramePackages: "Packages",
-    projectFrameUpdates: "Updates",
-    projectFrameActivity: "Activity",
-    projectFramePackageHealth: (healthy, total) => `${healthy}/${total} healthy`,
-    projectFrameRecentEvents: (count) => `${count} recent event${count === 1 ? "" : "s"}`,
-    projectFrameUpdatesAvailable: (count) => `${count} update${count === 1 ? "" : "s"} available`,
-    projectFrameUpdatesCurrent: "Up to date",
-    projectFrameUpdateUnavailable: "Update check unavailable",
-    projectFrameDeploymentMetric: "Deployment",
-    projectFrameDeploymentSummary: (targets, executions, running, ports, proxies) =>
+    installationFrameStartFailedTitle: "Failed to start installation",
+    installationFrameStartFailedBody: "The installation frame could not be started. Check the local host and try again.",
+    installationFrameMountFailedTitle: "Installation surface failed to mount",
+    installationFrameMountFailedBody: "The installation is running, but its browser surface could not be loaded. Check the local host and surface bundle.",
+    installationFrameStopped: (title) => `Stopped ${title}`,
+    installationFrameStopFailedTitle: "Stop failed",
+    installationFrameStopFailedBody: "The installation could not be stopped. Check the local host and try again.",
+    installationFrameBackHome: "Back to Home",
+    installationFrameAuditLog: "Audit log",
+    installationFrameAuditLogUnavailable: "Audit log is not wired yet",
+    installationFrameStopInstallation: "Stop installation",
+    installationFrameStop: "Stop",
+    installationFrameMore: "More",
+    installationFrameMoreUnavailable: "More installation actions are not wired yet",
+    installationFrameState: (state) => state.toUpperCase(),
+    installationFrameLoadingSurface: "Loading installation interface…",
+    installationFrameStoppedTitle: "Installation stopped",
+    installationFrameStoppedBody: "This tab can be closed. Reopen the installation from Home when you want to resume.",
+    installationFrameConsoleTitle: "Installation console",
+    installationFrameConsoleBody: "The installation is running from this Plurora tab. Its own interface opens in a separate installation tab so the console controls remain available here.",
+    installationFrameOpenInstallationTab: "Open installation interface",
+    installationFrameInstallationTabBlockedTitle: "Installation tab was blocked",
+    installationFrameInstallationTabBlockedBody: "Allow pop-ups for this site, then open the installation interface from the console.",
+    installationFrameRefresh: "Refresh",
+    installationFrameRefreshing: "Refreshing…",
+    installationFrameRefreshDiagnostics: "Refresh diagnostics",
+    installationFrameUpdateInstallation: "Update installation",
+    installationFrameUpdating: "Updating…",
+    installationFrameUpdateCompleteTitle: "Installation updated",
+    installationFrameUpdateCompleteBody: (count) => `Updated ${count} package${count === 1 ? "" : "s"}.`,
+    installationFrameUpdateCurrentTitle: "Installation is current",
+    installationFrameUpdateCurrentBody: "No package updates are available.",
+    installationFrameUpdateFailedTitle: "Update failed",
+    installationFrameStopConfirm: "Stopping will terminate the running session and installation packages. Open work in the installation UI may be lost. Stop this installation?",
+    installationFrameDiagnosticsLoading: "Loading diagnostics…",
+    installationFrameStatus: "Status",
+    installationFramePackages: "Packages",
+    installationFrameUpdates: "Updates",
+    installationFrameActivity: "Activity",
+    installationFramePackageHealth: (healthy, total) => `${healthy}/${total} healthy`,
+    installationFrameRecentEvents: (count) => `${count} recent event${count === 1 ? "" : "s"}`,
+    installationFrameUpdatesAvailable: (count) => `${count} update${count === 1 ? "" : "s"} available`,
+    installationFrameUpdatesCurrent: "Up to date",
+    installationFrameUpdateUnavailable: "Update check unavailable",
+    installationFrameDeploymentMetric: "Deployment",
+    installationFrameDeploymentSummary: (targets, executions, running, ports, proxies) =>
       `${targets} targets · ${running}/${executions} exec running · ${ports} ports · ${proxies} proxies`,
-    projectFrameProjectId: "Project ID",
-    projectFrameProjectType: "Type",
-    projectFrameSession: "Session",
-    projectFrameActiveSession: "Active",
-    projectFrameStorage: "Storage",
-    projectFrameInterfaceSection: "Project interface",
-    projectFrameInterfaceDescription: "Standalone project tab plus the resolved surface bundle used by the iframe host.",
-    projectFrameEntrySurface: "Entry surface",
-    projectFrameBundleUrl: "Bundle URL",
-    projectFrameBundleFingerprint: "Fingerprint",
-    projectFrameBundleUnavailable: "Bundle could not be resolved",
-    projectFrameLastResolved: "Last resolved",
-    projectFrameUpdatesSection: "Updates",
-    projectFrameUpdatesDescription: "Checks use plurora/install-lab capabilities through capability.invoke.",
-    projectFrameNoUpdateRecords: "No update records returned for this project.",
-    projectFramePackagesSection: "Package health",
-    projectFramePackagesDescription: "Runtime package state, counts, and redacted failure/log summaries when available.",
-    projectFrameNoPackages: "No project packages were reported by the host.",
-    projectFramePackageCounts: (capabilities, hooks) => `${capabilities} capabilities · ${hooks} hooks`,
-    projectFrameActivitySection: "Recent activity",
-    projectFrameActivityDescription: "Best-effort tail of the running project session events.",
-    projectFrameNoEvents: "No recent events for this session.",
-    projectFrameNoSession: "No running session is available yet.",
-    projectFrameDiagnosticsWarnings: "Diagnostic warnings",
-    projectFrameDevelopmentSection: "Development",
-    projectFrameDevelopmentDescription: "Draft content-addressed ChangeSets, approve them explicitly, verify in an isolated scratch workspace, then promote only Host-owned trees.",
-    projectFrameDevelopmentLoadFailed: "Development history unavailable",
-    projectFrameDevelopmentGoal: "Goal",
-    projectFrameDevelopmentGoalPlaceholder: "Describe the intended source change",
-    projectFrameDevelopmentTarget: "Relative file path",
-    projectFrameDevelopmentOperation: "Operation",
-    projectFrameDevelopmentWrite: "Write file",
-    projectFrameDevelopmentDelete: "Delete file",
-    projectFrameDevelopmentExecutable: "Executable file",
-    projectFrameDevelopmentDockerBuild: "Verify with Docker build",
-    projectFrameDevelopmentAllowNetwork: "Allow Docker build egress",
-    projectFrameDevelopmentDockerfile: "Dockerfile path",
-    projectFrameDevelopmentContent: "UTF-8 source content",
-    projectFrameDevelopmentSafetyHint: "Drafts store source blobs by digest, never raw source in the journal. Docker scratch builds default to no network and discard verification images. Managed external trees may be promoted; native trees are verify-only, and linked-local projects must first be imported as managed.",
-    projectFrameDevelopmentDrafting: "Drafting…",
-    projectFrameDevelopmentDraft: "Draft ChangeSet",
-    projectFrameDevelopmentHistory: "Change history",
-    projectFrameDevelopmentHistoryDescription: "Durable intent, policy, approval, verification, commit, and effect receipts.",
-    projectFrameDevelopmentRefresh: "Refresh",
-    projectFrameDevelopmentEmpty: "No development ChangeSets have been drafted for this project.",
-    projectFrameDevelopmentDrafted: "Development ChangeSet drafted",
-    projectFrameDevelopmentDraftFailed: "Could not draft development ChangeSet",
-    projectFrameDevelopmentApproveConfirm: "Approve this exact ChangeSet and its listed filesystem, Docker, and network authority?",
-    projectFrameDevelopmentDecisionFailed: "Could not record approval decision",
-    projectFrameDevelopmentExecuteConfirm: "Execute the approved ChangeSet in a Host-owned scratch workspace now?",
-    projectFrameDevelopmentExecutionStarted: "Development execution started",
-    projectFrameDevelopmentExecutionAlreadyActive: "Development execution is already active; status refreshed",
-    projectFrameDevelopmentExecutionFailed: "Could not start development execution",
-    projectFrameDevelopmentRecovered: "Development promotion reconciled",
-    projectFrameDevelopmentRecoveryFailed: "Development promotion still requires recovery",
-    projectFrameDevelopmentExportFailed: "Could not export patch bundle",
-    projectFrameDevelopmentLinkedHint: "Linked-local projects are proposal-only. Import a managed copy before Host verification; Plurora never writes the linked user source.",
-    projectFrameDevelopmentReviewOperations: "Exact operations",
-    projectFrameDevelopmentReviewVerification: "Verification",
-    projectFrameDevelopmentReviewAuthority: "Required authority",
-    projectFrameDevelopmentReviewEffects: "Expected effects",
-    projectFrameDevelopmentApprovalRecord: "Recorded approval decision",
-    projectFrameDevelopmentRecoveryTarget: "Recovery reconciliation target",
-    projectFrameDevelopmentVerificationStatic: "Static validation (no code execution)",
-    projectFrameDevelopmentVerificationDocker: "Docker build verification",
-    projectFrameDevelopmentStatusDrafted: "Drafted",
-    projectFrameDevelopmentStatusApproved: "Approved",
-    projectFrameDevelopmentStatusRejected: "Rejected",
-    projectFrameDevelopmentStatusStaging: "Staging",
-    projectFrameDevelopmentStatusVerifying: "Verifying",
-    projectFrameDevelopmentStatusPromoting: "Promoting",
-    projectFrameDevelopmentStatusVerified: "Verified",
-    projectFrameDevelopmentStatusCommitted: "Committed",
-    projectFrameDevelopmentStatusRecoveryRequired: "Recovery required",
-    projectFrameDevelopmentStatusFailed: "Failed",
-    projectFrameDevelopmentExport: "Export bundle",
-    projectFrameDevelopmentReject: "Reject",
-    projectFrameDevelopmentApprove: "Approve",
-    projectFrameDevelopmentExecute: "Execute",
-    projectFrameDevelopmentRecover: "Reconcile",
-    projectFrameDevelopmentDeploymentTitle: "Verified deployment",
-    projectFrameDevelopmentDeploymentDescription: "Build the committed CAS context on the selected target, inspect its private preview, then approve and activate that exact candidate.",
-    projectFrameDevelopmentDeploymentStatusPreparing: "Preparing",
-    projectFrameDevelopmentDeploymentStatusBuilding: "Building",
-    projectFrameDevelopmentDeploymentStatusPreviewing: "Previewing",
-    projectFrameDevelopmentDeploymentStatusActivating: "Activating",
-    projectFrameDevelopmentDeploymentInvalidConfig: "Container port, port name, and route ID must be valid.",
-    projectFrameDevelopmentDeploymentPreview: "Create private preview",
-    projectFrameDevelopmentDeploymentPreviewing: "Preparing preview…",
-    projectFrameDevelopmentDeploymentPreviewConfirm: (targetId, routeId) => `Build and run this verified change on ${targetId} as a private preview for route ${routeId}?`,
-    projectFrameDevelopmentDeploymentPreviewStarted: "Private deployment preview started",
-    projectFrameDevelopmentDeploymentPreviewFailed: "Could not create deployment preview",
-    projectFrameDevelopmentDeploymentSourceTree: "Verified source tree",
-    projectFrameDevelopmentDeploymentBuildContext: "CAS build context",
-    projectFrameDevelopmentDeploymentCandidate: "Private candidate",
-    projectFrameDevelopmentDeploymentOpenPreview: "Open private preview",
-    projectFrameDevelopmentDeploymentApproveConfirm: (targetId, routeId, exposure) => `Approve the exact candidate and evidence shown here for target ${targetId}, route ${routeId}, with ${exposure} exposure?`,
-    projectFrameDevelopmentDeploymentApproved: "Deployment candidate approved",
-    projectFrameDevelopmentDeploymentRejected: "Deployment candidate rejected",
-    projectFrameDevelopmentDeploymentActivate: "Activate",
-    projectFrameDevelopmentDeploymentActivating: "Activating…",
-    projectFrameDevelopmentDeploymentActivateConfirm: (targetId, routeId, exposure) => `Atomically switch production route ${routeId} on target ${targetId} to this approved candidate with ${exposure} exposure?`,
-    projectFrameDevelopmentDeploymentActivated: "Verified deployment activated",
-    projectFrameDevelopmentDeploymentActivationFailed: "Could not activate verified deployment",
-    projectFrameDevelopmentDeploymentRecoveryHint: "This candidate requires reconciliation. Inspect its durable target operation and deployment revision before retrying.",
-    projectFrameDevelopmentDeploymentReconcile: "Reconcile outcome",
-    projectFrameDevelopmentDeploymentReconciling: "Reconciling…",
-    projectFrameDevelopmentDeploymentReconcileConfirm: "Reconcile durable target truth now? A matching committed activation will be adopted; otherwise an exactly identified uncertain candidate will be stopped and its Host resources cleaned. Effects without durable identity remain blocked for manual inspection.",
-    projectFrameDevelopmentDeploymentReconciled: "Deployment outcome reconciled",
-    projectFrameDevelopmentDeploymentReconciliationFailed: "Deployment still requires reconciliation",
-    projectFrameDevelopmentDeploymentOpenProduction: "Open production route",
-    projectFrameDeploymentSection: "Deployment",
-    projectFrameDeploymentDescription: "Read-only target, execution, port, and proxy diagnostics reported by the host.",
-    projectFrameRemoteTargetOperationsOnly:
+    installationFrameInstallationId: "Installation ID",
+    installationFrameInstallationType: "Type",
+    installationFrameSession: "Session",
+    installationFrameActiveSession: "Active",
+    installationFrameStorage: "Storage",
+    installationFrameInterfaceSection: "Installation interface",
+    installationFrameInterfaceDescription: "Standalone installation tab plus the resolved surface bundle used by the iframe host.",
+    installationFrameEntrySurface: "Entry surface",
+    installationFrameBundleUrl: "Bundle URL",
+    installationFrameBundleFingerprint: "Fingerprint",
+    installationFrameBundleUnavailable: "Bundle could not be resolved",
+    installationFrameLastResolved: "Last resolved",
+    installationFrameUpdatesSection: "Updates",
+    installationFrameUpdatesDescription: "Checks use plurora/install-lab capabilities through capability.invoke.",
+    installationFrameNoUpdateRecords: "No update records returned for this installation.",
+    installationFramePackagesSection: "Package health",
+    installationFramePackagesDescription: "Runtime package state, counts, and redacted failure/log summaries when available.",
+    installationFrameNoPackages: "No installation packages were reported by the host.",
+    installationFramePackageCounts: (capabilities, hooks) => `${capabilities} capabilities · ${hooks} hooks`,
+    installationFrameActivitySection: "Recent activity",
+    installationFrameActivityDescription: "Best-effort tail of the running installation session events.",
+    installationFrameNoEvents: "No recent events for this session.",
+    installationFrameNoSession: "No running session is available yet.",
+    installationFrameDiagnosticsWarnings: "Diagnostic warnings",
+    installationFrameDevelopmentSection: "Development",
+    installationFrameDevelopmentDescription: "Draft content-addressed ChangeSets, approve them explicitly, verify in an isolated scratch workspace, then promote only Host-owned trees.",
+    installationFrameDevelopmentLoadFailed: "Development history unavailable",
+    installationFrameDevelopmentGoal: "Goal",
+    installationFrameDevelopmentGoalPlaceholder: "Describe the intended source change",
+    installationFrameDevelopmentTarget: "Relative file path",
+    installationFrameDevelopmentOperation: "Operation",
+    installationFrameDevelopmentWrite: "Write file",
+    installationFrameDevelopmentDelete: "Delete file",
+    installationFrameDevelopmentExecutable: "Executable file",
+    installationFrameDevelopmentDockerBuild: "Verify with Docker build",
+    installationFrameDevelopmentAllowNetwork: "Allow Docker build egress",
+    installationFrameDevelopmentDockerfile: "Dockerfile path",
+    installationFrameDevelopmentContent: "UTF-8 source content",
+    installationFrameDevelopmentSafetyHint: "Drafts store source blobs by digest, never raw source in the journal. Docker scratch builds default to no network and discard verification images. Managed external trees may be promoted; native trees are verify-only, and linked-local installations must first be imported as managed.",
+    installationFrameDevelopmentDrafting: "Drafting…",
+    installationFrameDevelopmentDraft: "Draft ChangeSet",
+    installationFrameDevelopmentHistory: "Change history",
+    installationFrameDevelopmentHistoryDescription: "Durable intent, policy, approval, verification, commit, and effect receipts.",
+    installationFrameDevelopmentRefresh: "Refresh",
+    installationFrameDevelopmentEmpty: "No development ChangeSets have been drafted for this installation.",
+    installationFrameDevelopmentDrafted: "Development ChangeSet drafted",
+    installationFrameDevelopmentDraftFailed: "Could not draft development ChangeSet",
+    installationFrameDevelopmentApproveConfirm: "Approve this exact ChangeSet and its listed filesystem, Docker, and network authority?",
+    installationFrameDevelopmentDecisionFailed: "Could not record approval decision",
+    installationFrameDevelopmentExecuteConfirm: "Execute the approved ChangeSet in a Host-owned scratch workspace now?",
+    installationFrameDevelopmentExecutionStarted: "Development execution started",
+    installationFrameDevelopmentExecutionAlreadyActive: "Development execution is already active; status refreshed",
+    installationFrameDevelopmentExecutionFailed: "Could not start development execution",
+    installationFrameDevelopmentRecovered: "Development promotion reconciled",
+    installationFrameDevelopmentRecoveryFailed: "Development promotion still requires recovery",
+    installationFrameDevelopmentExportFailed: "Could not export patch bundle",
+    installationFrameDevelopmentLinkedHint: "Linked-local installations are proposal-only. Import a managed copy before Host verification; Plurora never writes the linked user source.",
+    installationFrameDevelopmentReviewOperations: "Exact operations",
+    installationFrameDevelopmentReviewVerification: "Verification",
+    installationFrameDevelopmentReviewAuthority: "Required authority",
+    installationFrameDevelopmentReviewEffects: "Expected effects",
+    installationFrameDevelopmentApprovalRecord: "Recorded approval decision",
+    installationFrameDevelopmentRecoveryTarget: "Recovery reconciliation target",
+    installationFrameDevelopmentVerificationStatic: "Static validation (no code execution)",
+    installationFrameDevelopmentVerificationDocker: "Docker build verification",
+    installationFrameDevelopmentStatusDrafted: "Drafted",
+    installationFrameDevelopmentStatusApproved: "Approved",
+    installationFrameDevelopmentStatusRejected: "Rejected",
+    installationFrameDevelopmentStatusStaging: "Staging",
+    installationFrameDevelopmentStatusVerifying: "Verifying",
+    installationFrameDevelopmentStatusPromoting: "Promoting",
+    installationFrameDevelopmentStatusVerified: "Verified",
+    installationFrameDevelopmentStatusCommitted: "Committed",
+    installationFrameDevelopmentStatusRecoveryRequired: "Recovery required",
+    installationFrameDevelopmentStatusFailed: "Failed",
+    installationFrameDevelopmentExport: "Export bundle",
+    installationFrameDevelopmentReject: "Reject",
+    installationFrameDevelopmentApprove: "Approve",
+    installationFrameDevelopmentExecute: "Execute",
+    installationFrameDevelopmentRecover: "Reconcile",
+    installationFrameDevelopmentDeploymentTitle: "Verified deployment",
+    installationFrameDevelopmentDeploymentDescription: "Build the committed CAS context on the selected target, inspect its private preview, then approve and activate that exact candidate.",
+    installationFrameDevelopmentDeploymentStatusPreparing: "Preparing",
+    installationFrameDevelopmentDeploymentStatusBuilding: "Building",
+    installationFrameDevelopmentDeploymentStatusPreviewing: "Previewing",
+    installationFrameDevelopmentDeploymentStatusActivating: "Activating",
+    installationFrameDevelopmentDeploymentInvalidConfig: "Container port, port name, and route ID must be valid.",
+    installationFrameDevelopmentDeploymentPreview: "Create private preview",
+    installationFrameDevelopmentDeploymentPreviewing: "Preparing preview…",
+    installationFrameDevelopmentDeploymentPreviewConfirm: (targetId, routeId) => `Build and run this verified change on ${targetId} as a private preview for route ${routeId}?`,
+    installationFrameDevelopmentDeploymentPreviewStarted: "Private deployment preview started",
+    installationFrameDevelopmentDeploymentPreviewFailed: "Could not create deployment preview",
+    installationFrameDevelopmentDeploymentSourceTree: "Verified source tree",
+    installationFrameDevelopmentDeploymentBuildContext: "CAS build context",
+    installationFrameDevelopmentDeploymentCandidate: "Private candidate",
+    installationFrameDevelopmentDeploymentOpenPreview: "Open private preview",
+    installationFrameDevelopmentDeploymentApproveConfirm: (targetId, routeId, exposure) => `Approve the exact candidate and evidence shown here for target ${targetId}, route ${routeId}, with ${exposure} exposure?`,
+    installationFrameDevelopmentDeploymentApproved: "Deployment candidate approved",
+    installationFrameDevelopmentDeploymentRejected: "Deployment candidate rejected",
+    installationFrameDevelopmentDeploymentActivate: "Activate",
+    installationFrameDevelopmentDeploymentActivating: "Activating…",
+    installationFrameDevelopmentDeploymentActivateConfirm: (targetId, routeId, exposure) => `Atomically switch production route ${routeId} on target ${targetId} to this approved candidate with ${exposure} exposure?`,
+    installationFrameDevelopmentDeploymentActivated: "Verified deployment activated",
+    installationFrameDevelopmentDeploymentActivationFailed: "Could not activate verified deployment",
+    installationFrameDevelopmentDeploymentRecoveryHint: "This candidate requires reconciliation. Inspect its durable target operation and deployment revision before retrying.",
+    installationFrameDevelopmentDeploymentReconcile: "Reconcile outcome",
+    installationFrameDevelopmentDeploymentReconciling: "Reconciling…",
+    installationFrameDevelopmentDeploymentReconcileConfirm: "Reconcile durable target truth now? A matching committed activation will be adopted; otherwise an exactly identified uncertain candidate will be stopped and its Host resources cleaned. Effects without durable identity remain blocked for manual inspection.",
+    installationFrameDevelopmentDeploymentReconciled: "Deployment outcome reconciled",
+    installationFrameDevelopmentDeploymentReconciliationFailed: "Deployment still requires reconciliation",
+    installationFrameDevelopmentDeploymentOpenProduction: "Open production route",
+    installationFrameDeploymentSection: "Deployment",
+    installationFrameDeploymentDescription: "Read-only target, execution, port, and proxy diagnostics reported by the host.",
+    installationFrameRemoteTargetOperationsOnly:
       "Verified artifact deployment, revision recovery, and diagnostics use this selected target. Legacy image and Git deployment actions remain local-only and are hidden here.",
-    projectFrameTargetOperations: "Target operations",
-    projectFrameTargetOperationEmpty: "No durable target operations have been recorded for this project and target.",
-    projectFrameTargetOperationShowDetails: "Show details",
-    projectFrameTargetOperationHideDetails: "Hide details",
-    projectFrameTargetOperationRevision: "Operation revision",
-    projectFrameTargetOperationExecution: "Execution ID",
-    projectFrameTargetOperationUpdatedAt: "Updated",
-    projectFrameTargetOperationRequestDigest: "Request digest",
-    projectFrameTargetOperationAuthorityDigest: "Authority digest",
-    projectFrameTargetOperationOutput: "Receipt output",
-    projectFrameTargetOperationDiagnostics: "Terminal diagnostics",
-    projectFrameTargetOperationNoDiagnostics: "The terminal receipt contains no diagnostics.",
-    projectFrameTargetOperationReceiptPending: "No terminal receipt is available yet. Refresh to observe the next durable state.",
-    projectFrameTargetOperationShowingRecent: (shown, total) => `Showing the newest ${shown} of ${total} operations.`,
-    projectFrameDeploymentExecutions: "Executions",
-    projectFrameDeploymentPortLeases: "Port Leases",
-    projectFrameDeploymentProxyRoutes: "Proxy Routes",
-    projectFrameDeploymentEmpty: "No deployment records reported by the host.",
-    projectFrameDeploymentReady: "Ready",
-    projectFrameDeploymentExitCode: "Exit code",
-    projectFrameDeploymentHistoryTitle: "Durable deployment history",
-    projectFrameDeploymentHistoryDescription: "Host-owned revisions and job receipts survive restarts; recovery only replays secret references and other safe inputs.",
-    projectFrameDeploymentActiveRevision: "Active revision",
-    projectFrameDeploymentRecoveryRequired: "Recovery required",
-    projectFrameDeploymentRecover: "Recover",
-    projectFrameDeploymentRecovering: "Recovering…",
-    projectFrameDeploymentRecoverConfirm: "Recover the active revision from its durable receipt? The existing route resources will be cleaned up first.",
-    projectFrameDeploymentRecoveredTitle: "Deployment recovered",
-    projectFrameDeploymentRecoveryFailedTitle: "Deployment recovery failed",
-    projectFrameDeploymentRevisionHistory: "Revision history",
-    projectFrameDeploymentRollback: "Roll back",
-    projectFrameDeploymentRollingBack: "Rolling back…",
-    projectFrameDeploymentRollbackConfirm: (revisionId) => `Activate deployment revision ${revisionId}? The current deployment will be stopped first.`,
-    projectFrameDeploymentRolledBackTitle: "Deployment rolled back",
-    projectFrameDeploymentRollbackFailedTitle: "Deployment rollback failed",
-    projectFrameDeploymentNotRecoverable: "Manual rebuild required",
-    projectFrameDeploymentNoActiveOnTarget: (targetId) => `No active revision is running on target ${targetId}.`,
-    projectFrameDeploymentJobHistory: "Recent deployment jobs",
-    projectFrameDeploymentCreatedAt: "Created",
-    projectFrameDeploymentSourceCommit: "Source commit",
-    projectFrameDeploymentBuildDigest: "Build descriptor",
-    projectFrameDeploymentParentRevision: "Parent revision",
-    projectFrameRouteExposure: "Route exposure",
-    projectFrameRoutePrivate: "Host authenticated",
-    projectFrameRoutePrivateBody: "Only authenticated Host clients can reach this service through the managed /p route.",
-    projectFrameRoutePublic: "Public",
-    projectFrameRoutePublicBody: "Allow unauthenticated requests through the configured virtual-host domain.",
-    projectFrameRoutePublicWarning: "Public exposure bypasses Host authentication for this application route. Publish only services designed for the internet.",
-    projectFrameDeployActionTitle: "Explicit Docker deployment",
-    projectFrameDeployActionDescription: "Starts one prebuilt HTTP container using host-owned port and proxy resources.",
-    projectFrameDeployInvalidTitle: "Deployment metadata is invalid",
-    projectFrameDeploy: "Deploy",
-    projectFrameDeploying: "Deploying…",
-    projectFrameStopDeployment: "Stop deployment",
-    projectFrameStoppingDeployment: "Stopping…",
-    projectFrameDeployImage: "Image",
-    projectFrameDeployContainerPort: "Container port",
-    projectFrameDeployRouteId: "Route ID",
-    projectFrameDeployPortName: "Port name",
-    projectFrameDeployHealthPath: "Health path",
-    projectFrameDeployContainerId: "Container ID",
-    projectFrameDeployPullWarning: "This deployment may pull the image if it is missing. Only deploy trusted image references.",
-    projectFrameDeployActiveHint: "An active route, port lease, or tracked container is present for this descriptor.",
-    projectFrameDeployConfirm: (image) => `Deploy Docker image ${image}? This will lease a local port and start a container on this host.`,
-    projectFrameStopDeploymentConfirm: (routeId) => `Stop the host-managed deployment for route ${routeId}? Its active durable revision will be deactivated.`,
-    projectFrameDeploySuccessTitle: "Deployment started",
-    projectFrameDeploySuccessBody: (routeId) => `Proxy route ${routeId} is registered.`,
-    projectFrameDeployFailedTitle: "Deployment failed",
-    projectFrameDeployFailedBody: "Docker runtime lab or host resource setup failed.",
-    projectFrameStopDeploymentSuccessTitle: "Deployment stopped",
-    projectFrameStopDeploymentPartialTitle: "Deployment cleanup partially failed",
-    projectFrameBuildDeployTitle: "Build & Deploy",
-    projectFrameBuildDeployDescription: "Clone the project workspace, build an image, then start it through the host deployment broker.",
-    projectFrameBuildDeployInvalidTitle: "Build-deploy metadata is invalid",
-    projectFrameBuildDeployButton: "Build & Deploy",
-    projectFrameBuildDeployRunning: "Running…",
-    projectFrameBuildDeployCancel: "Cancel job",
-    projectFrameBuildDeployCancelConfirmTitle: "Cancel build job?",
-    projectFrameBuildDeployCancelConfirmBody: "The host will stop after the current safe checkpoint and roll back any acquired deploy resources.",
-    projectFrameBuildDeployStrategy: "Strategy",
-    projectFrameBuildDeploySource: "Source",
-    projectFrameBuildDeployRef: "Ref",
-    projectFrameBuildDeployEnv: "Runtime env",
-    projectFrameBuildDeploySecretRef: "secret ref",
-    projectFrameBuildDeployPlainEnv: "plain",
-    projectFrameBuildDeployMounts: "Runtime mounts",
-    projectFrameBuildDeployApproveMount: "I've verified this path is correct",
-    projectFrameBuildDeployApproveRisk: "I approve read-write access",
-    projectFrameBuildDeployHighRiskBadge: "RW high risk",
-    projectFrameBuildDeployJob: "Job",
-    projectFrameBuildDeployTracker: "Build thread",
-    projectFrameBuildDeployCopyLogs: "Copy logs",
-    projectFrameBuildDeployNoLogs: "Waiting for job events…",
-    projectFrameBuildDeployResultReady: "Deployment ready",
-    projectFrameBuildDeployResultFailed: "Deployment failed",
-    projectFrameBuildDeployResultCancelled: "Deployment cancelled",
-    projectFrameBuildDeployNewBuild: "New Build",
-    projectFrameBuildDeployRestart: "Restart",
-    projectFrameBuildDeployEditConfig: "Edit Config",
-    projectFrameBuildDeployConfirm: (routeId) => `Build and deploy route ${routeId}? This may run Docker builds on the host.`,
-    projectFrameBuildDeployStartedTitle: "Build job started",
-    projectFrameBuildDeployStartedBody: (jobId) => `Tracking job ${jobId}.`,
-    projectFrameBuildDeployFailedTitle: "Build-deploy failed",
-    projectFrameBuildDeployCancelTitle: "Cancel requested",
-    projectFrameBuildDeployReady: (url) => `Ready at ${url}`,
-    projectFrameStatusReady: "Ready",
-    projectFrameStatusNotReady: "Not ready",
-    projectFrameShowLogs: "Show logs",
-    projectFrameHideLogs: "Hide logs",
-    projectFrameLogsLoading: "Loading logs…",
-    projectFrameNoLogs: "No bounded logs returned for this execution.",
-    projectFrameCopyAddress: "Copy address",
-    projectFrameCopyUrl: "Copy URL",
-    projectFrameOpenUrl: "Open URL",
-    projectFramePublicUrl: "Public URL",
-    projectFrameIframeUrl: "Iframe URL",
+    installationFrameTargetOperations: "Target operations",
+    installationFrameTargetOperationEmpty: "No durable target operations have been recorded for this installation and target.",
+    installationFrameTargetOperationShowDetails: "Show details",
+    installationFrameTargetOperationHideDetails: "Hide details",
+    installationFrameTargetOperationRevision: "Operation revision",
+    installationFrameTargetOperationExecution: "Execution ID",
+    installationFrameTargetOperationUpdatedAt: "Updated",
+    installationFrameTargetOperationRequestDigest: "Request digest",
+    installationFrameTargetOperationAuthorityDigest: "Authority digest",
+    installationFrameTargetOperationOutput: "Receipt output",
+    installationFrameTargetOperationDiagnostics: "Terminal diagnostics",
+    installationFrameTargetOperationNoDiagnostics: "The terminal receipt contains no diagnostics.",
+    installationFrameTargetOperationReceiptPending: "No terminal receipt is available yet. Refresh to observe the next durable state.",
+    installationFrameTargetOperationShowingRecent: (shown, total) => `Showing the newest ${shown} of ${total} operations.`,
+    installationFrameDeploymentExecutions: "Executions",
+    installationFrameDeploymentPortLeases: "Port Leases",
+    installationFrameDeploymentProxyRoutes: "Proxy Routes",
+    installationFrameDeploymentEmpty: "No deployment records reported by the host.",
+    installationFrameDeploymentReady: "Ready",
+    installationFrameDeploymentExitCode: "Exit code",
+    installationFrameDeploymentHistoryTitle: "Durable deployment history",
+    installationFrameDeploymentHistoryDescription: "Host-owned revisions and job receipts survive restarts; recovery only replays secret references and other safe inputs.",
+    installationFrameDeploymentActiveRevision: "Active revision",
+    installationFrameDeploymentRecoveryRequired: "Recovery required",
+    installationFrameDeploymentRecover: "Recover",
+    installationFrameDeploymentRecovering: "Recovering…",
+    installationFrameDeploymentRecoverConfirm: "Recover the active revision from its durable receipt? The existing route resources will be cleaned up first.",
+    installationFrameDeploymentRecoveredTitle: "Deployment recovered",
+    installationFrameDeploymentRecoveryFailedTitle: "Deployment recovery failed",
+    installationFrameDeploymentRevisionHistory: "Revision history",
+    installationFrameDeploymentRollback: "Roll back",
+    installationFrameDeploymentRollingBack: "Rolling back…",
+    installationFrameDeploymentRollbackConfirm: (revisionId) => `Activate deployment revision ${revisionId}? The current deployment will be stopped first.`,
+    installationFrameDeploymentRolledBackTitle: "Deployment rolled back",
+    installationFrameDeploymentRollbackFailedTitle: "Deployment rollback failed",
+    installationFrameDeploymentNotRecoverable: "Manual rebuild required",
+    installationFrameDeploymentNoActiveOnTarget: (targetId) => `No active revision is running on target ${targetId}.`,
+    installationFrameDeploymentJobHistory: "Recent deployment jobs",
+    installationFrameDeploymentCreatedAt: "Created",
+    installationFrameDeploymentSourceCommit: "Source commit",
+    installationFrameDeploymentBuildDigest: "Build descriptor",
+    installationFrameDeploymentParentRevision: "Parent revision",
+    installationFrameRouteExposure: "Route exposure",
+    installationFrameRoutePrivate: "Host authenticated",
+    installationFrameRoutePrivateBody: "Only authenticated Host clients can reach this service through the managed /p route.",
+    installationFrameRoutePublic: "Public",
+    installationFrameRoutePublicBody: "Allow unauthenticated requests through the configured virtual-host domain.",
+    installationFrameRoutePublicWarning: "Public exposure bypasses Host authentication for this application route. Publish only services designed for the internet.",
+    installationFrameDeployActionTitle: "Explicit Docker deployment",
+    installationFrameDeployActionDescription: "Starts one prebuilt HTTP container using host-owned port and proxy resources.",
+    installationFrameDeployInvalidTitle: "Deployment metadata is invalid",
+    installationFrameDeploy: "Deploy",
+    installationFrameDeploying: "Deploying…",
+    installationFrameStopDeployment: "Stop deployment",
+    installationFrameStoppingDeployment: "Stopping…",
+    installationFrameDeployImage: "Image",
+    installationFrameDeployContainerPort: "Container port",
+    installationFrameDeployRouteId: "Route ID",
+    installationFrameDeployPortName: "Port name",
+    installationFrameDeployHealthPath: "Health path",
+    installationFrameDeployContainerId: "Container ID",
+    installationFrameDeployPullWarning: "This deployment may pull the image if it is missing. Only deploy trusted image references.",
+    installationFrameDeployActiveHint: "An active route, port lease, or tracked container is present for this descriptor.",
+    installationFrameDeployConfirm: (image) => `Deploy Docker image ${image}? This will lease a local port and start a container on this host.`,
+    installationFrameStopDeploymentConfirm: (routeId) => `Stop the host-managed deployment for route ${routeId}? Its active durable revision will be deactivated.`,
+    installationFrameDeploySuccessTitle: "Deployment started",
+    installationFrameDeploySuccessBody: (routeId) => `Proxy route ${routeId} is registered.`,
+    installationFrameDeployFailedTitle: "Deployment failed",
+    installationFrameDeployFailedBody: "Docker runtime lab or host resource setup failed.",
+    installationFrameStopDeploymentSuccessTitle: "Deployment stopped",
+    installationFrameStopDeploymentPartialTitle: "Deployment cleanup partially failed",
+    installationFrameBuildDeployTitle: "Build & Deploy",
+    installationFrameBuildDeployDescription: "Clone the installation workspace, build an image, then start it through the host deployment broker.",
+    installationFrameBuildDeployInvalidTitle: "Build-deploy metadata is invalid",
+    installationFrameBuildDeployButton: "Build & Deploy",
+    installationFrameBuildDeployRunning: "Running…",
+    installationFrameBuildDeployCancel: "Cancel job",
+    installationFrameBuildDeployCancelConfirmTitle: "Cancel build job?",
+    installationFrameBuildDeployCancelConfirmBody: "The host will stop after the current safe checkpoint and roll back any acquired deploy resources.",
+    installationFrameBuildDeployStrategy: "Strategy",
+    installationFrameBuildDeploySource: "Source",
+    installationFrameBuildDeployRef: "Ref",
+    installationFrameBuildDeployEnv: "Runtime env",
+    installationFrameBuildDeploySecretRef: "secret ref",
+    installationFrameBuildDeployPlainEnv: "plain",
+    installationFrameBuildDeployMounts: "Runtime mounts",
+    installationFrameBuildDeployApproveMount: "I've verified this path is correct",
+    installationFrameBuildDeployApproveRisk: "I approve read-write access",
+    installationFrameBuildDeployHighRiskBadge: "RW high risk",
+    installationFrameBuildDeployJob: "Job",
+    installationFrameBuildDeployTracker: "Build thread",
+    installationFrameBuildDeployCopyLogs: "Copy logs",
+    installationFrameBuildDeployNoLogs: "Waiting for job events…",
+    installationFrameBuildDeployResultReady: "Deployment ready",
+    installationFrameBuildDeployResultFailed: "Deployment failed",
+    installationFrameBuildDeployResultCancelled: "Deployment cancelled",
+    installationFrameBuildDeployNewBuild: "New Build",
+    installationFrameBuildDeployRestart: "Restart",
+    installationFrameBuildDeployEditConfig: "Edit Config",
+    installationFrameBuildDeployConfirm: (routeId) => `Build and deploy route ${routeId}? This may run Docker builds on the host.`,
+    installationFrameBuildDeployStartedTitle: "Build job started",
+    installationFrameBuildDeployStartedBody: (jobId) => `Tracking job ${jobId}.`,
+    installationFrameBuildDeployFailedTitle: "Build-deploy failed",
+    installationFrameBuildDeployCancelTitle: "Cancel requested",
+    installationFrameBuildDeployReady: (url) => `Ready at ${url}`,
+    installationFrameStatusReady: "Ready",
+    installationFrameStatusNotReady: "Not ready",
+    installationFrameShowLogs: "Show logs",
+    installationFrameHideLogs: "Hide logs",
+    installationFrameLogsLoading: "Loading logs…",
+    installationFrameNoLogs: "No bounded logs returned for this execution.",
+    installationFrameCopyAddress: "Copy address",
+    installationFrameCopyUrl: "Copy URL",
+    installationFrameOpenUrl: "Open URL",
+    installationFramePublicUrl: "Public URL",
+    installationFrameIframeUrl: "Iframe URL",
 
     settingsTitle: "Settings",
     settingsHelper: "Settings live on this machine. No SaaS sync.",
@@ -1431,15 +1431,15 @@ export const labels = {
     accessPublicHostUrlHelper: "The phone must be able to reach this exact Host address.",
     accessHttpsRequired: "Enter the public HTTPS origin for this Host, without a path.",
     accessPermissions: "Device abilities",
-    accessProjectResources: "Project access",
-    accessProjectResourcesBody: "Grant every project or enter exact project ids separated by commas.",
-    accessAllProjects: "All projects",
-    accessProjectIdsPlaceholder: "project-a, project-b",
+    accessInstallationResources: "Installation access",
+    accessInstallationResourcesBody: "Grant every installation or enter exact installation ids separated by commas.",
+    accessAllInstallations: "All installations",
+    accessInstallationIdsPlaceholder: "installation-a, installation-b",
     accessTargetResources: "Execution targets",
     accessTargetResourcesBody: "Grant every target or enter exact target ids separated by commas.",
     accessAllTargets: "All targets",
     accessTargetIdsPlaceholder: "local, preview-server",
-    accessProjectResource: (id) => `Project · ${id}`,
+    accessInstallationResource: (id) => `Installation · ${id}`,
     accessTargetResource: (id) => `Target · ${id}`,
     accessCreateValidation: "Enter a device name, 1–365 days, and a valid HTTPS Host address.",
     accessCreating: "Creating…",
@@ -1468,13 +1468,13 @@ export const labels = {
     accessTicketExpires: (time) => `invitation expires ${time}`,
     accessCancelTicket: "Cancel",
     accessScopeObserve: "Observe",
-    accessScopeObserveBody: "Read Host, project, deployment, and diagnostic state.",
-    accessScopeProjectOperate: "Operate projects",
-    accessScopeProjectOperateBody: "Start, stop, open, and fork project sessions.",
+    accessScopeObserveBody: "Read Host, installation, deployment, and diagnostic state.",
+    accessScopeInstallationOperate: "Operate installations",
+    accessScopeInstallationOperateBody: "Start, stop, open, and fork installation sessions.",
     accessScopeDeploy: "Deploy",
     accessScopeDeployBody: "Build, deploy, recover, and manage runtime routes.",
     accessScopeDevelopPropose: "Propose changes",
-    accessScopeDevelopProposeBody: "Draft and inspect controlled project change sets.",
+    accessScopeDevelopProposeBody: "Draft and inspect controlled installation change sets.",
     accessScopeDevelopApprove: "Approve changes",
     accessScopeDevelopApproveBody: "Approve or reject reviewed change sets.",
     accessScopeDevelopExecute: "Execute changes",
@@ -1486,7 +1486,7 @@ export const labels = {
     apiEyebrowCount: (count) => `API Connections · ${count} keys stored`,
     apiTitle: "Local secret store",
     apiDescription:
-      "Keys stay on this machine, encrypted with your platform key. Plurora never transmits raw keys — projects request them through audited capability calls.",
+      "Keys stay on this machine, encrypted with your platform key. Plurora never transmits raw keys — installations request them through audited capability calls.",
     apiStoredSecrets: "Stored secrets",
     apiAddSecret: "Add secret",
     apiLoadErrorTitle: "Couldn't load secrets",
@@ -1503,7 +1503,7 @@ export const labels = {
     apiSecretsCount: (count) => `${count} secrets`,
     apiHowUsed: "How they're used",
     apiHowUsedBody:
-      "The host injects the raw value into outbound requests on the project's behalf.",
+      "The host injects the raw value into outbound requests on the installation's behalf.",
     apiOpenAuditLog: "Open audit log →",
     apiBackup: "Backup",
     apiExportFile: "Export to file",
@@ -1529,7 +1529,7 @@ export const labels = {
     apiAddEyebrow: "API Connections · Add",
     apiAddTitle: "Store a new key",
     apiAddDescription:
-      "Plurora encrypts the value with your platform key and never sends raw keys to any project.",
+      "Plurora encrypts the value with your platform key and never sends raw keys to any installation.",
     apiProvider: "Provider",
     apiSecretName: "Secret name",
     apiSecretNameHelper: "Convention: PROVIDER_API_KEY (uppercase, underscores)",
@@ -1537,7 +1537,7 @@ export const labels = {
     apiValueHelper: "The raw key never leaves this machine.",
     apiScope: "Scope",
     apiScopePlatform: "Platform-wide",
-    apiScopeProject: "Project-only (configure on Home)",
+    apiScopeInstallation: "Installation-only (configure on Home)",
     cancel: "Cancel",
     apiSaveKey: "Save key",
 
@@ -1545,10 +1545,10 @@ export const labels = {
     packagesEyebrowCount: (count) => `Installed packages · ${count} packages`,
     packagesTitle: "Workshop inventory",
     packagesDescription:
-      "Projects, Plurora packages, and dependencies installed in this workshop. Refresh checks upstream sources.",
+      "Installations, Plurora packages, and dependencies installed in this workshop. Refresh checks upstream sources.",
     packagesFilterPlaceholder: "Filter packages…",
     packagesFilterAll: "All",
-    packagesFilterProjects: "Projects",
+    packagesFilterInstallations: "Installations",
     packagesFilterPlurora: "Plurora",
     packagesFilterThirdParty: "Third-party",
     packagesRefreshing: "Refreshing inventory…",
@@ -1557,7 +1557,7 @@ export const labels = {
     packagesLoadErrorBody: "Package inventory is unavailable. Try again from the local UI.",
     packagesEmptyTitle: "No packages installed yet",
     packagesNoMatchTitle: "No packages match this filter",
-    packagesEmptyBody: "Install a project from Home or run plurora install on the CLI.",
+    packagesEmptyBody: "Install a installation from Home or run plurora install on the CLI.",
     packagesNoMatchBody: "Try a different filter or clear the search.",
     packagesTablePackage: "Package",
     packagesTableVersion: "Version",
@@ -1598,7 +1598,7 @@ export const labels = {
     profilesNetworkAllowlist: "Network allowlist",
     profilesOutboundBlocked: "All outbound blocked.",
     profilesSwitch: "Switch profile…",
-    profilesSwitchHint: "Switching restarts the host. Project state is preserved.",
+    profilesSwitchHint: "Switching restarts the host. Installation state is preserved.",
     profilesSwitchRequiresRestart: "Profile switch requires restart",
     profilesSwitchBody: (id) => `Use plurora host serve --profile profiles/${id}.yaml on the CLI to activate.`,
     profilesSwitchViaCli: "Switch profile via CLI",
@@ -1631,14 +1631,14 @@ export const labels = {
     storageDescription:
       "Plurora keeps data on this machine by default. The UI summarizes storage areas without exposing host-specific absolute paths.",
     storageAreas: "Storage areas",
-    storageAreaProjectData: "Project data",
-    storageAreaProjectDataDesc: "Project metadata, checkpoints, package state, and run records.",
+    storageAreaInstallationData: "Installation data",
+    storageAreaInstallationDataDesc: "Installation metadata, checkpoints, package state, and run records.",
     storageAreaPackageStore: "Package store",
     storageAreaPackageStoreDesc: "Installed package sources and lockfile-managed revisions.",
     storageAreaProfiles: "Profiles",
     storageAreaProfilesDesc: "Host profiles passed to plurora host serve --profile.",
     storageAreaSecrets: "Secrets",
-    storageAreaSecretsDesc: "Encrypted platform and project secret stores. Raw values are never shown here.",
+    storageAreaSecretsDesc: "Encrypted platform and installation secret stores. Raw values are never shown here.",
     storageAreaCache: "Cache",
     storageAreaCacheDesc: "Generated bundles, tokenizer caches, and other rebuildable data.",
     storageEventStore: "Event store",
@@ -1658,9 +1658,9 @@ export const labels = {
     aboutChannel: "Channel",
     aboutWhat: "What Plurora is",
     aboutPara1:
-      "Plurora is a kernel and a contract. The kernel hosts your projects in sandboxes. The contract lets any project — Plurora, community, or self-built — participate as a first-class citizen.",
+      "Plurora is a kernel and a contract. The kernel hosts your installations in sandboxes. The contract lets any installation — Plurora, community, or self-built — participate as a first-class citizen.",
     aboutPara2:
-      "It runs on your machine, with your keys, your files, your network. There is no SaaS account, no central registry, no telemetry. Projects you install live in the local platform data directory and stay there until you remove them.",
+      "It runs on your machine, with your keys, your files, your network. There is no SaaS account, no central registry, no telemetry. Installations you install live in the local platform data directory and stay there until you remove them.",
     aboutPara3:
       "The shell you are looking at right now is one of many possible UIs. Anyone can write another. The platform is the contract — not this window.",
     aboutCredits: "Credits",
@@ -1721,7 +1721,7 @@ export const labels = {
 
     topbarHome: "首页",
     topbarSettings: "设置",
-    topbarProject: (projectId) => `项目 / ${projectId}`,
+    topbarInstallation: (installationId) => `项目 / ${installationId}`,
     topbarNotifications: "通知",
     topbarThemeSystem: (theme) => `跟随系统（${theme === "dark" ? "深色" : "浅色"}）`,
     topbarThemeLight: "浅色模式",
@@ -1788,8 +1788,8 @@ export const labels = {
     homeActionViewLogs: "查看日志",
     homeActionUninstall: "卸载…",
     homeMore: "更多",
-    homeProjectPopupBlockedTitle: "项目标签页被拦截",
-    homeProjectPopupBlockedBody: "请允许此站点打开弹出式窗口，然后从控制台重新打开项目界面。",
+    homeInstallationPopupBlockedTitle: "项目标签页被拦截",
+    homeInstallationPopupBlockedBody: "请允许此站点打开弹出式窗口，然后从控制台重新打开项目界面。",
 
     homeStoppedToast: (title) => `已停止 ${title}`,
     homeStopFailedTitle: "停止失败",
@@ -1851,7 +1851,7 @@ export const labels = {
     installResolving: "正在解析…",
     installPlanFailedTitle: "安装计划失败",
     installCompleteTitle: "安装完成",
-    installCompleteBody: (count, projectId) => `已安装 ${count} 个包${projectId ? ` · 项目 ${projectId}` : ""}`,
+    installCompleteBody: (count, installationId) => `已安装 ${count} 个包${installationId ? ` · 项目 ${installationId}` : ""}`,
     installFailedTitle: "安装失败",
     installListMore: (count) => `+${count} 项`,
     installKindNative: "原生项目",
@@ -1869,7 +1869,7 @@ export const labels = {
     installRootPrefix: "root:",
     installExternalCliOnlyTitle: "此构建中外部适配器生成仅支持 CLI。",
     installExternalCliOnlyBody: "包计划是真实的，但没有项目描述符时，Web UI 不会执行它。",
-    installProjectSection: "项目",
+    installInstallationSection: "项目",
     installKindLabel: "类型",
     installRootPackageLabel: "根包",
     installVersionLabel: "版本",
@@ -1925,7 +1925,7 @@ export const labels = {
     installActivityStatusFailed: "失败",
     installActivityStatusCompleted: "完成",
     installActivityStatusRunning: "运行中",
-    installActivityRegisteredProject: (projectId) => `已注册项目 ${projectId}`,
+    installActivityRegisteredInstallation: (installationId) => `已注册项目 ${installationId}`,
     installActivityProfileUpdated: "profile 已更新 · lockfile 已刷新",
 
     installExternalEyebrow: "安装 — 外部项目",
@@ -1947,9 +1947,9 @@ export const labels = {
     installRecommended: "推荐",
     installContinueDisabled: "继续已禁用",
 
-    failureProjectFallback: "项目",
-    failureContentLabel: (projectName) => `${projectName} 失败详情`,
-    failureEyebrow: (projectName) => `失败 — ${projectName.toUpperCase()}`,
+    failureInstallationFallback: "项目",
+    failureContentLabel: (installationName) => `${installationName} 失败详情`,
+    failureEyebrow: (installationName) => `失败 — ${installationName.toUpperCase()}`,
     failureTitle: "项目失败",
     failureDescription: "项目状态已保留。请查看下面的日志了解失败原因。",
     failureLogCopied: "日志已复制",
@@ -1966,286 +1966,286 @@ export const labels = {
     failureNoRedactedLog: "没有脱敏日志",
     failureNoDiagnosticLog: "此包没有可用的诊断日志尾部。",
     failureStopAndUninstall: "停止并卸载",
-    failureRestartProject: "重启项目",
+    failureRestartInstallation: "重启项目",
 
-    projectFrameStartFailedTitle: "启动项目失败",
-    projectFrameStartFailedBody: "无法启动项目框架。请检查本地主机后重试。",
-    projectFrameMountFailedTitle: "项目界面挂载失败",
-    projectFrameMountFailedBody: "项目已经运行，但浏览器界面未能加载。请检查本地主机和 surface bundle。",
-    projectFrameStopped: (title) => `已停止 ${title}`,
-    projectFrameStopFailedTitle: "停止失败",
-    projectFrameStopFailedBody: "无法停止该项目。请检查本地主机后重试。",
-    projectFrameBackHome: "返回首页",
-    projectFrameAuditLog: "审计日志",
-    projectFrameAuditLogUnavailable: "审计日志暂未接线",
-    projectFrameStopProject: "停止项目",
-    projectFrameStop: "停止",
-    projectFrameMore: "更多",
-    projectFrameMoreUnavailable: "更多项目操作暂未接线",
-    projectFrameState: (state) => state.toUpperCase(),
-    projectFrameLoadingSurface: "正在加载项目界面…",
-    projectFrameStoppedTitle: "项目已停止",
-    projectFrameStoppedBody: "可以关闭这个标签页。需要继续时，从首页重新打开项目。",
-    projectFrameConsoleTitle: "项目控制台",
-    projectFrameConsoleBody: "项目正在由当前 Plurora 标签页托管。项目自己的界面会在独立项目标签页打开，这里保留返回、停止和审计控制。",
-    projectFrameOpenProjectTab: "打开项目界面",
-    projectFrameProjectTabBlockedTitle: "项目标签页被浏览器拦截",
-    projectFrameProjectTabBlockedBody: "请允许本站弹出窗口，然后从控制台重新打开项目界面。",
-    projectFrameRefresh: "刷新",
-    projectFrameRefreshing: "正在刷新…",
-    projectFrameRefreshDiagnostics: "刷新诊断",
-    projectFrameUpdateProject: "更新项目",
-    projectFrameUpdating: "正在更新…",
-    projectFrameUpdateCompleteTitle: "项目已更新",
-    projectFrameUpdateCompleteBody: (count) => `已更新 ${count} 个包。`,
-    projectFrameUpdateCurrentTitle: "项目已是最新",
-    projectFrameUpdateCurrentBody: "没有可用的包更新。",
-    projectFrameUpdateFailedTitle: "更新失败",
-    projectFrameStopConfirm: "停止会终止当前运行会话和项目包。项目界面里尚未保存的工作可能丢失。确定停止这个项目吗？",
-    projectFrameDiagnosticsLoading: "正在加载诊断…",
-    projectFrameStatus: "状态",
-    projectFramePackages: "包",
-    projectFrameUpdates: "更新",
-    projectFrameActivity: "活动",
-    projectFramePackageHealth: (healthy, total) => `${healthy}/${total} 健康`,
-    projectFrameRecentEvents: (count) => `${count} 条近期事件`,
-    projectFrameUpdatesAvailable: (count) => `${count} 个更新可用`,
-    projectFrameUpdatesCurrent: "已是最新",
-    projectFrameUpdateUnavailable: "更新检查不可用",
-    projectFrameDeploymentMetric: "部署",
-    projectFrameDeploymentSummary: (targets, executions, running, ports, proxies) =>
+    installationFrameStartFailedTitle: "启动项目失败",
+    installationFrameStartFailedBody: "无法启动项目框架。请检查本地主机后重试。",
+    installationFrameMountFailedTitle: "项目界面挂载失败",
+    installationFrameMountFailedBody: "项目已经运行，但浏览器界面未能加载。请检查本地主机和 surface bundle。",
+    installationFrameStopped: (title) => `已停止 ${title}`,
+    installationFrameStopFailedTitle: "停止失败",
+    installationFrameStopFailedBody: "无法停止该项目。请检查本地主机后重试。",
+    installationFrameBackHome: "返回首页",
+    installationFrameAuditLog: "审计日志",
+    installationFrameAuditLogUnavailable: "审计日志暂未接线",
+    installationFrameStopInstallation: "停止项目",
+    installationFrameStop: "停止",
+    installationFrameMore: "更多",
+    installationFrameMoreUnavailable: "更多项目操作暂未接线",
+    installationFrameState: (state) => state.toUpperCase(),
+    installationFrameLoadingSurface: "正在加载项目界面…",
+    installationFrameStoppedTitle: "项目已停止",
+    installationFrameStoppedBody: "可以关闭这个标签页。需要继续时，从首页重新打开项目。",
+    installationFrameConsoleTitle: "项目控制台",
+    installationFrameConsoleBody: "项目正在由当前 Plurora 标签页托管。项目自己的界面会在独立项目标签页打开，这里保留返回、停止和审计控制。",
+    installationFrameOpenInstallationTab: "打开项目界面",
+    installationFrameInstallationTabBlockedTitle: "项目标签页被浏览器拦截",
+    installationFrameInstallationTabBlockedBody: "请允许本站弹出窗口，然后从控制台重新打开项目界面。",
+    installationFrameRefresh: "刷新",
+    installationFrameRefreshing: "正在刷新…",
+    installationFrameRefreshDiagnostics: "刷新诊断",
+    installationFrameUpdateInstallation: "更新项目",
+    installationFrameUpdating: "正在更新…",
+    installationFrameUpdateCompleteTitle: "项目已更新",
+    installationFrameUpdateCompleteBody: (count) => `已更新 ${count} 个包。`,
+    installationFrameUpdateCurrentTitle: "项目已是最新",
+    installationFrameUpdateCurrentBody: "没有可用的包更新。",
+    installationFrameUpdateFailedTitle: "更新失败",
+    installationFrameStopConfirm: "停止会终止当前运行会话和项目包。项目界面里尚未保存的工作可能丢失。确定停止这个项目吗？",
+    installationFrameDiagnosticsLoading: "正在加载诊断…",
+    installationFrameStatus: "状态",
+    installationFramePackages: "包",
+    installationFrameUpdates: "更新",
+    installationFrameActivity: "活动",
+    installationFramePackageHealth: (healthy, total) => `${healthy}/${total} 健康`,
+    installationFrameRecentEvents: (count) => `${count} 条近期事件`,
+    installationFrameUpdatesAvailable: (count) => `${count} 个更新可用`,
+    installationFrameUpdatesCurrent: "已是最新",
+    installationFrameUpdateUnavailable: "更新检查不可用",
+    installationFrameDeploymentMetric: "部署",
+    installationFrameDeploymentSummary: (targets, executions, running, ports, proxies) =>
       `${targets} 个目标 · ${running}/${executions} 个执行运行中 · ${ports} 个端口 · ${proxies} 个代理`,
-    projectFrameProjectId: "项目 ID",
-    projectFrameProjectType: "类型",
-    projectFrameSession: "会话",
-    projectFrameActiveSession: "运行中",
-    projectFrameStorage: "存储",
-    projectFrameInterfaceSection: "项目界面",
-    projectFrameInterfaceDescription: "独立项目标签页，以及 iframe 主机解析到的 surface bundle。",
-    projectFrameEntrySurface: "入口 surface",
-    projectFrameBundleUrl: "Bundle URL",
-    projectFrameBundleFingerprint: "指纹",
-    projectFrameBundleUnavailable: "无法解析 bundle",
-    projectFrameLastResolved: "最近解析",
-    projectFrameUpdatesSection: "更新",
-    projectFrameUpdatesDescription: "通过 capability.invoke 调用 plurora/install-lab 能力进行检查。",
-    projectFrameNoUpdateRecords: "该项目没有返回更新记录。",
-    projectFramePackagesSection: "包健康",
-    projectFramePackagesDescription: "运行时包状态、计数，以及可用的脱敏失败/日志摘要。",
-    projectFrameNoPackages: "主机未报告项目包。",
-    projectFramePackageCounts: (capabilities, hooks) => `${capabilities} 个能力 · ${hooks} 个 hook`,
-    projectFrameActivitySection: "近期活动",
-    projectFrameActivityDescription: "尽力展示运行中项目会话的事件尾部。",
-    projectFrameNoEvents: "该会话暂无近期事件。",
-    projectFrameNoSession: "尚无运行中的会话。",
-    projectFrameDiagnosticsWarnings: "诊断警告",
-    projectFrameDevelopmentSection: "开发",
-    projectFrameDevelopmentDescription: "草拟内容寻址 ChangeSet，显式审批，在隔离 scratch 中验证，并且只提升 Host 拥有的工作树。",
-    projectFrameDevelopmentLoadFailed: "无法读取开发历史",
-    projectFrameDevelopmentGoal: "目标",
-    projectFrameDevelopmentGoalPlaceholder: "描述这次源码变更要实现什么",
-    projectFrameDevelopmentTarget: "相对文件路径",
-    projectFrameDevelopmentOperation: "操作",
-    projectFrameDevelopmentWrite: "写入文件",
-    projectFrameDevelopmentDelete: "删除文件",
-    projectFrameDevelopmentExecutable: "可执行文件",
-    projectFrameDevelopmentDockerBuild: "使用 Docker 构建验证",
-    projectFrameDevelopmentAllowNetwork: "允许 Docker 构建出网",
-    projectFrameDevelopmentDockerfile: "Dockerfile 路径",
-    projectFrameDevelopmentContent: "UTF-8 源码内容",
-    projectFrameDevelopmentSafetyHint: "草稿把源码按摘要存为对象，journal 不保存源码明文；Docker scratch 默认断网并删除验证镜像。managed external 可提升，native 只验证；linked-local 必须先导入为 managed 才能由 Host 验证。",
-    projectFrameDevelopmentDrafting: "正在草拟…",
-    projectFrameDevelopmentDraft: "草拟 ChangeSet",
-    projectFrameDevelopmentHistory: "变更历史",
-    projectFrameDevelopmentHistoryDescription: "持久保存 intent、策略、审批、验证、commit 与 effect receipt。",
-    projectFrameDevelopmentRefresh: "刷新",
-    projectFrameDevelopmentEmpty: "该项目尚无开发 ChangeSet。",
-    projectFrameDevelopmentDrafted: "开发 ChangeSet 已草拟",
-    projectFrameDevelopmentDraftFailed: "无法草拟开发 ChangeSet",
-    projectFrameDevelopmentApproveConfirm: "批准这个精确 ChangeSet 及其列出的文件系统、Docker 与网络权限？",
-    projectFrameDevelopmentDecisionFailed: "无法记录审批决定",
-    projectFrameDevelopmentExecuteConfirm: "现在在 Host 拥有的 scratch 工作区执行已批准的 ChangeSet？",
-    projectFrameDevelopmentExecutionStarted: "开发执行已开始",
-    projectFrameDevelopmentExecutionAlreadyActive: "开发执行已在进行，状态已刷新",
-    projectFrameDevelopmentExecutionFailed: "无法启动开发执行",
-    projectFrameDevelopmentRecovered: "开发 promotion 已完成对账",
-    projectFrameDevelopmentRecoveryFailed: "开发 promotion 仍需要恢复",
-    projectFrameDevelopmentExportFailed: "无法导出 patch bundle",
-    projectFrameDevelopmentLinkedHint: "linked-local 项目仅允许提案。请先导入 managed 副本再进行 Host 验证；Plurora 永不写入链接的用户源目录。",
-    projectFrameDevelopmentReviewOperations: "精确操作",
-    projectFrameDevelopmentReviewVerification: "验证方式",
-    projectFrameDevelopmentReviewAuthority: "所需权限",
-    projectFrameDevelopmentReviewEffects: "预期效果",
-    projectFrameDevelopmentApprovalRecord: "已记录的审批决定",
-    projectFrameDevelopmentRecoveryTarget: "恢复对账对象",
-    projectFrameDevelopmentVerificationStatic: "静态验证（不执行代码）",
-    projectFrameDevelopmentVerificationDocker: "Docker 构建验证",
-    projectFrameDevelopmentStatusDrafted: "草稿",
-    projectFrameDevelopmentStatusApproved: "已批准",
-    projectFrameDevelopmentStatusRejected: "已拒绝",
-    projectFrameDevelopmentStatusStaging: "正在暂存",
-    projectFrameDevelopmentStatusVerifying: "正在验证",
-    projectFrameDevelopmentStatusPromoting: "正在提升",
-    projectFrameDevelopmentStatusVerified: "已验证",
-    projectFrameDevelopmentStatusCommitted: "已提交",
-    projectFrameDevelopmentStatusRecoveryRequired: "需要恢复",
-    projectFrameDevelopmentStatusFailed: "失败",
-    projectFrameDevelopmentExport: "导出 bundle",
-    projectFrameDevelopmentReject: "拒绝",
-    projectFrameDevelopmentApprove: "批准",
-    projectFrameDevelopmentExecute: "执行",
-    projectFrameDevelopmentRecover: "对账恢复",
-    projectFrameDevelopmentDeploymentTitle: "已验证部署",
-    projectFrameDevelopmentDeploymentDescription: "在选定目标上构建已提交的 CAS 上下文，检查其私有预览，再批准并激活这个精确候选版本。",
-    projectFrameDevelopmentDeploymentStatusPreparing: "正在准备",
-    projectFrameDevelopmentDeploymentStatusBuilding: "正在构建",
-    projectFrameDevelopmentDeploymentStatusPreviewing: "正在生成预览",
-    projectFrameDevelopmentDeploymentStatusActivating: "正在激活",
-    projectFrameDevelopmentDeploymentInvalidConfig: "容器端口、端口名和路由 ID 必须有效。",
-    projectFrameDevelopmentDeploymentPreview: "创建私有预览",
-    projectFrameDevelopmentDeploymentPreviewing: "正在准备预览…",
-    projectFrameDevelopmentDeploymentPreviewConfirm: (targetId, routeId) => `在目标 ${targetId} 上构建并运行这个已验证变更，作为路由 ${routeId} 的私有预览？`,
-    projectFrameDevelopmentDeploymentPreviewStarted: "私有部署预览已启动",
-    projectFrameDevelopmentDeploymentPreviewFailed: "无法创建部署预览",
-    projectFrameDevelopmentDeploymentSourceTree: "已验证源码树",
-    projectFrameDevelopmentDeploymentBuildContext: "CAS 构建上下文",
-    projectFrameDevelopmentDeploymentCandidate: "私有候选版本",
-    projectFrameDevelopmentDeploymentOpenPreview: "打开私有预览",
-    projectFrameDevelopmentDeploymentApproveConfirm: (targetId, routeId, exposure) => `批准这里展示的精确候选版本与证据，用于目标 ${targetId} 的路由 ${routeId}，暴露范围为“${exposure}”？`,
-    projectFrameDevelopmentDeploymentApproved: "部署候选版本已批准",
-    projectFrameDevelopmentDeploymentRejected: "部署候选版本已拒绝",
-    projectFrameDevelopmentDeploymentActivate: "激活",
-    projectFrameDevelopmentDeploymentActivating: "正在激活…",
-    projectFrameDevelopmentDeploymentActivateConfirm: (targetId, routeId, exposure) => `将目标 ${targetId} 的生产路由 ${routeId} 原子切换到这个已批准候选版本，暴露范围为“${exposure}”？`,
-    projectFrameDevelopmentDeploymentActivated: "已验证部署已激活",
-    projectFrameDevelopmentDeploymentActivationFailed: "无法激活已验证部署",
-    projectFrameDevelopmentDeploymentRecoveryHint: "该候选版本需要对账。重试前请先检查它的持久化目标操作与部署修订。",
-    projectFrameDevelopmentDeploymentReconcile: "对账处理",
-    projectFrameDevelopmentDeploymentReconciling: "正在对账…",
-    projectFrameDevelopmentDeploymentReconcileConfirm: "现在根据持久化目标事实进行对账？若存在完全匹配且已提交的激活修订，将直接采纳；否则会停止能够被精确识别的不确定候选版本并清理其 Host 资源。缺少持久身份的效果仍会阻断并等待人工核验。",
-    projectFrameDevelopmentDeploymentReconciled: "部署结果已完成对账",
-    projectFrameDevelopmentDeploymentReconciliationFailed: "部署仍需要对账",
-    projectFrameDevelopmentDeploymentOpenProduction: "打开生产路由",
-    projectFrameDeploymentSection: "部署",
-    projectFrameDeploymentDescription: "主机报告的只读目标、执行、端口和代理诊断。",
-    projectFrameRemoteTargetOperationsOnly:
+    installationFrameInstallationId: "项目 ID",
+    installationFrameInstallationType: "类型",
+    installationFrameSession: "会话",
+    installationFrameActiveSession: "运行中",
+    installationFrameStorage: "存储",
+    installationFrameInterfaceSection: "项目界面",
+    installationFrameInterfaceDescription: "独立项目标签页，以及 iframe 主机解析到的 surface bundle。",
+    installationFrameEntrySurface: "入口 surface",
+    installationFrameBundleUrl: "Bundle URL",
+    installationFrameBundleFingerprint: "指纹",
+    installationFrameBundleUnavailable: "无法解析 bundle",
+    installationFrameLastResolved: "最近解析",
+    installationFrameUpdatesSection: "更新",
+    installationFrameUpdatesDescription: "通过 capability.invoke 调用 plurora/install-lab 能力进行检查。",
+    installationFrameNoUpdateRecords: "该项目没有返回更新记录。",
+    installationFramePackagesSection: "包健康",
+    installationFramePackagesDescription: "运行时包状态、计数，以及可用的脱敏失败/日志摘要。",
+    installationFrameNoPackages: "主机未报告项目包。",
+    installationFramePackageCounts: (capabilities, hooks) => `${capabilities} 个能力 · ${hooks} 个 hook`,
+    installationFrameActivitySection: "近期活动",
+    installationFrameActivityDescription: "尽力展示运行中项目会话的事件尾部。",
+    installationFrameNoEvents: "该会话暂无近期事件。",
+    installationFrameNoSession: "尚无运行中的会话。",
+    installationFrameDiagnosticsWarnings: "诊断警告",
+    installationFrameDevelopmentSection: "开发",
+    installationFrameDevelopmentDescription: "草拟内容寻址 ChangeSet，显式审批，在隔离 scratch 中验证，并且只提升 Host 拥有的工作树。",
+    installationFrameDevelopmentLoadFailed: "无法读取开发历史",
+    installationFrameDevelopmentGoal: "目标",
+    installationFrameDevelopmentGoalPlaceholder: "描述这次源码变更要实现什么",
+    installationFrameDevelopmentTarget: "相对文件路径",
+    installationFrameDevelopmentOperation: "操作",
+    installationFrameDevelopmentWrite: "写入文件",
+    installationFrameDevelopmentDelete: "删除文件",
+    installationFrameDevelopmentExecutable: "可执行文件",
+    installationFrameDevelopmentDockerBuild: "使用 Docker 构建验证",
+    installationFrameDevelopmentAllowNetwork: "允许 Docker 构建出网",
+    installationFrameDevelopmentDockerfile: "Dockerfile 路径",
+    installationFrameDevelopmentContent: "UTF-8 源码内容",
+    installationFrameDevelopmentSafetyHint: "草稿把源码按摘要存为对象，journal 不保存源码明文；Docker scratch 默认断网并删除验证镜像。managed external 可提升，native 只验证；linked-local 必须先导入为 managed 才能由 Host 验证。",
+    installationFrameDevelopmentDrafting: "正在草拟…",
+    installationFrameDevelopmentDraft: "草拟 ChangeSet",
+    installationFrameDevelopmentHistory: "变更历史",
+    installationFrameDevelopmentHistoryDescription: "持久保存 intent、策略、审批、验证、commit 与 effect receipt。",
+    installationFrameDevelopmentRefresh: "刷新",
+    installationFrameDevelopmentEmpty: "该项目尚无开发 ChangeSet。",
+    installationFrameDevelopmentDrafted: "开发 ChangeSet 已草拟",
+    installationFrameDevelopmentDraftFailed: "无法草拟开发 ChangeSet",
+    installationFrameDevelopmentApproveConfirm: "批准这个精确 ChangeSet 及其列出的文件系统、Docker 与网络权限？",
+    installationFrameDevelopmentDecisionFailed: "无法记录审批决定",
+    installationFrameDevelopmentExecuteConfirm: "现在在 Host 拥有的 scratch 工作区执行已批准的 ChangeSet？",
+    installationFrameDevelopmentExecutionStarted: "开发执行已开始",
+    installationFrameDevelopmentExecutionAlreadyActive: "开发执行已在进行，状态已刷新",
+    installationFrameDevelopmentExecutionFailed: "无法启动开发执行",
+    installationFrameDevelopmentRecovered: "开发 promotion 已完成对账",
+    installationFrameDevelopmentRecoveryFailed: "开发 promotion 仍需要恢复",
+    installationFrameDevelopmentExportFailed: "无法导出 patch bundle",
+    installationFrameDevelopmentLinkedHint: "linked-local 项目仅允许提案。请先导入 managed 副本再进行 Host 验证；Plurora 永不写入链接的用户源目录。",
+    installationFrameDevelopmentReviewOperations: "精确操作",
+    installationFrameDevelopmentReviewVerification: "验证方式",
+    installationFrameDevelopmentReviewAuthority: "所需权限",
+    installationFrameDevelopmentReviewEffects: "预期效果",
+    installationFrameDevelopmentApprovalRecord: "已记录的审批决定",
+    installationFrameDevelopmentRecoveryTarget: "恢复对账对象",
+    installationFrameDevelopmentVerificationStatic: "静态验证（不执行代码）",
+    installationFrameDevelopmentVerificationDocker: "Docker 构建验证",
+    installationFrameDevelopmentStatusDrafted: "草稿",
+    installationFrameDevelopmentStatusApproved: "已批准",
+    installationFrameDevelopmentStatusRejected: "已拒绝",
+    installationFrameDevelopmentStatusStaging: "正在暂存",
+    installationFrameDevelopmentStatusVerifying: "正在验证",
+    installationFrameDevelopmentStatusPromoting: "正在提升",
+    installationFrameDevelopmentStatusVerified: "已验证",
+    installationFrameDevelopmentStatusCommitted: "已提交",
+    installationFrameDevelopmentStatusRecoveryRequired: "需要恢复",
+    installationFrameDevelopmentStatusFailed: "失败",
+    installationFrameDevelopmentExport: "导出 bundle",
+    installationFrameDevelopmentReject: "拒绝",
+    installationFrameDevelopmentApprove: "批准",
+    installationFrameDevelopmentExecute: "执行",
+    installationFrameDevelopmentRecover: "对账恢复",
+    installationFrameDevelopmentDeploymentTitle: "已验证部署",
+    installationFrameDevelopmentDeploymentDescription: "在选定目标上构建已提交的 CAS 上下文，检查其私有预览，再批准并激活这个精确候选版本。",
+    installationFrameDevelopmentDeploymentStatusPreparing: "正在准备",
+    installationFrameDevelopmentDeploymentStatusBuilding: "正在构建",
+    installationFrameDevelopmentDeploymentStatusPreviewing: "正在生成预览",
+    installationFrameDevelopmentDeploymentStatusActivating: "正在激活",
+    installationFrameDevelopmentDeploymentInvalidConfig: "容器端口、端口名和路由 ID 必须有效。",
+    installationFrameDevelopmentDeploymentPreview: "创建私有预览",
+    installationFrameDevelopmentDeploymentPreviewing: "正在准备预览…",
+    installationFrameDevelopmentDeploymentPreviewConfirm: (targetId, routeId) => `在目标 ${targetId} 上构建并运行这个已验证变更，作为路由 ${routeId} 的私有预览？`,
+    installationFrameDevelopmentDeploymentPreviewStarted: "私有部署预览已启动",
+    installationFrameDevelopmentDeploymentPreviewFailed: "无法创建部署预览",
+    installationFrameDevelopmentDeploymentSourceTree: "已验证源码树",
+    installationFrameDevelopmentDeploymentBuildContext: "CAS 构建上下文",
+    installationFrameDevelopmentDeploymentCandidate: "私有候选版本",
+    installationFrameDevelopmentDeploymentOpenPreview: "打开私有预览",
+    installationFrameDevelopmentDeploymentApproveConfirm: (targetId, routeId, exposure) => `批准这里展示的精确候选版本与证据，用于目标 ${targetId} 的路由 ${routeId}，暴露范围为“${exposure}”？`,
+    installationFrameDevelopmentDeploymentApproved: "部署候选版本已批准",
+    installationFrameDevelopmentDeploymentRejected: "部署候选版本已拒绝",
+    installationFrameDevelopmentDeploymentActivate: "激活",
+    installationFrameDevelopmentDeploymentActivating: "正在激活…",
+    installationFrameDevelopmentDeploymentActivateConfirm: (targetId, routeId, exposure) => `将目标 ${targetId} 的生产路由 ${routeId} 原子切换到这个已批准候选版本，暴露范围为“${exposure}”？`,
+    installationFrameDevelopmentDeploymentActivated: "已验证部署已激活",
+    installationFrameDevelopmentDeploymentActivationFailed: "无法激活已验证部署",
+    installationFrameDevelopmentDeploymentRecoveryHint: "该候选版本需要对账。重试前请先检查它的持久化目标操作与部署修订。",
+    installationFrameDevelopmentDeploymentReconcile: "对账处理",
+    installationFrameDevelopmentDeploymentReconciling: "正在对账…",
+    installationFrameDevelopmentDeploymentReconcileConfirm: "现在根据持久化目标事实进行对账？若存在完全匹配且已提交的激活修订，将直接采纳；否则会停止能够被精确识别的不确定候选版本并清理其 Host 资源。缺少持久身份的效果仍会阻断并等待人工核验。",
+    installationFrameDevelopmentDeploymentReconciled: "部署结果已完成对账",
+    installationFrameDevelopmentDeploymentReconciliationFailed: "部署仍需要对账",
+    installationFrameDevelopmentDeploymentOpenProduction: "打开生产路由",
+    installationFrameDeploymentSection: "部署",
+    installationFrameDeploymentDescription: "主机报告的只读目标、执行、端口和代理诊断。",
+    installationFrameRemoteTargetOperationsOnly:
       "已验证制品部署、修订恢复和诊断会使用当前选定目标；旧版镜像与 Git 部署仍仅限本机，因此在此隐藏。",
-    projectFrameTargetOperations: "目标操作",
-    projectFrameTargetOperationEmpty: "该项目与目标尚无持久化操作记录。",
-    projectFrameTargetOperationShowDetails: "显示详情",
-    projectFrameTargetOperationHideDetails: "隐藏详情",
-    projectFrameTargetOperationRevision: "操作修订",
-    projectFrameTargetOperationExecution: "执行 ID",
-    projectFrameTargetOperationUpdatedAt: "更新时间",
-    projectFrameTargetOperationRequestDigest: "请求摘要",
-    projectFrameTargetOperationAuthorityDigest: "授权摘要",
-    projectFrameTargetOperationOutput: "回执输出",
-    projectFrameTargetOperationDiagnostics: "终态诊断",
-    projectFrameTargetOperationNoDiagnostics: "终态回执没有诊断信息。",
-    projectFrameTargetOperationReceiptPending: "当前还没有终态回执；刷新后可查看下一项持久状态。",
-    projectFrameTargetOperationShowingRecent: (shown, total) => `显示最新 ${shown} 项，共 ${total} 项操作。`,
-    projectFrameDeploymentExecutions: "执行",
-    projectFrameDeploymentPortLeases: "端口租约",
-    projectFrameDeploymentProxyRoutes: "代理路由",
-    projectFrameDeploymentEmpty: "主机未报告部署记录。",
-    projectFrameDeploymentReady: "就绪",
-    projectFrameDeploymentExitCode: "退出码",
-    projectFrameDeploymentHistoryTitle: "持久化部署历史",
-    projectFrameDeploymentHistoryDescription: "主机拥有的修订与任务回执会跨重启保留；恢复只会重放密钥引用等安全输入。",
-    projectFrameDeploymentActiveRevision: "活动修订",
-    projectFrameDeploymentRecoveryRequired: "需要恢复",
-    projectFrameDeploymentRecover: "恢复",
-    projectFrameDeploymentRecovering: "正在恢复…",
-    projectFrameDeploymentRecoverConfirm: "根据持久化回执恢复活动修订？主机会先清理现有路由资源。",
-    projectFrameDeploymentRecoveredTitle: "部署已恢复",
-    projectFrameDeploymentRecoveryFailedTitle: "部署恢复失败",
-    projectFrameDeploymentRevisionHistory: "修订历史",
-    projectFrameDeploymentRollback: "回滚",
-    projectFrameDeploymentRollingBack: "正在回滚…",
-    projectFrameDeploymentRollbackConfirm: (revisionId) => `激活部署修订 ${revisionId}？当前部署会先被停止。`,
-    projectFrameDeploymentRolledBackTitle: "部署已回滚",
-    projectFrameDeploymentRollbackFailedTitle: "部署回滚失败",
-    projectFrameDeploymentNotRecoverable: "需要手动重新构建",
-    projectFrameDeploymentNoActiveOnTarget: (targetId) => `目标 ${targetId} 当前没有活动修订。`,
-    projectFrameDeploymentJobHistory: "近期部署任务",
-    projectFrameDeploymentCreatedAt: "创建时间",
-    projectFrameDeploymentSourceCommit: "来源提交",
-    projectFrameDeploymentBuildDigest: "构建描述摘要",
-    projectFrameDeploymentParentRevision: "父修订",
-    projectFrameRouteExposure: "路由暴露范围",
-    projectFrameRoutePrivate: "需要 Host 认证",
-    projectFrameRoutePrivateBody: "只有已认证的 Host 客户端可通过托管的 /p 路由访问此服务。",
-    projectFrameRoutePublic: "公开访问",
-    projectFrameRoutePublicBody: "允许未经认证的请求通过已配置的虚拟主机域名访问。",
-    projectFrameRoutePublicWarning: "公开访问会绕过该应用路由的 Host 认证。请只发布已按互联网暴露场景设计的服务。",
-    projectFrameDeployActionTitle: "显式 Docker 部署",
-    projectFrameDeployActionDescription: "使用主机拥有的端口和代理资源启动一个预构建 HTTP 容器。",
-    projectFrameDeployInvalidTitle: "部署元数据无效",
-    projectFrameDeploy: "部署",
-    projectFrameDeploying: "正在部署…",
-    projectFrameStopDeployment: "停止部署",
-    projectFrameStoppingDeployment: "正在停止…",
-    projectFrameDeployImage: "镜像",
-    projectFrameDeployContainerPort: "容器端口",
-    projectFrameDeployRouteId: "路由 ID",
-    projectFrameDeployPortName: "端口名",
-    projectFrameDeployHealthPath: "健康路径",
-    projectFrameDeployContainerId: "容器 ID",
-    projectFrameDeployPullWarning: "如果缺少镜像，此部署可能会拉取镜像。请只部署可信镜像引用。",
-    projectFrameDeployActiveHint: "该描述符已有活动路由、端口租约或已跟踪容器。",
-    projectFrameDeployConfirm: (image) => `部署 Docker 镜像 ${image}？这将在此主机上租用本地端口并启动容器。`,
-    projectFrameStopDeploymentConfirm: (routeId) => `停止路由 ${routeId} 的主机托管部署？其活动持久化修订也会被停用。`,
-    projectFrameDeploySuccessTitle: "部署已启动",
-    projectFrameDeploySuccessBody: (routeId) => `代理路由 ${routeId} 已注册。`,
-    projectFrameDeployFailedTitle: "部署失败",
-    projectFrameDeployFailedBody: "Docker runtime lab 或主机资源设置失败。",
-    projectFrameStopDeploymentSuccessTitle: "部署已停止",
-    projectFrameStopDeploymentPartialTitle: "部署清理部分失败",
-    projectFrameBuildDeployTitle: "构建并部署",
-    projectFrameBuildDeployDescription: "克隆项目工作区、构建镜像，然后通过主机部署代理启动。",
-    projectFrameBuildDeployInvalidTitle: "构建部署元数据无效",
-    projectFrameBuildDeployButton: "构建并部署",
-    projectFrameBuildDeployRunning: "运行中…",
-    projectFrameBuildDeployCancel: "取消任务",
-    projectFrameBuildDeployCancelConfirmTitle: "取消构建任务？",
-    projectFrameBuildDeployCancelConfirmBody: "主机会在下一个安全检查点停止，并回滚已获取的部署资源。",
-    projectFrameBuildDeployStrategy: "策略",
-    projectFrameBuildDeploySource: "来源",
-    projectFrameBuildDeployRef: "引用",
-    projectFrameBuildDeployEnv: "运行时环境变量",
-    projectFrameBuildDeploySecretRef: "密钥引用",
-    projectFrameBuildDeployPlainEnv: "明文",
-    projectFrameBuildDeployMounts: "运行时挂载",
-    projectFrameBuildDeployApproveMount: "我已确认此路径正确",
-    projectFrameBuildDeployApproveRisk: "我批准读写访问",
-    projectFrameBuildDeployHighRiskBadge: "读写高风险",
-    projectFrameBuildDeployJob: "任务",
-    projectFrameBuildDeployTracker: "构建线程",
-    projectFrameBuildDeployCopyLogs: "复制日志",
-    projectFrameBuildDeployNoLogs: "等待任务事件…",
-    projectFrameBuildDeployResultReady: "部署已就绪",
-    projectFrameBuildDeployResultFailed: "部署失败",
-    projectFrameBuildDeployResultCancelled: "部署已取消",
-    projectFrameBuildDeployNewBuild: "新构建",
-    projectFrameBuildDeployRestart: "重新启动",
-    projectFrameBuildDeployEditConfig: "编辑配置",
-    projectFrameBuildDeployConfirm: (routeId) => `构建并部署路由 ${routeId}？这可能会在主机上运行 Docker 构建。`,
-    projectFrameBuildDeployStartedTitle: "构建任务已启动",
-    projectFrameBuildDeployStartedBody: (jobId) => `正在跟踪任务 ${jobId}。`,
-    projectFrameBuildDeployFailedTitle: "构建部署失败",
-    projectFrameBuildDeployCancelTitle: "已请求取消",
-    projectFrameBuildDeployReady: (url) => `已就绪：${url}`,
-    projectFrameStatusReady: "已就绪",
-    projectFrameStatusNotReady: "未就绪",
-    projectFrameShowLogs: "显示日志",
-    projectFrameHideLogs: "隐藏日志",
-    projectFrameLogsLoading: "正在加载日志…",
-    projectFrameNoLogs: "该执行没有返回限定日志。",
-    projectFrameCopyAddress: "复制地址",
-    projectFrameCopyUrl: "复制 URL",
-    projectFrameOpenUrl: "打开 URL",
-    projectFramePublicUrl: "公共 URL",
-    projectFrameIframeUrl: "Iframe URL",
+    installationFrameTargetOperations: "目标操作",
+    installationFrameTargetOperationEmpty: "该项目与目标尚无持久化操作记录。",
+    installationFrameTargetOperationShowDetails: "显示详情",
+    installationFrameTargetOperationHideDetails: "隐藏详情",
+    installationFrameTargetOperationRevision: "操作修订",
+    installationFrameTargetOperationExecution: "执行 ID",
+    installationFrameTargetOperationUpdatedAt: "更新时间",
+    installationFrameTargetOperationRequestDigest: "请求摘要",
+    installationFrameTargetOperationAuthorityDigest: "授权摘要",
+    installationFrameTargetOperationOutput: "回执输出",
+    installationFrameTargetOperationDiagnostics: "终态诊断",
+    installationFrameTargetOperationNoDiagnostics: "终态回执没有诊断信息。",
+    installationFrameTargetOperationReceiptPending: "当前还没有终态回执；刷新后可查看下一项持久状态。",
+    installationFrameTargetOperationShowingRecent: (shown, total) => `显示最新 ${shown} 项，共 ${total} 项操作。`,
+    installationFrameDeploymentExecutions: "执行",
+    installationFrameDeploymentPortLeases: "端口租约",
+    installationFrameDeploymentProxyRoutes: "代理路由",
+    installationFrameDeploymentEmpty: "主机未报告部署记录。",
+    installationFrameDeploymentReady: "就绪",
+    installationFrameDeploymentExitCode: "退出码",
+    installationFrameDeploymentHistoryTitle: "持久化部署历史",
+    installationFrameDeploymentHistoryDescription: "主机拥有的修订与任务回执会跨重启保留；恢复只会重放密钥引用等安全输入。",
+    installationFrameDeploymentActiveRevision: "活动修订",
+    installationFrameDeploymentRecoveryRequired: "需要恢复",
+    installationFrameDeploymentRecover: "恢复",
+    installationFrameDeploymentRecovering: "正在恢复…",
+    installationFrameDeploymentRecoverConfirm: "根据持久化回执恢复活动修订？主机会先清理现有路由资源。",
+    installationFrameDeploymentRecoveredTitle: "部署已恢复",
+    installationFrameDeploymentRecoveryFailedTitle: "部署恢复失败",
+    installationFrameDeploymentRevisionHistory: "修订历史",
+    installationFrameDeploymentRollback: "回滚",
+    installationFrameDeploymentRollingBack: "正在回滚…",
+    installationFrameDeploymentRollbackConfirm: (revisionId) => `激活部署修订 ${revisionId}？当前部署会先被停止。`,
+    installationFrameDeploymentRolledBackTitle: "部署已回滚",
+    installationFrameDeploymentRollbackFailedTitle: "部署回滚失败",
+    installationFrameDeploymentNotRecoverable: "需要手动重新构建",
+    installationFrameDeploymentNoActiveOnTarget: (targetId) => `目标 ${targetId} 当前没有活动修订。`,
+    installationFrameDeploymentJobHistory: "近期部署任务",
+    installationFrameDeploymentCreatedAt: "创建时间",
+    installationFrameDeploymentSourceCommit: "来源提交",
+    installationFrameDeploymentBuildDigest: "构建描述摘要",
+    installationFrameDeploymentParentRevision: "父修订",
+    installationFrameRouteExposure: "路由暴露范围",
+    installationFrameRoutePrivate: "需要 Host 认证",
+    installationFrameRoutePrivateBody: "只有已认证的 Host 客户端可通过托管的 /p 路由访问此服务。",
+    installationFrameRoutePublic: "公开访问",
+    installationFrameRoutePublicBody: "允许未经认证的请求通过已配置的虚拟主机域名访问。",
+    installationFrameRoutePublicWarning: "公开访问会绕过该应用路由的 Host 认证。请只发布已按互联网暴露场景设计的服务。",
+    installationFrameDeployActionTitle: "显式 Docker 部署",
+    installationFrameDeployActionDescription: "使用主机拥有的端口和代理资源启动一个预构建 HTTP 容器。",
+    installationFrameDeployInvalidTitle: "部署元数据无效",
+    installationFrameDeploy: "部署",
+    installationFrameDeploying: "正在部署…",
+    installationFrameStopDeployment: "停止部署",
+    installationFrameStoppingDeployment: "正在停止…",
+    installationFrameDeployImage: "镜像",
+    installationFrameDeployContainerPort: "容器端口",
+    installationFrameDeployRouteId: "路由 ID",
+    installationFrameDeployPortName: "端口名",
+    installationFrameDeployHealthPath: "健康路径",
+    installationFrameDeployContainerId: "容器 ID",
+    installationFrameDeployPullWarning: "如果缺少镜像，此部署可能会拉取镜像。请只部署可信镜像引用。",
+    installationFrameDeployActiveHint: "该描述符已有活动路由、端口租约或已跟踪容器。",
+    installationFrameDeployConfirm: (image) => `部署 Docker 镜像 ${image}？这将在此主机上租用本地端口并启动容器。`,
+    installationFrameStopDeploymentConfirm: (routeId) => `停止路由 ${routeId} 的主机托管部署？其活动持久化修订也会被停用。`,
+    installationFrameDeploySuccessTitle: "部署已启动",
+    installationFrameDeploySuccessBody: (routeId) => `代理路由 ${routeId} 已注册。`,
+    installationFrameDeployFailedTitle: "部署失败",
+    installationFrameDeployFailedBody: "Docker runtime lab 或主机资源设置失败。",
+    installationFrameStopDeploymentSuccessTitle: "部署已停止",
+    installationFrameStopDeploymentPartialTitle: "部署清理部分失败",
+    installationFrameBuildDeployTitle: "构建并部署",
+    installationFrameBuildDeployDescription: "克隆项目工作区、构建镜像，然后通过主机部署代理启动。",
+    installationFrameBuildDeployInvalidTitle: "构建部署元数据无效",
+    installationFrameBuildDeployButton: "构建并部署",
+    installationFrameBuildDeployRunning: "运行中…",
+    installationFrameBuildDeployCancel: "取消任务",
+    installationFrameBuildDeployCancelConfirmTitle: "取消构建任务？",
+    installationFrameBuildDeployCancelConfirmBody: "主机会在下一个安全检查点停止，并回滚已获取的部署资源。",
+    installationFrameBuildDeployStrategy: "策略",
+    installationFrameBuildDeploySource: "来源",
+    installationFrameBuildDeployRef: "引用",
+    installationFrameBuildDeployEnv: "运行时环境变量",
+    installationFrameBuildDeploySecretRef: "密钥引用",
+    installationFrameBuildDeployPlainEnv: "明文",
+    installationFrameBuildDeployMounts: "运行时挂载",
+    installationFrameBuildDeployApproveMount: "我已确认此路径正确",
+    installationFrameBuildDeployApproveRisk: "我批准读写访问",
+    installationFrameBuildDeployHighRiskBadge: "读写高风险",
+    installationFrameBuildDeployJob: "任务",
+    installationFrameBuildDeployTracker: "构建线程",
+    installationFrameBuildDeployCopyLogs: "复制日志",
+    installationFrameBuildDeployNoLogs: "等待任务事件…",
+    installationFrameBuildDeployResultReady: "部署已就绪",
+    installationFrameBuildDeployResultFailed: "部署失败",
+    installationFrameBuildDeployResultCancelled: "部署已取消",
+    installationFrameBuildDeployNewBuild: "新构建",
+    installationFrameBuildDeployRestart: "重新启动",
+    installationFrameBuildDeployEditConfig: "编辑配置",
+    installationFrameBuildDeployConfirm: (routeId) => `构建并部署路由 ${routeId}？这可能会在主机上运行 Docker 构建。`,
+    installationFrameBuildDeployStartedTitle: "构建任务已启动",
+    installationFrameBuildDeployStartedBody: (jobId) => `正在跟踪任务 ${jobId}。`,
+    installationFrameBuildDeployFailedTitle: "构建部署失败",
+    installationFrameBuildDeployCancelTitle: "已请求取消",
+    installationFrameBuildDeployReady: (url) => `已就绪：${url}`,
+    installationFrameStatusReady: "已就绪",
+    installationFrameStatusNotReady: "未就绪",
+    installationFrameShowLogs: "显示日志",
+    installationFrameHideLogs: "隐藏日志",
+    installationFrameLogsLoading: "正在加载日志…",
+    installationFrameNoLogs: "该执行没有返回限定日志。",
+    installationFrameCopyAddress: "复制地址",
+    installationFrameCopyUrl: "复制 URL",
+    installationFrameOpenUrl: "打开 URL",
+    installationFramePublicUrl: "公共 URL",
+    installationFrameIframeUrl: "Iframe URL",
 
     settingsTitle: "设置",
     settingsHelper: "设置保存在本机。无 SaaS 同步。",
@@ -2277,15 +2277,15 @@ export const labels = {
     accessPublicHostUrlHelper: "手机必须能够访问这个准确的 Host 地址。",
     accessHttpsRequired: "请输入此 Host 的公网 HTTPS 源地址，不要包含路径。",
     accessPermissions: "设备能力",
-    accessProjectResources: "项目访问范围",
-    accessProjectResourcesBody: "可授权全部项目，或输入以英文逗号分隔的准确项目 ID。",
-    accessAllProjects: "全部项目",
-    accessProjectIdsPlaceholder: "project-a, project-b",
+    accessInstallationResources: "项目访问范围",
+    accessInstallationResourcesBody: "可授权全部项目，或输入以英文逗号分隔的准确项目 ID。",
+    accessAllInstallations: "全部项目",
+    accessInstallationIdsPlaceholder: "installation-a, installation-b",
     accessTargetResources: "执行目标范围",
     accessTargetResourcesBody: "可授权全部 target，或输入以英文逗号分隔的准确 target ID。",
     accessAllTargets: "全部 target",
     accessTargetIdsPlaceholder: "local, preview-server",
-    accessProjectResource: (id) => `项目 · ${id}`,
+    accessInstallationResource: (id) => `项目 · ${id}`,
     accessTargetResource: (id) => `Target · ${id}`,
     accessCreateValidation: "请填写设备名称、1–365 天有效期和有效的 Host HTTPS 地址。",
     accessCreating: "正在创建…",
@@ -2314,8 +2314,8 @@ export const labels = {
     accessCancelTicket: "取消",
     accessScopeObserve: "查看",
     accessScopeObserveBody: "读取 Host、项目、部署和诊断状态。",
-    accessScopeProjectOperate: "操作项目",
-    accessScopeProjectOperateBody: "启动、停止、打开和分叉项目会话。",
+    accessScopeInstallationOperate: "操作项目",
+    accessScopeInstallationOperateBody: "启动、停止、打开和分叉项目会话。",
     accessScopeDeploy: "部署",
     accessScopeDeployBody: "构建、部署、恢复并管理运行时路由。",
     accessScopeDevelopPropose: "提出变更",
@@ -2380,7 +2380,7 @@ export const labels = {
     apiValueHelper: "原始密钥永远不会离开本机。",
     apiScope: "作用域",
     apiScopePlatform: "全平台",
-    apiScopeProject: "仅项目（在首页配置）",
+    apiScopeInstallation: "仅项目（在首页配置）",
     cancel: "取消",
     apiSaveKey: "保存密钥",
 
@@ -2390,7 +2390,7 @@ export const labels = {
     packagesDescription: "此工作台中安装的项目、第一方 Package 和依赖。刷新会检查上游来源。",
     packagesFilterPlaceholder: "筛选包…",
     packagesFilterAll: "全部",
-    packagesFilterProjects: "项目",
+    packagesFilterInstallations: "项目",
     packagesFilterPlurora: "Plurora",
     packagesFilterThirdParty: "第三方",
     packagesRefreshing: "正在刷新清单…",
@@ -2469,8 +2469,8 @@ export const labels = {
     storageTitle: "数据存放位置",
     storageDescription: "Plurora 默认把数据保存在本机。UI 会概述存储区域，但不暴露主机特定的绝对路径。",
     storageAreas: "存储区域",
-    storageAreaProjectData: "项目数据",
-    storageAreaProjectDataDesc: "项目元数据、检查点、包状态和运行记录。",
+    storageAreaInstallationData: "项目数据",
+    storageAreaInstallationDataDesc: "项目元数据、检查点、包状态和运行记录。",
     storageAreaPackageStore: "包存储",
     storageAreaPackageStoreDesc: "已安装包源码和由锁文件管理的修订版本。",
     storageAreaProfiles: "配置档",

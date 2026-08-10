@@ -1,6 +1,8 @@
 use super::*;
+use plurora_core::PackageEntry;
 use sha2::{Digest, Sha256};
 use std::fs;
+use std::path::Component;
 use std::path::{Path, PathBuf};
 
 #[derive(Debug, Serialize)]
@@ -14,14 +16,14 @@ struct ResolvedSurfaceBundle {
     #[serde(skip_serializing_if = "Option::is_none")]
     wrapper_class: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    project_id: Option<String>,
+    package_id: Option<String>,
     source: SurfaceBundleSource,
 }
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "snake_case")]
 enum SurfaceBundleSource {
-    InstalledProject,
+    Package,
     DevPath,
 }
 
@@ -102,21 +104,11 @@ where
             .and_then(Value::as_str)
             .ok_or_else(|| anyhow::anyhow!("surface_id required"))?;
 
-        for entry in self.config.project_registry.list() {
-            if !context.allows_host_resource(
-                "host",
-                "project",
-                entry.descriptor.project.id.as_str(),
-            ) {
-                continue;
-            }
-            if let Some(bundle) = self.try_resolve_via_project(&entry, surface_id)? {
+        if context.allows_all_host_resources("host", "installation") {
+            if let Some(bundle) = self.try_resolve_via_dev_path(surface_id)? {
                 return Ok(serde_json::to_value(bundle)?);
             }
-        }
-
-        if context.allows_all_host_resources("host", "project") {
-            if let Some(bundle) = self.try_resolve_via_dev_path(surface_id)? {
+            if let Some(bundle) = self.try_resolve_via_package(surface_id).await? {
                 return Ok(serde_json::to_value(bundle)?);
             }
         }
@@ -124,34 +116,56 @@ where
         anyhow::bail!("surface_not_found: {surface_id}")
     }
 
-    fn try_resolve_via_project(
+    async fn try_resolve_via_package(
         &self,
-        entry: &crate::ProjectEntry,
         surface_id: &str,
     ) -> anyhow::Result<Option<ResolvedSurfaceBundle>> {
-        if entry.descriptor.project.entry_surface_id.as_deref() != Some(surface_id) {
-            return Ok(None);
+        let mut matches = Vec::new();
+        for package in self.list_packages().await {
+            if !package
+                .manifest
+                .contributes
+                .surfaces
+                .iter()
+                .any(|surface| surface.id == surface_id)
+            {
+                continue;
+            }
+            let PackageEntry::SurfaceBundle { bundle } = &package.manifest.entry.kind else {
+                continue;
+            };
+            let Some(package_root) = self.config.package_roots.get(&package.id) else {
+                continue;
+            };
+            let Some((bundle_file, bundle_relative)) =
+                contained_package_bundle(package_root, bundle)
+            else {
+                continue;
+            };
+            matches.push((package.id, bundle_file, bundle_relative));
         }
-
-        let project_id = entry.descriptor.project.id.as_str();
-        let dist_dir = recoverable_project_dist_dir(&entry.descriptor.project.id);
-        let bundle_path = dist_dir.as_ref().map(|path| path.join("bundle.mjs"));
-        let fingerprint = bundle_path.as_deref().and_then(bundle_fingerprint);
-        let bundle_path = format!("/surface-bundles/projects/{project_id}/bundle.mjs");
-        let stylesheets = dist_dir
-            .as_deref()
-            .map(|path| discover_project_stylesheets(project_id, path))
-            .unwrap_or_default();
-        let wrapper_class = (!stylesheets.is_empty()).then(|| surface_wrapper_class(surface_id));
+        anyhow::ensure!(
+            matches.len() <= 1,
+            "surface bundle resolution is ambiguous for the requested surface"
+        );
+        let Some((package_id, bundle_file, bundle_relative)) = matches.pop() else {
+            return Ok(None);
+        };
+        let fingerprint = bundle_fingerprint(&bundle_file);
+        let bundle_path = format!(
+            "/surface-bundles/packages/{}/{}",
+            package_id,
+            path_for_url(&bundle_relative)
+        );
         Ok(Some(ResolvedSurfaceBundle {
             surface_id: surface_id.to_string(),
             bundle_url: cache_busted_url(&bundle_path, fingerprint.as_deref()),
             bundle_fingerprint: fingerprint,
             export_name: default_surface_export_name(surface_id),
-            stylesheets,
-            wrapper_class,
-            project_id: Some(project_id.to_string()),
-            source: SurfaceBundleSource::InstalledProject,
+            stylesheets: Vec::new(),
+            wrapper_class: Some(surface_wrapper_class(surface_id)),
+            package_id: Some(package_id),
+            source: SurfaceBundleSource::Package,
         }))
     }
 
@@ -180,7 +194,7 @@ where
             export_name: default_surface_export_name(surface_id),
             stylesheets: default_surface_stylesheets(prefix),
             wrapper_class: Some(format!("{}-surface", prefix.replace(['/', '_'], "-"))),
-            project_id: None,
+            package_id: None,
             source: SurfaceBundleSource::DevPath,
         }))
     }
@@ -220,52 +234,15 @@ where
             anyhow::bail!("{method} permission denied: authenticated authority lacks observe");
         }
         // Contributions are currently installed at Host scope and do not carry
-        // project ownership. Until that relationship is explicit, an exact-project
-        // device may resolve its project's bundle but cannot enumerate the global
+        // Installation ownership. Until that relationship is explicit, an exact-
+        // Installation device cannot enumerate the global
         // contribution catalogue.
-        if !context.allows_all_host_resources("host", "project") {
+        if !context.allows_all_host_resources("host", "installation") {
             anyhow::bail!(
-                "{method} permission denied: global surface catalogue requires all-project authority"
+                "{method} permission denied: global surface catalogue requires all-installation authority"
             );
         }
         Ok(())
-    }
-}
-
-fn discover_project_stylesheets(project_id: &str, dist_dir: &Path) -> Vec<String> {
-    let styles_dir = dist_dir.join("styles");
-    let mut entries = match fs::read_dir(styles_dir) {
-        Ok(entries) => entries
-            .filter_map(Result::ok)
-            .filter_map(|entry| {
-                let path = entry.path();
-                if !path.is_file() || path.extension().and_then(|ext| ext.to_str()) != Some("css") {
-                    return None;
-                }
-                let name = path.file_name()?.to_str()?;
-                if name.contains('/') || name.contains('\\') || name == "." || name == ".." {
-                    return None;
-                }
-                Some((stylesheet_order(name), name.to_string(), path))
-            })
-            .collect::<Vec<_>>(),
-        Err(_) => return Vec::new(),
-    };
-    entries.sort_by(|left, right| left.0.cmp(&right.0).then_with(|| left.1.cmp(&right.1)));
-    entries
-        .into_iter()
-        .map(|(_, name, path)| {
-            let url = format!("/surface-bundles/projects/{project_id}/styles/{name}");
-            cache_busted_url(&url, bundle_fingerprint(&path).as_deref())
-        })
-        .collect()
-}
-
-fn stylesheet_order(name: &str) -> u8 {
-    match name {
-        "surface.css" => 0,
-        "mobile.css" => 1,
-        _ => 2,
     }
 }
 
@@ -274,29 +251,69 @@ fn surface_wrapper_class(surface_id: &str) -> String {
     format!("{}-surface", prefix.replace(['/', '_'], "-"))
 }
 
-fn recoverable_project_dist_dir(project_id: &ProjectId) -> Option<PathBuf> {
-    let project_dir = plurora_core::paths::project_dir(project_id).ok()?;
-    let dist = project_dir.join("dist");
-    if dist.is_dir() {
-        return Some(dist);
+fn contained_package_bundle(package_root: &Path, bundle: &str) -> Option<(PathBuf, PathBuf)> {
+    let mut relative = PathBuf::new();
+    for component in Path::new(bundle).components() {
+        match component {
+            Component::Normal(part) => relative.push(part),
+            Component::CurDir => {}
+            Component::ParentDir | Component::RootDir | Component::Prefix(_) => return None,
+        }
     }
-    latest_dist_backup(&project_dir)
+    if relative.as_os_str().is_empty() {
+        return None;
+    }
+    let root = fs::canonicalize(package_root).ok()?;
+    let bundle_file = fs::canonicalize(root.join(&relative)).ok()?;
+    if !bundle_file.is_file() || !bundle_file.starts_with(&root) {
+        return None;
+    }
+    Some((bundle_file, relative))
 }
 
-fn latest_dist_backup(project_dir: &Path) -> Option<PathBuf> {
-    let mut candidates = fs::read_dir(project_dir)
-        .ok()?
-        .filter_map(Result::ok)
-        .filter_map(|entry| {
-            let path = entry.path();
-            let name = path.file_name()?.to_str()?;
-            if !name.starts_with(".dist.bak-") || !path.is_dir() {
-                return None;
-            }
-            let modified = entry.metadata().and_then(|meta| meta.modified()).ok();
-            Some((modified, path))
+fn path_for_url(path: &Path) -> String {
+    path.components()
+        .filter_map(|component| match component {
+            Component::Normal(part) => part.to_str(),
+            _ => None,
         })
-        .collect::<Vec<_>>();
-    candidates.sort_by_key(|(modified, _)| *modified);
-    candidates.pop().map(|(_, path)| path)
+        .collect::<Vec<_>>()
+        .join("/")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn package_bundle_resolution_is_contained_by_the_configured_root() -> anyhow::Result<()> {
+        let root = tempfile::tempdir()?;
+        fs::create_dir(root.path().join("dist"))?;
+        fs::write(root.path().join("dist/bundle.mjs"), "export {}")?;
+
+        let resolved = contained_package_bundle(root.path(), "dist/bundle.mjs")
+            .expect("contained bundle resolves");
+        assert!(resolved.0.starts_with(fs::canonicalize(root.path())?));
+        assert_eq!(resolved.1, PathBuf::from("dist/bundle.mjs"));
+        assert!(contained_package_bundle(root.path(), "../bundle.mjs").is_none());
+        assert!(contained_package_bundle(root.path(), "/bundle.mjs").is_none());
+        Ok(())
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn package_bundle_resolution_rejects_a_symlink_escape() -> anyhow::Result<()> {
+        use std::os::unix::fs::symlink;
+
+        let root = tempfile::tempdir()?;
+        let outside = tempfile::tempdir()?;
+        fs::write(outside.path().join("bundle.mjs"), "export {}")?;
+        symlink(
+            outside.path().join("bundle.mjs"),
+            root.path().join("bundle.mjs"),
+        )?;
+
+        assert!(contained_package_bundle(root.path(), "bundle.mjs").is_none());
+        Ok(())
+    }
 }

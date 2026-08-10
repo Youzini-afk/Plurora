@@ -19,10 +19,10 @@ where
         if let Some(session_id) = proposal.target_session_id.as_deref() {
             self.ensure_host_session_access(context, action, session_id)
                 .await
-        } else if context.allows_all_host_resources("host", "project") {
+        } else if context.allows_all_host_resources("host", "installation") {
             Ok(())
         } else {
-            anyhow::bail!("project-scoped Host device cannot access an unbound proposal")
+            anyhow::bail!("installation-scoped Host device cannot access an unbound proposal")
         }
     }
 

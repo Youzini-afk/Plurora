@@ -68,7 +68,7 @@ const DEFAULT_LABELS: WorkshopUtilitiesLabels = {
   diskUsed: (value) => `${value} used`,
   unknown: "Unknown",
   measuring: "Measuring",
-  noStorageMeasured: "No project storage measured.",
+  noStorageMeasured: "No installation storage measured.",
   manageStorage: "Manage storage →",
   workshopCards: "",
   categoryTool: "",

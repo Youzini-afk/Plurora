@@ -1,3 +1,4 @@
+use std::collections::BTreeSet;
 use std::fs;
 use std::path::Path;
 
@@ -20,6 +21,9 @@ const TOP_LEVEL_SCHEMAS: &[&str] = &[
     "event-envelope.schema.json",
     "exposure-record.schema.json",
     "installation-record.schema.json",
+    "installation-state-authority-evidence.schema.json",
+    "installation-state-decision-receipt.schema.json",
+    "installation-state-snapshot.schema.json",
     "intent.schema.json",
     "manifest.schema.json",
     "package-envelope-descriptor.schema.json",
@@ -82,10 +86,45 @@ fn main() -> anyhow::Result<()> {
         .filter_map(Result::ok)
         .filter(|e| e.path().extension().and_then(|s| s.to_str()) == Some("json"))
         .count();
+    let expected_method_ids = plurora_runtime::PlatformMethod::all()
+        .iter()
+        .map(|method| method.id().to_string())
+        .collect::<BTreeSet<_>>();
+    let actual_method_ids = schema_constants(&root.join("methods"), "/properties/method/const")?;
+    let expected_event_kinds = plurora_core::PLATFORM_EVENT_KINDS
+        .iter()
+        .map(|kind| (*kind).to_string())
+        .collect::<BTreeSet<_>>();
+    let actual_event_kinds = schema_constants(&root.join("events"), "/properties/kind/const")?;
+    let expected_top_level = TOP_LEVEL_SCHEMAS
+        .iter()
+        .map(|name| (*name).to_string())
+        .collect::<BTreeSet<_>>();
+    let actual_top_level = fs::read_dir(root)?
+        .filter_map(Result::ok)
+        .filter(|entry| entry.path().extension().and_then(|value| value.to_str()) == Some("json"))
+        .map(|entry| entry.file_name().to_string_lossy().into_owned())
+        .collect::<BTreeSet<_>>();
+    anyhow::ensure!(
+        expected_method_ids.len() == 80,
+        "method registry must contain exactly 80 identities"
+    );
+    anyhow::ensure!(
+        expected_event_kinds.len() == 58,
+        "event registry must contain exactly 58 identities"
+    );
+    anyhow::ensure!(
+        expected_top_level.len() == 39,
+        "top-level registry must contain exactly 39 identities"
+    );
     anyhow::ensure!(
         method_count == plurora_runtime::PlatformMethod::all().len(),
         "method schema count {method_count} does not match registry {}",
         plurora_runtime::PlatformMethod::all().len()
+    );
+    anyhow::ensure!(
+        actual_method_ids == expected_method_ids,
+        "method schema identities differ from the runtime registry"
     );
     anyhow::ensure!(
         event_count == plurora_core::PLATFORM_EVENT_KINDS.len(),
@@ -93,8 +132,27 @@ fn main() -> anyhow::Result<()> {
         plurora_core::PLATFORM_EVENT_KINDS.len()
     );
     anyhow::ensure!(
+        actual_event_kinds == expected_event_kinds,
+        "event schema identities differ from the core registry"
+    );
+    anyhow::ensure!(
         top_level_count == TOP_LEVEL_SCHEMAS.len(),
         "top-level schema count {top_level_count} does not match the canonical set"
+    );
+    anyhow::ensure!(
+        actual_top_level == expected_top_level,
+        "top-level schema identities differ from the canonical set"
+    );
+    let expected_total =
+        expected_method_ids.len() + expected_event_kinds.len() + expected_top_level.len();
+    anyhow::ensure!(
+        expected_total == 177,
+        "public contract registry must contain exactly 177 identities"
+    );
+    anyhow::ensure!(
+        files.len() == expected_total,
+        "public contract contains {} schemas, expected {expected_total}",
+        files.len()
     );
     for schema in TOP_LEVEL_SCHEMAS {
         anyhow::ensure!(
@@ -108,6 +166,26 @@ fn main() -> anyhow::Result<()> {
         files.len()
     );
     Ok(())
+}
+
+fn schema_constants(dir: &Path, pointer: &str) -> anyhow::Result<BTreeSet<String>> {
+    let mut values = BTreeSet::new();
+    for entry in fs::read_dir(dir)? {
+        let entry = entry?;
+        if entry.path().extension().and_then(|value| value.to_str()) != Some("json") {
+            continue;
+        }
+        let schema: Value = serde_json::from_str(&fs::read_to_string(entry.path())?)?;
+        let value = schema
+            .pointer(pointer)
+            .and_then(Value::as_str)
+            .ok_or_else(|| anyhow::anyhow!("{} is missing {pointer}", entry.path().display()))?;
+        anyhow::ensure!(
+            values.insert(value.to_string()),
+            "duplicate schema identity {value}"
+        );
+    }
+    Ok(values)
 }
 
 fn validate_local_refs(value: &Value, root: &Value, file: &Path) -> anyhow::Result<()> {

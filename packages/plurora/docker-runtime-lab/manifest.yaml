@@ -112,6 +112,13 @@ contributes:
 permissions:
   capabilities:
     invoke: []
+  filesystem:
+    read:
+      - ~/.plurora/workspaces/
+      - ~/.plurora/objects/
+      - ~/.plurora/installations/
+    write:
+      - ~/.plurora/workspaces/
   sandbox_policy:
     cpu_quota_ms_per_invoke: 5000
     memory_mb: 128

@@ -160,11 +160,8 @@
     "ProtocolResourceSelector": {
       "properties": {
         "id": {
-          "description": "An omitted id selects every resource of this owner/kind. Resource matching is structural and exact; callers must never use string-prefix matching for authority decisions.",
-          "type": [
-            "string",
-            "null"
-          ]
+          "description": "An explicit null selects every resource of this owner/kind. Omitting the field is invalid. Resource matching is structural and exact; callers must never use string-prefix matching for authority decisions.",
+          "type": "string"
         },
         "kind": {
           "type": "string"
@@ -174,6 +171,7 @@
         }
       },
       "required": [
+        "id",
         "kind",
         "owner"
       ],
@@ -223,7 +221,7 @@
       "$ref": "#/$defs/ProtocolPrincipal"
     },
     "session_id": {
-      "description": "Optional kernel session id this call is operating under. Used by outbound dispatch to scope secret resolution to the session's project.",
+      "description": "Optional kernel session id this call is operating under. Used by outbound dispatch to scope secret resolution to the session's Installation.",
       "type": [
         "string",
         "null"

@@ -572,13 +572,13 @@ impl PackageManifest {
                 }
             }
         }
-        // Y2/B: Validate permissions.secret_refs entries.
+        // Validate permissions.secret_refs entries.
         // Each entry must be a supported host-backed secret reference.
         // Malformed or unsupported refs produce a clear manifest parse error.
         for secret_ref in &self.permissions.secret_refs {
             if !crate::is_env_backed_ref(secret_ref)
                 && !crate::is_store_backed_ref(secret_ref)
-                && !crate::is_project_backed_ref(secret_ref)
+                && !crate::is_installation_backed_ref(secret_ref)
             {
                 return Err(ManifestError::InvalidSecretRef(secret_ref.clone()));
             }
@@ -1275,8 +1275,6 @@ mod tests {
         assert_eq!(err, ManifestError::InvalidPackageId("bad".to_string()));
     }
 
-    // --- Y2: permissions.secret_refs tests ---
-
     #[test]
     fn permissions_secret_refs_default_empty() {
         let manifest = PackageManifest {
@@ -1367,7 +1365,7 @@ mod tests {
     }
 
     #[test]
-    fn permissions_secret_refs_parses_project_form() {
+    fn permissions_secret_refs_parses_installation_form() {
         let manifest = PackageManifest {
             schema_version: 1,
             id: "org/test".to_string(),
@@ -1386,7 +1384,7 @@ mod tests {
             requires: Vec::new(),
             contributes: PackageContributions::default(),
             permissions: PermissionSet {
-                secret_refs: vec!["secret_ref:project:OPENAI_API_KEY".to_string()],
+                secret_refs: vec!["secret_ref:installation:OPENAI_API_KEY".to_string()],
                 ..PermissionSet::default()
             },
             sandbox_policy: SandboxPolicy::default(),

@@ -23,10 +23,9 @@ pub const EVENT_PACKAGE_STOPPED: &str = "host/package.stopped";
 pub const EVENT_PACKAGE_UNLOADED: &str = "host/package.unloaded";
 pub const EVENT_PACKAGE_DEGRADED: &str = "host/package.degraded";
 pub const EVENT_PACKAGE_LOG: &str = "host/package.log";
-pub const PROJECT_INSTALLED: &str = "host/project.installed";
-pub const PROJECT_STARTED: &str = "host/project.started";
-pub const PROJECT_STOPPED: &str = "host/project.stopped";
-pub const PROJECT_UNINSTALLED: &str = "host/project.uninstalled";
+pub const INSTALLATION_CREATED: &str = "host/installation.created";
+pub const INSTALLATION_UPDATED: &str = "host/installation.updated";
+pub const INSTALLATION_REMOVED: &str = "host/installation.removed";
 pub const EVENT_ASSET_PUT: &str = "object/put";
 pub const EVENT_PROJECTION_UPDATED: &str = "projection/updated";
 pub const EVENT_PROPOSAL_CREATED: &str = "change/proposal.created";
@@ -88,10 +87,9 @@ pub const PLATFORM_EVENT_KINDS: &[&str] = &[
     EVENT_PACKAGE_UNLOADED,
     EVENT_PACKAGE_DEGRADED,
     EVENT_PACKAGE_LOG,
-    PROJECT_INSTALLED,
-    PROJECT_STARTED,
-    PROJECT_STOPPED,
-    PROJECT_UNINSTALLED,
+    INSTALLATION_CREATED,
+    INSTALLATION_UPDATED,
+    INSTALLATION_REMOVED,
     EVENT_ASSET_PUT,
     EVENT_PROJECTION_UPDATED,
     EVENT_PROPOSAL_CREATED,

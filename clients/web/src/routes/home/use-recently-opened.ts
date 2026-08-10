@@ -2,7 +2,7 @@ const STORAGE_KEY = "plurora-recently-opened";
 const CAP = 8;
 
 export interface Entry {
-  projectId: string;
+  installationId: string;
   openedAt: number;
 }
 
@@ -34,7 +34,7 @@ export function loadStore(storage: StorageLike | null = defaultStorage()): Entry
       (e): e is Entry =>
         e &&
         typeof e === "object" &&
-        typeof e.projectId === "string" &&
+        typeof e.installationId === "string" &&
         typeof e.openedAt === "number",
     );
   } catch {
@@ -50,10 +50,10 @@ export function saveStore(entries: Entry[], storage: StorageLike | null = defaul
   }
 }
 
-export function recordOpen(projectId: string, storage: StorageLike | null = defaultStorage()) {
+export function recordOpen(installationId: string, storage: StorageLike | null = defaultStorage()) {
   const current = loadStore(storage);
-  const deduped = current.filter((e) => e.projectId !== projectId);
-  const next: Entry[] = [{ projectId, openedAt: Date.now() }, ...deduped].slice(0, CAP);
+  const deduped = current.filter((e) => e.installationId !== installationId);
+  const next: Entry[] = [{ installationId, openedAt: Date.now() }, ...deduped].slice(0, CAP);
   saveStore(next, storage);
 }
 
@@ -67,7 +67,7 @@ export function useRecentlyOpened() {
 
   return {
     list,
-    recordOpen: (projectId: string) => recordOpen(projectId),
+    recordOpen: (installationId: string) => recordOpen(installationId),
     clear: () => clearStore(),
   };
 }

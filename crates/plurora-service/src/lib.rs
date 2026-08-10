@@ -2,13 +2,14 @@ use std::collections::{BTreeSet, HashMap, HashSet, VecDeque};
 use std::convert::Infallible;
 use std::fmt;
 use std::fs;
+use std::io::Write as _;
 use std::path::{Component, Path as FsPath, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex, OnceLock};
 use std::time::Duration;
 
 use anyhow::Context;
-use axum::body::to_bytes;
+use axum::body::{to_bytes, Body};
 use axum::extract::ws::{Message as AxumWsMessage, WebSocket, WebSocketUpgrade};
 use axum::extract::{Extension, FromRequestParts, OriginalUri, Path, Query, Request, State};
 use axum::http::{header, HeaderMap, HeaderValue, Method, StatusCode, Uri};
@@ -23,20 +24,21 @@ use bollard::models::{Mount, MountType};
 use bollard::query_parameters::CreateContainerOptionsBuilder;
 use bollard::Docker;
 use futures::{SinkExt, Stream, StreamExt};
-use plurora_core::{
-    ArtifactDescriptor, EventEnvelope, EventSequence, PackageId, ProjectId, SessionId,
-};
+use plurora_core::{ArtifactDescriptor, EventEnvelope, EventSequence, PackageId, SessionId};
 use plurora_runtime::{
     resolve_contract_method, EventListRequest, ExecutionTargetCapability,
     ExecutionTargetReachability, ExecutionTargetStatusKind, ProtocolContext, ProtocolError,
     ProtocolRequest, ProtocolResourceSelector, ProtocolResponse,
 };
 use plurora_runtime::{
-    AppendEventRequest, EventStore, InMemoryEventStore, OpenSessionRequest, Runtime, RuntimeConfig,
+    AppendEventRequest, EventStore, InMemoryEventStore, InstallationAuthorityRefresh,
+    InstallationAuthoritySubject, InstallationAuthorityValidator, InstallationControl,
+    OpenSessionRequest, Runtime, RuntimeConfig,
 };
 use plurora_runtime::{
     PortBindScope, PortLeaseStatusKind, ProxyProtocol, ProxyRouteAccess, ProxyRouteStatusKind,
 };
+use plurora_work::{InstallationId, InstallationStatus, WorkspaceId};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use sha2::{Digest, Sha256};
@@ -49,6 +51,7 @@ use tower_http::cors::{Any, CorsLayer};
 
 mod development;
 mod host_access;
+mod installations;
 mod target_agent;
 
 pub use development::{
@@ -57,14 +60,15 @@ pub use development::{
     spawn_development_host_lease_heartbeat, DevelopmentChangeRecord, DevelopmentChangeStatus,
     DevelopmentDraftRequest, DevelopmentFileOperationRequest, DevelopmentHostLease,
     DevelopmentManagedPromotion, DevelopmentNetworkMode, DevelopmentRecoveryKind,
-    DevelopmentRegistry, DevelopmentVerificationPlan, DevelopmentVerificationResult,
-    DevelopmentWorkspaceOwnership,
+    DevelopmentRegistry, DevelopmentSubject, DevelopmentVerificationPlan,
+    DevelopmentVerificationResult, DevelopmentWorkspaceOwnership,
 };
 pub use host_access::{
     host_access_registry, hydrate_host_access_control_plane, HostAccessGrantView,
     HostAccessIdentity, HostAccessIdentityKind, HostAccessRegistry, HostAccessResourceKind,
     HostAccessResourceSelector, HostAccessScope,
 };
+pub use installations::InstallationRegistry;
 pub use target_agent::{
     decode_target_tunnel_data, encode_target_tunnel_data, hydrate_target_agent_control_plane,
     reconcile_target_deployment_control_plane, target_agent_registry,
@@ -86,6 +90,9 @@ const PROXY_WEBSOCKET_SUBPROTOCOL_BYTES: usize = 128;
 const TARGET_TUNNEL_BRIDGE_HEADER: &str = "x-plurora-tunnel-bridge";
 const TARGET_TUNNEL_BRIDGE_HEADER_LIMIT_BYTES: usize = 64 * 1024;
 const TARGET_TUNNEL_BRIDGE_LIMIT: usize = 256;
+// This preserves Axum's existing Json extractor default while the target-operation
+// gate buffers and restores that one request body before the route handler sees it.
+const TARGET_OPERATION_JSON_BODY_LIMIT_BYTES: usize = 2 * 1024 * 1024;
 const DEPLOY_READINESS_TIMEOUT: Duration = Duration::from_secs(15);
 const DEPLOY_READINESS_INTERVAL: Duration = Duration::from_millis(500);
 const DEPLOY_READINESS_CONNECT_TIMEOUT: Duration = Duration::from_secs(1);
@@ -103,9 +110,9 @@ const DEPLOYMENT_WORKSPACE_MAX_BYTES: u64 = 1024 * 1024 * 1024;
 const DEPLOYMENT_GIT_DOWNLOAD_MAX_BYTES: u64 = 2 * 1024 * 1024 * 1024;
 const DOCKER_RUNTIME_PACKAGE_ID: &str = "plurora/docker-runtime-lab";
 const BUILD_DEPLOY_MAX_GLOBAL_ACTIVE: usize = 2;
-const BUILD_DEPLOY_MAX_PER_PROJECT_ACTIVE: usize = 1;
+const BUILD_DEPLOY_MAX_PER_INSTALLATION_ACTIVE: usize = 1;
 const BUILD_DEPLOY_MAX_RETAINED_JOBS: usize = 128;
-const BUILD_DEPLOY_MAX_REVISIONS_PER_PROJECT: usize = 64;
+const BUILD_DEPLOY_MAX_REVISIONS_PER_INSTALLATION: usize = 64;
 const BUILD_DEPLOY_LOG_RING: usize = 256;
 const BUILD_DEPLOY_WAIT_TIMEOUT: Duration = Duration::from_secs(30);
 const SURFACE_ASSET_LEASE_TTL_MS: i64 = 5 * 60 * 1_000;
@@ -185,6 +192,58 @@ where
     }
 }
 
+struct CurrentInstallationAuthority<S>
+where
+    S: EventStore,
+{
+    store: Arc<S>,
+    host_access: Arc<HostAccessRegistry>,
+}
+
+#[async_trait::async_trait]
+impl<S> InstallationAuthorityValidator for CurrentInstallationAuthority<S>
+where
+    S: EventStore,
+{
+    async fn validate_current(
+        &self,
+        grant_id: &str,
+        subject: &InstallationAuthoritySubject,
+    ) -> anyhow::Result<()> {
+        host_access::sync_host_access_journal(self.store.as_ref(), self.host_access.as_ref())
+            .await?;
+        let (kind, id) = match subject {
+            InstallationAuthoritySubject::Work(work_id) => {
+                (HostAccessResourceKind::Work, work_id.as_str())
+            }
+            InstallationAuthoritySubject::Installation(installation_id) => (
+                HostAccessResourceKind::Installation,
+                installation_id.as_str(),
+            ),
+        };
+        anyhow::ensure!(
+            self.host_access.grant_allows_current(
+                grant_id,
+                HostAccessScope::InstallationManage,
+                kind,
+                id,
+            ),
+            "Host access grant is no longer current for the exact Installation mutation resource"
+        );
+        Ok(())
+    }
+}
+
+fn installation_authority_refresh<S>(state: &AppState<S>) -> InstallationAuthorityRefresh
+where
+    S: EventStore,
+{
+    InstallationAuthorityRefresh::new(Arc::new(CurrentInstallationAuthority {
+        store: state.runtime.store(),
+        host_access: state.host_access.clone(),
+    }))
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum HostCredentialSource {
     OptionalLoopback,
@@ -213,6 +272,7 @@ where
     pub build_jobs: Arc<BuildDeployJobRegistry>,
     pub development: Arc<DevelopmentRegistry>,
     pub host_access: Arc<HostAccessRegistry>,
+    pub installations: Arc<InstallationRegistry>,
     pub target_agents: Arc<TargetAgentRegistry>,
 }
 
@@ -229,6 +289,7 @@ where
             build_jobs: self.build_jobs.clone(),
             development: self.development.clone(),
             host_access: self.host_access.clone(),
+            installations: self.installations.clone(),
             target_agents: self.target_agents.clone(),
         }
     }
@@ -248,7 +309,17 @@ pub struct EventListQuery {
 
 pub fn app() -> Router {
     let store = Arc::new(InMemoryEventStore::default());
-    let runtime = Arc::new(Runtime::new(store, RuntimeConfig::default()));
+    let object_store = Arc::new(plurora_runtime::InMemoryObjectStore::default());
+    let installations = InstallationRegistry::ephemeral(store.clone(), object_store.clone())
+        .expect("create ephemeral installation registry");
+    let runtime = Arc::new(Runtime::new(
+        store,
+        RuntimeConfig {
+            object_store,
+            installation_control: installations.clone(),
+            ..RuntimeConfig::default()
+        },
+    ));
     app_with_state(AppState {
         runtime,
         static_dir: None,
@@ -257,6 +328,7 @@ pub fn app() -> Router {
         build_jobs: Arc::new(BuildDeployJobRegistry::default()),
         development: development_registry(),
         host_access: host_access_registry(),
+        installations,
         target_agents: target_agent_registry(),
     })
 }
@@ -281,11 +353,22 @@ where
         state.runtime.store(),
         state.host_access.clone(),
     );
+    let target_control =
+        target_agent::protected_routes::<S>().route_layer(middleware::from_fn_with_state(
+            state.clone(),
+            require_active_target_operation_installation::<S>,
+        ));
     let protected_control = Router::new()
         .route("/journal/subscribe/:session_id", get(subscribe_events::<S>))
-        .route("/host/v1/deploy", post(deploy_project::<S>))
-        .route("/host/v1/deploy/stop", post(stop_project_deployment::<S>))
-        .route("/host/v1/build-deploy", post(build_deploy_project::<S>))
+        .route("/host/v1/deploy", post(deploy_installation::<S>))
+        .route(
+            "/host/v1/deploy/stop",
+            post(stop_installation_deployment::<S>),
+        )
+        .route(
+            "/host/v1/build-deploy",
+            post(build_deploy_installation::<S>),
+        )
         .route(
             "/host/v1/build-deploy/:job_id",
             get(build_deploy_job_status::<S>),
@@ -299,20 +382,20 @@ where
             post(cancel_build_deploy_job::<S>),
         )
         .route(
-            "/host/v1/projects/:project_id/deployments",
-            get(project_deployments::<S>),
+            "/host/v1/installations/:installation_id/deployments",
+            get(installation_deployments::<S>),
         )
         .route(
-            "/host/v1/projects/:project_id/deployments/recover",
-            post(recover_project_deployment::<S>),
+            "/host/v1/installations/:installation_id/deployments/recover",
+            post(recover_installation_deployment::<S>),
         )
         .route(
-            "/host/v1/projects/:project_id/deployments/rollback",
-            post(rollback_project_deployment::<S>),
+            "/host/v1/installations/:installation_id/deployments/rollback",
+            post(rollback_installation_deployment::<S>),
         )
         .merge(development::routes::<S>())
         .merge(host_access::protected_routes::<S>())
-        .merge(target_agent::protected_routes::<S>())
+        .merge(target_control)
         .route("/rpc", post(rpc::<S>))
         .route_layer(middleware::from_fn_with_state(
             access_control.clone(),
@@ -354,6 +437,64 @@ where
             access_control,
             desktop_bootstrap_middleware::<S>,
         ))
+}
+
+async fn require_active_target_operation_installation<S>(
+    State(state): State<AppState<S>>,
+    request: Request,
+    next: Next,
+) -> Response
+where
+    S: EventStore,
+{
+    if request.method() != Method::POST
+        || !is_target_operation_collection_path(request.uri().path())
+    {
+        return next.run(request).await;
+    }
+    let Some(identity) = request.extensions().get::<HostAccessIdentity>().cloned() else {
+        // The outer Host credential layer owns unauthenticated responses. Do not
+        // inspect the body or reveal Installation state before it authenticates.
+        return next.run(request).await;
+    };
+    let (parts, body) = request.into_parts();
+    let bytes = match to_bytes(body, TARGET_OPERATION_JSON_BODY_LIMIT_BYTES).await {
+        Ok(bytes) => bytes,
+        Err(_) => return StatusCode::PAYLOAD_TOO_LARGE.into_response(),
+    };
+    if let Ok(target_request) = serde_json::from_slice::<CreateTargetOperationRequest>(&bytes) {
+        if let Err(error) =
+            require_identity_installation(&identity, target_request.installation_id.as_str())
+        {
+            return error.into_response();
+        }
+        if let Err(error) =
+            ensure_installation_effect_active(&state, &target_request.installation_id).await
+        {
+            return error.into_response();
+        }
+    }
+    next.run(Request::from_parts(parts, Body::from(bytes)))
+        .await
+}
+
+fn is_target_operation_collection_path(path: &str) -> bool {
+    let segments = path.split('/').collect::<Vec<_>>();
+    segments.len() == 7
+        && segments[0].is_empty()
+        && segments[1] == "host"
+        && segments[2] == "v1"
+        && segments[3] == "targets"
+        && !segments[4].is_empty()
+        && segments[5] == "operations"
+        && segments[6].is_empty()
+        || segments.len() == 6
+            && segments[0].is_empty()
+            && segments[1] == "host"
+            && segments[2] == "v1"
+            && segments[3] == "targets"
+            && !segments[4].is_empty()
+            && segments[5] == "operations"
 }
 
 fn browser_client_cors() -> CorsLayer {
@@ -530,22 +671,36 @@ where
                 .into_response();
         }
     }
-    if let Some(project_id) = project_id_from_host_path(request.uri().path()) {
-        if !identity.allows_project(project_id) {
+    if let Some(installation_id) = installation_id_from_host_path(request.uri().path()) {
+        if !identity.allows_installation(installation_id) {
             return (
                 StatusCode::FORBIDDEN,
-                "the Host access grant does not include this project",
+                "the Host access grant does not include this installation",
             )
                 .into_response();
         }
     }
-    if requires_global_project_authority(request.uri().path())
+    if let Some((kind, id)) = development_subject_from_host_path(request.uri().path()) {
+        let allowed = match kind {
+            "installation" => identity.allows_installation(id),
+            "workspace" => identity.allows_workspace(id),
+            _ => false,
+        };
+        if !allowed {
+            return (
+                StatusCode::FORBIDDEN,
+                "the Host access grant does not include this development subject",
+            )
+                .into_response();
+        }
+    }
+    if requires_global_installation_authority(request.uri().path())
         && identity.kind == HostAccessIdentityKind::Device
-        && !identity.allows_all(HostAccessResourceKind::Project)
+        && !identity.allows_all(HostAccessResourceKind::Installation)
     {
         return (
             StatusCode::FORBIDDEN,
-            "this Host-global catalogue requires all-project authority",
+            "this Host-global catalogue requires all-installation authority",
         )
             .into_response();
     }
@@ -1011,7 +1166,7 @@ fn required_host_scope_for_http(method: &Method, path: &str) -> Option<HostAcces
     {
         return Some(HostAccessScope::AccessManage);
     }
-    if path.starts_with("/host/v1/projects/") && path.contains("/changes") {
+    if path.starts_with("/host/v1/development/") && path.contains("/changes") {
         if path.contains("/deployment/") {
             return Some(HostAccessScope::Deploy);
         }
@@ -1045,28 +1200,28 @@ fn required_host_scope_for_http(method: &Method, path: &str) -> Option<HostAcces
     Some(HostAccessScope::AccessManage)
 }
 
-fn project_id_from_host_path(path: &str) -> Option<&str> {
+fn installation_id_from_host_path(path: &str) -> Option<&str> {
     let remainder = path
-        .strip_prefix("/host/v1/projects/")
-        .or_else(|| path.strip_prefix("/surface-bundles/projects/"))?;
-    let project_id = remainder.split('/').next()?;
-    (!project_id.is_empty()).then_some(project_id)
+        .strip_prefix("/host/v1/installations/")
+        .or_else(|| path.strip_prefix("/surface-bundles/installations/"))?;
+    let installation_id = remainder.split('/').next()?;
+    (!installation_id.is_empty()).then_some(installation_id)
 }
 
-fn requires_global_project_authority(path: &str) -> bool {
-    path.starts_with("/surface-bundles/") && !path.starts_with("/surface-bundles/projects/")
+fn requires_global_installation_authority(path: &str) -> bool {
+    path.starts_with("/surface-bundles/") && !path.starts_with("/surface-bundles/installations/")
 }
 
-fn require_identity_project(
+fn require_identity_installation(
     identity: &HostAccessIdentity,
-    project_id: &str,
+    installation_id: &str,
 ) -> Result<(), ServiceError> {
-    if identity.allows_project(project_id) {
+    if identity.allows_installation(installation_id) {
         Ok(())
     } else {
         Err(ServiceError::with_status(
             StatusCode::FORBIDDEN,
-            "the Host access grant does not include this project",
+            "the Host access grant does not include this installation",
         ))
     }
 }
@@ -1208,8 +1363,7 @@ fn event_matches_query(event: &EventEnvelope, session_id: &str, query: &EventLis
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct HostDeployRequest {
-    #[serde(default)]
-    pub project_id: Option<ProjectId>,
+    pub installation_id: InstallationId,
     pub image: String,
     pub container_port: u16,
     pub port_name: String,
@@ -1258,7 +1412,7 @@ pub struct HostDeployStopResponse {
 #[derive(Debug, Clone, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct HostBuildDeployRequest {
-    pub project_id: ProjectId,
+    pub installation_id: InstallationId,
     pub source_url: String,
     pub ref_name: String,
     #[serde(default)]
@@ -1397,7 +1551,7 @@ pub struct BuildDeployJobEvent {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BuildDeployJobStatusResponse {
     pub job_id: String,
-    pub project_id: ProjectId,
+    pub installation_id: InstallationId,
     pub route_id: String,
     pub build_id: Option<String>,
     pub state: BuildDeployJobState,
@@ -1448,6 +1602,7 @@ pub enum RuntimeEnvSourceKind {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct HostBuildDeployResponse {
+    pub workspace_id: WorkspaceId,
     pub route_id: String,
     pub public_url: String,
     #[serde(default)]
@@ -1544,7 +1699,7 @@ impl DeploymentAuthorityLease {
 
     fn validate(
         &self,
-        project_id: &ProjectId,
+        installation_id: &InstallationId,
         registry: &HostAccessRegistry,
     ) -> anyhow::Result<()> {
         anyhow::ensure!(
@@ -1553,9 +1708,11 @@ impl DeploymentAuthorityLease {
             "deployment authority lease does not include deploy"
         );
         anyhow::ensure!(
-            self.allows_resource(HostAccessResourceKind::Project, project_id.as_str())
-                && self.allows_resource(HostAccessResourceKind::Target, &self.target_id),
-            "deployment authority lease does not include the project and target"
+            self.allows_resource(
+                HostAccessResourceKind::Installation,
+                installation_id.as_str()
+            ) && self.allows_resource(HostAccessResourceKind::Target, &self.target_id),
+            "deployment authority lease does not include the installation and target"
         );
         if let Some(expires_at_ms) = self.expires_at_ms {
             anyhow::ensure!(
@@ -1576,7 +1733,11 @@ impl DeploymentAuthorityLease {
         Ok(())
     }
 
-    fn protocol_context(&self, project_id: &ProjectId, transport: &str) -> ProtocolContext {
+    fn protocol_context(
+        &self,
+        installation_id: &InstallationId,
+        transport: &str,
+    ) -> ProtocolContext {
         let context = if self.identity_kind == HostAccessIdentityKind::Root {
             ProtocolContext::host_admin(transport)
         } else {
@@ -1605,8 +1766,8 @@ impl DeploymentAuthorityLease {
             vec![
                 ProtocolResourceSelector {
                     owner: "host".to_string(),
-                    kind: "project".to_string(),
-                    id: Some(project_id.to_string()),
+                    kind: "installation".to_string(),
+                    id: Some(installation_id.to_string()),
                 },
                 ProtocolResourceSelector {
                     owner: "host".to_string(),
@@ -1631,7 +1792,8 @@ pub struct PersistedRuntimeEnvSpec {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DeploymentRevision {
     pub revision_id: String,
-    pub project_id: ProjectId,
+    pub installation_id: InstallationId,
+    pub workspace_id: WorkspaceId,
     pub job_id: Option<String>,
     pub operation: DeploymentOperation,
     pub parent_revision_id: Option<String>,
@@ -1675,8 +1837,8 @@ pub struct DeploymentRevision {
 }
 
 #[derive(Debug, Clone, Serialize)]
-pub struct ProjectDeploymentsResponse {
-    pub project_id: ProjectId,
+pub struct InstallationDeploymentsResponse {
+    pub installation_id: InstallationId,
     pub active_revision_id: Option<String>,
     pub active_revision: Option<DeploymentRevision>,
     pub recovery_required: bool,
@@ -1732,7 +1894,7 @@ struct HostDockerStartRequest<'a> {
     host_port: u16,
     route_id: &'a str,
     port_lease_id: &'a str,
-    project_id: &'a str,
+    installation_id: &'a str,
     build_id: &'a str,
     source_commit: &'a str,
     operation_id: &'a str,
@@ -1749,7 +1911,7 @@ struct HostDockerStartedContainer {
 #[derive(Debug)]
 struct BuildDeployJobRecord {
     job_id: String,
-    project_id: ProjectId,
+    installation_id: InstallationId,
     route_id: String,
     build_id: Option<String>,
     state: BuildDeployJobState,
@@ -1768,8 +1930,8 @@ struct BuildDeployJobRecord {
 
 #[derive(Debug, Default)]
 struct DeploymentProjection {
-    revisions: HashMap<ProjectId, Vec<DeploymentRevision>>,
-    active_revisions: HashMap<ProjectId, String>,
+    revisions: HashMap<InstallationId, Vec<DeploymentRevision>>,
+    active_revisions: HashMap<InstallationId, String>,
     direct_route_owners: HashMap<String, DeploymentDirectRouteOwned>,
 }
 
@@ -1804,7 +1966,7 @@ struct DeploymentRevisionActivated {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct DeploymentRevisionDeactivated {
-    project_id: ProjectId,
+    installation_id: InstallationId,
     revision_id: String,
     route_id: String,
     reason: String,
@@ -1814,7 +1976,7 @@ struct DeploymentRevisionDeactivated {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct DeploymentDirectRouteOwned {
     route_id: String,
-    project_id: ProjectId,
+    installation_id: InstallationId,
     #[serde(default)]
     port_name: String,
     #[serde(default)]
@@ -1829,7 +1991,7 @@ struct DeploymentDirectRouteOwned {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct DeploymentDirectRouteReleased {
     route_id: String,
-    project_id: ProjectId,
+    installation_id: InstallationId,
     timestamp_ms: u128,
 }
 
@@ -1846,20 +2008,20 @@ pub struct BuildDeployJobRegistry {
     jobs: Mutex<HashMap<String, BuildDeployJobRecord>>,
     notifier: broadcast::Sender<BuildDeployJobEvent>,
     global_sem: Arc<Semaphore>,
-    project_active: Mutex<HashSet<ProjectId>>,
+    installation_active: Mutex<HashSet<InstallationId>>,
     deployment: Mutex<DeploymentProjection>,
     journal_apply: Mutex<()>,
     journal_next_sequence: Mutex<EventSequence>,
 }
 
-struct BuildDeployProjectGuard {
+struct BuildDeployInstallationGuard {
     registry: Arc<BuildDeployJobRegistry>,
-    project_id: ProjectId,
+    installation_id: InstallationId,
 }
 
-impl Drop for BuildDeployProjectGuard {
+impl Drop for BuildDeployInstallationGuard {
     fn drop(&mut self) {
-        self.registry.release_project(&self.project_id);
+        self.registry.release_installation(&self.installation_id);
     }
 }
 
@@ -1870,7 +2032,7 @@ impl Default for BuildDeployJobRegistry {
             jobs: Mutex::new(HashMap::new()),
             notifier,
             global_sem: Arc::new(Semaphore::new(BUILD_DEPLOY_MAX_GLOBAL_ACTIVE)),
-            project_active: Mutex::new(HashSet::new()),
+            installation_active: Mutex::new(HashSet::new()),
             deployment: Mutex::new(DeploymentProjection::default()),
             journal_apply: Mutex::new(()),
             journal_next_sequence: Mutex::new(0),
@@ -1957,7 +2119,7 @@ impl BuildDeployJobRegistry {
                 if deployment
                     .direct_route_owners
                     .get(&release.route_id)
-                    .is_some_and(|ownership| ownership.project_id == release.project_id)
+                    .is_some_and(|ownership| ownership.installation_id == release.installation_id)
                 {
                     deployment.direct_route_owners.remove(&release.route_id);
                 }
@@ -1980,7 +2142,7 @@ impl BuildDeployJobRegistry {
         if let Some(idempotency_key) = request.idempotency_key.as_deref() {
             let jobs = self.jobs.lock().expect("jobs lock poisoned");
             if let Some(existing) = jobs.values().find(|job| {
-                job.project_id == request.project_id
+                job.installation_id == request.installation_id
                     && job.idempotency_key.as_deref() == Some(idempotency_key)
             }) {
                 if existing.request_fingerprint != request_fingerprint {
@@ -2002,13 +2164,16 @@ impl BuildDeployJobRegistry {
             .try_acquire_owned()
             .map_err(|_| anyhow::anyhow!("build-deploy global concurrency limit reached"))?;
         {
-            let mut active = self.project_active.lock().expect("project lock poisoned");
-            if active.contains(&request.project_id) {
+            let mut active = self
+                .installation_active
+                .lock()
+                .expect("installation lock poisoned");
+            if active.contains(&request.installation_id) {
                 anyhow::bail!(
-                    "build-deploy project concurrency limit reached (max {BUILD_DEPLOY_MAX_PER_PROJECT_ACTIVE})"
+                    "build-deploy installation concurrency limit reached (max {BUILD_DEPLOY_MAX_PER_INSTALLATION_ACTIVE})"
                 );
             }
-            active.insert(request.project_id.clone());
+            active.insert(request.installation_id.clone());
         }
         let now = now_millis();
         let job_id = format!(
@@ -2022,7 +2187,7 @@ impl BuildDeployJobRegistry {
             job_id.clone(),
             BuildDeployJobRecord {
                 job_id: job_id.clone(),
-                project_id: request.project_id.clone(),
+                installation_id: request.installation_id.clone(),
                 route_id: request.route_id.clone(),
                 build_id: request.build_id.clone(),
                 state: BuildDeployJobState::Queued,
@@ -2079,41 +2244,47 @@ impl BuildDeployJobRegistry {
         self.status(job_id).map(|status| (status.state, true))
     }
 
-    async fn acquire(&self, project_id: &ProjectId) -> anyhow::Result<OwnedSemaphorePermit> {
+    async fn acquire(
+        &self,
+        installation_id: &InstallationId,
+    ) -> anyhow::Result<OwnedSemaphorePermit> {
         let permit = self
             .global_sem
             .clone()
             .try_acquire_owned()
             .map_err(|_| anyhow::anyhow!("build-deploy global concurrency limit reached"))?;
-        let _ = project_id;
+        let _ = installation_id;
         Ok(permit)
     }
 
-    async fn acquire_project_operation(
+    async fn acquire_installation_operation(
         &self,
-        project_id: &ProjectId,
+        installation_id: &InstallationId,
     ) -> anyhow::Result<OwnedSemaphorePermit> {
-        let permit = self.acquire(project_id).await?;
-        let mut active = self.project_active.lock().expect("project lock poisoned");
-        if !active.insert(project_id.clone()) {
+        let permit = self.acquire(installation_id).await?;
+        let mut active = self
+            .installation_active
+            .lock()
+            .expect("installation lock poisoned");
+        if !active.insert(installation_id.clone()) {
             anyhow::bail!(
-                "deployment project concurrency limit reached (max {BUILD_DEPLOY_MAX_PER_PROJECT_ACTIVE})"
+                "deployment installation concurrency limit reached (max {BUILD_DEPLOY_MAX_PER_INSTALLATION_ACTIVE})"
             );
         }
         Ok(permit)
     }
 
-    fn release_project(&self, project_id: &ProjectId) {
-        self.project_active
+    fn release_installation(&self, installation_id: &InstallationId) {
+        self.installation_active
             .lock()
-            .expect("project lock poisoned")
-            .remove(project_id);
+            .expect("installation lock poisoned")
+            .remove(installation_id);
     }
 
     fn discard_job(&self, job_id: &str) {
         let removed = self.jobs.lock().expect("jobs lock poisoned").remove(job_id);
         if let Some(job) = removed {
-            self.release_project(&job.project_id);
+            self.release_installation(&job.installation_id);
         }
     }
 
@@ -2256,7 +2427,7 @@ impl BuildDeployJobRegistry {
             .entry(status.job_id.clone())
             .or_insert_with(|| BuildDeployJobRecord {
                 job_id: status.job_id.clone(),
-                project_id: status.project_id.clone(),
+                installation_id: status.installation_id.clone(),
                 route_id: status.route_id.clone(),
                 build_id: status.build_id.clone(),
                 state: status.state,
@@ -2272,7 +2443,7 @@ impl BuildDeployJobRegistry {
                 operation: status.operation,
                 authority: authority.clone(),
             });
-        record.project_id = status.project_id;
+        record.installation_id = status.installation_id;
         record.route_id = status.route_id;
         record.build_id = status.build_id;
         record.state = status.state;
@@ -2335,40 +2506,43 @@ impl BuildDeployJobRegistry {
         deployment.direct_route_owners.remove(&revision.route_id);
         let revisions = deployment
             .revisions
-            .entry(revision.project_id.clone())
+            .entry(revision.installation_id.clone())
             .or_default();
         if !revisions
             .iter()
             .any(|existing| existing.revision_id == revision.revision_id)
         {
             revisions.push(revision.clone());
-            if revisions.len() > BUILD_DEPLOY_MAX_REVISIONS_PER_PROJECT {
-                let excess = revisions.len() - BUILD_DEPLOY_MAX_REVISIONS_PER_PROJECT;
+            if revisions.len() > BUILD_DEPLOY_MAX_REVISIONS_PER_INSTALLATION {
+                let excess = revisions.len() - BUILD_DEPLOY_MAX_REVISIONS_PER_INSTALLATION;
                 revisions.drain(..excess);
             }
         }
-        deployment
-            .active_revisions
-            .insert(revision.project_id.clone(), revision.revision_id.clone());
+        deployment.active_revisions.insert(
+            revision.installation_id.clone(),
+            revision.revision_id.clone(),
+        );
     }
 
     fn deactivate_revision(&self, deactivation: &DeploymentRevisionDeactivated) {
         let mut deployment = self.deployment.lock().expect("deployment lock poisoned");
         if deployment
             .active_revisions
-            .get(&deactivation.project_id)
+            .get(&deactivation.installation_id)
             .is_some_and(|revision_id| revision_id == &deactivation.revision_id)
         {
-            deployment.active_revisions.remove(&deactivation.project_id);
+            deployment
+                .active_revisions
+                .remove(&deactivation.installation_id);
         }
     }
 
-    fn active_revision(&self, project_id: &ProjectId) -> Option<DeploymentRevision> {
+    fn active_revision(&self, installation_id: &InstallationId) -> Option<DeploymentRevision> {
         let deployment = self.deployment.lock().expect("deployment lock poisoned");
-        let revision_id = deployment.active_revisions.get(project_id)?;
+        let revision_id = deployment.active_revisions.get(installation_id)?;
         deployment
             .revisions
-            .get(project_id)?
+            .get(installation_id)?
             .iter()
             .find(|revision| &revision.revision_id == revision_id)
             .cloned()
@@ -2380,7 +2554,7 @@ impl BuildDeployJobRegistry {
             .lock()
             .expect("deployment lock poisoned")
             .active_revisions
-            .get(&revision.project_id)
+            .get(&revision.installation_id)
             .cloned();
         anyhow::ensure!(
             current == revision.parent_revision_id,
@@ -2389,35 +2563,42 @@ impl BuildDeployJobRegistry {
         Ok(())
     }
 
-    fn revision(&self, project_id: &ProjectId, revision_id: &str) -> Option<DeploymentRevision> {
+    fn revision(
+        &self,
+        installation_id: &InstallationId,
+        revision_id: &str,
+    ) -> Option<DeploymentRevision> {
         self.deployment
             .lock()
             .expect("deployment lock poisoned")
             .revisions
-            .get(project_id)?
+            .get(installation_id)?
             .iter()
             .find(|revision| revision.revision_id == revision_id)
             .cloned()
     }
 
-    fn revisions(&self, project_id: &ProjectId) -> Vec<DeploymentRevision> {
+    fn revisions(&self, installation_id: &InstallationId) -> Vec<DeploymentRevision> {
         let mut revisions = self
             .deployment
             .lock()
             .expect("deployment lock poisoned")
             .revisions
-            .get(project_id)
+            .get(installation_id)
             .cloned()
             .unwrap_or_default();
         revisions.sort_by_key(|revision| std::cmp::Reverse(revision.created_at_ms));
         revisions
     }
 
-    fn jobs_for_project(&self, project_id: &ProjectId) -> Vec<BuildDeployJobStatusResponse> {
+    fn jobs_for_installation(
+        &self,
+        installation_id: &InstallationId,
+    ) -> Vec<BuildDeployJobStatusResponse> {
         let jobs = self.jobs.lock().expect("jobs lock poisoned");
         let mut statuses = jobs
             .values()
-            .filter(|job| &job.project_id == project_id)
+            .filter(|job| &job.installation_id == installation_id)
             .map(job_status_response)
             .collect::<Vec<_>>();
         statuses.sort_by_key(|status| std::cmp::Reverse(status.created_at_ms));
@@ -2429,10 +2610,10 @@ impl BuildDeployJobRegistry {
         deployment
             .active_revisions
             .iter()
-            .find_map(|(project_id, revision_id)| {
+            .find_map(|(installation_id, revision_id)| {
                 deployment
                     .revisions
-                    .get(project_id)?
+                    .get(installation_id)?
                     .iter()
                     .find(|revision| {
                         revision.revision_id == revision_id.as_str()
@@ -2448,10 +2629,10 @@ impl BuildDeployJobRegistry {
             deployment
                 .active_revisions
                 .iter()
-                .find_map(|(active_project_id, revision_id)| {
+                .find_map(|(active_installation_id, revision_id)| {
                     deployment
                         .revisions
-                        .get(active_project_id)
+                        .get(active_installation_id)
                         .and_then(|revisions| {
                             revisions
                                 .iter()
@@ -2459,50 +2640,50 @@ impl BuildDeployJobRegistry {
                                     revision.revision_id == revision_id.as_str()
                                         && revision.route_id == ownership.route_id
                                 })
-                                .then(|| active_project_id.clone())
+                                .then(|| active_installation_id.clone())
                         })
                 });
-        if let Some(active_project_id) = replaced_active {
-            deployment.active_revisions.remove(&active_project_id);
+        if let Some(active_installation_id) = replaced_active {
+            deployment.active_revisions.remove(&active_installation_id);
         }
         deployment
             .direct_route_owners
             .insert(ownership.route_id.clone(), ownership);
     }
 
-    fn project_for_route(&self, route_id: &str) -> Option<ProjectId> {
+    fn installation_for_route(&self, route_id: &str) -> Option<InstallationId> {
         let deployment = self.deployment.lock().expect("deployment lock poisoned");
         deployment
             .active_revisions
             .iter()
-            .find_map(|(project_id, revision_id)| {
+            .find_map(|(installation_id, revision_id)| {
                 deployment
                     .revisions
-                    .get(project_id)?
+                    .get(installation_id)?
                     .iter()
                     .any(|revision| {
                         revision.revision_id == revision_id.as_str()
                             && revision.route_id == route_id
                     })
-                    .then(|| project_id.clone())
+                    .then(|| installation_id.clone())
             })
             .or_else(|| {
                 deployment
                     .direct_route_owners
                     .get(route_id)
-                    .map(|ownership| ownership.project_id.clone())
+                    .map(|ownership| ownership.installation_id.clone())
             })
     }
 
-    fn ensure_route_available_for_project(
+    fn ensure_route_available_for_installation(
         &self,
         route_id: &str,
-        project_id: &ProjectId,
+        installation_id: &InstallationId,
     ) -> anyhow::Result<()> {
-        if let Some(owner) = self.project_for_route(route_id) {
+        if let Some(owner) = self.installation_for_route(route_id) {
             anyhow::ensure!(
-                &owner == project_id,
-                "deployment route is owned by another project"
+                &owner == installation_id,
+                "deployment route is owned by another installation"
             );
         }
         Ok(())
@@ -2513,10 +2694,10 @@ impl BuildDeployJobRegistry {
         let mut routes = deployment
             .active_revisions
             .iter()
-            .filter_map(|(project_id, revision_id)| {
+            .filter_map(|(installation_id, revision_id)| {
                 deployment
                     .revisions
-                    .get(project_id)?
+                    .get(installation_id)?
                     .iter()
                     .find(|revision| revision.revision_id == *revision_id)
                     .map(|revision| DurableDeploymentRoute {
@@ -2542,7 +2723,7 @@ impl BuildDeployJobRegistry {
 fn job_status_response(job: &BuildDeployJobRecord) -> BuildDeployJobStatusResponse {
     BuildDeployJobStatusResponse {
         job_id: job.job_id.clone(),
-        project_id: job.project_id.clone(),
+        installation_id: job.installation_id.clone(),
         route_id: job.route_id.clone(),
         build_id: job.build_id.clone(),
         state: job.state,
@@ -2838,7 +3019,7 @@ where
     }
 
     // Target-operation receipts are the specific owner of local/Agent target
-    // containers. Project them before the generic Docker-broker reconcile so
+    // containers. Materialize them before the generic Docker-broker reconcile so
     // its legacy local-container scan cannot remove their routes or leases.
     // If projection is uncertain, fail closed with the stale records intact.
     let target_deployments_projected =
@@ -2931,12 +3112,15 @@ where
 async fn deployment_effect_context<S>(
     state: &AppState<S>,
     authority: Option<&DeploymentAuthorityLease>,
-    project_id: &ProjectId,
+    installation_id: &InstallationId,
     transport: &str,
 ) -> anyhow::Result<ProtocolContext>
 where
     S: EventStore,
 {
+    ensure_installation_effect_active(state, installation_id)
+        .await
+        .map_err(|error| error.error)?;
     development::verify_host_control_plane_lease_if_installed(
         state.runtime.store().as_ref(),
         state.development.as_ref(),
@@ -2952,14 +3136,14 @@ where
         )
         .await?;
     }
-    authority.validate(project_id, state.host_access.as_ref())?;
-    Ok(authority.protocol_context(project_id, transport))
+    authority.validate(installation_id, state.host_access.as_ref())?;
+    Ok(authority.protocol_context(installation_id, transport))
 }
 
 async fn build_job_effect_context<S>(
     state: &AppState<S>,
     job_id: Option<&str>,
-    project_id: &ProjectId,
+    installation_id: &InstallationId,
     transport: &str,
 ) -> anyhow::Result<ProtocolContext>
 where
@@ -2973,23 +3157,23 @@ where
                 .ok_or_else(|| anyhow::anyhow!("build-deploy authority lease disappeared"))
         })
         .transpose()?;
-    deployment_effect_context(state, authority.as_ref(), project_id, transport).await
+    deployment_effect_context(state, authority.as_ref(), installation_id, transport).await
 }
 
 async fn deployment_operation_effect_context<S>(
     state: &AppState<S>,
     job_id: Option<&str>,
     authority: Option<&DeploymentAuthorityLease>,
-    project_id: &ProjectId,
+    installation_id: &InstallationId,
     transport: &str,
 ) -> anyhow::Result<ProtocolContext>
 where
     S: EventStore,
 {
     if authority.is_some() {
-        deployment_effect_context(state, authority, project_id, transport).await
+        deployment_effect_context(state, authority, installation_id, transport).await
     } else {
-        build_job_effect_context(state, job_id, project_id, transport).await
+        build_job_effect_context(state, job_id, installation_id, transport).await
     }
 }
 
@@ -3004,15 +3188,15 @@ impl fmt::Debug for ResolvedRuntimeEnv {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct ProjectWorkspaceCloneRequest {
-    pub project_id: ProjectId,
+pub struct WorkspaceCloneRequest {
+    pub workspace_id: WorkspaceId,
     pub source_url: String,
     pub ref_name: String,
 }
 
 #[derive(Debug, Clone, Serialize, PartialEq, Eq)]
-pub struct ProjectWorkspaceCloneResult {
-    pub project_id: ProjectId,
+pub struct WorkspaceCloneResult {
+    pub workspace_id: WorkspaceId,
     pub ref_name: String,
     pub commit_sha: String,
     pub tree_hash: Option<String>,
@@ -3028,7 +3212,7 @@ struct GitFetchTreeInvocation {
     staging_dir: PathBuf,
 }
 
-async fn deploy_project<S>(
+async fn deploy_installation<S>(
     State(state): State<AppState<S>>,
     Extension(identity): Extension<HostAccessIdentity>,
     Json(request): Json<HostDeployRequest>,
@@ -3037,57 +3221,36 @@ where
     S: EventStore,
 {
     validate_host_deploy_request(&request)?;
-    if let Some(project_id) = request.project_id.as_ref() {
-        require_identity_project(&identity, project_id.as_str())?;
-    } else if identity.kind == HostAccessIdentityKind::Device
-        && !identity.allows_all(HostAccessResourceKind::Project)
-    {
-        return Err(ServiceError::with_status(
-            StatusCode::FORBIDDEN,
-            "project-scoped devices must provide project_id for direct deployments",
-        ));
-    }
+    require_identity_installation(&identity, request.installation_id.as_str())?;
+    ensure_installation_effect_active(&state, &request.installation_id).await?;
     require_identity_target(&identity, "local")?;
     development::verify_host_control_plane_lease_if_installed(
         state.runtime.store().as_ref(),
         state.development.as_ref(),
     )
     .await?;
-    let durable_route_project = state.build_jobs.project_for_route(&request.route_id);
-    if let Some(project_id) = request.project_id.as_ref() {
-        state
-            .build_jobs
-            .ensure_route_available_for_project(&request.route_id, project_id)
-            .map_err(|error| ServiceError::with_status(StatusCode::CONFLICT, error.to_string()))?;
-    } else if durable_route_project.is_some() {
-        return Err(ServiceError::with_status(
-            StatusCode::CONFLICT,
-            "project_id is required when replacing an owned deployment route",
-        ));
-    }
-    let authority = request.project_id.as_ref().map(|_| {
-        DeploymentAuthorityLease::from_identity(
-            format!("dop-{}", uuid::Uuid::new_v4().simple()),
-            "local",
-            &identity,
-        )
-    });
-    let _project_operation = if let Some(project_id) = request.project_id.as_ref() {
-        let permit = state
-            .build_jobs
-            .acquire_project_operation(project_id)
-            .await
-            .map_err(|error| ServiceError::with_status(StatusCode::CONFLICT, error.to_string()))?;
-        Some((
-            permit,
-            BuildDeployProjectGuard {
-                registry: state.build_jobs.clone(),
-                project_id: project_id.clone(),
-            },
-        ))
-    } else {
-        None
-    };
+    let durable_route_installation = state.build_jobs.installation_for_route(&request.route_id);
+    state
+        .build_jobs
+        .ensure_route_available_for_installation(&request.route_id, &request.installation_id)
+        .map_err(|error| ServiceError::with_status(StatusCode::CONFLICT, error.to_string()))?;
+    let authority = DeploymentAuthorityLease::from_identity(
+        format!("dop-{}", uuid::Uuid::new_v4().simple()),
+        "local",
+        &identity,
+    );
+    let permit = state
+        .build_jobs
+        .acquire_installation_operation(&request.installation_id)
+        .await
+        .map_err(|error| ServiceError::with_status(StatusCode::CONFLICT, error.to_string()))?;
+    let _installation_operation = (
+        permit,
+        BuildDeployInstallationGuard {
+            registry: state.build_jobs.clone(),
+            installation_id: request.installation_id.clone(),
+        },
+    );
     let previous_route = state
         .runtime
         .config()
@@ -3095,18 +3258,13 @@ where
         .status(&request.route_id)
         .await
         .filter(|route| route.status == ProxyRouteStatusKind::Active);
-    let mut context = match request.project_id.as_ref() {
-        Some(project_id) => {
-            deployment_effect_context(
-                &state,
-                authority.as_ref(),
-                project_id,
-                "host_deploy_prepare",
-            )
-            .await?
-        }
-        None => identity.protocol_context("host_deploy"),
-    };
+    let mut context = deployment_effect_context(
+        &state,
+        Some(&authority),
+        &request.installation_id,
+        "host_deploy_prepare",
+    )
+    .await?;
     let previous_container = if let Some(previous_route) = previous_route.as_ref() {
         let output = invoke_docker_runtime_lab(
             &state,
@@ -3124,7 +3282,10 @@ where
     } else {
         None
     };
-    if previous_route.is_some() && durable_route_project.is_none() && previous_container.is_none() {
+    if previous_route.is_some()
+        && durable_route_installation.is_none()
+        && previous_container.is_none()
+    {
         return Err(ServiceError::with_status(
             StatusCode::CONFLICT,
             "existing route is not owned by a managed deployment",
@@ -3151,31 +3312,29 @@ where
     let lease_port = required_u16(&lease, "port", "port lease")?;
     let port_lease_id = lease_id.clone();
 
-    if let Some(project_id) = request.project_id.as_ref() {
-        context = match deployment_effect_context(
-            &state,
-            authority.as_ref(),
-            project_id,
-            "host_deploy_candidate_start",
-        )
-        .await
-        {
-            Ok(context) => context,
-            Err(error) => {
-                let cleanup_context = ProtocolContext::host_dev("host_deploy_compensation");
-                rollback_deploy(
-                    &state,
-                    &cleanup_context,
-                    &request.route_id,
-                    false,
-                    None,
-                    Some(&lease_id),
-                )
-                .await;
-                return Err(error.into());
-            }
-        };
-    }
+    context = match deployment_effect_context(
+        &state,
+        Some(&authority),
+        &request.installation_id,
+        "host_deploy_candidate_start",
+    )
+    .await
+    {
+        Ok(context) => context,
+        Err(error) => {
+            let cleanup_context = ProtocolContext::host_dev("host_deploy_compensation");
+            rollback_deploy(
+                &state,
+                &cleanup_context,
+                &request.route_id,
+                false,
+                None,
+                Some(&lease_id),
+            )
+            .await;
+            return Err(error.into());
+        }
+    };
 
     let start_output = match invoke_docker_runtime_lab(
         &state,
@@ -3187,9 +3346,10 @@ where
             "host_port": lease_port,
             "route_id": &request.route_id,
             "port_lease_id": &port_lease_id,
+            "installation_id": &request.installation_id,
             "approved": true,
             "pull_if_missing": request.pull_if_missing,
-            "operation_id": authority.as_ref().map(|authority| authority.operation_id.as_str()),
+            "operation_id": authority.operation_id.as_str(),
         }),
     )
     .await
@@ -3240,30 +3400,28 @@ where
         return Err(anyhow::anyhow!("deployment did not become ready in time: {error}").into());
     }
 
-    if let Some(project_id) = request.project_id.as_ref() {
-        context = match deployment_effect_context(
-            &state,
-            authority.as_ref(),
-            project_id,
-            "host_deploy_route_activation",
-        )
-        .await
-        {
-            Ok(context) => context,
-            Err(error) => {
-                rollback_deploy(
-                    &state,
-                    &ProtocolContext::host_dev("host_deploy_compensation"),
-                    &request.route_id,
-                    false,
-                    Some(&parsed_container_id),
-                    Some(&lease_id),
-                )
-                .await;
-                return Err(error.into());
-            }
-        };
-    }
+    context = match deployment_effect_context(
+        &state,
+        Some(&authority),
+        &request.installation_id,
+        "host_deploy_route_activation",
+    )
+    .await
+    {
+        Ok(context) => context,
+        Err(error) => {
+            rollback_deploy(
+                &state,
+                &ProtocolContext::host_dev("host_deploy_compensation"),
+                &request.route_id,
+                false,
+                Some(&parsed_container_id),
+                Some(&lease_id),
+            )
+            .await;
+            return Err(error.into());
+        }
+    };
     let route = match call_host_protocol(
         &state,
         &context,
@@ -3340,16 +3498,16 @@ where
         return Err(anyhow::anyhow!("proxy route disappeared before readiness promotion").into());
     }
 
-    if let Some(project_id) = request.project_id.clone() {
+    {
         let ownership = DeploymentDirectRouteOwned {
             route_id: route_id.clone(),
-            project_id,
+            installation_id: request.installation_id.clone(),
             port_name: request.port_name.clone(),
             route_access: request.route_access,
             port_lease_id: port_lease_id.clone(),
             container_id: parsed_container_id.clone(),
             timestamp_ms: now_millis(),
-            authority: authority.clone(),
+            authority: Some(authority.clone()),
         };
         if let Err(error) = persist_direct_route_ownership(&state, &ownership).await {
             let mut unregister_candidate = previous_route.is_none();
@@ -3415,7 +3573,7 @@ where
     }))
 }
 
-async fn build_deploy_project<S>(
+async fn build_deploy_installation<S>(
     State(state): State<AppState<S>>,
     Extension(identity): Extension<HostAccessIdentity>,
     Query(query): Query<BuildDeploySubmitQuery>,
@@ -3424,12 +3582,13 @@ async fn build_deploy_project<S>(
 where
     S: EventStore,
 {
-    require_identity_project(&identity, request.project_id.as_str())?;
+    require_identity_installation(&identity, request.installation_id.as_str())?;
+    ensure_installation_effect_active(&state, &request.installation_id).await?;
     require_identity_target(&identity, "local")?;
     validate_host_build_deploy_request(&request).map_err(redacted_build_deploy_error)?;
     state
         .build_jobs
-        .ensure_route_available_for_project(&request.route_id, &request.project_id)
+        .ensure_route_available_for_installation(&request.route_id, &request.installation_id)
         .map_err(|error| ServiceError::with_status(StatusCode::CONFLICT, error.to_string()))?;
     let created = state
         .build_jobs
@@ -3491,7 +3650,7 @@ where
     let status = state.build_jobs.status(&job_id).ok_or_else(|| {
         ServiceError::with_status(StatusCode::NOT_FOUND, "build-deploy job not found")
     })?;
-    require_identity_project(&identity, status.project_id.as_str())?;
+    require_identity_installation(&identity, status.installation_id.as_str())?;
     Ok(Json(status))
 }
 
@@ -3506,7 +3665,7 @@ where
     let status = state.build_jobs.status(&job_id).ok_or_else(|| {
         ServiceError::with_status(StatusCode::NOT_FOUND, "build-deploy job not found")
     })?;
-    require_identity_project(&identity, status.project_id.as_str())?;
+    require_identity_installation(&identity, status.installation_id.as_str())?;
     let (state_value, cancelled) = state.build_jobs.cancel(&job_id).ok_or_else(|| {
         ServiceError::with_status(StatusCode::NOT_FOUND, "build-deploy job not found")
     })?;
@@ -3533,7 +3692,7 @@ where
     let status = state.build_jobs.status(&job_id).ok_or_else(|| {
         ServiceError::with_status(StatusCode::NOT_FOUND, "build-deploy job not found")
     })?;
-    require_identity_project(&identity, status.project_id.as_str())?;
+    require_identity_installation(&identity, status.installation_id.as_str())?;
     let replay = state.build_jobs.events(&job_id).ok_or_else(|| {
         ServiceError::with_status(StatusCode::NOT_FOUND, "build-deploy job not found")
     })?;
@@ -3595,12 +3754,12 @@ async fn run_build_deploy_job<S>(
     S: EventStore,
 {
     let _permit = permit;
-    let _project_guard = BuildDeployProjectGuard {
+    let _installation_guard = BuildDeployInstallationGuard {
         registry: state.build_jobs.clone(),
-        project_id: request.project_id.clone(),
+        installation_id: request.installation_id.clone(),
     };
     let revision_request = request.clone();
-    let result = build_deploy_project_minimal_with_job(&state, &job_id, request).await;
+    let result = build_deploy_installation_minimal_with_job(&state, &job_id, request).await;
     match result {
         Ok(outcome) => {
             let mut result = outcome.response;
@@ -3720,7 +3879,8 @@ fn deployment_revision_from_build(
             now_millis(),
             &uuid::Uuid::new_v4().simple().to_string()[..12]
         ),
-        project_id: request.project_id.clone(),
+        installation_id: request.installation_id.clone(),
+        workspace_id: result.workspace_id.clone(),
         job_id: Some(job_id.to_string()),
         operation: DeploymentOperation::BuildDeploy,
         parent_revision_id,
@@ -3754,14 +3914,14 @@ fn deployment_revision_from_build(
     }
 }
 
-pub async fn build_deploy_project_minimal<S>(
+pub async fn build_deploy_installation_minimal<S>(
     state: &AppState<S>,
     request: HostBuildDeployRequest,
 ) -> anyhow::Result<HostBuildDeployResponse>
 where
     S: EventStore,
 {
-    let mut outcome = build_deploy_project_minimal_inner(state, None, request).await?;
+    let mut outcome = build_deploy_installation_minimal_inner(state, None, request).await?;
     if let Some(previous) = outcome.previous_revision.as_ref() {
         let route_id = outcome.response.route_id.clone();
         let warnings = drain_previous_revision(state, previous, &route_id).await;
@@ -3770,7 +3930,7 @@ where
     Ok(outcome.response)
 }
 
-async fn build_deploy_project_minimal_with_job<S>(
+async fn build_deploy_installation_minimal_with_job<S>(
     state: &AppState<S>,
     job_id: &str,
     request: HostBuildDeployRequest,
@@ -3778,10 +3938,10 @@ async fn build_deploy_project_minimal_with_job<S>(
 where
     S: EventStore,
 {
-    build_deploy_project_minimal_inner(state, Some(job_id), request).await
+    build_deploy_installation_minimal_inner(state, Some(job_id), request).await
 }
 
-async fn build_deploy_project_minimal_inner<S>(
+async fn build_deploy_installation_minimal_inner<S>(
     state: &AppState<S>,
     job_id: Option<&str>,
     request: HostBuildDeployRequest,
@@ -3789,11 +3949,14 @@ async fn build_deploy_project_minimal_inner<S>(
 where
     S: EventStore,
 {
+    ensure_installation_effect_active(state, &request.installation_id)
+        .await
+        .map_err(|error| error.error)?;
     validate_host_build_deploy_request(&request)?;
     state
         .build_jobs
-        .ensure_route_available_for_project(&request.route_id, &request.project_id)?;
-    let previous_revision = state.build_jobs.active_revision(&request.project_id);
+        .ensure_route_available_for_installation(&request.route_id, &request.installation_id)?;
+    let previous_revision = state.build_jobs.active_revision(&request.installation_id);
     check_job_cancel(state, job_id)?;
     job_transition(
         state,
@@ -3802,24 +3965,45 @@ where
         "cloning source",
     )
     .await;
+    let workspace_id = WorkspaceId::new();
     let clone_context = build_job_effect_context(
         state,
         job_id,
-        &request.project_id,
+        &request.installation_id,
         "host_build_deploy_clone",
     )
-    .await?;
-    let clone = clone_project_workspace_from_git_with_context(
+    .await?
+    .with_host_operation(
+        "deploy",
+        vec![
+            ProtocolResourceSelector {
+                owner: "host".to_string(),
+                kind: "installation".to_string(),
+                id: Some(request.installation_id.to_string()),
+            },
+            ProtocolResourceSelector {
+                owner: "host".to_string(),
+                kind: "workspace".to_string(),
+                id: Some(workspace_id.to_string()),
+            },
+            ProtocolResourceSelector {
+                owner: "host".to_string(),
+                kind: "target".to_string(),
+                id: Some("local".to_string()),
+            },
+        ],
+    );
+    let clone = clone_workspace_from_git_with_context(
         state,
-        ProjectWorkspaceCloneRequest {
-            project_id: request.project_id.clone(),
+        WorkspaceCloneRequest {
+            workspace_id: workspace_id.clone(),
             source_url: request.source_url.clone(),
             ref_name: request.ref_name.clone(),
         },
         &clone_context,
     )
     .await
-    .context("project workspace clone failed")?;
+    .context("workspace clone failed")?;
     check_job_cancel(state, job_id)?;
 
     let source_commit = request
@@ -3863,7 +4047,6 @@ where
             approved: true,
         })
         .collect::<Vec<_>>();
-    let workspace_dir = plurora_core::paths::project_workspace_dir(&request.project_id)?;
     job_transition(
         state,
         job_id,
@@ -3874,10 +4057,30 @@ where
     let context = build_job_effect_context(
         state,
         job_id,
-        &request.project_id,
+        &request.installation_id,
         "host_build_deploy_image_build",
     )
-    .await?;
+    .await?
+    .with_host_operation(
+        "deploy",
+        vec![
+            ProtocolResourceSelector {
+                owner: "host".to_string(),
+                kind: "installation".to_string(),
+                id: Some(request.installation_id.to_string()),
+            },
+            ProtocolResourceSelector {
+                owner: "host".to_string(),
+                kind: "workspace".to_string(),
+                id: Some(workspace_id.to_string()),
+            },
+            ProtocolResourceSelector {
+                owner: "host".to_string(),
+                kind: "target".to_string(),
+                id: Some("local".to_string()),
+            },
+        ],
+    );
     let build_output = invoke_docker_runtime_lab(
         state,
         &context,
@@ -3885,9 +4088,9 @@ where
         serde_json::json!({
             "approved": true,
             "strategy": strategy,
-            "project_id": request.project_id.as_str(),
+            "installation_id": request.installation_id.as_str(),
+            "workspace_id": workspace_id.as_str(),
             "build_id": build_id,
-            "context_dir": workspace_dir.to_string_lossy(),
             "dockerfile": dockerfile,
             "source_commit": source_commit,
             "build_descriptor_hash": build_descriptor_hash,
@@ -3923,6 +4126,7 @@ where
 
     Ok(BuildDeployOutcome {
         response: HostBuildDeployResponse {
+            workspace_id: workspace_id.clone(),
             route_id: deploy.route_id,
             public_url: deploy.public_url,
             route_access: deploy.route_access,
@@ -3974,14 +4178,14 @@ async fn job_transition<S>(
     }
 }
 
-async fn project_deployments<S>(
+async fn installation_deployments<S>(
     State(state): State<AppState<S>>,
-    Path(project_id): Path<ProjectId>,
-) -> Json<ProjectDeploymentsResponse>
+    Path(installation_id): Path<InstallationId>,
+) -> Json<InstallationDeploymentsResponse>
 where
     S: EventStore,
 {
-    let active_revision = state.build_jobs.active_revision(&project_id);
+    let active_revision = state.build_jobs.active_revision(&installation_id);
     let runtime_ready = match active_revision.as_ref() {
         Some(revision) => state
             .runtime
@@ -3992,35 +4196,36 @@ where
             .is_some_and(|route| route.status == ProxyRouteStatusKind::Active && route.ready),
         None => false,
     };
-    Json(ProjectDeploymentsResponse {
-        project_id: project_id.clone(),
+    Json(InstallationDeploymentsResponse {
+        installation_id: installation_id.clone(),
         active_revision_id: active_revision
             .as_ref()
             .map(|revision| revision.revision_id.clone()),
         recovery_required: active_revision.is_some() && !runtime_ready,
         runtime_ready,
         active_revision,
-        jobs: state.build_jobs.jobs_for_project(&project_id),
-        revisions: state.build_jobs.revisions(&project_id),
+        jobs: state.build_jobs.jobs_for_installation(&installation_id),
+        revisions: state.build_jobs.revisions(&installation_id),
     })
 }
 
-async fn recover_project_deployment<S>(
+async fn recover_installation_deployment<S>(
     State(state): State<AppState<S>>,
     Extension(identity): Extension<HostAccessIdentity>,
-    Path(project_id): Path<ProjectId>,
+    Path(installation_id): Path<InstallationId>,
 ) -> anyhow::Result<Json<DeploymentActionResponse>, ServiceError>
 where
     S: EventStore,
 {
-    require_identity_project(&identity, project_id.as_str())?;
+    require_identity_installation(&identity, installation_id.as_str())?;
+    ensure_installation_effect_active(&state, &installation_id).await?;
     let expected_active = state
         .build_jobs
-        .active_revision(&project_id)
+        .active_revision(&installation_id)
         .ok_or_else(|| {
             ServiceError::with_status(
                 StatusCode::NOT_FOUND,
-                "project has no active deployment revision to recover",
+                "installation has no active deployment revision to recover",
             )
         })?;
     require_identity_target(&identity, &expected_active.target_id)?;
@@ -4031,17 +4236,17 @@ where
     );
     let permit = state
         .build_jobs
-        .acquire_project_operation(&project_id)
+        .acquire_installation_operation(&installation_id)
         .await
         .map_err(|error| ServiceError::with_status(StatusCode::CONFLICT, error.to_string()))?;
     let result = async {
         let active = state
             .build_jobs
-            .active_revision(&project_id)
+            .active_revision(&installation_id)
             .ok_or_else(|| {
                 ServiceError::with_status(
                     StatusCode::NOT_FOUND,
-                    "project has no active deployment revision to recover",
+                    "installation has no active deployment revision to recover",
                 )
             })?;
         if active.target_id != authority.target_id {
@@ -4074,28 +4279,29 @@ where
         .map(Json)
     }
     .await;
-    state.build_jobs.release_project(&project_id);
+    state.build_jobs.release_installation(&installation_id);
     drop(permit);
     result
 }
 
-async fn rollback_project_deployment<S>(
+async fn rollback_installation_deployment<S>(
     State(state): State<AppState<S>>,
     Extension(identity): Extension<HostAccessIdentity>,
-    Path(project_id): Path<ProjectId>,
+    Path(installation_id): Path<InstallationId>,
     Json(request): Json<DeploymentRollbackRequest>,
 ) -> anyhow::Result<Json<DeploymentActionResponse>, ServiceError>
 where
     S: EventStore,
 {
-    require_identity_project(&identity, project_id.as_str())?;
+    require_identity_installation(&identity, installation_id.as_str())?;
+    ensure_installation_effect_active(&state, &installation_id).await?;
     let expected_target = state
         .build_jobs
-        .revision(&project_id, request.revision_id.trim())
+        .revision(&installation_id, request.revision_id.trim())
         .ok_or_else(|| {
             ServiceError::with_status(
                 StatusCode::NOT_FOUND,
-                "deployment revision was not found for this project",
+                "deployment revision was not found for this installation",
             )
         })?;
     require_identity_target(&identity, &expected_target.target_id)?;
@@ -4106,18 +4312,18 @@ where
     );
     let permit = state
         .build_jobs
-        .acquire_project_operation(&project_id)
+        .acquire_installation_operation(&installation_id)
         .await
         .map_err(|error| ServiceError::with_status(StatusCode::CONFLICT, error.to_string()))?;
     let result = async {
-        let active = state.build_jobs.active_revision(&project_id);
+        let active = state.build_jobs.active_revision(&installation_id);
         let target = state
             .build_jobs
-            .revision(&project_id, request.revision_id.trim())
+            .revision(&installation_id, request.revision_id.trim())
             .ok_or_else(|| {
                 ServiceError::with_status(
                     StatusCode::NOT_FOUND,
-                    "deployment revision was not found for this project",
+                    "deployment revision was not found for this installation",
                 )
             })?;
         if target.target_id != authority.target_id {
@@ -4146,7 +4352,7 @@ where
         .map(Json)
     }
     .await;
-    state.build_jobs.release_project(&project_id);
+    state.build_jobs.release_installation(&installation_id);
     drop(permit);
     result
 }
@@ -4185,7 +4391,7 @@ where
     deployment_effect_context(
         state,
         Some(authority),
-        &target.project_id,
+        &target.installation_id,
         "host_deployment_replay_prepare",
     )
     .await
@@ -4208,6 +4414,7 @@ where
     .await
     .map_err(redacted_build_deploy_error)?;
     let receipt = HostBuildDeployResponse {
+        workspace_id: target.workspace_id.clone(),
         route_id: deploy.route_id,
         public_url: deploy.public_url,
         route_access: deploy.route_access,
@@ -4262,7 +4469,7 @@ where
 
 fn build_replay_request(revision: &DeploymentRevision) -> HostBuildDeployRequest {
     HostBuildDeployRequest {
-        project_id: revision.project_id.clone(),
+        installation_id: revision.installation_id.clone(),
         source_url: revision.source_url.clone(),
         ref_name: revision.ref_name.clone(),
         strategy: Some(revision.strategy.clone()),
@@ -4301,7 +4508,8 @@ fn deployment_revision_from_replay(
             now_millis(),
             &uuid::Uuid::new_v4().simple().to_string()[..12]
         ),
-        project_id: target.project_id.clone(),
+        installation_id: target.installation_id.clone(),
+        workspace_id: target.workspace_id.clone(),
         job_id: None,
         operation,
         parent_revision_id: previous.map(|revision| revision.revision_id.clone()),
@@ -4340,7 +4548,7 @@ struct DeploymentCleanupResult {
     safe_to_redeploy: bool,
 }
 
-async fn stop_project_deployment<S>(
+async fn stop_installation_deployment<S>(
     State(state): State<AppState<S>>,
     Extension(identity): Extension<HostAccessIdentity>,
     Json(request): Json<HostDeployStopRequest>,
@@ -4350,15 +4558,15 @@ where
 {
     let route_id = request.route_id.trim().to_string();
     let active = state.build_jobs.active_by_route(&route_id);
-    let route_project = state.build_jobs.project_for_route(&route_id);
-    if let Some(project_id) = route_project.as_ref() {
-        require_identity_project(&identity, project_id.as_str())?;
+    let route_installation = state.build_jobs.installation_for_route(&route_id);
+    if let Some(installation_id) = route_installation.as_ref() {
+        require_identity_installation(&identity, installation_id.as_str())?;
     } else if identity.kind == HostAccessIdentityKind::Device
-        && !identity.allows_all(HostAccessResourceKind::Project)
+        && !identity.allows_all(HostAccessResourceKind::Installation)
     {
         return Err(ServiceError::with_status(
             StatusCode::FORBIDDEN,
-            "project-scoped devices cannot stop an unowned deployment route",
+            "installation-scoped devices cannot stop an unowned deployment route",
         ));
     }
     development::verify_host_control_plane_lease_if_installed(
@@ -4366,31 +4574,36 @@ where
         state.development.as_ref(),
     )
     .await?;
-    let _project_operation = if let Some(project_id) = route_project.as_ref() {
+    let _installation_operation = if let Some(installation_id) = route_installation.as_ref() {
         let permit = state
             .build_jobs
-            .acquire_project_operation(project_id)
+            .acquire_installation_operation(installation_id)
             .await
             .map_err(|error| ServiceError::with_status(StatusCode::CONFLICT, error.to_string()))?;
         Some((
             permit,
-            BuildDeployProjectGuard {
+            BuildDeployInstallationGuard {
                 registry: state.build_jobs.clone(),
-                project_id: project_id.clone(),
+                installation_id: installation_id.clone(),
             },
         ))
     } else {
         None
     };
-    let context = match route_project.as_ref() {
-        Some(project_id) => {
+    let context = match route_installation.as_ref() {
+        Some(installation_id) => {
             let authority = DeploymentAuthorityLease::from_identity(
                 format!("dop-{}", uuid::Uuid::new_v4().simple()),
                 "local",
                 &identity,
             );
-            deployment_effect_context(&state, Some(&authority), project_id, "host_deploy_stop")
-                .await?
+            deployment_effect_context(
+                &state,
+                Some(&authority),
+                installation_id,
+                "host_deploy_stop",
+            )
+            .await?
         }
         None => identity
             .protocol_context("host_deploy_stop")
@@ -4403,11 +4616,11 @@ where
                 }],
             ),
     };
-    let mut cleanup = stop_project_deployment_inner(&state, &route_id, &context).await;
+    let mut cleanup = stop_installation_deployment_inner(&state, &route_id, &context).await;
     if cleanup.safe_to_redeploy {
         if let Some(revision) = active {
             let deactivation = DeploymentRevisionDeactivated {
-                project_id: revision.project_id,
+                installation_id: revision.installation_id,
                 revision_id: revision.revision_id,
                 route_id: revision.route_id,
                 reason: "explicit_stop".to_string(),
@@ -4420,10 +4633,10 @@ where
                     &error,
                 )),
             }
-        } else if let Some(project_id) = route_project {
+        } else if let Some(installation_id) = route_installation {
             let release = DeploymentDirectRouteReleased {
                 route_id: route_id.clone(),
-                project_id,
+                installation_id,
                 timestamp_ms: now_millis(),
             };
             if let Err(error) = persist_direct_route_release(&state, &release).await {
@@ -4437,7 +4650,7 @@ where
     Ok(Json(cleanup.response))
 }
 
-async fn stop_project_deployment_inner<S>(
+async fn stop_installation_deployment_inner<S>(
     state: &AppState<S>,
     route_id: &str,
     context: &ProtocolContext,
@@ -4627,8 +4840,8 @@ async fn start_build_deploy_container(
             request.port_lease_id.to_string(),
         ),
         (
-            "plurora.project_id".to_string(),
-            request.project_id.to_string(),
+            "plurora.installation_id".to_string(),
+            request.installation_id.to_string(),
         ),
         ("plurora.build_id".to_string(), request.build_id.to_string()),
         (
@@ -4717,7 +4930,7 @@ where
         state,
         job_id,
         authority,
-        &request.project_id,
+        &request.installation_id,
         "host_build_deploy_port_lease",
     )
     .await?;
@@ -4756,7 +4969,7 @@ where
         state,
         job_id,
         authority,
-        &request.project_id,
+        &request.installation_id,
         "host_build_deploy_candidate_start",
     )
     .await
@@ -4778,7 +4991,7 @@ where
         host_port: lease_port,
         route_id: &request.route_id,
         port_lease_id: &lease_id,
-        project_id: request.project_id.as_str(),
+        installation_id: request.installation_id.as_str(),
         build_id,
         source_commit,
         operation_id: &operation_id,
@@ -4864,7 +5077,7 @@ where
         state,
         job_id,
         authority,
-        &request.project_id,
+        &request.installation_id,
         "host_build_deploy_route_activation",
     )
     .await
@@ -5142,29 +5355,29 @@ where
     value_field(value, "output", "capability.invoke")
 }
 
-pub async fn clone_project_workspace_from_git<S>(
+pub async fn clone_workspace_from_git<S>(
     state: &AppState<S>,
-    request: ProjectWorkspaceCloneRequest,
-) -> anyhow::Result<ProjectWorkspaceCloneResult>
+    request: WorkspaceCloneRequest,
+) -> anyhow::Result<WorkspaceCloneResult>
 where
     S: EventStore,
 {
-    let context = ProtocolContext::host_dev("project_workspace_clone");
-    clone_project_workspace_from_git_with_context(state, request, &context).await
+    let context = ProtocolContext::host_dev("workspace_clone");
+    clone_workspace_from_git_with_context(state, request, &context).await
 }
 
-async fn clone_project_workspace_from_git_with_context<S>(
+async fn clone_workspace_from_git_with_context<S>(
     state: &AppState<S>,
-    request: ProjectWorkspaceCloneRequest,
+    request: WorkspaceCloneRequest,
     context: &ProtocolContext,
-) -> anyhow::Result<ProjectWorkspaceCloneResult>
+) -> anyhow::Result<WorkspaceCloneResult>
 where
     S: EventStore,
 {
     validate_workspace_clone_url(&request.source_url)?;
     validate_workspace_clone_ref(&request.ref_name)?;
-    let owned_project_dir = canonical_workspace_project_root(&request.project_id, None)?;
-    let invocation = build_project_workspace_clone_invocation(&request, None)?;
+    let owned_workspace_root = create_workspace_root(&request.workspace_id, None)?;
+    let invocation = build_workspace_clone_invocation(&request, None)?;
 
     let resolved = invoke_git_tools_lab(
         state,
@@ -5179,7 +5392,7 @@ where
     validate_workspace_clone_ref(&resolved_ref_name)?;
 
     remove_owned_workspace_child_if_exists(
-        &owned_project_dir,
+        &owned_workspace_root,
         &invocation.staging_dir,
         "workspace staging directory",
     )?;
@@ -5196,7 +5409,7 @@ where
         .await?;
         validate_workspace_staging_containment(&invocation.workspace_dir, &invocation.staging_dir)?;
         replace_workspace_from_staging(
-            &owned_project_dir,
+            &owned_workspace_root,
             &invocation.workspace_dir,
             &invocation.staging_dir,
         )?;
@@ -5206,7 +5419,7 @@ where
 
     if fetch_result.is_err() {
         remove_owned_workspace_child_if_exists(
-            &owned_project_dir,
+            &owned_workspace_root,
             &invocation.staging_dir,
             "workspace staging directory",
         )
@@ -5214,17 +5427,51 @@ where
     }
     let output = fetch_result?;
 
-    Ok(ProjectWorkspaceCloneResult {
-        project_id: request.project_id,
+    let tree_hash = required_string(&output, "tree_hash", "git fetch_tree")?;
+    let record = serde_json::json!({
+        "schema": "plurora.workspace-record.v1",
+        "workspace_id": request.workspace_id.clone(),
+        "ownership": "managed",
+        "source_kind": "git",
+        "source_locator": request.source_url.clone(),
+        "source_ref": commit_sha.clone(),
+        "source_digest": tree_hash.clone(),
+        "display_name": "Git workspace",
+    });
+    write_workspace_record_atomic(
+        &owned_workspace_root.join("workspace.json"),
+        &serde_json::to_vec_pretty(&record)?,
+    )?;
+
+    Ok(WorkspaceCloneResult {
+        workspace_id: request.workspace_id,
         ref_name: resolved_ref_name,
         commit_sha,
-        tree_hash: output
-            .get("tree_hash")
-            .and_then(Value::as_str)
-            .map(str::to_string),
+        tree_hash: Some(tree_hash),
         files_written: output.get("files_written").and_then(Value::as_u64),
         total_bytes: output.get("total_bytes").and_then(Value::as_u64),
     })
+}
+
+fn write_workspace_record_atomic(path: &FsPath, bytes: &[u8]) -> anyhow::Result<()> {
+    let parent = path
+        .parent()
+        .ok_or_else(|| anyhow::anyhow!("workspace record has no parent"))?;
+    let parent = std::fs::canonicalize(parent)?;
+    anyhow::ensure!(
+        path.parent() == Some(parent.as_path()),
+        "workspace record escaped its canonical root"
+    );
+    let mut temporary = tempfile::NamedTempFile::new_in(&parent)?;
+    temporary.write_all(bytes)?;
+    temporary.as_file_mut().flush()?;
+    temporary.as_file().sync_all()?;
+    temporary
+        .persist_noclobber(path)
+        .map_err(|error| anyhow::anyhow!("failed to persist workspace record: {}", error.error))?;
+    #[cfg(unix)]
+    std::fs::File::open(parent)?.sync_all()?;
+    Ok(())
 }
 
 async fn invoke_git_tools_lab<S>(
@@ -5250,21 +5497,21 @@ where
     value_field(value, "output", "capability.invoke")
 }
 
-fn build_project_workspace_clone_invocation(
-    request: &ProjectWorkspaceCloneRequest,
+fn build_workspace_clone_invocation(
+    request: &WorkspaceCloneRequest,
     data_dir_override: Option<&FsPath>,
 ) -> anyhow::Result<GitFetchTreeInvocation> {
     validate_workspace_clone_url(&request.source_url)?;
     validate_workspace_clone_ref(&request.ref_name)?;
-    let workspace_dir = match data_dir_override {
-        Some(data_dir) => {
-            plurora_core::paths::project_workspace_dir_in(data_dir, &request.project_id)
-        }
-        None => plurora_core::paths::project_workspace_dir(&request.project_id)?,
+    let workspaces = match data_dir_override {
+        Some(data_dir) => data_dir.join("workspaces"),
+        None => plurora_core::paths::workspaces_dir()?,
     };
-    validate_workspace_destination(&request.project_id, data_dir_override, &workspace_dir)?;
-    let staging_dir = workspace_dir.with_file_name("workspace.staging");
-    validate_workspace_destination(&request.project_id, data_dir_override, &staging_dir)?;
+    let workspace_root = workspaces.join(request.workspace_id.as_str());
+    let workspace_dir = workspace_root.join("source");
+    validate_workspace_destination(&request.workspace_id, data_dir_override, &workspace_dir)?;
+    let staging_dir = workspace_root.join("source.staging");
+    validate_workspace_destination(&request.workspace_id, data_dir_override, &staging_dir)?;
     Ok(GitFetchTreeInvocation {
         resolve_ref_params: serde_json::json!({
             "remote_url": request.source_url,
@@ -5327,7 +5574,7 @@ fn validate_git_commit_sha(commit_sha: &str) -> anyhow::Result<()> {
 }
 
 fn validate_workspace_destination(
-    project_id: &ProjectId,
+    workspace_id: &WorkspaceId,
     data_dir_override: Option<&FsPath>,
     candidate: &FsPath,
 ) -> anyhow::Result<()> {
@@ -5337,18 +5584,51 @@ fn validate_workspace_destination(
     {
         anyhow::bail!("workspace path must not contain parent components");
     }
-    let project_dir = match data_dir_override {
-        Some(data_dir) => data_dir.join("projects").join(project_id.as_str()),
-        None => plurora_core::paths::project_dir(project_id)?,
+    let workspace_root = match data_dir_override {
+        Some(data_dir) => data_dir.join("workspaces").join(workspace_id.as_str()),
+        None => plurora_core::paths::workspaces_dir()?.join(workspace_id.as_str()),
     };
-    if !candidate.starts_with(&project_dir) {
-        anyhow::bail!("workspace path escaped project directory");
+    if candidate.parent() != Some(workspace_root.as_path()) {
+        anyhow::bail!("workspace path escaped its opaque Workspace root");
     }
     Ok(())
 }
 
-fn canonical_workspace_project_root(
-    project_id: &ProjectId,
+fn create_workspace_root(
+    workspace_id: &WorkspaceId,
+    data_dir_override: Option<&FsPath>,
+) -> anyhow::Result<PathBuf> {
+    let data_dir = match data_dir_override {
+        Some(data_dir) => data_dir.to_path_buf(),
+        None => plurora_core::paths::data_dir()?,
+    };
+    let data_dir =
+        std::fs::canonicalize(data_dir).context("failed to canonicalize data directory")?;
+    let workspaces = data_dir.join("workspaces");
+    let metadata =
+        std::fs::symlink_metadata(&workspaces).context("workspaces root is unavailable")?;
+    anyhow::ensure!(
+        metadata.is_dir() && !metadata.file_type().is_symlink(),
+        "workspaces root must be a real directory"
+    );
+    let workspaces = std::fs::canonicalize(workspaces)?;
+    anyhow::ensure!(
+        workspaces.parent() == Some(data_dir.as_path()),
+        "workspaces root escaped the data directory"
+    );
+    let workspace = workspaces.join(workspace_id.as_str());
+    match std::fs::symlink_metadata(&workspace) {
+        Ok(_) => anyhow::bail!("Workspace already exists"),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+            std::fs::create_dir(&workspace).context("failed to create Workspace root")?;
+        }
+        Err(error) => return Err(error.into()),
+    }
+    canonical_workspace_root(workspace_id, Some(&data_dir))
+}
+
+fn canonical_workspace_root(
+    workspace_id: &WorkspaceId,
     data_dir_override: Option<&FsPath>,
 ) -> anyhow::Result<PathBuf> {
     let data_dir = match data_dir_override {
@@ -5361,11 +5641,11 @@ fn canonical_workspace_project_root(
             data_dir.display()
         )
     })?;
-    let projects = data_dir.join("projects");
-    let project = projects.join(project_id.as_str());
+    let workspaces = data_dir.join("workspaces");
+    let workspace = workspaces.join(workspace_id.as_str());
     for (path, label) in [
-        (&projects, "projects root"),
-        (&project, "deployment project root"),
+        (&workspaces, "workspaces root"),
+        (&workspace, "workspace root"),
     ] {
         let metadata = std::fs::symlink_metadata(path)
             .with_context(|| format!("{label} is unavailable: {}", path.display()))?;
@@ -5373,31 +5653,28 @@ fn canonical_workspace_project_root(
             anyhow::bail!("{label} must be a real directory: {}", path.display());
         }
     }
-    let projects = std::fs::canonicalize(&projects)?;
-    let project = std::fs::canonicalize(&project)?;
-    if projects.parent() != Some(data_dir.as_path())
-        || project.parent() != Some(projects.as_path())
-        || project.file_name().and_then(|name| name.to_str()) != Some(project_id.as_str())
+    let workspaces = std::fs::canonicalize(&workspaces)?;
+    let workspace = std::fs::canonicalize(&workspace)?;
+    if workspaces.parent() != Some(data_dir.as_path())
+        || workspace.parent() != Some(workspaces.as_path())
+        || workspace.file_name().and_then(|name| name.to_str()) != Some(workspace_id.as_str())
     {
-        anyhow::bail!(
-            "deployment project root escaped the canonical data directory: {}",
-            project.display()
-        );
+        anyhow::bail!("Workspace root escaped the canonical data directory");
     }
-    Ok(project)
+    Ok(workspace)
 }
 
 fn validate_owned_workspace_child(
-    project_dir: &FsPath,
+    installation_dir: &FsPath,
     child: &FsPath,
     label: &str,
 ) -> anyhow::Result<bool> {
     let child_parent = child
         .parent()
-        .ok_or_else(|| anyhow::anyhow!("{label} has no project parent"))?;
+        .ok_or_else(|| anyhow::anyhow!("{label} has no installation parent"))?;
     let child_parent = std::fs::canonicalize(child_parent)?;
-    if child_parent != project_dir {
-        anyhow::bail!("{label} escaped the deployment project root");
+    if child_parent != installation_dir {
+        anyhow::bail!("{label} escaped the deployment installation root");
     }
     let metadata = match std::fs::symlink_metadata(child) {
         Ok(metadata) => metadata,
@@ -5408,18 +5685,18 @@ fn validate_owned_workspace_child(
         anyhow::bail!("{label} must be a real directory: {}", child.display());
     }
     let canonical = std::fs::canonicalize(child)?;
-    if canonical.parent() != Some(project_dir) {
-        anyhow::bail!("{label} escaped the deployment project root");
+    if canonical.parent() != Some(installation_dir) {
+        anyhow::bail!("{label} escaped the deployment installation root");
     }
     Ok(true)
 }
 
 fn remove_owned_workspace_child_if_exists(
-    project_dir: &FsPath,
+    installation_dir: &FsPath,
     child: &FsPath,
     label: &str,
 ) -> anyhow::Result<()> {
-    if validate_owned_workspace_child(project_dir, child, label)? {
+    if validate_owned_workspace_child(installation_dir, child, label)? {
         std::fs::remove_dir_all(child)
             .with_context(|| format!("failed to remove {label} {}", child.display()))?;
     }
@@ -5436,28 +5713,28 @@ fn validate_workspace_staging_containment(
             staging_dir.display()
         )
     })?;
-    let project_dir = workspace_dir
+    let installation_dir = workspace_dir
         .parent()
-        .ok_or_else(|| anyhow::anyhow!("workspace dir has no project parent"))?;
-    let project_dir = std::fs::canonicalize(project_dir).with_context(|| {
+        .ok_or_else(|| anyhow::anyhow!("workspace dir has no installation parent"))?;
+    let installation_dir = std::fs::canonicalize(installation_dir).with_context(|| {
         format!(
-            "failed to canonicalize project dir {}",
-            project_dir.display()
+            "failed to canonicalize installation dir {}",
+            installation_dir.display()
         )
     })?;
-    if !staging.starts_with(&project_dir) {
-        anyhow::bail!("workspace staging dir escaped project directory");
+    if !staging.starts_with(&installation_dir) {
+        anyhow::bail!("workspace staging dir escaped installation directory");
     }
     Ok(())
 }
 
 fn replace_workspace_from_staging(
-    owned_project_dir: &FsPath,
+    owned_installation_dir: &FsPath,
     workspace_dir: &FsPath,
     staging_dir: &FsPath,
 ) -> anyhow::Result<()> {
     if !validate_owned_workspace_child(
-        owned_project_dir,
+        owned_installation_dir,
         staging_dir,
         "workspace staging directory",
     )? {
@@ -5465,11 +5742,12 @@ fn replace_workspace_from_staging(
     }
     let backup_dir = workspace_dir.with_file_name("workspace.previous");
     remove_owned_workspace_child_if_exists(
-        owned_project_dir,
+        owned_installation_dir,
         &backup_dir,
         "workspace backup directory",
     )?;
-    if validate_owned_workspace_child(owned_project_dir, workspace_dir, "workspace directory")? {
+    if validate_owned_workspace_child(owned_installation_dir, workspace_dir, "workspace directory")?
+    {
         std::fs::rename(workspace_dir, &backup_dir).with_context(|| {
             format!(
                 "failed to move existing workspace {} to backup",
@@ -5485,7 +5763,7 @@ fn replace_workspace_from_staging(
     });
     if replace_result.is_err() {
         let backup_owned = validate_owned_workspace_child(
-            owned_project_dir,
+            owned_installation_dir,
             &backup_dir,
             "workspace backup directory",
         )
@@ -5498,7 +5776,7 @@ fn replace_workspace_from_staging(
         return replace_result;
     }
     if let Err(error) = remove_owned_workspace_child_if_exists(
-        owned_project_dir,
+        owned_installation_dir,
         &backup_dir,
         "workspace backup directory",
     ) {
@@ -5954,7 +6232,7 @@ fn validate_host_build_deploy_request(request: &HostBuildDeployRequest) -> anyho
     validate_runtime_env_specs(&request.runtime_env)?;
     validate_runtime_mount_specs(&request.runtime_mounts)?;
     validate_host_deploy_request(&HostDeployRequest {
-        project_id: Some(request.project_id.clone()),
+        installation_id: request.installation_id.clone(),
         image: "plurora/placeholder:build".to_string(),
         container_port: request.container_port,
         port_name: request.port_name.clone(),
@@ -6044,7 +6322,7 @@ where
         } else if let Some(secret_ref) = spec.secret_ref.as_deref() {
             let value = state
                 .runtime
-                .resolve_secret_ref_for_project(secret_ref, &request.project_id)
+                .resolve_secret_ref_for_installation(secret_ref, &request.installation_id)
                 .await
                 .map_err(|_| anyhow::anyhow!("runtime_env secret_ref could not be resolved"))?;
             if value.contains('\0') || value.len() > MAX_RUNTIME_ENV_VALUE_LEN {
@@ -6223,13 +6501,13 @@ fn short_path_hash(path: &FsPath) -> String {
 #[cfg(test)]
 fn should_remove_plurora_build_image(
     labels: &HashMap<String, String>,
-    project_id: &str,
+    installation_id: &str,
     build_id: &str,
 ) -> bool {
     labels.get("managed-by").is_some_and(|v| v == "plurora")
         && labels
-            .get("plurora.project_id")
-            .is_some_and(|v| v == project_id)
+            .get("plurora.installation_id")
+            .is_some_and(|v| v == installation_id)
         && labels
             .get("plurora.build_id")
             .is_some_and(|v| v == build_id)
@@ -6294,7 +6572,7 @@ fn generated_build_id(source_commit: &str) -> String {
 fn build_deploy_request_fingerprint(request: &HostBuildDeployRequest) -> String {
     let canonical = serde_json::json!({
         "version": 1,
-        "project_id": request.project_id.as_str(),
+        "installation_id": request.installation_id.as_str(),
         "source_url": request.source_url,
         "ref_name": request.ref_name,
         "strategy": request.strategy,
@@ -6341,7 +6619,7 @@ fn build_deploy_descriptor_hash(
     let canonical = serde_json::json!({
         "version": 1,
         "strategy": request.strategy.as_deref().unwrap_or("dockerfile"),
-        "project_id": request.project_id.as_str(),
+        "installation_id": request.installation_id.as_str(),
         "source_url": request.source_url,
         "ref_name": request.ref_name,
         "dockerfile": request.dockerfile.as_deref().unwrap_or("Dockerfile"),
@@ -6577,15 +6855,81 @@ fn surface_asset_lease_registry() -> &'static Mutex<HashMap<String, SurfaceAsset
 
 fn surface_asset_root(relative: &str) -> Option<String> {
     let path = relative.split('?').next()?;
-    let mut parts = path.split('/').filter(|part| !part.is_empty());
+    let mut parts = path.split('/');
     let prefix = parts.next()?;
-    if prefix == "projects" {
-        let project_id = parts.next()?;
-        plurora_core::project::ProjectId::new(project_id).ok()?;
-        Some(format!("projects/{project_id}"))
+    if prefix == "packages" {
+        let namespace = package_surface_segment(parts.next()?)?;
+        let name = package_surface_segment(parts.next()?)?;
+        Some(format!("packages/{namespace}/{name}"))
+    } else if prefix == "installations" {
+        let installation_id = InstallationId::parse(parts.next()?).ok()?;
+        Some(format!("installations/{installation_id}"))
     } else {
-        (!prefix.is_empty()).then(|| prefix.to_string())
+        package_surface_segment(prefix).map(str::to_string)
     }
+}
+
+async fn ensure_installation_exists<S>(
+    state: &AppState<S>,
+    installation_id: &InstallationId,
+) -> Result<(), ServiceError>
+where
+    S: EventStore,
+{
+    let exists = state
+        .installations
+        .get(installation_id)
+        .await
+        .map_err(|error| {
+            ServiceError::with_status(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                redacted_failure_message("installation lookup", &error),
+            )
+        })?
+        .is_some();
+    exists.then_some(()).ok_or_else(|| {
+        ServiceError::with_status(StatusCode::NOT_FOUND, "installation was not found")
+    })
+}
+
+async fn ensure_installation_effect_active<S>(
+    state: &AppState<S>,
+    installation_id: &InstallationId,
+) -> Result<(), ServiceError>
+where
+    S: EventStore,
+{
+    let view = state
+        .installations
+        .get(installation_id)
+        .await
+        .map_err(|error| {
+            ServiceError::with_status(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                redacted_failure_message("installation lookup", &error),
+            )
+        })?
+        .ok_or_else(|| {
+            ServiceError::with_status(StatusCode::NOT_FOUND, "installation was not found")
+        })?;
+    if view.record.status != InstallationStatus::Ready {
+        return Err(ServiceError::with_status(
+            StatusCode::CONFLICT,
+            "installation is not active for new effects",
+        ));
+    }
+    Ok(())
+}
+
+fn development_subject_from_host_path(path: &str) -> Option<(&str, &str)> {
+    let mut segments = path.strip_prefix("/host/v1/development/")?.split('/');
+    let kind = segments.next()?;
+    let id = segments.next()?;
+    (!id.is_empty()).then_some((kind, id))
+}
+
+fn package_surface_segment(value: &str) -> Option<&str> {
+    (!value.is_empty() && value != "." && value != ".." && !value.contains('\\')).then_some(value)
 }
 
 fn rewrite_surface_asset_url(
@@ -6793,15 +7137,20 @@ where
         let Some(identity) = request.extensions().get::<HostAccessIdentity>() else {
             return (StatusCode::UNAUTHORIZED, "missing Host access identity").into_response();
         };
-        if let Some(project_id) = state
-            .build_jobs
-            .project_for_route(&route_id)
-            .or_else(|| state.target_agents.project_for_operation_route(&route_id))
+        if let Some(installation_id) =
+            state
+                .build_jobs
+                .installation_for_route(&route_id)
+                .or_else(|| {
+                    state
+                        .target_agents
+                        .installation_for_operation_route(&route_id)
+                })
         {
-            if !identity.allows_project(project_id.as_str()) {
+            if !identity.allows_installation(installation_id.as_str()) {
                 return (
                     StatusCode::FORBIDDEN,
-                    "the Host access grant does not include this project route",
+                    "the Host access grant does not include this installation route",
                 )
                     .into_response();
             }
@@ -7707,11 +8056,11 @@ fn is_spa_fallback_path(path: &str) -> bool {
     path == "/"
         || path == "/pair"
         || path
-            .strip_prefix("/project/")
-            .is_some_and(is_valid_project_path_segment)
+            .strip_prefix("/installation/")
+            .is_some_and(is_valid_installation_path_segment)
 }
 
-fn is_valid_project_path_segment(segment: &str) -> bool {
+fn is_valid_installation_path_segment(segment: &str) -> bool {
     !segment.is_empty()
         && !segment.contains('/')
         && segment.len() <= 128
@@ -7815,10 +8164,10 @@ where
     S: EventStore,
 {
     let safe_file = safe_relative_path(file)?;
-    if prefix == "projects" {
+    if prefix == "packages" {
         let mut parts = safe_file.components();
-        let project_id = parts.next()?.as_os_str().to_str()?;
-        let project_id = plurora_core::project::ProjectId::new(project_id).ok()?;
+        let namespace = package_surface_segment(parts.next()?.as_os_str().to_str()?)?;
+        let name = package_surface_segment(parts.next()?.as_os_str().to_str()?)?;
         let mut rest = PathBuf::new();
         for part in parts {
             rest.push(part.as_os_str());
@@ -7826,7 +8175,13 @@ where
         if rest.as_os_str().is_empty() {
             return None;
         }
-        let root = recoverable_project_dist_dir(&project_id)?;
+        let package_id = format!("{namespace}/{name}");
+        let root = state
+            .runtime
+            .config()
+            .package_roots
+            .get(&package_id)?
+            .clone();
         let path = root.join(rest);
         return Some((root, path));
     }
@@ -7837,33 +8192,6 @@ where
     let root = PathBuf::from(base);
     let path = root.join(safe_file);
     Some((root, path))
-}
-
-fn recoverable_project_dist_dir(project_id: &plurora_core::project::ProjectId) -> Option<PathBuf> {
-    let project_dir = plurora_core::paths::project_dir(project_id).ok()?;
-    let dist = project_dir.join("dist");
-    if dist.is_dir() {
-        return Some(dist);
-    }
-    latest_dist_backup(&project_dir)
-}
-
-fn latest_dist_backup(project_dir: &FsPath) -> Option<PathBuf> {
-    let mut candidates = std::fs::read_dir(project_dir)
-        .ok()?
-        .filter_map(Result::ok)
-        .filter_map(|entry| {
-            let path = entry.path();
-            let name = path.file_name()?.to_str()?;
-            if !name.starts_with(".dist.bak-") || !path.is_dir() {
-                return None;
-            }
-            let modified = entry.metadata().and_then(|meta| meta.modified()).ok();
-            Some((modified, path))
-        })
-        .collect::<Vec<_>>();
-    candidates.sort_by_key(|(modified, _)| *modified);
-    candidates.pop().map(|(_, path)| path)
 }
 
 fn safe_relative_path(path: &str) -> Option<PathBuf> {
@@ -7933,7 +8261,23 @@ where
         .as_ref()
         .map(|resolved| resolved.contract.id.as_str())
         .unwrap_or(method.as_str());
-    let required_scope = required_host_scope_for_protocol_method(policy_method);
+    let (required_scope, operation_resources) = if policy_method == "object.put" {
+        match host_access::object_put_authorization(&params) {
+            Ok(authorization) => authorization,
+            Err(error) => {
+                return Json(ProtocolResponse {
+                    id,
+                    result: None,
+                    error: Some(error),
+                });
+            }
+        }
+    } else {
+        (
+            required_host_scope_for_protocol_method(policy_method),
+            host_operation_resources_for_protocol_method(policy_method, &params),
+        )
+    };
     if !identity.allows(required_scope) {
         return Json(ProtocolResponse {
             id,
@@ -7945,10 +8289,13 @@ where
             )),
         });
     }
-    let operation_resources = host_operation_resources_for_protocol_method(policy_method, &params);
-    let mut context = identity.protocol_context("http_rpc");
+    let mut context = identity
+        .protocol_context("http_rpc")
+        .with_verified_authority_expiry(identity.expires_at_ms);
     if identity.kind == HostAccessIdentityKind::Device && !operation_resources.is_empty() {
-        context = context.with_host_operation(required_scope.as_str(), operation_resources);
+        context = context
+            .with_host_operation(required_scope.as_str(), operation_resources)
+            .with_installation_authority_refresh(installation_authority_refresh(&state));
     }
     context.session_id = session_id;
     let result = state
@@ -7985,9 +8332,8 @@ fn required_host_scope_for_protocol_method(method: &str) -> HostAccessScope {
         | "host.package.list"
         | "host.package.status"
         | "host.package.describe"
-        | "host.project.list"
-        | "host.project.get"
-        | "host.project.status"
+        | "host.installation.list"
+        | "host.installation.get"
         | "host.target.list"
         | "host.target.status"
         | "host.exec.list"
@@ -8017,8 +8363,11 @@ fn required_host_scope_for_protocol_method(method: &str) -> HostAccessScope {
         | "object.get"
         | "object.list" => HostAccessScope::Observe,
 
-        "host.project.start" | "host.project.stop" | "context.open" | "context.close"
-        | "context.fork" => HostAccessScope::ProjectOperate,
+        "host.installation.create" | "host.installation.update" | "host.installation.remove" => {
+            HostAccessScope::InstallationManage
+        }
+
+        "context.open" | "context.close" | "context.fork" => HostAccessScope::Run,
 
         "host.target.register"
         | "host.target.unregister"
@@ -8044,16 +8393,31 @@ fn host_operation_resources_for_protocol_method(
 ) -> Vec<ProtocolResourceSelector> {
     if matches!(
         method,
-        "host.project.get" | "host.project.start" | "host.project.stop" | "host.project.status"
+        "host.installation.get" | "host.installation.update" | "host.installation.remove"
     ) {
-        return params
-            .get("project_id")
+        let resources = params
+            .get("installation_id")
             .and_then(Value::as_str)
-            .map(|project_id| {
+            .map(|installation_id| {
                 vec![ProtocolResourceSelector {
                     owner: "host".to_string(),
-                    kind: "project".to_string(),
-                    id: Some(project_id.to_string()),
+                    kind: "installation".to_string(),
+                    id: Some(installation_id.to_string()),
+                }]
+            })
+            .unwrap_or_default();
+        return resources;
+    }
+
+    if method == "host.installation.create" {
+        return params
+            .get("work_id")
+            .and_then(Value::as_str)
+            .map(|work_id| {
+                vec![ProtocolResourceSelector {
+                    owner: "host".to_string(),
+                    kind: "work".to_string(),
+                    id: Some(work_id.to_string()),
                 }]
             })
             .unwrap_or_default();
@@ -8139,10 +8503,15 @@ mod tests {
 
     use axum::body::{to_bytes, Body};
     use axum::http::{Request, StatusCode};
-    use plurora_core::project::{ProjectDescriptor, ProjectInner, ProjectType, SecretPolicy};
+    use plurora_runtime::ObjectStore as _;
     use plurora_runtime::{
-        ExecutionTargetId, PortLeaseRequest, PortProtocol, ProjectRegistry, ProxyProtocol,
-        ProxyRouteRegisterRequest, ProxyRouteUpstream,
+        ExecutionTargetId, InstallationCreateRequest, InstallationMutationResult,
+        InstallationStateAction, InstallationUpdateRequest, PortLeaseRequest, PortProtocol,
+        ProxyProtocol, ProxyRouteRegisterRequest, ProxyRouteUpstream,
+    };
+    use plurora_work::{
+        AcquisitionKind, AcquisitionRecord, ArtifactModel, AssemblyId, AssemblyLock,
+        AssemblyRevision, WorkId, WorkRevision,
     };
     use serde_json::json;
     use tokio::net::TcpStream;
@@ -8152,6 +8521,621 @@ mod tests {
     use tower::ServiceExt;
 
     use super::*;
+
+    fn test_runtime(
+        store: Arc<InMemoryEventStore>,
+        mut config: RuntimeConfig,
+    ) -> (Arc<Runtime<InMemoryEventStore>>, Arc<InstallationRegistry>) {
+        let objects = Arc::new(plurora_runtime::InMemoryObjectStore::default());
+        let installations = InstallationRegistry::ephemeral(store.clone(), objects.clone())
+            .expect("create test installation registry");
+        config.object_store = objects;
+        config.installation_control = installations.clone();
+        (Arc::new(Runtime::new(store, config)), installations)
+    }
+
+    async fn create_test_installation(
+        store: &Arc<InMemoryEventStore>,
+        registry: &Arc<InstallationRegistry>,
+        objects: &Arc<plurora_runtime::InMemoryObjectStore>,
+        suffix: &str,
+    ) -> anyhow::Result<InstallationId> {
+        async fn put_model<T: ArtifactModel>(
+            objects: &plurora_runtime::InMemoryObjectStore,
+            value: &T,
+        ) -> anyhow::Result<ArtifactDescriptor> {
+            let bytes = value.canonical_bytes()?;
+            let descriptor = value.artifact_descriptor()?;
+            let info = objects.put(bytes.into()).await?;
+            anyhow::ensure!(
+                info.digest == descriptor.digest && info.size_bytes == descriptor.size_bytes,
+                "test object descriptor did not match stored content"
+            );
+            Ok(descriptor)
+        }
+
+        let assembly = AssemblyRevision {
+            schema: AssemblyRevision::SCHEMA.to_string(),
+            assembly_id: AssemblyId::parse(&format!("tests/service-{suffix}"))?,
+            nodes: Vec::new(),
+            bindings: Vec::new(),
+            exposed_ports: Vec::new(),
+            state_slots: Vec::new(),
+            annotations: BTreeMap::new(),
+        };
+        let assembly = put_model(objects, &assembly).await?;
+        let work = WorkRevision {
+            schema: WorkRevision::SCHEMA.to_string(),
+            work_id: WorkId::parse(&format!("tests/service-{suffix}"))?,
+            title: format!("Service test {suffix}"),
+            description: String::new(),
+            assembly: assembly.clone(),
+            content_roots: Vec::new(),
+            entrypoints: Vec::new(),
+            rights: None,
+            transparency: None,
+            operational_intent: None,
+            annotations: BTreeMap::new(),
+        };
+        let lock = AssemblyLock {
+            schema: AssemblyLock::SCHEMA.to_string(),
+            assembly,
+            nodes: Vec::new(),
+            bindings: Vec::new(),
+            protocol_profiles: Vec::new(),
+            content_roots: Vec::new(),
+        };
+        let runtime = Runtime::new(
+            store.clone(),
+            RuntimeConfig {
+                object_store: objects.clone(),
+                installation_control: registry.clone(),
+                ..RuntimeConfig::default()
+            },
+        );
+        let result: plurora_runtime::InstallationMutationResult = serde_json::from_value(
+            runtime
+                .call_protocol(
+                    &ProtocolContext::host_dev("service-installation-fixture"),
+                    "host.installation.create",
+                    serde_json::to_value(plurora_runtime::InstallationCreateRequest {
+                        work_id: work.work_id.clone(),
+                        work_revision: put_model(objects, &work).await?,
+                        assembly_lock: put_model(objects, &lock).await?,
+                        display_name: format!("Installation {suffix}"),
+                        source: AcquisitionRecord {
+                            kind: AcquisitionKind::WorkBundle,
+                            source_ref: None,
+                            provenance_refs: Vec::new(),
+                            update_channel: None,
+                        },
+                        state_bindings: Vec::new(),
+                        secret_policy: Default::default(),
+                        idempotency_key: format!("service-test-{suffix}"),
+                        authority: None,
+                    })?,
+                )
+                .await
+                .map_err(|error| anyhow::anyhow!("{}: {}", error.code, error.message))?,
+        )?;
+        Ok(result.installation.record.installation_id)
+    }
+
+    async fn pair_test_device(
+        app: &Router,
+        root_token: &str,
+        scopes: Value,
+        resources: Value,
+    ) -> anyhow::Result<String> {
+        let pairing = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .method(Method::POST)
+                    .uri("/host/v1/access/pairings")
+                    .header(header::CONTENT_TYPE, "application/json")
+                    .header(header::AUTHORIZATION, format!("Bearer {root_token}"))
+                    .body(Body::from(
+                        json!({
+                            "device_name": "object.put test device",
+                            "scopes": scopes,
+                            "resources": resources,
+                            "pairing_ttl_secs": 60,
+                            "grant_ttl_secs": 7200
+                        })
+                        .to_string(),
+                    ))?,
+            )
+            .await?;
+        let pairing_status = pairing.status();
+        let pairing_bytes = to_bytes(pairing.into_body(), usize::MAX).await?;
+        anyhow::ensure!(
+            pairing_status == StatusCode::CREATED,
+            "pairing creation failed with {pairing_status}: {}",
+            String::from_utf8_lossy(&pairing_bytes)
+        );
+        let pairing_body: Value = serde_json::from_slice(&pairing_bytes)?;
+        let claim = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .method(Method::POST)
+                    .uri("/host/v1/access/pair")
+                    .header(header::CONTENT_TYPE, "application/json")
+                    .body(Body::from(
+                        json!({"pairing_token": pairing_body["pairing_token"]}).to_string(),
+                    ))?,
+            )
+            .await?;
+        assert_eq!(claim.status(), StatusCode::CREATED);
+        Ok(claim
+            .headers()
+            .get(header::SET_COOKIE)
+            .and_then(|value| value.to_str().ok())
+            .and_then(|cookie| {
+                cookie.strip_prefix(&format!("{}=", host_access::REMOTE_HOST_SESSION_COOKIE))
+            })
+            .and_then(|value| value.split(';').next())
+            .expect("device access token")
+            .to_string())
+    }
+
+    async fn test_rpc(
+        app: &Router,
+        token: &str,
+        method: &str,
+        params: Value,
+    ) -> anyhow::Result<Value> {
+        let response = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .method(Method::POST)
+                    .uri("/rpc")
+                    .header(header::CONTENT_TYPE, "application/json")
+                    .header(header::AUTHORIZATION, format!("Bearer {token}"))
+                    .body(Body::from(
+                        json!({"id": "test-rpc", "method": method, "params": params}).to_string(),
+                    ))?,
+            )
+            .await?;
+        assert_eq!(response.status(), StatusCode::OK);
+        Ok(serde_json::from_slice(
+            &to_bytes(response.into_body(), usize::MAX).await?,
+        )?)
+    }
+
+    #[tokio::test]
+    async fn http_object_put_uses_typed_exact_scope_without_asset_authority() -> anyhow::Result<()>
+    {
+        fn exact_params(scope: Value) -> Value {
+            let bytes = b"HTTP scoped exact artifact";
+            json!({
+                "mime": "application/octet-stream",
+                "content": bytes.iter().map(|byte| format!("{byte:02x}")).collect::<String>(),
+                "metadata": {},
+                "artifact": {
+                    "descriptor": {
+                        "artifact_type_uri": "urn:plurora:test-http-object:v1",
+                        "media_type": "application/octet-stream",
+                        "digest": plurora_runtime::sha256_digest(bytes),
+                        "size_bytes": bytes.len(),
+                        "references": [],
+                        "annotations": {}
+                    },
+                    "content_encoding": "hex",
+                    "scope": scope
+                }
+            })
+        }
+
+        let store = Arc::new(InMemoryEventStore::default());
+        let (runtime, installations) = test_runtime(store, RuntimeConfig::default());
+        let app = app_with_state(AppState {
+            runtime,
+            static_dir: None,
+            access_token: Some("object-root-token".to_string()),
+            app_base_domain: None,
+            build_jobs: build_deploy_job_registry(),
+            development: development_registry(),
+            host_access: host_access_registry(),
+            installations,
+            target_agents: target_agent_registry(),
+        });
+        let installation_id = InstallationId::new();
+        let work_id = WorkId::parse("tests/http-scoped-object")?;
+        let scoped_token = pair_test_device(
+            &app,
+            "object-root-token",
+            json!(["observe", "installation.manage"]),
+            json!([
+                {"kind": "work", "id": work_id},
+                {"kind": "installation", "id": installation_id}
+            ]),
+        )
+        .await?;
+
+        for scope in [
+            json!({"kind": "installation_create", "work_id": work_id}),
+            json!({
+                "kind": "installation_update",
+                "installation_id": installation_id,
+                "work_id": work_id
+            }),
+        ] {
+            let response = test_rpc(&app, &scoped_token, "object.put", exact_params(scope)).await?;
+            assert!(response["error"].is_null());
+            assert!(response["result"]["asset"].is_null());
+        }
+        for scope in [
+            json!({"kind": "installation_create", "work_id": "tests/other-work"}),
+            json!({
+                "kind": "installation_update",
+                "installation_id": InstallationId::new(),
+                "work_id": work_id
+            }),
+        ] {
+            let denied = test_rpc(&app, &scoped_token, "object.put", exact_params(scope)).await?;
+            assert_eq!(denied["error"]["code"], "runtime/error/permission_denied");
+        }
+        let missing_scope =
+            exact_params(json!({"kind": "installation_create", "work_id": work_id}));
+        let mut missing_scope = missing_scope;
+        missing_scope["artifact"]
+            .as_object_mut()
+            .expect("artifact object")
+            .remove("scope");
+        let denied = test_rpc(&app, &scoped_token, "object.put", missing_scope).await?;
+        assert_eq!(denied["error"]["code"], "runtime/error/invalid_request");
+        let ordinary = json!({"mime": "text/plain", "content": "ordinary Asset", "metadata": {}});
+        let denied = test_rpc(&app, &scoped_token, "object.put", ordinary.clone()).await?;
+        assert_eq!(denied["error"]["code"], "runtime/error/permission_denied");
+
+        let asset_token = pair_test_device(
+            &app,
+            "object-root-token",
+            json!(["observe", "access_manage"]),
+            json!([{"kind": "installation", "id": null}]),
+        )
+        .await?;
+        let uploaded = test_rpc(&app, &asset_token, "object.put", ordinary).await?;
+        assert!(uploaded["result"]["asset"]["id"].is_string());
+        let listed = test_rpc(&app, &asset_token, "object.list", json!({})).await?;
+        assert_eq!(listed["result"].as_array().map(Vec::len), Some(1));
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn http_installation_mutations_use_current_exact_durable_authority() -> anyhow::Result<()>
+    {
+        async fn put_model<T: ArtifactModel>(
+            objects: &plurora_runtime::InMemoryObjectStore,
+            value: &T,
+        ) -> anyhow::Result<ArtifactDescriptor> {
+            let bytes = value.canonical_bytes()?;
+            let descriptor = value.artifact_descriptor()?;
+            let info = objects.put(bytes.into()).await?;
+            anyhow::ensure!(
+                info.digest == descriptor.digest && info.size_bytes == descriptor.size_bytes,
+                "test object descriptor did not match canonical content"
+            );
+            Ok(descriptor)
+        }
+
+        async fn work_pair(
+            objects: &plurora_runtime::InMemoryObjectStore,
+            marker: &str,
+        ) -> anyhow::Result<(WorkId, ArtifactDescriptor, ArtifactDescriptor)> {
+            let assembly = AssemblyRevision {
+                schema: AssemblyRevision::SCHEMA.to_string(),
+                assembly_id: AssemblyId::parse(format!("tests/http-{marker}-assembly"))?,
+                nodes: Vec::new(),
+                bindings: Vec::new(),
+                exposed_ports: Vec::new(),
+                state_slots: Vec::new(),
+                annotations: BTreeMap::new(),
+            };
+            let assembly = put_model(objects, &assembly).await?;
+            let work_id = WorkId::parse(format!("tests/http-{marker}"))?;
+            let work = WorkRevision {
+                schema: WorkRevision::SCHEMA.to_string(),
+                work_id: work_id.clone(),
+                title: format!("HTTP {marker}"),
+                description: String::new(),
+                assembly: assembly.clone(),
+                content_roots: Vec::new(),
+                entrypoints: Vec::new(),
+                rights: None,
+                transparency: None,
+                operational_intent: None,
+                annotations: BTreeMap::new(),
+            };
+            let lock = AssemblyLock {
+                schema: AssemblyLock::SCHEMA.to_string(),
+                assembly,
+                nodes: Vec::new(),
+                bindings: Vec::new(),
+                protocol_profiles: Vec::new(),
+                content_roots: Vec::new(),
+            };
+            Ok((
+                work_id,
+                put_model(objects, &work).await?,
+                put_model(objects, &lock).await?,
+            ))
+        }
+
+        fn create_request(
+            work_id: WorkId,
+            work_revision: ArtifactDescriptor,
+            assembly_lock: ArtifactDescriptor,
+            key: &str,
+        ) -> InstallationCreateRequest {
+            InstallationCreateRequest {
+                work_id,
+                work_revision,
+                assembly_lock,
+                display_name: "HTTP scoped Installation".to_string(),
+                source: AcquisitionRecord {
+                    kind: AcquisitionKind::WorkBundle,
+                    source_ref: None,
+                    provenance_refs: Vec::new(),
+                    update_channel: None,
+                },
+                state_bindings: Vec::new(),
+                secret_policy: Default::default(),
+                idempotency_key: key.to_string(),
+                authority: None,
+            }
+        }
+
+        let store = Arc::new(InMemoryEventStore::default());
+        let objects = Arc::new(plurora_runtime::InMemoryObjectStore::default());
+        let installations = InstallationRegistry::ephemeral(store.clone(), objects.clone())?;
+        let runtime = Arc::new(Runtime::new(
+            store,
+            RuntimeConfig {
+                object_store: objects.clone(),
+                installation_control: installations.clone(),
+                ..RuntimeConfig::default()
+            },
+        ));
+        let access_registry = Arc::new(HostAccessRegistry::default());
+        let app = app_with_state(AppState {
+            runtime,
+            static_dir: None,
+            access_token: Some("installation-root-token".to_string()),
+            app_base_domain: None,
+            build_jobs: build_deploy_job_registry(),
+            development: development_registry(),
+            host_access: access_registry,
+            installations: installations.clone(),
+            target_agents: target_agent_registry(),
+        });
+
+        let (work_id, work_revision, assembly_lock) = work_pair(objects.as_ref(), "create").await?;
+        let create = create_request(
+            work_id.clone(),
+            work_revision.clone(),
+            assembly_lock.clone(),
+            "http-device-create",
+        );
+        let create_token = pair_test_device(
+            &app,
+            "installation-root-token",
+            json!(["observe", "installation.manage"]),
+            json!([{"kind": "work", "id": work_id}]),
+        )
+        .await?;
+        let first = test_rpc(
+            &app,
+            &create_token,
+            "host.installation.create",
+            serde_json::to_value(&create)?,
+        )
+        .await?;
+        assert!(first["error"].is_null());
+        let first: InstallationMutationResult = serde_json::from_value(first["result"].clone())?;
+        let replay = test_rpc(
+            &app,
+            &create_token,
+            "host.installation.create",
+            serde_json::to_value(&create)?,
+        )
+        .await?;
+        let replay: InstallationMutationResult = serde_json::from_value(replay["result"].clone())?;
+        assert!(!first.idempotent && replay.idempotent);
+        assert_eq!(first.installation, replay.installation);
+
+        let wrong_token = pair_test_device(
+            &app,
+            "installation-root-token",
+            json!(["observe", "installation.manage"]),
+            json!([{"kind": "work", "id": "tests/http-other"}]),
+        )
+        .await?;
+        let denied = test_rpc(
+            &app,
+            &wrong_token,
+            "host.installation.create",
+            serde_json::to_value(&create)?,
+        )
+        .await?;
+        assert_eq!(denied["error"]["code"], "runtime/error/permission_denied");
+
+        let (candidate_work_id, candidate_work, candidate_lock) =
+            work_pair(objects.as_ref(), "update").await?;
+        let installation_id = first.installation.record.installation_id.clone();
+        let update = InstallationUpdateRequest {
+            installation_id: installation_id.clone(),
+            expected_revision: first.installation.revision,
+            work_revision: candidate_work,
+            assembly_lock: candidate_lock,
+            display_name: Some("HTTP scoped update".to_string()),
+            source: None,
+            state_bindings: None,
+            secret_policy: None,
+            state_action: InstallationStateAction::Preserve,
+            idempotency_key: "http-device-update".to_string(),
+            authority: None,
+        };
+        let update_token = pair_test_device(
+            &app,
+            "installation-root-token",
+            json!(["observe", "installation.manage"]),
+            json!([{"kind": "installation", "id": installation_id}]),
+        )
+        .await?;
+        let updated = test_rpc(
+            &app,
+            &update_token,
+            "host.installation.update",
+            serde_json::to_value(&update)?,
+        )
+        .await?;
+        assert!(updated["error"].is_null());
+        let updated: InstallationMutationResult =
+            serde_json::from_value(updated["result"].clone())?;
+        let update_replay = test_rpc(
+            &app,
+            &update_token,
+            "host.installation.update",
+            serde_json::to_value(&update)?,
+        )
+        .await?;
+        let update_replay: InstallationMutationResult =
+            serde_json::from_value(update_replay["result"].clone())?;
+        assert!(!updated.idempotent && update_replay.idempotent);
+        assert_eq!(updated.installation, update_replay.installation);
+
+        let mut mismatch = create_request(
+            WorkId::parse("tests/http-request-mismatch")?,
+            work_revision.clone(),
+            assembly_lock,
+            "http-root-mismatch",
+        );
+        mismatch.display_name = candidate_work_id.to_string();
+        let mismatch = test_rpc(
+            &app,
+            "installation-root-token",
+            "host.installation.create",
+            serde_json::to_value(mismatch)?,
+        )
+        .await?;
+        assert_eq!(mismatch["error"]["code"], "runtime/error/schema_invalid");
+        let mismatch_text = serde_json::to_string(&mismatch)?;
+        assert!(mismatch_text.contains("work_id_mismatch"));
+        assert!(!mismatch_text.contains(work_id.as_str()));
+        assert!(!mismatch_text.contains(work_revision.digest.as_str()));
+        assert_eq!(
+            installations
+                .list(plurora_runtime::InstallationListRequest::default())
+                .await?
+                .len(),
+            1
+        );
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn removed_installation_cannot_start_deployment_or_target_effects() -> anyhow::Result<()>
+    {
+        let store = Arc::new(InMemoryEventStore::default());
+        let objects = Arc::new(plurora_runtime::InMemoryObjectStore::default());
+        let installations = InstallationRegistry::ephemeral(store.clone(), objects.clone())?;
+        let installation_id =
+            create_test_installation(&store, &installations, &objects, "removed").await?;
+        let revision = installations
+            .get(&installation_id)
+            .await?
+            .expect("created Installation")
+            .revision;
+        let build_jobs = build_deploy_job_registry();
+        let runtime = Arc::new(Runtime::new(
+            store.clone(),
+            RuntimeConfig {
+                object_store: objects.clone(),
+                installation_control: installations.clone(),
+                ..RuntimeConfig::default()
+            },
+        ));
+        runtime
+            .call_protocol(
+                &ProtocolContext::host_dev("remove-service-effect-fixture"),
+                "host.installation.remove",
+                serde_json::to_value(plurora_runtime::InstallationRemoveRequest {
+                    installation_id: installation_id.clone(),
+                    expected_revision: revision,
+                    state_disposition: plurora_runtime::StateDisposition::Keep,
+                    idempotency_key: "remove-service-effect-fixture".to_string(),
+                    authority: None,
+                })?,
+            )
+            .await
+            .map_err(|error| anyhow::anyhow!(error.message))?;
+        let app = app_with_state(AppState {
+            runtime,
+            static_dir: None,
+            access_token: None,
+            app_base_domain: None,
+            build_jobs: build_jobs.clone(),
+            development: development_registry(),
+            host_access: host_access_registry(),
+            installations,
+            target_agents: target_agent_registry(),
+        });
+
+        let deploy = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .method(Method::POST)
+                    .uri("/host/v1/deploy")
+                    .header(header::CONTENT_TYPE, "application/json")
+                    .body(Body::from(
+                        json!({
+                            "installation_id": installation_id,
+                            "image": "example.invalid/removed:latest",
+                            "container_port": 8080,
+                            "port_name": "http",
+                            "route_id": "removed-deploy"
+                        })
+                        .to_string(),
+                    ))?,
+            )
+            .await?;
+        assert_eq!(deploy.status(), StatusCode::CONFLICT);
+        let deploy_body =
+            String::from_utf8(to_bytes(deploy.into_body(), usize::MAX).await?.to_vec())?;
+        assert!(deploy_body.contains("installation is not active for new effects"));
+        assert!(!deploy_body.contains(installation_id.as_str()));
+        assert!(!deploy_body.contains("secret_ref:"));
+
+        let target = app
+            .oneshot(
+                Request::builder()
+                    .method(Method::POST)
+                    .uri("/host/v1/targets/local/operations")
+                    .header(header::CONTENT_TYPE, "application/json")
+                    .body(Body::from(
+                        json!({
+                            "installation_id": installation_id,
+                            "spec": {"kind": "health_probe"}
+                        })
+                        .to_string(),
+                    ))?,
+            )
+            .await?;
+        assert_eq!(target.status(), StatusCode::CONFLICT);
+        let target_body =
+            String::from_utf8(to_bytes(target.into_body(), usize::MAX).await?.to_vec())?;
+        assert!(target_body.contains("installation is not active for new effects"));
+        assert!(!target_body.contains(installation_id.as_str()));
+        assert!(build_jobs
+            .jobs_for_installation(&installation_id)
+            .is_empty());
+        Ok(())
+    }
 
     #[test]
     fn root_token_comparison_accepts_only_the_exact_credential() {
@@ -8239,27 +9223,30 @@ mod tests {
     #[test]
     fn host_scope_mapping_is_explicit_and_fails_closed() {
         assert_eq!(
-            required_host_scope_for_http(&Method::GET, "/host/v1/projects/demo/changes"),
+            required_host_scope_for_http(
+                &Method::GET,
+                "/host/v1/development/workspace/22222222-2222-4222-8222-222222222222/changes",
+            ),
             Some(HostAccessScope::DevelopPropose)
         );
         assert_eq!(
             required_host_scope_for_http(
                 &Method::POST,
-                "/host/v1/projects/demo/changes/change-1/approve"
+                "/host/v1/development/workspace/22222222-2222-4222-8222-222222222222/changes/change-1/approve"
             ),
             Some(HostAccessScope::DevelopApprove)
         );
         assert_eq!(
             required_host_scope_for_http(
                 &Method::POST,
-                "/host/v1/projects/demo/changes/change-1/execute"
+                "/host/v1/development/workspace/22222222-2222-4222-8222-222222222222/changes/change-1/execute"
             ),
             Some(HostAccessScope::DevelopExecute)
         );
         assert_eq!(
             required_host_scope_for_http(
                 &Method::POST,
-                "/host/v1/projects/demo/changes/change-1/deployment/preview"
+                "/host/v1/development/workspace/22222222-2222-4222-8222-222222222222/changes/change-1/deployment/preview"
             ),
             Some(HostAccessScope::Deploy)
         );
@@ -8267,7 +9254,7 @@ mod tests {
             assert_eq!(
                 required_host_scope_for_http(
                     &Method::POST,
-                    &format!("/host/v1/projects/demo/changes/change-1/deployment/{action}")
+                    &format!("/host/v1/development/workspace/22222222-2222-4222-8222-222222222222/changes/change-1/deployment/{action}")
                 ),
                 Some(HostAccessScope::Deploy)
             );
@@ -8281,8 +9268,8 @@ mod tests {
             Some(HostAccessScope::AccessManage)
         );
         assert_eq!(
-            required_host_scope_for_protocol_method("host.project.start"),
-            HostAccessScope::ProjectOperate
+            required_host_scope_for_protocol_method("host.installation.start"),
+            HostAccessScope::AccessManage
         );
         assert_eq!(
             required_host_scope_for_protocol_method("unknown.future.method"),
@@ -8309,24 +9296,26 @@ mod tests {
 
     #[test]
     fn workspace_clone_invocation_uses_expected_git_tools_shape() -> anyhow::Result<()> {
-        let project_id = ProjectId::new("clone__abc123")?;
-        let request = ProjectWorkspaceCloneRequest {
-            project_id: project_id.clone(),
+        let workspace_id = WorkspaceId::parse("22222222-2222-4222-8222-222222222222")?;
+        let request = WorkspaceCloneRequest {
+            workspace_id: workspace_id.clone(),
             source_url: "https://example.com/org/repo.git".to_string(),
             ref_name: "refs/heads/main".to_string(),
         };
         let data_dir = tempfile::tempdir()?;
-        let invocation = build_project_workspace_clone_invocation(&request, Some(data_dir.path()))?;
+        let invocation = build_workspace_clone_invocation(&request, Some(data_dir.path()))?;
 
         assert_eq!(
             invocation.workspace_dir,
-            data_dir.path().join("projects/clone__abc123/workspace")
+            data_dir
+                .path()
+                .join("workspaces/22222222-2222-4222-8222-222222222222/source")
         );
         assert_eq!(
             invocation.staging_dir,
             data_dir
                 .path()
-                .join("projects/clone__abc123/workspace.staging")
+                .join("workspaces/22222222-2222-4222-8222-222222222222/source.staging")
         );
         assert_eq!(
             invocation.resolve_ref_params,
@@ -8349,26 +9338,30 @@ mod tests {
 
     #[test]
     fn workspace_destination_rejects_escape() -> anyhow::Result<()> {
-        let project_id = ProjectId::new("clone__abc123")?;
+        let workspace_id = WorkspaceId::parse("22222222-2222-4222-8222-222222222222")?;
         let data_dir = tempfile::tempdir()?;
         assert!(validate_workspace_destination(
-            &project_id,
-            Some(data_dir.path()),
-            &data_dir.path().join("projects/clone__abc123/workspace")
-        )
-        .is_ok());
-        assert!(validate_workspace_destination(
-            &project_id,
-            Some(data_dir.path()),
-            &data_dir.path().join("projects/other__abc123/workspace")
-        )
-        .is_err());
-        assert!(validate_workspace_destination(
-            &project_id,
+            &workspace_id,
             Some(data_dir.path()),
             &data_dir
                 .path()
-                .join("projects/clone__abc123/../other/workspace")
+                .join("workspaces/22222222-2222-4222-8222-222222222222/source")
+        )
+        .is_ok());
+        assert!(validate_workspace_destination(
+            &workspace_id,
+            Some(data_dir.path()),
+            &data_dir
+                .path()
+                .join("workspaces/33333333-3333-4333-8333-333333333333/source")
+        )
+        .is_err());
+        assert!(validate_workspace_destination(
+            &workspace_id,
+            Some(data_dir.path()),
+            &data_dir
+                .path()
+                .join("workspaces/22222222-2222-4222-8222-222222222222/../other/source")
         )
         .is_err());
         Ok(())
@@ -8376,20 +9369,20 @@ mod tests {
 
     #[cfg(unix)]
     #[test]
-    fn workspace_clone_rejects_symlinked_projects_root() -> anyhow::Result<()> {
-        let project_id = ProjectId::new("clone__abc123")?;
+    fn workspace_clone_rejects_symlinked_installations_root() -> anyhow::Result<()> {
+        let workspace_id = WorkspaceId::parse("22222222-2222-4222-8222-222222222222")?;
         let data_dir = tempfile::tempdir()?;
         let outside = tempfile::tempdir()?;
-        std::fs::create_dir_all(outside.path().join(project_id.as_str()))?;
-        std::os::unix::fs::symlink(outside.path(), data_dir.path().join("projects"))?;
+        std::fs::create_dir_all(outside.path().join(workspace_id.as_str()))?;
+        std::os::unix::fs::symlink(outside.path(), data_dir.path().join("workspaces"))?;
 
-        assert!(canonical_workspace_project_root(&project_id, Some(data_dir.path())).is_err());
+        assert!(canonical_workspace_root(&workspace_id, Some(data_dir.path())).is_err());
         Ok(())
     }
 
     fn valid_build_deploy_request() -> HostBuildDeployRequest {
         HostBuildDeployRequest {
-            project_id: ProjectId::new("build__abc123").unwrap(),
+            installation_id: InstallationId::parse("11111111-1111-4111-8111-111111111111").unwrap(),
             source_url: "https://example.com/org/repo.git".to_string(),
             ref_name: "refs/heads/main".to_string(),
             strategy: Some("dockerfile".to_string()),
@@ -8659,7 +9652,7 @@ mod tests {
     }
 
     #[test]
-    fn build_deploy_job_registry_reuses_project_idempotency_key() -> anyhow::Result<()> {
+    fn build_deploy_job_registry_reuses_installation_idempotency_key() -> anyhow::Result<()> {
         let registry = BuildDeployJobRegistry::default();
         let mut request = valid_build_deploy_request();
         request.idempotency_key = Some("web-retry-001".to_string());
@@ -8680,6 +9673,7 @@ mod tests {
 
     fn successful_build_result() -> HostBuildDeployResponse {
         HostBuildDeployResponse {
+            workspace_id: WorkspaceId::parse("22222222-2222-4222-8222-222222222222").unwrap(),
             route_id: "route-build".to_string(),
             public_url: "/p/route-build/".to_string(),
             route_access: ProxyRouteAccess::HostAuthenticated,
@@ -8707,7 +9701,7 @@ mod tests {
             RuntimeEnvSpec {
                 name: "DATABASE_URL".to_string(),
                 value: None,
-                secret_ref: Some("secret_ref:project:database-url".to_string()),
+                secret_ref: Some("secret_ref:installation:database-url".to_string()),
             },
             RuntimeEnvSpec {
                 name: "ONE_TIME_TOKEN".to_string(),
@@ -8721,7 +9715,7 @@ mod tests {
         assert!(!revision.recoverable);
         assert_eq!(revision.runtime_env.len(), 1);
         let json = serde_json::to_string(&revision)?;
-        assert!(json.contains("secret_ref:project:database-url"));
+        assert!(json.contains("secret_ref:installation:database-url"));
         assert!(!json.contains("must-not-be-journaled"));
         assert!(!json.contains(&source.to_string_lossy().to_string()));
         Ok(())
@@ -8763,7 +9757,7 @@ mod tests {
         let request = valid_build_deploy_request();
         let base =
             deployment_revision_from_build(&request, &successful_build_result(), "bdj-test", None);
-        let total = BUILD_DEPLOY_MAX_REVISIONS_PER_PROJECT + 5;
+        let total = BUILD_DEPLOY_MAX_REVISIONS_PER_INSTALLATION + 5;
         for index in 0..total {
             let mut revision = base.clone();
             revision.revision_id = format!("revision-{index:03}");
@@ -8771,15 +9765,15 @@ mod tests {
             registry.register_revision(revision);
         }
 
-        let revisions = registry.revisions(&request.project_id);
-        assert_eq!(revisions.len(), BUILD_DEPLOY_MAX_REVISIONS_PER_PROJECT);
+        let revisions = registry.revisions(&request.installation_id);
+        assert_eq!(revisions.len(), BUILD_DEPLOY_MAX_REVISIONS_PER_INSTALLATION);
         assert_eq!(
             revisions.first().unwrap().revision_id,
             format!("revision-{:03}", total - 1)
         );
         assert_eq!(
             registry
-                .active_revision(&request.project_id)
+                .active_revision(&request.installation_id)
                 .unwrap()
                 .revision_id,
             format!("revision-{:03}", total - 1)
@@ -8831,7 +9825,7 @@ mod tests {
         authority.expires_at_ms = Some(chrono::Utc::now().timestamp_millis() - 1);
         assert!(authority
             .validate(
-                &ProjectId::new("project-expired").unwrap(),
+                &InstallationId::parse("44444444-4444-4444-8444-444444444444").unwrap(),
                 &HostAccessRegistry::default()
             )
             .is_err());
@@ -8843,7 +9837,7 @@ mod tests {
         let store = Arc::new(InMemoryEventStore::default());
         let ownership = DeploymentDirectRouteOwned {
             route_id: "route-direct".to_string(),
-            project_id: ProjectId::new("project-direct")?,
+            installation_id: InstallationId::parse("55555555-5555-4555-8555-555555555555")?,
             port_name: "web".to_string(),
             route_access: ProxyRouteAccess::HostAuthenticated,
             port_lease_id: "port-lease-direct".to_string(),
@@ -8866,8 +9860,10 @@ mod tests {
             1
         );
         assert_eq!(
-            registry.project_for_route("route-direct"),
-            Some(ProjectId::new("project-direct")?)
+            registry.installation_for_route("route-direct"),
+            Some(InstallationId::parse(
+                "55555555-5555-4555-8555-555555555555"
+            )?)
         );
         assert_eq!(
             registry.durable_routes()[0].port_lease_id,
@@ -8876,7 +9872,7 @@ mod tests {
 
         let release = DeploymentDirectRouteReleased {
             route_id: ownership.route_id,
-            project_id: ownership.project_id,
+            installation_id: ownership.installation_id,
             timestamp_ms: now_millis(),
         };
         assert!(append_deployment_journal_event(
@@ -8891,7 +9887,7 @@ mod tests {
             sync_deployment_journal(store.as_ref(), registry.as_ref()).await?,
             1
         );
-        assert!(registry.project_for_route("route-direct").is_none());
+        assert!(registry.installation_for_route("route-direct").is_none());
         Ok(())
     }
 
@@ -8938,7 +9934,7 @@ mod tests {
         );
         assert_eq!(
             hydrated
-                .active_revision(&request.project_id)
+                .active_revision(&request.installation_id)
                 .unwrap()
                 .revision_id,
             revision.revision_id
@@ -8957,14 +9953,14 @@ mod tests {
     }
 
     #[test]
-    fn build_deploy_job_registry_enforces_project_concurrency() -> anyhow::Result<()> {
+    fn build_deploy_job_registry_enforces_installation_concurrency() -> anyhow::Result<()> {
         let registry = BuildDeployJobRegistry::default();
         let request = valid_build_deploy_request();
         registry
-            .project_active
+            .installation_active
             .lock()
             .unwrap()
-            .insert(request.project_id.clone());
+            .insert(request.installation_id.clone());
         assert!(registry
             .create_job(&request, &HostAccessIdentity::root())
             .is_err());
@@ -8972,25 +9968,28 @@ mod tests {
     }
 
     #[test]
-    fn build_image_gc_policy_requires_plurora_project_and_build_labels() {
+    fn build_image_gc_policy_requires_plurora_installation_and_build_labels() {
         let labels = HashMap::from([
             ("managed-by".to_string(), "plurora".to_string()),
-            ("plurora.project_id".to_string(), "project-1".to_string()),
+            (
+                "plurora.installation_id".to_string(),
+                "installation-1".to_string(),
+            ),
             ("plurora.build_id".to_string(), "build-1".to_string()),
         ]);
         assert!(should_remove_plurora_build_image(
             &labels,
-            "project-1",
+            "installation-1",
             "build-1"
         ));
         assert!(!should_remove_plurora_build_image(
             &labels,
-            "project-2",
+            "installation-2",
             "build-1"
         ));
         assert!(!should_remove_plurora_build_image(
             &HashMap::new(),
-            "project-1",
+            "installation-1",
             "build-1"
         ));
     }
@@ -9000,7 +9999,7 @@ mod tests {
         let image = require_built_image(&serde_json::json!({
             "docker_performed": true,
             "image_built": true,
-            "image": "plurora/project:mutable",
+            "image": "plurora/installation:mutable",
             "image_id": "sha256:0123456789abcdef",
         }))?;
         assert_eq!(image, "sha256:0123456789abcdef");
@@ -9245,7 +10244,7 @@ mod tests {
         let development = development_registry();
         let lease = acquire_development_host_lease(store.clone(), development.clone()).await?;
         release_development_host_lease(store.clone(), &lease).await?;
-        let runtime = Arc::new(Runtime::new(store, RuntimeConfig::default()));
+        let (runtime, installations) = test_runtime(store, RuntimeConfig::default());
         let response = app_with_state(AppState {
             runtime,
             static_dir: None,
@@ -9254,6 +10253,7 @@ mod tests {
             build_jobs: build_deploy_job_registry(),
             development,
             host_access: host_access_registry(),
+            installations,
             target_agents: target_agent_registry(),
         })
         .oneshot(Request::builder().uri("/readyz").body(Body::empty())?)
@@ -9273,11 +10273,11 @@ mod tests {
     #[tokio::test]
     async fn readyz_keeps_host_ready_when_a_workload_is_degraded() -> anyhow::Result<()> {
         let store = Arc::new(InMemoryEventStore::default());
-        let runtime = Arc::new(Runtime::new(store, RuntimeConfig::default()));
+        let (runtime, installations) = test_runtime(store, RuntimeConfig::default());
         let build_jobs = build_deploy_job_registry();
         build_jobs.register_direct_route_owner(DeploymentDirectRouteOwned {
             route_id: "private-route".to_string(),
-            project_id: ProjectId::new("project-readyz")?,
+            installation_id: InstallationId::parse("66666666-6666-4666-8666-666666666666")?,
             port_name: "http".to_string(),
             route_access: ProxyRouteAccess::HostAuthenticated,
             port_lease_id: "private-lease".to_string(),
@@ -9293,6 +10293,7 @@ mod tests {
             build_jobs,
             development: development_registry(),
             host_access: host_access_registry(),
+            installations,
             target_agents: target_agent_registry(),
         })
         .oneshot(Request::builder().uri("/readyz").body(Body::empty())?)
@@ -9321,7 +10322,7 @@ mod tests {
         std::fs::write(dir.path().join("assets/app.js"), "console.log('plurora');")?;
 
         let store = Arc::new(InMemoryEventStore::default());
-        let runtime = Arc::new(Runtime::new(store, RuntimeConfig::default()));
+        let (runtime, installations) = test_runtime(store, RuntimeConfig::default());
         let app = app_with_state(AppState {
             runtime,
             static_dir: Some(dir.path().to_path_buf()),
@@ -9330,6 +10331,7 @@ mod tests {
             build_jobs: Arc::new(BuildDeployJobRegistry::default()),
             development: development_registry(),
             host_access: host_access_registry(),
+            installations,
             target_agents: target_agent_registry(),
         });
 
@@ -9353,17 +10355,20 @@ mod tests {
         let bytes = to_bytes(response.into_body(), usize::MAX).await?;
         assert_eq!(&bytes[..], b"console.log('plurora');");
 
-        let project_route = app
+        let installation_route = app
             .clone()
             .oneshot(
                 Request::builder()
-                    .uri("/project/demo-project")
+                    .uri("/installation/demo-installation")
                     .body(Body::empty())?,
             )
             .await?;
-        assert_eq!(project_route.status(), StatusCode::OK);
+        assert_eq!(installation_route.status(), StatusCode::OK);
         assert_eq!(
-            project_route.headers().get(header::CACHE_CONTROL).unwrap(),
+            installation_route
+                .headers()
+                .get(header::CACHE_CONTROL)
+                .unwrap(),
             "no-cache"
         );
 
@@ -9412,7 +10417,7 @@ mod tests {
         let dir = tempfile::tempdir()?;
         std::fs::write(dir.path().join("index.html"), "public")?;
         let store = Arc::new(InMemoryEventStore::default());
-        let runtime = Arc::new(Runtime::new(store, RuntimeConfig::default()));
+        let (runtime, installations) = test_runtime(store, RuntimeConfig::default());
         let app = app_with_state(AppState {
             runtime,
             static_dir: Some(dir.path().to_path_buf()),
@@ -9421,6 +10426,7 @@ mod tests {
             build_jobs: Arc::new(BuildDeployJobRegistry::default()),
             development: development_registry(),
             host_access: host_access_registry(),
+            installations,
             target_agents: target_agent_registry(),
         });
 
@@ -9530,27 +10536,6 @@ mod tests {
 
     #[tokio::test]
     async fn device_authority_is_resource_exact_across_http_and_rpc() -> anyhow::Result<()> {
-        fn project(id: &str, title: &str) -> ProjectDescriptor {
-            ProjectDescriptor {
-                schema_version: 1,
-                project: ProjectInner {
-                    id: ProjectId::new(id).expect("valid project id"),
-                    title: title.to_string(),
-                    description: String::new(),
-                    project_type: ProjectType::PluroraNative,
-                    icon: None,
-                    entry_surface_id: Some("packages/test/main".to_string()),
-                    packages: vec!["packages/test/manifest.yaml".to_string()],
-                    optional_packages: Vec::new(),
-                    required_surfaces: Vec::new(),
-                    required_capabilities: Vec::new(),
-                    secret_policy: SecretPolicy::default(),
-                    external: None,
-                    metadata: BTreeMap::new(),
-                },
-            }
-        }
-
         async fn rpc(
             app: Router,
             token: &str,
@@ -9576,16 +10561,18 @@ mod tests {
             )?)
         }
 
-        let project_a = "authority_project_a__abc12345";
-        let project_b = "authority_project_b__abc12345";
-        let projects = Arc::new(ProjectRegistry::new());
-        projects.register(project(project_a, "Project A"))?;
-        projects.register(project(project_b, "Project B"))?;
         let store = Arc::new(InMemoryEventStore::default());
+        let objects = Arc::new(plurora_runtime::InMemoryObjectStore::default());
+        let installations = InstallationRegistry::ephemeral(store.clone(), objects.clone())?;
+        let installation_a =
+            create_test_installation(&store, &installations, &objects, "a").await?;
+        let installation_b =
+            create_test_installation(&store, &installations, &objects, "b").await?;
         let runtime = Arc::new(Runtime::new(
             store.clone(),
             RuntimeConfig {
-                project_registry: projects,
+                object_store: objects,
+                installation_control: installations.clone(),
                 ..RuntimeConfig::default()
             },
         ));
@@ -9598,6 +10585,7 @@ mod tests {
             build_jobs: Arc::new(BuildDeployJobRegistry::default()),
             development: development_registry(),
             host_access: access_registry.clone(),
+            installations,
             target_agents: target_agent_registry(),
         });
 
@@ -9606,7 +10594,9 @@ mod tests {
             .oneshot(
                 Request::builder()
                     .method(Method::GET)
-                    .uri(format!("/surface-bundles/projects/{project_a}/bundle.mjs"))
+                    .uri(format!(
+                        "/surface-bundles/installations/{installation_a}/bundle.mjs"
+                    ))
                     .body(Body::empty())?,
             )
             .await?;
@@ -9622,10 +10612,10 @@ mod tests {
                     .header(header::AUTHORIZATION, "Bearer root-authority-token")
                     .body(Body::from(
                         json!({
-                            "device_name": "Project A device",
-                            "scopes": ["observe", "project_operate", "deploy", "develop_propose", "access_manage"],
+                            "device_name": "Installation A device",
+                            "scopes": ["observe", "deploy", "develop.propose", "access_manage"],
                             "resources": [
-                                {"kind": "project", "id": project_a},
+                                {"kind": "installation", "id": installation_a},
                                 {"kind": "target", "id": "local"}
                             ],
                             "pairing_ttl_secs": 60,
@@ -9713,7 +10703,7 @@ mod tests {
             .await?;
         assert_eq!(denied_target_operations.status(), StatusCode::FORBIDDEN);
 
-        let denied_project_operation = app
+        let denied_installation_operation = app
             .clone()
             .oneshot(
                 Request::builder()
@@ -9722,12 +10712,15 @@ mod tests {
                     .header(header::CONTENT_TYPE, "application/json")
                     .header(header::AUTHORIZATION, format!("Bearer {access_token}"))
                     .body(Body::from(
-                        json!({"project_id": project_b, "spec": {"kind": "health_probe"}})
+                        json!({"installation_id": installation_b, "spec": {"kind": "health_probe"}})
                             .to_string(),
                     ))?,
             )
             .await?;
-        assert_eq!(denied_project_operation.status(), StatusCode::FORBIDDEN);
+        assert_eq!(
+            denied_installation_operation.status(),
+            StatusCode::FORBIDDEN
+        );
 
         let unknown_operation = app
             .clone()
@@ -9750,9 +10743,9 @@ mod tests {
                     .header(header::AUTHORIZATION, format!("Bearer {access_token}"))
                     .body(Body::from(
                         json!({
-                            "device_name": "Project B child",
+                            "device_name": "Installation B child",
                             "scopes": ["observe"],
-                            "resources": [{"kind": "project", "id": project_b}],
+                            "resources": [{"kind": "installation", "id": installation_b}],
                             "pairing_ttl_secs": 60,
                             "grant_ttl_secs": 3600
                         })
@@ -9772,9 +10765,9 @@ mod tests {
                     .header(header::AUTHORIZATION, format!("Bearer {access_token}"))
                     .body(Body::from(
                         json!({
-                            "device_name": "Project A child",
+                            "device_name": "Installation A child",
                             "scopes": ["observe"],
-                            "resources": [{"kind": "project", "id": project_a}],
+                            "resources": [{"kind": "installation", "id": installation_a}],
                             "pairing_ttl_secs": 60,
                             "grant_ttl_secs": 3600
                         })
@@ -9785,7 +10778,7 @@ mod tests {
         assert_eq!(attenuated_delegation.status(), StatusCode::CREATED);
 
         for path in [
-            format!("/surface-bundles/projects/{project_b}/bundle.mjs"),
+            format!("/surface-bundles/installations/{installation_b}/bundle.mjs"),
             "/surface-bundles/ydltavern/bundle.mjs".to_string(),
         ] {
             let response = app
@@ -9801,7 +10794,7 @@ mod tests {
             assert_eq!(
                 response.status(),
                 StatusCode::FORBIDDEN,
-                "project-scoped device must not read another project or Host-global catalogue"
+                "installation-scoped device must not read another installation or Host-global catalogue"
             );
         }
 
@@ -9809,22 +10802,31 @@ mod tests {
             let denied_global = rpc(app.clone(), &access_token, method, json!({})).await?;
             assert_eq!(
                 denied_global["error"]["code"], "runtime/error/permission_denied",
-                "project-scoped device must not enumerate a Host-global catalogue"
+                "installation-scoped device must not enumerate a Host-global catalogue"
             );
         }
 
-        let listed = rpc(app.clone(), &access_token, "host.project.list", json!({})).await?;
-        let visible = listed["result"]["projects"]
+        let listed = rpc(
+            app.clone(),
+            &access_token,
+            "host.installation.list",
+            json!({}),
+        )
+        .await?;
+        let visible = listed["result"]
             .as_array()
-            .expect("project list response");
+            .expect("installation list response");
         assert_eq!(visible.len(), 1);
-        assert_eq!(visible[0]["id"], project_a);
+        assert_eq!(
+            visible[0]["record"]["installation_id"],
+            installation_a.as_str()
+        );
 
         let denied_rpc = rpc(
             app.clone(),
             &access_token,
-            "host.project.get",
-            json!({"project_id": project_b}),
+            "host.installation.get",
+            json!({"installation_id": installation_b}),
         )
         .await?;
         assert_eq!(
@@ -9836,9 +10838,9 @@ mod tests {
             .await?;
         assert!(authority_events.iter().any(|event| {
             event.kind == "host/control/v1/authority.decision"
-                && event.payload["method"] == "host.project.get"
+                && event.payload["method"] == "host.installation.get"
                 && event.payload["decision"] == "deny"
-                && event.payload["operation_resources"][0]["id"] == project_b
+                && event.payload["operation_resources"][0]["id"] == installation_b.as_str()
         }));
         assert!(!serde_json::to_string(&authority_events)?.contains(&access_token));
 
@@ -9847,7 +10849,9 @@ mod tests {
             .oneshot(
                 Request::builder()
                     .method(Method::GET)
-                    .uri(format!("/host/v1/projects/{project_b}/changes"))
+                    .uri(format!(
+                        "/host/v1/development/installation/{installation_b}/changes"
+                    ))
                     .header(header::AUTHORIZATION, format!("Bearer {access_token}"))
                     .body(Body::empty())?,
             )
@@ -9866,7 +10870,7 @@ mod tests {
             .clone()
             .expect("device identity has a grant id");
         let mut resolved = json!({
-            "bundle_url": format!("/surface-bundles/projects/{project_a}/bundle.mjs"),
+            "bundle_url": format!("/surface-bundles/installations/{installation_a}/bundle.mjs"),
             "stylesheets": []
         });
         mint_surface_asset_lease(&mut resolved, &device_identity, access_registry.as_ref())?;
@@ -9876,7 +10880,7 @@ mod tests {
             .split('/')
             .nth(1)
             .expect("lease id");
-        let lease_root = format!("projects/{project_a}");
+        let lease_root = format!("installations/{installation_a}");
         assert!(surface_asset_lease_is_valid(
             access_registry.as_ref(),
             lease_id,
@@ -9904,7 +10908,7 @@ mod tests {
     async fn desktop_bootstrap_nonce_is_one_time_and_issues_http_only_session() -> anyhow::Result<()>
     {
         let store = Arc::new(InMemoryEventStore::default());
-        let runtime = Arc::new(Runtime::new(store, RuntimeConfig::default()));
+        let (runtime, installations) = test_runtime(store, RuntimeConfig::default());
         let app = app_with_state_and_bootstrap_token(
             AppState {
                 runtime,
@@ -9914,6 +10918,7 @@ mod tests {
                 build_jobs: Arc::new(BuildDeployJobRegistry::default()),
                 development: development_registry(),
                 host_access: host_access_registry(),
+                installations,
                 target_agents: target_agent_registry(),
             },
             Some("single-use-bootstrap-nonce".to_string()),
@@ -9987,20 +10992,20 @@ mod tests {
         headers.insert(
             header::COOKIE,
             HeaderValue::from_static(
-                "project_session=keep; plurora_host_session=remove; __Host-plurora_remote_session=remove-too; theme=warm",
+                "installation_session=keep; plurora_host_session=remove; __Host-plurora_remote_session=remove-too; theme=warm",
             ),
         );
         strip_host_session_cookie(&mut headers);
         assert_eq!(
             headers.get(header::COOKIE).unwrap(),
-            "project_session=keep; theme=warm"
+            "installation_session=keep; theme=warm"
         );
     }
 
     #[tokio::test]
     async fn token_gate_protects_host_deploy() -> anyhow::Result<()> {
         let store = Arc::new(InMemoryEventStore::default());
-        let runtime = Arc::new(Runtime::new(store, RuntimeConfig::default()));
+        let (runtime, installations) = test_runtime(store, RuntimeConfig::default());
         let app = app_with_state(AppState {
             runtime,
             static_dir: None,
@@ -10009,6 +11014,7 @@ mod tests {
             build_jobs: Arc::new(BuildDeployJobRegistry::default()),
             development: development_registry(),
             host_access: host_access_registry(),
+            installations,
             target_agents: target_agent_registry(),
         });
 
@@ -10037,7 +11043,7 @@ mod tests {
     #[tokio::test]
     async fn host_deploy_rolls_back_port_lease_when_docker_start_fails() -> anyhow::Result<()> {
         let store = Arc::new(InMemoryEventStore::default());
-        let runtime = Arc::new(Runtime::new(store, RuntimeConfig::default()));
+        let (runtime, installations) = test_runtime(store, RuntimeConfig::default());
         let app = app_with_state(AppState {
             runtime: runtime.clone(),
             static_dir: None,
@@ -10046,6 +11052,7 @@ mod tests {
             build_jobs: Arc::new(BuildDeployJobRegistry::default()),
             development: development_registry(),
             host_access: host_access_registry(),
+            installations,
             target_agents: target_agent_registry(),
         });
 
@@ -10096,7 +11103,7 @@ mod tests {
     #[tokio::test]
     async fn token_gate_accepts_query_token_for_sse() -> anyhow::Result<()> {
         let store = Arc::new(InMemoryEventStore::default());
-        let runtime = Arc::new(Runtime::new(store, RuntimeConfig::default()));
+        let (runtime, installations) = test_runtime(store, RuntimeConfig::default());
         let app = app_with_state(AppState {
             runtime,
             static_dir: None,
@@ -10105,6 +11112,7 @@ mod tests {
             build_jobs: Arc::new(BuildDeployJobRegistry::default()),
             development: development_registry(),
             host_access: host_access_registry(),
+            installations,
             target_agents: target_agent_registry(),
         });
 
@@ -10132,7 +11140,7 @@ mod tests {
     #[tokio::test]
     async fn proxy_route_is_token_protected() -> anyhow::Result<()> {
         let store = Arc::new(InMemoryEventStore::default());
-        let runtime = Arc::new(Runtime::new(store, RuntimeConfig::default()));
+        let (runtime, installations) = test_runtime(store, RuntimeConfig::default());
         let app = app_with_state(AppState {
             runtime,
             static_dir: None,
@@ -10141,6 +11149,7 @@ mod tests {
             build_jobs: Arc::new(BuildDeployJobRegistry::default()),
             development: development_registry(),
             host_access: host_access_registry(),
+            installations,
             target_agents: target_agent_registry(),
         });
 
@@ -10159,7 +11168,7 @@ mod tests {
     #[tokio::test]
     async fn proxy_route_not_found_returns_404() -> anyhow::Result<()> {
         let store = Arc::new(InMemoryEventStore::default());
-        let runtime = Arc::new(Runtime::new(store, RuntimeConfig::default()));
+        let (runtime, installations) = test_runtime(store, RuntimeConfig::default());
         let app = app_with_state(AppState {
             runtime,
             static_dir: None,
@@ -10168,6 +11177,7 @@ mod tests {
             build_jobs: Arc::new(BuildDeployJobRegistry::default()),
             development: development_registry(),
             host_access: host_access_registry(),
+            installations,
             target_agents: target_agent_registry(),
         });
 
@@ -10221,7 +11231,7 @@ mod tests {
         });
 
         let store = Arc::new(InMemoryEventStore::default());
-        let runtime = Arc::new(Runtime::new(store, RuntimeConfig::default()));
+        let (runtime, installations) = test_runtime(store, RuntimeConfig::default());
         let lease = runtime
             .config()
             .port_lease_registry
@@ -10253,6 +11263,7 @@ mod tests {
             build_jobs: Arc::new(BuildDeployJobRegistry::default()),
             development: development_registry(),
             host_access: host_access_registry(),
+            installations,
             target_agents: target_agent_registry(),
         });
 
@@ -10346,7 +11357,7 @@ mod tests {
         });
 
         let store = Arc::new(InMemoryEventStore::default());
-        let runtime = Arc::new(Runtime::new(store, RuntimeConfig::default()));
+        let (runtime, installations) = test_runtime(store, RuntimeConfig::default());
         let lease = runtime
             .config()
             .port_lease_registry
@@ -10383,6 +11394,7 @@ mod tests {
             build_jobs: Arc::new(BuildDeployJobRegistry::default()),
             development: development_registry(),
             host_access: host_access_registry(),
+            installations,
             target_agents: target_agent_registry(),
         });
 
@@ -10484,7 +11496,7 @@ mod tests {
         });
 
         let store = Arc::new(InMemoryEventStore::default());
-        let runtime = Arc::new(Runtime::new(store, RuntimeConfig::default()));
+        let (runtime, installations) = test_runtime(store, RuntimeConfig::default());
         let lease = runtime
             .config()
             .port_lease_registry
@@ -10524,6 +11536,7 @@ mod tests {
             build_jobs: Arc::new(BuildDeployJobRegistry::default()),
             development: development_registry(),
             host_access: host_access_registry(),
+            installations,
             target_agents: target_agent_registry(),
         });
 
@@ -10562,7 +11575,7 @@ mod tests {
     #[tokio::test]
     async fn vhost_does_not_trust_arbitrary_hosts() -> anyhow::Result<()> {
         let store = Arc::new(InMemoryEventStore::default());
-        let runtime = Arc::new(Runtime::new(store, RuntimeConfig::default()));
+        let (runtime, installations) = test_runtime(store, RuntimeConfig::default());
         let private_route_id = "private-route";
         let private_lease = runtime
             .config()
@@ -10601,6 +11614,7 @@ mod tests {
             build_jobs: Arc::new(BuildDeployJobRegistry::default()),
             development: development_registry(),
             host_access: host_access_registry(),
+            installations,
             target_agents: target_agent_registry(),
         });
 
@@ -10641,7 +11655,7 @@ mod tests {
     #[tokio::test]
     async fn vhost_public_url_is_derived_without_platform_schema_change() -> anyhow::Result<()> {
         let store = Arc::new(InMemoryEventStore::default());
-        let runtime = Arc::new(Runtime::new(store, RuntimeConfig::default()));
+        let (runtime, installations) = test_runtime(store, RuntimeConfig::default());
         let state = AppState {
             runtime,
             static_dir: None,
@@ -10650,6 +11664,7 @@ mod tests {
             build_jobs: Arc::new(BuildDeployJobRegistry::default()),
             development: development_registry(),
             host_access: host_access_registry(),
+            installations,
             target_agents: target_agent_registry(),
         };
         let route_id = "My_App/Main";
@@ -10709,7 +11724,7 @@ mod tests {
         });
 
         let store = Arc::new(InMemoryEventStore::default());
-        let runtime = Arc::new(Runtime::new(store, RuntimeConfig::default()));
+        let (runtime, installations) = test_runtime(store, RuntimeConfig::default());
         let lease = runtime
             .config()
             .port_lease_registry
@@ -10746,6 +11761,7 @@ mod tests {
             build_jobs: Arc::new(BuildDeployJobRegistry::default()),
             development: development_registry(),
             host_access: host_access_registry(),
+            installations,
             target_agents: target_agent_registry(),
         });
 
@@ -10778,7 +11794,7 @@ mod tests {
     #[tokio::test]
     async fn websocket_proxy_route_is_token_protected() -> anyhow::Result<()> {
         let store = Arc::new(InMemoryEventStore::default());
-        let runtime = Arc::new(Runtime::new(store, RuntimeConfig::default()));
+        let (runtime, installations) = test_runtime(store, RuntimeConfig::default());
         let app = app_with_state(AppState {
             runtime,
             static_dir: None,
@@ -10787,6 +11803,7 @@ mod tests {
             build_jobs: Arc::new(BuildDeployJobRegistry::default()),
             development: development_registry(),
             host_access: host_access_registry(),
+            installations,
             target_agents: target_agent_registry(),
         });
 
@@ -10813,7 +11830,7 @@ mod tests {
         drop(listener);
 
         let store = Arc::new(InMemoryEventStore::default());
-        let runtime = Arc::new(Runtime::new(store, RuntimeConfig::default()));
+        let (runtime, installations) = test_runtime(store, RuntimeConfig::default());
         let lease = runtime
             .config()
             .port_lease_registry
@@ -10850,6 +11867,7 @@ mod tests {
             build_jobs: Arc::new(BuildDeployJobRegistry::default()),
             development: development_registry(),
             host_access: host_access_registry(),
+            installations,
             target_agents: target_agent_registry(),
         });
 
@@ -10950,7 +11968,7 @@ mod tests {
         });
 
         let store = Arc::new(InMemoryEventStore::default());
-        let runtime = Arc::new(Runtime::new(store, RuntimeConfig::default()));
+        let (runtime, installations) = test_runtime(store, RuntimeConfig::default());
         let lease = runtime
             .config()
             .port_lease_registry
@@ -10987,6 +12005,7 @@ mod tests {
             build_jobs: Arc::new(BuildDeployJobRegistry::default()),
             development: development_registry(),
             host_access: host_access_registry(),
+            installations,
             target_agents: target_agent_registry(),
         });
         let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await?;
@@ -11062,7 +12081,7 @@ mod tests {
         config
             .surface_dev_paths
             .insert("test".to_string(), bundle_dir.to_string_lossy().to_string());
-        let runtime = Arc::new(Runtime::new(store, config));
+        let (runtime, installations) = test_runtime(store, config);
         let access_registry = host_access_registry();
         let app = app_with_state(AppState {
             runtime,
@@ -11072,6 +12091,7 @@ mod tests {
             build_jobs: Arc::new(BuildDeployJobRegistry::default()),
             development: development_registry(),
             host_access: access_registry.clone(),
+            installations,
             target_agents: target_agent_registry(),
         });
 
@@ -11140,12 +12160,12 @@ mod tests {
 
     #[test]
     fn surface_asset_lease_is_root_scoped_and_preserves_cache_keys() -> anyhow::Result<()> {
-        let project_id = "lease_project__abc12345";
+        let package_root = "packages/tests/lease-package";
         let registry = HostAccessRegistry::default();
         let mut resolved = json!({
-            "bundle_url": format!("/surface-bundles/projects/{project_id}/bundle.mjs?v=abc"),
+            "bundle_url": format!("/surface-bundles/{package_root}/bundle.mjs?v=abc"),
             "stylesheets": [
-                format!("/surface-bundles/projects/{project_id}/styles/surface.css?v=def")
+                format!("/surface-bundles/{package_root}/styles/surface.css?v=def")
             ]
         });
         mint_surface_asset_lease(&mut resolved, &HostAccessIdentity::root(), &registry)?;
@@ -11157,23 +12177,21 @@ mod tests {
         assert!(resolved["stylesheets"][0]
             .as_str()
             .expect("stylesheet URL")
-            .contains(&format!(
-                "/surface-assets/{lease_id}/projects/{project_id}/"
-            )));
+            .contains(&format!("/surface-assets/{lease_id}/{package_root}/")));
         assert!(surface_asset_lease_is_valid(
             &registry,
             lease_id,
-            &format!("projects/{project_id}")
+            package_root
         ));
         assert!(!surface_asset_lease_is_valid(
             &registry,
             lease_id,
-            "projects/another_project__abc12345"
+            "packages/tests/another-package"
         ));
         assert!(!surface_asset_lease_is_valid(
             &HostAccessRegistry::default(),
             lease_id,
-            &format!("projects/{project_id}")
+            package_root
         ));
         surface_asset_lease_registry()
             .lock()
@@ -11181,7 +12199,7 @@ mod tests {
             .insert(
                 "expired-lease".to_string(),
                 SurfaceAssetLease {
-                    root: format!("projects/{project_id}"),
+                    root: package_root.to_string(),
                     grant_id: None,
                     host_access_instance_id: registry.instance_id(),
                     expires_at_ms: 0,
@@ -11190,7 +12208,7 @@ mod tests {
         assert!(!surface_asset_lease_is_valid(
             &registry,
             "expired-lease",
-            &format!("projects/{project_id}")
+            package_root
         ));
         Ok(())
     }
@@ -11215,7 +12233,7 @@ mod tests {
         config
             .surface_dev_paths
             .insert("test".to_string(), bundle_dir.to_string_lossy().to_string());
-        let runtime = Arc::new(Runtime::new(store, config));
+        let (runtime, installations) = test_runtime(store, config);
         let app = app_with_state(AppState {
             runtime,
             static_dir: None,
@@ -11224,6 +12242,7 @@ mod tests {
             build_jobs: Arc::new(BuildDeployJobRegistry::default()),
             development: development_registry(),
             host_access: host_access_registry(),
+            installations,
             target_agents: target_agent_registry(),
         });
 
@@ -11247,7 +12266,7 @@ mod tests {
         )?;
 
         let store = Arc::new(InMemoryEventStore::default());
-        let runtime = Arc::new(Runtime::new(store, RuntimeConfig::default()));
+        let (runtime, installations) = test_runtime(store, RuntimeConfig::default());
         let app = app_with_state(AppState {
             runtime,
             static_dir: Some(dir.path().to_path_buf()),
@@ -11256,6 +12275,7 @@ mod tests {
             build_jobs: Arc::new(BuildDeployJobRegistry::default()),
             development: development_registry(),
             host_access: host_access_registry(),
+            installations,
             target_agents: target_agent_registry(),
         });
 
@@ -11284,7 +12304,7 @@ mod tests {
         let dir = tempfile::tempdir()?;
         std::fs::write(dir.path().join("index.html"), "public")?;
         let store = Arc::new(InMemoryEventStore::default());
-        let runtime = Arc::new(Runtime::new(store, RuntimeConfig::default()));
+        let (runtime, installations) = test_runtime(store, RuntimeConfig::default());
         let app = app_with_state(AppState {
             runtime,
             static_dir: Some(dir.path().to_path_buf()),
@@ -11293,6 +12313,7 @@ mod tests {
             build_jobs: Arc::new(BuildDeployJobRegistry::default()),
             development: development_registry(),
             host_access: host_access_registry(),
+            installations,
             target_agents: target_agent_registry(),
         });
 
@@ -11309,7 +12330,7 @@ mod tests {
                 .await?;
             assert_eq!(response.status(), StatusCode::NOT_FOUND, "path {path}");
         }
-        for path in ["/project/bad/id", "/project/bad%2Fid"] {
+        for path in ["/installation/bad/id", "/installation/bad%2Fid"] {
             let response = app
                 .clone()
                 .oneshot(Request::builder().uri(path).body(Body::empty())?)
@@ -11334,7 +12355,7 @@ mod tests {
         }
 
         let store = Arc::new(InMemoryEventStore::default());
-        let runtime = Arc::new(Runtime::new(store, RuntimeConfig::default()));
+        let (runtime, installations) = test_runtime(store, RuntimeConfig::default());
         let app = app_with_state(AppState {
             runtime,
             static_dir: Some(dir.path().to_path_buf()),
@@ -11343,6 +12364,7 @@ mod tests {
             build_jobs: Arc::new(BuildDeployJobRegistry::default()),
             development: development_registry(),
             host_access: host_access_registry(),
+            installations,
             target_agents: target_agent_registry(),
         });
 

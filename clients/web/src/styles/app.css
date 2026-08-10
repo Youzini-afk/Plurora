@@ -153,7 +153,7 @@ body {
   width: min(360px, calc(100vw - var(--plurora-safe-left) - var(--plurora-safe-right) - 2rem));
 }
 
-.plurora-mobile-project-bar {
+.plurora-mobile-installation-bar {
   min-height: calc(42px + var(--plurora-safe-top));
   padding-top: var(--plurora-safe-top);
   padding-left: max(0.5rem, var(--plurora-safe-left));

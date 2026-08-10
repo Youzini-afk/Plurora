@@ -3,4 +3,4 @@ export * from "./host-endpoint";
 export * from "./host-access";
 export * from "./pairing-credential";
 export * from "./platform-adapter";
-export * from "./project-target-context";
+export * from "./installation-target-context";

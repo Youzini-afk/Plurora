@@ -31,22 +31,22 @@ export function formatDetectedKind(kind: InstallDetectedKind | null, t: TFunctio
 }
 
 export function detectKindFromInstallPlan(plan: InstallPlan): InstallDetectedKind | null {
-  const descriptor = readProjectDescriptor(plan.project_descriptor);
-  const projectType = descriptor?.project?.type;
-  if (projectType === "plurora_native") {
+  const descriptor = readInstallationDescriptor(plan.installation_descriptor);
+  const installationType = descriptor?.installation?.type;
+  if (installationType === "plurora_native") {
     return { kind: "native", descriptor };
   }
-  if (projectType === "external_wrapped" || projectType === "external_workspace") {
+  if (installationType === "external_wrapped" || installationType === "external_workspace") {
     return { kind: "declared_external", descriptor };
   }
   return null;
 }
 
-function readProjectDescriptor(value: unknown): { project?: { type?: unknown } } | null {
+function readInstallationDescriptor(value: unknown): { installation?: { type?: unknown } } | null {
   if (!value || typeof value !== "object") return null;
-  const descriptor = value as { project?: unknown };
-  if (!descriptor.project || typeof descriptor.project !== "object") return null;
-  return descriptor as { project?: { type?: unknown } };
+  const descriptor = value as { installation?: unknown };
+  if (!descriptor.installation || typeof descriptor.installation !== "object") return null;
+  return descriptor as { installation?: { type?: unknown } };
 }
 
 export function errorMessage(err: unknown) {

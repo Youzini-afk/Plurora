@@ -8,10 +8,10 @@ For platform goals and principles, see [`CHARTER.md`](CHARTER.en.md) and [`archi
 
 ## Summary
 
-- **Conformance:** 471 named CLI cases pass, plus crate and service unit tests; 175 v1 schemas validate (80 methods + 59 events + 36 top-level).
+- **Conformance:** named CLI conformance plus crate and service unit tests continue to pass; 177 v1 schemas validate (80 methods + 58 events + 39 top-level).
 - **Charter discipline:** content-free kernel; no privilege for first-party Packages; public protocol only; equal entry forms; capability handles, binding injection, Path A / Path B, the conformance kit, and generated SDKs are implemented; trusted paths block raw secrets and use manifest-declared `secret_ref` everywhere; permission grants rehydrate; network permissions are audited and redacted; generic streaming and cancel lifecycle; outbound execution has a boundary, deny-all by default; public HTTPS outbound uses the same host-policy / audit / redaction boundary; unary outbound, SSE/NDJSON/raw streams, and WebSocket all emit completion audit events.
 - **Code health:** the CLI, runtime domain behavior, protocol dispatch, in-process handlers, and the event store are all split by domain. We're not stacking more onto single files.
-- **Human-testing substrate:** install warnings and schema shapes are stable; native project install now flows source → store → nested manifests/profile autoload → project registry → project dist → protected `/surface-bundles/projects/<project_id>/...` → a short-lived sandbox asset lease; `surface_bundle` is a static, non-executing entry; `dist/` is included in `tree_hash`, store schema migration clears old stores, and install/update/uninstall garbage-collect orphan stores; `plurora/install-lab` provides `check_for_updates` / `update_project`, and both CLI `plurora update` and the web project console route through it; the Surface bridge has converged on allowlists, stream ownership, redacted diagnostics, secret-input cleanup, CSP/CORS hardening, and typed `allowed_capability_ids`; Desktop manages a loopback Host sidecar and the Web shell is installable as a PWA; self-hosted deployment includes unified local/Agent target drivers, target / exec / port / proxy primitives, HTTP/WebSocket reverse proxy, the explicit Deploy broker, private-by-default / explicitly public routes, shared Host/project/target client context, and Verified ChangeSet → private preview → separate deployment approval → activation → reconcile/recover/rollback. Revocable scoped-device pairing lets phones control projects, deployments, and ChangeSets through the same Host API; Web/Desktop/PWA reuse one client core, while the remote CLI uses the same Bearer/public-Host boundary for project/target operations and the full ChangeSet draft/review/approve/reject/execute/export/recover lifecycle.
+- **Human-testing substrate:** Work sources safely pack into content-addressed WorkRevision, AssemblyRevision, and AssemblyLock artifacts. Install Lab produces an Installation candidate, while `host.installation.*` creates, updates, and removes Installations through a durable journal, idempotency claims, and revision CAS. Workspaces and Installations are separate, and linked-local sources are never deleted. Web/Desktop/PWA share one public client core and Home reads Installation projections. Actual Run / Exposure lifecycle is the next Phase. The Surface bridge retains allowlists, stream ownership, redacted diagnostics, secret-input cleanup, and CSP/CORS; existing target / exec / port / proxy and the Deployment broker will be replaced in the later Realization Phase.
 
 The repository now has a substantial operational surface, but neither the platform nor the official product is “finished.” Further construction addresses openness, plurality, advanced execution and protocol capability, long-term data evolution, and complete experiences for users and creators.
 
@@ -22,20 +22,21 @@ The repository now has a substantial operational surface, but neither the platfo
 - The Experimental SHA-256 ObjectStore and ArtifactDescriptor are implemented: in-memory/filesystem CAS, verified reads, streaming, and idempotent conversion of older FNV asset records; asset events now retain only descriptors/references rather than bodies.
 - Experimental EffectReceipt and Change primitives are implemented: capability/outbound/stream/WebSocket/exec terminal paths produce content-addressed receipts; historical replay calls no executor; capability re-execution creates a new branch and parent-linked receipt; the current `change.proposal.*` facade maps approval-gated operations into Intent/ChangeSet/PolicyDecision/Commit evidence.
 - The Experimental Protocol Commons registry is implemented: `host.info` publishes five descriptors for Change, Shell Default, World Bundle, Work, and Assembly; explicit protocol/profile negotiation precedes dispatch; unsupported majors reject with a structured reason; protocol, implementation, and package conformance are separate executable reports.
-- `plurora-work` provides content-free wire models for portable Work / Assembly / Port / State Slot, Rights / Transparency, Operational Intent / Target Inventory, Installation / Run / Exposure, and Realization, plus safe source readers, Package/Foreign/content normalization, capability-to-Port projection, a digest-memoized recursive resolver, ordinary Component adapters, and bounded structured diagnostics. `plurora work init|check|pack|inspect` content-addresses the source and complete AssemblyLock closure; old Composition machine identities are removed. Host lifecycle and replacement of old Project / Deployment identities remain later phases.
+- `plurora-work` provides content-free wire models for portable Work / Assembly / Port / State Slot, Rights / Transparency, Operational Intent / Target Inventory, Installation / Run / Exposure, and Realization, plus safe source readers, Package/Foreign/content normalization, capability-to-Port projection, a digest-memoized recursive resolver, ordinary Component adapters, and bounded structured diagnostics. `plurora work init|check|pack|inspect` content-addresses the source and complete AssemblyLock closure; old Composition machine identities are removed.
+- Host Installation lifecycle has replaced the old instance model. The EventStore journal is the sole mutable authority and `installation.json` is only a rebuildable projection. Create/update/remove support idempotent replay, revision CAS, explicit state keep/delete, state snapshots, and rollback on failure. The data layout is split into `objects/`, `installations/`, `workspaces/`, and `runtime/`; startup does not read retired directories.
 - Package envelopes and component identity are separated: explicit component/behavior digests survive repackaging, runtime and effect evidence carry component trust/boundary data, AssemblyLock keeps component/profile/content pins separate, and `contract:none` is reported as a non-portable Foreign Capsule.
 - The Experimental World Bundle is implemented and covered by the cross-Host conformance fixture in `plurora/playable-creation-board`: canonical archive descriptors preserve exact v1 envelopes and the complete SHA-256 closure; fresh SQLite/filesystem Hosts retain objects, lineage, and receipts; historical replay invokes no executor; replacement execution creates a child branch/head; and the headless CLI reads the same archive without Web Shell state.
 - A JSON Schema subset validates capability I/O and package-declared event payloads.
 - The Contract V1 principal union remains `host_admin`, `host_dev`, `package`, `human`, `assistant`, and `anonymous`. Paired devices use the fail-closed `anonymous` V1 sentinel at the remote RPC boundary while a Host-established authority envelope retains the grant, delegation chain, and resource constraints; an older runtime that ignores the envelope can only deny rather than amplify authority. Redacted Host control-plane audit records still identify the logical `host_device`; human and assistant principals get scoped grants.
 - Audit events: `authority/grant.created|revoked`, `authority/denied`, the `host/package.*` lifecycle, and the `change/proposal.*` lifecycle; the Host control plane also writes redacted `host/control/v1/authority.decision` records outside Contract V1.
 - Persistent grants: grant / revoke events rehydrate inside a SQLite-backed runtime.
-- Contract V1 is the public platform spec: 80 protocol methods, 59 event kinds, and 175 JSON Schemas. `authority.handle.*`, `host.package.audit`, capability handles, binding injection, Path B, the conformance kit, and SDK generation are implemented.
+- Contract V1 is the public platform spec: 80 protocol methods, 58 event kinds, and 177 JSON Schemas. `authority.handle.*`, `host.package.audit`, capability handles, binding injection, Path B, the conformance kit, and SDK generation are implemented.
 
 ## Secure execution
 
 - **`secret_ref` references:** `secret_ref:<vault>:<key>`, `secretRef:`, `secret-ref:`, and `host:` prefixes are all supported. Packages refer to secrets through these references; raw values never appear in events, proposals, logs, or audit records.
 - **Environment-variable resolver:** a host-owned resolver with an explicit allowlist. Deny-all by default; an env name has to be allowed before it can be resolved. Errors carry only the env name, never the raw value.
-- **Local encrypted secret store:** `secret_ref:store:NAME` resolves through `StoreSecretResolver` from `~/.plurora/secrets.dat`; `secret_ref:project:NAME` reads the project-level store first and then falls back to the platform store according to `secret_policy`; stores use age (X25519), with a master key from OS keyring (deferred) or a 0600 local key file.
+- **Local encrypted secret store:** `secret_ref:store:NAME` resolves through `StoreSecretResolver` from `~/.plurora/secrets.dat`; `secret_ref:installation:NAME` reads the current Installation's `secrets.dat` first and falls back to the platform store only when `secret_policy.allow_platform_fallback` permits it. Stores use age (X25519), with a master key from OS keyring (deferred) or a 0600 local key file.
 - **Raw secret blocking:** proposal operations and expected effects, plus asset metadata, are scanned conservatively. Obvious API keys, tokens, and password fields are rejected. Asset content and ordinary prose aren't scanned, to avoid false positives on user content.
 - **Network permission declarations:** `permissions.network` in a manifest supports both flat `hosts` (backward compatible) and structured `declarations` with `host`, `methods`, and `purpose`. A package without a declaration can't reach the network. First-party Packages don't bypass.
 - **Outbound audit and redaction:** every outbound request produces an audit record holding only the principal, the package id, the capability id, the destination host, the method, the purpose, the redaction state, and the `secret_ref`s used. Raw bodies, headers, prompts, and responses are never recorded.
@@ -51,7 +52,7 @@ The repository now has a substantial operational surface, but neither the platfo
 - Contract Registry `0.1.0` publishes 80 exact owner-based method IDs, two explicit contract profiles, per-layer version requirements, and fail-closed Protocol Commons negotiation. HTTP RPC, Host stdio, in-process calls, and subprocess reverse stdio use the same exact resolver. The generated SDKs expose one method identity per wire ID, and the Web client sends only those IDs.
 - Event subscription via SSE, with `after_sequence` replay and live tailing.
 - Profile-driven `plurora host serve` autoloads packages and exposes both `/rpc` and SSE.
-- The Host control plane remains separate from Contract V1: the root token is the root credential, while durable device grants attenuate both action scopes and `project` / `target` resource selectors, with bounded delegation, ancestor-revocation cascade, expiry, single revoke, and atomic administrator bulk revoke. HTTP and RPC preserve the same device identity and authority before entering the runtime, project sessions require an explicit project binding, and each device protocol call records a redacted allow/deny decision. Long-running development execution refreshes grant/ancestor state before Docker and managed-workspace effects and after blocking verification. The mobile PWA and `plurora host access` CLI manage authority through the same Host API; pairing still exchanges a one-time HTTPS token for a Secure/HttpOnly cookie. See [`architecture/HOST_REMOTE_ACCESS.md`](architecture/HOST_REMOTE_ACCESS.en.md).
+- The Host control plane remains separate from Contract V1: the root token is the root credential, while durable device grants attenuate both action scopes and Work / Workspace / Installation / Run / Target / Exposure / Binding / Realization resource selectors, with bounded delegation, ancestor-revocation cascade, expiry, single revoke, and atomic administrator bulk revoke. HTTP and RPC preserve the same device identity and authority before entering the runtime, and every device protocol call records a redacted allow/deny decision. The mobile PWA and `plurora host access` CLI manage authority through the same Host API; pairing still exchanges a one-time HTTPS token for a Secure/HttpOnly cookie. See [`architecture/HOST_REMOTE_ACCESS.md`](architecture/HOST_REMOTE_ACCESS.en.md).
 - TCP transport is reserved for later. WASM and remote entries are first-class manifest forms; execution is deferred.
 
 ## Package execution
@@ -68,65 +69,38 @@ The repository now has a substantial operational surface, but neither the platfo
 - Asset registry: opaque `id`, `mime`, `hash`, `size`, `origin_package_id`, `metadata`. Rehydrates from SQLite. Permission enforcement and content-addressed blob storage are next.
 - Session fork / branch lineage rehydrates from the event log.
 - Generic projection registry. Rebuilds filter the event log by `kind_prefix` and `writer_package_id` and write `projection/updated`. Package-owned projection execution is next.
-- Project runtime: `ProjectDescriptor`, `ProjectRegistry`, `~/.plurora/projects/<id>/` layout, project-level secret policy, Home project cards, per-project storage summaries, redacted package-failure summaries, and `plurora project list/info/status/start/stop` are implemented.
+- Installation control plane: EventStore journal, rebuildable projections, ObjectStore artifact validation, explicit state actions, restart rehydration, and `plurora installation list/info/create/update/remove` are implemented.
 - Deployment runtime: `host.target.*`, `host.exec.*`, `host.port.*`, and `host.proxy.*` are implemented; default is deny-all and profiles may opt into `LiveLocalExecExecutor`. Built-in `local` and enrolled Agents use the same durable operation/artifact/verifier/deployment-receipt contracts; ports remain loopback-only, proxy upstreams must reference active port leases, and Agent traffic returns to the Host proxy only through authenticated tunnels. `ProxyRouteAccess` defaults to `host_authenticated`; only an explicit `public` route enables the optional unauthenticated `<slug>.apps.<host>/` vhost, while `/p/<route_id>/...` remains inside Host authentication. The web project console supports explicit Docker Deploy / Stop, Dockerfile / nixpacks Build & Deploy, and immutable-build-context-driven verified ChangeSet private preview, separate approval, `VerifiedActivate` revisions, and explicit reconcile/recover/rollback. Verified replay rebuilds on the recorded target without reading the live workspace or refetching source. A real MDN repository and a structurally different Python fixture cover faults, Host restart, and rollback in GitHub CI.
 - Surface contributions: descriptors with version, slot, activation, required permissions, approval policy, and metadata. Slots are `experience_entry`, `home_card`, `quick_action`, `workshop_card`, `play_renderer`, `forge_panel`, `asset_editor`, and `assistant_action`. `quick_action`, `workshop_card`, and `home_card` entries with `metadata.shell_schema_version: 1` are structured shell descriptors: the web shell reads only bounded text, icon hints, order, and same-package targets, then renders them itself. It does not load package JavaScript, parse HTML, or mount iframes for those entries. Complex project surfaces still use `surface_bundle` plus sandboxed iframe hosting. Discoverable via `shell.contribution.list` and `.describe`.
-- Surface bundles: `surface_bundle` is a static browser-bundle entry in the manifest, not an executable package entry. Installed project bundles live internally under `/surface-bundles/projects/<project_id>/...`, whose raw path requires a Host identity. After project authorization, an opaque-origin sandbox receives a five-minute `/surface-assets/<lease>/...` read-only handle bound to its grant and bundle root, without a Host credential. `dist/` participates in `tree_hash`, so browser-bundle-only changes trigger updates; project dist refreshes through a temporary directory plus atomic replacement.
+- Surface bundles: `surface_bundle` is a static browser-bundle entry in the manifest, not an executable package entry. Bundles resolve from Package sources and raw paths require a Host identity. An opaque-origin sandbox receives a five-minute `/surface-assets/<lease>/...` read-only handle bound to its grant and bundle root, without a Host credential.
 - Proposal lifecycle: `change.proposal.create|get|list|approve|reject|apply`. `apply` currently runs the generic operations `asset.put` and `projection.rebuild`. Broader transactions and revert / compensation are next.
 
-## Package installation and project model
+## Work, Workspace, and Installation
 
 | Capability | Status |
 |---|---|
-| `manifest.requires` field | implemented |
-| Lockfile schema (`plurora.lock.v1`) | implemented |
-| `plurora/git-tools-lab` (gix-based) | implemented |
-| `plurora/integrity-lab` (sequoia GPG + sha256) | implemented |
-| `plurora/install-lab` orchestrator | implemented |
-| `plurora install` / `uninstall` / `list-installed` / `update` / `lockfile` CLI | implemented |
-| `~/.plurora` filesystem convention | implemented |
-| Interactive consent prompt | implemented |
-| Static conformance integration (warning by default; `--strict` blocks) | implemented |
-| GPG signature verification (off by default; `--require-signed` enables) | implemented |
-| Cycle detection | implemented |
-| Real GitHub smoke (opt-in) | implemented |
-| `dist/` included in `tree_hash` | implemented |
-| Store schema migration clears old store | implemented |
-| Orphaned store GC (after install / update / uninstall) | implemented |
-| `plurora/install-lab/check_for_updates` | implemented |
-| `plurora/install-lab/update_project` | implemented |
-| `plurora/secret-store-lab` encrypted storage | implemented |
-| `plurora/docker-runtime-lab` (Docker container lifecycle, bollard) | implemented |
-| `StoreSecretResolver` + `CompositeSecretResolver` | implemented |
-| age (X25519) encryption + 0600 file permissions | implemented |
-| OS keyring integration | deferred (libdbus-sys system dep) |
-| `plurora secret put / list / delete` CLI | deferred |
-| Sigstore verification | deferred |
-| Tauri UI install path | deferred |
-| Auto-update daemon | deferred |
-| Binary package distribution | deferred |
-| Project as first-class runtime concept | implemented |
-| `ProjectDescriptor` + `ProjectId` + `ProjectType` + `SecretPolicy` | implemented |
-| `~/.plurora/projects/<id>/` filesystem layout | implemented |
-| `secret_ref:project:NAME` with platform fallback | implemented |
-| `ProjectRegistry` (in-memory + disk scan) | implemented |
-| `ProtocolContext.session_id` propagation | implemented |
-| Install detection (native vs external) | implemented |
-| External project wizard (wrap / workspace) | implemented |
-| `plurora project list/info/status/start/stop` | implemented |
-| `plurora uninstall` archival prompt | implemented |
-| `host.project.list/get/start/stop/status` | implemented |
-| `host/project.installed/started/stopped/uninstalled` | implemented |
-| Home surface project cards | implemented |
-| YdlTavern `project.yaml` | implemented |
-| Native project install into profile, project registry, and project dist | implemented |
-| `surface_bundle` static entry and installed project bundle route | implemented |
-| typed `allowed_capability_ids` bridge declaration | implemented |
-| CLI `plurora update` routes through install-lab project update | implemented |
-| Multi-tenant `project_id` in `ProtocolContext` | deferred |
-| Project archive auto-cleanup beyond 30 days | deferred |
+| `plurora work init/check/pack/inspect` | implemented |
+| Work / Assembly source, Package, Foreign, and content-only normalization | implemented |
+| Recursive resolver, explicit Adapters, and Port / Binding diagnostics | implemented |
+| AssemblyLock plus complete content-addressed closure | implemented |
+| `plurora/install-lab` Work candidate orchestration | implemented |
+| ObjectStore persistence for Work / Assembly / Lock closure | implemented |
+| `plurora installation list/info/create/update/remove` | implemented |
+| `host.installation.list/get/create/update/remove` | implemented |
+| `host/installation.created/updated/removed` | implemented |
+| Installation journal / projection restart rehydration | implemented |
+| idempotency fingerprints and revision CAS | implemented |
+| update state snapshot, explicit migration/reset, and rollback on failure | implemented |
+| remove `keep` / `delete` state decision | implemented |
+| linked-local source is never deleted | implemented |
+| managed Workspace containment / symlink defense | implemented |
+| new `objects/`, `installations/`, `workspaces/`, and `runtime/` layout | implemented |
+| `secret_ref:installation:NAME` plus optional platform fallback | implemented |
+| Web Home Installation cards / detail | implemented |
+| Run / Exposure lifecycle | Phase 4 |
+| Planner / Realization | Phases 5–6 |
 
-Install defaults are relaxed to the cargo / npm / pip technical baseline: HTTPS-only, content hashing, and atomic writes are always on; signature verification and conformance blocking are opt-in through `--require-signed` / `--strict`.
+Work packing and Installation creation are separate: pack produces immutable artifacts only; create/update/remove mutate the Host journal. Workspace locations are Host-local bindings and never enter portable Work identity.
 
 ## Real model end-to-end path
 
@@ -136,16 +110,13 @@ Install defaults are relaxed to the cargo / npm / pip technical baseline: HTTPS-
 | Surface bundle resolution metadata-driven | implemented |
 | `host.surface.bundle.resolve` | implemented |
 | Host-identity-gated `/surface-bundles/<prefix>/<file>` route | implemented |
-| exact-project-gated `/surface-bundles/projects/<id>/<file>` route | implemented |
 | grant/root-bound five-minute `/surface-assets/<lease>/...` sandbox handle | implemented |
-| `project.start` opens project session + sets `metadata.project_id` | implemented |
-| `project.start` returns `session_id` + `already_running` | implemented |
-| `project.get` / `status` return `running_session_id` | implemented |
-| `project.stop` emits + closes project session | implemented |
+| Installation-scoped secret and authority context | implemented |
+| Installation → Run / Exposure start and stop | Phase 4 |
 | Surface receives `session_id` via `initialProps` | implemented |
 | `TavernProvider.sendMessage` invokes engine `model.live_call` | implemented |
-| API Connections drawer scope toggle (platform / project) | implemented |
-| Engine manifest declares `secret_ref:project:*` | implemented |
+| API Connections drawer scope toggle (platform / Installation) | implemented |
+| Engine manifest declares `secret_ref:installation:*` | implemented |
 | Surface streaming response UX | implemented |
 | Surface-host stream postMessage protocol | implemented |
 | Surface bridge allowlist / stream ownership / diagnostics redaction / secret input cleanup / CSP/CORS hardening | implemented |
@@ -223,7 +194,7 @@ Under `sdk/typescript/`:
 ## Contract v1 and SDK generation
 
 - `docs/spec/PUBLIC_CONTRACT.md` is the public platform spec.
-- `docs/spec/v1/schemas/` is the single source of truth for SDKs and conformance: 80 methods, 59 events, 36 top-level schemas, 175 total.
+- `docs/spec/v1/schemas/` is the single source of truth for SDKs and conformance: 80 methods, 58 events, 39 top-level schemas, 177 total.
 - `sdk/typescript/contract-sdk/` and `sdk/rust/plurora-contract-sdk/` are generated from schemas; the TypeScript package can be consumed through npm, workspace path, or independent codegen.
 - `plurora conformance package --contract v1 --path <package>` provides 8 third-party package acceptance checks.
 
@@ -233,18 +204,18 @@ Under `sdk/typescript/`:
 
 ## Web shell (`clients/web`)
 
-The platform user-facing chrome — Home, Settings, Install flow, Project frame, and the toast system. Built as a React 19 + Tailwind v4 + Motion + Radix + Phosphor SPA, bundled by Vite with route- and modal-level lazy splitting. Visual rules and the design system live in [`design/PLATFORM_UI_DESIGN.md`](design/PLATFORM_UI_DESIGN.en.md); detailed shell documentation is in [`../clients/web/README.md`](../clients/web/README.md).
+The platform user-facing chrome — Home, Settings, Installation flow, Installation frame, and the toast system. Built as a React 19 + Tailwind v4 + Motion + Radix + Phosphor SPA, bundled by Vite with route- and modal-level lazy splitting. Visual rules and the design system live in [`design/PLATFORM_UI_DESIGN.md`](design/PLATFORM_UI_DESIGN.en.md); detailed shell documentation is in [`../clients/web/README.md`](../clients/web/README.md).
 
-- **Home:** project shelf (card grid + status pills + Hero + utility strip + activity timeline + workshop utilities bento), backed by `host.project.list`; disk usage comes from project `storage_summary`. Home also consumes structured shell descriptors: built-in quick actions remain, and package-contributed `quick_action`, `workshop_card`, and schema-versioned `home_card` entries are discovery affordances rendered by the platform. Package actions are discovery-only in this slice and do not bypass proposal / permission / audit. `⌘N` opens the Install modal.
+- **Home:** the Installation shelf is backed by `host.installation.list`, with detail from `host.installation.get`. Home also consumes structured shell descriptors; package actions remain discovery affordances and do not bypass proposal / permission / audit. `⌘N` opens Installation creation.
 - **Settings:** six panels, all wired to real data.
   - API Connections — `plurora/secret-store-lab/{list,put,delete}_secret` plus health. The UI never reads raw secret values; secret-edit modals wipe their input state on close.
-  - Installed Packages — `host.package.list` plus the project flag, with Cmd/Ctrl+F focus.
+  - Installed Packages — `host.package.list`, with Cmd/Ctrl+F focus.
   - Profiles — `host.diagnostics` (active profile, packages_loaded, network allowlist).
   - Storage — storage-area summary plus the live event-store kind (sqlite / postgres / memory), without exposing host absolute paths in the Web UI.
-  - Host Access — current root/device identity, action scopes, project/target resource selectors, delegation chains, HTTPS pairing links, pending invitations, device expiry, and cascading grant revocation; new invitations select only `observe` by default.
+  - Host Access — current root/device identity, action scopes, Work / Workspace / Installation / Run / Target / Exposure / Binding / Realization resource selectors, delegation chains, HTTPS pairing links, pending invitations, device expiry, and cascading grant revocation; new invitations select only `observe` by default.
   - About — platform identity, license, links, gratitude.
-- **Install / Update flow:** the Install modal calls `plurora/install-lab` (`resolve_plan` / `detect_kind` / `execute_plan`) through `capability.invoke`. Native projects take the fast path; external projects branch into a wrap-vs-workspace wizard. The project console shows bundle / package / event diagnostics and exposes updates through `check_for_updates` / `update_project`. There is no `host.install.*`.
-- **Project Frame:** Home opens projects in standalone `/project/<id>` tabs. The project page has no platform topbar or back button; it fills the viewport with the sandboxed iframe that mounts the project's own UI. Closing the tab does not stop the project. `⌘ .` / `Ctrl .` stops the current project from the project tab.
+- **Installation flow:** the UI uses the real public `host.installation.create|update|remove` DTOs. Update carries an expected revision plus explicit state action; remove requires keep/delete.
+- **Installation Frame:** `/installation/<id>` displays Installation detail and status. Before Phase 4 it does not fabricate a Run and instead returns the structured `run_unavailable_phase4` reason.
 - **Failure Modal:** Deep Rust accent stripe, two-column diagnosis / impact, redacted stderr panel (with Copy log), and Restart / Stop-and-uninstall / Close actions. Data comes from `host.package.list/status/logs`; raw logs are not copied into the UI.
 - **Toast system:** five variants (info/success/warning/error/progress), bottom-right queue; honors `prefers-reduced-motion`.
 - **Responsive and dark mode:** explicit `data-theme` switch (system/light/dark); `@custom-variant dark` binds Tailwind's `dark:` to that attribute; the modal overlay uses a dedicated `--color-overlay` token that does not flip with theme; `prefers-reduced-motion` collapses motion; `:focus-visible` paints a keyboard navigation ring.
@@ -271,18 +242,18 @@ The platform user-facing chrome — Home, Settings, Install flow, Project frame,
 
 ## Code organization
 
-- `crates/plurora-cli/src/main.rs` is a thin entry. CLI types live in `cli.rs`, commands under `commands/`, and package templates under `templates/`. The conformance runner and case registry are split: `conformance/runner.rs` owns `--list`, `--case`, `--tag`, `--fail-fast`, and `--slowest`; `conformance/registry/` registers the 471 `ConformanceCase { id, tags, run }` entries by domain.
+- `crates/plurora-cli/src/main.rs` is a thin entry. CLI types live in `cli.rs`, commands under `commands/`, and package templates under `templates/`. The conformance runner and case registry are split: `conformance/runner.rs` owns `--list`, `--case`, `--tag`, `--fail-fast`, and `--slowest`; `conformance/registry/` registers the 453 `ConformanceCase { id, tags, run }` entries by domain.
 - `crates/plurora-cli/src/schema_export/` owns v1 schema export; `src/bin/export-schemas.rs` is a thin entry. Generated files still come from the exporter only — SDKs and schemas are not hand-edited.
 - `crates/plurora-runtime/src/runtime/` splits runtime behavior into session, events, packages, capabilities, hooks, permissions, assets, branches, projections, and proposals. `runtime/protocol_dispatch.rs` is now the public router facade; concrete public-protocol handlers live under `runtime/protocol/` by domain. `runtime/mod.rs` keeps the public `Runtime<S>` API.
 - Protocol metadata and dispatch share a single source of truth (`PlatformMethod`), with a registry / dispatch consistency unit test.
-- `crates/plurora-runtime/src/inproc/` splits first-party Package behavior by domain; `plurora/install-lab` is split into `install_lab/` modules (types/source/planner/executor/layout/project_kind/fs_copy). The shared helper routes by provider package plus local capability name, not suffix-only fallback.
+- `crates/plurora-runtime/src/inproc/` splits first-party Package behavior by domain; `plurora/install-lab` is split into `install_lab/` modules (types/source/detection/planner/candidate/executor/layout/intake/fs_copy). The shared helper routes by provider package plus local capability name, not suffix-only fallback.
 - `clients/web` Home and Install flow are split into page shells plus hooks/helpers/step components. The UI still uses public protocol only and does not read the local filesystem or private runtime state.
 
 These splits don't change behavior — they keep the codebase reviewable as more packages, conformance cases, handlers, and UI flows land.
 
 ## Conformance
 
-`cargo run -p plurora-cli -- conformance` runs 471 named CLI cases. Flags:
+`cargo run -p plurora-cli -- conformance` runs 453 named CLI cases. Flags:
 
 - `--list` — list ids and tags.
 - `--case <pattern>` — substring filter.

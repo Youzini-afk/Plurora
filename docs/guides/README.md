@@ -8,7 +8,7 @@
 
 - [`PACKAGE_AUTHORING_WALKTHROUGH.md`](PACKAGE_AUTHORING_WALKTHROUGH.md) — 第三方能力包创作 walkthrough（init-package、check、run-fixture、reload、composition）
 - [`PACKAGE_INSTALLATION.md`](PACKAGE_INSTALLATION.md) — 包/项目安装与更新、lockfile、`~/.plurora` 布局、签名/完整性、bundle freshness 与同意提示
-- [`PROJECT_MODEL.md`](PROJECT_MODEL.md) — `project.yaml`、Home 项目卡、项目 lifecycle、项目控制台诊断/更新、项目级 secret policy
+- [`INSTALLATION_MODEL.md`](INSTALLATION_MODEL.md) — Work / Workspace / Installation 边界、journal/projection、state update/remove 与 Installation secret policy
 - [`DEPLOYMENT_RUNTIME.md`](DEPLOYMENT_RUNTIME.md) — target / exec / port / proxy 部署运行时、plurora-service 反代、Docker Deploy broker
 - [`HOST_OPERATIONS.md`](HOST_OPERATIONS.md) — Host liveness/readiness、SQLite 离线备份与原子恢复、release 校验
 - [`SECRET_MANAGEMENT.md`](SECRET_MANAGEMENT.md) — `secret_ref:env:` / `secret_ref:store:`、本地加密 secret store 与 API key 管理
@@ -38,4 +38,4 @@
 - [`SHARING_DISTRIBUTION.md`](SHARING_DISTRIBUTION.md) — 分享与分发：composition bundle、package-set lockfile、AI disclosure
 - [`STORAGE_BACKEND_NEUTRALITY.md`](STORAGE_BACKEND_NEUTRALITY.md) — backend-neutral 存储契约与官方实验室
 - [`POSTGRES_TDB_INTEGRATION.md`](POSTGRES_TDB_INTEGRATION.md) — PostgreSQL（事件后端）+ TDB（检索 provider）接入
-- [`EXTERNAL_PROJECT_OPERATING_PLANE.md`](EXTERNAL_PROJECT_OPERATING_PLANE.md) — 外部项目操作平面（intake / workspace / adapter）
+- [`WORKSPACE_OPERATING_PLANE.md`](WORKSPACE_OPERATING_PLANE.md) — Workspace ownership、静态 intake、计划/效果分离与受控源码变更

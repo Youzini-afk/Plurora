@@ -20,6 +20,7 @@ pub(crate) async fn sqlite_rehydrate() -> anyhow::Result<()> {
             mime: "text/plain".to_string(),
             content: "durable".to_string(),
             metadata: json!({"phase": "A"}),
+            artifact: None,
         })
         .await?;
     let branch = runtime
@@ -46,7 +47,7 @@ pub(crate) async fn sqlite_rehydrate() -> anyhow::Result<()> {
     hydrated.hydrate_substrate_from_events().await?;
     let hydrated_asset = hydrated.get_asset(&asset.id).await?;
     anyhow::ensure!(
-        hydrated_asset.content == "durable",
+        hydrated_asset.content == "durable" && hydrated_asset.record.id == asset.id,
         "asset did not rehydrate"
     );
     anyhow::ensure!(
@@ -54,8 +55,7 @@ pub(crate) async fn sqlite_rehydrate() -> anyhow::Result<()> {
             .record
             .descriptor
             .as_ref()
-            .map(|descriptor| descriptor.digest.as_str())
-            == Some(asset.hash.as_str()),
+            .is_some_and(|descriptor| descriptor.digest.as_str() == asset.hash.as_str()),
         "rehydrated asset descriptor changed"
     );
     anyhow::ensure!(

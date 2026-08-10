@@ -19,7 +19,7 @@ import { useAsync, usePlurora } from "@/lib/plurora-client";
 import { classifyPackageKind } from "@/lib/format";
 import { useT } from "@/lib/locale";
 import { cn } from "@/lib/cn";
-import type { PackageRecord, ProjectRecord } from "@/protocol/client";
+import type { PackageRecord } from "@/protocol/client";
 
 interface RowEntry {
   id: string;
@@ -31,7 +31,7 @@ interface RowEntry {
   capabilityCount: number;
   hookCount: number;
   entryKind: string;
-  isProject: boolean;
+  isInstallation: boolean;
 }
 
 const FILTER_TABS = ["all", "PROJECT", "PLURORA", "THIRD-PARTY"] as const;
@@ -53,16 +53,16 @@ export function InstalledPackagesPanel() {
   const [search, setSearch] = useState("");
 
   const packages = useAsync(() => client.packages(), [client]);
-  const projects = useAsync(
-    () => client.listProjects().catch<ProjectRecord[]>(() => []),
+  const installations = useAsync(
+    () => client.listInstallations().catch(() => []),
     [client],
   );
 
   const rows = useMemo<RowEntry[]>(() => {
-    const projectIds = new Set((projects.data ?? []).map((p) => p.id));
+    const installationIds = new Set((installations.data ?? []).map((p) => p.record.installation_id));
     return (packages.data ?? []).map((p) => {
-      const isProject = projectIds.has(p.id);
-      const kind: RowEntry["kind"] = isProject ? "PROJECT" : classifyPackageKind(p.id);
+      const isInstallation = installationIds.has(p.id);
+      const kind: RowEntry["kind"] = isInstallation ? "PROJECT" : classifyPackageKind(p.id);
       return {
         id: p.id,
         name: deriveName(p.id),
@@ -73,10 +73,10 @@ export function InstalledPackagesPanel() {
         capabilityCount: p.capability_count,
         hookCount: p.hook_count,
         entryKind: p.entry_kind,
-        isProject,
+        isInstallation,
       };
     });
-  }, [packages.data, projects.data]);
+  }, [packages.data, installations.data]);
 
   const filtered = useMemo(() => {
     return rows.filter((p) => {
@@ -167,7 +167,7 @@ export function InstalledPackagesPanel() {
               tab === "all"
                 ? t("packagesFilterAll")
                 : tab === "PROJECT"
-                  ? t("packagesFilterProjects")
+                  ? t("packagesFilterInstallations")
                   : tab === "PLURORA"
                     ? t("packagesFilterPlurora")
                     : t("packagesFilterThirdParty");
@@ -197,7 +197,7 @@ export function InstalledPackagesPanel() {
             size="sm"
             onClick={() => {
               packages.refresh();
-              projects.refresh();
+              installations.refresh();
               toast.push({ variant: "info", title: t("packagesRefreshing"), duration: 2400 });
             }}
             disabled={packages.loading}

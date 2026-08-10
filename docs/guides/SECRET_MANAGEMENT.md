@@ -2,13 +2,13 @@
 
 > [English](./SECRET_MANAGEMENT.en.md) · [中文](./SECRET_MANAGEMENT.md)
 
-Plurora 通过 `secret_ref` 引用密钥，宿主在能力调用时解析为真实值。包永远拿不到原始密钥。本文档解释四种解析路径、安全模型、以及怎么从环境变量迁到本地存储或项目级存储。
+Plurora 通过 `secret_ref` 引用密钥，宿主在能力调用时解析为真实值。包永远拿不到原始密钥。本文档解释四种解析路径、安全模型、以及怎么从环境变量迁到平台或 Installation 级加密存储。
 
 ## 设计原则
 
 - 包用 `secret_ref` 引用，不接触原始值。
 - 宿主只在能力调用时解析，不进 event、audit、proposal、log。
-- env、store、project、未来 vault 类型由不同 resolver 实现。
+- env、store、installation、未来 vault 类型由不同 resolver 实现。
 - 缺失、拒绝、格式错误一律 fail-closed。
 - 错误消息不泄漏值。
 - `secret_ref` 是运行时权威输入，不是存储 raw secret 的容器。
@@ -27,7 +27,7 @@ secret_ref:<vault>:<key>
 ```text
 secret_ref:env:OPENAI_API_KEY
 secret_ref:store:OPENAI_API_KEY
-secret_ref:project:OPENAI_API_KEY
+secret_ref:installation:OPENAI_API_KEY
 ```
 
 兼容前缀仍可解析：
@@ -83,32 +83,33 @@ secret_refs:
 宿主通过 `StoreSecretResolver` 在能力调用时读取并解密。包看到的仍然只是 `secret_ref:store:OPENAI_API_KEY`。
 
 
-### `secret_ref:project:NAME` — 项目级加密存储
+### `secret_ref:installation:NAME` — Installation 级加密存储
 
-读取当前项目目录的 `~/.plurora/projects/<project_id>/secrets.dat`。项目 store 与平台 store 使用同一类 age 加密和同一 master key，但数据文件按项目隔离。
+读取当前 Installation 目录的 `~/.plurora/installations/<installation-id>/secrets.dat`。Installation store 与平台 store 使用同一类 age 加密和 master key，但数据文件按 Installation 隔离。
 
 解析路径：
 
-1. 从当前 `ProtocolContext.session_id` 找到活动项目。
-2. 读取该项目的 `secrets.dat`。
-3. 如果存在 `NAME`，返回项目值。
-4. 如果不存在且 `secret_policy.fallback_to_platform: true`，回退到平台 `secret_ref:store:NAME`。
-5. 如果 `NAME` 在 `secret_policy.require_per_project` 中，禁止平台回退。
+1. 从 Host 验证的调用上下文取得活动 `installation_id`。
+2. 确认完整 ref 精确出现在 `secret_policy.allowed_secret_refs`。
+3. 读取该 Installation 的 `secrets.dat`。
+4. 如果存在 `NAME`，返回 Installation 值。
+5. 如果不存在且 `secret_policy.allow_platform_fallback: true`，回退到平台 `secret_ref:store:NAME`。
 6. 仍缺失时 fail-closed。
 
-- 适用：某个项目需要覆盖平台 key，或需要项目级审计可见的配置。
-- 优点：项目可以有自己的 provider key，不影响其他项目。
-- 缺点：需要项目上下文；没有 active project/session 时必须失败。
+- 适用：某个 Installation 需要覆盖平台 key，或需要 Installation 级审计可见的配置。
+- 优点：一个 Installation 可以有自己的 provider key，不影响其他 Installation。
+- 缺点：需要 Host 验证的 Installation context；缺失时必须失败。
 
 示例：
 
 ```yaml
 secret_refs:
-  - secret_ref:project:OPENAI_API_KEY
+  - secret_ref:installation:OPENAI_API_KEY
 
 secret_policy:
-  fallback_to_platform: true
-  require_per_project: []
+  allow_platform_fallback: true
+  allowed_secret_refs:
+    - secret_ref:installation:OPENAI_API_KEY
 ```
 
 ### `secret_ref:vault:KEY` — 远程 vault（未来）
@@ -126,8 +127,8 @@ secret_policy:
 | 开发本地调试 | env |
 | CI / 自动化 | env |
 | 桌面端产品 | store |
-| Plurora 项目默认路径 | project（可按 policy 回退 store） |
-| 某项目必须用专属 key | project + `require_per_project` |
+| 已安装 Work 的本地覆盖 | installation（可按 policy 回退 store） |
+| 某 Installation 必须用专属 key | installation + `allow_platform_fallback: false` |
 | Docker 单服务部署 | env |
 | 多用户共享部署 | env（按用户 export） |
 | 团队共享 | 未来 vault |
@@ -136,7 +137,7 @@ secret_policy:
 
 - 需要一次性自动化：用 env。
 - 需要长期桌面体验：用 store。
-- 需要项目可覆盖平台配置：用 project。
+- 需要 Installation 覆盖平台配置：用 installation。
 - 需要团队级统一轮换：等待 vault 能力包。
 
 ## 怎么用 store
@@ -152,7 +153,7 @@ YdlTavern 的 API Connections 抽屉支持粘贴 + 保存：
 5. UI 自动设置该 profile 的 `secretRef` 为 `secret_ref:store:OPENAI_API_KEY`。
 6. 后续调用只携带引用，不携带 raw key。
 
-如果 store 暂不可用，env 路径仍可作为 fallback。对已安装项目，profile 可以改用 `secret_ref:project:*`，项目 store 缺失时再按 `secret_policy` 回退平台 store。
+如果 store 暂不可用，env 路径仍可作为独立选择。已安装 Work 可以使用 `secret_ref:installation:*`；Installation store 缺失时是否回退平台 store 由 `secret_policy` 明确决定。
 
 ### 通过命令行
 
@@ -233,7 +234,7 @@ OS keyring 集成是延后项；当 CI 与跨平台构建环境提供稳定系�
 4. UI 自动把 profile 切到 `secret_ref:store:OPENAI_API_KEY`。
 5. （可选）unset 环境变量。
 
-env 路径继续可用，平台 store 路径也继续可用，已有平台密钥无需迁移。项目可以逐步把某个 profile 切到 `secret_ref:project:NAME`；项目 store 没有值时会按 policy 回退平台 store。三条路径不冲突，同一个 provider 可以在不同 profile 中使用不同 resolver。
+env 路径与平台 store 路径继续可用。Installation 可以显式使用 `secret_ref:installation:NAME`；本地 store 没有值时只在 policy 允许时回退平台 store。三条路径互不扩大彼此的 authority。
 
 ## 错误与诊断
 
@@ -245,8 +246,8 @@ env 路径继续可用，平台 store 路径也继续可用，已有平台密钥
 | resolver denied | vault 不受支持或未放行 | 检查 allowlist / resolver 配置 |
 | missing env var | 环境变量未设置 | export 变量或迁到 store |
 | missing store entry | store 中没有该 name | 通过 UI 或能力写入 |
-| missing project context | 使用 project ref 但没有活动项目 | 从项目 session 调用，或改用 store/env |
-| project secret required | policy 要求项目级配置 | 在项目设置里写入该 secret |
+| missing installation context | 使用 installation ref 但没有活动 Installation | 从绑定 Installation 的 Host 调用，或改用 store/env |
+| installation secret not allowed | ref 不在 policy allowlist | 更新 Installation secret policy 后重试 |
 | decrypt failed | store 或 key 文件不匹配 | 检查数据目录与权限 |
 
 诊断输出不得包含 raw value。需要确认值是否存在时，使用 `has_secret` / `list_secrets` 这类布尔或名称级能力，不返回密钥本身。
@@ -270,28 +271,25 @@ env 路径继续可用，平台 store 路径也继续可用，已有平台密钥
 
 provider adapter 构造请求 shape；宿主 outbound executor 在最后一刻解析并注入 header。response、audit、stream frame 中仍然只出现引用。
 
-## Project scope 怎么工作
+## Installation scope 怎么工作
 
-`secret_ref:project:*` 的范围来自项目 session，而不是 surface 自己传的 `projectId` 字符串：
+`secret_ref:installation:*` 的范围来自 Host 验证的 Installation context，而不是 surface 自己传入的字符串或路径：
 
-1. Home Play 或 `plurora project start` 调 `host.project.start`。
-2. host 创建或复用项目 session，并写入 `session.metadata.project_id`。
-3. `clients/web` 把 `session_id` 注入 surface 的 `initialProps.sessionId`。
-4. surface 后续 RPC 自动带 `session_id`。
-5. host dispatch 设置 `ProtocolContext.session_id`。
-6. outbound dispatch 解析 secret 前，用该 session 查 `metadata.project_id`。
-7. runtime 设置 `ACTIVE_PROJECT_SCOPE` task-local，内容是 `ProjectScopeContext`。
-8. `ProjectStoreSecretResolver` 先读 `~/.plurora/projects/<id>/secrets.dat`。
-9. 如果缺失，按项目 `secret_policy` 决定是否回退平台 store。
-10. fallback 允许时读取 `secret_ref:store:NAME`；fallback 关闭或 `require_per_project` 命中时 fail-closed。
+1. Host protocol / runtime dispatch 校验调用方对精确 Installation 的资源 authority。
+2. Host 从 Installation projection 取得 `InstallationSecretPolicy` 与 `secrets.dat` 路径。
+3. runtime 设置 `ACTIVE_INSTALLATION_SCOPE`，包含强类型 InstallationId、policy 与已验证 store path。
+4. `InstallationStoreSecretResolver` 要求完整 ref 精确出现在 `allowed_secret_refs`。
+5. resolver 先读 `~/.plurora/installations/<id>/secrets.dat`。
+6. 本地值缺失且 `allow_platform_fallback` 为 true 时，才读取 `secret_ref:store:NAME`；否则 fail-closed。
 
-因此解析顺序是：项目 store → fallback policy → 平台 store。完整真实模型调用链见 [`REAL_MODEL_END_TO_END.md`](REAL_MODEL_END_TO_END.md)；项目 session 的来源见 [`PROJECT_MODEL.md`](PROJECT_MODEL.md)。
+因此解析顺序是：精确 allowlist → Installation store → fallback policy → 平台 store。Installation 边界见 [`INSTALLATION_MODEL.md`](INSTALLATION_MODEL.md)。
 
 ## 实现位置
 
 - `crates/plurora-core/src/secret_ref.rs` — `secret_ref` 解析与校验。
 - `crates/plurora-core/src/paths.rs` — 文件路径（`secret_store_path` / `secret_store_key_path`）。
-- `crates/plurora-runtime/src/secret.rs` — `HostSecretResolver` / `EnvSecretResolver` / `StoreSecretResolver` / `ProjectSecretResolver` / `CompositeSecretResolver`。
+- `crates/plurora-runtime/src/secret.rs` — `HostSecretResolver` / `EnvSecretResolver` / `StoreSecretResolver` / `CompositeSecretResolver`。
+- `crates/plurora-runtime/src/installation_secret.rs` — `InstallationStoreSecretResolver` 与验证后的 scope。
 - `crates/plurora-runtime/src/secret_store.rs` — 共享加密文件 load/save。
 - `crates/plurora-runtime/src/inproc/secret_store_lab.rs` — 能力实现。
 - `packages/plurora/secret-store-lab/manifest.yaml` — 包清单。
@@ -302,6 +300,6 @@ provider adapter 构造请求 shape；宿主 outbound executor 在最后一刻�
 - `plurora secret put / list / delete` CLI 延后。
 - 远程 vault resolver 未实现。
 - store 是本机用户级存储，不是团队共享 vault。
-- 项目级 store 是软隔离，不是多租户安全边界。
+- Installation store 由精确 Host resource authority 选择，但仍不是团队共享 vault。
 
 这些限制不会改变核心安全边界：包只拿引用，宿主解析，错误 fail-closed。

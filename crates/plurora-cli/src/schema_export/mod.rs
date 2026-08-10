@@ -128,6 +128,18 @@ pub fn export_all() -> anyhow::Result<()> {
         &schema_value::<InstallationRecord>(),
     )?;
     write_json(
+        out.join("installation-state-snapshot.schema.json"),
+        &schema_value::<InstallationStateSnapshot>(),
+    )?;
+    write_json(
+        out.join("installation-state-decision-receipt.schema.json"),
+        &schema_value::<InstallationStateDecisionReceipt>(),
+    )?;
+    write_json(
+        out.join("installation-state-authority-evidence.schema.json"),
+        &schema_value::<InstallationStateAuthorityEvidence>(),
+    )?;
+    write_json(
         out.join("run-record.schema.json"),
         &schema_value::<RunRecord>(),
     )?;

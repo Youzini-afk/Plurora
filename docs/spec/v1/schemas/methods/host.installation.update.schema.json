@@ -1,0 +1,2040 @@
+{
+  "$defs": {
+    "AcquisitionKind": {
+      "enum": [
+        "work_bundle",
+        "package",
+        "git_snapshot",
+        "local_import",
+        "remote_catalog",
+        "foreign_binding"
+      ],
+      "type": "string"
+    },
+    "AcquisitionRecord": {
+      "properties": {
+        "kind": {
+          "$ref": "#/$defs/AcquisitionKind"
+        },
+        "provenance_refs": {
+          "items": {
+            "$ref": "#/$defs/ArtifactDescriptor"
+          },
+          "type": "array"
+        },
+        "source_ref": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ArtifactDescriptor"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "update_channel": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "kind"
+      ],
+      "type": "object"
+    },
+    "ArtifactDescriptor": {
+      "properties": {
+        "annotations": {
+          "additionalProperties": true,
+          "default": {},
+          "type": "object"
+        },
+        "artifact_type_uri": {
+          "type": "string"
+        },
+        "digest": {
+          "type": "string"
+        },
+        "media_type": {
+          "type": "string"
+        },
+        "references": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "size_bytes": {
+          "format": "uint64",
+          "minimum": 0.0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "artifact_type_uri",
+        "digest",
+        "media_type",
+        "size_bytes"
+      ],
+      "type": "object"
+    },
+    "AssemblyBinding": {
+      "properties": {
+        "annotations": {
+          "additionalProperties": true,
+          "type": "object"
+        },
+        "binding_id": {
+          "type": "string"
+        },
+        "consumer": {
+          "$ref": "#/$defs/PortEndpoint"
+        },
+        "phase": {
+          "$ref": "#/$defs/BindingPhase"
+        },
+        "provider": {
+          "$ref": "#/$defs/PortEndpoint"
+        },
+        "transport_policy": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/TransportPolicy"
+            }
+          ],
+          "default": {
+            "requirements": {
+              "large_payload": false,
+              "local_only": false,
+              "ordered": false,
+              "reliable": false,
+              "same_process": false,
+              "shared_memory_allowed": false
+            }
+          }
+        }
+      },
+      "required": [
+        "binding_id",
+        "consumer",
+        "phase",
+        "provider"
+      ],
+      "type": "object"
+    },
+    "AssemblyNode": {
+      "properties": {
+        "annotations": {
+          "additionalProperties": true,
+          "type": "object"
+        },
+        "configuration": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ArtifactDescriptor"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "node_id": {
+          "$ref": "#/$defs/NodeId"
+        },
+        "ports": {
+          "items": {
+            "$ref": "#/$defs/PortDescriptor"
+          },
+          "type": "array"
+        },
+        "source": {
+          "$ref": "#/$defs/AssemblyNodeSource"
+        }
+      },
+      "required": [
+        "node_id",
+        "source"
+      ],
+      "type": "object"
+    },
+    "AssemblyNodeSource": {
+      "oneOf": [
+        {
+          "properties": {
+            "component": {
+              "$ref": "#/$defs/ArtifactDescriptor"
+            },
+            "kind": {
+              "enum": [
+                "component"
+              ],
+              "type": "string"
+            }
+          },
+          "required": [
+            "component",
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "properties": {
+            "assembly": {
+              "$ref": "#/$defs/ArtifactDescriptor"
+            },
+            "kind": {
+              "enum": [
+                "assembly"
+              ],
+              "type": "string"
+            }
+          },
+          "required": [
+            "assembly",
+            "kind"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "AssemblyPortExposure": {
+      "properties": {
+        "annotations": {
+          "additionalProperties": true,
+          "type": "object"
+        },
+        "direction": {
+          "$ref": "#/$defs/PortDirection"
+        },
+        "port_id": {
+          "$ref": "#/$defs/PortId"
+        },
+        "target": {
+          "$ref": "#/$defs/PortEndpoint"
+        }
+      },
+      "required": [
+        "direction",
+        "port_id",
+        "target"
+      ],
+      "type": "object"
+    },
+    "AvailabilityPolicy": {
+      "enum": [
+        "required",
+        "degraded_without",
+        "optional"
+      ],
+      "type": "string"
+    },
+    "BackupPolicy": {
+      "enum": [
+        "required",
+        "allowed",
+        "forbidden"
+      ],
+      "type": "string"
+    },
+    "BindingLock": {
+      "properties": {
+        "binding_id": {
+          "type": "string"
+        },
+        "consumer": {
+          "$ref": "#/$defs/PortEndpoint"
+        },
+        "phase": {
+          "$ref": "#/$defs/BindingPhase"
+        },
+        "provider": {
+          "$ref": "#/$defs/PortEndpoint"
+        },
+        "provider_component": {
+          "$ref": "#/$defs/ArtifactDescriptor"
+        },
+        "transport": {
+          "$ref": "#/$defs/SelectedTransport"
+        }
+      },
+      "required": [
+        "binding_id",
+        "consumer",
+        "phase",
+        "provider",
+        "provider_component",
+        "transport"
+      ],
+      "type": "object"
+    },
+    "BindingPhase": {
+      "enum": [
+        "authoring",
+        "installation",
+        "launch",
+        "runtime"
+      ],
+      "type": "string"
+    },
+    "ComponentTrustClass": {
+      "enum": [
+        "sandboxed_component",
+        "isolated_process",
+        "remote_boundary",
+        "trusted_native",
+        "static_resource",
+        "foreign_capsule"
+      ],
+      "type": "string"
+    },
+    "EffectClass": {
+      "enum": [
+        "pure",
+        "deterministic_stateful",
+        "recorded_nondeterministic",
+        "external_effecting",
+        "realtime_best_effort"
+      ],
+      "type": "string"
+    },
+    "Errors": {
+      "items": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "details": true,
+          "message": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "details",
+          "message"
+        ],
+        "title": "ErrorShape",
+        "type": "object"
+      },
+      "type": "array"
+    },
+    "InstallationChange_for_ArtifactDescriptor": {
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "after": {
+              "$ref": "#/$defs/ArtifactDescriptor"
+            },
+            "kind": {
+              "enum": [
+                "added"
+              ],
+              "type": "string"
+            }
+          },
+          "required": [
+            "after",
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "before": {
+              "$ref": "#/$defs/ArtifactDescriptor"
+            },
+            "kind": {
+              "enum": [
+                "removed"
+              ],
+              "type": "string"
+            }
+          },
+          "required": [
+            "before",
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "after": {
+              "$ref": "#/$defs/ArtifactDescriptor"
+            },
+            "before": {
+              "$ref": "#/$defs/ArtifactDescriptor"
+            },
+            "kind": {
+              "enum": [
+                "changed"
+              ],
+              "type": "string"
+            }
+          },
+          "required": [
+            "after",
+            "before",
+            "kind"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "InstallationChange_for_AssemblyBinding": {
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "after": {
+              "$ref": "#/$defs/AssemblyBinding"
+            },
+            "kind": {
+              "enum": [
+                "added"
+              ],
+              "type": "string"
+            }
+          },
+          "required": [
+            "after",
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "before": {
+              "$ref": "#/$defs/AssemblyBinding"
+            },
+            "kind": {
+              "enum": [
+                "removed"
+              ],
+              "type": "string"
+            }
+          },
+          "required": [
+            "before",
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "after": {
+              "$ref": "#/$defs/AssemblyBinding"
+            },
+            "before": {
+              "$ref": "#/$defs/AssemblyBinding"
+            },
+            "kind": {
+              "enum": [
+                "changed"
+              ],
+              "type": "string"
+            }
+          },
+          "required": [
+            "after",
+            "before",
+            "kind"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "InstallationChange_for_AssemblyNode": {
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "after": {
+              "$ref": "#/$defs/AssemblyNode"
+            },
+            "kind": {
+              "enum": [
+                "added"
+              ],
+              "type": "string"
+            }
+          },
+          "required": [
+            "after",
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "before": {
+              "$ref": "#/$defs/AssemblyNode"
+            },
+            "kind": {
+              "enum": [
+                "removed"
+              ],
+              "type": "string"
+            }
+          },
+          "required": [
+            "before",
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "after": {
+              "$ref": "#/$defs/AssemblyNode"
+            },
+            "before": {
+              "$ref": "#/$defs/AssemblyNode"
+            },
+            "kind": {
+              "enum": [
+                "changed"
+              ],
+              "type": "string"
+            }
+          },
+          "required": [
+            "after",
+            "before",
+            "kind"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "InstallationChange_for_AssemblyPortExposure": {
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "after": {
+              "$ref": "#/$defs/AssemblyPortExposure"
+            },
+            "kind": {
+              "enum": [
+                "added"
+              ],
+              "type": "string"
+            }
+          },
+          "required": [
+            "after",
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "before": {
+              "$ref": "#/$defs/AssemblyPortExposure"
+            },
+            "kind": {
+              "enum": [
+                "removed"
+              ],
+              "type": "string"
+            }
+          },
+          "required": [
+            "before",
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "after": {
+              "$ref": "#/$defs/AssemblyPortExposure"
+            },
+            "before": {
+              "$ref": "#/$defs/AssemblyPortExposure"
+            },
+            "kind": {
+              "enum": [
+                "changed"
+              ],
+              "type": "string"
+            }
+          },
+          "required": [
+            "after",
+            "before",
+            "kind"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "InstallationChange_for_BindingLock": {
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "after": {
+              "$ref": "#/$defs/BindingLock"
+            },
+            "kind": {
+              "enum": [
+                "added"
+              ],
+              "type": "string"
+            }
+          },
+          "required": [
+            "after",
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "before": {
+              "$ref": "#/$defs/BindingLock"
+            },
+            "kind": {
+              "enum": [
+                "removed"
+              ],
+              "type": "string"
+            }
+          },
+          "required": [
+            "before",
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "after": {
+              "$ref": "#/$defs/BindingLock"
+            },
+            "before": {
+              "$ref": "#/$defs/BindingLock"
+            },
+            "kind": {
+              "enum": [
+                "changed"
+              ],
+              "type": "string"
+            }
+          },
+          "required": [
+            "after",
+            "before",
+            "kind"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "InstallationChange_for_NodeLock": {
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "after": {
+              "$ref": "#/$defs/NodeLock"
+            },
+            "kind": {
+              "enum": [
+                "added"
+              ],
+              "type": "string"
+            }
+          },
+          "required": [
+            "after",
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "before": {
+              "$ref": "#/$defs/NodeLock"
+            },
+            "kind": {
+              "enum": [
+                "removed"
+              ],
+              "type": "string"
+            }
+          },
+          "required": [
+            "before",
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "after": {
+              "$ref": "#/$defs/NodeLock"
+            },
+            "before": {
+              "$ref": "#/$defs/NodeLock"
+            },
+            "kind": {
+              "enum": [
+                "changed"
+              ],
+              "type": "string"
+            }
+          },
+          "required": [
+            "after",
+            "before",
+            "kind"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "InstallationChange_for_ProtocolProfilePin": {
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "after": {
+              "$ref": "#/$defs/ProtocolProfilePin"
+            },
+            "kind": {
+              "enum": [
+                "added"
+              ],
+              "type": "string"
+            }
+          },
+          "required": [
+            "after",
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "before": {
+              "$ref": "#/$defs/ProtocolProfilePin"
+            },
+            "kind": {
+              "enum": [
+                "removed"
+              ],
+              "type": "string"
+            }
+          },
+          "required": [
+            "before",
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "after": {
+              "$ref": "#/$defs/ProtocolProfilePin"
+            },
+            "before": {
+              "$ref": "#/$defs/ProtocolProfilePin"
+            },
+            "kind": {
+              "enum": [
+                "changed"
+              ],
+              "type": "string"
+            }
+          },
+          "required": [
+            "after",
+            "before",
+            "kind"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "InstallationChange_for_WorkEntrypoint": {
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "after": {
+              "$ref": "#/$defs/WorkEntrypoint"
+            },
+            "kind": {
+              "enum": [
+                "added"
+              ],
+              "type": "string"
+            }
+          },
+          "required": [
+            "after",
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "before": {
+              "$ref": "#/$defs/WorkEntrypoint"
+            },
+            "kind": {
+              "enum": [
+                "removed"
+              ],
+              "type": "string"
+            }
+          },
+          "required": [
+            "before",
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "after": {
+              "$ref": "#/$defs/WorkEntrypoint"
+            },
+            "before": {
+              "$ref": "#/$defs/WorkEntrypoint"
+            },
+            "kind": {
+              "enum": [
+                "changed"
+              ],
+              "type": "string"
+            }
+          },
+          "required": [
+            "after",
+            "before",
+            "kind"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "InstallationDiff": {
+      "properties": {
+        "assembly_bindings": {
+          "items": {
+            "$ref": "#/$defs/InstallationItemDiff_for_AssemblyBinding"
+          },
+          "type": "array"
+        },
+        "assembly_exposed_ports": {
+          "items": {
+            "$ref": "#/$defs/InstallationItemDiff_for_AssemblyPortExposure"
+          },
+          "type": "array"
+        },
+        "assembly_lock_bindings": {
+          "items": {
+            "$ref": "#/$defs/InstallationItemDiff_for_BindingLock"
+          },
+          "type": "array"
+        },
+        "assembly_lock_changed": {
+          "type": "boolean"
+        },
+        "assembly_lock_content_roots": {
+          "items": {
+            "$ref": "#/$defs/InstallationItemDiff_for_ArtifactDescriptor"
+          },
+          "type": "array"
+        },
+        "assembly_lock_nodes": {
+          "items": {
+            "$ref": "#/$defs/InstallationItemDiff_for_NodeLock"
+          },
+          "type": "array"
+        },
+        "assembly_lock_protocol_profiles": {
+          "items": {
+            "$ref": "#/$defs/InstallationItemDiff_for_ProtocolProfilePin"
+          },
+          "type": "array"
+        },
+        "assembly_nodes": {
+          "items": {
+            "$ref": "#/$defs/InstallationItemDiff_for_AssemblyNode"
+          },
+          "type": "array"
+        },
+        "display_name_changed": {
+          "type": "boolean"
+        },
+        "secret_policy_changed": {
+          "type": "boolean"
+        },
+        "source_changed": {
+          "type": "boolean"
+        },
+        "state_bindings_changed": {
+          "type": "boolean"
+        },
+        "state_slots": {
+          "items": {
+            "$ref": "#/$defs/InstallationStateSlotDiff"
+          },
+          "type": "array"
+        },
+        "work_content_roots": {
+          "items": {
+            "$ref": "#/$defs/InstallationItemDiff_for_ArtifactDescriptor"
+          },
+          "type": "array"
+        },
+        "work_entrypoints": {
+          "items": {
+            "$ref": "#/$defs/InstallationItemDiff_for_WorkEntrypoint"
+          },
+          "type": "array"
+        },
+        "work_operational_intent": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/InstallationChange_for_ArtifactDescriptor"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "work_revision_changed": {
+          "type": "boolean"
+        },
+        "work_rights": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/InstallationChange_for_ArtifactDescriptor"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "work_transparency": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/InstallationChange_for_ArtifactDescriptor"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "assembly_lock_changed",
+        "display_name_changed",
+        "secret_policy_changed",
+        "source_changed",
+        "state_bindings_changed",
+        "work_revision_changed"
+      ],
+      "type": "object"
+    },
+    "InstallationId": {
+      "format": "uuid",
+      "type": "string"
+    },
+    "InstallationItemDiff_for_ArtifactDescriptor": {
+      "additionalProperties": false,
+      "properties": {
+        "change": {
+          "$ref": "#/$defs/InstallationChange_for_ArtifactDescriptor"
+        },
+        "id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "change",
+        "id"
+      ],
+      "type": "object"
+    },
+    "InstallationItemDiff_for_AssemblyBinding": {
+      "additionalProperties": false,
+      "properties": {
+        "change": {
+          "$ref": "#/$defs/InstallationChange_for_AssemblyBinding"
+        },
+        "id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "change",
+        "id"
+      ],
+      "type": "object"
+    },
+    "InstallationItemDiff_for_AssemblyNode": {
+      "additionalProperties": false,
+      "properties": {
+        "change": {
+          "$ref": "#/$defs/InstallationChange_for_AssemblyNode"
+        },
+        "id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "change",
+        "id"
+      ],
+      "type": "object"
+    },
+    "InstallationItemDiff_for_AssemblyPortExposure": {
+      "additionalProperties": false,
+      "properties": {
+        "change": {
+          "$ref": "#/$defs/InstallationChange_for_AssemblyPortExposure"
+        },
+        "id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "change",
+        "id"
+      ],
+      "type": "object"
+    },
+    "InstallationItemDiff_for_BindingLock": {
+      "additionalProperties": false,
+      "properties": {
+        "change": {
+          "$ref": "#/$defs/InstallationChange_for_BindingLock"
+        },
+        "id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "change",
+        "id"
+      ],
+      "type": "object"
+    },
+    "InstallationItemDiff_for_NodeLock": {
+      "additionalProperties": false,
+      "properties": {
+        "change": {
+          "$ref": "#/$defs/InstallationChange_for_NodeLock"
+        },
+        "id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "change",
+        "id"
+      ],
+      "type": "object"
+    },
+    "InstallationItemDiff_for_ProtocolProfilePin": {
+      "additionalProperties": false,
+      "properties": {
+        "change": {
+          "$ref": "#/$defs/InstallationChange_for_ProtocolProfilePin"
+        },
+        "id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "change",
+        "id"
+      ],
+      "type": "object"
+    },
+    "InstallationItemDiff_for_WorkEntrypoint": {
+      "additionalProperties": false,
+      "properties": {
+        "change": {
+          "$ref": "#/$defs/InstallationChange_for_WorkEntrypoint"
+        },
+        "id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "change",
+        "id"
+      ],
+      "type": "object"
+    },
+    "InstallationRecord": {
+      "properties": {
+        "assembly_lock": {
+          "$ref": "#/$defs/ArtifactDescriptor"
+        },
+        "created_at": {
+          "format": "date-time",
+          "type": "string"
+        },
+        "display_name": {
+          "type": "string"
+        },
+        "installation_id": {
+          "$ref": "#/$defs/InstallationId"
+        },
+        "schema_version": {
+          "const": 1,
+          "format": "uint16",
+          "type": "integer"
+        },
+        "secret_policy": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/InstallationSecretPolicy"
+            }
+          ],
+          "default": {
+            "allow_platform_fallback": false
+          }
+        },
+        "source": {
+          "$ref": "#/$defs/AcquisitionRecord"
+        },
+        "state_bindings": {
+          "items": {
+            "$ref": "#/$defs/StateBindingRecord"
+          },
+          "type": "array"
+        },
+        "status": {
+          "$ref": "#/$defs/InstallationStatus"
+        },
+        "updated_at": {
+          "format": "date-time",
+          "type": "string"
+        },
+        "work_revision": {
+          "$ref": "#/$defs/ArtifactDescriptor"
+        }
+      },
+      "required": [
+        "assembly_lock",
+        "created_at",
+        "display_name",
+        "installation_id",
+        "schema_version",
+        "source",
+        "status",
+        "updated_at",
+        "work_revision"
+      ],
+      "type": "object"
+    },
+    "InstallationRollbackPointer": {
+      "properties": {
+        "assembly_lock": {
+          "$ref": "#/$defs/ArtifactDescriptor"
+        },
+        "revision": {
+          "format": "uint64",
+          "minimum": 0.0,
+          "type": "integer"
+        },
+        "state_snapshot": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ArtifactDescriptor"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "work_revision": {
+          "$ref": "#/$defs/ArtifactDescriptor"
+        }
+      },
+      "required": [
+        "assembly_lock",
+        "revision",
+        "work_revision"
+      ],
+      "type": "object"
+    },
+    "InstallationSecretPolicy": {
+      "properties": {
+        "allow_platform_fallback": {
+          "default": false,
+          "type": "boolean"
+        },
+        "allowed_secret_refs": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "type": "object"
+    },
+    "InstallationStateAction": {
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "enum": [
+                "preserve"
+              ],
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "enum": [
+                "replace"
+              ],
+              "type": "string"
+            },
+            "replacement_snapshot": {
+              "$ref": "#/$defs/ArtifactDescriptor"
+            }
+          },
+          "required": [
+            "kind",
+            "replacement_snapshot"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "enum": [
+                "reset"
+              ],
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "InstallationStateSlotChange": {
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "after": {
+              "$ref": "#/$defs/StateSlotDescriptor"
+            },
+            "kind": {
+              "enum": [
+                "added"
+              ],
+              "type": "string"
+            }
+          },
+          "required": [
+            "after",
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "before": {
+              "$ref": "#/$defs/StateSlotDescriptor"
+            },
+            "kind": {
+              "enum": [
+                "removed"
+              ],
+              "type": "string"
+            }
+          },
+          "required": [
+            "before",
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "after": {
+              "$ref": "#/$defs/StateSlotDescriptor"
+            },
+            "before": {
+              "$ref": "#/$defs/StateSlotDescriptor"
+            },
+            "kind": {
+              "enum": [
+                "changed"
+              ],
+              "type": "string"
+            }
+          },
+          "required": [
+            "after",
+            "before",
+            "kind"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "InstallationStateSlotDiff": {
+      "additionalProperties": false,
+      "properties": {
+        "change": {
+          "$ref": "#/$defs/InstallationStateSlotChange"
+        },
+        "required_action": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/InstallationStateSlotRequirement"
+            }
+          ],
+          "default": "none",
+          "description": "Structural action required when the Installation state tree is non-empty. An empty state tree still reports the difference without forcing an effect."
+        },
+        "state_slot_id": {
+          "$ref": "#/$defs/StateSlotId"
+        }
+      },
+      "required": [
+        "change",
+        "state_slot_id"
+      ],
+      "type": "object"
+    },
+    "InstallationStateSlotRequirement": {
+      "enum": [
+        "none",
+        "replace",
+        "reset"
+      ],
+      "type": "string"
+    },
+    "InstallationStatus": {
+      "enum": [
+        "resolving",
+        "ready",
+        "updating",
+        "blocked",
+        "failed",
+        "removing",
+        "removed"
+      ],
+      "type": "string"
+    },
+    "InstallationView": {
+      "properties": {
+        "record": {
+          "$ref": "#/$defs/InstallationRecord"
+        },
+        "revision": {
+          "format": "uint64",
+          "minimum": 0.0,
+          "type": "integer"
+        },
+        "rollback": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/InstallationRollbackPointer"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "record",
+        "revision"
+      ],
+      "type": "object"
+    },
+    "NodeId": {
+      "pattern": "^(?!.*\\.\\.)[A-Za-z0-9._-]+$",
+      "type": "string"
+    },
+    "NodeLock": {
+      "properties": {
+        "artifact": {
+          "$ref": "#/$defs/ArtifactDescriptor"
+        },
+        "behavior_digest": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "node_id": {
+          "$ref": "#/$defs/NodeId"
+        },
+        "trust_class": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ComponentTrustClass"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "artifact",
+        "node_id"
+      ],
+      "type": "object"
+    },
+    "Params": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {
+        "assembly_lock": {
+          "$ref": "#/$defs/ArtifactDescriptor"
+        },
+        "display_name": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "expected_revision": {
+          "format": "uint64",
+          "minimum": 0.0,
+          "type": "integer"
+        },
+        "idempotency_key": {
+          "type": "string"
+        },
+        "installation_id": {
+          "$ref": "#/$defs/InstallationId"
+        },
+        "secret_policy": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/InstallationSecretPolicy"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "source": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/AcquisitionRecord"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "state_action": {
+          "$ref": "#/$defs/InstallationStateAction"
+        },
+        "state_bindings": {
+          "items": {
+            "$ref": "#/$defs/StateBindingRecord"
+          },
+          "type": [
+            "array",
+            "null"
+          ]
+        },
+        "work_revision": {
+          "$ref": "#/$defs/ArtifactDescriptor"
+        }
+      },
+      "required": [
+        "assembly_lock",
+        "expected_revision",
+        "idempotency_key",
+        "installation_id",
+        "state_action",
+        "work_revision"
+      ],
+      "title": "InstallationUpdateRequest",
+      "type": "object"
+    },
+    "PortContract": {
+      "properties": {
+        "interface_id": {
+          "type": "string"
+        },
+        "profiles": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "protocol_id": {
+          "type": "string"
+        },
+        "version": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "interface_id",
+        "protocol_id",
+        "version"
+      ],
+      "type": "object"
+    },
+    "PortDescriptor": {
+      "properties": {
+        "annotations": {
+          "additionalProperties": true,
+          "type": "object"
+        },
+        "contract": {
+          "$ref": "#/$defs/PortContract"
+        },
+        "interaction": {
+          "type": "string"
+        },
+        "port_id": {
+          "$ref": "#/$defs/PortId"
+        },
+        "role": {
+          "$ref": "#/$defs/PortRole"
+        },
+        "transport": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/TransportRequirements"
+            }
+          ],
+          "default": {
+            "large_payload": false,
+            "local_only": false,
+            "ordered": false,
+            "reliable": false,
+            "same_process": false,
+            "shared_memory_allowed": false
+          }
+        }
+      },
+      "required": [
+        "contract",
+        "interaction",
+        "port_id",
+        "role"
+      ],
+      "type": "object"
+    },
+    "PortDirection": {
+      "enum": [
+        "import",
+        "export"
+      ],
+      "type": "string"
+    },
+    "PortEndpoint": {
+      "properties": {
+        "node_id": {
+          "$ref": "#/$defs/NodeId"
+        },
+        "port_id": {
+          "$ref": "#/$defs/PortId"
+        }
+      },
+      "required": [
+        "node_id",
+        "port_id"
+      ],
+      "type": "object"
+    },
+    "PortId": {
+      "pattern": "^(?!.*\\.\\.)[A-Za-z0-9._-]+$",
+      "type": "string"
+    },
+    "PortMultiplicity": {
+      "properties": {
+        "max": {
+          "format": "uint16",
+          "minimum": 0.0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "min": {
+          "format": "uint16",
+          "minimum": 0.0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "min"
+      ],
+      "type": "object"
+    },
+    "PortRole": {
+      "oneOf": [
+        {
+          "properties": {
+            "accepted_effects": {
+              "items": {
+                "$ref": "#/$defs/EffectClass"
+              },
+              "type": "array"
+            },
+            "availability": {
+              "$ref": "#/$defs/AvailabilityPolicy"
+            },
+            "kind": {
+              "enum": [
+                "import"
+              ],
+              "type": "string"
+            },
+            "latest_binding_phase": {
+              "$ref": "#/$defs/BindingPhase"
+            },
+            "multiplicity": {
+              "$ref": "#/$defs/PortMultiplicity"
+            }
+          },
+          "required": [
+            "accepted_effects",
+            "availability",
+            "kind",
+            "latest_binding_phase",
+            "multiplicity"
+          ],
+          "type": "object"
+        },
+        {
+          "properties": {
+            "effect_class": {
+              "$ref": "#/$defs/EffectClass"
+            },
+            "kind": {
+              "enum": [
+                "export"
+              ],
+              "type": "string"
+            },
+            "multiplicity": {
+              "$ref": "#/$defs/PortMultiplicity"
+            }
+          },
+          "required": [
+            "effect_class",
+            "kind",
+            "multiplicity"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "ProtocolProfilePin": {
+      "properties": {
+        "profile": {
+          "type": "string"
+        },
+        "protocol_id": {
+          "type": "string"
+        },
+        "version": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "profile",
+        "protocol_id",
+        "version"
+      ],
+      "type": "object"
+    },
+    "Result": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "properties": {
+        "diff": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/InstallationDiff"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "idempotent": {
+          "type": "boolean"
+        },
+        "installation": {
+          "$ref": "#/$defs/InstallationView"
+        },
+        "receipts": {
+          "items": {
+            "$ref": "#/$defs/ArtifactDescriptor"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "idempotent",
+        "installation"
+      ],
+      "title": "InstallationMutationResult",
+      "type": "object"
+    },
+    "SelectedTransport": {
+      "properties": {
+        "class_id": {
+          "type": "string"
+        },
+        "properties": {
+          "additionalProperties": true,
+          "type": "object"
+        }
+      },
+      "required": [
+        "class_id"
+      ],
+      "type": "object"
+    },
+    "StateBindingKind": {
+      "enum": [
+        "host_managed",
+        "external_provider"
+      ],
+      "type": "string"
+    },
+    "StateBindingRecord": {
+      "properties": {
+        "binding_id": {
+          "type": "string"
+        },
+        "kind": {
+          "$ref": "#/$defs/StateBindingKind"
+        },
+        "provider_ref": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ArtifactDescriptor"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "state_slot_id": {
+          "$ref": "#/$defs/StateSlotId"
+        }
+      },
+      "required": [
+        "binding_id",
+        "kind",
+        "state_slot_id"
+      ],
+      "type": "object"
+    },
+    "StatePortability": {
+      "enum": [
+        "portable",
+        "opaque_exportable",
+        "host_bound",
+        "external_authority"
+      ],
+      "type": "string"
+    },
+    "StateScope": {
+      "enum": [
+        "run",
+        "installation",
+        "user",
+        "shared",
+        "external"
+      ],
+      "type": "string"
+    },
+    "StateSlotDescriptor": {
+      "properties": {
+        "annotations": {
+          "additionalProperties": true,
+          "type": "object"
+        },
+        "backup_policy": {
+          "$ref": "#/$defs/BackupPolicy"
+        },
+        "migration_port": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PortEndpoint"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "owner_node_id": {
+          "$ref": "#/$defs/NodeId"
+        },
+        "portability": {
+          "$ref": "#/$defs/StatePortability"
+        },
+        "schema_ref": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ArtifactDescriptor"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "scope": {
+          "$ref": "#/$defs/StateScope"
+        },
+        "state_slot_id": {
+          "$ref": "#/$defs/StateSlotId"
+        }
+      },
+      "required": [
+        "backup_policy",
+        "owner_node_id",
+        "portability",
+        "scope",
+        "state_slot_id"
+      ],
+      "type": "object"
+    },
+    "StateSlotId": {
+      "pattern": "^(?!.*\\.\\.)[A-Za-z0-9._-]+$",
+      "type": "string"
+    },
+    "TransportPolicy": {
+      "properties": {
+        "preferred_classes": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "requirements": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/TransportRequirements"
+            }
+          ],
+          "default": {
+            "large_payload": false,
+            "local_only": false,
+            "ordered": false,
+            "reliable": false,
+            "same_process": false,
+            "shared_memory_allowed": false
+          }
+        }
+      },
+      "type": "object"
+    },
+    "TransportRequirements": {
+      "properties": {
+        "allowed_classes": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "extensions": {
+          "additionalProperties": true,
+          "type": "object"
+        },
+        "large_payload": {
+          "default": false,
+          "type": "boolean"
+        },
+        "local_only": {
+          "default": false,
+          "type": "boolean"
+        },
+        "max_latency_class": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "ordered": {
+          "default": false,
+          "type": "boolean"
+        },
+        "reliable": {
+          "default": false,
+          "type": "boolean"
+        },
+        "same_process": {
+          "default": false,
+          "type": "boolean"
+        },
+        "shared_memory_allowed": {
+          "default": false,
+          "type": "boolean"
+        }
+      },
+      "type": "object"
+    },
+    "WorkEntrypoint": {
+      "properties": {
+        "annotations": {
+          "additionalProperties": true,
+          "type": "object"
+        },
+        "id": {
+          "type": "string"
+        },
+        "intent_uri": {
+          "type": "string"
+        },
+        "target": {
+          "$ref": "#/$defs/WorkEntrypointTarget"
+        }
+      },
+      "required": [
+        "id",
+        "intent_uri",
+        "target"
+      ],
+      "type": "object"
+    },
+    "WorkEntrypointTarget": {
+      "oneOf": [
+        {
+          "properties": {
+            "kind": {
+              "enum": [
+                "assembly_port"
+              ],
+              "type": "string"
+            },
+            "port_id": {
+              "$ref": "#/$defs/PortId"
+            }
+          },
+          "required": [
+            "kind",
+            "port_id"
+          ],
+          "type": "object"
+        },
+        {
+          "properties": {
+            "kind": {
+              "enum": [
+                "surface"
+              ],
+              "type": "string"
+            },
+            "surface_id": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "surface_id"
+          ],
+          "type": "object"
+        },
+        {
+          "properties": {
+            "kind": {
+              "enum": [
+                "foreign_launch"
+              ],
+              "type": "string"
+            },
+            "launch_id": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "launch_id"
+          ],
+          "type": "object"
+        }
+      ]
+    }
+  },
+  "$id": "urn:plurora:schema:method:host.installation.update:v1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Plurora public platform method host.installation.update.",
+  "properties": {
+    "errors": {
+      "$ref": "#/$defs/Errors"
+    },
+    "method": {
+      "const": "host.installation.update"
+    },
+    "params": {
+      "$ref": "#/$defs/Params"
+    },
+    "result": {
+      "$ref": "#/$defs/Result"
+    }
+  },
+  "required": [
+    "method",
+    "params"
+  ],
+  "title": "host.installation.update",
+  "type": "object",
+  "x-plurora-contract": {
+    "id": "host.installation.update",
+    "implementation_status": "implemented",
+    "introduced_in": "plurora.contract.default/v1@0.1.0",
+    "maturity": "candidate",
+    "owner_layer": "host",
+    "request_schema": "urn:plurora:schema:method:host.installation.update:v1#/$defs/Params",
+    "response_schema": "urn:plurora:schema:method:host.installation.update:v1#/$defs/Result",
+    "streaming": false
+  }
+}

@@ -7,11 +7,9 @@ where
     // --- Asset ---
 
     pub(crate) async fn dispatch_asset_get(&self, params: &Value) -> anyhow::Result<Value> {
-        let asset_id = params
-            .get("asset_id")
-            .and_then(Value::as_str)
-            .ok_or_else(|| anyhow::anyhow!("object.get requires asset_id"))?;
-        Ok(serde_json::to_value(self.get_asset(asset_id).await?)?)
+        let request: crate::runtime::ObjectGetRequest = serde_json::from_value(params.clone())
+            .map_err(|error| anyhow::anyhow!("object.get request is invalid: {error}"))?;
+        Ok(serde_json::to_value(self.get_object(request).await?)?)
     }
 
     // --- Projection ---

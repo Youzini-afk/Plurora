@@ -27,7 +27,7 @@ const eventIconMap: Record<string, typeof Globe> = {
 
 export interface TimelineRow {
   id: string;
-  projectName: string;
+  installationName: string;
   toneDot: StatusTone;
   age: string;
   message: string;
@@ -85,7 +85,7 @@ export function ActivityTimeline({
                   </div>
                   <div className="min-w-0 flex-1">
                     <div className="flex items-baseline justify-between gap-2">
-                      <p className="text-[12px] font-medium text-charcoal-ink">{row.projectName}</p>
+                      <p className="text-[12px] font-medium text-charcoal-ink">{row.installationName}</p>
                       <span className="font-mono text-[10px] text-muted-tone">{row.age}</span>
                     </div>
                     <div className="mt-0.5 flex items-center gap-2 text-[11px] text-charcoal-ink">

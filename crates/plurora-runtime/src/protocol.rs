@@ -11,6 +11,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use uuid::Uuid;
 
+use crate::installation_control::InstallationAuthorityRefresh;
 use crate::{
     contract_layers, contract_methods, contract_profiles, contract_versions, protocol_descriptors,
     resolve_contract_method, ContractLayerInfo, ContractMaturity, ContractMethod,
@@ -42,11 +43,11 @@ pub enum PlatformMethod {
     PackageList,
     PackageStatus,
     PackageDescribe,
-    ProjectList,
-    ProjectGet,
-    ProjectStart,
-    ProjectStop,
-    ProjectStatus,
+    InstallationList,
+    InstallationGet,
+    InstallationCreate,
+    InstallationUpdate,
+    InstallationRemove,
     TargetList,
     TargetStatus,
     TargetRegister,
@@ -128,11 +129,11 @@ impl PlatformMethod {
             Self::PackageList => "host.package.list",
             Self::PackageStatus => "host.package.status",
             Self::PackageDescribe => "host.package.describe",
-            Self::ProjectList => "host.project.list",
-            Self::ProjectGet => "host.project.get",
-            Self::ProjectStart => "host.project.start",
-            Self::ProjectStop => "host.project.stop",
-            Self::ProjectStatus => "host.project.status",
+            Self::InstallationList => "host.installation.list",
+            Self::InstallationGet => "host.installation.get",
+            Self::InstallationCreate => "host.installation.create",
+            Self::InstallationUpdate => "host.installation.update",
+            Self::InstallationRemove => "host.installation.remove",
             Self::TargetList => "host.target.list",
             Self::TargetStatus => "host.target.status",
             Self::TargetRegister => "host.target.register",
@@ -214,11 +215,11 @@ impl PlatformMethod {
             Self::PackageList => MethodStatus::Implemented,
             Self::PackageStatus => MethodStatus::Implemented,
             Self::PackageDescribe => MethodStatus::Planned,
-            Self::ProjectList => MethodStatus::Implemented,
-            Self::ProjectGet => MethodStatus::Implemented,
-            Self::ProjectStart => MethodStatus::Implemented,
-            Self::ProjectStop => MethodStatus::Implemented,
-            Self::ProjectStatus => MethodStatus::Implemented,
+            Self::InstallationList => MethodStatus::Implemented,
+            Self::InstallationGet => MethodStatus::Implemented,
+            Self::InstallationCreate => MethodStatus::Implemented,
+            Self::InstallationUpdate => MethodStatus::Implemented,
+            Self::InstallationRemove => MethodStatus::Implemented,
             Self::TargetList
             | Self::TargetStatus
             | Self::TargetRegister
@@ -311,11 +312,11 @@ impl PlatformMethod {
             Self::PackageList,
             Self::PackageStatus,
             Self::PackageDescribe,
-            Self::ProjectList,
-            Self::ProjectGet,
-            Self::ProjectStart,
-            Self::ProjectStop,
-            Self::ProjectStatus,
+            Self::InstallationList,
+            Self::InstallationGet,
+            Self::InstallationCreate,
+            Self::InstallationUpdate,
+            Self::InstallationRemove,
             Self::TargetList,
             Self::TargetStatus,
             Self::TargetRegister,
@@ -406,11 +407,11 @@ impl PlatformMethod {
             | Self::PackageLogs
             | Self::PackageList
             | Self::PackageStatus
-            | Self::ProjectList
-            | Self::ProjectGet
-            | Self::ProjectStart
-            | Self::ProjectStop
-            | Self::ProjectStatus
+            | Self::InstallationList
+            | Self::InstallationGet
+            | Self::InstallationCreate
+            | Self::InstallationUpdate
+            | Self::InstallationRemove
             | Self::TargetList
             | Self::TargetStatus
             | Self::TargetRegister
@@ -531,15 +532,59 @@ pub enum ProtocolPrincipal {
     Anonymous,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, JsonSchema, PartialEq, Eq)]
 pub struct ProtocolResourceSelector {
     pub owner: String,
     pub kind: String,
-    /// An omitted id selects every resource of this owner/kind. Resource
-    /// matching is structural and exact; callers must never use string-prefix
-    /// matching for authority decisions.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    /// An explicit null selects every resource of this owner/kind. Omitting the
+    /// field is invalid. Resource matching is structural and exact; callers
+    /// must never use string-prefix matching for authority decisions.
+    #[schemars(required)]
     pub id: Option<String>,
+}
+
+#[derive(Default)]
+enum ExplicitNullableResourceId {
+    #[default]
+    Missing,
+    Present(Option<String>),
+}
+
+impl<'de> Deserialize<'de> for ExplicitNullableResourceId {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        Option::<String>::deserialize(deserializer).map(Self::Present)
+    }
+}
+
+impl<'de> Deserialize<'de> for ProtocolResourceSelector {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        #[derive(Deserialize)]
+        struct WireSelector {
+            owner: String,
+            kind: String,
+            #[serde(default)]
+            id: ExplicitNullableResourceId,
+        }
+
+        let selector = WireSelector::deserialize(deserializer)?;
+        let id = match selector.id {
+            ExplicitNullableResourceId::Present(id) => id,
+            ExplicitNullableResourceId::Missing => {
+                return Err(serde::de::Error::missing_field("id"));
+            }
+        };
+        Ok(Self {
+            owner: selector.owner,
+            kind: selector.kind,
+            id,
+        })
+    }
 }
 
 impl ProtocolResourceSelector {
@@ -559,6 +604,16 @@ pub struct ProtocolAuthorityContext {
     pub resources: Vec<ProtocolResourceSelector>,
     #[serde(default)]
     pub delegation_chain: Vec<String>,
+    /// Trusted transport fact. It is never serialized or accepted from wire
+    /// JSON, and is used only to mint a short-lived internal mutation sidecar.
+    #[serde(skip)]
+    #[schemars(skip)]
+    verified_expires_at_ms: Option<i64>,
+    /// Trusted service callback used to refresh a device grant immediately
+    /// before a destructive Installation state effect. Never accepted on wire.
+    #[serde(skip)]
+    #[schemars(skip)]
+    authority_refresh: Option<InstallationAuthorityRefresh>,
 }
 
 /// Request-specific Host operation facts established by a trusted transport
@@ -586,7 +641,7 @@ pub struct ProtocolContext {
     pub host_operation: Option<ProtocolHostOperationContext>,
     /// Optional kernel session id this call is operating under.
     /// Used by outbound dispatch to scope secret resolution to the
-    /// session's project.
+    /// session's Installation.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub session_id: Option<String>,
     #[serde(default)]
@@ -637,6 +692,8 @@ impl ProtocolContext {
                 actions,
                 resources,
                 delegation_chain,
+                verified_expires_at_ms: None,
+                authority_refresh: None,
             }),
             host_operation: None,
             session_id: None,
@@ -676,6 +733,34 @@ impl ProtocolContext {
         self
     }
 
+    pub fn with_verified_authority_expiry(mut self, expires_at_ms: Option<i64>) -> Self {
+        if let Some(authority) = self.authority.as_mut() {
+            authority.verified_expires_at_ms = expires_at_ms;
+        }
+        self
+    }
+
+    pub fn with_installation_authority_refresh(
+        mut self,
+        refresh: InstallationAuthorityRefresh,
+    ) -> Self {
+        if let Some(authority) = self.authority.as_mut() {
+            authority.authority_refresh = Some(refresh);
+        }
+        self
+    }
+
+    pub(crate) fn installation_authority_refresh(&self) -> Option<InstallationAuthorityRefresh> {
+        self.authority
+            .as_ref()
+            .and_then(|authority| authority.authority_refresh.clone())
+    }
+
+    pub(crate) fn verified_authority_expiry_ms(&self) -> Option<i64> {
+        self.host_device_authority()
+            .and_then(|authority| authority.verified_expires_at_ms)
+    }
+
     pub fn effective_correlation_id(&self) -> Uuid {
         self.correlation_id.unwrap_or_else(Uuid::new_v4)
     }
@@ -698,7 +783,10 @@ impl ProtocolContext {
 
     pub fn allows_host_action(&self, action: &str) -> bool {
         if let Some(authority) = self.host_device_authority() {
-            return authority.actions.iter().any(|item| item == action);
+            return authority
+                .verified_expires_at_ms
+                .is_none_or(|expiry| expiry > chrono::Utc::now().timestamp_millis())
+                && authority.actions.iter().any(|item| item == action);
         }
         matches!(
             self.principal,
@@ -800,7 +888,10 @@ impl ProtocolError {
 
     pub fn from_anyhow(error: anyhow::Error) -> Self {
         let message = error.to_string();
-        let code = if message.contains("not allowed") || message.contains("permission") {
+        let code = if message.contains("not allowed")
+            || message.contains("permission")
+            || message.contains("authority_denied")
+        {
             "runtime/error/permission_denied"
         } else if message.contains("ambiguous") {
             "runtime/error/ambiguous_route"
@@ -938,27 +1029,27 @@ pub const PLATFORM_METHODS: &[ProtocolMethod] = &[
         status: MethodStatus::Planned,
     },
     ProtocolMethod {
-        id: "host.project.list",
+        id: "host.installation.list",
         streaming: false,
         status: MethodStatus::Implemented,
     },
     ProtocolMethod {
-        id: "host.project.get",
+        id: "host.installation.get",
         streaming: false,
         status: MethodStatus::Implemented,
     },
     ProtocolMethod {
-        id: "host.project.start",
+        id: "host.installation.create",
         streaming: false,
         status: MethodStatus::Implemented,
     },
     ProtocolMethod {
-        id: "host.project.stop",
+        id: "host.installation.update",
         streaming: false,
         status: MethodStatus::Implemented,
     },
     ProtocolMethod {
-        id: "host.project.status",
+        id: "host.installation.remove",
         streaming: false,
         status: MethodStatus::Implemented,
     },
@@ -1311,6 +1402,23 @@ mod tests {
     }
 
     #[test]
+    fn installation_methods_replace_project_methods_without_changing_registry_size() {
+        let ids = method_ids();
+        assert_eq!(ids.len(), 80);
+        for expected in [
+            "host.installation.list",
+            "host.installation.get",
+            "host.installation.create",
+            "host.installation.update",
+            "host.installation.remove",
+        ] {
+            assert!(ids.contains(&expected), "missing {expected}");
+        }
+        let retired_owner = ["host", "project"].join(".");
+        assert!(ids.iter().all(|id| !id.starts_with(&retired_owner)));
+    }
+
+    #[test]
     fn protocol_context_serializes_session_id_when_set() {
         let ctx = ProtocolContext {
             principal: ProtocolPrincipal::HostAdmin,
@@ -1355,8 +1463,8 @@ mod tests {
             vec!["observe".into()],
             vec![ProtocolResourceSelector {
                 owner: "host".into(),
-                kind: "project".into(),
-                id: Some("project-a".into()),
+                kind: "installation".into(),
+                id: Some("installation-a".into()),
             }],
             Vec::new(),
             "http",
@@ -1366,8 +1474,60 @@ mod tests {
         assert_eq!(context.host_device_grant_id(), Some("grant-1"));
         assert!(context.allows_host_action("observe"));
         assert!(!context.allows_host_action("deploy"));
-        assert!(context.allows_host_resource("host", "project", "project-a"));
-        assert!(!context.allows_host_resource("host", "project", "project-ab"));
+        assert!(context.allows_host_resource("host", "installation", "installation-a"));
+        assert!(!context.allows_host_resource("host", "installation", "installation-ab"));
+    }
+
+    #[test]
+    fn resource_selector_requires_an_explicit_nullable_id() {
+        let wildcard = ProtocolResourceSelector {
+            owner: "host".into(),
+            kind: "installation".into(),
+            id: None,
+        };
+        assert_eq!(
+            serde_json::to_value(&wildcard).unwrap(),
+            serde_json::json!({
+                "owner": "host",
+                "kind": "installation",
+                "id": null,
+            })
+        );
+
+        let decoded_wildcard: ProtocolResourceSelector = serde_json::from_value(
+            serde_json::json!({"owner": "host", "kind": "installation", "id": null}),
+        )
+        .unwrap();
+        assert_eq!(decoded_wildcard, wildcard);
+        assert!(decoded_wildcard.matches("host", "installation", "installation-a"));
+
+        let missing_id = serde_json::from_value::<ProtocolResourceSelector>(serde_json::json!({
+            "owner": "host",
+            "kind": "installation",
+        }))
+        .unwrap_err();
+        assert!(missing_id.to_string().contains("missing field `id`"));
+
+        let exact: ProtocolResourceSelector = serde_json::from_value(serde_json::json!({
+            "owner": "host",
+            "kind": "installation",
+            "id": "installation-a",
+        }))
+        .unwrap();
+        assert!(exact.matches("host", "installation", "installation-a"));
+        assert!(!exact.matches("host", "installation", "installation-b"));
+    }
+
+    #[test]
+    fn resource_selector_schema_requires_id() {
+        let schema = schemars::schema_for!(ProtocolResourceSelector);
+        let required = &schema
+            .schema
+            .object
+            .as_ref()
+            .expect("resource selector schema must be an object")
+            .required;
+        assert!(required.contains("id"));
     }
 
     // --- PlatformMethod / registry alignment tests ---
@@ -1387,13 +1547,11 @@ mod tests {
     #[test]
     fn platform_method_all_covers_entire_registry() {
         let all_ids: Vec<&'static str> = PlatformMethod::all().iter().map(|m| m.id()).collect();
-        for method in PLATFORM_METHODS {
-            assert!(
-                all_ids.contains(&method.id),
-                "PLATFORM_METHODS contains '{}' but PlatformMethod::all() does not",
-                method.id
-            );
-        }
+        let registry_ids: Vec<&'static str> = PLATFORM_METHODS.iter().map(|m| m.id).collect();
+        assert_eq!(
+            all_ids, registry_ids,
+            "PlatformMethod::all() and PLATFORM_METHODS must have identical ordered identities"
+        );
     }
 
     #[test]

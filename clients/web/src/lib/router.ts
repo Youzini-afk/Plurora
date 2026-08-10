@@ -13,7 +13,7 @@
  *   #/settings/profiles
  *   #/settings/storage
  *   #/settings/about
- *   /project/<projectId>              Chrome-free project tab host
+ *   /installation/<installationId>              Chrome-free installation tab host
  */
 
 import { useEffect, useState } from "react";
@@ -26,13 +26,13 @@ export type SettingsTab =
   | "storage"
   | "about";
 
-const MAX_PROJECT_ID_LENGTH = 128;
-const PROJECT_ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;
+const MAX_INSTALLATION_ID_LENGTH = 128;
+const INSTALLATION_ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;
 
 export type Route =
   | { kind: "home" }
   | { kind: "settings"; tab: SettingsTab }
-  | { kind: "project"; projectId: string };
+  | { kind: "installation"; installationId: string };
 
 export const SETTINGS_TABS: Array<{ id: SettingsTab; label: string }> = [
   { id: "api-connections", label: "API Connections" },
@@ -54,11 +54,11 @@ export function parseHash(hash: string): Route {
     }
     return { kind: "settings", tab: "api-connections" };
   }
-  if (head === "project" && rest[0]) {
+  if (head === "installation" && rest[0]) {
     // Malformed escapes (e.g., "%") would throw — fall back to Home.
     try {
-      const projectId = decodeURIComponent(rest[0]);
-      return isValidProjectId(projectId) ? { kind: "project", projectId } : { kind: "home" };
+      const installationId = decodeURIComponent(rest[0]);
+      return isValidInstallationId(installationId) ? { kind: "installation", installationId } : { kind: "home" };
     } catch {
       return { kind: "home" };
     }
@@ -66,10 +66,10 @@ export function parseHash(hash: string): Route {
   return { kind: "home" };
 }
 
-function encodeRouteProjectId(projectId: string): string {
-  // Keep project ids with `/` out of hash routes too. Canonical project tabs use
-  // `/project/<id>` and project ids are a single URL segment there.
-  return encodeURIComponent(projectId);
+function encodeRouteInstallationId(installationId: string): string {
+  // Keep installation ids with `/` out of hash routes too. Canonical installation tabs use
+  // `/installation/<id>` and installation ids are a single URL segment there.
+  return encodeURIComponent(installationId);
 }
 
 export function serializeRoute(route: Route): string {
@@ -78,47 +78,47 @@ export function serializeRoute(route: Route): string {
       return "#/";
     case "settings":
       return `#/settings/${route.tab}`;
-    case "project":
-      return `#/project/${encodeRouteProjectId(route.projectId)}`;
+    case "installation":
+      return `#/installation/${encodeRouteInstallationId(route.installationId)}`;
   }
 }
 
-export function isValidProjectId(value: string): boolean {
+export function isValidInstallationId(value: string): boolean {
   return value.length > 0
-    && value.length <= MAX_PROJECT_ID_LENGTH
+    && value.length <= MAX_INSTALLATION_ID_LENGTH
     && !value.includes("/")
     && value !== "."
     && value !== ".."
     && !value.startsWith(".")
     && !value.includes("..")
     && !/[\u0000-\u001F\u007F]/.test(value)
-    && PROJECT_ID_PATTERN.test(value);
+    && INSTALLATION_ID_PATTERN.test(value);
 }
 
-export function projectPath(projectId: string): string {
-  if (!isValidProjectId(projectId)) throw new Error("invalid project id");
-  return `/project/${encodeURIComponent(projectId)}`;
+export function installationPath(installationId: string): string {
+  if (!isValidInstallationId(installationId)) throw new Error("invalid installation id");
+  return `/installation/${encodeURIComponent(installationId)}`;
 }
 
-export function parseProjectPath(pathname: string): { kind: "project"; projectId: string } | null {
-  if (!pathname.startsWith("/project/")) return null;
-  const suffix = pathname.slice("/project/".length);
+export function parseInstallationPath(pathname: string): { kind: "installation"; installationId: string } | null {
+  if (!pathname.startsWith("/installation/")) return null;
+  const suffix = pathname.slice("/installation/".length);
   if (!suffix || suffix.includes("/")) return null;
   try {
-    const projectId = decodeURIComponent(suffix);
-    return isValidProjectId(projectId) ? { kind: "project", projectId } : null;
+    const installationId = decodeURIComponent(suffix);
+    return isValidInstallationId(installationId) ? { kind: "installation", installationId } : null;
   } catch {
     return null;
   }
 }
 
-export function usePathProjectRoute(): { kind: "project"; projectId: string } | null {
-  const [route, setRoute] = useState<{ kind: "project"; projectId: string } | null>(() =>
-    typeof window === "undefined" ? null : parseProjectPath(window.location.pathname),
+export function usePathInstallationRoute(): { kind: "installation"; installationId: string } | null {
+  const [route, setRoute] = useState<{ kind: "installation"; installationId: string } | null>(() =>
+    typeof window === "undefined" ? null : parseInstallationPath(window.location.pathname),
   );
 
   useEffect(() => {
-    const onPopState = () => setRoute(parseProjectPath(window.location.pathname));
+    const onPopState = () => setRoute(parseInstallationPath(window.location.pathname));
     window.addEventListener("popstate", onPopState);
     return () => window.removeEventListener("popstate", onPopState);
   }, []);
@@ -157,7 +157,7 @@ export function routeLabel(route: Route): string {
       const tab = SETTINGS_TABS.find((t) => t.id === route.tab);
       return tab ? `Settings / ${tab.label}` : "Settings";
     }
-    case "project":
-      return `Projects / ${route.projectId}`;
+    case "installation":
+      return `Installations / ${route.installationId}`;
   }
 }

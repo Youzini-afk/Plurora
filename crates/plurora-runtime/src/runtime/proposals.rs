@@ -623,6 +623,7 @@ where
                         mime,
                         content,
                         metadata: json!({"proposal_id": proposal.id}),
+                        artifact: None,
                     })
                     .await?;
                 Ok(json!({"op": operation.op, "asset_id": asset.id}))

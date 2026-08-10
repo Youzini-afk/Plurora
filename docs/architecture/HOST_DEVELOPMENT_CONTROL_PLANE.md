@@ -4,7 +4,7 @@
 
 Host 开发控制平面把“为一个项目提出源码变更”与“在主机上执行任意命令”严格分开。它使用现有宪法对象 `Intent -> ChangeSet -> PolicyDecision -> ChangeCommit -> EffectReceipt` 表达因果、审批和效果，但项目解析、scratch、Docker 验证和 workspace promotion 都属于 Host 控制面，不新增 `platform.project.*`、`platform.workspace.*` 或 IDE 产品本体。
 
-`plurora/workspace-lab` 仍是普通、无执行权限的规划包。真实变更只能经受 access-token 保护的 `/host/v1/projects/:project_id/changes` API 进入 Host。Docker 验证由同样普通的 `plurora/docker-runtime-lab` 执行；它没有内核特权。
+`plurora/workspace-lab` 仍是普通、无执行权限的规划包。真实变更只能经受 access-token 保护的 `/host/v1/development/:subject_kind/:subject_id/changes` API 进入 Host，其中 subject 明确为 `workspace` 或 `installation`。Docker 验证由同样普通的 `plurora/docker-runtime-lab` 执行；它没有内核特权。
 
 ## 生命周期
 
@@ -39,8 +39,8 @@ flowchart LR
 
 | Method | Route | 作用 |
 |---|---|---|
-| `GET` / `POST` | `/host/v1/projects/:project_id/changes` | 列表 / 草拟 ChangeSet |
-| `GET` | `/host/v1/projects/:project_id/changes/:change_set_id` | 读取状态与 durable refs |
+| `GET` / `POST` | `/host/v1/development/:subject_kind/:subject_id/changes` | 列表 / 草拟 ChangeSet |
+| `GET` | `/host/v1/development/:subject_kind/:subject_id/changes/:change_set_id` | 读取状态与 durable refs |
 | `GET` | `.../:change_set_id/bundle` | 导出 artifact-backed JSON patch bundle |
 | `POST` | `.../:change_set_id/approve` | 一次性批准或拒绝精确 ChangeSet |
 | `POST` | `.../:change_set_id/execute` | 异步暂存、验证，并按所有权决定是否 promotion |
@@ -116,23 +116,23 @@ linked-local 是用户可并发修改的目录。首版不会用“先检查路�
 
 ## 验证边界
 
-`static_validation` 只验证 scratch 结构和最终 tree digest，不执行项目代码。
+`static_validation` 只验证 scratch 结构和最终 tree digest，不执行 Workspace 代码。
 
-`docker_build` 是首版唯一执行项目代码的验证边界：
+`docker_build` 是首版唯一执行 Workspace 代码的验证边界：
 
 - 仅支持 Dockerfile，不为 development scratch 调用宿主 Nixpacks 或任意命令 runner；
-- context 必须精确等于 `<data>/projects/<project>/development/<change>/workspace`，打包前再次核对 canonical root；
+- context 必须精确等于 `<data>/workspaces/<workspace-id>/source` 的受控 snapshot，打包前再次核对 canonical root；
 - 默认 `network=none`；`bridge` 必须显式出现在 ChangeSet，并加入 `host.network.egress` authority；
 - 不接受 build secrets、secret refs、host mounts 或任意 build-time secret 参数；
 - 构建有 CPU、内存、时间、文件数和字节上限；
 - 结果只持久化状态与诊断日志 SHA-256，不保存原始 Docker log；
-- 验证镜像按 `managed-by`、package、project、build 和 change 五组标签核对后删除，不作为部署镜像保留。
+- 验证镜像按 `managed-by`、package、installation、workspace、build 和 change 标签核对后删除，不作为部署镜像保留。
 - 容器 status/log/stop 也必须携带 route 与 port-lease scope，并核对 `managed-by`、package、route 和 lease 标签；stop 还要求显式 `approved: true`，不能把任意 Docker ID 当作 Plurora 资源。
 
 ## 持久化、并发与恢复
 
-- 每个项目使用独立 development journal session。状态转换通过 EventStore 的 `append_with_sequence_if_next` 做 expected-tail compare-and-append；内存、SQLite 和 PostgreSQL 后端提供同一原子语义。
-- 带 idempotency key 的 change id 由 project + key 确定性派生；同 key 的不同请求在 durable journal 中冲突，而不是只靠进程内 map。
+- 每个 Installation 或 Workspace subject 使用独立 development journal session。状态转换通过 EventStore 的 `append_with_sequence_if_next` 做 expected-tail compare-and-append；内存、SQLite 和 PostgreSQL 后端提供同一原子语义。
+- 带 idempotency key 的 change id 由 subject + key 确定性派生；同 key 的不同请求在 durable journal 中冲突，而不是只靠进程内 map。
 - development control plane 使用 30 秒全局 Host lease、10 秒心跳。缺少租约会 fail-closed；每次变更写入会核对本地过期时间和 durable lease tail，promotion 前主动续租，并在 descriptor 激活前再次核对。第二个 Host 不能在共享 store 上同时恢复或执行；租约丢失后审批、执行和 promotion 停止。
 - staging 或静态验证中断没有 workspace promotion，可标记失败并清理 scratch。
 - Docker 验证中断进入 `recovery_required`；恢复按稳定 build id 和完整 ownership labels 删除或确认镜像不存在，然后记录失败终态。

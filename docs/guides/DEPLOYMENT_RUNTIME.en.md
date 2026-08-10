@@ -33,7 +33,7 @@ Docker, git, installation, secret storage, workspaces, and adapters are not kern
 
 ## Docker deployment descriptor
 
-Native projects can add minimal deployment metadata under `project.metadata.deployment.docker` in `project.yaml`:
+Until Phase 6 Realization replacement is complete, explicit deployment requests may still submit minimal Docker metadata. These fields are Host-local operation data and never enter WorkRevision:
 
 ```yaml
 project:
@@ -43,7 +43,7 @@ project:
         image: ghcr.io/example/app:latest
         container_port: 3000
         port_name: web        # optional, default: web
-        route_id: my-app-web  # optional, default: <project_id>-web
+        route_id: my-app-web  # optional, default derived from Installation
         route_access: host_authenticated # optional; host_authenticated | public
         health_path: /healthz # optional, used for the readiness probe
         pull_if_missing: false
@@ -132,8 +132,8 @@ Build & Deploy uses `POST /host/v1/build-deploy`. By default it returns immediat
 1. Validate source URL, strategy, runtime env, runtime mounts, and user approvals.
 2. Clone into the project workspace through `git-tools-lab`. The project and workspace ancestors must be real directories under the canonical data root; selected-tree materialization fails closed above 100,000 files, 100,000 directories, or 1 GiB. Unsupported tree modes such as submodule entries, absolute/root-escaping symlinks, and symlink entries on platforms that cannot preserve them fail explicitly. The current transport still performs a temporary bare fetch, so these tree limits do not yet constitute a repository-download budget.
 3. If strategy is `nixpacks`, generate Dockerfile / context first.
-4. Call `plurora/docker-runtime-lab/build_image` and label the image with `project_id`, `build_id`, `source_commit`, `strategy`, and `build_descriptor_hash`.
-5. If the project already has an active revision, clean up its container, route, and lease after the new image has built. The old revision remains the durable active pointer until the replacement commits, so replacement failure becomes an explicit recovery-required state.
+4. Call `plurora/docker-runtime-lab/build_image` and label the image with `installation_id`, `workspace_id`, `build_id`, `source_commit`, `strategy`, and `build_descriptor_hash`.
+5. If the Installation already has an active revision, handle its container, route, and lease only after the new image has built. The old revision remains the durable active pointer until the replacement commits, so replacement failure becomes an explicit recovery-required state.
 6. Enter the normal deploy chain: port lease → container start → proxy register → readiness probe.
 7. After readiness succeeds, append the revision activation event before moving in-memory state to Ready. If the journal commit fails, roll back the new deployment.
 
@@ -145,23 +145,23 @@ Every successful Build & Deploy creates a `DeploymentRevision` containing source
 
 This path accepts only a committed `managed_external` ChangeSet, a `docker_build` verification result, and complete provenance. The verification image is removed after verification. Deployment consumes the immutable build-context artifact, never that image or the live workspace.
 
-1. `POST /host/v1/projects/<project_id>/changes/<change_set_id>/deployment/preview` revalidates the descriptor, tree, verification/build-context artifacts, and project/target authority, then performs typed artifact transfer, Docker build, and deployment apply on an explicit `local` or Agent target. The generated preview route is always `host_authenticated`.
+1. `POST /host/v1/development/workspace/<workspace_id>/changes/<change_set_id>/deployment/preview` revalidates the descriptor, tree, verification/build-context artifacts, and Workspace/Installation/Target authority, then performs typed artifact transfer, Docker build, and deployment apply on an explicit `local` or Agent target. The generated preview route is always `host_authenticated`.
 2. `POST .../deployment/approve` separately approves or rejects the exact preview. Its approval artifact binds the candidate receipt, artifact refs, target, and authority; source approval never implies deployment approval.
 3. `POST .../deployment/activate` revalidates all evidence and readiness, points the requested private or explicitly public route at that same candidate, commits an immutable `VerifiedActivate` revision, and only then drains the previous revision.
 4. A Host crash or uncertain effect during preview/activation moves the transaction to `recovery_required`. `POST .../deployment/reconcile` only adopts a provenance-identical durable activation or cleans the exact candidate/route/lease; ambiguous state remains blocked.
 
 Project-scoped host APIs:
 
-- `GET /host/v1/projects/<project_id>/deployments`: active revision, runtime readiness, recovery requirement, jobs, and revision history.
-- `POST /host/v1/projects/<project_id>/deployments/recover`: explicitly recover the active revision. An ordinary `GitClone` revision reuses its retained local image without cloning/building; a `VerifiedArtifact` revision revalidates evidence and rebuilds from durable build context on its recorded target.
-- `POST /host/v1/projects/<project_id>/deployments/rollback`: activate a historical revision as a new immutable rollback revision. Ordinary revisions reuse retained images; verified revisions rebuild from their durable context on the recorded target. Rollback remains available after explicit stop removes the active pointer, and historical records are never mutated.
+- `GET /host/v1/installations/<installation_id>/deployments`: active revision, runtime readiness, recovery requirement, jobs, and revision history.
+- `POST /host/v1/installations/<installation_id>/deployments/recover`: explicitly recover the active revision. An ordinary `GitClone` revision reuses its retained local image without cloning/building; a `VerifiedArtifact` revision revalidates evidence and rebuilds from durable build context on its recorded target.
+- `POST /host/v1/installations/<installation_id>/deployments/rollback`: activate a historical revision as a new immutable rollback revision. Ordinary revisions reuse retained images; verified revisions rebuild from their durable context on the recorded target. Rollback remains available after explicit stop removes the active pointer, and historical records are never mutated.
 - `POST /host/v1/deploy/stop`: clean up resources for a route and append a deactivation event when it belongs to the active durable revision.
 
 Recover and rollback are explicit user actions. Ordinary revisions must be replay-safe, retain their local image, and still resolve referenced secrets. Verified revisions require a valid artifact closure, preview/approval evidence, and current project/target authority. Verified replay never reads the live workspace or refetches source. Failure preserves the prior active pointer and reports recovery required rather than silently claiming success. Direct prebuilt-image `/host/v1/deploy` remains a transient broker operation and does not create a durable revision yet.
 
 ## `project.start` does not deploy
 
-`host.project.start` remains a project state machine: open or reuse a project session, mark Running, and return `session_id`. It does not start a process, allocate a port, or register a proxy.
+Installation `ready` means only that the adoption record is valid. It does not start a process, allocate a port, or register a proxy. Phase 4 introduces independent Run / Exposure lifecycle; Phase 6 replaces this transitional deployment controller with Realization.
 
 Deployment is a separate, explicit host-broker action. This keeps “open project UI” and “run an external service” visibly separate.
 

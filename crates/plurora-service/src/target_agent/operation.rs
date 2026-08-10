@@ -2,13 +2,14 @@ use super::*;
 
 use anyhow::Context;
 use axum::body::Body;
-use plurora_core::ProjectId;
 use plurora_runtime::scan_effect_value_for_raw_secrets;
+use plurora_runtime::InstallationControl;
+use plurora_work::{InstallationId, WorkspaceId};
 use serde_json::Value;
 use tokio::io::AsyncReadExt;
 
 use super::driver::{resolve_target_driver, TargetDriverKind};
-use crate::require_identity_project;
+use crate::require_identity_installation;
 
 const OPERATION_JOURNAL_SESSION: &str = "host_control_target_operations";
 const OPERATION_JOURNAL_EVENT: &str = "host/control/v1/target_operation.snapshot";
@@ -70,6 +71,7 @@ pub enum DeclarativeVerifierDescriptor {
         dockerfile: String,
         network_mode: plurora_runtime::ManagedTargetBuildNetworkMode,
         build_id: String,
+        workspace_id: WorkspaceId,
         source_tree_digest: String,
         build_descriptor_hash: String,
     },
@@ -226,7 +228,7 @@ pub struct TargetOperationAuthority {
     pub target_id: String,
     pub operation_id: String,
     pub step_id: String,
-    pub project_id: ProjectId,
+    pub installation_id: InstallationId,
     pub effect: TargetOperationEffect,
     pub artifact_digests: Vec<String>,
     pub lease_epoch: u64,
@@ -301,7 +303,7 @@ pub struct TargetOperationReceipt {
 pub struct TargetOperationRecord {
     pub operation_id: String,
     pub target_id: String,
-    pub project_id: ProjectId,
+    pub installation_id: InstallationId,
     pub revision: u64,
     pub status: TargetOperationStatusKind,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -319,7 +321,7 @@ pub struct TargetOperationRecord {
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct CreateTargetOperationRequest {
-    pub project_id: ProjectId,
+    pub installation_id: InstallationId,
     pub spec: TargetOperationSpec,
     #[serde(default)]
     pub idempotency_key: Option<String>,
@@ -356,7 +358,7 @@ struct TargetOperationSnapshot {
 pub(super) struct TargetOperationState {
     next_sequence: EventSequence,
     operations: HashMap<String, TargetOperationRecord>,
-    idempotency: HashMap<(String, ProjectId, String), (String, String)>,
+    idempotency: HashMap<(String, InstallationId, String), (String, String)>,
     local_execution_locks: HashMap<String, Arc<tokio::sync::Mutex<()>>>,
 }
 
@@ -395,23 +397,26 @@ impl TargetAgentRegistry {
         operations
     }
 
-    pub(crate) fn project_for_operation_route(&self, route_id: &str) -> Option<ProjectId> {
+    pub(crate) fn installation_for_operation_route(
+        &self,
+        route_id: &str,
+    ) -> Option<InstallationId> {
         let state = self
             .operations
             .lock()
             .expect("target operation state lock poisoned");
-        let mut projects = state
+        let mut installations = state
             .operations
             .values()
             .filter(|operation| {
                 operation_deployment_ref(&operation.spec)
                     .is_some_and(|deployment| deployment.route_id == route_id)
             })
-            .map(|operation| operation.project_id.clone())
+            .map(|operation| operation.installation_id.clone())
             .collect::<Vec<_>>();
-        projects.sort();
-        projects.dedup();
-        (projects.len() == 1).then(|| projects.remove(0))
+        installations.sort();
+        installations.dedup();
+        (installations.len() == 1).then(|| installations.remove(0))
     }
 
     fn operation_target_ids(&self) -> Vec<String> {
@@ -442,17 +447,18 @@ impl TargetAgentRegistry {
     fn idempotent_operation(
         &self,
         target_id: &str,
-        project_id: &ProjectId,
+        installation_id: &InstallationId,
         key: &str,
     ) -> Option<(String, TargetOperationRecord)> {
         let state = self
             .operations
             .lock()
             .expect("target operation state lock poisoned");
-        let (request_digest, operation_id) =
-            state
-                .idempotency
-                .get(&(target_id.to_string(), project_id.clone(), key.to_string()))?;
+        let (request_digest, operation_id) = state.idempotency.get(&(
+            target_id.to_string(),
+            installation_id.clone(),
+            key.to_string(),
+        ))?;
         state
             .operations
             .get(operation_id)
@@ -507,7 +513,7 @@ impl TargetAgentRegistry {
         if let Some(key) = record.idempotency_key.as_deref() {
             let index_key = (
                 record.target_id.clone(),
-                record.project_id.clone(),
+                record.installation_id.clone(),
                 key.to_string(),
             );
             if let Some((request_digest, operation_id)) = state.idempotency.get(&index_key) {
@@ -538,7 +544,7 @@ fn immutable_operation_fields_match(
 ) -> bool {
     previous.operation_id == next.operation_id
         && previous.target_id == next.target_id
-        && previous.project_id == next.project_id
+        && previous.installation_id == next.installation_id
         && previous.spec == next.spec
         && previous.authority == next.authority
         && previous.idempotency_key == next.idempotency_key
@@ -590,7 +596,7 @@ fn valid_status_transition(
 #[derive(Serialize)]
 struct OperationRequestDigestInput<'a> {
     target_id: &'a str,
-    project_id: &'a ProjectId,
+    installation_id: &'a InstallationId,
     step_id: &'a str,
     spec: &'a TargetOperationSpec,
 }
@@ -600,7 +606,7 @@ struct UnsignedOperationAuthority<'a> {
     target_id: &'a str,
     operation_id: &'a str,
     step_id: &'a str,
-    project_id: &'a ProjectId,
+    installation_id: &'a InstallationId,
     effect: TargetOperationEffect,
     artifact_digests: &'a [String],
     lease_epoch: u64,
@@ -625,14 +631,14 @@ where
 
 fn operation_request_digest(
     target_id: &str,
-    project_id: &ProjectId,
+    installation_id: &InstallationId,
     spec: &TargetOperationSpec,
 ) -> anyhow::Result<String> {
     digest_serializable(
         "request",
         &OperationRequestDigestInput {
             target_id,
-            project_id,
+            installation_id,
             step_id: OPERATION_STEP_ID,
             spec,
         },
@@ -648,7 +654,7 @@ fn operation_authority_digest(
         target_id: &authority.target_id,
         operation_id: &authority.operation_id,
         step_id: &authority.step_id,
-        project_id: &authority.project_id,
+        installation_id: &authority.installation_id,
         effect: authority.effect,
         artifact_digests: &authority.artifact_digests,
         lease_epoch: authority.lease_epoch,
@@ -695,7 +701,7 @@ fn validate_record_integrity(
         !record.operation_id.is_empty()
             && record.target_id == record.authority.target_id
             && record.operation_id == record.authority.operation_id
-            && record.project_id == record.authority.project_id
+            && record.installation_id == record.authority.installation_id
             && record.authority.step_id == OPERATION_STEP_ID
             && record.spec.effect() == record.authority.effect
             && record.spec.artifact_digests() == record.authority.artifact_digests
@@ -719,7 +725,7 @@ fn validate_record_integrity(
         anyhow::ensure!(is_sha256_digest(digest), "invalid artifact digest");
     }
     anyhow::ensure!(
-        operation_request_digest(&record.target_id, &record.project_id, &record.spec)?
+        operation_request_digest(&record.target_id, &record.installation_id, &record.spec)?
             == record.authority.request_digest,
         "target operation request digest did not match"
     );
@@ -984,18 +990,20 @@ where
         return Ok(());
     };
     for owner in [
-        state.build_jobs.project_for_route(&deployment.route_id),
+        state
+            .build_jobs
+            .installation_for_route(&deployment.route_id),
         state
             .target_agents
-            .project_for_operation_route(&deployment.route_id),
+            .installation_for_operation_route(&deployment.route_id),
     ]
     .into_iter()
     .flatten()
     {
-        if owner != request.project_id {
+        if owner != request.installation_id {
             return Err(ServiceError::with_status(
                 StatusCode::CONFLICT,
-                "deployment route is owned by another project",
+                "deployment route is owned by another installation",
             ));
         }
     }
@@ -1095,7 +1103,7 @@ where
     S: EventStore,
 {
     require_identity_target(&identity, &target_id)?;
-    require_identity_project(&identity, request.project_id.as_str())?;
+    require_identity_installation(&identity, request.installation_id.as_str())?;
     let operation = submit_host_operation(&state, &target_id, request).await?;
     Ok((
         StatusCode::CREATED,
@@ -1113,15 +1121,15 @@ where
 {
     validate_create_request(&target_id, &request)?;
     if state
-        .runtime
-        .config()
-        .project_registry
-        .get(&request.project_id)
+        .installations
+        .get(&request.installation_id)
+        .await
+        .map_err(target_internal_error)?
         .is_none()
     {
         return Err(ServiceError::with_status(
             StatusCode::NOT_FOUND,
-            "project is not registered",
+            "installation is not registered",
         ));
     }
     validate_deployment_topology(state, target_id, &request).await?;
@@ -1240,7 +1248,7 @@ where
         .target_agents
         .operations_for_target(&target_id)
         .into_iter()
-        .filter(|operation| identity.allows_project(operation.project_id.as_str()))
+        .filter(|operation| identity.allows_installation(operation.installation_id.as_str()))
         .collect();
     Ok(Json(operations))
 }
@@ -1262,7 +1270,7 @@ where
         .operation(&operation_id)
         .filter(|operation| operation.target_id == target_id)
         .ok_or_else(|| ServiceError::with_status(StatusCode::NOT_FOUND, "operation not found"))?;
-    require_identity_project(&identity, operation.project_id.as_str())?;
+    require_identity_installation(&identity, operation.installation_id.as_str())?;
     Ok(Json(operation))
 }
 
@@ -1490,7 +1498,7 @@ where
             })?;
         if operation.status.is_terminal() {
             if operation.receipt.as_ref() == Some(&receipt) {
-                project_deployment_operation(&state, &operation)
+                installation_deployment_operation(&state, &operation)
                     .await
                     .map_err(target_internal_error)?;
                 return Ok(Json(operation));
@@ -1546,7 +1554,7 @@ where
         .map_err(target_internal_error)?
         .is_some()
         {
-            project_deployment_operation(&state, &next)
+            installation_deployment_operation(&state, &next)
                 .await
                 .map_err(target_internal_error)?;
             return Ok(Json(next));
@@ -1884,7 +1892,7 @@ where
             let applied = plurora_runtime::apply_managed_target_deployment(
                 &plurora_runtime::ManagedTargetDeploymentApply {
                     target_id: operation.target_id.clone(),
-                    project_id: operation.project_id.to_string(),
+                    installation_id: operation.installation_id.clone(),
                     deployment_id: reference.deployment_id.clone(),
                     route_id: reference.route_id.clone(),
                     port_lease_id: reference.port_lease_id.clone(),
@@ -1977,6 +1985,7 @@ where
                     dockerfile,
                     network_mode,
                     build_id,
+                    workspace_id,
                     source_tree_digest,
                     build_descriptor_hash,
                 },
@@ -1990,7 +1999,8 @@ where
                 plurora_runtime::build_managed_target_image(
                     plurora_runtime::ManagedTargetImageBuild {
                         target_id: operation.target_id.clone(),
-                        project_id: operation.project_id.to_string(),
+                        installation_id: operation.installation_id.clone(),
+                        workspace_id: workspace_id.clone(),
                         build_id: build_id.clone(),
                         dockerfile: dockerfile.clone(),
                         network_mode: *network_mode,
@@ -2012,14 +2022,14 @@ fn managed_deployment_ref(
 ) -> plurora_runtime::ManagedTargetDeploymentRef {
     plurora_runtime::ManagedTargetDeploymentRef {
         target_id: operation.target_id.clone(),
-        project_id: operation.project_id.to_string(),
+        installation_id: operation.installation_id.clone(),
         deployment_id: deployment.deployment_id.clone(),
         route_id: deployment.route_id.clone(),
         port_lease_id: deployment.port_lease_id.clone(),
     }
 }
 
-async fn project_deployment_operation<S>(
+async fn installation_deployment_operation<S>(
     state: &AppState<S>,
     operation: &TargetOperationRecord,
 ) -> anyhow::Result<bool>
@@ -2034,7 +2044,7 @@ where
     };
     match &operation.spec {
         TargetOperationSpec::DeploymentApply { deployment } => {
-            project_running_deployment(
+            installation_running_deployment(
                 state,
                 operation,
                 &deployment.deployment,
@@ -2053,10 +2063,10 @@ where
                     .and_then(Value::as_bool)
                     .unwrap_or(false)
             {
-                project_stopped_deployment(state, deployment).await?;
+                installation_stopped_deployment(state, deployment).await?;
             } else {
                 let lease = required_deployment_lease(state, deployment).await?;
-                project_running_deployment(
+                installation_running_deployment(
                     state,
                     operation,
                     deployment,
@@ -2068,7 +2078,7 @@ where
         }
         TargetOperationSpec::DeploymentDrain { deployment, .. }
         | TargetOperationSpec::DeploymentStop { deployment, .. } => {
-            project_stopped_deployment(state, deployment).await?;
+            installation_stopped_deployment(state, deployment).await?;
         }
         _ => return Ok(false),
     }
@@ -2091,7 +2101,7 @@ where
         .context("target deployment port lease disappeared")
 }
 
-async fn project_running_deployment<S>(
+async fn installation_running_deployment<S>(
     state: &AppState<S>,
     operation: &TargetOperationRecord,
     deployment: &TargetDeploymentRef,
@@ -2186,7 +2196,7 @@ where
     Ok(())
 }
 
-async fn project_stopped_deployment<S>(
+async fn installation_stopped_deployment<S>(
     state: &AppState<S>,
     deployment: &TargetDeploymentRef,
 ) -> anyhow::Result<()>
@@ -2242,7 +2252,7 @@ where
 {
     let mut projected = 0usize;
     for operation in state.target_agents.operations_for_target(target_id) {
-        if project_deployment_operation(state, &operation).await? {
+        if installation_deployment_operation(state, &operation).await? {
             projected = projected.saturating_add(1);
         }
     }
@@ -2314,7 +2324,7 @@ where
             .operation(operation_id)
             .ok_or_else(|| anyhow::anyhow!("local target operation disappeared"))?;
         if current.status.is_terminal() {
-            project_deployment_operation(state, &current).await?;
+            installation_deployment_operation(state, &current).await?;
             return Ok(current);
         }
         anyhow::ensure!(
@@ -2343,7 +2353,7 @@ where
         .await?
         .is_some()
         {
-            project_deployment_operation(state, &next).await?;
+            installation_deployment_operation(state, &next).await?;
             return Ok(next);
         }
     }
@@ -2360,7 +2370,8 @@ async fn create_operation_record<S>(
 where
     S: EventStore,
 {
-    let request_digest = operation_request_digest(&target.id, &request.project_id, &request.spec)?;
+    let request_digest =
+        operation_request_digest(&target.id, &request.installation_id, &request.spec)?;
     let operation_id = plurora_core::new_id("target-operation");
     let now_ms = Utc::now().timestamp_millis();
     let expires_at_ms = now_ms.saturating_add(
@@ -2376,7 +2387,7 @@ where
         target_id: target.id.clone(),
         operation_id: operation_id.clone(),
         step_id: OPERATION_STEP_ID.to_string(),
-        project_id: request.project_id.clone(),
+        installation_id: request.installation_id.clone(),
         effect: request.spec.effect(),
         artifact_digests: request.spec.artifact_digests(),
         lease_epoch: target.lease_epoch,
@@ -2391,7 +2402,7 @@ where
     let record = TargetOperationRecord {
         operation_id,
         target_id: target.id,
-        project_id: request.project_id,
+        installation_id: request.installation_id,
         revision: 1,
         status: TargetOperationStatusKind::Requested,
         execution_id: None,
@@ -2408,7 +2419,7 @@ where
         sync_target_operation_journal(store, registry).await?;
         if let Some(key) = record.idempotency_key.as_deref() {
             if let Some((existing_digest, existing)) =
-                registry.idempotent_operation(&record.target_id, &record.project_id, key)
+                registry.idempotent_operation(&record.target_id, &record.installation_id, key)
             {
                 anyhow::ensure!(
                     existing_digest == record.authority.request_digest,
@@ -2630,7 +2641,7 @@ mod tests {
 
     fn operation_request(key: &str) -> CreateTargetOperationRequest {
         CreateTargetOperationRequest {
-            project_id: ProjectId::new("project-1").unwrap(),
+            installation_id: InstallationId::parse("11111111-1111-4111-8111-111111111111").unwrap(),
             spec: TargetOperationSpec::VerifierRun {
                 verifier: DeclarativeVerifierDescriptor::ArtifactIntegrity {
                     digest: format!("sha256:{}", "a".repeat(64)),
@@ -2746,9 +2757,15 @@ mod tests {
     #[tokio::test]
     async fn local_driver_uses_the_durable_operation_state_and_receipt() -> anyhow::Result<()> {
         let store = Arc::new(InMemoryEventStore::default());
+        let objects = Arc::new(plurora_runtime::InMemoryObjectStore::default());
+        let installations = crate::InstallationRegistry::ephemeral(store.clone(), objects.clone())?;
         let runtime = Arc::new(plurora_runtime::Runtime::new(
             store.clone(),
-            plurora_runtime::RuntimeConfig::default(),
+            plurora_runtime::RuntimeConfig {
+                object_store: objects,
+                installation_control: installations.clone(),
+                ..plurora_runtime::RuntimeConfig::default()
+            },
         ));
         let registry = Arc::new(TargetAgentRegistry::default());
         let state = AppState {
@@ -2759,6 +2776,7 @@ mod tests {
             build_jobs: Arc::new(crate::BuildDeployJobRegistry::default()),
             development: crate::development_registry(),
             host_access: crate::host_access_registry(),
+            installations,
             target_agents: registry.clone(),
         };
         let target = runtime
@@ -2776,7 +2794,7 @@ mod tests {
             &authority_key,
             target,
             CreateTargetOperationRequest {
-                project_id: ProjectId::new("project-1")?,
+                installation_id: InstallationId::parse("11111111-1111-4111-8111-111111111111")?,
                 spec: TargetOperationSpec::HealthProbe,
                 idempotency_key: Some("local-health-1".to_string()),
                 expires_in_seconds: Some(120),
@@ -2826,7 +2844,7 @@ mod tests {
             &authority_key,
             target,
             CreateTargetOperationRequest {
-                project_id: ProjectId::new("project-1")?,
+                installation_id: InstallationId::parse("11111111-1111-4111-8111-111111111111")?,
                 spec: TargetOperationSpec::HealthProbe,
                 idempotency_key: Some("interrupted-local-health".to_string()),
                 expires_in_seconds: Some(120),
@@ -2882,11 +2900,18 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn deployment_receipt_projects_actual_port_and_route_readiness() -> anyhow::Result<()> {
+    async fn deployment_receipt_installations_actual_port_and_route_readiness() -> anyhow::Result<()>
+    {
         let store = Arc::new(InMemoryEventStore::default());
+        let objects = Arc::new(plurora_runtime::InMemoryObjectStore::default());
+        let installations = crate::InstallationRegistry::ephemeral(store.clone(), objects.clone())?;
         let runtime = Arc::new(plurora_runtime::Runtime::new(
             store,
-            plurora_runtime::RuntimeConfig::default(),
+            plurora_runtime::RuntimeConfig {
+                object_store: objects,
+                installation_control: installations.clone(),
+                ..plurora_runtime::RuntimeConfig::default()
+            },
         ));
         let state = AppState {
             runtime: runtime.clone(),
@@ -2896,6 +2921,7 @@ mod tests {
             build_jobs: Arc::new(crate::BuildDeployJobRegistry::default()),
             development: crate::development_registry(),
             host_access: crate::host_access_registry(),
+            installations,
             target_agents: Arc::new(TargetAgentRegistry::default()),
         };
         let lease = runtime
@@ -2949,7 +2975,7 @@ mod tests {
             health_path: None,
         };
         let create = CreateTargetOperationRequest {
-            project_id: ProjectId::new("project-1")?,
+            installation_id: InstallationId::parse("11111111-1111-4111-8111-111111111111")?,
             spec: TargetOperationSpec::DeploymentApply {
                 deployment: deployment.clone(),
             },
@@ -2967,7 +2993,7 @@ mod tests {
         let mut operation = TargetOperationRecord {
             operation_id: "operation-1".to_string(),
             target_id: "local".to_string(),
-            project_id: create.project_id,
+            installation_id: create.installation_id,
             revision: 4,
             status: TargetOperationStatusKind::Succeeded,
             execution_id: Some("a".repeat(32)),
@@ -2976,7 +3002,7 @@ mod tests {
                 target_id: "local".to_string(),
                 operation_id: "operation-1".to_string(),
                 step_id: OPERATION_STEP_ID.to_string(),
-                project_id: ProjectId::new("project-1")?,
+                installation_id: InstallationId::parse("11111111-1111-4111-8111-111111111111")?,
                 effect: TargetOperationEffect::DeploymentApply,
                 artifact_digests: Vec::new(),
                 lease_epoch: 1,
@@ -3007,7 +3033,7 @@ mod tests {
             created_at_ms: now_ms,
             updated_at_ms: now_ms,
         };
-        assert!(project_deployment_operation(&state, &operation).await?);
+        assert!(installation_deployment_operation(&state, &operation).await?);
         assert_eq!(
             runtime
                 .config()
@@ -3035,7 +3061,7 @@ mod tests {
             grace_seconds: 10,
         };
         operation.authority.effect = TargetOperationEffect::DeploymentDrain;
-        assert!(project_deployment_operation(&state, &operation).await?);
+        assert!(installation_deployment_operation(&state, &operation).await?);
         assert_eq!(
             runtime
                 .config()
@@ -3066,7 +3092,7 @@ mod tests {
 
     #[test]
     fn deployment_operation_binds_ownership_and_rejects_unknown_fields() -> anyhow::Result<()> {
-        let project_id = ProjectId::new("project-1")?;
+        let installation_id = InstallationId::parse("11111111-1111-4111-8111-111111111111")?;
         let spec = TargetOperationSpec::DeploymentApply {
             deployment: TargetDeploymentDescriptor {
                 deployment: TargetDeploymentRef {
@@ -3092,8 +3118,8 @@ mod tests {
         };
         deployment.deployment.route_id = "route-2".to_string();
         assert_ne!(
-            operation_request_digest("remote-1", &project_id, &spec)?,
-            operation_request_digest("remote-1", &project_id, &changed)?
+            operation_request_digest("remote-1", &installation_id, &spec)?,
+            operation_request_digest("remote-1", &installation_id, &changed)?
         );
 
         assert!(serde_json::from_value::<TargetOperationSpec>(json!({
@@ -3116,7 +3142,7 @@ mod tests {
         assert!(validate_create_request(
             "remote-1",
             &CreateTargetOperationRequest {
-                project_id,
+                installation_id,
                 spec: raw_secret_spec,
                 idempotency_key: None,
                 expires_in_seconds: Some(120),
@@ -3138,7 +3164,8 @@ mod tests {
 
     #[test]
     fn docker_build_verifier_binds_the_exact_context_and_recipe() -> anyhow::Result<()> {
-        let project_id = ProjectId::new("project-1")?;
+        let installation_id = InstallationId::parse("11111111-1111-4111-8111-111111111111")?;
+        let workspace_id = WorkspaceId::parse("22222222-2222-4222-8222-222222222222")?;
         let spec = TargetOperationSpec::VerifierRun {
             verifier: DeclarativeVerifierDescriptor::DockerBuild {
                 digest: format!("sha256:{}", "a".repeat(64)),
@@ -3146,6 +3173,7 @@ mod tests {
                 dockerfile: "docker/Dockerfile".to_string(),
                 network_mode: plurora_runtime::ManagedTargetBuildNetworkMode::None,
                 build_id: "build-1".to_string(),
+                workspace_id,
                 source_tree_digest: format!("sha256:{}", "b".repeat(64)),
                 build_descriptor_hash: format!("sha256:{}", "c".repeat(64)),
             },
@@ -3163,8 +3191,8 @@ mod tests {
         };
         *dockerfile = "Dockerfile".to_string();
         assert_ne!(
-            operation_request_digest("remote-1", &project_id, &spec)?,
-            operation_request_digest("remote-1", &project_id, &changed)?
+            operation_request_digest("remote-1", &installation_id, &spec)?,
+            operation_request_digest("remote-1", &installation_id, &changed)?
         );
         Ok(())
     }

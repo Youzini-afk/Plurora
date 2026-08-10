@@ -118,8 +118,8 @@ async fn profile_with_store_disabled_denies_store_refs() {
         .await
         .expect_err("store refs should be denied when all resolvers disabled");
     assert!(
-        err.to_string().contains("no secret resolver configured"),
-        "store-disabled empty profile should fail closed with DenyAll: {err}"
+        err.to_string().contains("store resolver not configured"),
+        "store-disabled profile should fail closed without a store resolver: {err}"
     );
 }
 

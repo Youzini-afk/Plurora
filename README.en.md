@@ -136,7 +136,7 @@ Major documents are available in English and Simplified Chinese and link to the 
 | Use public contracts | [`docs/protocol/PUBLIC_PROTOCOL.md`](docs/protocol/PUBLIC_PROTOCOL.en.md) → [`docs/spec/PUBLIC_CONTRACT.md`](docs/spec/PUBLIC_CONTRACT.en.md) |
 | Review long-term contract layering | [`docs/architecture/CONSTITUTION_V2.md`](docs/architecture/CONSTITUTION_V2.en.md) → [`docs/spec/CONTRACT_LAYERING_MATRIX.md`](docs/spec/CONTRACT_LAYERING_MATRIX.en.md) |
 | Write a first Package / Component | [`docs/guides/PACKAGE_AUTHORING_WALKTHROUGH.md`](docs/guides/PACKAGE_AUTHORING_WALKTHROUGH.en.md) |
-| Install a Package / Project | [`docs/guides/PACKAGE_INSTALLATION.md`](docs/guides/PACKAGE_INSTALLATION.en.md) → [`docs/guides/PROJECT_MODEL.md`](docs/guides/PROJECT_MODEL.en.md) |
+| Pack Work / create Installation | [`docs/guides/PACKAGE_INSTALLATION.md`](docs/guides/PACKAGE_INSTALLATION.en.md) → [`docs/guides/INSTALLATION_MODEL.md`](docs/guides/INSTALLATION_MODEL.en.md) |
 | Manage API keys / secrets | [`docs/guides/SECRET_MANAGEMENT.md`](docs/guides/SECRET_MANAGEMENT.en.md) |
 | Build agent / model / experience components | [`docs/guides/AGENT_PACKAGE_AUTHORING.md`](docs/guides/AGENT_PACKAGE_AUTHORING.en.md), [`docs/guides/MODEL_PROVIDER_INTEGRATION.md`](docs/guides/MODEL_PROVIDER_INTEGRATION.en.md), [`docs/guides/EXPERIENCE_RUNTIME_AUTHORING.md`](docs/guides/EXPERIENCE_RUNTIME_AUTHORING.en.md) |
 | Host third-party Web surfaces | [`docs/guides/SURFACE_HOSTING.md`](docs/guides/SURFACE_HOSTING.en.md) |

@@ -190,20 +190,10 @@ pub(crate) enum Command {
     },
     /// Audit declared package authority against observed effects.
     Audit(crate::commands::audit::AuditArgs),
-    /// Install a package into a profile.
-    Install(crate::commands::install::InstallArgs),
-    /// Uninstall a package from a profile.
-    Uninstall(crate::commands::uninstall::UninstallArgs),
-    /// Manage installed projects.
-    Project(crate::commands::project::ProjectArgs),
+    /// Manage host-owned Installations from portable Work sources.
+    Installation(crate::commands::installation::InstallationArgs),
     /// Create, validate, pack, or inspect portable Work sources.
     Work(crate::commands::work::WorkArgs),
-    /// List packages installed in a profile.
-    ListInstalled(crate::commands::list_installed::ListInstalledArgs),
-    /// Update installed packages.
-    Update(crate::commands::update::UpdateArgs),
-    /// Verify or inspect a profile lockfile.
-    Lockfile(crate::commands::lockfile::LockfileArgs),
     /// Generate package skeletons.
     InitPackage {
         path: PathBuf,
@@ -278,7 +268,7 @@ pub enum HostCommand {
         /// Serve built web static files from this directory on the same HTTP port.
         #[arg(long)]
         static_dir: Option<PathBuf>,
-        /// Data directory for profile/project/secret state (sets PLURORA_DATA_DIR for this process).
+        /// Data directory for package, Installation, and secret state (sets PLURORA_DATA_DIR for this process).
         #[arg(long, env = "PLURORA_DATA_DIR")]
         data_dir: Option<PathBuf>,
         /// Optional HTTP access token. When set, RPC/SSE/service routes require it.
@@ -298,7 +288,7 @@ pub enum HostCommand {
         #[command(subcommand)]
         command: HostAccessCommand,
     },
-    /// Manage non-secret Host connection and project/target context.
+    /// Manage non-secret Host connection and Installation/Target context.
     Connection {
         #[command(subcommand)]
         command: HostConnectionCommand,
@@ -338,12 +328,30 @@ pub enum HostAccessCommand {
         device_name: String,
         #[arg(long, value_delimiter = ',', default_value = "observe")]
         scopes: Vec<String>,
-        /// Exact project ids. Omit to grant all projects.
-        #[arg(long = "project", value_delimiter = ',')]
-        projects: Vec<String>,
-        /// Exact target ids. Omit to grant all targets.
+        /// Exact Work digests or ids; pass '*' for all Works. Omit to grant none.
+        #[arg(long = "work", value_delimiter = ',')]
+        works: Vec<String>,
+        /// Exact Workspace ids; pass '*' for all Workspaces. Omit to grant none.
+        #[arg(long = "workspace", value_delimiter = ',')]
+        workspaces: Vec<String>,
+        /// Exact Installation ids; pass '*' for all Installations. Omit to grant none.
+        #[arg(long = "installation", value_delimiter = ',')]
+        installations: Vec<String>,
+        /// Exact Run ids; pass '*' for all Runs. Omit to grant none.
+        #[arg(long = "run", value_delimiter = ',')]
+        runs: Vec<String>,
+        /// Exact target ids; pass '*' for all targets. Omit to grant none.
         #[arg(long = "target", value_delimiter = ',')]
         targets: Vec<String>,
+        /// Exact Exposure ids; pass '*' for all Exposures. Omit to grant none.
+        #[arg(long = "exposure", value_delimiter = ',')]
+        exposures: Vec<String>,
+        /// Exact Binding ids; pass '*' for all Bindings. Omit to grant none.
+        #[arg(long = "binding", value_delimiter = ',')]
+        bindings: Vec<String>,
+        /// Exact Realization ids; pass '*' for all Realizations. Omit to grant none.
+        #[arg(long = "realization", value_delimiter = ',')]
+        realizations: Vec<String>,
         #[arg(long, default_value_t = 90)]
         grant_days: u64,
     },
@@ -354,64 +362,18 @@ pub enum HostAccessCommand {
         #[arg(required = true, num_args = 1..)]
         grant_ids: Vec<String>,
     },
-    /// List projects visible to this Host grant.
-    Projects,
     /// List execution targets visible to this Host grant.
     Targets,
-    /// Read one project status, defaulting to the selected connection context.
-    ProjectStatus {
-        #[arg(long)]
-        project: Option<String>,
-    },
     /// Read one execution target status, defaulting to the selected connection context.
     TargetStatus {
         #[arg(long)]
         target: Option<String>,
     },
-    /// Operate project ChangeSets through the public Host API.
-    Changes {
-        /// Project id. Defaults to the selected connection context.
-        #[arg(long)]
-        project: Option<String>,
-        #[command(subcommand)]
-        command: HostChangeCommand,
-    },
-}
-
-#[derive(Debug, Subcommand)]
-pub enum HostChangeCommand {
-    /// List durable ChangeSets for the project.
-    List,
-    /// Read one durable ChangeSet.
-    Get { change_set_id: String },
-    /// Draft a ChangeSet from a typed JSON request file; use `-` for stdin.
-    Draft {
-        #[arg(long, value_name = "PATH")]
-        request: PathBuf,
-    },
-    /// Approve an exact drafted ChangeSet.
-    Approve {
-        change_set_id: String,
-        #[arg(long)]
-        reason: Option<String>,
-    },
-    /// Reject an exact drafted ChangeSet.
-    Reject {
-        change_set_id: String,
-        #[arg(long)]
-        reason: Option<String>,
-    },
-    /// Begin asynchronous execution of an approved ChangeSet.
-    Execute { change_set_id: String },
-    /// Reconcile a ChangeSet in recovery-required state.
-    Recover { change_set_id: String },
-    /// Print the artifact-backed patch bundle for a ChangeSet.
-    Bundle { change_set_id: String },
 }
 
 #[derive(Debug, Subcommand)]
 pub enum HostConnectionCommand {
-    /// Show saved connections, the active Host, and its project/target context.
+    /// Show saved connections, the active Host, and its Installation/Target context.
     List,
     /// Save and select a Host origin. Access tokens are never persisted here.
     Save {
@@ -425,14 +387,14 @@ pub enum HostConnectionCommand {
     Local,
     /// Remove a saved Host connection.
     Remove { name: String },
-    /// Select the current project and execution target for the active Host.
+    /// Select the current Installation and execution target for the active Host.
     Context {
         #[arg(long)]
-        project: String,
+        installation: String,
         #[arg(long)]
         target: String,
     },
-    /// Clear project/target context for the active Host.
+    /// Clear Installation/Target context for the active Host.
     ClearContext,
 }
 
@@ -482,8 +444,8 @@ pub struct HostProfile {
     pub(crate) autoload: Vec<PathBuf>,
     /// Development-mode surface bundle path overrides.
     /// Maps a surface_id prefix to a filesystem directory containing built bundles.
-    /// Used when no installed project at ~/.plurora/projects/<id>/dist/ provides
-    /// the surface, falling back to a sibling repo build for development.
+    /// Used when no installed package provides the surface, falling back to a
+    /// sibling repository build for development.
     #[serde(default)]
     pub surface_dev_paths: BTreeMap<String, String>,
 }
@@ -804,37 +766,62 @@ mod tests {
     }
 
     #[test]
-    fn parses_public_host_changes_draft() {
+    fn parses_host_access_installation_resources_and_retires_project_changes() {
         let cli = Cli::try_parse_from([
             "plurora",
             "host",
             "access",
             "--access-token",
             "test-token",
-            "changes",
-            "--project",
-            "project-1",
-            "draft",
-            "--request",
-            "change.json",
+            "pair",
+            "--device-name",
+            "test-device",
+            "--installation",
+            "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+            "--workspace",
+            "workspace-1",
+            "--work",
+            "*",
         ])
-        .expect("parse Host ChangeSet draft command");
+        .expect("parse Host access pairing command");
         let Command::Host {
             command:
                 HostCommand::Access {
                     command:
-                        HostAccessCommand::Changes {
-                            project,
-                            command: HostChangeCommand::Draft { request },
+                        HostAccessCommand::Pair {
+                            works,
+                            installations,
+                            workspaces,
+                            runs,
+                            targets,
+                            exposures,
+                            bindings,
+                            realizations,
+                            ..
                         },
                     ..
                 },
         } = cli.command
         else {
-            panic!("expected Host ChangeSet draft command");
+            panic!("expected Host access pairing command");
         };
-        assert_eq!(project.as_deref(), Some("project-1"));
-        assert_eq!(request, PathBuf::from("change.json"));
+        assert_eq!(installations, vec!["aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"]);
+        assert_eq!(workspaces, vec!["workspace-1"]);
+        assert_eq!(works, vec!["*"]);
+        assert!(runs.is_empty());
+        assert!(targets.is_empty());
+        assert!(exposures.is_empty());
+        assert!(bindings.is_empty());
+        assert!(realizations.is_empty());
+        assert!(Cli::try_parse_from([
+            "plurora",
+            "host",
+            "access",
+            "--access-token",
+            "test-token",
+            "changes"
+        ])
+        .is_err());
     }
 
     #[test]

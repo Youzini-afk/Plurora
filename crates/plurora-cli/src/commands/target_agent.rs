@@ -22,6 +22,7 @@ use plurora_service::{
     TargetOperationStatusKind, TargetTunnelAgentMessage, TargetTunnelHostMessage, TargetTunnelOpen,
     TARGET_TUNNEL_DATA_CHUNK_BYTES, TARGET_TUNNEL_MAX_STREAMS,
 };
+use plurora_work::InstallationId;
 use reqwest::redirect::Policy;
 use reqwest::{Client, Method, StatusCode};
 use serde::de::DeserializeOwned;
@@ -286,6 +287,7 @@ struct LocalOperationSnapshot {
     revision: u64,
     operation_id: String,
     target_id: String,
+    installation_id: InstallationId,
     request_digest: String,
     authority_digest: String,
     execution_id: String,
@@ -350,6 +352,7 @@ impl LocalOperationLedger {
                 revision: 1,
                 operation_id: operation.operation_id.clone(),
                 target_id: operation.target_id.clone(),
+                installation_id: operation.installation_id.clone(),
                 request_digest: operation.authority.request_digest.clone(),
                 authority_digest: operation.authority.authority_digest.clone(),
                 execution_id: uuid::Uuid::new_v4().simple().to_string(),
@@ -480,6 +483,7 @@ fn apply_local_ledger_event(
         anyhow::ensure!(
             snapshot.revision == previous.revision.saturating_add(1)
                 && snapshot.target_id == previous.target_id
+                && snapshot.installation_id == previous.installation_id
                 && snapshot.request_digest == previous.request_digest
                 && snapshot.authority_digest == previous.authority_digest
                 && snapshot.execution_id == previous.execution_id
@@ -552,6 +556,7 @@ fn validate_local_binding(
     anyhow::ensure!(
         local.operation_id == operation.operation_id
             && local.target_id == operation.target_id
+            && local.installation_id == operation.installation_id
             && local.request_digest == operation.authority.request_digest
             && local.authority_digest == operation.authority.authority_digest
             && operation
@@ -1340,7 +1345,7 @@ async fn execute_operation(
             let applied = plurora_runtime::apply_managed_target_deployment(
                 &plurora_runtime::ManagedTargetDeploymentApply {
                     target_id: operation.target_id.clone(),
-                    project_id: operation.project_id.to_string(),
+                    installation_id: operation.installation_id.clone(),
                     deployment_id: reference.deployment_id.clone(),
                     route_id: reference.route_id.clone(),
                     port_lease_id: reference.port_lease_id.clone(),
@@ -1437,6 +1442,7 @@ async fn execute_operation(
                     dockerfile,
                     network_mode,
                     build_id,
+                    workspace_id,
                     source_tree_digest,
                     build_descriptor_hash,
                 },
@@ -1456,7 +1462,8 @@ async fn execute_operation(
                 plurora_runtime::build_managed_target_image(
                     plurora_runtime::ManagedTargetImageBuild {
                         target_id: operation.target_id.clone(),
-                        project_id: operation.project_id.to_string(),
+                        installation_id: operation.installation_id.clone(),
+                        workspace_id: workspace_id.clone(),
                         build_id: build_id.clone(),
                         dockerfile: dockerfile.clone(),
                         network_mode: *network_mode,
@@ -1478,7 +1485,7 @@ fn managed_deployment_ref(
 ) -> plurora_runtime::ManagedTargetDeploymentRef {
     plurora_runtime::ManagedTargetDeploymentRef {
         target_id: operation.target_id.clone(),
-        project_id: operation.project_id.to_string(),
+        installation_id: operation.installation_id.clone(),
         deployment_id: deployment.deployment_id.clone(),
         route_id: deployment.route_id.clone(),
         port_lease_id: deployment.port_lease_id.clone(),
@@ -1699,7 +1706,6 @@ async fn hash_regular_file(path: &Path) -> anyhow::Result<(String, u64)> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use plurora_core::ProjectId;
     use plurora_service::{TargetOperationAuthority, TargetOperationEffect};
 
     fn operation() -> TargetOperationRecord {
@@ -1707,7 +1713,7 @@ mod tests {
         TargetOperationRecord {
             operation_id: "target-operation-test".to_string(),
             target_id: "remote-1".to_string(),
-            project_id: ProjectId::new("project-1").unwrap(),
+            installation_id: InstallationId::parse("aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa").unwrap(),
             revision: 1,
             status: TargetOperationStatusKind::Requested,
             execution_id: None,
@@ -1716,7 +1722,8 @@ mod tests {
                 target_id: "remote-1".to_string(),
                 operation_id: "target-operation-test".to_string(),
                 step_id: "execute".to_string(),
-                project_id: ProjectId::new("project-1").unwrap(),
+                installation_id: InstallationId::parse("aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa")
+                    .unwrap(),
                 effect: TargetOperationEffect::HealthProbe,
                 artifact_digests: Vec::new(),
                 lease_epoch: 1,

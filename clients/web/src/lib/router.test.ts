@@ -1,4 +1,4 @@
-import { isValidProjectId, parseHash, parseProjectPath, projectPath, serializeRoute } from "./router";
+import { isValidInstallationId, parseHash, parseInstallationPath, installationPath, serializeRoute } from "./router";
 
 function assertDeepEqual(actual: unknown, expected: unknown) {
   if (JSON.stringify(actual) !== JSON.stringify(expected)) {
@@ -12,23 +12,23 @@ function assertEqual<T>(actual: T, expected: T) {
 
 assertDeepEqual(parseHash("#/"), { kind: "home" });
 assertDeepEqual(parseHash("#/settings/storage"), { kind: "settings", tab: "storage" });
-assertDeepEqual(parseHash("#/project/youzini-afk__YdlTavern__2a47e5c"), {
-  kind: "project",
-  projectId: "youzini-afk__YdlTavern__2a47e5c",
+assertDeepEqual(parseHash("#/installation/youzini-afk__YdlTavern__2a47e5c"), {
+  kind: "installation",
+  installationId: "youzini-afk__YdlTavern__2a47e5c",
 });
-assertDeepEqual(parseHash("#/project/%"), { kind: "home" });
-assertDeepEqual(parseHash("#/project/bad%2Fid"), { kind: "home" });
+assertDeepEqual(parseHash("#/installation/%"), { kind: "home" });
+assertDeepEqual(parseHash("#/installation/bad%2Fid"), { kind: "home" });
 
 assertEqual(serializeRoute({ kind: "settings", tab: "about" }), "#/settings/about");
-assertEqual(projectPath("demo.project-1"), "/project/demo.project-1");
-assertDeepEqual(parseProjectPath("/project/demo.project-1"), { kind: "project", projectId: "demo.project-1" });
-assertDeepEqual(parseProjectPath("/project/bad%2Fid"), null);
-assertDeepEqual(parseProjectPath("/project/demo/extra"), null);
-assertEqual(isValidProjectId("demo_project-1.x"), true);
-assertEqual(isValidProjectId("bad/id"), false);
-assertEqual(isValidProjectId(".."), false);
-assertEqual(isValidProjectId("a..b"), false);
-assertEqual(isValidProjectId(".hidden"), false);
-assertEqual(isValidProjectId("foo:bar"), false);
-assertEqual(isValidProjectId("foo@bar"), false);
-assertEqual(isValidProjectId(""), false);
+assertEqual(installationPath("demo.installation-1"), "/installation/demo.installation-1");
+assertDeepEqual(parseInstallationPath("/installation/demo.installation-1"), { kind: "installation", installationId: "demo.installation-1" });
+assertDeepEqual(parseInstallationPath("/installation/bad%2Fid"), null);
+assertDeepEqual(parseInstallationPath("/installation/demo/extra"), null);
+assertEqual(isValidInstallationId("demo_installation-1.x"), true);
+assertEqual(isValidInstallationId("bad/id"), false);
+assertEqual(isValidInstallationId(".."), false);
+assertEqual(isValidInstallationId("a..b"), false);
+assertEqual(isValidInstallationId(".hidden"), false);
+assertEqual(isValidInstallationId("foo:bar"), false);
+assertEqual(isValidInstallationId("foo@bar"), false);
+assertEqual(isValidInstallationId(""), false);

@@ -203,6 +203,7 @@ pub(crate) async fn run_blank_play_creation_loop<S: EventStore>(
             mime: "application/json".to_string(),
             content: serde_json::to_string(&json!({"seed": seed.output, "branch_id": branch.id}))?,
             metadata: json!({"kind": "blank_experience_seed"}),
+            artifact: None,
         })
         .await?;
     let projection_id = "plurora/blank-experience/projection/demo".to_string();

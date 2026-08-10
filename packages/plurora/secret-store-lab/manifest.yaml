@@ -43,26 +43,26 @@ provides:
     output_schema: { type: object }
     side_effects: []
     streaming: false
-  - id: plurora/secret-store-lab/put_project_secret
+  - id: plurora/secret-store-lab/put_installation_secret
     version: 1.0.0
     input_schema: { type: object }
     output_schema: { type: object }
     side_effects:
       - filesystem.write
     streaming: false
-  - id: plurora/secret-store-lab/has_project_secret
+  - id: plurora/secret-store-lab/has_installation_secret
     version: 1.0.0
     input_schema: { type: object }
     output_schema: { type: object }
     side_effects: []
     streaming: false
-  - id: plurora/secret-store-lab/list_project_secrets
+  - id: plurora/secret-store-lab/list_installation_secrets
     version: 1.0.0
     input_schema: { type: object }
     output_schema: { type: object }
     side_effects: []
     streaming: false
-  - id: plurora/secret-store-lab/delete_project_secret
+  - id: plurora/secret-store-lab/delete_installation_secret
     version: 1.0.0
     input_schema: { type: object }
     output_schema: { type: object }
@@ -78,11 +78,13 @@ contributes:
 permissions:
   filesystem:
     read:
-      - ~/.plurora/
+      - ~/.plurora/secrets.dat
+      - ~/.plurora/secret-store.key
+      - ~/.plurora/installations/
     write:
       - ~/.plurora/secrets.dat
       - ~/.plurora/secret-store.key
-      - ~/.plurora/projects/
+      - ~/.plurora/installations/
 sandbox_policy:
   cpu_quota_ms_per_invoke: 5000
   memory_mb: 128

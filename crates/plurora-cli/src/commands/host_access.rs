@@ -6,11 +6,16 @@ use url::Host;
 
 const VALID_SCOPES: &[&str] = &[
     "observe",
-    "project_operate",
+    "installation.manage",
+    "run",
+    "binding.manage",
+    "exposure.manage",
+    "realization.plan",
+    "realization.apply",
     "deploy",
-    "develop_propose",
-    "develop_approve",
-    "develop_execute",
+    "develop.propose",
+    "develop.approve",
+    "develop.execute",
     "access_manage",
 ];
 
@@ -35,53 +40,27 @@ pub async fn pair(
     endpoint: &str,
     access_token: &str,
     device_name: String,
-    mut scopes: Vec<String>,
-    projects: Vec<String>,
+    scopes: Vec<String>,
+    works: Vec<String>,
+    workspaces: Vec<String>,
+    installations: Vec<String>,
+    runs: Vec<String>,
     targets: Vec<String>,
+    exposures: Vec<String>,
+    bindings: Vec<String>,
+    realizations: Vec<String>,
     grant_days: u64,
 ) -> anyhow::Result<()> {
-    anyhow::ensure!(
-        !device_name.trim().is_empty(),
-        "device_name cannot be empty"
-    );
-    anyhow::ensure!(
-        (1..=365).contains(&grant_days),
-        "grant_days must be between 1 and 365"
-    );
-    scopes.sort();
-    scopes.dedup();
-    anyhow::ensure!(
-        scopes
-            .iter()
-            .all(|scope| VALID_SCOPES.contains(&scope.as_str())),
-        "unknown Host access scope; valid values: {}",
-        VALID_SCOPES.join(", ")
-    );
-    if !scopes.iter().any(|scope| scope == "observe") {
-        scopes.push("observe".to_string());
-    }
     let mut resources = Vec::new();
-    if projects.is_empty() {
-        resources.push(json!({"kind": "project"}));
-    } else {
-        for id in normalized_ids(projects, "project")? {
-            resources.push(json!({"kind": "project", "id": id}));
-        }
-    }
-    if targets.is_empty() {
-        resources.push(json!({"kind": "target"}));
-    } else {
-        for id in normalized_ids(targets, "target")? {
-            resources.push(json!({"kind": "target", "id": id}));
-        }
-    }
-    let body = json!({
-        "device_name": device_name.trim(),
-        "scopes": scopes,
-        "resources": resources,
-        "pairing_ttl_secs": 600,
-        "grant_ttl_secs": grant_days.saturating_mul(24 * 60 * 60),
-    });
+    append_resources(&mut resources, works, "work")?;
+    append_resources(&mut resources, workspaces, "workspace")?;
+    append_resources(&mut resources, installations, "installation")?;
+    append_resources(&mut resources, runs, "run")?;
+    append_resources(&mut resources, targets, "target")?;
+    append_resources(&mut resources, exposures, "exposure")?;
+    append_resources(&mut resources, bindings, "binding")?;
+    append_resources(&mut resources, realizations, "realization")?;
+    let body = pairing_request_body(&device_name, scopes, resources, grant_days)?;
     print_json(
         request(
             endpoint,
@@ -122,28 +101,8 @@ pub async fn bulk_revoke(
     )
 }
 
-pub async fn projects(endpoint: &str, access_token: &str) -> anyhow::Result<()> {
-    print_json(rpc(endpoint, access_token, "host.project.list", json!({})).await?)
-}
-
 pub async fn targets(endpoint: &str, access_token: &str) -> anyhow::Result<()> {
     print_json(rpc(endpoint, access_token, "host.target.list", json!({})).await?)
-}
-
-pub async fn project_status(
-    endpoint: &str,
-    access_token: &str,
-    project_id: &str,
-) -> anyhow::Result<()> {
-    print_json(
-        rpc(
-            endpoint,
-            access_token,
-            "host.project.status",
-            json!({"project_id": project_id}),
-        )
-        .await?,
-    )
 }
 
 pub async fn target_status(
@@ -197,6 +156,59 @@ fn normalized_ids(ids: Vec<String>, kind: &str) -> anyhow::Result<Vec<String>> {
     normalized.sort();
     normalized.dedup();
     Ok(normalized)
+}
+
+fn append_resources(
+    resources: &mut Vec<Value>,
+    ids: Vec<String>,
+    kind: &'static str,
+) -> anyhow::Result<()> {
+    let ids = normalized_ids(ids, kind)?;
+    if ids.len() == 1 && ids[0] == "*" {
+        resources.push(json!({"kind": kind, "id": null}));
+        return Ok(());
+    }
+    anyhow::ensure!(
+        !ids.iter().any(|id| id == "*"),
+        "the {kind} wildcard '*' cannot be combined with exact ids"
+    );
+    resources.extend(ids.into_iter().map(|id| json!({"kind": kind, "id": id})));
+    Ok(())
+}
+
+fn pairing_request_body(
+    device_name: &str,
+    mut scopes: Vec<String>,
+    resources: Vec<Value>,
+    grant_days: u64,
+) -> anyhow::Result<Value> {
+    anyhow::ensure!(
+        !device_name.trim().is_empty(),
+        "device_name cannot be empty"
+    );
+    anyhow::ensure!(
+        (1..=365).contains(&grant_days),
+        "grant_days must be between 1 and 365"
+    );
+    scopes.sort();
+    scopes.dedup();
+    anyhow::ensure!(
+        scopes
+            .iter()
+            .all(|scope| VALID_SCOPES.contains(&scope.as_str())),
+        "unknown Host access scope; valid values: {}",
+        VALID_SCOPES.join(", ")
+    );
+    if !scopes.iter().any(|scope| scope == "observe") {
+        scopes.push("observe".to_string());
+    }
+    Ok(json!({
+        "device_name": device_name.trim(),
+        "scopes": scopes,
+        "resources": resources,
+        "pairing_ttl_secs": 600,
+        "grant_ttl_secs": grant_days.saturating_mul(24 * 60 * 60),
+    }))
 }
 
 pub(crate) async fn request(
@@ -285,7 +297,9 @@ pub(crate) fn print_json(value: Value) -> anyhow::Result<()> {
 
 #[cfg(test)]
 mod tests {
-    use super::{host_url, normalize_host_endpoint};
+    use super::{
+        append_resources, host_url, normalize_host_endpoint, pairing_request_body, VALID_SCOPES,
+    };
 
     #[test]
     fn host_access_http_is_loopback_only() {
@@ -303,5 +317,46 @@ mod tests {
             normalize_host_endpoint("https://example.test:443/").unwrap(),
             "https://example.test"
         );
+    }
+
+    #[test]
+    fn pairing_uses_current_scope_and_resource_identities() {
+        assert!(VALID_SCOPES.contains(&"installation.manage"));
+        assert!(VALID_SCOPES.contains(&"realization.apply"));
+        let retired_scope = ["project", "operate"].join("_");
+        assert!(!VALID_SCOPES.contains(&retired_scope.as_str()));
+        let mut resources = Vec::new();
+        append_resources(
+            &mut resources,
+            vec!["installation-1".to_string()],
+            "installation",
+        )
+        .unwrap();
+        append_resources(&mut resources, Vec::new(), "workspace").unwrap();
+        assert_eq!(
+            resources,
+            vec![serde_json::json!({"kind": "installation", "id": "installation-1"})]
+        );
+
+        append_resources(&mut resources, vec!["*".to_string()], "workspace").unwrap();
+        assert_eq!(
+            resources[1],
+            serde_json::json!({"kind": "workspace", "id": null})
+        );
+        assert!(append_resources(
+            &mut resources,
+            vec!["*".to_string(), "workspace-1".to_string()],
+            "workspace"
+        )
+        .is_err());
+    }
+
+    #[test]
+    fn pairing_request_defaults_to_no_resource_authority() {
+        let scopes = vec!["observe".to_string()];
+        let body = pairing_request_body(" Phone ", scopes, Vec::new(), 90).unwrap();
+        assert_eq!(body["device_name"], "Phone");
+        assert_eq!(body["resources"], serde_json::json!([]));
+        assert_eq!(body["scopes"], serde_json::json!(["observe"]));
     }
 }

@@ -2,7 +2,7 @@ schema_version: 1
 id: plurora/install-lab
 version: 0.1.0
 display_name: Install Lab
-description: Package installation orchestrator; composes git-tools, integrity, and project-intake.
+description: Resolves source into verifiable Work and AssemblyLock installation candidates.
 license: AGPL-3.0-only
 entry:
   kind: rust_inproc
@@ -11,40 +11,32 @@ entry:
   symbol: plurora_install_lab
   abi_version: 1
 provides:
-  - id: plurora/install-lab/list_installed
+  - id: plurora/install-lab/detect_source
     version: 1.0.0
     input_schema: {}
     output_schema: {}
-    side_effects: []
+    side_effects:
+      - filesystem.read
+      - filesystem.write
+      - network.read
     streaming: false
   - id: plurora/install-lab/resolve_plan
     version: 1.0.0
     input_schema: {}
     output_schema: {}
     side_effects:
+      - filesystem.read
       - filesystem.write
+      - network.read
     streaming: false
   - id: plurora/install-lab/execute_plan
     version: 1.0.0
     input_schema: {}
     output_schema: {}
     side_effects:
-      - filesystem.write
-      - package.activation
-    streaming: false
-  - id: plurora/install-lab/detect_kind
-    version: 1.0.0
-    input_schema: {}
-    output_schema: {}
-    side_effects:
       - filesystem.read
-    streaming: false
-  - id: plurora/install-lab/register_project
-    version: 1.0.0
-    input_schema: {}
-    output_schema: {}
-    side_effects:
       - filesystem.write
+      - network.read
     streaming: false
   - id: plurora/install-lab/prepare_external_intake
     version: 1.0.0
@@ -66,61 +58,6 @@ provides:
       - filesystem.read
       - filesystem.write
       - network.read
-    streaming: false
-  - id: plurora/install-lab/uninstall
-    version: 1.0.0
-    input_schema: {}
-    output_schema: {}
-    side_effects:
-      - filesystem.write
-    streaming: false
-  - id: plurora/install-lab/check_lockfile
-    version: 1.0.0
-    input_schema: {}
-    output_schema: {}
-    side_effects: []
-    streaming: false
-  - id: plurora/install-lab/check_for_updates
-    version: 1.0.0
-    input_schema:
-      type: object
-      additionalProperties: false
-      properties:
-        profile:
-          type: string
-        data_dir:
-          type: string
-        project_id:
-          type: string
-        package_id:
-          type: string
-    output_schema: {}
-    side_effects:
-      - filesystem.read
-      - network.read
-    streaming: false
-  - id: plurora/install-lab/update_project
-    version: 1.0.0
-    input_schema:
-      type: object
-      additionalProperties: false
-      properties:
-        profile:
-          type: string
-        data_dir:
-          type: string
-        project_id:
-          type: string
-        package_id:
-          type: string
-        force:
-          type: boolean
-    output_schema: {}
-    side_effects:
-      - filesystem.read
-      - filesystem.write
-      - network.read
-      - package.activation
     streaming: false
 requires:
   - id: plurora/git-tools-lab
@@ -146,27 +83,27 @@ permissions:
     declarations:
       - host: github.com
         methods: [GET, POST]
-        purpose: resolve git refs while checking installed package freshness
+        purpose: resolve and fetch explicitly requested source revisions
       - host: gitlab.com
         methods: [GET, POST]
-        purpose: resolve git refs while checking installed package freshness
+        purpose: resolve and fetch explicitly requested source revisions
       - host: codeberg.org
         methods: [GET, POST]
-        purpose: resolve git refs while checking installed package freshness
+        purpose: resolve and fetch explicitly requested source revisions
       - host: bitbucket.org
         methods: [GET, POST]
-        purpose: resolve git refs while checking installed package freshness
+        purpose: resolve and fetch explicitly requested source revisions
   filesystem:
     read:
       - /tmp/plurora-git/
-      - ~/.plurora/
+      - ~/.plurora/objects/
+      - ~/.plurora/workspaces/
+      - ~/.plurora/cache/
     write:
       - /tmp/plurora-git/
-      - ~/.plurora/store/
-      - ~/.plurora/profiles/
-      - ~/.plurora/cache/
-      - ~/.plurora/projects/
+      - ~/.plurora/objects/
       - ~/.plurora/workspaces/
+      - ~/.plurora/cache/
 sandbox_policy:
   cpu_quota_ms_per_invoke: 30000
   memory_mb: 512

@@ -4,7 +4,7 @@
 
 The Host development control plane separates “propose a source change for a project” from “run an arbitrary command on the host.” It uses the existing constitutional sequence `Intent -> ChangeSet -> PolicyDecision -> ChangeCommit -> EffectReceipt` for causality, approval, and effects. Project resolution, scratch workspaces, Docker verification, and workspace promotion remain Host control-plane concerns; no `platform.project.*`, `platform.workspace.*`, or IDE product ontology is added.
 
-`plurora/workspace-lab` remains an ordinary planning package with no execution authority. Real changes enter only through the access-token-protected `/host/v1/projects/:project_id/changes` API. Docker verification is performed by the equally ordinary `plurora/docker-runtime-lab`; it has no kernel privilege.
+`plurora/workspace-lab` remains an ordinary planning package with no execution authority. Real changes enter only through the access-token-protected `/host/v1/development/:subject_kind/:subject_id/changes` API, where the subject is explicitly `workspace` or `installation`. Docker verification is performed by the equally ordinary `plurora/docker-runtime-lab`; it has no kernel privilege.
 
 ## Lifecycle
 
@@ -39,8 +39,8 @@ Deployment is a second independent transaction. Only a committed `managed_extern
 
 | Method | Route | Purpose |
 |---|---|---|
-| `GET` / `POST` | `/host/v1/projects/:project_id/changes` | List / draft ChangeSets |
-| `GET` | `/host/v1/projects/:project_id/changes/:change_set_id` | Read state and durable refs |
+| `GET` / `POST` | `/host/v1/development/:subject_kind/:subject_id/changes` | List / draft ChangeSets |
+| `GET` | `/host/v1/development/:subject_kind/:subject_id/changes/:change_set_id` | Read state and durable refs |
 | `GET` | `.../:change_set_id/bundle` | Export the artifact-backed JSON patch bundle |
 | `POST` | `.../:change_set_id/approve` | Approve or reject the exact ChangeSet once |
 | `POST` | `.../:change_set_id/execute` | Stage, verify, and promote according to ownership |
@@ -116,23 +116,23 @@ A linked-local directory is user-owned and may change concurrently. The first ve
 
 ## Verification boundary
 
-`static_validation` checks scratch structure and the final tree digest without executing project code.
+`static_validation` checks scratch structure and the final tree digest without executing Workspace code.
 
-`docker_build` is the only first-version project-code execution boundary:
+`docker_build` is the only first-version Workspace-code execution boundary:
 
 - development scratch supports Dockerfile only; it does not invoke host Nixpacks or an arbitrary command runner;
-- context must be exactly `<data>/projects/<project>/development/<change>/workspace`, and the canonical root is checked again immediately before packing;
+- context must be a controlled snapshot of `<data>/workspaces/<workspace-id>/source`, and the canonical root is checked again immediately before packing;
 - `network=none` is the default; `bridge` must be explicit in the ChangeSet and adds `host.network.egress` authority;
 - build secrets, secret refs, host mounts, and arbitrary build-time secret parameters are rejected;
 - CPU, memory, time, file-count, and byte limits apply;
 - only status and a diagnostic-log SHA-256 are persisted, never raw Docker logs;
-- the verification image is removed after matching `managed-by`, package, project, build, and change labels. It is not retained as a deployment image.
+- the verification image is removed after matching `managed-by`, package, installation, workspace, build, and change labels. It is not retained as a deployment image.
 - container status/log/stop also carries route and port-lease scope and must match `managed-by`, package, route, and lease labels. Stop additionally requires explicit `approved: true`; an arbitrary Docker ID is never treated as a Plurora resource.
 
 ## Durability, concurrency, and recovery
 
-- Each project has its own development journal session. Transitions use EventStore `append_with_sequence_if_next` expected-tail compare-and-append; memory, SQLite, and PostgreSQL implement the same atomic semantics.
-- With an idempotency key, the change id is deterministically derived from project + key. Different requests using one key conflict in the durable journal instead of relying only on a process-local map.
+- Each Installation or Workspace subject has its own development journal session. Transitions use EventStore `append_with_sequence_if_next` expected-tail compare-and-append; memory, SQLite, and PostgreSQL implement the same atomic semantics.
+- With an idempotency key, the change id is deterministically derived from subject + key. Different requests using one key conflict in the durable journal instead of relying only on a process-local map.
 - The development control plane holds a global 30-second Host lease with a 10-second heartbeat. Missing lease state fails closed. Every change write checks local expiry and the durable lease tail; promotion renews before effects and checks again before descriptor activation. A second Host cannot recover or execute against the shared store concurrently, and approval, execution, and promotion stop after lease loss.
 - Interrupted staging or static verification has not promoted a workspace and can fail with scratch cleanup.
 - Interrupted Docker verification enters `recovery_required`; recovery uses the stable build id and full ownership labels to remove the image or confirm it is absent before recording a failed terminal state.

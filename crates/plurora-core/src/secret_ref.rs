@@ -82,7 +82,10 @@ impl SecretRef {
         {
             // Must have at least vault:key after the prefix
             let after_prefix = s.find(':').map(|i| &s[i + 1..]).unwrap_or("");
-            after_prefix.contains(':') && after_prefix.len() > 2
+            let mut parts = after_prefix.splitn(2, ':');
+            let vault = parts.next().unwrap_or("");
+            let key = parts.next().unwrap_or("");
+            !vault.is_empty() && vault != "project" && !key.is_empty()
         } else if s.starts_with("host:") {
             // Host-injected secret references: `host:<key>`
             s.len() > 5
@@ -166,21 +169,21 @@ pub fn extract_store_name(ref_id: &str) -> Option<&str> {
     None
 }
 
-/// Check whether a string is a valid **project-backed** secret reference.
+/// Check whether a string is a valid **installation-backed** secret reference.
 ///
 /// Valid forms:
-/// - `secret_ref:project:NAME` (canonical)
-/// - `secretRef:project:NAME` (camelCase)
-/// - `secret-ref:project:NAME` (kebab-case)
-pub fn is_project_backed_ref(s: &str) -> bool {
-    extract_project_name(s).is_some()
+/// - `secret_ref:installation:NAME` (canonical)
+/// - `secretRef:installation:NAME` (camelCase)
+/// - `secret-ref:installation:NAME` (kebab-case)
+pub fn is_installation_backed_ref(s: &str) -> bool {
+    extract_installation_name(s).is_some()
 }
 
-/// Extract the project secret name from a project-backed reference.
-pub fn extract_project_name(ref_id: &str) -> Option<&str> {
+/// Extract the installation secret name from an installation-backed reference.
+pub fn extract_installation_name(ref_id: &str) -> Option<&str> {
     for prefix in &["secret_ref:", "secretRef:", "secret-ref:"] {
         if let Some(rest) = ref_id.strip_prefix(prefix) {
-            if let Some(name) = rest.strip_prefix("project:") {
+            if let Some(name) = rest.strip_prefix("installation:") {
                 if !name.is_empty() {
                     return Some(name);
                 }
@@ -363,38 +366,44 @@ mod tests {
     }
 
     #[test]
-    fn project_backed_ref_accepts_all_prefix_variants() {
-        assert!(is_project_backed_ref("secret_ref:project:MY_KEY"));
-        assert!(is_project_backed_ref("secretRef:project:MY_KEY"));
-        assert!(is_project_backed_ref("secret-ref:project:MY_KEY"));
+    fn installation_backed_ref_accepts_all_prefix_variants() {
+        assert!(is_installation_backed_ref("secret_ref:installation:MY_KEY"));
+        assert!(is_installation_backed_ref("secretRef:installation:MY_KEY"));
+        assert!(is_installation_backed_ref("secret-ref:installation:MY_KEY"));
         assert_eq!(
-            extract_project_name("secret_ref:project:MY_KEY"),
+            extract_installation_name("secret_ref:installation:MY_KEY"),
             Some("MY_KEY")
         );
         assert_eq!(
-            extract_project_name("secretRef:project:MY_KEY"),
+            extract_installation_name("secretRef:installation:MY_KEY"),
             Some("MY_KEY")
         );
         assert_eq!(
-            extract_project_name("secret-ref:project:MY_KEY"),
+            extract_installation_name("secret-ref:installation:MY_KEY"),
             Some("MY_KEY")
         );
     }
 
     #[test]
-    fn project_backed_ref_rejects_non_project_vault_and_empty_name() {
-        assert!(!is_project_backed_ref("secret_ref:env:OPENAI_API_KEY"));
-        assert!(!is_project_backed_ref("secret_ref:store:OPENAI_API_KEY"));
-        assert!(!is_project_backed_ref("secret_ref:vault:OPENAI_API_KEY"));
-        assert!(!is_project_backed_ref("secret_ref:project:"));
+    fn installation_backed_ref_rejects_non_installation_vault_and_empty_name() {
+        assert!(!is_installation_backed_ref("secret_ref:env:OPENAI_API_KEY"));
+        assert!(!is_installation_backed_ref(
+            "secret_ref:store:OPENAI_API_KEY"
+        ));
+        assert!(!is_installation_backed_ref(
+            "secret_ref:vault:OPENAI_API_KEY"
+        ));
+        assert!(!is_installation_backed_ref("secret_ref:installation:"));
     }
 
     #[test]
-    fn project_backed_ref_rejects_malformed() {
-        assert!(!is_project_backed_ref("not_a_secret_ref"));
-        assert!(!is_project_backed_ref(""));
-        assert!(!is_project_backed_ref("secret_ref:"));
-        assert!(!is_project_backed_ref("project:MY_KEY"));
-        assert_eq!(extract_project_name("secret_ref:project:"), None);
+    fn installation_backed_ref_rejects_malformed_and_old_scope() {
+        assert!(!is_installation_backed_ref("not_a_secret_ref"));
+        assert!(!is_installation_backed_ref(""));
+        assert!(!is_installation_backed_ref("secret_ref:"));
+        let retired_scope = "secret_ref:project:MY_KEY";
+        assert!(!is_installation_backed_ref(retired_scope));
+        assert!(!SecretRef::is_valid_ref(retired_scope));
+        assert_eq!(extract_installation_name("secret_ref:installation:"), None);
     }
 }

@@ -2,20 +2,25 @@ import { resolveHostBaseUrl } from "./host-endpoint";
 
 export type HostAccessScope =
   | "observe"
-  | "project_operate"
+  | "installation.manage"
+  | "run"
+  | "binding.manage"
+  | "exposure.manage"
+  | "realization.plan"
+  | "realization.apply"
   | "deploy"
-  | "develop_propose"
-  | "develop_approve"
-  | "develop_execute"
+  | "develop.propose"
+  | "develop.approve"
+  | "develop.execute"
   | "access_manage";
 
 export type HostAccessIdentityKind = "root" | "device";
 
-export type HostAccessResourceKind = "project" | "target";
+export type HostAccessResourceKind = "work" | "workspace" | "installation" | "run" | "target" | "exposure" | "binding" | "realization";
 
 export interface HostAccessResourceSelector {
   kind: HostAccessResourceKind;
-  id?: string | null;
+  id: string | null;
 }
 
 export interface HostAccessIdentity {

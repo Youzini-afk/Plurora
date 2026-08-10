@@ -115,7 +115,7 @@ jobs:
         run: cargo run -p plurora-cli --release -- conformance
 
   host-operations-acceptance:
-    name: External project Host operations acceptance
+    name: External Work + Installation Host operations acceptance
     runs-on: ubuntu-22.04
     timeout-minutes: 30
     steps:
@@ -133,7 +133,7 @@ jobs:
           docker pull nginx:1.27-alpine
           docker pull python:3.13-alpine
 
-      - name: Exercise external development, deployment, recovery, and rollback
+      - name: Exercise Work intake, Installation lifecycle, deployment, recovery, and rollback
         env:
           PLURORA_HOST_OPERATIONS_ACCEPTANCE: "1"
           PLURORA_HOST_OPERATIONS_OUTPUT_DIR: target/host-operations-acceptance

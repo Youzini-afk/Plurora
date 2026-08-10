@@ -92,10 +92,21 @@ export interface AssemblyRevision {
   "state_slots"?: Array<StateSlotDescriptor>;
 }
 
+/**
+ * Encoding used by the public `object.put` and `object.get` content field.
+ */
+export type AssetContentEncoding = "utf8" | "hex";
+
+/**
+ * Original ordinary-Asset selector for `object.get`.
+ */
 export interface AssetGetParams {
   "asset_id": string;
 }
 
+/**
+ * Original ordinary-Asset result for `object.get`.
+ */
 export interface AssetGetResponse {
   "content": string;
   "record": AssetRecord;
@@ -107,6 +118,7 @@ export interface AssetPermissions {
 }
 
 export interface AssetPutRequest {
+  "artifact"?: ExactArtifactUpload | null;
   "content": string;
   "metadata"?: unknown;
   "mime": string;
@@ -647,6 +659,15 @@ export interface EventPermissions {
   "read"?: boolean;
 }
 
+/**
+ * Explicit request contract for transporting an exact portable artifact.
+ */
+export interface ExactArtifactUpload {
+  "content_encoding": AssetContentEncoding;
+  "descriptor": ArtifactDescriptor;
+  "scope": ObjectPutScope;
+}
+
 export interface ExecCommand {
   "args"?: Array<string>;
   "program": string;
@@ -741,41 +762,6 @@ export interface ExtensionPointDescriptor {
   "timing": HookTiming;
   "version": string;
 }
-
-export interface ExternalProjectData {
-  /**
-   * For external_wrapped: the path to the adapter package's manifest.
-   */
-  "adapter_manifest"?: null | string;
-  /**
-   * Source URL or path the external project was installed from.
-   */
-  "source": string;
-  /**
-   * Content digest of the materialized workspace tree.
-   */
-  "source_digest"?: null | string;
-  /**
-   * Kind of source that produced the managed workspace.
-   */
-  "source_kind"?: ExternalSourceKind | null;
-  /**
-   * Resolved commit SHA or version (for git sources).
-   */
-  "source_ref"?: null | string;
-  /**
-   * Ownership boundary for the workspace path. Managed workspaces may be archived or deleted with the project; linked local sources never may.
-   */
-  "workspace_ownership"?: ExternalWorkspaceOwnership | null;
-  /**
-   * For external_workspace: path to the fetched project tree under the workspace.
-   */
-  "workspace_root"?: null | string;
-}
-
-export type ExternalSourceKind = "local" | "git";
-
-export type ExternalWorkspaceOwnership = "managed" | "linked_local";
 
 export interface FilesystemImport {
   "access": AccessMode;
@@ -888,6 +874,12 @@ export interface HostInfo {
   "supported_transports": Array<string>;
   "versions"?: Array<ContractVersionInfo> | null;
 }
+
+export type HostInstallationListResult = Array<{
+  "record": InstallationRecord;
+  "revision": number;
+  "rollback"?: InstallationRollbackPointer | null;
+}>;
 
 export type HostOutboundAuditResult = Array<{
   /**
@@ -1029,17 +1021,6 @@ export type HostPortListResult = Array<{
 
 export type HostPortReleasedPayload = Record<string, unknown>;
 
-export type HostProjectGetResult = {
-  /**
-   * The actual project content.
-   */
-  "project": ProjectInner;
-  /**
-   * Schema version. Currently always 1.
-   */
-  "schema_version": number;
-};
-
 export type HostProxyDeniedPayload = Record<string, unknown>;
 
 export type HostProxyListResult = Array<{
@@ -1085,7 +1066,208 @@ export type HostTargetListResult = Array<{
 
 export type IdentityCurrentResult = null;
 
+export type InstallationChangeForArtifactDescriptor = {
+  "after": ArtifactDescriptor;
+  "before": ArtifactDescriptor;
+  "kind": "changed";
+} | {
+  "after": ArtifactDescriptor;
+  "kind": "added";
+} | {
+  "before": ArtifactDescriptor;
+  "kind": "removed";
+};
+
+export type InstallationChangeForAssemblyBinding = {
+  "after": AssemblyBinding;
+  "before": AssemblyBinding;
+  "kind": "changed";
+} | {
+  "after": AssemblyBinding;
+  "kind": "added";
+} | {
+  "before": AssemblyBinding;
+  "kind": "removed";
+};
+
+export type InstallationChangeForAssemblyNode = {
+  "after": AssemblyNode;
+  "before": AssemblyNode;
+  "kind": "changed";
+} | {
+  "after": AssemblyNode;
+  "kind": "added";
+} | {
+  "before": AssemblyNode;
+  "kind": "removed";
+};
+
+export type InstallationChangeForAssemblyPortExposure = {
+  "after": AssemblyPortExposure;
+  "before": AssemblyPortExposure;
+  "kind": "changed";
+} | {
+  "after": AssemblyPortExposure;
+  "kind": "added";
+} | {
+  "before": AssemblyPortExposure;
+  "kind": "removed";
+};
+
+export type InstallationChangeForBindingLock = {
+  "after": BindingLock;
+  "before": BindingLock;
+  "kind": "changed";
+} | {
+  "after": BindingLock;
+  "kind": "added";
+} | {
+  "before": BindingLock;
+  "kind": "removed";
+};
+
+export type InstallationChangeForNodeLock = {
+  "after": NodeLock;
+  "before": NodeLock;
+  "kind": "changed";
+} | {
+  "after": NodeLock;
+  "kind": "added";
+} | {
+  "before": NodeLock;
+  "kind": "removed";
+};
+
+export type InstallationChangeForProtocolProfilePin = {
+  "after": ProtocolProfilePin;
+  "before": ProtocolProfilePin;
+  "kind": "changed";
+} | {
+  "after": ProtocolProfilePin;
+  "kind": "added";
+} | {
+  "before": ProtocolProfilePin;
+  "kind": "removed";
+};
+
+export type InstallationChangeForWorkEntrypoint = {
+  "after": WorkEntrypoint;
+  "before": WorkEntrypoint;
+  "kind": "changed";
+} | {
+  "after": WorkEntrypoint;
+  "kind": "added";
+} | {
+  "before": WorkEntrypoint;
+  "kind": "removed";
+};
+
+export interface InstallationCreateRequest {
+  "assembly_lock": ArtifactDescriptor;
+  "display_name": string;
+  "idempotency_key": string;
+  "secret_policy"?: InstallationSecretPolicy;
+  "source": AcquisitionRecord;
+  "state_bindings"?: Array<StateBindingRecord>;
+  "work_id": WorkId;
+  "work_revision": ArtifactDescriptor;
+}
+
+export interface InstallationCreatedPayloadSchema {
+  "claim": InstallationIdempotencyClaimSchema;
+  "view": InstallationView;
+}
+
+export interface InstallationDiff {
+  "assembly_bindings"?: Array<InstallationItemDiffForAssemblyBinding>;
+  "assembly_exposed_ports"?: Array<InstallationItemDiffForAssemblyPortExposure>;
+  "assembly_lock_bindings"?: Array<InstallationItemDiffForBindingLock>;
+  "assembly_lock_changed": boolean;
+  "assembly_lock_content_roots"?: Array<InstallationItemDiffForArtifactDescriptor>;
+  "assembly_lock_nodes"?: Array<InstallationItemDiffForNodeLock>;
+  "assembly_lock_protocol_profiles"?: Array<InstallationItemDiffForProtocolProfilePin>;
+  "assembly_nodes"?: Array<InstallationItemDiffForAssemblyNode>;
+  "display_name_changed": boolean;
+  "secret_policy_changed": boolean;
+  "source_changed": boolean;
+  "state_bindings_changed": boolean;
+  "state_slots"?: Array<InstallationStateSlotDiff>;
+  "work_content_roots"?: Array<InstallationItemDiffForArtifactDescriptor>;
+  "work_entrypoints"?: Array<InstallationItemDiffForWorkEntrypoint>;
+  "work_operational_intent"?: InstallationChangeForArtifactDescriptor | null;
+  "work_revision_changed": boolean;
+  "work_rights"?: InstallationChangeForArtifactDescriptor | null;
+  "work_transparency"?: InstallationChangeForArtifactDescriptor | null;
+}
+
+export interface InstallationGetRequest {
+  "installation_id": InstallationId;
+}
+
 export type InstallationId = string;
+
+export interface InstallationIdempotencyClaimSchema {
+  /**
+   * SHA-256 of the canonical mutation request fingerprint.
+   */
+  "fingerprint": string;
+  /**
+   * SHA-256 of the caller-supplied key. The raw idempotency key is never journaled.
+   */
+  "key_hash": string;
+  "result": InstallationMutationResult;
+}
+
+export interface InstallationItemDiffForArtifactDescriptor {
+  "change": InstallationChangeForArtifactDescriptor;
+  "id": string;
+}
+
+export interface InstallationItemDiffForAssemblyBinding {
+  "change": InstallationChangeForAssemblyBinding;
+  "id": string;
+}
+
+export interface InstallationItemDiffForAssemblyNode {
+  "change": InstallationChangeForAssemblyNode;
+  "id": string;
+}
+
+export interface InstallationItemDiffForAssemblyPortExposure {
+  "change": InstallationChangeForAssemblyPortExposure;
+  "id": string;
+}
+
+export interface InstallationItemDiffForBindingLock {
+  "change": InstallationChangeForBindingLock;
+  "id": string;
+}
+
+export interface InstallationItemDiffForNodeLock {
+  "change": InstallationChangeForNodeLock;
+  "id": string;
+}
+
+export interface InstallationItemDiffForProtocolProfilePin {
+  "change": InstallationChangeForProtocolProfilePin;
+  "id": string;
+}
+
+export interface InstallationItemDiffForWorkEntrypoint {
+  "change": InstallationChangeForWorkEntrypoint;
+  "id": string;
+}
+
+export interface InstallationListRequest {
+  "status"?: InstallationStatus | null;
+}
+
+export interface InstallationMutationResult {
+  "diff"?: InstallationDiff | null;
+  "idempotent": boolean;
+  "installation": InstallationView;
+  "receipts"?: Array<ArtifactDescriptor>;
+}
 
 export interface InstallationRecord {
   "assembly_lock": ArtifactDescriptor;
@@ -1101,12 +1283,148 @@ export interface InstallationRecord {
   "work_revision": ArtifactDescriptor;
 }
 
+export interface InstallationRemoveRequest {
+  "expected_revision": number;
+  "idempotency_key": string;
+  "installation_id": InstallationId;
+  "state_disposition": StateDisposition;
+}
+
+export interface InstallationRemovedPayloadSchema {
+  "claim": InstallationIdempotencyClaimSchema;
+  /**
+   * Internal UUID for state deletion; null when state is explicitly retained.
+   */
+  "operation_id": null | string;
+  "previous_revision": number;
+  "view": InstallationView;
+}
+
+export interface InstallationRollbackPointer {
+  "assembly_lock": ArtifactDescriptor;
+  "revision": number;
+  "state_snapshot"?: ArtifactDescriptor | null;
+  "work_revision": ArtifactDescriptor;
+}
+
 export interface InstallationSecretPolicy {
   "allow_platform_fallback"?: boolean;
   "allowed_secret_refs"?: Array<string>;
 }
 
+export type InstallationStateAction = {
+  "kind": "preserve";
+} | {
+  "kind": "replace";
+  "replacement_snapshot": ArtifactDescriptor;
+} | {
+  "kind": "reset";
+};
+
+/**
+ * Audit-only selector for a journal-issued Installation state artifact.
+ */
+export interface InstallationStateArtifactGetParams {
+  "installation_state_artifact": ArtifactDescriptor;
+}
+
+/**
+ * Audit-only result for a journal-issued Installation state artifact.
+ */
+export interface InstallationStateArtifactGetResponse {
+  "content": string;
+  "content_encoding": AssetContentEncoding;
+  "descriptor": ArtifactDescriptor;
+}
+
+export interface InstallationStateAuthorityEvidence {
+  "action": string;
+  "expires_at_ms"?: null | number;
+  "grant_id"?: null | string;
+  "installation_id": InstallationId;
+  "schema": string;
+}
+
+export type InstallationStateDecision = "allow" | "deny";
+
+export type InstallationStateDecisionAction = "reset" | "replace";
+
+export interface InstallationStateDecisionReceipt {
+  "action": InstallationStateDecisionAction;
+  "authority_evidence": Array<ArtifactDescriptor>;
+  "candidate_lock_digest": string;
+  "candidate_work_digest": string;
+  "decision": InstallationStateDecision;
+  "expected_revision": number;
+  "installation_id": InstallationId;
+  "operation": string;
+  "replacement_snapshot_digest"?: null | string;
+  "schema": string;
+}
+
+export type InstallationStateSlotChange = {
+  "after": StateSlotDescriptor;
+  "before": StateSlotDescriptor;
+  "kind": "changed";
+} | {
+  "after": StateSlotDescriptor;
+  "kind": "added";
+} | {
+  "before": StateSlotDescriptor;
+  "kind": "removed";
+};
+
+export interface InstallationStateSlotDiff {
+  "change": InstallationStateSlotChange;
+  /**
+   * Structural action required when the Installation state tree is non-empty. An empty state tree still reports the difference without forcing an effect.
+   */
+  "required_action"?: InstallationStateSlotRequirement;
+  "state_slot_id": StateSlotId;
+}
+
+export type InstallationStateSlotRequirement = "none" | "replace" | "reset";
+
+export interface InstallationStateSnapshot {
+  "entries": Array<InstallationStateSnapshotEntry>;
+  "schema": string;
+}
+
+export interface InstallationStateSnapshotEntry {
+  "bytes": Array<number>;
+  "path": string;
+}
+
 export type InstallationStatus = "resolving" | "ready" | "updating" | "blocked" | "failed" | "removing" | "removed";
+
+export interface InstallationUpdateRequest {
+  "assembly_lock": ArtifactDescriptor;
+  "display_name"?: null | string;
+  "expected_revision": number;
+  "idempotency_key": string;
+  "installation_id": InstallationId;
+  "secret_policy"?: InstallationSecretPolicy | null;
+  "source"?: AcquisitionRecord | null;
+  "state_action": InstallationStateAction;
+  "state_bindings"?: Array<StateBindingRecord> | null;
+  "work_revision": ArtifactDescriptor;
+}
+
+export interface InstallationUpdatedPayloadSchema {
+  "claim": InstallationIdempotencyClaimSchema;
+  /**
+   * Internal UUID for a state-changing operation; null for pointer-only updates.
+   */
+  "operation_id": null | string;
+  "previous_revision": number;
+  "view": InstallationView;
+}
+
+export interface InstallationView {
+  "record": InstallationRecord;
+  "revision": number;
+  "rollback"?: InstallationRollbackPointer | null;
+}
 
 export interface Intent {
   "annotations"?: Record<string, unknown>;
@@ -1285,6 +1603,10 @@ export interface NodePlacement {
   "target_id": string;
 }
 
+export type ObjectGetRequest = AssetGetParams | InstallationStateArtifactGetParams;
+
+export type ObjectGetResponse = AssetGetResponse | InstallationStateArtifactGetResponse;
+
 export type ObjectListResult = Array<{
   "created_at": string;
   "descriptor"?: ArtifactDescriptor | null;
@@ -1295,6 +1617,23 @@ export type ObjectListResult = Array<{
   "origin_package_id": string;
   "size_bytes": number;
 }>;
+
+export interface ObjectPutResponse {
+  "asset": AssetRecord | null;
+  "descriptor": ArtifactDescriptor;
+}
+
+/**
+ * Installation mutation which may consume an exact portable artifact upload.
+ */
+export type ObjectPutScope = {
+  "installation_id": InstallationId;
+  "kind": "installation_update";
+  "work_id": WorkId;
+} | {
+  "kind": "installation_create";
+  "work_id": WorkId;
+};
 
 export interface OpenSessionRequest {
   "active_package_set": Array<string>;
@@ -1972,134 +2311,6 @@ export type PrincipalIdentity = {
   "kind": "platform_runtime";
 };
 
-export interface ProjectIdParams {
-  "project_id": string;
-}
-
-export interface ProjectInner {
-  /**
-   * Description for tooltip / detail view.
-   */
-  "description"?: string;
-  /**
-   * Entry surface id for click-to-play. Required for native; optional for external. For external_workspace, may point to a workspace-lab provided surface.
-   */
-  "entry_surface_id"?: null | string;
-  /**
-   * Project type-specific data.
-   */
-  "external"?: ExternalProjectData | null;
-  /**
-   * Optional icon path (relative to project root for native, optional for external).
-   */
-  "icon"?: null | string;
-  /**
-   * Project id. Format: <safe_slug>__<short_hash>. Filesystem-safe (no /, no .., no shell special chars). Stable across upgrades.
-   */
-  "id": string;
-  /**
-   * Free-form metadata for forward compat.
-   */
-  "metadata"?: Record<string, unknown>;
-  /**
-   * Optional packages that may be loaded if available.
-   */
-  "optional_packages"?: Array<string>;
-  /**
-   * Package manifest paths used by this project. For plurora_native: typically packages/* paths For external_wrapped: the adapter package For external_workspace: empty or workspace tooling
-   */
-  "packages"?: Array<string>;
-  /**
-   * Required capabilities (composition-style validation).
-   */
-  "required_capabilities"?: Array<string>;
-  /**
-   * Required surface ids (composition-style validation).
-   */
-  "required_surfaces"?: Array<string>;
-  /**
-   * Secret policy for this project.
-   */
-  "secret_policy"?: SecretPolicy;
-  /**
-   * Display title for Home card.
-   */
-  "title": string;
-  /**
-   * Project type discriminator.
-   */
-  "type": ProjectType;
-}
-
-export interface ProjectLifecyclePayloadSchema {
-  "new_state": ProjectState;
-  "previous_state"?: ProjectState | null;
-  "project_id": string;
-  "title": string;
-  "type": ProjectType;
-}
-
-export interface ProjectListItemSchema {
-  "description": string;
-  "entry_surface_id"?: null | string;
-  "icon"?: null | string;
-  "id": string;
-  "running_session_id": string;
-  "state": ProjectState;
-  "storage_summary"?: ProjectStorageSummarySchema | null;
-  "title": string;
-  "type": ProjectType;
-}
-
-export interface ProjectListParams {
-  "filter_state"?: ProjectState | null;
-}
-
-export interface ProjectListResultSchema {
-  "projects": Array<ProjectListItemSchema>;
-}
-
-export interface ProjectStartResult {
-  "already_running": boolean;
-  "new_state": ProjectState;
-  "previous_state": ProjectState;
-  "project_id": string;
-  "session_id": string;
-}
-
-/**
- * Runtime project state. Not serialized to project.yaml; tracked by registry.
- */
-export type ProjectState = "archived" | "failed" | "installed" | "running" | "starting" | "stopped" | "stopping";
-
-export interface ProjectStatusResult {
-  "project_id": string;
-  "running_session_id": string;
-  "secrets_count": number;
-  "sessions_count": number;
-  "state": ProjectState;
-  "storage_summary"?: ProjectStorageSummarySchema | null;
-}
-
-export interface ProjectStopResult {
-  "new_state": ProjectState;
-  "previous_state": ProjectState;
-  "project_id": string;
-  "session_id": string;
-}
-
-export interface ProjectStorageSummarySchema {
-  "bundle_bytes"?: null | number;
-  "cache_bytes"?: null | number;
-  "data_bytes"?: null | number;
-  "log_bytes"?: null | number;
-  "measured_at"?: null | string;
-  "measurement_state": StorageMeasurementStateSchema;
-  "total_bytes"?: null | number;
-}
-
-export type ProjectType = "external_workspace" | "external_wrapped" | "plurora_native";
-
 export interface ProjectionDefinition {
   "id": string;
   "session_id": string;
@@ -2197,7 +2408,7 @@ export interface ProtocolContext {
   "parent_invocation_id"?: null | string;
   "principal": ProtocolPrincipal;
   /**
-   * Optional kernel session id this call is operating under. Used by outbound dispatch to scope secret resolution to the session's project.
+   * Optional kernel session id this call is operating under. Used by outbound dispatch to scope secret resolution to the session's Installation.
    */
   "session_id"?: null | string;
   "transport": string;
@@ -2317,9 +2528,9 @@ export interface ProtocolRequirement {
 
 export interface ProtocolResourceSelector {
   /**
-   * An omitted id selects every resource of this owner/kind. Resource matching is structural and exact; callers must never use string-prefix matching for authority decisions.
+   * An explicit null selects every resource of this owner/kind. Omitting the field is invalid. Resource matching is structural and exact; callers must never use string-prefix matching for authority decisions.
    */
-  "id"?: null | string;
+  "id": string;
   "kind": string;
   "owner": string;
 }
@@ -2550,17 +2761,6 @@ export interface SecretImport {
   "secret_id": string;
 }
 
-export interface SecretPolicy {
-  /**
-   * If true, secret_ref:project:NAME falls back to platform store when not found in project. If false, fail-closed. Default: true (convenience).
-   */
-  "fallback_to_platform"?: boolean;
-  /**
-   * Names that MUST be configured at project scope (no platform fallback for these specifically). Useful for sensitive secrets that should never accidentally use a shared platform key.
-   */
-  "require_per_project"?: Array<string>;
-}
-
 export interface SelectedTransport {
   "class_id": string;
   "properties"?: Record<string, unknown>;
@@ -2622,6 +2822,8 @@ export interface StateBindingRecord {
   "state_slot_id": StateSlotId;
 }
 
+export type StateDisposition = "keep" | "delete";
+
 export type StateDurability = "ephemeral" | "durable" | "external";
 
 export interface StatePlacementIntent {
@@ -2647,8 +2849,6 @@ export interface StateSlotDescriptor {
 }
 
 export type StateSlotId = string;
-
-export type StorageMeasurementStateSchema = "measured" | "unknown";
 
 /**
  * The format of a streaming response for `host.outbound.stream`.
@@ -2769,7 +2969,7 @@ export interface SurfaceActivation {
 
 export type SurfaceApprovalPolicy = "none" | "user_approval" | "fork_then_approve";
 
-export type SurfaceBundleSourceSchema = "installed_project" | "dev_path";
+export type SurfaceBundleSourceSchema = "package" | "dev_path";
 
 export interface SurfaceContribution {
   "activation"?: SurfaceActivation;
@@ -2808,9 +3008,10 @@ export interface SurfaceResolveBundleParams {
 }
 
 export interface SurfaceResolveBundleResult {
+  "bundle_fingerprint"?: null | string;
   "bundle_url": string;
   "export_name": string;
-  "project_id"?: null | string;
+  "package_id"?: null | string;
   "source": SurfaceBundleSourceSchema;
   "stylesheets": Array<string>;
   "surface_id": string;

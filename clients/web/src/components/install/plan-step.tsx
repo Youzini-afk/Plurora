@@ -73,7 +73,7 @@ export function PlanStep({
         description={t("installPlanDescription")}
       />
 
-      {/* Project identity */}
+      {/* Installation identity */}
       <div className="flex items-center gap-3 rounded-[12px] border border-whisper-border bg-aged-brass-surface-soft px-4 py-3">
         <GithubLogo size={20} className="text-charcoal-ink shrink-0" />
         <span className="flex-1 truncate font-mono text-[13px] text-charcoal-ink">{url}</span>
@@ -95,9 +95,9 @@ export function PlanStep({
         </div>
       ) : null}
 
-      {/* Project metadata */}
+      {/* Installation metadata */}
       <section className="mt-6">
-        <EyebrowSm>{t("installProjectSection")}</EyebrowSm>
+        <EyebrowSm>{t("installInstallationSection")}</EyebrowSm>
         <dl className="mt-3 grid grid-cols-2 gap-x-8 gap-y-2 text-[12px]">
           {[
             [t("installKindLabel"), formatDetectedKind(detectedKind, t), "accent"],

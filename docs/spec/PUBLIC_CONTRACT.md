@@ -147,15 +147,15 @@ Git 安装不是 transport primitive；它属于普通第一方 capability Packa
 | `host.proxy.list` | partial | HostAdmin/HostDev only；列出 route。 |
 
 
-### `host.project.*`（5）
+### `host.installation.*`（5）
 
 | 方法 | 状态 | 契约 |
 |---|---:|---|
-| `host.project.list` | implemented | HostAdmin/HostDev only；列出已安装项目与状态。 |
-| `host.project.get` | implemented | HostAdmin/HostDev only；返回单个项目的完整 descriptor 与 registry 记录；Running 时包含 `running_session_id`。 |
-| `host.project.start` | implemented | HostAdmin/HostDev only；把项目从 Installed/Stopped 切到 Running、打开项目 session、返回 `session_id` 与 `already_running`，并发出生命周期事件。 |
-| `host.project.stop` | implemented | HostAdmin/HostDev only；停止 Running 项目并发出生命周期事件。 |
-| `host.project.status` | implemented | HostAdmin/HostDev only；返回项目状态、最近错误；Running 时包含 `running_session_id`。 |
+| `host.installation.list` | implemented | `observe` authority；列出由 Host journal 重建的 Installation projection。 |
+| `host.installation.get` | implemented | `observe` authority；返回单个 Installation、当前 revision 与可选 rollback pointer。 |
+| `host.installation.create` | implemented | `installation.manage` + exact Work authority；请求带 typed `work_id`，必须与 canonical CAS `WorkRevision.work_id` 一致；服务在 durable boundary 刷新 current grant，幂等键同 fingerprint 重放返回同一结果。 |
+| `host.installation.update` | implemented | `installation.manage` + exact Installation authority；所有 state action（含 Preserve）都在 durable/effect boundary 刷新 current grant；要求期望 revision 并以 CAS 原子切换 active Work/Lock；Reset/Replace 由 Host 在真实 state effect 前签发并持久化 authority evidence 与 decision receipt，失败保留旧 pointer。 |
+| `host.installation.remove` | implemented | `installation.manage` + exact Installation authority；要求显式 `keep` 或 `delete` state decision并在 durable/effect boundary 刷新 current grant；只删除 Host-owned state，linked-local source 永不删除。 |
 
 ### `host.*` / `identity.current`（4）
 
@@ -178,12 +178,12 @@ Git 安装不是 transport primitive；它属于普通第一方 capability Packa
 |---|---:|---|
 | `shell.contribution.list` | partial | 列出 package 声明的 typed surface contributions。 |
 | `shell.contribution.describe` | partial | 描述单个 contribution。 |
-| `host.surface.bundle.resolve` | partial | HostAdmin/HostDev only；按 surface contribution / project dev path / installed project 解析可挂载 bundle URL；跨来源一致性仍在加固。 |
+| `host.surface.bundle.resolve` | partial | HostAdmin/HostDev only；按 package surface contribution 解析可挂载 bundle URL；跨来源一致性仍在加固。 |
 | `protocol.extension.list` | implemented | 列出 extension points。 |
 | `protocol.extension.describe` | planned | 描述单个 extension point。 |
 | `protocol.hook.list` | partial | 列出 hook subscriptions。 |
 
-## 事件类型矩阵（59）
+## 事件类型矩阵（58）
 
 完整 registry 见 [`v1/EVENT_KIND_REGISTRY.md`](v1/EVENT_KIND_REGISTRY.md)。事件 payload schema 位于 `docs/spec/v1/schemas/events/`。事件分组如下：
 
@@ -191,7 +191,7 @@ Git 安装不是 transport primitive；它属于普通第一方 capability Packa
 |---|---:|---|
 | Context | 3 | `context/opened`、`context/closed`、`context/forked` |
 | Package lifecycle | 9 | `host/package.loading`、`.starting`、`.ready`、`.loaded`、`.stopping`、`.stopped`、`.unloaded`、`.degraded`、`.log` |
-| Project lifecycle | 4 | `host/project.installed`、`.started`、`.stopped`、`.uninstalled` |
+| Installation lifecycle | 3 | `host/installation.created`、`.updated`、`.removed` |
 | Capability lifecycle | 3 | `capability/invoked`、`capability/completed`、`capability/failed` |
 | Stream lifecycle | 7 | `capability/stream.started`、`.chunk`、`.progress`、`.ended`、`.error`、`.cancelled`、`.timeout` |
 | Authority | 3 | `authority/grant.created`、`authority/grant.revoked`、`authority/denied` |
@@ -283,12 +283,12 @@ v1 仅允许 additive 变更：新增可选字段、新增方法、新增事件�
 ## Schema 与错误码
 
 - 方法 schema：`docs/spec/v1/schemas/methods/`（80）。
-- 事件 schema：`docs/spec/v1/schemas/events/`（59）。
-- 顶层 schema：`docs/spec/v1/schemas/*.schema.json`（36），包含 additive Protocol Commons、component/package-envelope、World Bundle、便携 Work / Assembly 契约与 Host-local Installation / Run / Exposure / Realization wire record。
+- 事件 schema：`docs/spec/v1/schemas/events/`（58）。
+- 顶层 schema：`docs/spec/v1/schemas/*.schema.json`（39），包含 additive Protocol Commons、component/package-envelope、World Bundle、便携 Work / Assembly 契约、Host-local Installation / Run / Exposure / Realization wire record，以及 Installation state snapshot、decision receipt 与 authority evidence。
 - 错误码：[`v1/ERROR_CODES.md`](v1/ERROR_CODES.md)。
 - 事件 registry：[`v1/EVENT_KIND_REGISTRY.md`](v1/EVENT_KIND_REGISTRY.md)。
 
-175 个 schema 必须通过 `cargo run -p plurora-cli --bin validate-schemas`。
+177 个 schema 必须通过 `cargo run -p plurora-cli --bin validate-schemas`。
 
 ## 内容无关不变量
 
@@ -359,9 +359,9 @@ Host-dev 操作必须在协议上下文中显式标记为 host/dev。匿名 host
 
 ## Namespace 规则
 
-公开方法使用精确的 owner-based dot ID。第一段标明 Substrate、Host、Protocol 或 Shell owner，例如 `context.open`、`host.project.list`、`change.proposal.apply` 与 `shell.contribution.list`。
+公开方法使用精确的 owner-based dot ID。第一段标明 Substrate、Host、Protocol 或 Shell owner，例如 `context.open`、`host.installation.list`、`change.proposal.apply` 与 `shell.contribution.list`。
 
-平台事件由显式 59 项 registry 定义，只能由 `plurora/runtime` 写入。Package-owned event kind 必须以精确 Package ID 加 `/` 开头；Package capability ID 也使用同一 Package-owned slash namespace 约定。
+平台事件由显式 58 项 registry 定义，只能由 `plurora/runtime` 写入。Package-owned event kind 必须以精确 Package ID 加 `/` 开头；Package capability ID 也使用同一 Package-owned slash namespace 约定。
 
 保留规则：
 
@@ -437,10 +437,10 @@ Audit 记录只包含 destination、method、package id、capability id、purpos
 ```yaml
 secret_ref:env:OPENAI_API_KEY    # resolved via host env var（allowlisted）
 secret_ref:store:OPENAI_API_KEY  # resolved via local encrypted store
-secret_ref:project:OPENAI_API_KEY # resolved via project store, then policy fallback
+secret_ref:installation:OPENAI_API_KEY # resolved via the active Installation store, then policy fallback
 ```
 
-Project-backed references resolve from the active project store first, then fall back to platform store when `secret_policy.fallback_to_platform` allows it and the key is not listed in `require_per_project`.
+Installation-backed references resolve from the active Installation store first, then fall back to the platform store only when `secret_policy.allow_platform_fallback` permits it.
 
 store-backed references are resolved via the `StoreSecretResolver` against an age-encrypted file at `~/.plurora/secrets.dat`. See [`docs/guides/SECRET_MANAGEMENT.md`](../guides/SECRET_MANAGEMENT.md).
 
@@ -463,8 +463,8 @@ Surface contribution 是 Package 声明的 UI/UX 入口 descriptor。Runtime 保
 一个 v1 实现至少需要证明：
 
 1. 80 个方法 schema 可导出。
-2. 59 个事件 schema 可验证。
-3. 36 个顶层 schema 可验证。
+2. 58 个事件 schema 可验证。
+3. 39 个顶层 schema 可验证。
 4. 方法 registry 与 dispatcher 一致。
 5. capability handle mint/attenuate/revoke/list 行为可测试。
 6. invoke instrumentation 生成生命周期事件。

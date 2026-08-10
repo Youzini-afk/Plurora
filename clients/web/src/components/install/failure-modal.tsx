@@ -5,7 +5,7 @@ import { useToast } from "@/components/ui/toast";
 import { useT } from "@/lib/locale";
 
 export interface FailureDetail {
-  projectName: string;
+  installationName: string;
   icon?: React.ReactNode;
   title?: string;
   summary?: string;
@@ -32,7 +32,7 @@ export function FailureModal({ open, onClose, onRestart, onUninstall, detail }: 
   const toast = useToast();
   const t = useT();
 
-  const projectName = detail?.projectName ?? t("failureProjectFallback");
+  const installationName = detail?.installationName ?? t("failureInstallationFallback");
   const log = detail?.log ?? [];
   const canCopyLog = detail?.logRedacted === true && log.length > 0;
 
@@ -43,9 +43,9 @@ export function FailureModal({ open, onClose, onRestart, onUninstall, detail }: 
   };
 
   return (
-    <Modal open={open} onOpenChange={onClose} accent="rust" size="lg" contentLabel={t("failureContentLabel", projectName)}>
+    <Modal open={open} onOpenChange={onClose} accent="rust" size="lg" contentLabel={t("failureContentLabel", installationName)}>
       <ModalHeader
-        eyebrow={t("failureEyebrow", projectName)}
+        eyebrow={t("failureEyebrow", installationName)}
         title={detail?.title ?? t("failureTitle")}
         description={
           detail?.summary ?? t("failureDescription")
@@ -55,7 +55,7 @@ export function FailureModal({ open, onClose, onRestart, onUninstall, detail }: 
       {/* Identity row */}
       <div className="flex items-center gap-3 rounded-[12px] border border-whisper-border px-4 py-3">
         {detail?.icon ?? <Warning size={20} className="text-deep-rust" />}
-        <span className="font-display text-[14px] font-bold text-charcoal-ink">{projectName}</span>
+        <span className="font-display text-[14px] font-bold text-charcoal-ink">{installationName}</span>
         <GithubLogo size={14} className="ml-2 text-steel-secondary" />
         {detail?.failedAt ? (
           <span className="ml-auto font-mono text-[11px] text-muted-tone">{detail.failedAt}</span>
@@ -141,7 +141,7 @@ export function FailureModal({ open, onClose, onRestart, onUninstall, detail }: 
             }}
           >
             <ArrowsClockwise size={14} />
-            {t("failureRestartProject")}
+            {t("failureRestartInstallation")}
           </Button>
         </div>
       </ModalFooter>

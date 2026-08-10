@@ -60,9 +60,9 @@ assertEqual(
   "https://remote.example/surface-frame.html",
 );
 
-const mountProps = createMountInitialPropsForTest({ projectId: "project-1", sessionId: "old-session" }, bridge, "token-1");
+const mountProps = createMountInitialPropsForTest({ installationId: "installation-1", sessionId: "old-session" }, bridge, "token-1");
 assertDeepEqual(mountProps, {
-  projectId: "project-1",
+  installationId: "installation-1",
   sessionId: "session-current",
   session_id: "session-current",
   targetOrigin: window.location.origin,

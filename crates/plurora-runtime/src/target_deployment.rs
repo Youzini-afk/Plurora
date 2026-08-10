@@ -16,6 +16,7 @@ use bollard::query_parameters::{
 use bollard::Docker;
 use bytes::Bytes;
 use futures::StreamExt;
+use plurora_work::{InstallationId, WorkspaceId};
 use serde::{Deserialize, Serialize, Serializer};
 use sha2::{Digest, Sha256};
 use thiserror::Error;
@@ -68,7 +69,7 @@ mod docker_container_id {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ManagedTargetDeploymentApply {
     pub target_id: String,
-    pub project_id: String,
+    pub installation_id: InstallationId,
     pub deployment_id: String,
     pub route_id: String,
     pub port_lease_id: String,
@@ -99,7 +100,8 @@ impl ManagedTargetBuildNetworkMode {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ManagedTargetImageBuild {
     pub target_id: String,
-    pub project_id: String,
+    pub installation_id: InstallationId,
+    pub workspace_id: WorkspaceId,
     pub build_id: String,
     pub dockerfile: String,
     pub network_mode: ManagedTargetBuildNetworkMode,
@@ -113,6 +115,8 @@ pub struct ManagedTargetImageBuild {
 pub struct ManagedTargetImageBuildReceipt {
     pub image: String,
     pub image_id: String,
+    pub installation_id: InstallationId,
+    pub workspace_id: WorkspaceId,
     pub build_id: String,
     pub context_digest: String,
     pub source_tree_digest: String,
@@ -122,7 +126,7 @@ pub struct ManagedTargetImageBuildReceipt {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ManagedTargetDeploymentRef {
     pub target_id: String,
-    pub project_id: String,
+    pub installation_id: InstallationId,
     pub deployment_id: String,
     pub route_id: String,
     pub port_lease_id: String,
@@ -133,7 +137,7 @@ pub struct ManagedTargetDeploymentObservation {
     #[serde(skip_serializing)]
     pub target_id: String,
     #[serde(skip_serializing)]
-    pub project_id: String,
+    pub installation_id: InstallationId,
     #[serde(skip_serializing)]
     pub deployment_id: String,
     #[serde(skip_serializing)]
@@ -188,12 +192,19 @@ pub async fn build_managed_target_image(
     );
 
     let docker = docker().await?;
-    let image = target_image_tag(&request.project_id, &request.build_id);
+    let image = target_image_tag(request.installation_id.as_str(), &request.build_id);
     let labels = HashMap::from([
         ("managed-by".to_string(), "plurora".to_string()),
         ("plurora.target_driver".to_string(), DRIVER_ID.to_string()),
         ("plurora.target_id".to_string(), request.target_id.clone()),
-        ("plurora.project_id".to_string(), request.project_id.clone()),
+        (
+            "plurora.installation_id".to_string(),
+            request.installation_id.to_string(),
+        ),
+        (
+            "plurora.workspace_id".to_string(),
+            request.workspace_id.to_string(),
+        ),
         ("plurora.build_id".to_string(), request.build_id.clone()),
         (
             "plurora.source_tree_digest".to_string(),
@@ -259,6 +270,8 @@ pub async fn build_managed_target_image(
     Ok(ManagedTargetImageBuildReceipt {
         image,
         image_id,
+        installation_id: request.installation_id,
+        workspace_id: request.workspace_id,
         build_id: request.build_id,
         context_digest: request.context_digest,
         source_tree_digest: request.source_tree_digest,
@@ -392,7 +405,7 @@ pub async fn apply_managed_target_deployment(
     };
     let container_name = deployment_container_name(
         &request.target_id,
-        &request.project_id,
+        request.installation_id.as_str(),
         &request.deployment_id,
     );
     let options = CreateContainerOptionsBuilder::default()
@@ -660,7 +673,7 @@ impl ManagedTargetDeploymentApply {
     fn reference(&self) -> ManagedTargetDeploymentRef {
         ManagedTargetDeploymentRef {
             target_id: self.target_id.clone(),
-            project_id: self.project_id.clone(),
+            installation_id: self.installation_id.clone(),
             deployment_id: self.deployment_id.clone(),
             route_id: self.route_id.clone(),
             port_lease_id: self.port_lease_id.clone(),
@@ -681,7 +694,7 @@ async fn docker() -> anyhow::Result<Docker> {
 fn validate_image_build_request(request: &ManagedTargetImageBuild) -> anyhow::Result<()> {
     for (name, value) in [
         ("target_id", request.target_id.as_str()),
-        ("project_id", request.project_id.as_str()),
+        ("installation_id", request.installation_id.as_str()),
         ("build_id", request.build_id.as_str()),
     ] {
         validate_label_value(name, value)?;
@@ -768,10 +781,10 @@ fn is_sha256_digest(value: &str) -> bool {
             .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
 }
 
-fn target_image_tag(project_id: &str, build_id: &str) -> String {
+fn target_image_tag(installation_id: &str, build_id: &str) -> String {
     format!(
         "plurora/{}:{}",
-        sanitize_image_component(project_id, 80),
+        sanitize_image_component(installation_id, 80),
         sanitize_image_component(build_id, 120)
     )
 }
@@ -904,7 +917,7 @@ fn valid_image_reference(image: &str) -> bool {
 fn validate_reference(reference: &ManagedTargetDeploymentRef) -> anyhow::Result<()> {
     for (name, value) in [
         ("target_id", reference.target_id.as_str()),
-        ("project_id", reference.project_id.as_str()),
+        ("installation_id", reference.installation_id.as_str()),
         ("deployment_id", reference.deployment_id.as_str()),
         ("route_id", reference.route_id.as_str()),
         ("port_lease_id", reference.port_lease_id.as_str()),
@@ -931,7 +944,10 @@ fn deployment_labels(request: &ManagedTargetDeploymentApply) -> HashMap<String, 
         ("managed-by".to_string(), "plurora".to_string()),
         ("plurora.target_driver".to_string(), DRIVER_ID.to_string()),
         ("plurora.target_id".to_string(), request.target_id.clone()),
-        ("plurora.project_id".to_string(), request.project_id.clone()),
+        (
+            "plurora.installation_id".to_string(),
+            request.installation_id.to_string(),
+        ),
         (
             "plurora.deployment_id".to_string(),
             request.deployment_id.clone(),
@@ -954,8 +970,13 @@ fn deployment_labels(request: &ManagedTargetDeploymentApply) -> HashMap<String, 
     ])
 }
 
-fn deployment_container_name(target_id: &str, project_id: &str, deployment_id: &str) -> String {
-    let digest = Sha256::digest(format!("{target_id}\0{project_id}\0{deployment_id}").as_bytes());
+fn deployment_container_name(
+    target_id: &str,
+    installation_id: &str,
+    deployment_id: &str,
+) -> String {
+    let digest =
+        Sha256::digest(format!("{target_id}\0{installation_id}\0{deployment_id}").as_bytes());
     format!("plurora-target-{}", &format!("{digest:x}")[..24])
 }
 
@@ -992,7 +1013,7 @@ async fn find_target_container(
         vec![
             format!("plurora.target_driver={DRIVER_ID}"),
             format!("plurora.target_id={}", reference.target_id),
-            format!("plurora.project_id={}", reference.project_id),
+            format!("plurora.installation_id={}", reference.installation_id),
             format!("plurora.deployment_id={}", reference.deployment_id),
         ],
     )]);
@@ -1043,7 +1064,7 @@ fn observation_from_summary(
     );
     Ok(ManagedTargetDeploymentObservation {
         target_id: reference.target_id.clone(),
-        project_id: reference.project_id.clone(),
+        installation_id: reference.installation_id.clone(),
         deployment_id: reference.deployment_id.clone(),
         route_id: reference.route_id.clone(),
         port_lease_id: reference.port_lease_id.clone(),
@@ -1093,7 +1114,10 @@ fn validated_ownership_labels<'a>(
         ("managed-by", "plurora"),
         ("plurora.target_driver", DRIVER_ID),
         ("plurora.target_id", reference.target_id.as_str()),
-        ("plurora.project_id", reference.project_id.as_str()),
+        (
+            "plurora.installation_id",
+            reference.installation_id.as_str(),
+        ),
         ("plurora.deployment_id", reference.deployment_id.as_str()),
         ("plurora.route_id", reference.route_id.as_str()),
         ("plurora.port_lease_id", reference.port_lease_id.as_str()),
@@ -1110,20 +1134,27 @@ fn validated_ownership_labels<'a>(
 mod tests {
     use super::*;
 
+    const INSTALLATION_ID: &str = "11111111-1111-4111-8111-111111111111";
+    const WORKSPACE_ID: &str = "22222222-2222-4222-8222-222222222222";
+
     #[test]
     fn container_identity_is_deterministic_and_not_caller_controlled() {
-        let first = deployment_container_name("target-1", "project-1", "deployment-1");
+        let first = deployment_container_name("target-1", INSTALLATION_ID, "deployment-1");
         assert_eq!(
             first,
-            deployment_container_name("target-1", "project-1", "deployment-1")
+            deployment_container_name("target-1", INSTALLATION_ID, "deployment-1")
         );
         assert_ne!(
             first,
-            deployment_container_name("target-2", "project-1", "deployment-1")
+            deployment_container_name("target-2", INSTALLATION_ID, "deployment-1")
         );
         assert_ne!(
             first,
-            deployment_container_name("target-1", "project-2", "deployment-1")
+            deployment_container_name(
+                "target-1",
+                "33333333-3333-4333-8333-333333333333",
+                "deployment-1"
+            )
         );
         assert!(first.starts_with("plurora-target-"));
         assert_eq!(first.len(), "plurora-target-".len() + 24);
@@ -1133,7 +1164,7 @@ mod tests {
     fn apply_validation_rejects_address_and_command_shaped_images() {
         let mut request = ManagedTargetDeploymentApply {
             target_id: "target-1".to_string(),
-            project_id: "project-1".to_string(),
+            installation_id: InstallationId::parse(INSTALLATION_ID).unwrap(),
             deployment_id: "deployment-1".to_string(),
             route_id: "route-1".to_string(),
             port_lease_id: "lease-1".to_string(),
@@ -1192,7 +1223,8 @@ mod tests {
 
         let mut request = ManagedTargetImageBuild {
             target_id: "target-1".to_string(),
-            project_id: "project-1".to_string(),
+            installation_id: InstallationId::parse(INSTALLATION_ID).unwrap(),
+            workspace_id: WorkspaceId::parse(WORKSPACE_ID).unwrap(),
             build_id: "build-1".to_string(),
             dockerfile: "Dockerfile".to_string(),
             network_mode: ManagedTargetBuildNetworkMode::None,
@@ -1233,11 +1265,13 @@ mod tests {
 
         for target_id in ["local", "agent-smoke"] {
             let target_suffix = target_id.replace('-', "");
-            let project_id = format!("smoke-{target_suffix}-{suffix}");
+            let installation_id = InstallationId::new();
+            let workspace_id = WorkspaceId::new();
             let build_id = format!("build-{target_suffix}-{suffix}");
             let build = build_managed_target_image(ManagedTargetImageBuild {
                 target_id: target_id.to_string(),
-                project_id: project_id.clone(),
+                installation_id: installation_id.clone(),
+                workspace_id: workspace_id.clone(),
                 build_id: build_id.clone(),
                 dockerfile: "Dockerfile".to_string(),
                 network_mode: ManagedTargetBuildNetworkMode::None,
@@ -1253,7 +1287,7 @@ mod tests {
             let operation_id = format!("operation-{target_suffix}-{suffix}");
             let applied = apply_managed_target_deployment(&ManagedTargetDeploymentApply {
                 target_id: target_id.to_string(),
-                project_id: project_id.clone(),
+                installation_id: installation_id.clone(),
                 deployment_id: deployment_id.clone(),
                 route_id: route_id.clone(),
                 port_lease_id: lease_id.clone(),
@@ -1277,7 +1311,7 @@ mod tests {
             let stopped = stop_managed_target_deployment(
                 &ManagedTargetDeploymentRef {
                     target_id: target_id.to_string(),
-                    project_id,
+                    installation_id,
                     deployment_id,
                     route_id,
                     port_lease_id: lease_id,
@@ -1309,7 +1343,7 @@ mod tests {
     fn receipt_encodes_container_identity_as_a_typed_non_secret_reference() {
         let observation = ManagedTargetDeploymentObservation {
             target_id: "target-1".to_string(),
-            project_id: "project-1".to_string(),
+            installation_id: InstallationId::parse(INSTALLATION_ID).unwrap(),
             deployment_id: "deployment-1".to_string(),
             route_id: "route-1".to_string(),
             port_lease_id: "lease-1".to_string(),
@@ -1328,7 +1362,7 @@ mod tests {
         let value = serde_json::to_value(&observation).unwrap();
         assert_eq!(value["container_id"], format!("docker:{}", "a".repeat(64)));
         assert!(value.get("target_id").is_none());
-        assert!(value.get("project_id").is_none());
+        assert!(value.get("installation_id").is_none());
         assert!(!crate::scan_effect_value_for_raw_secrets(&value, "receipt.output").has_findings());
     }
 }

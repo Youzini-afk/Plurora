@@ -7,13 +7,11 @@
 //!
 //! On macOS, prefer `~/Library/Application Support/plurora` only when
 //! `XDG_DATA_HOME` isn't set. Most Plurora users will be in `~/.plurora`
-//! since this matches the project name and is least surprising.
+//! since this matches the Plurora data name and is least surprising.
 
 use std::path::PathBuf;
 
 use anyhow::Result;
-
-use crate::project::ProjectId;
 
 /// Top-level Plurora data directory.
 pub fn data_dir() -> Result<PathBuf> {
@@ -66,88 +64,28 @@ pub fn secret_store_key_path() -> Result<PathBuf> {
     Ok(data_dir()?.join("secret-store.key"))
 }
 
-/// Per-user mutable projects directory.
-/// Path: `<data_dir>/projects/`
-pub fn projects_dir() -> Result<PathBuf> {
-    Ok(data_dir()?.join("projects"))
+/// Immutable content-addressed object store.
+/// Path: `<data_dir>/objects/`
+pub fn objects_dir() -> Result<PathBuf> {
+    Ok(data_dir()?.join("objects"))
 }
 
-/// Path to a specific project's directory.
-pub fn project_dir(id: &ProjectId) -> Result<PathBuf> {
-    Ok(projects_dir()?.join(id.as_str()))
+/// Host-owned installation records and state.
+/// Path: `<data_dir>/installations/`
+pub fn installations_dir() -> Result<PathBuf> {
+    Ok(data_dir()?.join("installations"))
 }
 
-/// Path to a project's workspace clone directory.
-/// Path: `<data_dir>/projects/<project_id>/workspace`
-pub fn project_workspace_dir(id: &ProjectId) -> Result<PathBuf> {
-    Ok(project_dir(id)?.join("workspace"))
+/// Mutable authoring and import workspaces.
+/// Path: `<data_dir>/workspaces/`
+pub fn workspaces_dir() -> Result<PathBuf> {
+    Ok(data_dir()?.join("workspaces"))
 }
 
-/// Path to a project's workspace clone directory under an explicit data dir.
-/// Path: `<data_dir>/projects/<project_id>/workspace`
-pub fn project_workspace_dir_in(data_dir: impl AsRef<std::path::Path>, id: &ProjectId) -> PathBuf {
-    data_dir
-        .as_ref()
-        .join("projects")
-        .join(id.as_str())
-        .join("workspace")
-}
-
-/// Path to a project's encrypted secret store.
-pub fn project_secret_store_path(id: &ProjectId) -> Result<PathBuf> {
-    Ok(project_dir(id)?.join("secrets.dat"))
-}
-
-/// Path to a project's lockfile.
-pub fn project_lockfile_path(id: &ProjectId) -> Result<PathBuf> {
-    Ok(project_dir(id)?.join("lockfile.toml"))
-}
-
-/// Path to a project's project.yaml descriptor.
-pub fn project_descriptor_path(id: &ProjectId) -> Result<PathBuf> {
-    Ok(project_dir(id)?.join("project.yaml"))
-}
-
-/// Per-project sessions directory (where event-store backends may store project data).
-pub fn project_sessions_dir(id: &ProjectId) -> Result<PathBuf> {
-    Ok(project_dir(id)?.join("sessions"))
-}
-
-/// Per-project state directory (where capability packages may store project-scoped state).
-pub fn project_state_dir(id: &ProjectId) -> Result<PathBuf> {
-    Ok(project_dir(id)?.join("state"))
-}
-
-/// Archived projects directory (soft-delete parking).
-/// Path: `<data_dir>/projects/.archived/`
-pub fn archived_projects_dir() -> Result<PathBuf> {
-    Ok(projects_dir()?.join(".archived"))
-}
-
-/// Path where an archived project lives.
-pub fn archived_project_dir(id: &ProjectId) -> Result<PathBuf> {
-    Ok(archived_projects_dir()?.join(id.as_str()))
-}
-
-/// Initialize a project's directory layout. Creates dirs with 0700 on Unix.
-pub fn ensure_project_initialized(id: &ProjectId) -> Result<()> {
-    use std::fs;
-
-    fs::create_dir_all(project_dir(id)?)?;
-    fs::create_dir_all(project_sessions_dir(id)?)?;
-    fs::create_dir_all(project_state_dir(id)?)?;
-    fs::create_dir_all(project_workspace_dir(id)?)?;
-
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::PermissionsExt;
-        let p = project_dir(id)?;
-        let mut perms = fs::metadata(&p)?.permissions();
-        perms.set_mode(0o700);
-        fs::set_permissions(&p, perms)?;
-    }
-
-    Ok(())
+/// Runtime-local state and diagnostics.
+/// Path: `<data_dir>/runtime/`
+pub fn runtime_dir() -> Result<PathBuf> {
+    Ok(data_dir()?.join("runtime"))
 }
 
 /// Initialize the directory layout if missing. Creates all directories with
@@ -161,8 +99,10 @@ pub fn ensure_initialized() -> Result<()> {
     fs::create_dir_all(profiles_dir()?)?;
     fs::create_dir_all(keys_dir()?)?;
     fs::create_dir_all(cache_dir()?)?;
-    fs::create_dir_all(projects_dir()?)?;
-    fs::create_dir_all(archived_projects_dir()?)?;
+    fs::create_dir_all(objects_dir()?)?;
+    fs::create_dir_all(installations_dir()?)?;
+    fs::create_dir_all(workspaces_dir()?)?;
+    fs::create_dir_all(runtime_dir()?)?;
 
     #[cfg(unix)]
     {
@@ -219,12 +159,6 @@ mod tests {
                 _lock: lock,
             }
         }
-    }
-
-    fn scope_env(key: &str, value: &str) -> EnvGuard {
-        let guard = EnvGuard::lock();
-        std::env::set_var(key, value);
-        guard
     }
 
     impl Drop for EnvGuard {
@@ -304,53 +238,9 @@ mod tests {
         assert!(tmp.path().join("profiles").exists());
         assert!(tmp.path().join("keys").exists());
         assert!(tmp.path().join("cache").exists());
-        assert!(tmp.path().join("projects").exists());
-        assert!(tmp.path().join("projects/.archived").exists());
-        std::env::remove_var("PLURORA_DATA_DIR");
-    }
-
-    #[test]
-    fn project_dir_uses_data_dir() {
-        let _guard = scope_env("PLURORA_DATA_DIR", "/tmp/plurora-test-paths");
-        let id = ProjectId::new("foo__abc123").unwrap();
-        let pd = project_dir(&id).unwrap();
-        assert_eq!(
-            pd,
-            PathBuf::from("/tmp/plurora-test-paths/projects/foo__abc123")
-        );
-    }
-
-    #[test]
-    fn project_workspace_dir_uses_expected_layout() {
-        let _guard = scope_env("PLURORA_DATA_DIR", "/tmp/plurora-test-paths");
-        let id = ProjectId::new("foo__abc123").unwrap();
-        assert_eq!(
-            project_workspace_dir(&id).unwrap(),
-            PathBuf::from("/tmp/plurora-test-paths/projects/foo__abc123/workspace")
-        );
-        assert_eq!(
-            project_workspace_dir_in("/custom/data", &id),
-            PathBuf::from("/custom/data/projects/foo__abc123/workspace")
-        );
-    }
-
-    #[test]
-    fn project_secret_store_path_format() {
-        let _guard = scope_env("PLURORA_DATA_DIR", "/tmp/plurora-test-paths");
-        let id = ProjectId::new("test__xyz").unwrap();
-        let p = project_secret_store_path(&id).unwrap();
-        assert!(p.ends_with("projects/test__xyz/secrets.dat"));
-    }
-
-    #[test]
-    fn ensure_project_initialized_creates_layout() {
-        let tmp = tempfile::tempdir().unwrap();
-        let _guard = scope_env("PLURORA_DATA_DIR", tmp.path().to_str().unwrap());
-        let id = ProjectId::new("init__test").unwrap();
-        ensure_project_initialized(&id).unwrap();
-        assert!(project_dir(&id).unwrap().exists());
-        assert!(project_sessions_dir(&id).unwrap().exists());
-        assert!(project_state_dir(&id).unwrap().exists());
-        assert!(project_workspace_dir(&id).unwrap().exists());
+        assert!(tmp.path().join("objects").exists());
+        assert!(tmp.path().join("installations").exists());
+        assert!(tmp.path().join("workspaces").exists());
+        assert!(tmp.path().join("runtime").exists());
     }
 }

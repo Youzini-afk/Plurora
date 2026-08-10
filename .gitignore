@@ -8,6 +8,8 @@ dist
 clients/desktop/src-tauri/binaries/
 clients/desktop/src-tauri/gen/schemas/windows-schema.json
 .DS_Store
+__pycache__/
+*.py[cod]
 
 # Nested Rust target directories
 **/target/

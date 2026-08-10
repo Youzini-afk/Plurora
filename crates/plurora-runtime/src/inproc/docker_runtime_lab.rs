@@ -25,6 +25,7 @@ use bollard::query_parameters::{
 use bollard::Docker;
 use bytes::Bytes;
 use futures::StreamExt;
+use plurora_work::{InstallationId, WorkspaceId};
 use serde_json::Value;
 
 use super::safety;
@@ -109,8 +110,13 @@ impl BuildNetworkMode {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 enum BuildContextScope {
-    ProjectWorkspace,
-    DevelopmentScratch { change_set_id: String },
+    Workspace {
+        workspace_id: WorkspaceId,
+    },
+    DevelopmentScratch {
+        workspace_id: WorkspaceId,
+        change_set_id: String,
+    },
 }
 
 impl BuildStrategy {
@@ -226,6 +232,7 @@ fn plan_container(request: &InprocInvocation) -> anyhow::Result<Value> {
     let host_port = u16_field(&request.input, "host_port");
     let route_id = string_field(&request.input, "route_id");
     let port_lease_id = string_field(&request.input, "port_lease_id");
+    let installation_id = string_field(&request.input, "installation_id");
 
     Ok(serde_json::json!({
         "kind": "docker_runtime_lab_container_plan",
@@ -237,6 +244,7 @@ fn plan_container(request: &InprocInvocation) -> anyhow::Result<Value> {
         "bind_host": BIND_HOST,
         "route_id": value_or_null(route_id),
         "port_lease_id": value_or_null(port_lease_id),
+        "installation_id": value_or_null(installation_id),
         "requires_host_port_lease": true,
         "requires_proxy_route": true,
         "docker_performed": false,
@@ -288,10 +296,10 @@ fn remove_image(request: &InprocInvocation) -> anyhow::Result<Value> {
         {
             return Err("remove_image requires approved: true; fail-closed".to_string());
         }
-        let project_id = string_field(&request.input, "project_id")
-            .ok_or_else(|| "project_id is required".to_string())?;
-        plurora_core::ProjectId::new(&project_id)
-            .map_err(|_| "project_id must be a valid project id".to_string())?;
+        let installation_id = string_field(&request.input, "installation_id")
+            .ok_or_else(|| "installation_id is required".to_string())?;
+        InstallationId::parse(installation_id.as_str())
+            .map_err(|_| "installation_id must be a valid installation id".to_string())?;
         let build_id = string_field(&request.input, "build_id")
             .ok_or_else(|| "build_id is required".to_string())?;
         if !valid_build_id(&build_id) {
@@ -302,9 +310,9 @@ fn remove_image(request: &InprocInvocation) -> anyhow::Result<Value> {
         if !valid_development_change_id(&change_set_id) {
             return Err("development_change_id must be a valid Host change id".to_string());
         }
-        Ok((project_id, build_id, change_set_id))
+        Ok((installation_id, build_id, change_set_id))
     })();
-    let (project_id, build_id, change_set_id) = match parsed {
+    let (installation_id, build_id, change_set_id) = match parsed {
         Ok(parsed) => parsed,
         Err(reason) => {
             return Ok(serde_json::json!({
@@ -317,8 +325,9 @@ fn remove_image(request: &InprocInvocation) -> anyhow::Result<Value> {
         }
     };
     let result = tokio::task::block_in_place(|| {
-        tokio::runtime::Handle::current()
-            .block_on(async move { remove_image_async(project_id, build_id, change_set_id).await })
+        tokio::runtime::Handle::current().block_on(async move {
+            remove_image_async(installation_id, build_id, change_set_id).await
+        })
     });
     match result {
         Ok(value) => Ok(with_provenance(value, request)),
@@ -362,6 +371,7 @@ fn start_container(request: &InprocInvocation) -> anyhow::Result<Value> {
     }
 
     let image = string_field(&request.input, "image").unwrap_or_default();
+    let installation_id = string_field(&request.input, "installation_id").unwrap_or_default();
     let container_port = u16_field(&request.input, "container_port").unwrap_or_default();
     let host_port = u16_field(&request.input, "host_port").unwrap_or_default();
     let route_id = string_field(&request.input, "route_id").unwrap_or_default();
@@ -386,6 +396,7 @@ fn start_container(request: &InprocInvocation) -> anyhow::Result<Value> {
         tokio::runtime::Handle::current().block_on(async move {
             start_container_async(
                 image,
+                installation_id,
                 container_port,
                 host_port,
                 route_id,
@@ -414,13 +425,14 @@ fn status(request: &InprocInvocation) -> anyhow::Result<Value> {
     let Some(container) = container_ref(&request.input) else {
         return Ok(missing_container_ref_output(request));
     };
-    let (route_id, port_lease_id) = match managed_container_scope(&request.input) {
+    let (installation_id, route_id, port_lease_id) = match managed_container_scope(&request.input) {
         Ok(scope) => scope,
         Err(reason) => return Ok(operation_rejected_output(request, "status", &reason)),
     };
     let result = tokio::task::block_in_place(|| {
-        tokio::runtime::Handle::current()
-            .block_on(async move { status_async(container, route_id, port_lease_id).await })
+        tokio::runtime::Handle::current().block_on(async move {
+            status_async(container, installation_id, route_id, port_lease_id).await
+        })
     });
     match result {
         Ok(value) => Ok(with_provenance(value, request)),
@@ -438,7 +450,7 @@ fn logs(request: &InprocInvocation) -> anyhow::Result<Value> {
     let Some(container) = container_ref(&request.input) else {
         return Ok(missing_container_ref_output(request));
     };
-    let (route_id, port_lease_id) = match managed_container_scope(&request.input) {
+    let (installation_id, route_id, port_lease_id) = match managed_container_scope(&request.input) {
         Ok(scope) => scope,
         Err(reason) => return Ok(operation_rejected_output(request, "logs", &reason)),
     };
@@ -456,7 +468,15 @@ fn logs(request: &InprocInvocation) -> anyhow::Result<Value> {
         .unwrap_or(DEFAULT_MAX_BYTES);
     let result = tokio::task::block_in_place(|| {
         tokio::runtime::Handle::current().block_on(async move {
-            logs_async(container, route_id, port_lease_id, tail, max_bytes).await
+            logs_async(
+                container,
+                installation_id,
+                route_id,
+                port_lease_id,
+                tail,
+                max_bytes,
+            )
+            .await
         })
     });
     match result {
@@ -484,7 +504,7 @@ fn stop_container(request: &InprocInvocation) -> anyhow::Result<Value> {
     let Some(container) = container_ref(&request.input) else {
         return Ok(missing_container_ref_output(request));
     };
-    let (route_id, port_lease_id) = match managed_container_scope(&request.input) {
+    let (installation_id, route_id, port_lease_id) = match managed_container_scope(&request.input) {
         Ok(scope) => scope,
         Err(reason) => {
             return Ok(operation_rejected_output(
@@ -507,7 +527,15 @@ fn stop_container(request: &InprocInvocation) -> anyhow::Result<Value> {
         .unwrap_or(false);
     let result = tokio::task::block_in_place(|| {
         tokio::runtime::Handle::current().block_on(async move {
-            stop_container_async(container, route_id, port_lease_id, timeout_secs, force).await
+            stop_container_async(
+                container,
+                installation_id,
+                route_id,
+                port_lease_id,
+                timeout_secs,
+                force,
+            )
+            .await
         })
     });
     match result {
@@ -548,6 +576,7 @@ async fn docker() -> Result<Docker, String> {
 
 async fn start_container_async(
     image: String,
+    installation_id: String,
     container_port: u16,
     host_port: u16,
     route_id: String,
@@ -588,6 +617,10 @@ async fn start_container_async(
     let mut labels = HashMap::from([
         ("managed-by".to_string(), "plurora".to_string()),
         ("plurora.package_id".to_string(), PACKAGE_ID.to_string()),
+        (
+            "plurora.installation_id".to_string(),
+            installation_id.clone(),
+        ),
         ("plurora.route_id".to_string(), route_id.clone()),
         ("plurora.port_lease_id".to_string(), port_lease_id.clone()),
     ]);
@@ -635,6 +668,7 @@ async fn start_container_async(
         "container_name": container_name,
         "status": "started",
         "image": image,
+        "installation_id": installation_id,
         "image_id": image_id,
         "container_port": container_port,
         "host_port": host_port,
@@ -651,7 +685,8 @@ async fn start_container_async(
 #[derive(Debug, Clone)]
 struct BuildImageSpec {
     strategy: BuildStrategy,
-    project_id: String,
+    installation_id: String,
+    workspace_id: WorkspaceId,
     build_id: String,
     context_dir: PathBuf,
     context_scope: BuildContextScope,
@@ -689,7 +724,7 @@ struct PreparedBuildContext {
 }
 
 async fn build_image_async(spec: BuildImageSpec) -> Result<Value, String> {
-    let tag = image_tag(&spec.project_id, &spec.build_id);
+    let tag = image_tag(&spec.installation_id, &spec.build_id);
     let prepared = tokio::task::spawn_blocking({
         let spec = spec.clone();
         move || prepare_build_context(&spec)
@@ -752,6 +787,8 @@ async fn build_image_async(spec: BuildImageSpec) -> Result<Value, String> {
         "kind": "docker_runtime_lab_image_built",
         "image": tag,
         "image_id": image_id,
+        "installation_id": spec.installation_id,
+        "workspace_id": spec.workspace_id,
         "build_id": spec.build_id,
         "strategy": spec.strategy.as_str(),
         "network_mode": spec.network_mode.as_str(),
@@ -774,11 +811,11 @@ async fn build_image_async(spec: BuildImageSpec) -> Result<Value, String> {
 }
 
 async fn remove_image_async(
-    project_id: String,
+    installation_id: String,
     build_id: String,
     change_set_id: String,
 ) -> Result<Value, String> {
-    let image = image_tag(&project_id, &build_id);
+    let image = image_tag(&installation_id, &build_id);
     let docker = docker().await?;
     let inspected = match docker.inspect_image(&image).await {
         Ok(inspected) => inspected,
@@ -786,6 +823,7 @@ async fn remove_image_async(
             return Ok(serde_json::json!({
                 "kind": "docker_runtime_lab_image_absent",
                 "image": image,
+                "installation_id": installation_id,
                 "build_id": build_id,
                 "development_change_id": change_set_id,
                 "image_removed": true,
@@ -802,7 +840,7 @@ async fn remove_image_async(
     let expected = [
         ("managed-by", "plurora"),
         ("plurora.package_id", PACKAGE_ID),
-        ("plurora.project_id", project_id.as_str()),
+        ("plurora.installation_id", installation_id.as_str()),
         ("plurora.build_id", build_id.as_str()),
         ("plurora.development_change_id", change_set_id.as_str()),
     ];
@@ -826,6 +864,7 @@ async fn remove_image_async(
     Ok(serde_json::json!({
         "kind": "docker_runtime_lab_image_removed",
         "image": image,
+        "installation_id": installation_id,
         "build_id": build_id,
         "development_change_id": change_set_id,
         "image_removed": true,
@@ -842,6 +881,7 @@ fn docker_not_found_error(message: &str) -> bool {
 async fn inspect_managed_container(
     docker: &Docker,
     container: &str,
+    installation_id: &str,
     route_id: &str,
     port_lease_id: &str,
 ) -> Result<ContainerInspectResponse, String> {
@@ -860,6 +900,7 @@ async fn inspect_managed_container(
     let expected = [
         ("managed-by", "plurora"),
         ("plurora.package_id", PACKAGE_ID),
+        ("plurora.installation_id", installation_id),
         ("plurora.route_id", route_id),
         ("plurora.port_lease_id", port_lease_id),
     ];
@@ -876,12 +917,19 @@ async fn inspect_managed_container(
 
 async fn status_async(
     container: String,
+    installation_id: String,
     route_id: String,
     port_lease_id: String,
 ) -> Result<Value, String> {
     let docker = docker().await?;
-    let inspected =
-        inspect_managed_container(&docker, &container, &route_id, &port_lease_id).await?;
+    let inspected = inspect_managed_container(
+        &docker,
+        &container,
+        &installation_id,
+        &route_id,
+        &port_lease_id,
+    )
+    .await?;
     let state = inspected.state;
     let running = state.as_ref().and_then(|s| s.running).unwrap_or(false);
     let status = state
@@ -892,6 +940,7 @@ async fn status_async(
     Ok(serde_json::json!({
         "kind": "docker_runtime_lab_status",
         "container_ref": container,
+        "installation_id": installation_id,
         "container_id": inspected.id,
         "container_name": inspected.name.map(|name| name.trim_start_matches('/').to_string()),
         "running": running,
@@ -903,13 +952,21 @@ async fn status_async(
 
 async fn logs_async(
     container: String,
+    installation_id: String,
     route_id: String,
     port_lease_id: String,
     tail: u32,
     max_bytes: usize,
 ) -> Result<Value, String> {
     let docker = docker().await?;
-    inspect_managed_container(&docker, &container, &route_id, &port_lease_id).await?;
+    inspect_managed_container(
+        &docker,
+        &container,
+        &installation_id,
+        &route_id,
+        &port_lease_id,
+    )
+    .await?;
     let options = LogsOptionsBuilder::default()
         .stdout(true)
         .stderr(true)
@@ -943,6 +1000,7 @@ async fn logs_async(
     Ok(serde_json::json!({
         "kind": "docker_runtime_lab_logs",
         "container_ref": container,
+        "installation_id": installation_id,
         "tail": tail,
         "max_bytes": max_bytes,
         "bytes_returned": bytes.len(),
@@ -955,13 +1013,21 @@ async fn logs_async(
 
 async fn stop_container_async(
     container: String,
+    installation_id: String,
     route_id: String,
     port_lease_id: String,
     timeout_secs: i32,
     force: bool,
 ) -> Result<Value, String> {
     let docker = docker().await?;
-    inspect_managed_container(&docker, &container, &route_id, &port_lease_id).await?;
+    inspect_managed_container(
+        &docker,
+        &container,
+        &installation_id,
+        &route_id,
+        &port_lease_id,
+    )
+    .await?;
     let stop_options = StopContainerOptionsBuilder::default()
         .t(timeout_secs)
         .build();
@@ -985,6 +1051,7 @@ async fn stop_container_async(
     Ok(serde_json::json!({
         "kind": "docker_runtime_lab_container_stopped",
         "container_ref": container,
+        "installation_id": installation_id,
         "stopped": stop_error.is_none(),
         "removed": true,
         "force": force,
@@ -1031,6 +1098,10 @@ fn managed_container_json(container: &ContainerSummary) -> Option<Value> {
     {
         return None;
     }
+    let installation_id = labels.get("plurora.installation_id")?.clone();
+    if InstallationId::parse(installation_id.as_str()).is_err() {
+        return None;
+    }
     let route_id = labels.get("plurora.route_id")?.clone();
     let port_lease_id = labels.get("plurora.port_lease_id")?.clone();
     let operation_id = labels.get("plurora.deployment_operation_id").cloned();
@@ -1048,6 +1119,7 @@ fn managed_container_json(container: &ContainerSummary) -> Option<Value> {
     Some(serde_json::json!({
         "container_id": container_id,
         "container_name": container_name,
+        "installation_id": installation_id,
         "route_id": route_id,
         "port_lease_id": port_lease_id,
         "operation_id": operation_id,
@@ -1074,6 +1146,13 @@ fn validate_input(input: &Value) -> Vec<Diagnostic> {
             "image_invalid",
             "image must be a safe docker image reference without whitespace or shell metacharacters",
         ));
+    }
+    match string_field(input, "installation_id") {
+        Some(value) if InstallationId::parse(value.as_str()).is_ok() => {}
+        _ => diagnostics.push(error(
+            "installation_id_invalid",
+            "installation_id is required and must be an opaque UUID",
+        )),
     }
 
     for (field, label) in [
@@ -1170,27 +1249,21 @@ fn parse_build_image_request(input: &Value) -> Result<BuildImageSpec, String> {
         "nixpacks" => BuildStrategy::Nixpacks,
         other => return Err(format!("unsupported build strategy '{other}'")),
     };
-    let project_id = string_field(input, "project_id").ok_or("project_id is required")?;
-    if !valid_label_value(&project_id) {
-        return Err("project_id must be label-safe".to_string());
+    let installation_id =
+        string_field(input, "installation_id").ok_or("installation_id is required")?;
+    InstallationId::parse(installation_id.as_str())
+        .map_err(|_| "installation_id must be a valid installation id".to_string())?;
+    let workspace_id = string_field(input, "workspace_id").ok_or("workspace_id is required")?;
+    let workspace_id = WorkspaceId::parse(workspace_id.as_str())
+        .map_err(|_| "workspace_id must be an opaque UUID".to_string())?;
+    if input.get("context_dir").is_some() {
+        return Err("context_dir is not accepted; use workspace_id".to_string());
     }
-    let project = plurora_core::ProjectId::new(&project_id)
-        .map_err(|_| "project_id must be a valid project id".to_string())?;
     let build_id = string_field(input, "build_id").ok_or("build_id is required")?;
     if !valid_build_id(&build_id) {
         return Err("build_id must be label-safe".to_string());
     }
-    let context_dir = string_field(input, "context_dir").ok_or("context_dir is required")?;
-    let context_dir = PathBuf::from(context_dir);
-    if !context_dir.is_absolute() {
-        return Err("context_dir must be absolute".to_string());
-    }
-    if context_dir
-        .components()
-        .any(|component| matches!(component, Component::ParentDir))
-    {
-        return Err("context_dir must not contain parent components".to_string());
-    }
+    let context_dir = workspace_source_dir(&workspace_id)?;
     let context_scope = if let Some(change_set_id) = string_field(input, "development_change_id") {
         if !valid_development_change_id(&change_set_id) {
             return Err("development_change_id must be a valid Host change id".to_string());
@@ -1200,24 +1273,14 @@ fn parse_build_image_request(input: &Value) -> Result<BuildImageSpec, String> {
                 "development scratch verification only supports dockerfile strategy".to_string(),
             );
         }
-        let expected = plurora_core::paths::project_dir(&project)
-            .map_err(|_| "failed to resolve project directory".to_string())?
-            .join("development")
-            .join(&change_set_id)
-            .join("workspace");
-        if context_dir != expected {
-            return Err(
-                "context_dir must match the Host-owned development scratch workspace".to_string(),
-            );
+        BuildContextScope::DevelopmentScratch {
+            workspace_id: workspace_id.clone(),
+            change_set_id,
         }
-        BuildContextScope::DevelopmentScratch { change_set_id }
     } else {
-        let expected_workspace = plurora_core::paths::project_workspace_dir(&project)
-            .map_err(|_| "failed to resolve project workspace".to_string())?;
-        if context_dir != expected_workspace {
-            return Err("context_dir must be the project's managed workspace".to_string());
+        BuildContextScope::Workspace {
+            workspace_id: workspace_id.clone(),
         }
-        BuildContextScope::ProjectWorkspace
     };
     let network_mode = match input.get("network_mode").and_then(Value::as_str) {
         Some("none") => BuildNetworkMode::None,
@@ -1261,7 +1324,8 @@ fn parse_build_image_request(input: &Value) -> Result<BuildImageSpec, String> {
 
     Ok(BuildImageSpec {
         strategy,
-        project_id,
+        installation_id,
+        workspace_id,
         build_id,
         context_dir,
         context_scope,
@@ -1437,10 +1501,10 @@ fn valid_build_id(value: &str) -> bool {
         && !value.contains("..")
 }
 
-fn image_tag(project_id: &str, build_id: &str) -> String {
+fn image_tag(installation_id: &str, build_id: &str) -> String {
     format!(
         "plurora/{}:{}",
-        sanitize_image_component(project_id, 80),
+        sanitize_image_component(installation_id, 80),
         sanitize_image_component(build_id, 120)
     )
 }
@@ -1473,7 +1537,14 @@ fn sanitize_image_component(value: &str, max_len: usize) -> String {
 
 fn build_labels(spec: &BuildImageSpec) -> HashMap<String, String> {
     let mut labels = HashMap::from([
-        ("plurora.project_id".to_string(), spec.project_id.clone()),
+        (
+            "plurora.installation_id".to_string(),
+            spec.installation_id.clone(),
+        ),
+        (
+            "plurora.workspace_id".to_string(),
+            spec.workspace_id.to_string(),
+        ),
         ("plurora.build_id".to_string(), spec.build_id.clone()),
         (
             "plurora.strategy".to_string(),
@@ -1488,7 +1559,7 @@ fn build_labels(spec: &BuildImageSpec) -> HashMap<String, String> {
             spec.network_mode.as_str().to_string(),
         ),
     ]);
-    if let BuildContextScope::DevelopmentScratch { change_set_id } = &spec.context_scope {
+    if let BuildContextScope::DevelopmentScratch { change_set_id, .. } = &spec.context_scope {
         labels.insert(
             "plurora.development_change_id".to_string(),
             change_set_id.clone(),
@@ -1523,20 +1594,10 @@ fn validate_build_context_scope(spec: &BuildImageSpec) -> Result<PathBuf, String
     let data_dir = plurora_core::paths::data_dir()
         .map_err(|_| "failed to resolve Plurora data directory".to_string())?;
     let data_dir = canonical_real_directory(&data_dir, "data directory")?;
-    let projects = canonical_owned_directory(&data_dir, "projects", "projects root")?;
-    let project = canonical_owned_directory(&projects, &spec.project_id, "project root")?;
-    let expected = match &spec.context_scope {
-        BuildContextScope::ProjectWorkspace => {
-            canonical_owned_directory(&project, "workspace", "project workspace")?
-        }
-        BuildContextScope::DevelopmentScratch { change_set_id } => {
-            let development =
-                canonical_owned_directory(&project, "development", "development root")?;
-            let change =
-                canonical_owned_directory(&development, change_set_id, "development change root")?;
-            canonical_owned_directory(&change, "workspace", "development scratch workspace")?
-        }
-    };
+    let workspaces = canonical_owned_directory(&data_dir, "workspaces", "workspaces root")?;
+    let workspace =
+        canonical_owned_directory(&workspaces, spec.workspace_id.as_str(), "workspace root")?;
+    let expected = canonical_owned_directory(&workspace, "source", "workspace source")?;
     let actual = std::fs::canonicalize(&spec.context_dir)
         .map_err(|e| format!("failed to canonicalize context_dir: {e}"))?;
     if actual != expected {
@@ -1548,7 +1609,7 @@ fn validate_build_context_scope(spec: &BuildImageSpec) -> Result<PathBuf, String
 fn canonical_real_directory(path: &Path, label: &str) -> Result<PathBuf, String> {
     let metadata =
         std::fs::symlink_metadata(path).map_err(|e| format!("failed to inspect {label}: {e}"))?;
-    if !metadata.is_dir() || metadata.file_type().is_symlink() {
+    if !metadata.is_dir() || metadata.file_type().is_symlink() || is_reparse_point(&metadata) {
         return Err(format!("{label} must be a real directory, not a symlink"));
     }
     std::fs::canonicalize(path).map_err(|e| format!("failed to canonicalize {label}: {e}"))
@@ -1674,6 +1735,11 @@ fn create_context_tar_at(
         return Err("context_dir changed after Host ownership validation".to_string());
     }
     let dockerfile = root.join(&spec.dockerfile);
+    let dockerfile_metadata = std::fs::symlink_metadata(&dockerfile)
+        .map_err(|e| format!("dockerfile not found or inaccessible: {e}"))?;
+    if dockerfile_metadata.file_type().is_symlink() || is_reparse_point(&dockerfile_metadata) {
+        return Err("dockerfile must be a regular file without links".to_string());
+    }
     let dockerfile = std::fs::canonicalize(&dockerfile)
         .map_err(|e| format!("dockerfile not found or inaccessible: {e}"))?;
     if !dockerfile.starts_with(&root) || !dockerfile.is_file() {
@@ -1716,7 +1782,7 @@ impl DockerIgnore {
             }
             Err(error) => return Err(error),
         };
-        if !metadata.is_file() || metadata.file_type().is_symlink() {
+        if !metadata.is_file() || metadata.file_type().is_symlink() || is_reparse_point(&metadata) {
             return Err(std::io::Error::new(
                 std::io::ErrorKind::InvalidData,
                 ".dockerignore must be a regular file",
@@ -1727,6 +1793,7 @@ impl DockerIgnore {
         let current = std::fs::symlink_metadata(&path)?;
         if !current.is_file()
             || current.file_type().is_symlink()
+            || is_reparse_point(&current)
             || same_file::Handle::from_path(&path)? != opened
         {
             return Err(std::io::Error::new(
@@ -1799,7 +1866,7 @@ fn add_context_dir(
         }
         let metadata = std::fs::symlink_metadata(&path)
             .map_err(|e| format!("failed to stat {}: {e}", path.display()))?;
-        if metadata.file_type().is_symlink() {
+        if metadata.file_type().is_symlink() || is_reparse_point(&metadata) {
             return Err(format!(
                 "symlinks are not supported in build context: {rel}"
             ));
@@ -1829,6 +1896,8 @@ fn add_context_dir(
             if !opened_metadata.is_file()
                 || !current_metadata.is_file()
                 || current_metadata.file_type().is_symlink()
+                || is_reparse_point(&opened_metadata)
+                || is_reparse_point(&current_metadata)
                 || !canonical.starts_with(root)
                 || same_file::Handle::from_path(&path)
                     .map_err(|e| format!("failed to re-identify context file {rel}: {e}"))?
@@ -1858,6 +1927,7 @@ fn add_context_dir(
                 .map_err(|e| format!("failed to recanonicalize context file {rel}: {e}"))?;
             if after.file_type().is_symlink()
                 || !after.is_file()
+                || is_reparse_point(&after)
                 || !after_canonical.starts_with(root)
                 || same_file::Handle::from_path(&path)
                     .map_err(|e| format!("failed to re-identify context file {rel}: {e}"))?
@@ -1891,7 +1961,7 @@ fn validated_context_directory_handle(
 ) -> Result<same_file::Handle, String> {
     let metadata = std::fs::symlink_metadata(dir)
         .map_err(|e| format!("failed to inspect context directory {}: {e}", dir.display()))?;
-    if !metadata.is_dir() || metadata.file_type().is_symlink() {
+    if !metadata.is_dir() || metadata.file_type().is_symlink() || is_reparse_point(&metadata) {
         return Err(format!(
             "build context contains a directory symlink: {}",
             dir.display()
@@ -2049,14 +2119,35 @@ fn container_ref(input: &Value) -> Option<String> {
         .or_else(|| string_field(input, "container"))
 }
 
-fn managed_container_scope(input: &Value) -> Result<(String, String), String> {
+fn managed_container_scope(input: &Value) -> Result<(String, String, String), String> {
+    let installation_id = string_field(input, "installation_id")
+        .filter(|value| InstallationId::parse(value.as_str()).is_ok())
+        .ok_or_else(|| "installation_id is required and must be an opaque UUID".to_string())?;
     let route_id = string_field(input, "route_id")
         .filter(|value| valid_label_value(value))
         .ok_or_else(|| "route_id is required and must be label-safe".to_string())?;
     let port_lease_id = string_field(input, "port_lease_id")
         .filter(|value| valid_label_value(value))
         .ok_or_else(|| "port_lease_id is required and must be label-safe".to_string())?;
-    Ok((route_id, port_lease_id))
+    Ok((installation_id, route_id, port_lease_id))
+}
+
+#[cfg(windows)]
+fn is_reparse_point(metadata: &std::fs::Metadata) -> bool {
+    use std::os::windows::fs::MetadataExt;
+    metadata.file_attributes() & 0x400 != 0
+}
+
+#[cfg(not(windows))]
+fn is_reparse_point(_metadata: &std::fs::Metadata) -> bool {
+    false
+}
+
+fn workspace_source_dir(workspace_id: &WorkspaceId) -> Result<PathBuf, String> {
+    Ok(plurora_core::paths::workspaces_dir()
+        .map_err(|_| "failed to resolve workspace data directory".to_string())?
+        .join(workspace_id.as_str())
+        .join("source"))
 }
 
 fn provenance(request: &InprocInvocation) -> Value {
@@ -2108,9 +2199,27 @@ fn docker_error_output(operation: &str, error: String) -> Value {
         "docker_performed": false,
         "error": {
             "code": "docker_unavailable_or_failed",
-            "message": error
+            "message": redact_error_paths(&error)
         }
     })
+}
+
+fn redact_error_paths(input: &str) -> String {
+    input
+        .split_whitespace()
+        .map(|token| {
+            let windows_absolute = token.len() >= 3
+                && token.as_bytes()[0].is_ascii_alphabetic()
+                && token.as_bytes()[1] == b':'
+                && matches!(token.as_bytes()[2], b'\\' | b'/');
+            if token.starts_with('/') || windows_absolute {
+                "[PATH_REDACTED]"
+            } else {
+                token
+            }
+        })
+        .collect::<Vec<_>>()
+        .join(" ")
 }
 
 fn redact_log_text(input: &str) -> String {
@@ -2148,6 +2257,8 @@ mod tests {
     use super::*;
 
     static DATA_DIR_ENV_LOCK: Mutex<()> = Mutex::new(());
+    const INSTALLATION_ID: &str = "00000000-0000-4000-8000-000000000001";
+    const WORKSPACE_ID: &str = "00000000-0000-4000-8000-000000000002";
 
     fn request(capability: &str, input: Value) -> InprocInvocation {
         InprocInvocation {
@@ -2164,6 +2275,7 @@ mod tests {
             "validate_spec",
             serde_json::json!({
                 "image": "nginx:1.25-alpine",
+                "installation_id": INSTALLATION_ID,
                 "container_port": 80,
                 "host_port": 18080,
                 "route_id": "route-test",
@@ -2181,6 +2293,7 @@ mod tests {
             "validate_spec",
             serde_json::json!({
                 "image": "nginx:latest",
+                "installation_id": INSTALLATION_ID,
                 "container_port": 80,
                 "host_port": 18080,
                 "route_id": "route-test",
@@ -2212,6 +2325,7 @@ mod tests {
             "stop_container",
             serde_json::json!({
                 "container_id": "container-1",
+                "installation_id": INSTALLATION_ID,
                 "route_id": "route-1",
                 "port_lease_id": "lease-1"
             }),
@@ -2235,6 +2349,7 @@ mod tests {
             "plan_container",
             serde_json::json!({
                 "image": "ghcr.io/example/app:sha-abc",
+                "installation_id": INSTALLATION_ID,
                 "container_port": 3000,
                 "host_port": 13000,
                 "route_id": "route-1",
@@ -2257,6 +2372,10 @@ mod tests {
             labels: Some(HashMap::from([
                 ("managed-by".to_string(), "plurora".to_string()),
                 ("plurora.package_id".to_string(), PACKAGE_ID.to_string()),
+                (
+                    "plurora.installation_id".to_string(),
+                    INSTALLATION_ID.to_string(),
+                ),
                 (
                     "plurora.route_id".to_string(),
                     "proxy-route-000001".to_string(),
@@ -2368,9 +2487,9 @@ mod tests {
             serde_json::json!({
                 "approved": true,
                 "strategy": "compose",
-                "project_id": "project-1",
+                "installation_id": INSTALLATION_ID,
+                "workspace_id": WORKSPACE_ID,
                 "build_id": "build-1",
-                "context_dir": "/tmp/project"
             }),
         ))
         .unwrap();
@@ -2388,13 +2507,12 @@ mod tests {
         let data_dir = temp.path().to_path_buf();
         let previous_data_dir = std::env::var_os("PLURORA_DATA_DIR");
         std::env::set_var("PLURORA_DATA_DIR", &data_dir);
-        let context_dir = data_dir.join("projects/project-1/workspace");
         let result = parse_build_image_request(&serde_json::json!({
             "approved": true,
             "strategy": "nixpacks",
-            "project_id": "project-1",
+            "installation_id": INSTALLATION_ID,
+            "workspace_id": WORKSPACE_ID,
             "build_id": "build-1",
-            "context_dir": context_dir.to_string_lossy()
         }));
         match previous_data_dir {
             Some(value) => std::env::set_var("PLURORA_DATA_DIR", value),
@@ -2415,17 +2533,13 @@ mod tests {
         let previous_data_dir = std::env::var_os("PLURORA_DATA_DIR");
         std::env::set_var("PLURORA_DATA_DIR", &data_dir);
         let change_set_id = "chg-0123456789abcdef";
-        let context_dir = data_dir
-            .join("projects/project-1/development")
-            .join(change_set_id)
-            .join("workspace");
         let result = parse_build_image_request(&serde_json::json!({
             "approved": true,
             "strategy": "dockerfile",
-            "project_id": "project-1",
+            "installation_id": INSTALLATION_ID,
+            "workspace_id": WORKSPACE_ID,
             "build_id": "build-1",
-            "development_change_id": change_set_id,
-            "context_dir": context_dir.to_string_lossy()
+            "development_change_id": change_set_id
         }));
         match previous_data_dir {
             Some(value) => std::env::set_var("PLURORA_DATA_DIR", value),
@@ -2436,6 +2550,7 @@ mod tests {
         assert_eq!(
             spec.context_scope,
             BuildContextScope::DevelopmentScratch {
+                workspace_id: WorkspaceId::parse(WORKSPACE_ID).unwrap(),
                 change_set_id: change_set_id.to_string()
             }
         );
@@ -2451,17 +2566,13 @@ mod tests {
         let previous_data_dir = std::env::var_os("PLURORA_DATA_DIR");
         std::env::set_var("PLURORA_DATA_DIR", &data_dir);
         let change_set_id = "chg-0123456789abcdef";
-        let context_dir = data_dir
-            .join("projects/project-1/development")
-            .join(change_set_id)
-            .join("workspace");
         let result = parse_build_image_request(&serde_json::json!({
             "approved": true,
             "strategy": "nixpacks",
-            "project_id": "project-1",
+            "installation_id": INSTALLATION_ID,
+            "workspace_id": WORKSPACE_ID,
             "build_id": "build-1",
-            "development_change_id": change_set_id,
-            "context_dir": context_dir.to_string_lossy()
+            "development_change_id": change_set_id
         }));
         match previous_data_dir {
             Some(value) => std::env::set_var("PLURORA_DATA_DIR", value),
@@ -2501,10 +2612,13 @@ mod tests {
         let tmp = tempfile::tempdir().unwrap();
         let spec = BuildImageSpec {
             strategy: BuildStrategy::Nixpacks,
-            project_id: "project-1".to_string(),
+            installation_id: INSTALLATION_ID.to_string(),
+            workspace_id: WorkspaceId::parse(WORKSPACE_ID).unwrap(),
             build_id: "build-1".to_string(),
             context_dir: tmp.path().to_path_buf(),
-            context_scope: BuildContextScope::ProjectWorkspace,
+            context_scope: BuildContextScope::Workspace {
+                workspace_id: WorkspaceId::parse(WORKSPACE_ID).unwrap(),
+            },
             network_mode: BuildNetworkMode::Bridge,
             dockerfile: "Dockerfile".to_string(),
             source_commit: None,
@@ -2530,16 +2644,16 @@ mod tests {
         for input in [
             serde_json::json!({
                 "approved": true,
-                "project_id": "project-1",
+                "installation_id": "00000000-0000-4000-8000-000000000001",
                 "build_id": "build-1",
-                "context_dir": "/tmp/project",
+                "workspace_id": WORKSPACE_ID,
                 "secrets": ["secret_ref:env:TOKEN"]
             }),
             serde_json::json!({
                 "approved": true,
-                "project_id": "project-1",
+                "installation_id": "00000000-0000-4000-8000-000000000001",
                 "build_id": "build-1",
-                "context_dir": "/tmp/project",
+                "workspace_id": WORKSPACE_ID,
                 "build_args": {"TOKEN": "secret_ref:env:TOKEN"}
             }),
         ] {
@@ -2550,10 +2664,10 @@ mod tests {
     }
 
     #[test]
-    fn docker_runtime_lab_image_tag_sanitizes_project_and_build() {
+    fn docker_runtime_lab_image_tag_sanitizes_installation_and_build() {
         assert_eq!(
-            image_tag("My Project/Alpha", "Build_001"),
-            "plurora/my-project-alpha:build_001"
+            image_tag("My Installation/Alpha", "Build_001"),
+            "plurora/my-installation-alpha:build_001"
         );
         assert_eq!(image_tag("***", "---"), "plurora/build:build");
     }
@@ -2574,10 +2688,13 @@ mod tests {
         std::fs::write(tmp.path().join("app.txt"), "hello").unwrap();
         let spec = BuildImageSpec {
             strategy: BuildStrategy::Dockerfile,
-            project_id: "project-1".to_string(),
+            installation_id: INSTALLATION_ID.to_string(),
+            workspace_id: WorkspaceId::parse(WORKSPACE_ID).unwrap(),
             build_id: "build-1".to_string(),
             context_dir: tmp.path().to_path_buf(),
-            context_scope: BuildContextScope::ProjectWorkspace,
+            context_scope: BuildContextScope::Workspace {
+                workspace_id: WorkspaceId::parse(WORKSPACE_ID).unwrap(),
+            },
             network_mode: BuildNetworkMode::Bridge,
             dockerfile: "Dockerfile".to_string(),
             source_commit: None,
@@ -2617,10 +2734,13 @@ mod tests {
         std::fs::write(tmp.path().join("node_modules/huge.js"), "ignored").unwrap();
         let spec = BuildImageSpec {
             strategy: BuildStrategy::Dockerfile,
-            project_id: "project-1".to_string(),
+            installation_id: INSTALLATION_ID.to_string(),
+            workspace_id: WorkspaceId::parse(WORKSPACE_ID).unwrap(),
             build_id: "build-1".to_string(),
             context_dir: tmp.path().to_path_buf(),
-            context_scope: BuildContextScope::ProjectWorkspace,
+            context_scope: BuildContextScope::Workspace {
+                workspace_id: WorkspaceId::parse(WORKSPACE_ID).unwrap(),
+            },
             network_mode: BuildNetworkMode::Bridge,
             dockerfile: "Dockerfile".to_string(),
             source_commit: None,

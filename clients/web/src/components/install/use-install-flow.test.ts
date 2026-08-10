@@ -7,15 +7,15 @@ function assertEqual<T>(actual: T, expected: T) {
   }
 }
 
-function plan(projectType?: string): InstallPlan {
+function plan(installationType?: string): InstallPlan {
   return {
     root_id: "pkg/root",
     packages: [],
-    ...(projectType
+    ...(installationType
       ? {
-          project_descriptor: {
+          installation_descriptor: {
             schema_version: 1,
-            project: { type: projectType },
+            installation: { type: installationType },
           },
         }
       : {}),

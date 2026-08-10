@@ -2,11 +2,11 @@ pub mod capability;
 pub mod contract;
 pub mod event_store;
 pub mod inproc;
+pub mod installation_control;
+pub mod installation_secret;
 pub mod object_store;
 pub mod package;
 pub mod pi;
-pub mod project_registry;
-pub mod project_secret;
 pub mod protocol;
 pub mod protocol_commons;
 pub mod redaction;
@@ -39,6 +39,26 @@ pub use inproc::{
     DockerDeploymentReconcileSource, InprocInvocation, InprocPackage, InprocPackageCatalog,
     PreparedDockerBuildContext, WorkspaceTreeHash,
 };
+pub use installation_control::{
+    validate_idempotency_key, InstallationAuthorityRefresh, InstallationAuthoritySubject,
+    InstallationAuthorityValidator, InstallationChange, InstallationControl,
+    InstallationCreateRequest, InstallationDiff, InstallationGetRequest, InstallationItemDiff,
+    InstallationListRequest, InstallationMutationAuthority, InstallationMutationResult,
+    InstallationRemoveRequest, InstallationRollbackPointer, InstallationSecretStoreGuard,
+    InstallationStateAction, InstallationStateAuthorityEvidence, InstallationStateDecision,
+    InstallationStateDecisionAction, InstallationStateDecisionReceipt, InstallationStateSlotChange,
+    InstallationStateSlotDiff, InstallationStateSlotRequirement, InstallationStateSnapshot,
+    InstallationStateSnapshotEntry, InstallationUpdateRequest, InstallationView, StateDisposition,
+    UnavailableInstallationControl, INSTALLATION_STATE_AUTHORITY_EVIDENCE_MEDIA_TYPE,
+    INSTALLATION_STATE_AUTHORITY_EVIDENCE_SCHEMA, INSTALLATION_STATE_AUTHORITY_EVIDENCE_TYPE_URI,
+    INSTALLATION_STATE_OPERATION, INSTALLATION_STATE_RECEIPT_MEDIA_TYPE,
+    INSTALLATION_STATE_REPLACEMENT_DECISION_RECEIPT_SCHEMA,
+    INSTALLATION_STATE_REPLACEMENT_DECISION_RECEIPT_TYPE_URI,
+    INSTALLATION_STATE_RESET_RECEIPT_SCHEMA, INSTALLATION_STATE_RESET_RECEIPT_TYPE_URI,
+    INSTALLATION_STATE_SNAPSHOT_MEDIA_TYPE, INSTALLATION_STATE_SNAPSHOT_SCHEMA,
+    INSTALLATION_STATE_SNAPSHOT_TYPE_URI,
+};
+pub use installation_secret::{InstallationScopeContext, InstallationStoreSecretResolver};
 pub use object_store::{
     sha256_digest, FilesystemObjectStore, InMemoryObjectStore, ObjectInfo, ObjectStore,
     ObjectStoreError, ObjectStream, SHA256_DIGEST_PREFIX,
@@ -54,8 +74,6 @@ pub use plurora_core::{
     ProtocolImplementationClaim, ProtocolMaturity, ProtocolMigration, ProtocolMigrationKind,
     ProtocolSchemaKind, ProtocolSchemaReference, ProtocolSelection, PROTOCOL_DESCRIPTOR_TYPE_URI,
 };
-pub use project_registry::{ProjectEntry, ProjectRegistry};
-pub use project_secret::{ProjectScopeContext, ProjectStoreSecretResolver};
 pub use protocol::{
     host_info, method_ids, HostInfo, MethodStatus, PlatformMethod, ProtocolAuthorityContext,
     ProtocolContext, ProtocolError, ProtocolHostOperationContext, ProtocolMethod,
@@ -75,41 +93,44 @@ pub use redaction::{
     scan_value_for_raw_secrets, SecretDetection, SecretFinding, SecretScanResult,
 };
 pub use runtime::{
-    audit_world_bundle_archive, check_network_policy, content_address, is_secret_header_name,
-    is_static_header_allowed, legacy_content_address, replay_world_bundle_archive,
-    standard_asset_metadata, verify_world_bundle_archive, AppendEventRequest,
-    ArtifactCommitRequest, AssetGetResponse, AssetPutRequest, AuditPackageParams, BranchRecord,
-    CancelSignal, CapabilityReexecutionResult, DeclaredAuthority, DenyAllLocalExecExecutor,
+    audit_world_bundle_archive, check_network_policy, content_address, exact_artifact_upload,
+    is_secret_header_name, is_static_header_allowed, legacy_content_address,
+    replay_world_bundle_archive, standard_asset_metadata, verify_world_bundle_archive,
+    AppendEventRequest, ArtifactCommitRequest, AssetContentEncoding, AssetGetParams,
+    AssetGetResponse, AssetPutRequest, AuditPackageParams, BranchRecord, CancelSignal,
+    CapabilityReexecutionResult, DeclaredAuthority, DenyAllLocalExecExecutor,
     DenyAllOutboundExecutor, DenyAllWebSocketExecutor, DeploymentHealthEventPayload,
     DeploymentHealthProbe, DeploymentReconcileSource, DeploymentReconcileSummary,
-    EffectReplayResult, EmptyReconcileSource, EventListRequest, ExecCommand, ExecId,
-    ExecLifecyclePolicy, ExecRegistry, ExecResourceLimits, ExecStatus, ExecStatusKind,
+    EffectReplayResult, EmptyReconcileSource, EventListRequest, ExactArtifactUpload, ExecCommand,
+    ExecId, ExecLifecyclePolicy, ExecRegistry, ExecResourceLimits, ExecStatus, ExecStatusKind,
     ExecutionTarget, ExecutionTargetCapability, ExecutionTargetId, ExecutionTargetObservedSummary,
     ExecutionTargetReachability, ExecutionTargetRegistry, ExecutionTargetStatusKind, ExecutorKind,
     FakeLocalExecExecutor, FakeOutboundExecutor, FakeWebSocketExecutor, FrameDirection, FrameKind,
+    InstallationStateArtifactGetParams, InstallationStateArtifactGetResponse,
     LiveHttpOutboundExecutor, LiveHttpOutboundExecutorConfig, LiveLocalExecExecutor,
     LiveLocalExecExecutorConfig, LiveWebSocketExecutor, LiveWebSocketExecutorConfig,
     LiveWebSocketProfile, LocalExecExecutor, LocalExecExecutorConfig, LocalExecListResponse,
     LocalExecLogLine, LocalExecLogStream, LocalExecLogsRequest, LocalExecLogsResponse,
     LocalExecStartRequest, LocalExecStartResponse, LocalExecStatusRequest, LocalExecStatusResponse,
     LocalExecStopRequest, LocalExecStopResponse, ManagedContainerReport, NetworkPolicyDecision,
-    OpenSessionRequest, OutboundExecutePolicyConfig, OutboundExecutor, OutboundExecutorConfig,
-    OutboundExecutorRequest, OutboundExecutorResponse, OutboundFrameKind, OutboundRequest,
-    OutboundSecretHeaderSpec, OutboundStaticHeader, OutboundStreamFrame, OutboundStreamResponse,
-    OutboundStreamSummary, OutboundWebSocketFrame, OutboundWebSocketOpenRequest,
-    OutboundWebSocketSession, PackageAuditReport, PermissionGrantRecord, PortBindScope,
-    PortLeaseId, PortLeaseRecord, PortLeaseRegistry, PortLeaseRequest, PortLeaseResponse,
-    PortLeaseStatusKind, PortProtocol, ProjectionDefinition, ProposalApproval, ProposalOperation,
-    ProposalRecord, ProposalStatus, ProxyProtocol, ProxyRouteAccess, ProxyRouteId,
-    ProxyRouteRecord, ProxyRouteRegisterRequest, ProxyRouteRegisterResponse, ProxyRouteRegistry,
-    ProxyRouteStatusKind, ProxyRouteUpstream, ReadinessProbe, ReadinessProbeKind,
-    RedactedHeaderValue, ResolvedSecretHeader, Runtime, RuntimeConfig, SecretHeaderSpec,
-    SendStatus, SseEvent, SseParser, StaticHeader, StreamEmitter, StreamFormat, StreamRegistry,
-    StreamStartStatus, TighteningSuggestion, UnusedAuthority, UsedAuthority, WebSocketEvent,
-    WebSocketExecutor, WebSocketFramePayload, WorldBundleAuditReport, WorldBundleExportRequest,
-    WorldBundleImportResult, WorldBundleReceiptReplay, WorldBundleReplayResult,
-    WorldJournalSelection, ACTIVE_PROJECT_SCOPE, EFFECT_RECEIPT_MEDIA_TYPE,
-    EFFECT_VALUE_MEDIA_TYPE, GENERIC_BLOB_ARTIFACT_TYPE_URI, STATIC_HEADER_ALLOWLIST,
+    ObjectGetRequest, ObjectGetResponse, ObjectPutResponse, ObjectPutScope, OpenSessionRequest,
+    OutboundExecutePolicyConfig, OutboundExecutor, OutboundExecutorConfig, OutboundExecutorRequest,
+    OutboundExecutorResponse, OutboundFrameKind, OutboundRequest, OutboundSecretHeaderSpec,
+    OutboundStaticHeader, OutboundStreamFrame, OutboundStreamResponse, OutboundStreamSummary,
+    OutboundWebSocketFrame, OutboundWebSocketOpenRequest, OutboundWebSocketSession,
+    PackageAuditReport, PermissionGrantRecord, PortBindScope, PortLeaseId, PortLeaseRecord,
+    PortLeaseRegistry, PortLeaseRequest, PortLeaseResponse, PortLeaseStatusKind, PortProtocol,
+    ProjectionDefinition, ProposalApproval, ProposalOperation, ProposalRecord, ProposalStatus,
+    ProxyProtocol, ProxyRouteAccess, ProxyRouteId, ProxyRouteRecord, ProxyRouteRegisterRequest,
+    ProxyRouteRegisterResponse, ProxyRouteRegistry, ProxyRouteStatusKind, ProxyRouteUpstream,
+    ReadinessProbe, ReadinessProbeKind, RedactedHeaderValue, ResolvedSecretHeader, Runtime,
+    RuntimeConfig, SecretHeaderSpec, SendStatus, SseEvent, SseParser, StaticHeader, StreamEmitter,
+    StreamFormat, StreamRegistry, StreamStartStatus, TighteningSuggestion, UnusedAuthority,
+    UsedAuthority, WebSocketEvent, WebSocketExecutor, WebSocketFramePayload,
+    WorldBundleAuditReport, WorldBundleExportRequest, WorldBundleImportResult,
+    WorldBundleReceiptReplay, WorldBundleReplayResult, WorldJournalSelection,
+    ACTIVE_INSTALLATION_SCOPE, EFFECT_RECEIPT_MEDIA_TYPE, EFFECT_VALUE_MEDIA_TYPE,
+    GENERIC_BLOB_ARTIFACT_TYPE_URI, STATIC_HEADER_ALLOWLIST,
 };
 pub use schema::validate_json_schema_subset;
 pub use secret::{

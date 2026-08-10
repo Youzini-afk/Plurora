@@ -125,7 +125,7 @@ pub(crate) async fn asset_legacy_fnv_migration() -> anyhow::Result<()> {
         .record
         .descriptor
         .as_ref()
-        .ok_or_else(|| anyhow::anyhow!("migrated asset has no descriptor"))?;
+        .ok_or_else(|| anyhow::anyhow!("migrated Asset has no descriptor"))?;
     anyhow::ensure!(
         descriptor.annotations.get("legacy_asset_id") == Some(&json!(asset_id)),
         "legacy asset id was not preserved"
@@ -146,7 +146,7 @@ pub(crate) async fn asset_legacy_fnv_migration() -> anyhow::Result<()> {
         descriptor.annotations.get("legacy_event_session_id") == Some(&json!("legacy-session")),
         "legacy event session was not preserved"
     );
-    let migrated_digest = migrated.record.hash.clone();
+    let migrated_digest = descriptor.digest.clone();
 
     drop(runtime);
     let mut restarted_config = RuntimeConfig::default();
@@ -155,7 +155,11 @@ pub(crate) async fn asset_legacy_fnv_migration() -> anyhow::Result<()> {
     restarted.hydrate_substrate_from_events().await?;
     let migrated_again = restarted.get_asset(&asset_id).await?;
     anyhow::ensure!(
-        migrated_again.record.hash == migrated_digest,
+        migrated_again
+            .record
+            .descriptor
+            .as_ref()
+            .is_some_and(|descriptor| descriptor.digest == migrated_digest),
         "legacy migration was not restart-safe and idempotent"
     );
     anyhow::ensure!(

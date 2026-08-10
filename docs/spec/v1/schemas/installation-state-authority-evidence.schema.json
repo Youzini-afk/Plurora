@@ -1,0 +1,41 @@
+{
+  "$defs": {
+    "InstallationId": {
+      "format": "uuid",
+      "type": "string"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "action": {
+      "type": "string"
+    },
+    "expires_at_ms": {
+      "format": "int64",
+      "type": [
+        "integer",
+        "null"
+      ]
+    },
+    "grant_id": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "installation_id": {
+      "$ref": "#/$defs/InstallationId"
+    },
+    "schema": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "action",
+    "installation_id",
+    "schema"
+  ],
+  "title": "InstallationStateAuthorityEvidence",
+  "type": "object"
+}

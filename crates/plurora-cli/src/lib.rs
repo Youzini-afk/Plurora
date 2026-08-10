@@ -6,14 +6,14 @@ pub mod schema_export;
 pub mod templates;
 
 use cli::{
-    CapabilityCommand, Cli, Command, ConformanceCommand, HostAccessCommand, HostChangeCommand,
-    HostCommand, HostConnectionCommand, ManifestCommand, PackageCommand, PerfCommand,
-    TargetAgentCommand, WorldBundleCommand,
+    CapabilityCommand, Cli, Command, ConformanceCommand, HostAccessCommand, HostCommand,
+    HostConnectionCommand, ManifestCommand, PackageCommand, PerfCommand, TargetAgentCommand,
+    WorldBundleCommand,
 };
 use commands::audit;
 use commands::{
-    capability, conformance_package, demo, host, install as install_command, list_installed,
-    lockfile, manifest, package, perf, project, uninstall, update, world_bundle,
+    capability, conformance_package, demo, host, installation, manifest, package, perf,
+    world_bundle,
 };
 
 pub async fn run_cli(cli: Cli) -> anyhow::Result<()> {
@@ -56,8 +56,14 @@ pub async fn run_cli(cli: Cli) -> anyhow::Result<()> {
                     HostAccessCommand::Pair {
                         device_name,
                         scopes,
-                        projects,
+                        works,
+                        workspaces,
+                        installations,
+                        runs,
                         targets,
+                        exposures,
+                        bindings,
+                        realizations,
                         grant_days,
                     } => {
                         commands::host_access::pair(
@@ -65,8 +71,14 @@ pub async fn run_cli(cli: Cli) -> anyhow::Result<()> {
                             &access_token,
                             device_name,
                             scopes,
-                            projects,
+                            works,
+                            workspaces,
+                            installations,
+                            runs,
                             targets,
+                            exposures,
+                            bindings,
+                            realizations,
                             grant_days,
                         )
                         .await
@@ -83,24 +95,8 @@ pub async fn run_cli(cli: Cli) -> anyhow::Result<()> {
                         )
                         .await
                     }
-                    HostAccessCommand::Projects => {
-                        commands::host_access::projects(&context.endpoint, &access_token).await
-                    }
                     HostAccessCommand::Targets => {
                         commands::host_access::targets(&context.endpoint, &access_token).await
-                    }
-                    HostAccessCommand::ProjectStatus { project } => {
-                        let project_id = project.or(context.project_id).ok_or_else(|| {
-                        anyhow::anyhow!(
-                            "project id is required; pass --project or select `host connection context`"
-                        )
-                    })?;
-                        commands::host_access::project_status(
-                            &context.endpoint,
-                            &access_token,
-                            &project_id,
-                        )
-                        .await
                     }
                     HostAccessCommand::TargetStatus { target } => {
                         let target_id = target.or(context.target_id).ok_or_else(|| {
@@ -115,96 +111,6 @@ pub async fn run_cli(cli: Cli) -> anyhow::Result<()> {
                         )
                         .await
                     }
-                    HostAccessCommand::Changes { project, command } => {
-                        let project_id = project.or(context.project_id).ok_or_else(|| {
-                            anyhow::anyhow!(
-                                "project id is required; pass --project or select `host connection context`"
-                            )
-                        })?;
-                        match command {
-                            HostChangeCommand::List => {
-                                commands::host_changes::list(
-                                    &context.endpoint,
-                                    &access_token,
-                                    &project_id,
-                                )
-                                .await
-                            }
-                            HostChangeCommand::Get { change_set_id } => {
-                                commands::host_changes::get(
-                                    &context.endpoint,
-                                    &access_token,
-                                    &project_id,
-                                    &change_set_id,
-                                )
-                                .await
-                            }
-                            HostChangeCommand::Draft { request } => {
-                                commands::host_changes::draft(
-                                    &context.endpoint,
-                                    &access_token,
-                                    &project_id,
-                                    &request,
-                                )
-                                .await
-                            }
-                            HostChangeCommand::Approve {
-                                change_set_id,
-                                reason,
-                            } => {
-                                commands::host_changes::decide(
-                                    &context.endpoint,
-                                    &access_token,
-                                    &project_id,
-                                    &change_set_id,
-                                    true,
-                                    reason,
-                                )
-                                .await
-                            }
-                            HostChangeCommand::Reject {
-                                change_set_id,
-                                reason,
-                            } => {
-                                commands::host_changes::decide(
-                                    &context.endpoint,
-                                    &access_token,
-                                    &project_id,
-                                    &change_set_id,
-                                    false,
-                                    reason,
-                                )
-                                .await
-                            }
-                            HostChangeCommand::Execute { change_set_id } => {
-                                commands::host_changes::execute(
-                                    &context.endpoint,
-                                    &access_token,
-                                    &project_id,
-                                    &change_set_id,
-                                )
-                                .await
-                            }
-                            HostChangeCommand::Recover { change_set_id } => {
-                                commands::host_changes::recover(
-                                    &context.endpoint,
-                                    &access_token,
-                                    &project_id,
-                                    &change_set_id,
-                                )
-                                .await
-                            }
-                            HostChangeCommand::Bundle { change_set_id } => {
-                                commands::host_changes::bundle(
-                                    &context.endpoint,
-                                    &access_token,
-                                    &project_id,
-                                    &change_set_id,
-                                )
-                                .await
-                            }
-                        }
-                    }
                 }
             }
             HostCommand::Connection { command } => match command {
@@ -215,9 +121,10 @@ pub async fn run_cli(cli: Cli) -> anyhow::Result<()> {
                 HostConnectionCommand::Use { name } => commands::host_connection::select(&name),
                 HostConnectionCommand::Local => commands::host_connection::local(),
                 HostConnectionCommand::Remove { name } => commands::host_connection::remove(&name),
-                HostConnectionCommand::Context { project, target } => {
-                    commands::host_connection::set_context(&project, &target)
-                }
+                HostConnectionCommand::Context {
+                    installation,
+                    target,
+                } => commands::host_connection::set_context(&installation, &target),
                 HostConnectionCommand::ClearContext => commands::host_connection::clear_context(),
             },
             HostCommand::Backup {
@@ -268,13 +175,8 @@ pub async fn run_cli(cli: Cli) -> anyhow::Result<()> {
             } => capability::capability_invoke(manifest, capability_id, input).await,
         },
         Command::Audit(args) => audit::run(args).await,
-        Command::Install(args) => install_command::run(args).await,
-        Command::Uninstall(args) => uninstall::run(args).await,
-        Command::Project(args) => project::run(args).await,
+        Command::Installation(args) => installation::run(args).await,
         Command::Work(args) => commands::work::run(args).await,
-        Command::ListInstalled(args) => list_installed::run(args).await,
-        Command::Update(args) => update::run(args).await,
-        Command::Lockfile(args) => lockfile::run(args).await,
         Command::InitPackage {
             path,
             id,

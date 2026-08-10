@@ -1,3 +1,14 @@
+import type {
+  ArtifactDescriptor,
+  HostInstallationListResult,
+  InstallationCreateRequest,
+  InstallationMutationResult,
+  InstallationRemoveRequest,
+  InstallationStatus,
+  InstallationUpdateRequest,
+  InstallationView,
+} from "./generated-types";
+
 export interface ProtocolResponse<T = unknown> {
   id: string;
   result?: T;
@@ -94,7 +105,7 @@ export interface InstallSource {
 export interface InstallPlan {
   root_id: string;
   packages: InstallPlannedPackage[];
-  project_descriptor?: unknown;
+  installation_descriptor?: unknown;
   permissions_summary: InstallPermissionsSummary;
   signature_summary: InstallSignatureSummary;
   integrity_summary: InstallIntegritySummary;
@@ -159,20 +170,20 @@ export interface InstallConsent {
 export interface InstallExecuteResult {
   installed: Array<{ id: string }>;
   lockfile: string;
-  project?: { project_id?: string } | null;
+  installation?: { installation_id?: string } | null;
 }
 
 export interface InstallUninstallResult {
   removed_from_profile: boolean;
   store_path_orphaned?: string | null;
   store_paths_orphaned?: string[];
-  project?: { project_id: string; data_action: string } | null;
+  installation?: { installation_id: string; data_action: string } | null;
 }
 
 export interface UpdateCheckRecord {
   id?: string;
   package_id?: string;
-  project_id?: string | null;
+  installation_id?: string | null;
   source_kind?: string;
   applicable?: boolean;
   status?: string;
@@ -190,7 +201,7 @@ export interface UpdateCheckResult {
   results: UpdateCheckRecord[];
 }
 
-export interface ProjectUpdateResult {
+export interface InstallationUpdateResult {
   status?: string;
   updated?: boolean;
   updated_packages?: string[];
@@ -205,10 +216,6 @@ const DOCKER_RUNTIME_LAB_PROVIDER = "plurora/docker-runtime-lab";
 const INSTALL_LAB_CAPABILITIES = {
   resolvePlan: `${INSTALL_LAB_PROVIDER}/resolve_plan`,
   detectKind: `${INSTALL_LAB_PROVIDER}/detect_kind`,
-  executePlan: `${INSTALL_LAB_PROVIDER}/execute_plan`,
-  uninstall: `${INSTALL_LAB_PROVIDER}/uninstall`,
-  checkForUpdates: `${INSTALL_LAB_PROVIDER}/check_for_updates`,
-  updateProject: `${INSTALL_LAB_PROVIDER}/update_project`,
 } as const;
 const DOCKER_RUNTIME_LAB_CAPABILITIES = {
   startContainer: `${DOCKER_RUNTIME_LAB_PROVIDER}/start_container`,
@@ -319,14 +326,56 @@ export interface AssetRecord {
   descriptor?: ArtifactDescriptor | null;
 }
 
-export interface ArtifactDescriptor {
-  artifact_type_uri: string;
-  media_type: string;
-  digest: string;
-  size_bytes: number;
-  references?: string[];
-  annotations?: Record<string, unknown>;
-}
+export type {
+  AcquisitionKind,
+  AcquisitionRecord,
+  ArtifactDescriptor,
+  HostInstallationListResult,
+  InstallationChangeForArtifactDescriptor,
+  InstallationChangeForAssemblyBinding,
+  InstallationChangeForAssemblyNode,
+  InstallationChangeForAssemblyPortExposure,
+  InstallationChangeForBindingLock,
+  InstallationChangeForNodeLock,
+  InstallationChangeForProtocolProfilePin,
+  InstallationChangeForWorkEntrypoint,
+  InstallationCreateRequest,
+  InstallationDiff,
+  InstallationId,
+  InstallationItemDiffForArtifactDescriptor,
+  InstallationItemDiffForAssemblyBinding,
+  InstallationItemDiffForAssemblyNode,
+  InstallationItemDiffForAssemblyPortExposure,
+  InstallationItemDiffForBindingLock,
+  InstallationItemDiffForNodeLock,
+  InstallationItemDiffForProtocolProfilePin,
+  InstallationItemDiffForWorkEntrypoint,
+  InstallationMutationResult,
+  InstallationRecord,
+  InstallationRemoveRequest,
+  InstallationRollbackPointer,
+  InstallationSecretPolicy,
+  InstallationStateAction,
+  InstallationStateAuthorityEvidence,
+  InstallationStateDecision,
+  InstallationStateDecisionAction,
+  InstallationStateDecisionReceipt,
+  InstallationStateSnapshot,
+  InstallationStateSnapshotEntry,
+  InstallationStateSlotChange,
+  InstallationStateSlotDiff,
+  InstallationStateSlotRequirement,
+  InstallationStatus,
+  InstallationUpdateRequest,
+  InstallationView,
+  StateAction,
+  StateActionKind,
+  StateBindingKind,
+  StateBindingRecord,
+  StateDisposition,
+  StateSlotId,
+  WorkId,
+} from "./generated-types";
 
 export interface ProjectionRecord {
   id: string;
@@ -346,7 +395,7 @@ export interface ProposalRecord {
   result?: unknown;
 }
 
-export interface ProjectStorageSummary {
+export interface InstallationStorageSummary {
   data_bytes: number | null;
   cache_bytes: number | null;
   bundle_bytes: number | null;
@@ -354,20 +403,6 @@ export interface ProjectStorageSummary {
   total_bytes: number | null;
   measured_at: string | null;
   measurement_state: "measured" | "unknown" | string;
-}
-
-export interface ProjectRecord {
-  id: string;
-  title: string;
-  description?: string;
-  type: "plurora_native" | "external_wrapped" | "external_workspace";
-  state: "installed" | "stopped" | "starting" | "running" | "stopping" | "failed" | "archived";
-  icon?: string;
-  entry_surface_id?: string;
-  running_session_id?: string;
-  storage_summary?: ProjectStorageSummary;
-  packages?: string[];
-  metadata?: Record<string, unknown>;
 }
 
 export interface PortLeaseRequest {
@@ -436,8 +471,8 @@ export interface DockerStopContainerOutput {
   reason?: string;
 }
 
-export interface HostDeployProjectInput {
-  project_id: string;
+export interface HostDeployInstallationInput {
+  installation_id: string;
   image: string;
   container_port: number;
   port_name: string;
@@ -447,7 +482,7 @@ export interface HostDeployProjectInput {
   pull_if_missing: boolean;
 }
 
-export interface HostDeployProjectOutput {
+export interface HostDeployInstallationOutput {
   route_id: string;
   route_access: "host_authenticated" | "public";
   public_url: string;
@@ -456,7 +491,7 @@ export interface HostDeployProjectOutput {
   container_name?: string | null;
 }
 
-export interface HostStopProjectDeploymentOutput {
+export interface HostStopInstallationDeploymentOutput {
   route_id: string;
   stopped: boolean;
   warnings: string[];
@@ -481,7 +516,7 @@ export interface RuntimeMountSpec {
 }
 
 export interface HostBuildDeployRequest {
-  project_id: string;
+  installation_id: string;
   source_url: string;
   ref_name: string;
   strategy?: BuildDeployStrategy;
@@ -514,6 +549,7 @@ export interface RuntimeMountSummary {
 }
 
 export interface HostBuildDeployResult {
+  workspace_id: string;
   route_id: string;
   route_access: "host_authenticated" | "public";
   public_url: string;
@@ -539,7 +575,7 @@ export interface BuildDeployJobSubmitResponse {
 
 export interface BuildDeployJobStatusResponse {
   job_id: string;
-  project_id: string;
+  installation_id: string;
   route_id: string;
   build_id?: string | null;
   state: BuildDeployJobState;
@@ -576,7 +612,8 @@ export interface PersistedRuntimeEnvSpec {
 
 export interface DeploymentRevision {
   revision_id: string;
-  project_id: string;
+  installation_id: string;
+  workspace_id: string;
   job_id?: string | null;
   operation: DeploymentOperation;
   parent_revision_id?: string | null;
@@ -609,8 +646,8 @@ export interface DeploymentRevision {
   receipt: HostBuildDeployResult;
 }
 
-export interface ProjectDeploymentsResponse {
-  project_id: string;
+export interface InstallationDeploymentsResponse {
+  installation_id: string;
   active_revision_id?: string | null;
   active_revision?: DeploymentRevision | null;
   recovery_required: boolean;
@@ -702,6 +739,7 @@ export interface DevelopmentDeploymentRecord {
   deployment_id: string;
   status: DevelopmentDeploymentStatus;
   target_id: string;
+  workspace_id: string;
   source_tree_digest: string;
   verification_ref: ArtifactDescriptor;
   build_context_ref: ArtifactDescriptor;
@@ -748,7 +786,10 @@ export interface DevelopmentApprovalDecision {
 export interface DevelopmentChangeRecord {
   schema_version: number;
   revision: number;
-  project_id: string;
+  subject?: { kind: "installation"; installation_id: string } | { kind: "workspace"; workspace_id: string };
+  installation_id?: string;
+  workspace_id?: string;
+  target_installation_id?: string;
   workspace_ownership: DevelopmentWorkspaceOwnership;
   intent: { id: string; goal: unknown; created_at: string } & Record<string, unknown>;
   intent_ref: ArtifactDescriptor;
@@ -794,7 +835,7 @@ export interface DevelopmentExecuteResponse {
 
 export interface DevelopmentPatchBundle {
   schema_version: number;
-  project_id: string;
+  installation_id: string;
   change_set_id: string;
   base_tree_digest: string;
   operations: Array<
@@ -835,7 +876,7 @@ export interface TargetOperationAuthority {
   target_id: string;
   operation_id: string;
   step_id: string;
-  project_id: string;
+  installation_id: string;
   effect: TargetOperationKind;
   artifact_digests: string[];
   lease_epoch: number;
@@ -863,7 +904,7 @@ export interface TargetOperationReceipt {
 export interface TargetOperationRecord {
   operation_id: string;
   target_id: string;
-  project_id: string;
+  installation_id: string;
   revision: number;
   status: TargetOperationStatus;
   execution_id?: string | null;
@@ -939,8 +980,8 @@ export class PluroraProtocolClient {
     this.accessToken = accessToken === undefined ? resolveBrowserAccessToken() : accessToken || undefined;
   }
 
-  invoke(method: string, params: unknown = {}) {
-    return this.call(method, params);
+  invoke<T = unknown>(method: string, params: unknown = {}): Promise<T> {
+    return this.call<T>(method, params);
   }
 
   async invokeWithSession(method: string, params: unknown = {}, sessionId: string): Promise<unknown> {
@@ -1104,62 +1145,25 @@ export class PluroraProtocolClient {
     return this.call<SurfaceContributionRecord>("shell.contribution.describe", { surface_id: surfaceId });
   }
 
-  async listProjects(): Promise<ProjectRecord[]> {
-    const result = await this.invoke("host.project.list", {});
-    return (result as { projects: ProjectRecord[] }).projects;
+  async listInstallations(status?: InstallationStatus): Promise<InstallationView[]> {
+    const result = await this.invoke<HostInstallationListResult>("host.installation.list", status ? { status } : {});
+    return result;
   }
 
-  async getProject(projectId: string): Promise<ProjectRecord & { state_details?: Record<string, unknown>; packages?: string[] }> {
-    const result = await this.invoke("host.project.get", { project_id: projectId });
-    const descriptor = result as {
-      project?: Omit<ProjectRecord, "type" | "state" | "storage_summary"> & { type?: ProjectRecord["type"]; packages?: string[] };
-      state?: ProjectRecord["state"];
-      running_session_id?: string;
-      storage_summary?: ProjectStorageSummary;
-    };
-    return {
-      ...(descriptor.project as ProjectRecord),
-      state: descriptor.state ?? "installed",
-      running_session_id: descriptor.running_session_id,
-      storage_summary: descriptor.storage_summary,
-      packages: descriptor.project?.packages,
-    };
+  getInstallation(installationId: string): Promise<InstallationView> {
+    return this.invoke<InstallationView>("host.installation.get", { installation_id: installationId });
   }
 
-  async startProject(projectId: string): Promise<{
-    project_id: string;
-    previous_state: string;
-    new_state: string;
-    session_id: string;
-    already_running: boolean;
-  }> {
-    return await this.invoke("host.project.start", { project_id: projectId }) as {
-      project_id: string;
-      previous_state: string;
-      new_state: string;
-      session_id: string;
-      already_running: boolean;
-    };
+  createInstallation(input: InstallationCreateRequest): Promise<InstallationMutationResult> {
+    return this.invoke<InstallationMutationResult>("host.installation.create", input);
   }
 
-  async stopProject(projectId: string): Promise<{ project_id: string; previous_state: string; new_state: string; session_id?: string }> {
-    return await this.invoke("host.project.stop", { project_id: projectId }) as { project_id: string; previous_state: string; new_state: string; session_id?: string };
+  updateInstallation(input: InstallationUpdateRequest): Promise<InstallationMutationResult> {
+    return this.invoke<InstallationMutationResult>("host.installation.update", input);
   }
 
-  async getProjectStatus(projectId: string): Promise<{
-    project_id: string;
-    state: string;
-    sessions_count: number;
-    secrets_count: number;
-    storage_summary?: ProjectStorageSummary;
-  }> {
-    return await this.invoke("host.project.status", { project_id: projectId }) as {
-      project_id: string;
-      state: string;
-      sessions_count: number;
-      secrets_count: number;
-      storage_summary?: ProjectStorageSummary;
-    };
+  removeInstallation(input: InstallationRemoveRequest): Promise<InstallationMutationResult> {
+    return this.invoke<InstallationMutationResult>("host.installation.remove", input);
   }
 
   openSession(labels: string[] = [], metadata: Record<string, unknown> = {}, activePackageSet: string[] = []) {
@@ -1218,15 +1222,15 @@ export class PluroraProtocolClient {
     return await this.invokeDockerRuntimeLab<DockerStopContainerOutput>(DOCKER_RUNTIME_LAB_CAPABILITIES.stopContainer, input);
   }
 
-  deployProject(input: HostDeployProjectInput): Promise<HostDeployProjectOutput> {
+  deployInstallation(input: HostDeployInstallationInput): Promise<HostDeployInstallationOutput> {
     return this.fetchHostJson("/host/v1/deploy", input);
   }
 
-  stopProjectDeployment(input: { route_id: string }): Promise<HostStopProjectDeploymentOutput> {
+  stopInstallationDeployment(input: { route_id: string }): Promise<HostStopInstallationDeploymentOutput> {
     return this.fetchHostJson("/host/v1/deploy/stop", input);
   }
 
-  buildDeployProject(input: HostBuildDeployRequest, options: { wait?: boolean } = {}): Promise<BuildDeployJobSubmitResponse | BuildDeployJobStatusResponse> {
+  buildDeployInstallation(input: HostBuildDeployRequest, options: { wait?: boolean } = {}): Promise<BuildDeployJobSubmitResponse | BuildDeployJobStatusResponse> {
     const suffix = options.wait ? "?wait=true" : "";
     return this.fetchHostJson(`/host/v1/build-deploy${suffix}`, input);
   }
@@ -1239,83 +1243,83 @@ export class PluroraProtocolClient {
     return this.fetchHostJson(`/host/v1/build-deploy/${encodeURIComponent(jobId)}/cancel`, {});
   }
 
-  getProjectDeployments(projectId: string): Promise<ProjectDeploymentsResponse> {
-    return this.fetchHostGetJson(`/host/v1/projects/${encodeURIComponent(projectId)}/deployments`);
+  getInstallationDeployments(installationId: string): Promise<InstallationDeploymentsResponse> {
+    return this.fetchHostGetJson(`/host/v1/installations/${encodeURIComponent(installationId)}/deployments`);
   }
 
-  recoverProjectDeployment(projectId: string): Promise<DeploymentActionResponse> {
-    return this.fetchHostJson(`/host/v1/projects/${encodeURIComponent(projectId)}/deployments/recover`, {});
+  recoverInstallationDeployment(installationId: string): Promise<DeploymentActionResponse> {
+    return this.fetchHostJson(`/host/v1/installations/${encodeURIComponent(installationId)}/deployments/recover`, {});
   }
 
-  rollbackProjectDeployment(projectId: string, revisionId: string): Promise<DeploymentActionResponse> {
-    return this.fetchHostJson(`/host/v1/projects/${encodeURIComponent(projectId)}/deployments/rollback`, {
+  rollbackInstallationDeployment(installationId: string, revisionId: string): Promise<DeploymentActionResponse> {
+    return this.fetchHostJson(`/host/v1/installations/${encodeURIComponent(installationId)}/deployments/rollback`, {
       revision_id: revisionId,
     });
   }
 
-  listProjectChanges(projectId: string): Promise<DevelopmentChangeListResponse> {
-    return this.fetchHostGetJson(`/host/v1/projects/${encodeURIComponent(projectId)}/changes`);
+  listInstallationChanges(installationId: string): Promise<DevelopmentChangeListResponse> {
+    return this.fetchHostGetJson(`/host/v1/installations/${encodeURIComponent(installationId)}/changes`);
   }
 
-  getProjectChange(projectId: string, changeSetId: string): Promise<DevelopmentChangeRecord> {
-    return this.fetchHostGetJson(`/host/v1/projects/${encodeURIComponent(projectId)}/changes/${encodeURIComponent(changeSetId)}`);
+  getInstallationChange(installationId: string, changeSetId: string): Promise<DevelopmentChangeRecord> {
+    return this.fetchHostGetJson(`/host/v1/installations/${encodeURIComponent(installationId)}/changes/${encodeURIComponent(changeSetId)}`);
   }
 
-  getProjectChangeBundle(projectId: string, changeSetId: string): Promise<DevelopmentPatchBundle> {
-    return this.fetchHostGetJson(`/host/v1/projects/${encodeURIComponent(projectId)}/changes/${encodeURIComponent(changeSetId)}/bundle`);
+  getInstallationChangeBundle(installationId: string, changeSetId: string): Promise<DevelopmentPatchBundle> {
+    return this.fetchHostGetJson(`/host/v1/installations/${encodeURIComponent(installationId)}/changes/${encodeURIComponent(changeSetId)}/bundle`);
   }
 
-  draftProjectChange(projectId: string, input: DevelopmentDraftRequest): Promise<DevelopmentChangeRecord> {
-    return this.fetchHostJson(`/host/v1/projects/${encodeURIComponent(projectId)}/changes`, input);
+  draftInstallationChange(installationId: string, input: DevelopmentDraftRequest): Promise<DevelopmentChangeRecord> {
+    return this.fetchHostJson(`/host/v1/installations/${encodeURIComponent(installationId)}/changes`, input);
   }
 
-  approveProjectChange(projectId: string, changeSetId: string, approved: boolean, reason?: string): Promise<DevelopmentChangeRecord> {
-    return this.fetchHostJson(`/host/v1/projects/${encodeURIComponent(projectId)}/changes/${encodeURIComponent(changeSetId)}/approve`, {
+  approveInstallationChange(installationId: string, changeSetId: string, approved: boolean, reason?: string): Promise<DevelopmentChangeRecord> {
+    return this.fetchHostJson(`/host/v1/installations/${encodeURIComponent(installationId)}/changes/${encodeURIComponent(changeSetId)}/approve`, {
       approved,
       ...(reason ? { reason } : {}),
     });
   }
 
-  executeProjectChange(projectId: string, changeSetId: string): Promise<DevelopmentExecuteResponse> {
-    return this.fetchHostJson(`/host/v1/projects/${encodeURIComponent(projectId)}/changes/${encodeURIComponent(changeSetId)}/execute`, {});
+  executeInstallationChange(installationId: string, changeSetId: string): Promise<DevelopmentExecuteResponse> {
+    return this.fetchHostJson(`/host/v1/installations/${encodeURIComponent(installationId)}/changes/${encodeURIComponent(changeSetId)}/execute`, {});
   }
 
-  recoverProjectChange(projectId: string, changeSetId: string): Promise<DevelopmentChangeRecord> {
-    return this.fetchHostJson(`/host/v1/projects/${encodeURIComponent(projectId)}/changes/${encodeURIComponent(changeSetId)}/recover`, {});
+  recoverInstallationChange(installationId: string, changeSetId: string): Promise<DevelopmentChangeRecord> {
+    return this.fetchHostJson(`/host/v1/installations/${encodeURIComponent(installationId)}/changes/${encodeURIComponent(changeSetId)}/recover`, {});
   }
 
-  createProjectDeploymentPreview(
-    projectId: string,
+  createInstallationDeploymentPreview(
+    installationId: string,
     changeSetId: string,
     input: DevelopmentDeploymentPreviewRequest,
   ): Promise<DevelopmentChangeRecord> {
     return this.fetchHostJson(
-      `/host/v1/projects/${encodeURIComponent(projectId)}/changes/${encodeURIComponent(changeSetId)}/deployment/preview`,
+      `/host/v1/installations/${encodeURIComponent(installationId)}/changes/${encodeURIComponent(changeSetId)}/deployment/preview`,
       input,
     );
   }
 
-  approveProjectDeployment(
-    projectId: string,
+  approveInstallationDeployment(
+    installationId: string,
     changeSetId: string,
     input: DevelopmentDeploymentApprovalRequest,
   ): Promise<DevelopmentChangeRecord> {
     return this.fetchHostJson(
-      `/host/v1/projects/${encodeURIComponent(projectId)}/changes/${encodeURIComponent(changeSetId)}/deployment/approve`,
+      `/host/v1/installations/${encodeURIComponent(installationId)}/changes/${encodeURIComponent(changeSetId)}/deployment/approve`,
       input,
     );
   }
 
-  activateProjectDeployment(projectId: string, changeSetId: string): Promise<DevelopmentChangeRecord> {
+  activateInstallationDeployment(installationId: string, changeSetId: string): Promise<DevelopmentChangeRecord> {
     return this.fetchHostJson(
-      `/host/v1/projects/${encodeURIComponent(projectId)}/changes/${encodeURIComponent(changeSetId)}/deployment/activate`,
+      `/host/v1/installations/${encodeURIComponent(installationId)}/changes/${encodeURIComponent(changeSetId)}/deployment/activate`,
       {},
     );
   }
 
-  reconcileProjectDeployment(projectId: string, changeSetId: string): Promise<DevelopmentChangeRecord> {
+  reconcileInstallationDeployment(installationId: string, changeSetId: string): Promise<DevelopmentChangeRecord> {
     return this.fetchHostJson(
-      `/host/v1/projects/${encodeURIComponent(projectId)}/changes/${encodeURIComponent(changeSetId)}/deployment/reconcile`,
+      `/host/v1/installations/${encodeURIComponent(installationId)}/changes/${encodeURIComponent(changeSetId)}/deployment/reconcile`,
       {},
     );
   }
@@ -1354,51 +1358,12 @@ export class PluroraProtocolClient {
     });
   }
 
-  async executeInstallPlan(
-    plan: InstallPlan,
-    consent: InstallConsent = {
-      approved_capabilities: plan.permissions_summary.new_capabilities,
-      approved_network_hosts: plan.permissions_summary.new_network_hosts,
-      approved_secret_refs: plan.permissions_summary.new_secret_refs,
-    },
-    profile = resolveManagedProfile(),
-  ): Promise<InstallExecuteResult> {
-    return await this.invokeInstallLab<InstallExecuteResult>(INSTALL_LAB_CAPABILITIES.executePlan, {
-      plan,
-      consent,
-      profile,
-    });
-  }
-
-  async uninstallProject(projectId: string, profile = resolveManagedProfile()): Promise<InstallUninstallResult> {
-    return await this.invokeInstallLab<InstallUninstallResult>(INSTALL_LAB_CAPABILITIES.uninstall, {
-      project_id: projectId,
-      profile,
-      delete_project_data: false,
-    });
-  }
-
-  async checkProjectUpdates(projectId: string, profile = resolveManagedProfile()): Promise<UpdateCheckResult> {
-    return await this.invokeInstallLab<UpdateCheckResult>(INSTALL_LAB_CAPABILITIES.checkForUpdates, {
-      project_id: projectId,
-      profile,
-    });
-  }
-
-  async updateProject(projectId: string, profile = resolveManagedProfile(), force = false): Promise<ProjectUpdateResult> {
-    return await this.invokeInstallLab<ProjectUpdateResult>(INSTALL_LAB_CAPABILITIES.updateProject, {
-      project_id: projectId,
-      profile,
-      force,
-    });
-  }
-
   listEvents(sessionId: string) {
     return this.call<PlatformEvent[]>("journal.list", { session_id: sessionId, limit: 50 });
   }
 
   subscribeEvents(sessionId: string | undefined, onEvent: (event: PlatformEvent) => void) {
-    const targetSession = sessionId ?? "host_project_lifecycle";
+    const targetSession = sessionId ?? "host_installation_lifecycle";
     const source = new EventSource(this.eventSubscribeUrl(targetSession));
     source.addEventListener("journal.event", (message) => onEvent(JSON.parse((message as MessageEvent).data)));
     return () => source.close();
@@ -1495,10 +1460,10 @@ export class PluroraProtocolClient {
     }>("plurora/secret-store-lab/health", {})).output;
   }
 
-  async listSecrets(projectId?: string): Promise<string[]> {
-    if (projectId) {
-      const result = (await this.invokeCapability<{ names: string[] }>("plurora/secret-store-lab/list_project_secrets", {
-        project_id: projectId,
+  async listSecrets(installationId?: string): Promise<string[]> {
+    if (installationId) {
+      const result = (await this.invokeCapability<{ names: string[] }>("plurora/secret-store-lab/list_installation_secrets", {
+        installation_id: installationId,
       })).output;
       return result.names ?? [];
     }
@@ -1506,20 +1471,20 @@ export class PluroraProtocolClient {
     return result.names ?? [];
   }
 
-  async putSecret(name: string, value: string, projectId?: string): Promise<{ created: boolean }> {
-    const capability = projectId
-      ? "plurora/secret-store-lab/put_project_secret"
+  async putSecret(name: string, value: string, installationId?: string): Promise<{ created: boolean }> {
+    const capability = installationId
+      ? "plurora/secret-store-lab/put_installation_secret"
       : "plurora/secret-store-lab/put_secret";
-    const params = projectId ? { project_id: projectId, name, value } : { name, value };
+    const params = installationId ? { installation_id: installationId, name, value } : { name, value };
     const result = (await this.invokeCapability<{ created: boolean }>(capability, params)).output;
     return { created: result.created };
   }
 
-  async deleteSecret(name: string, projectId?: string): Promise<{ removed: boolean }> {
-    const capability = projectId
-      ? "plurora/secret-store-lab/delete_project_secret"
+  async deleteSecret(name: string, installationId?: string): Promise<{ removed: boolean }> {
+    const capability = installationId
+      ? "plurora/secret-store-lab/delete_installation_secret"
       : "plurora/secret-store-lab/delete_secret";
-    const params = projectId ? { project_id: projectId, name } : { name };
+    const params = installationId ? { installation_id: installationId, name } : { name };
     const result = (await this.invokeCapability<{ removed: boolean }>(capability, params)).output;
     return { removed: result.removed };
   }

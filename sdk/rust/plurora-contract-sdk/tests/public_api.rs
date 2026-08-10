@@ -4,9 +4,9 @@ use anyhow::Result;
 use async_trait::async_trait;
 use futures::Stream;
 use plurora_contract_sdk::{
-    AppendEventRequest, AssetGetParams, ContractOwnerLayer, ContractSelection,
-    ContractVersionRequirement, EmptyParams, InstallationRecordSchemaVersion, PluroraClient,
-    PluroraTransport, ProtocolDescriptor, ProtocolSelection, WorkId, WorkRevision,
+    AppendEventRequest, ContractOwnerLayer, ContractSelection, ContractVersionRequirement,
+    EmptyParams, InstallationRecordSchemaVersion, ObjectGetRequest, ObjectGetResponse,
+    PluroraClient, PluroraTransport, ProtocolDescriptor, ProtocolSelection, WorkId, WorkRevision,
     WorkRevisionSchema, OBJECT_PUT,
 };
 
@@ -60,7 +60,7 @@ fn host_info_json() -> serde_json::Value {
     })
 }
 
-fn generated_method_is_available(client: &PluroraClient, params: AssetGetParams) {
+fn generated_method_is_available(client: &PluroraClient, params: ObjectGetRequest) {
     let _future = client.object_get(params);
 }
 
@@ -99,6 +99,43 @@ fn generated_work_discriminators_reject_unknown_values() {
     assert!(
         serde_json::from_value::<InstallationRecordSchemaVersion>(serde_json::json!(1)).is_ok()
     );
+}
+
+#[test]
+fn generated_object_get_preserves_asset_wire_and_accepts_state_audit_shape() {
+    let asset_request = serde_json::json!({"asset_id": "ast_ordinary"});
+    let parsed: ObjectGetRequest = serde_json::from_value(asset_request.clone()).unwrap();
+    assert_eq!(serde_json::to_value(parsed).unwrap(), asset_request);
+    assert!(serde_json::from_value::<ObjectGetRequest>(
+        serde_json::json!({"kind": "asset", "asset_id": "ast_ordinary"})
+    )
+    .is_err());
+
+    let state_request = serde_json::json!({
+        "installation_state_artifact": {
+            "artifact_type_uri": "urn:plurora:installation-state-reset-receipt:v1",
+            "media_type": "application/vnd.plurora.installation-state-receipt+json",
+            "digest": format!("sha256:{}", "a".repeat(64)),
+            "size_bytes": 1
+        }
+    });
+    let parsed: ObjectGetRequest = serde_json::from_value(state_request.clone()).unwrap();
+    assert_eq!(serde_json::to_value(parsed).unwrap(), state_request);
+
+    let asset_response = serde_json::json!({
+        "record": {
+            "id": "ast_ordinary",
+            "origin_package_id": "plurora/platform-runtime",
+            "mime": "text/plain",
+            "hash": format!("sha256:{}", "b".repeat(64)),
+            "size_bytes": 7,
+            "created_at": "2026-08-10T00:00:00Z",
+            "metadata": null
+        },
+        "content": "ordinary"
+    });
+    let parsed: ObjectGetResponse = serde_json::from_value(asset_response.clone()).unwrap();
+    assert_eq!(serde_json::to_value(parsed).unwrap(), asset_response);
 }
 
 #[test]

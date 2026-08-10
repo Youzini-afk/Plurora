@@ -14,7 +14,7 @@ export function StoragePanel() {
     (diagnostics.data as { event_store?: { kind?: string } } | null)?.event_store?.kind ?? "sqlite";
 
   const storageAreas = [
-    { label: t("storageAreaProjectData"), description: t("storageAreaProjectDataDesc") },
+    { label: t("storageAreaInstallationData"), description: t("storageAreaInstallationDataDesc") },
     { label: t("storageAreaPackageStore"), description: t("storageAreaPackageStoreDesc") },
     { label: t("storageAreaProfiles"), description: t("storageAreaProfilesDesc") },
     { label: t("storageAreaSecrets"), description: t("storageAreaSecretsDesc") },

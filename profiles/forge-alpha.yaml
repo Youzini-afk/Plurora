@@ -2,8 +2,8 @@ title: Plurora Forge Alpha Host
 secret_resolver:
   store_enabled: true
   env_allowlist: [] # explicit empty; opt in by listing names
-# surface_dev_paths is for development; production installs resolve from
-# ~/.plurora/projects/<id>/dist/ instead. Uncomment and adjust paths for local dev:
+# surface_dev_paths is for development; packed sources resolve through the
+# Package surface-bundle path instead. Uncomment and adjust paths for local dev:
 # surface_dev_paths:
 #   ydltavern: ../YdlTavern/packages/ydltavern-surface/dist
 autoload:

@@ -17,6 +17,16 @@ use crate::cli::{HostEventStoreProfile, HostProfile};
 const BACKUP_FORMAT_VERSION: u32 = 1;
 const BACKUP_MANIFEST: &str = "manifest.json";
 const BACKUP_PAYLOAD: &str = "data";
+const HOST_DATA_DIRECTORIES: &[&str] = &[
+    "objects",
+    "installations",
+    "workspaces",
+    "runtime",
+    "profiles",
+    "store",
+    "keys",
+];
+const HOST_DATA_FILES: &[&str] = &["secrets.dat", "secret-store.key"];
 
 #[derive(Debug, Serialize, Deserialize)]
 struct HostBackupManifest {
@@ -34,15 +44,32 @@ struct HostBackupFile {
     sha256: String,
 }
 
+#[derive(Debug, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+enum BackupWorkspaceOwnership {
+    Managed,
+    LinkedLocal,
+}
+
+#[derive(Debug, Deserialize)]
+struct BackupWorkspaceRecord {
+    ownership: BackupWorkspaceOwnership,
+}
+
 pub(crate) async fn backup(
     data_dir: PathBuf,
     profile_path: PathBuf,
     output: PathBuf,
 ) -> Result<()> {
+    ensure_real_directory(&data_dir).with_context(|| {
+        format!(
+            "Host data directory must be a real directory: {}",
+            data_dir.display()
+        )
+    })?;
     let data_dir = data_dir
         .canonicalize()
         .with_context(|| format!("failed to resolve data directory {}", data_dir.display()))?;
-    anyhow::ensure!(data_dir.is_dir(), "Host data directory is not a directory");
 
     let profile_path = canonicalize_from_current_dir(&profile_path)
         .with_context(|| format!("failed to resolve Host profile {}", profile_path.display()))?;
@@ -66,21 +93,33 @@ pub(crate) async fn backup(
         configured_event_path.is_relative(),
         "Host backup requires a relative SQLite path so restores remain portable"
     );
-    let event_store_path = resolve_profile_path(&profile_path, configured_event_path)
+    let configured_event_store_path = resolve_profile_path(&profile_path, configured_event_path);
+    let event_store_metadata = fs::symlink_metadata(&configured_event_store_path)
+        .context("failed to inspect the profile SQLite event store")?;
+    reject_link_like(
+        &event_store_metadata,
+        "profile SQLite event store cannot be a link or reparse point",
+    )?;
+    anyhow::ensure!(
+        event_store_metadata.is_file(),
+        "profile SQLite event store is not a regular file"
+    );
+    let event_store_path = configured_event_store_path
         .canonicalize()
         .context("failed to resolve the profile SQLite event store")?;
     let event_store_relative = portable_relative_path(&data_dir, &event_store_path)
         .context("profile SQLite event store must be inside the data directory")?;
     anyhow::ensure!(
-        event_store_path.is_file(),
-        "profile SQLite event store is not a regular file"
+        profile_relative != event_store_relative,
+        "Host profile and SQLite event store must be different files"
     );
 
-    let (output, output_parent) = new_output_path(&output)?;
+    let requested_output = absolute_normalized_path(&output)?;
     anyhow::ensure!(
-        !output.starts_with(&data_dir),
+        !requested_output.starts_with(&data_dir),
         "backup output must be outside the Host data directory"
     );
+    let (output, output_parent) = new_output_path(&output)?;
     let staging = output_parent.join(format!(
         ".plurora-host-backup-{}-{}",
         output
@@ -116,6 +155,7 @@ pub(crate) async fn backup(
         &data_dir,
         &event_store_path,
         &event_store_relative,
+        &profile_relative,
         &staging,
         &lease,
     )
@@ -162,6 +202,7 @@ async fn capture_backup_snapshot(
     data_dir: &Path,
     event_store_path: &Path,
     event_store_relative: &Path,
+    profile_relative: &Path,
     staging: &Path,
     lease: &plurora_service::DevelopmentHostLease,
 ) -> Result<()> {
@@ -169,7 +210,13 @@ async fn capture_backup_snapshot(
     fs::create_dir(&payload)?;
     restrict_directory_permissions(&payload)?;
     lease.ensure_active()?;
-    copy_data_tree(data_dir, &payload, event_store_path)?;
+    copy_data_tree(
+        data_dir,
+        &payload,
+        event_store_path,
+        event_store_relative,
+        profile_relative,
+    )?;
     lease.ensure_active()?;
 
     let event_backup_path = payload.join(event_store_relative);
@@ -197,6 +244,11 @@ async fn finalize_backup_snapshot(
     snapshot_store.verify_integrity().await?;
 
     let files = inventory_payload(&payload)?;
+    let file_paths = files
+        .iter()
+        .map(|file| validate_relative_path(&file.path))
+        .collect::<Result<Vec<_>>>()?;
+    validate_workspace_source_ownership(&payload, &file_paths)?;
     let profile_path = path_to_portable_string(profile_relative)?;
     let event_store_path = path_to_portable_string(event_store_relative)?;
     anyhow::ensure!(
@@ -223,18 +275,25 @@ async fn finalize_backup_snapshot(
 }
 
 pub(crate) async fn restore(backup: PathBuf, data_dir: PathBuf) -> Result<()> {
+    ensure_real_directory(&backup)
+        .with_context(|| format!("Host backup must be a real directory: {}", backup.display()))?;
     let backup = backup
         .canonicalize()
         .with_context(|| format!("failed to resolve backup directory {}", backup.display()))?;
-    anyhow::ensure!(backup.is_dir(), "Host backup is not a directory");
+    let requested_data_dir = absolute_normalized_path(&data_dir)?;
     anyhow::ensure!(
-        !data_dir.exists(),
-        "restore data directory already exists; restore only targets a new path"
+        !requested_data_dir.starts_with(&backup) && !backup.starts_with(&requested_data_dir),
+        "restore data directory and Host backup must be separate trees"
     );
     let (data_dir, data_parent) = new_output_path(&data_dir)?;
-    let manifest: HostBackupManifest = serde_json::from_str(
-        &fs::read_to_string(backup.join(BACKUP_MANIFEST))
-            .context("failed to read backup manifest")?,
+    anyhow::ensure!(
+        !data_dir.starts_with(&backup) && !backup.starts_with(&data_dir),
+        "restore data directory and Host backup must be separate trees"
+    );
+    let manifest_path = regular_file_beneath(&backup, Path::new(BACKUP_MANIFEST))
+        .context("failed to open backup manifest safely")?;
+    let manifest: HostBackupManifest = serde_json::from_reader(
+        fs::File::open(&manifest_path).context("failed to read backup manifest")?,
     )
     .context("failed to parse backup manifest")?;
     anyhow::ensure!(
@@ -245,6 +304,7 @@ pub(crate) async fn restore(backup: PathBuf, data_dir: PathBuf) -> Result<()> {
     validate_relative_path(&manifest.profile_path)?;
     validate_relative_path(&manifest.event_store_path)?;
     anyhow::ensure!(!manifest.files.is_empty(), "Host backup contains no files");
+    ensure_restore_capacity(&data_parent, &manifest)?;
 
     let staging = data_parent.join(format!(
         ".plurora-host-restore-{}-{}",
@@ -286,11 +346,24 @@ async fn restore_into_staging(
     ensure_regular_directory(&payload).context("Host backup payload is missing or unsafe")?;
     let profile_relative = validate_relative_path(&manifest.profile_path)?;
     let event_store_relative = validate_relative_path(&manifest.event_store_path)?;
+    anyhow::ensure!(
+        profile_relative != event_store_relative,
+        "backup profile and SQLite event store must be different files"
+    );
     let manifest_paths = manifest
         .files
         .iter()
         .map(|file| validate_relative_path(&file.path))
         .collect::<Result<Vec<_>>>()?;
+    anyhow::ensure!(
+        manifest_paths.iter().all(|path| current_host_data_path(
+            path,
+            &profile_relative,
+            &event_store_relative
+        )),
+        "backup contains a file outside the current Host data layout"
+    );
+    validate_workspace_source_ownership(&payload, &manifest_paths)?;
     anyhow::ensure!(
         manifest_paths.iter().any(|path| path == &profile_relative),
         "backup manifest does not list the Host profile"
@@ -307,22 +380,11 @@ async fn restore_into_staging(
         anyhow::ensure!(seen.insert(relative.clone()), "duplicate backup file path");
         let source = regular_file_beneath(&payload, &relative)
             .with_context(|| format!("backup file is missing or unsafe: {}", file.path))?;
-        let metadata = fs::symlink_metadata(&source)?;
-        anyhow::ensure!(metadata.len() == file.size, "backup file size mismatch");
-        anyhow::ensure!(
-            sha256_file(&source)? == file.sha256,
-            "backup checksum mismatch"
-        );
-
         let destination = staging.join(&relative);
         if let Some(parent) = destination.parent() {
             fs::create_dir_all(parent)?;
         }
-        fs::copy(&source, &destination)?;
-        anyhow::ensure!(
-            sha256_file(&destination)? == file.sha256,
-            "restored checksum mismatch"
-        );
+        copy_file_verified(&source, &destination, file.size, &file.sha256)?;
     }
 
     let profile_path = regular_file_beneath(staging, &profile_relative)?;
@@ -343,40 +405,198 @@ async fn restore_into_staging(
     Ok(())
 }
 
-fn copy_data_tree(source: &Path, destination: &Path, event_store: &Path) -> Result<()> {
+fn copy_data_tree(
+    source: &Path,
+    destination: &Path,
+    event_store: &Path,
+    event_store_relative: &Path,
+    profile_relative: &Path,
+) -> Result<()> {
+    let event_store_handle = same_file::Handle::from_path(event_store)?;
+    let event_journal = PathBuf::from(format!("{}-journal", event_store.display()));
     let event_wal = PathBuf::from(format!("{}-wal", event_store.display()));
     let event_shm = PathBuf::from(format!("{}-shm", event_store.display()));
-    let mut pending = vec![(source.to_path_buf(), destination.to_path_buf())];
-    while let Some((current_source, current_destination)) = pending.pop() {
+    let source_handle = validated_directory_handle(source, source)?;
+    let mut pending = vec![(
+        source.to_path_buf(),
+        destination.to_path_buf(),
+        source_handle,
+    )];
+    while let Some((current_source, current_destination, directory_handle)) = pending.pop() {
+        anyhow::ensure!(
+            validated_directory_handle(source, &current_source)? == directory_handle,
+            "Host data directory changed during backup"
+        );
         let mut entries = fs::read_dir(&current_source)?.collect::<std::io::Result<Vec<_>>>()?;
         entries.sort_by_key(|entry| entry.file_name());
         for entry in entries {
             let source_path = entry.path();
             let relative = source_path.strip_prefix(source)?;
-            if relative.components().next().is_some_and(
-                |component| matches!(component, Component::Normal(name) if name == "cache"),
-            ) {
-                continue;
-            }
-            if source_path == event_store || source_path == event_wal || source_path == event_shm {
+            if source_path == event_store
+                || source_path == event_journal
+                || source_path == event_wal
+                || source_path == event_shm
+            {
                 continue;
             }
             let metadata = fs::symlink_metadata(&source_path)?;
-            anyhow::ensure!(
-                !metadata.file_type().is_symlink(),
-                "Host backup refuses symbolic links inside the data directory"
-            );
+            let directory_allowed = current_host_data_directory(relative, profile_relative);
+            let file_allowed =
+                current_host_data_path(relative, profile_relative, event_store_relative);
+            if !directory_allowed && !file_allowed {
+                continue;
+            }
+            reject_link_like(
+                &metadata,
+                "Host backup refuses links inside the data directory",
+            )?;
             let destination_path = current_destination.join(entry.file_name());
             if metadata.is_dir() {
+                anyhow::ensure!(
+                    directory_allowed,
+                    "Host data file path is unexpectedly a directory"
+                );
                 fs::create_dir(&destination_path)?;
-                pending.push((source_path, destination_path));
+                let handle = validated_directory_handle(source, &source_path)?;
+                pending.push((source_path, destination_path, handle));
             } else if metadata.is_file() {
-                fs::copy(&source_path, &destination_path)?;
+                anyhow::ensure!(file_allowed, "Host data directory path is not a directory");
+                if same_file::Handle::from_path(&source_path)? == event_store_handle {
+                    continue;
+                }
+                copy_file_stable(&source_path, &destination_path, &metadata)?;
             } else {
                 anyhow::bail!("Host backup encountered an unsupported filesystem entry");
             }
         }
+        anyhow::ensure!(
+            validated_directory_handle(source, &current_source)? == directory_handle,
+            "Host data directory changed during backup"
+        );
     }
+    Ok(())
+}
+
+fn current_host_data_directory(relative: &Path, profile_relative: &Path) -> bool {
+    relative
+        .components()
+        .next()
+        .is_some_and(|component| {
+            matches!(component, Component::Normal(name) if HOST_DATA_DIRECTORIES.iter().any(|allowed| name == *allowed))
+        })
+        || profile_relative.starts_with(relative)
+}
+
+fn current_host_data_path(
+    relative: &Path,
+    profile_relative: &Path,
+    event_store_relative: &Path,
+) -> bool {
+    if relative == profile_relative || relative == event_store_relative {
+        return true;
+    }
+    let mut components = relative.components();
+    let Some(Component::Normal(first)) = components.next() else {
+        return false;
+    };
+    if components.next().is_some() {
+        HOST_DATA_DIRECTORIES
+            .iter()
+            .any(|allowed| first == *allowed)
+    } else {
+        HOST_DATA_FILES.iter().any(|allowed| first == *allowed)
+    }
+}
+
+fn validate_workspace_source_ownership(payload: &Path, files: &[PathBuf]) -> Result<()> {
+    let workspace_roots = files
+        .iter()
+        .filter_map(|path| workspace_root_for_source_file(path))
+        .collect::<HashSet<_>>();
+    for workspace_root in workspace_roots {
+        let record_relative = workspace_root.join("workspace.json");
+        anyhow::ensure!(
+            files.iter().any(|path| path == &record_relative),
+            "Workspace source is missing its ownership record"
+        );
+        let record_path = regular_file_beneath(payload, &record_relative)
+            .context("Workspace ownership record is missing or unsafe")?;
+        let record: BackupWorkspaceRecord = serde_json::from_reader(fs::File::open(record_path)?)
+            .context("Workspace ownership record is malformed")?;
+        anyhow::ensure!(
+            record.ownership == BackupWorkspaceOwnership::Managed,
+            "linked-local Workspace source cannot be stored in a Host backup"
+        );
+    }
+    Ok(())
+}
+
+fn workspace_root_for_source_file(path: &Path) -> Option<PathBuf> {
+    let mut components = path.components();
+    let Component::Normal(workspaces) = components.next()? else {
+        return None;
+    };
+    if workspaces != "workspaces" {
+        return None;
+    }
+    let Component::Normal(workspace_id) = components.next()? else {
+        return None;
+    };
+    let Component::Normal(source) = components.next()? else {
+        return None;
+    };
+    if source != "source" {
+        return None;
+    }
+    Some(PathBuf::from(workspaces).join(workspace_id))
+}
+
+fn validated_directory_handle(root: &Path, directory: &Path) -> Result<same_file::Handle> {
+    let metadata = fs::symlink_metadata(directory)?;
+    reject_link_like(&metadata, "Host backup refuses linked directories")?;
+    anyhow::ensure!(metadata.is_dir(), "Host backup path is not a directory");
+    let canonical = fs::canonicalize(directory)?;
+    anyhow::ensure!(
+        canonical.starts_with(root),
+        "Host backup directory escaped the data root"
+    );
+    Ok(same_file::Handle::from_path(directory)?)
+}
+
+fn copy_file_stable(source: &Path, destination: &Path, inspected: &fs::Metadata) -> Result<()> {
+    reject_link_like(inspected, "Host backup refuses linked files")?;
+    anyhow::ensure!(
+        inspected.is_file(),
+        "Host backup source is not a regular file"
+    );
+    let input = fs::File::open(source)?;
+    let opened_handle = same_file::Handle::from_file(input.try_clone()?)?;
+    let opened = input.metadata()?;
+    anyhow::ensure!(
+        same_file_identity(inspected, &opened)
+            && same_file::Handle::from_path(source)? == opened_handle,
+        "Host backup source changed while it was being opened"
+    );
+    let mut output = fs::OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(destination)?;
+    let copied = std::io::copy(&mut input.take(opened.len().saturating_add(1)), &mut output)?;
+    anyhow::ensure!(
+        copied == opened.len(),
+        "Host backup source size changed during copy"
+    );
+    output.flush()?;
+    output.sync_all()?;
+    fs::set_permissions(destination, inspected.permissions())?;
+    let after = fs::symlink_metadata(source)?;
+    reject_link_like(&after, "Host backup source became a link during copy")?;
+    anyhow::ensure!(
+        same_file_identity(inspected, &after)
+            && same_file::Handle::from_path(source)? == opened_handle
+            && after.len() == copied,
+        "Host backup source changed during copy"
+    );
     Ok(())
 }
 
@@ -390,8 +610,8 @@ fn inventory_payload(payload: &Path) -> Result<Vec<HostBackupFile>> {
             let path = entry.path();
             let metadata = fs::symlink_metadata(&path)?;
             anyhow::ensure!(
-                !metadata.file_type().is_symlink(),
-                "backup payload contains a symlink"
+                !metadata.file_type().is_symlink() && !is_reparse_point(&metadata),
+                "backup payload contains a link or reparse point"
             );
             if metadata.is_dir() {
                 pending.push(path);
@@ -427,16 +647,156 @@ fn sha256_file(path: &Path) -> Result<String> {
     Ok(format!("{:x}", hasher.finalize()))
 }
 
-fn canonicalize_from_current_dir(path: &Path) -> Result<PathBuf> {
-    if path.is_absolute() {
-        Ok(path.canonicalize()?)
-    } else {
-        Ok(std::env::current_dir()?.join(path).canonicalize()?)
+fn copy_file_verified(
+    source: &Path,
+    destination: &Path,
+    expected_size: u64,
+    expected_sha256: &str,
+) -> Result<()> {
+    let inspected = fs::symlink_metadata(source)?;
+    reject_link_like(&inspected, "backup file is linked or redirected")?;
+    anyhow::ensure!(
+        inspected.is_file() && inspected.len() == expected_size,
+        "backup file size mismatch"
+    );
+    let mut input = fs::File::open(source)?;
+    let opened_handle = same_file::Handle::from_file(input.try_clone()?)?;
+    let opened = input.metadata()?;
+    anyhow::ensure!(
+        opened.is_file()
+            && opened.len() == expected_size
+            && same_file_identity(&inspected, &opened)
+            && same_file::Handle::from_path(source)? == opened_handle,
+        "backup file changed while it was being opened"
+    );
+
+    let mut output = fs::OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(destination)?;
+    let mut hasher = Sha256::new();
+    let mut copied = 0_u64;
+    let mut buffer = [0_u8; 64 * 1024];
+    loop {
+        let remaining = expected_size
+            .checked_sub(copied)
+            .ok_or_else(|| anyhow::anyhow!("backup file exceeded its declared size"))?;
+        let limit = remaining.saturating_add(1).min(buffer.len() as u64) as usize;
+        let read = input.read(&mut buffer[..limit])?;
+        if read == 0 {
+            break;
+        }
+        copied = copied
+            .checked_add(read as u64)
+            .ok_or_else(|| anyhow::anyhow!("backup file size overflow"))?;
+        anyhow::ensure!(
+            copied <= expected_size,
+            "backup file exceeded its declared size"
+        );
+        hasher.update(&buffer[..read]);
+        output.write_all(&buffer[..read])?;
     }
+    anyhow::ensure!(copied == expected_size, "backup file size mismatch");
+    anyhow::ensure!(
+        format!("{:x}", hasher.finalize()) == expected_sha256,
+        "backup checksum mismatch"
+    );
+    output.flush()?;
+    output.sync_all()?;
+    fs::set_permissions(destination, inspected.permissions())?;
+
+    let after = fs::symlink_metadata(source)?;
+    reject_link_like(&after, "backup file became linked or redirected")?;
+    anyhow::ensure!(
+        same_file_identity(&inspected, &after)
+            && same_file::Handle::from_path(source)? == opened_handle
+            && after.len() == copied,
+        "backup file changed during restore"
+    );
+    Ok(())
+}
+
+fn ensure_restore_capacity(parent: &Path, manifest: &HostBackupManifest) -> Result<()> {
+    let required = manifest.files.iter().try_fold(0_u64, |total, file| {
+        total
+            .checked_add(file.size)
+            .ok_or_else(|| anyhow::anyhow!("backup declared size overflow"))
+    })?;
+    let available = fs2::available_space(parent)
+        .context("failed to query available storage for Host restore")?;
+    anyhow::ensure!(
+        required <= available,
+        "Host backup requires more storage than is available at the restore destination"
+    );
+    Ok(())
+}
+
+fn ensure_real_directory(path: &Path) -> Result<()> {
+    let metadata = fs::symlink_metadata(path)?;
+    reject_link_like(&metadata, "path is a link or reparse point")?;
+    anyhow::ensure!(metadata.is_dir(), "path is not a directory");
+    Ok(())
+}
+
+fn reject_link_like(metadata: &fs::Metadata, message: &str) -> Result<()> {
+    anyhow::ensure!(
+        !metadata.file_type().is_symlink() && !is_reparse_point(metadata),
+        "{message}"
+    );
+    Ok(())
+}
+
+#[cfg(unix)]
+fn same_file_identity(left: &fs::Metadata, right: &fs::Metadata) -> bool {
+    use std::os::unix::fs::MetadataExt;
+    left.dev() == right.dev() && left.ino() == right.ino()
+}
+
+#[cfg(not(unix))]
+fn same_file_identity(left: &fs::Metadata, right: &fs::Metadata) -> bool {
+    left.len() == right.len()
+        && left.modified().ok() == right.modified().ok()
+        && left.created().ok() == right.created().ok()
+}
+
+#[cfg(windows)]
+fn is_reparse_point(metadata: &fs::Metadata) -> bool {
+    use std::os::windows::fs::MetadataExt;
+    metadata.file_attributes() & 0x400 != 0
+}
+
+#[cfg(not(windows))]
+fn is_reparse_point(_metadata: &fs::Metadata) -> bool {
+    false
+}
+
+fn canonicalize_from_current_dir(path: &Path) -> Result<PathBuf> {
+    let absolute = if path.is_absolute() {
+        path.to_path_buf()
+    } else {
+        std::env::current_dir()?.join(path)
+    };
+    let metadata = fs::symlink_metadata(&absolute)?;
+    reject_link_like(&metadata, "Host profile cannot be a link or reparse point")?;
+    anyhow::ensure!(metadata.is_file(), "Host profile is not a regular file");
+    Ok(absolute.canonicalize()?)
+}
+
+fn absolute_normalized_path(path: &Path) -> Result<PathBuf> {
+    let absolute = if path.is_absolute() {
+        path.to_path_buf()
+    } else {
+        std::env::current_dir()?.join(path)
+    };
+    Ok(normalize_path(&absolute))
 }
 
 fn new_output_path(path: &Path) -> Result<(PathBuf, PathBuf)> {
-    anyhow::ensure!(!path.exists(), "output path already exists");
+    match fs::symlink_metadata(path) {
+        Ok(_) => anyhow::bail!("output path already exists"),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+        Err(error) => return Err(error.into()),
+    }
     let absolute = if path.is_absolute() {
         path.to_path_buf()
     } else {
@@ -457,8 +817,8 @@ fn portable_relative_path(root: &Path, path: &Path) -> Result<PathBuf> {
     let metadata = fs::symlink_metadata(path)?;
     anyhow::ensure!(metadata.is_file(), "path is not a regular file");
     anyhow::ensure!(
-        !metadata.file_type().is_symlink(),
-        "symbolic links are not portable"
+        !metadata.file_type().is_symlink() && !is_reparse_point(&metadata),
+        "links and reparse points are not portable"
     );
     let relative = path.strip_prefix(root)?;
     validate_relative_path(&path_to_portable_string(relative)?)
@@ -508,7 +868,7 @@ fn normalize_path(path: &Path) -> PathBuf {
 fn ensure_regular_directory(path: &Path) -> Result<()> {
     let metadata = fs::symlink_metadata(path)?;
     anyhow::ensure!(
-        !metadata.file_type().is_symlink() && metadata.is_dir(),
+        !metadata.file_type().is_symlink() && !is_reparse_point(&metadata) && metadata.is_dir(),
         "path is not a regular directory"
     );
     Ok(())
@@ -526,8 +886,8 @@ fn regular_file_beneath(root: &Path, relative: &Path) -> Result<PathBuf> {
         current.push(component);
         let metadata = fs::symlink_metadata(&current)?;
         anyhow::ensure!(
-            !metadata.file_type().is_symlink(),
-            "backup path traverses a symbolic link"
+            !metadata.file_type().is_symlink() && !is_reparse_point(&metadata),
+            "backup path traverses a link or reparse point"
         );
         if components.peek().is_some() {
             anyhow::ensure!(metadata.is_dir(), "backup path parent is not a directory");
@@ -545,6 +905,16 @@ fn cleanup_staging(staging: &Path, expected_parent: &Path) {
             .and_then(|name| name.to_str())
             .is_some_and(|name| name.starts_with(".plurora-host-"))
     {
+        let safe_to_remove = fs::symlink_metadata(staging).is_ok_and(|metadata| {
+            metadata.is_dir() && !metadata.file_type().is_symlink() && !is_reparse_point(&metadata)
+        });
+        if !safe_to_remove {
+            eprintln!(
+                "warning: incomplete Host backup staging is not a real directory: {}",
+                staging.display()
+            );
+            return;
+        }
         if let Err(error) = fs::remove_dir_all(staging) {
             eprintln!(
                 "warning: failed to remove incomplete Host backup staging {}: {error}",
@@ -612,16 +982,61 @@ fn restrict_directory_permissions(_path: &Path) -> Result<()> {
 async fn create_test_backup(root: &Path) -> Result<PathBuf> {
     let data = root.join("source");
     fs::create_dir_all(data.join("profiles"))?;
-    fs::create_dir_all(data.join("projects/example"))?;
+    fs::create_dir_all(data.join("objects/sha256"))?;
+    fs::create_dir_all(data.join("installations/installation-1/state"))?;
+    fs::create_dir_all(data.join("workspaces/managed-1/source"))?;
+    fs::create_dir_all(data.join("workspaces/linked-1"))?;
+    fs::create_dir_all(data.join("runtime"))?;
+    fs::create_dir_all(data.join("store/package-1"))?;
+    fs::create_dir_all(data.join("keys"))?;
     fs::create_dir_all(data.join("cache"))?;
+    fs::create_dir_all(data.join("unowned-layout"))?;
+    let linked_source = root.join("linked-source");
+    fs::create_dir(&linked_source)?;
+    fs::write(linked_source.join("owned-by-user.txt"), "keep")?;
     fs::write(
         data.join("profiles/host.yaml"),
-        "event_store:\n  kind: sqlite\n  path: events.sqlite3\n",
+        "event_store:\n  kind: sqlite\n  path: ../runtime/installations.sqlite3\n",
     )?;
-    fs::write(data.join("projects/example/project.yaml"), "id: example\n")?;
+    fs::write(data.join("objects/sha256/work"), "immutable-work")?;
+    fs::write(
+        data.join("installations/installation-1/installation.json"),
+        "{\"installation_id\":\"installation-1\"}\n",
+    )?;
+    fs::write(
+        data.join("installations/installation-1/assembly.lock.json"),
+        "{}\n",
+    )?;
+    fs::write(
+        data.join("installations/installation-1/state/save.bin"),
+        "durable-state",
+    )?;
+    fs::write(
+        data.join("workspaces/managed-1/workspace.json"),
+        "{\"ownership\":\"managed\"}\n",
+    )?;
+    fs::write(
+        data.join("workspaces/managed-1/source/main.txt"),
+        "managed-source",
+    )?;
+    fs::write(
+        data.join("workspaces/linked-1/workspace.json"),
+        format!(
+            "{{\"ownership\":\"linked_local\",\"source_locator\":{}}}\n",
+            serde_json::to_string(&linked_source.to_string_lossy())?
+        ),
+    )?;
+    fs::write(
+        data.join("store/package-1/manifest.yaml"),
+        "id: test/item\n",
+    )?;
+    fs::write(data.join("keys/trusted.asc"), "public-key")?;
+    fs::write(data.join("secrets.dat"), "encrypted-secret")?;
+    fs::write(data.join("secret-store.key"), "encrypted-key")?;
     fs::write(data.join("cache/transient"), "skip")?;
+    fs::write(data.join("unowned-layout/retired-data"), "skip")?;
 
-    let event_path = data.join("profiles/events.sqlite3");
+    let event_path = data.join("runtime/installations.sqlite3");
     let store = SqliteEventStore::open(&event_path)?;
     use plurora_runtime::EventStore;
     store
@@ -681,6 +1096,15 @@ mod tests {
         let temp = tempfile::tempdir()?;
         let backup_path = create_test_backup(temp.path()).await?;
         assert!(!backup_path.join("data/cache/transient").exists());
+        assert!(!backup_path.join("data/unowned-layout").exists());
+        assert!(backup_path
+            .join("data/installations/installation-1/installation.json")
+            .is_file());
+        assert!(backup_path.join("data/objects/sha256/work").is_file());
+        assert!(backup_path
+            .join("data/workspaces/managed-1/source/main.txt")
+            .is_file());
+        assert!(!backup_path.join("data/workspaces/linked-1/source").exists());
         #[cfg(windows)]
         assert_test_directory_has_no_inherited_aces(&backup_path)?;
 
@@ -689,10 +1113,28 @@ mod tests {
         #[cfg(windows)]
         assert_test_directory_has_no_inherited_aces(&restored)?;
         assert_eq!(
-            fs::read_to_string(restored.join("projects/example/project.yaml"))?,
-            "id: example\n"
+            fs::read_to_string(restored.join("installations/installation-1/installation.json"))?,
+            "{\"installation_id\":\"installation-1\"}\n"
         );
-        let restored_store = SqliteEventStore::open(restored.join("profiles/events.sqlite3"))?;
+        assert_eq!(
+            fs::read_to_string(restored.join("objects/sha256/work"))?,
+            "immutable-work"
+        );
+        assert_eq!(
+            fs::read_to_string(restored.join("workspaces/managed-1/source/main.txt"))?,
+            "managed-source"
+        );
+        assert!(restored
+            .join("workspaces/linked-1/workspace.json")
+            .is_file());
+        assert!(!restored.join("workspaces/linked-1/source").exists());
+        assert_eq!(
+            fs::read_to_string(temp.path().join("linked-source/owned-by-user.txt"))?,
+            "keep"
+        );
+        assert!(!restored.join("unowned-layout").exists());
+        let restored_store =
+            SqliteEventStore::open(restored.join("runtime/installations.sqlite3"))?;
         restored_store.verify_integrity().await?;
         assert_eq!(
             restored_store
@@ -737,7 +1179,94 @@ mod tests {
 
         let restored = temp.path().join("restored");
         let error = restore(backup_path, restored.clone()).await.unwrap_err();
-        assert!(format!("{error:#}").contains("symbolic link"));
+        assert!(format!("{error:#}").contains("link or reparse point"));
+        assert!(!restored.exists());
+        Ok(())
+    }
+
+    #[cfg(windows)]
+    #[tokio::test]
+    async fn restore_rejects_payload_intermediate_reparse_point() -> Result<()> {
+        use std::os::windows::fs::symlink_dir;
+
+        let temp = tempfile::tempdir()?;
+        let backup_path = create_test_backup(temp.path()).await?;
+        let profiles = backup_path.join("data/profiles");
+        let external_profiles = temp.path().join("external-profiles");
+        fs::rename(&profiles, &external_profiles)?;
+        if symlink_dir(&external_profiles, &profiles).is_err() {
+            fs::rename(&external_profiles, &profiles)?;
+            return Ok(());
+        }
+
+        let restored = temp.path().join("restored");
+        let error = restore(backup_path, restored.clone()).await.unwrap_err();
+        assert!(format!("{error:#}").contains("link or reparse point"));
+        assert!(!restored.exists());
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn restore_rejects_files_outside_current_host_layout() -> Result<()> {
+        let temp = tempfile::tempdir()?;
+        let backup_path = create_test_backup(temp.path()).await?;
+        let extra_path = backup_path.join("data/unowned-layout/entry");
+        fs::create_dir_all(extra_path.parent().unwrap())?;
+        fs::write(&extra_path, "not-current-host-data")?;
+        let manifest_path = backup_path.join(BACKUP_MANIFEST);
+        let mut manifest: HostBackupManifest =
+            serde_json::from_str(&fs::read_to_string(&manifest_path)?)?;
+        manifest.files.push(HostBackupFile {
+            path: "unowned-layout/entry".to_string(),
+            size: fs::metadata(&extra_path)?.len(),
+            sha256: sha256_file(&extra_path)?,
+        });
+        write_test_manifest(&manifest_path, &manifest)?;
+
+        let restored = temp.path().join("restored");
+        let error = restore(backup_path, restored.clone()).await.unwrap_err();
+        assert!(format!("{error:#}").contains("outside the current Host data layout"));
+        assert!(!restored.exists());
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn restore_rejects_host_owned_source_for_linked_local_workspace() -> Result<()> {
+        let temp = tempfile::tempdir()?;
+        let backup_path = create_test_backup(temp.path()).await?;
+        let source_path = backup_path.join("data/workspaces/linked-1/source/copied.txt");
+        fs::create_dir_all(source_path.parent().unwrap())?;
+        fs::write(&source_path, "must-not-become-host-owned")?;
+        let manifest_path = backup_path.join(BACKUP_MANIFEST);
+        let mut manifest: HostBackupManifest =
+            serde_json::from_str(&fs::read_to_string(&manifest_path)?)?;
+        manifest.files.push(HostBackupFile {
+            path: "workspaces/linked-1/source/copied.txt".to_string(),
+            size: fs::metadata(&source_path)?.len(),
+            sha256: sha256_file(&source_path)?,
+        });
+        write_test_manifest(&manifest_path, &manifest)?;
+
+        let restored = temp.path().join("restored");
+        let error = restore(backup_path, restored.clone()).await.unwrap_err();
+        assert!(format!("{error:#}").contains("linked-local Workspace source"));
+        assert!(!restored.exists());
+        assert_eq!(
+            fs::read_to_string(temp.path().join("linked-source/owned-by-user.txt"))?,
+            "keep"
+        );
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn restore_rejects_destination_inside_backup_tree() -> Result<()> {
+        let temp = tempfile::tempdir()?;
+        let backup_path = create_test_backup(temp.path()).await?;
+        let restored = backup_path.join("restored");
+        let error = restore(backup_path.clone(), restored.clone())
+            .await
+            .unwrap_err();
+        assert!(format!("{error:#}").contains("must be separate trees"));
         assert!(!restored.exists());
         Ok(())
     }

@@ -164,7 +164,7 @@ Contract V1 是当前可运行、可生成 SDK、由 conformance 守护的公开
 
 ### SurfaceHost
 
-第三方 Web Surface 由 sandboxed iframe 挂载。默认 Surface 没有 kernel access；Host 只转发显式方法和 capability allowlist，并把 stream ownership、session、project/grant 与短期 asset lease 绑定到当前 mount。完整边界见 [`../guides/SURFACE_HOSTING.md`](../guides/SURFACE_HOSTING.md)。
+第三方 Web Surface 由 sandboxed iframe 挂载。默认 Surface 没有 kernel access；Host 只转发显式方法和 capability allowlist，并把 stream ownership、session、Installation/Run grant 与短期 asset lease 绑定到当前 mount。完整边界见 [`../guides/SURFACE_HOSTING.md`](../guides/SURFACE_HOSTING.md)。
 
 ### Desktop
 
@@ -174,13 +174,13 @@ Desktop、Web/PWA 与远程 Host 连接复用同一 client core 和公开边界�
 
 ### CLI 与无头使用
 
-`plurora-cli` 提供 Host、安装、项目、package、composition、contract、conformance 和运维入口。CLI 在本机运行也不能通过读取 Host 数据目录获得公开协议之外的产品权威。
+`plurora-cli` 提供 Host、Work、Installation、Package、Contract、conformance 和运维入口。CLI 在本机运行也不能通过读取 Host 数据目录获得公开协议之外的产品权威。
 
-## 当前 Project 模型
+## Work / Workspace / Installation 模型
 
-Project 是官方 Host 的可安装、可运行实例模型，由 `ProjectDescriptor`、`ProjectRegistry`、数据目录、secret policy 和生命周期组成。它是 Host / 发行版概念，不是宪法基底，也不是所有产品必须采用的根对象。
+WorkRevision 是可移植内容身份，Workspace 是某台 Host 上的可变源码位置，Installation 是 Host journal 中对 Work 的采用记录。Run 与 Exposure 是独立、可重复的运行事实，不能被 Installation `ready` 代替。
 
-World、Document、Service、Workspace 或其他协议对象可以独立存在；需要当前官方 Home 管理时，可以通过 adapter 或产品映射与 Project 关联，而不应被迫丢失自己的身份。详见 [`../guides/PROJECT_MODEL.md`](../guides/PROJECT_MODEL.md) 与 [`../product/PLATFORM_PRODUCT_MODEL.md`](../product/PLATFORM_PRODUCT_MODEL.md)。
+World、Document、Service 或其他协议对象可以独立存在；它们可以通过 Component、Port、Adapter 与 Work 组合，而不丢失自身身份。详见 [`../guides/INSTALLATION_MODEL.md`](../guides/INSTALLATION_MODEL.md) 与 [`../product/PLATFORM_PRODUCT_MODEL.md`](../product/PLATFORM_PRODUCT_MODEL.md)。
 
 ## 仓库地图
 
@@ -209,6 +209,6 @@ docs/                章程、架构、协议、产品、指南与状态
 - [`CONSTITUTIONAL_SUBSTRATE.md`](CONSTITUTIONAL_SUBSTRATE.md) — 基底职责与当前 kernel 兼容边界；
 - [`CAPABILITY_PACKAGE.md`](CAPABILITY_PACKAGE.md) — Package、component、content 与执行信任；
 - [`../product/PLATFORM_PRODUCT_MODEL.md`](../product/PLATFORM_PRODUCT_MODEL.md) — 官方发行版的产品责任；
-- [`../guides/PROJECT_MODEL.md`](../guides/PROJECT_MODEL.md) — 当前官方 Project 模型；
+- [`../guides/INSTALLATION_MODEL.md`](../guides/INSTALLATION_MODEL.md) — Work / Workspace / Installation 边界；
 - [`../ALPHA_STATUS.md`](../ALPHA_STATUS.md) — 实际实现状态；
 - [`../roadmap/NEXT_STEPS.md`](../roadmap/NEXT_STEPS.md) — 当前建设方向。

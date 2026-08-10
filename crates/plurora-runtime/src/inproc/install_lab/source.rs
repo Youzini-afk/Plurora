@@ -3,34 +3,37 @@ use std::fs;
 use std::future::Future;
 use std::path::{Path, PathBuf};
 
-use anyhow::{Context, Result};
-use plurora_core::{DependencySource, PackageManifest, ProjectDescriptor};
+use anyhow::Result;
+use plurora_core::{DependencySource, PackageDependency, PackageManifest};
 use serde_json::Value;
 
-use super::types::{PackageDescriptor, PlannedRequirement, SourceDescriptor};
+#[derive(Debug, Clone)]
+pub(super) enum SourceDescriptor {
+    Git { url: String, ref_name: String },
+    Local { path: PathBuf },
+    Internal,
+}
 
-pub(super) fn parse_root_descriptor(root_url: &str, root_ref: &str) -> Result<PackageDescriptor> {
-    if let Some(path) = root_url.strip_prefix("file://") {
-        return Ok(PackageDescriptor {
-            source: SourceDescriptor::Local {
-                path: PathBuf::from(path),
-            },
-        });
+pub(super) fn parse_root_descriptor(root_url: &str, root_ref: &str) -> Result<SourceDescriptor> {
+    if root_url.to_ascii_lowercase().starts_with("file://") {
+        let parsed =
+            url::Url::parse(root_url).map_err(|_| anyhow::anyhow!("source file URL is invalid"))?;
+        let path = parsed
+            .to_file_path()
+            .map_err(|_| anyhow::anyhow!("source file URL is invalid"))?;
+        return Ok(SourceDescriptor::Local { path });
     }
     if let Some(path) = root_url.strip_prefix("local:") {
-        return Ok(PackageDescriptor {
-            source: SourceDescriptor::Local {
-                path: PathBuf::from(path),
-            },
+        return Ok(SourceDescriptor::Local {
+            path: PathBuf::from(path),
         });
     }
     let path = PathBuf::from(root_url);
-    if path.exists() || root_url.starts_with('/') || root_url.starts_with('.') {
-        return Ok(PackageDescriptor {
-            source: SourceDescriptor::Local { path },
-        });
+    if path.exists() || path.is_absolute() || root_url.starts_with('.') {
+        return Ok(SourceDescriptor::Local { path });
     }
-    let parsed = url::Url::parse(root_url)?;
+    let parsed = url::Url::parse(root_url)
+        .map_err(|_| anyhow::anyhow!("source must be a local path or an absolute URL"))?;
     let mut url = parsed.clone();
     url.set_fragment(None);
     let ref_name = if root_ref.trim().is_empty() {
@@ -38,63 +41,63 @@ pub(super) fn parse_root_descriptor(root_url: &str, root_ref: &str) -> Result<Pa
     } else {
         root_ref.to_string()
     };
-    Ok(PackageDescriptor {
-        source: SourceDescriptor::Git {
-            url: url.to_string(),
-            ref_name,
-        },
+    Ok(SourceDescriptor::Git {
+        url: url.to_string(),
+        ref_name,
     })
 }
 
-pub(super) fn resolve_dep(req: &PlannedRequirement) -> Result<PackageDescriptor> {
-    let source: DependencySource = serde_json::from_value(req.source.clone())?;
-    let source = match source {
+pub(super) fn dependency_source(
+    dependency: &PackageDependency,
+    base_dir: &Path,
+) -> Result<SourceDescriptor> {
+    Ok(match &dependency.source {
         DependencySource::Internal => SourceDescriptor::Internal,
         DependencySource::Git { url, r#ref } => SourceDescriptor::Git {
-            url,
-            ref_name: r#ref,
+            url: url.clone(),
+            ref_name: r#ref.clone(),
         },
-        DependencySource::Local { path } => SourceDescriptor::Local {
-            path: PathBuf::from(path),
-        },
-    };
-    Ok(PackageDescriptor { source })
+        DependencySource::Local { path } => {
+            let path = PathBuf::from(path);
+            SourceDescriptor::Local {
+                path: if path.is_absolute() {
+                    path
+                } else {
+                    base_dir.join(path)
+                },
+            }
+        }
+    })
 }
 
 pub(super) fn parse_manifest_at(path: &Path) -> Result<PackageManifest> {
-    let raw =
-        fs::read_to_string(path).with_context(|| format!("failed to read {}", path.display()))?;
-    let manifest = match path.extension().and_then(|ext| ext.to_str()) {
-        Some("json") => serde_json::from_str(&raw)?,
-        _ => serde_yaml::from_str(&raw)?,
+    let raw = fs::read_to_string(path)
+        .map_err(|_| anyhow::anyhow!("package manifest could not be read"))?;
+    let manifest: PackageManifest = match path.extension().and_then(|extension| extension.to_str())
+    {
+        Some("json") => serde_json::from_str(&raw)
+            .map_err(|_| anyhow::anyhow!("package manifest is malformed"))?,
+        _ => serde_yaml::from_str(&raw)
+            .map_err(|_| anyhow::anyhow!("package manifest is malformed"))?,
     };
     Ok(manifest)
 }
 
-pub(super) fn parse_project_descriptor_at(path: &Path) -> Result<ProjectDescriptor> {
-    let raw = fs::read_to_string(path)
-        .with_context(|| format!("failed to read project descriptor {}", path.display()))?;
-    let descriptor: ProjectDescriptor = serde_yaml::from_str(&raw)
-        .map_err(|error| anyhow::anyhow!("invalid project.yaml: {error}"))?;
-    descriptor.validate()?;
-    Ok(descriptor)
-}
-
-pub(super) fn manifest_path_in(dir: &Path) -> Result<PathBuf> {
-    for name in ["manifest.yaml", "manifest.yml", "manifest.json"] {
-        let path = dir.join(name);
+pub(super) fn manifest_path_in(directory: &Path) -> Result<PathBuf> {
+    for name in ["manifest.yaml", "manifest.json"] {
+        let path = directory.join(name);
         if path.is_file() {
             return Ok(path);
         }
     }
-    anyhow::bail!("no manifest.yaml or manifest.json in {}", dir.display())
+    anyhow::bail!("package source does not contain manifest.yaml or manifest.json")
 }
 
 pub(super) fn value_str<'a>(value: &'a Value, key: &str) -> Result<&'a str> {
     value
         .get(key)
         .and_then(Value::as_str)
-        .ok_or_else(|| anyhow::anyhow!("missing string field '{key}'"))
+        .ok_or_else(|| anyhow::anyhow!("helper response is missing required field '{key}'"))
 }
 
 pub(super) fn sorted_vec(values: impl IntoIterator<Item = String>) -> Vec<String> {

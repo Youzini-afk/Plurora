@@ -7,8 +7,8 @@ export interface ResolvedSurfaceBundle {
   exportName: string;
   stylesheets: string[];
   wrapperClass?: string;
-  projectId?: string;
-  source: "installed_project" | "dev_path";
+  installationId?: string;
+  source: "installed_installation" | "dev_path";
 }
 
 export async function resolveSurfaceBundle(
@@ -23,8 +23,8 @@ export async function resolveSurfaceBundle(
     export_name: string;
     stylesheets?: string[];
     wrapper_class?: string;
-    project_id?: string;
-    source: "installed_project" | "dev_path";
+    installation_id?: string;
+    source: "installed_installation" | "dev_path";
   };
   const hostOrigin = new URL(client.baseUrl).origin;
   const resolveAsset = (value: string) => {
@@ -41,7 +41,7 @@ export async function resolveSurfaceBundle(
     exportName: r.export_name,
     stylesheets: (r.stylesheets ?? []).map(resolveAsset),
     wrapperClass: r.wrapper_class,
-    projectId: r.project_id,
+    installationId: r.installation_id,
     source: r.source,
   };
 }

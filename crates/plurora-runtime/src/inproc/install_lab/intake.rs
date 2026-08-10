@@ -1,43 +1,23 @@
-use std::collections::BTreeMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use anyhow::{Context, Result};
-use plurora_core::project::{
-    ExternalProjectData, ExternalSourceKind, ExternalWorkspaceOwnership, ProjectDescriptor,
-    ProjectId, ProjectInner, ProjectType, SecretPolicy,
-};
-use serde::Deserialize;
+use anyhow::Result;
+use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
-use sha2::{Digest, Sha256};
 use uuid::Uuid;
 
 use super::executor::{compute_external_tree_hash, invoke_package_capability};
-use super::layout::ensure_layout;
-use super::project_kind::{detect_project_kind, read_project_descriptor};
-use super::source::{parse_root_descriptor, value_str};
-use super::types::{
-    DetectedProjectKind, InstallPlan, IntegritySummary, PermissionsSummary, SignatureSummary,
-    SourceDescriptor,
-};
+use super::fs_copy::{copy_external_tree_bounded_into, ManagedDirectory};
+use super::layout::{ensure_layout, workspaces_dir};
+use super::planner::{foreign_plan, source_display_name};
+use super::source::{parse_root_descriptor, value_str, SourceDescriptor};
+use super::{detection::detect_source_kind, types::SourceKind};
 
-const EXTERNAL_WORKSPACE_EXCLUDED_NAMES: &[&str] = &[
-    ".git",
-    ".hg",
-    ".svn",
-    ".DS_Store",
-    "node_modules",
-    "target",
-    ".venv",
-    "venv",
-    "__pycache__",
-    ".pytest_cache",
-    ".mypy_cache",
-    ".ruff_cache",
-];
-pub(super) const EXTERNAL_WORKSPACE_MAX_FILES: u64 = 25_000;
-pub(super) const EXTERNAL_WORKSPACE_MAX_DIRECTORIES: u64 = 25_000;
-pub(super) const EXTERNAL_WORKSPACE_MAX_BYTES: u64 = 256 * 1024 * 1024;
+pub(super) const EXTERNAL_WORKSPACE_MAX_FILES: u64 = super::fs_copy::MAX_FILES;
+pub(super) const EXTERNAL_WORKSPACE_MAX_DIRECTORIES: u64 = super::fs_copy::MAX_DIRECTORIES;
+pub(super) const EXTERNAL_WORKSPACE_MAX_BYTES: u64 = super::fs_copy::MAX_BYTES;
+
+const WORKSPACE_SCHEMA: &str = "plurora.workspace-record.v1";
 
 #[derive(Debug, Deserialize)]
 pub(super) struct PrepareExternalIntakeInput {
@@ -50,614 +30,450 @@ pub(super) struct PrepareExternalIntakeInput {
     linked_local: bool,
 }
 
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub(super) enum WorkspaceOwnership {
+    Managed,
+    LinkedLocal,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+enum WorkspaceSourceKind {
+    Local,
+    Git,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct WorkspaceRecord {
+    schema: String,
+    workspace_id: String,
+    ownership: WorkspaceOwnership,
+    source_kind: WorkspaceSourceKind,
+    source_locator: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    source_ref: Option<String>,
+    source_digest: String,
+    display_name: String,
+}
+
+pub(super) struct WorkspaceExecutionSource {
+    pub(super) source_digest: String,
+    pub(super) display_name: String,
+}
+
 pub(super) async fn prepare_external_intake(input: Value) -> Result<Value> {
     let input: PrepareExternalIntakeInput = serde_json::from_value(input)?;
     ensure_layout(input.data_dir.as_deref())?;
-    let data_dir = canonical_data_dir(input.data_dir.as_deref())?;
-    let root = parse_root_descriptor(&input.source, &input.root_ref)?;
-
-    let materialized = match root.source {
-        SourceDescriptor::Local { path } => {
-            prepare_local_source(&path, &data_dir, input.linked_local).await?
-        }
-        SourceDescriptor::Git { url, ref_name } => {
-            anyhow::ensure!(
-                !input.linked_local,
-                "linked_local is only valid for a local source"
-            );
-            prepare_git_source(&url, &ref_name, &data_dir).await?
-        }
-        SourceDescriptor::Internal => {
-            anyhow::bail!("internal packages cannot be external projects")
+    let source = parse_root_descriptor(&input.source, &input.root_ref)?;
+    let workspace_id = Uuid::new_v4();
+    let workspace_root = create_workspace_root(input.data_dir.as_deref(), workspace_id)?;
+    let materialized = materialize_workspace_source(
+        &source,
+        &workspace_root,
+        input.linked_local,
+        &input.root_ref,
+    )
+    .await;
+    let record = match materialized {
+        Ok(record) => record,
+        Err(error) => {
+            remove_owned_workspace_root(workspace_root);
+            return Err(error);
         }
     };
+    let encoded = serde_json::to_vec_pretty(&record)?;
+    if let Err(error) = workspace_root.atomic_write("workspace.json".as_ref(), &encoded) {
+        remove_owned_workspace_root(workspace_root);
+        return Err(error);
+    }
+    if let Err(error) = workspace_root.ensure_path_identity() {
+        remove_owned_workspace_root(workspace_root);
+        return Err(error);
+    }
 
-    ensure_bare_external(&materialized.workspace_root)?;
-    let descriptor = create_workspace_descriptor(&materialized)?;
-    ensure_existing_descriptor_is_compatible(&descriptor, &data_dir)?;
-    let plan = InstallPlan {
-        root_id: descriptor.project.id.as_str().to_string(),
-        packages: Vec::new(),
-        project_descriptor: Some(descriptor.clone()),
-        permissions_summary: PermissionsSummary::default(),
-        signature_summary: SignatureSummary {
-            all_signed: true,
-            unsigned_packages: Vec::new(),
-        },
-        integrity_summary: IntegritySummary {
-            manifest_hashes_match_lockfile: true,
-            drift_detected: Vec::new(),
-        },
-    };
-
+    let plan = foreign_plan(&record.source_digest, record.display_name.clone())?;
+    let work_candidate = plan.work_candidate.clone();
     Ok(json!({
         "plan": plan,
-        "intake": {
-            "project_id": descriptor.project.id.as_str(),
-            "source": materialized.source,
-            "source_kind": materialized.source_kind,
-            "source_ref": materialized.source_ref,
-            "source_digest": materialized.source_digest,
-            "workspace_root": materialized.workspace_root,
-            "workspace_ownership": materialized.workspace_ownership,
-            "reused": materialized.reused,
-        }
+        "workspace": workspace_output(&record),
+        "work_candidate": work_candidate,
     }))
 }
 
-#[derive(Debug)]
-struct MaterializedExternalSource {
-    source: String,
-    source_kind: ExternalSourceKind,
-    source_ref: Option<String>,
-    source_digest: Option<String>,
-    workspace_root: PathBuf,
-    workspace_ownership: ExternalWorkspaceOwnership,
-    reused: bool,
-}
-
-async fn prepare_local_source(
-    source: &Path,
-    data_dir: &Path,
+async fn materialize_workspace_source(
+    source: &SourceDescriptor,
+    workspace_root: &ManagedDirectory,
     linked_local: bool,
-) -> Result<MaterializedExternalSource> {
-    let source = fs::canonicalize(source).with_context(|| {
-        format!(
-            "failed to canonicalize external source {}",
-            source.display()
-        )
-    })?;
-    anyhow::ensure!(source.is_dir(), "external source must be a directory");
-    let source_text = source.to_string_lossy().to_string();
-
-    if linked_local {
-        return Ok(MaterializedExternalSource {
-            source: source_text,
-            source_kind: ExternalSourceKind::Local,
-            source_ref: None,
-            source_digest: None,
-            workspace_root: source,
-            workspace_ownership: ExternalWorkspaceOwnership::LinkedLocal,
-            reused: true,
-        });
-    }
-
-    let project_id = derive_project_id(&source_text)?;
-    let project_root = external_project_workspace_root(data_dir, &project_id)?;
-    ensure_non_overlapping_roots(&source, &project_root)?;
-    let staging = create_staging_dir(&project_root)?;
-    let result = async {
-        copy_external_tree_bounded(&source, &staging).with_context(|| {
-            format!(
-                "failed to materialize local external project {}",
-                source.display()
+    root_ref: &str,
+) -> Result<WorkspaceRecord> {
+    match source {
+        SourceDescriptor::Local { path } => {
+            let canonical = fs::canonicalize(path)
+                .map_err(|_| anyhow::anyhow!("local source could not be opened"))?;
+            anyhow::ensure!(canonical.is_dir(), "local source must be a directory");
+            anyhow::ensure!(
+                detect_source_kind(&canonical) == SourceKind::Foreign,
+                "external intake accepts only Foreign sources"
+            );
+            let digest;
+            let ownership;
+            if linked_local {
+                digest = compute_external_tree_hash(&canonical).await?;
+                ownership = WorkspaceOwnership::LinkedLocal;
+            } else {
+                let staging_name = format!(".source-{}", Uuid::new_v4());
+                let staging = workspace_root.create_child(staging_name.as_ref())?;
+                copy_external_tree_bounded_into(&canonical, &staging)?;
+                let stable_staging = staging.stable_access_path()?;
+                digest = compute_external_tree_hash(&stable_staging).await?;
+                staging.ensure_path_identity()?;
+                promote_workspace_source(workspace_root, &staging)?;
+                ownership = WorkspaceOwnership::Managed;
+            }
+            Ok(WorkspaceRecord {
+                schema: WORKSPACE_SCHEMA.to_string(),
+                workspace_id: workspace_root
+                    .path()
+                    .file_name()
+                    .and_then(|name| name.to_str())
+                    .unwrap_or_default()
+                    .to_string(),
+                ownership,
+                source_kind: WorkspaceSourceKind::Local,
+                source_locator: canonical.to_string_lossy().to_string(),
+                source_ref: None,
+                source_digest: digest,
+                display_name: source_display_name(source, "Foreign source"),
+            })
+        }
+        SourceDescriptor::Git { url, ref_name } => {
+            anyhow::ensure!(
+                !linked_local,
+                "linked_local is valid only for a local source"
+            );
+            ensure_persistable_git_source(url)?;
+            let resolved = invoke_package_capability(
+                "plurora/git-tools-lab",
+                "plurora/git-tools-lab/resolve_ref",
+                json!({ "remote_url": url, "ref": ref_name }),
             )
-        })?;
-        let digest = compute_external_tree_hash(&staging).await?;
-        let (workspace_root, reused) = promote_staging(&staging, &project_root, &digest).await?;
-        Ok(MaterializedExternalSource {
-            source: source_text,
-            source_kind: ExternalSourceKind::Local,
-            source_ref: None,
-            source_digest: Some(digest),
-            workspace_root,
-            workspace_ownership: ExternalWorkspaceOwnership::Managed,
-            reused,
-        })
-    }
-    .await;
-    if result.is_err() {
-        fs::remove_dir_all(&staging).ok();
-    }
-    result
-}
-
-async fn prepare_git_source(
-    url: &str,
-    ref_name: &str,
-    data_dir: &Path,
-) -> Result<MaterializedExternalSource> {
-    ensure_persistable_git_source(url)?;
-    let resolved = invoke_package_capability(
-        "plurora/git-tools-lab",
-        "plurora/git-tools-lab/resolve_ref",
-        json!({ "remote_url": url, "ref": ref_name }),
-    )
-    .await?;
-    let commit_sha = value_str(&resolved, "commit_sha")?.to_string();
-    let resolved_ref = resolved
-        .get("ref_name")
-        .and_then(Value::as_str)
-        .unwrap_or(ref_name)
-        .to_string();
-    let project_id = derive_project_id(url)?;
-    let project_root = external_project_workspace_root(data_dir, &project_id)?;
-    let staging = create_staging_dir(&project_root)?;
-    let result = async {
-        invoke_package_capability(
-            "plurora/git-tools-lab",
-            "plurora/git-tools-lab/fetch_tree",
-            json!({
-                "remote_url": url,
-                "commit_sha": commit_sha,
-                "ref_name": resolved_ref,
-                "dest_dir": staging.to_string_lossy(),
-                "max_files": EXTERNAL_WORKSPACE_MAX_FILES,
-                "max_directories": EXTERNAL_WORKSPACE_MAX_DIRECTORIES,
-                "max_total_bytes": EXTERNAL_WORKSPACE_MAX_BYTES,
-            }),
-        )
-        .await?;
-        let digest = compute_external_tree_hash(&staging).await?;
-        let (workspace_root, reused) = promote_staging(&staging, &project_root, &digest).await?;
-        Ok(MaterializedExternalSource {
-            source: url.to_string(),
-            source_kind: ExternalSourceKind::Git,
-            source_ref: Some(commit_sha),
-            source_digest: Some(digest),
-            workspace_root,
-            workspace_ownership: ExternalWorkspaceOwnership::Managed,
-            reused,
-        })
-    }
-    .await;
-    if result.is_err() {
-        fs::remove_dir_all(&staging).ok();
-    }
-    result
-}
-
-fn canonical_data_dir(data_dir_override: Option<&str>) -> Result<PathBuf> {
-    let path = data_dir_override
-        .map(PathBuf::from)
-        .map(Ok)
-        .unwrap_or_else(plurora_core::paths::data_dir)?;
-    fs::canonicalize(&path)
-        .with_context(|| format!("failed to canonicalize data directory {}", path.display()))
-}
-
-fn external_project_workspace_root(data_dir: &Path, project_id: &ProjectId) -> Result<PathBuf> {
-    let workspaces = ensure_owned_directory(data_dir, "workspaces", "workspace root")?;
-    let external = ensure_owned_directory(&workspaces, "external", "external workspace root")?;
-    ensure_owned_directory(
-        &external,
-        project_id.as_str(),
-        "managed external project root",
-    )
-}
-
-fn create_staging_dir(project_root: &Path) -> Result<PathBuf> {
-    let staging_root = ensure_owned_directory(project_root, ".staging", "staging root")?;
-    for _ in 0..8 {
-        let staging = staging_root.join(Uuid::new_v4().to_string());
-        match fs::symlink_metadata(&staging) {
-            Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(staging),
-            Ok(_) => continue,
-            Err(error) => return Err(error.into()),
+            .await?;
+            let commit_sha = value_str(&resolved, "commit_sha")?.to_string();
+            let resolved_ref = resolved
+                .get("ref_name")
+                .and_then(Value::as_str)
+                .unwrap_or(root_ref);
+            let staging_name = format!(".source-{}", Uuid::new_v4());
+            let staging = workspace_root.create_child(staging_name.as_ref())?;
+            let stable_staging = staging.stable_access_path()?;
+            let fetch_result = invoke_package_capability(
+                "plurora/git-tools-lab",
+                "plurora/git-tools-lab/fetch_tree",
+                json!({
+                    "remote_url": url,
+                    "commit_sha": commit_sha,
+                    "ref_name": resolved_ref,
+                    "dest_dir": stable_staging.to_string_lossy(),
+                    "max_files": EXTERNAL_WORKSPACE_MAX_FILES,
+                    "max_directories": EXTERNAL_WORKSPACE_MAX_DIRECTORIES,
+                    "max_total_bytes": EXTERNAL_WORKSPACE_MAX_BYTES,
+                }),
+            )
+            .await;
+            if let Err(error) = fetch_result {
+                let _ = staging.remove();
+                return Err(error);
+            }
+            staging.ensure_path_identity()?;
+            anyhow::ensure!(
+                detect_source_kind(&stable_staging) == SourceKind::Foreign,
+                "external intake accepts only Foreign sources"
+            );
+            let digest = compute_external_tree_hash(&stable_staging).await?;
+            staging.ensure_path_identity()?;
+            promote_workspace_source(workspace_root, &staging)?;
+            Ok(WorkspaceRecord {
+                schema: WORKSPACE_SCHEMA.to_string(),
+                workspace_id: workspace_root
+                    .path()
+                    .file_name()
+                    .and_then(|name| name.to_str())
+                    .unwrap_or_default()
+                    .to_string(),
+                ownership: WorkspaceOwnership::Managed,
+                source_kind: WorkspaceSourceKind::Git,
+                source_locator: url.clone(),
+                source_ref: Some(commit_sha),
+                source_digest: digest,
+                display_name: source_display_name(source, "Foreign source"),
+            })
+        }
+        SourceDescriptor::Internal => {
+            anyhow::bail!("internal source cannot be imported into a Workspace")
         }
     }
-    anyhow::bail!("failed to allocate a unique managed staging path")
 }
 
-fn ensure_owned_directory(parent: &Path, name: &str, label: &str) -> Result<PathBuf> {
-    let path = parent.join(name);
-    match fs::symlink_metadata(&path) {
-        Ok(metadata) => anyhow::ensure!(
-            metadata.is_dir() && !metadata.file_type().is_symlink(),
-            "{label} must be a real directory, not a symlink: {}",
-            path.display()
-        ),
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => fs::create_dir(&path)
-            .with_context(|| format!("failed to create {label} {}", path.display()))?,
-        Err(error) => return Err(error.into()),
-    }
-    let canonical = fs::canonicalize(&path)
-        .with_context(|| format!("failed to canonicalize {label} {}", path.display()))?;
+fn create_workspace_root(data_dir: Option<&str>, workspace_id: Uuid) -> Result<ManagedDirectory> {
+    let root = workspaces_dir(data_dir)?;
+    let owner = ManagedDirectory::open(&root)?;
+    owner.create_child(workspace_id.to_string().as_ref())
+}
+
+fn promote_workspace_source(
+    workspace: &ManagedDirectory,
+    staging: &ManagedDirectory,
+) -> Result<()> {
+    workspace
+        .promote_child(staging, "source".as_ref())
+        .map_err(|_| anyhow::anyhow!("managed workspace source could not be promoted"))
+}
+
+fn workspace_output(record: &WorkspaceRecord) -> Value {
+    json!({
+        "workspace_id": record.workspace_id,
+        "source_digest": record.source_digest,
+        "ownership": record.ownership,
+    })
+}
+
+pub(super) async fn read_workspace_for_execution(
+    data_dir: Option<&str>,
+    workspace_id: &str,
+) -> Result<WorkspaceExecutionSource> {
+    let workspace_id = Uuid::parse_str(workspace_id)
+        .map_err(|_| anyhow::anyhow!("workspace_id must be a UUID"))?;
+    let root = workspaces_dir(data_dir)?;
+    let workspace = existing_owned_workspace(&root, &workspace_id.to_string())?;
+    let raw = fs::read(workspace.join("workspace.json"))
+        .map_err(|_| anyhow::anyhow!("workspace record could not be read"))?;
+    let record: WorkspaceRecord = serde_json::from_slice(&raw)
+        .map_err(|_| anyhow::anyhow!("workspace record is malformed"))?;
+    validate_workspace_record(&record, workspace_id)?;
+    let source = match record.ownership {
+        WorkspaceOwnership::Managed => managed_workspace_source(&workspace)?,
+        WorkspaceOwnership::LinkedLocal => {
+            let source = fs::canonicalize(&record.source_locator)
+                .map_err(|_| anyhow::anyhow!("linked source could not be opened"))?;
+            anyhow::ensure!(source.is_dir(), "linked source must be a directory");
+            source
+        }
+    };
     anyhow::ensure!(
-        canonical.parent() == Some(parent),
-        "{label} escaped its managed parent: {}",
-        canonical.display()
+        detect_source_kind(&source) == SourceKind::Foreign,
+        "workspace source is no longer Foreign"
+    );
+    let actual_digest = compute_external_tree_hash(&source).await?;
+    anyhow::ensure!(
+        actual_digest == record.source_digest,
+        "workspace source changed after intake"
+    );
+    Ok(WorkspaceExecutionSource {
+        source_digest: record.source_digest,
+        display_name: record.display_name,
+    })
+}
+
+fn managed_workspace_source(workspace: &Path) -> Result<PathBuf> {
+    let source = workspace.join("source");
+    let metadata = fs::symlink_metadata(&source)
+        .map_err(|_| anyhow::anyhow!("managed workspace source does not exist"))?;
+    anyhow::ensure!(
+        metadata.is_dir() && !metadata.file_type().is_symlink(),
+        "managed workspace source must be a real directory"
+    );
+    let canonical = fs::canonicalize(&source)
+        .map_err(|_| anyhow::anyhow!("managed workspace source could not be opened"))?;
+    anyhow::ensure!(
+        canonical.parent() == Some(workspace),
+        "managed workspace source escaped its Workspace"
     );
     Ok(canonical)
 }
 
-fn existing_owned_directory(parent: &Path, path: &Path, label: &str) -> Result<Option<PathBuf>> {
-    let metadata = match fs::symlink_metadata(path) {
-        Ok(metadata) => metadata,
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(None),
-        Err(error) => return Err(error.into()),
-    };
+fn validate_workspace_record(record: &WorkspaceRecord, expected_id: Uuid) -> Result<()> {
+    anyhow::ensure!(
+        record.schema == WORKSPACE_SCHEMA && record.workspace_id == expected_id.to_string(),
+        "workspace record identity is invalid"
+    );
+    let digest = record
+        .source_digest
+        .strip_prefix("sha256:")
+        .ok_or_else(|| anyhow::anyhow!("workspace source digest is invalid"))?;
+    anyhow::ensure!(
+        digest.len() == 64
+            && digest
+                .bytes()
+                .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte)),
+        "workspace source digest is invalid"
+    );
+    Ok(())
+}
+
+fn existing_owned_workspace(root: &Path, workspace_id: &str) -> Result<PathBuf> {
+    let path = root.join(workspace_id);
+    let metadata =
+        fs::symlink_metadata(&path).map_err(|_| anyhow::anyhow!("workspace does not exist"))?;
     anyhow::ensure!(
         metadata.is_dir() && !metadata.file_type().is_symlink(),
-        "{label} must be a real directory, not a symlink: {}",
-        path.display()
+        "workspace root must be a real directory"
     );
-    let canonical = fs::canonicalize(path)
-        .with_context(|| format!("failed to canonicalize {label} {}", path.display()))?;
+    let canonical = fs::canonicalize(&path)
+        .map_err(|_| anyhow::anyhow!("workspace root could not be canonicalized"))?;
     anyhow::ensure!(
-        canonical.parent() == Some(parent),
-        "{label} escaped its managed parent: {}",
-        canonical.display()
+        canonical.parent() == Some(root),
+        "workspace root escaped its managed parent"
     );
-    Ok(Some(canonical))
+    Ok(canonical)
 }
 
 fn ensure_persistable_git_source(source: &str) -> Result<()> {
-    let parsed = url::Url::parse(source)?;
+    let parsed =
+        url::Url::parse(source).map_err(|_| anyhow::anyhow!("Git source URL is invalid"))?;
     anyhow::ensure!(
         parsed.scheme() == "https"
             && parsed.password().is_none()
             && parsed.query().is_none()
             && parsed.username().is_empty(),
-        "external Git intake requires HTTPS without inline credentials or query parameters; supply credentials out of band through the host"
+        "Git Workspace intake requires HTTPS without inline credentials or query parameters"
     );
     Ok(())
 }
 
-#[derive(Default)]
-struct ExternalTreeStats {
-    files: u64,
-    directories: u64,
-    bytes: u64,
-}
-
-fn copy_external_tree_bounded(source: &Path, destination: &Path) -> Result<()> {
-    let source_root = fs::canonicalize(source).with_context(|| {
-        format!(
-            "failed to canonicalize external source root {}",
-            source.display()
-        )
-    })?;
-    let mut stats = ExternalTreeStats::default();
-    copy_external_tree_entry(&source_root, &source_root, destination, &mut stats)
-}
-
-fn copy_external_tree_entry(
-    source_root: &Path,
-    source: &Path,
-    destination: &Path,
-    stats: &mut ExternalTreeStats,
-) -> Result<()> {
-    fs::create_dir_all(destination)?;
-    for entry in fs::read_dir(source)? {
-        let entry = entry?;
-        let name = entry.file_name();
-        if name
-            .to_str()
-            .is_some_and(|name| EXTERNAL_WORKSPACE_EXCLUDED_NAMES.contains(&name))
-        {
-            continue;
-        }
-        let from = entry.path();
-        let to = destination.join(&name);
-        let metadata = fs::symlink_metadata(&from)?;
-        if metadata.is_dir() {
-            add_external_tree_directory(stats)?;
-            copy_external_tree_entry(source_root, &from, &to, stats)?;
-        } else if metadata.is_file() {
-            add_external_tree_entry(stats, metadata.len())?;
-            fs::copy(&from, &to)?;
-        } else if metadata.file_type().is_symlink() {
-            let target = fs::read_link(&from)?;
-            anyhow::ensure!(
-                !target.is_absolute(),
-                "external workspace contains an absolute symlink: {}",
-                from.display()
-            );
-            let resolved = fs::canonicalize(from.parent().unwrap_or(source_root).join(&target))
-                .with_context(|| {
-                    format!(
-                        "external workspace contains a dangling symlink: {}",
-                        from.display()
-                    )
-                })?;
-            anyhow::ensure!(
-                resolved.starts_with(source_root),
-                "external workspace symlink escapes its root: {}",
-                from.display()
-            );
-            add_external_tree_entry(stats, target.as_os_str().len() as u64)?;
-            #[cfg(unix)]
-            std::os::unix::fs::symlink(&target, &to)?;
-            #[cfg(windows)]
-            {
-                if resolved.is_dir() {
-                    std::os::windows::fs::symlink_dir(&target, &to)?;
-                } else {
-                    std::os::windows::fs::symlink_file(&target, &to)?;
-                }
-            }
-        }
-    }
+#[cfg(test)]
+fn cleanup_workspace(data_dir: Option<&str>, workspace_id: &str) -> Result<()> {
+    let workspace_id = Uuid::parse_str(workspace_id)
+        .map_err(|_| anyhow::anyhow!("workspace_id must be a UUID"))?;
+    let root = workspaces_dir(data_dir)?;
+    let workspace = existing_owned_workspace(&root, &workspace_id.to_string())?;
+    let raw = fs::read(workspace.join("workspace.json"))
+        .map_err(|_| anyhow::anyhow!("workspace record could not be read"))?;
+    let record: WorkspaceRecord = serde_json::from_slice(&raw)
+        .map_err(|_| anyhow::anyhow!("workspace record is malformed"))?;
+    validate_workspace_record(&record, workspace_id)?;
+    // The linked source is never a descendant of this Host-owned record root.
+    // Cleanup removes only the opaque Workspace directory in both modes.
+    fs::remove_dir_all(&workspace)?;
     Ok(())
 }
 
-fn add_external_tree_directory(stats: &mut ExternalTreeStats) -> Result<()> {
-    stats.directories = stats.directories.saturating_add(1);
-    anyhow::ensure!(
-        stats.directories <= EXTERNAL_WORKSPACE_MAX_DIRECTORIES,
-        "external workspace directory count limit exceeded"
-    );
-    Ok(())
-}
-
-fn add_external_tree_entry(stats: &mut ExternalTreeStats, bytes: u64) -> Result<()> {
-    stats.files = stats.files.saturating_add(1);
-    stats.bytes = stats.bytes.saturating_add(bytes);
-    anyhow::ensure!(
-        stats.files <= EXTERNAL_WORKSPACE_MAX_FILES,
-        "external workspace file count limit exceeded"
-    );
-    anyhow::ensure!(
-        stats.bytes <= EXTERNAL_WORKSPACE_MAX_BYTES,
-        "external workspace byte limit exceeded"
-    );
-    Ok(())
-}
-
-async fn promote_staging(
-    staging: &Path,
-    project_root: &Path,
-    digest: &str,
-) -> Result<(PathBuf, bool)> {
-    let digest_dir = digest
-        .strip_prefix("sha256:")
-        .unwrap_or(digest)
-        .replace(|character: char| !character.is_ascii_alphanumeric(), "-");
-    anyhow::ensure!(!digest_dir.is_empty(), "external source digest is empty");
-    let destination = project_root.join(digest_dir);
-    if let Some(destination) =
-        existing_owned_directory(project_root, &destination, "managed workspace digest root")?
-    {
-        let existing_digest = compute_external_tree_hash(&destination).await?;
-        anyhow::ensure!(
-            existing_digest == digest,
-            "managed workspace digest conflict at {}",
-            destination.display()
-        );
-        fs::remove_dir_all(staging).ok();
-        return Ok((destination, true));
-    }
-    match fs::rename(staging, &destination) {
-        Ok(()) => Ok((destination, false)),
-        Err(error) => {
-            let Some(destination) = existing_owned_directory(
-                project_root,
-                &destination,
-                "managed workspace digest root",
-            )?
-            else {
-                return Err(error).with_context(|| {
-                    format!(
-                        "failed to atomically promote external workspace {} to {}",
-                        staging.display(),
-                        destination.display()
-                    )
-                });
-            };
-            let existing_digest = compute_external_tree_hash(&destination).await?;
-            anyhow::ensure!(
-                existing_digest == digest,
-                "concurrent managed workspace digest conflict at {}",
-                destination.display()
-            );
-            fs::remove_dir_all(staging).ok();
-            Ok((destination, true))
-        }
-    }
-}
-
-fn ensure_non_overlapping_roots(source: &Path, project_root: &Path) -> Result<()> {
-    if project_root.starts_with(source) || source.starts_with(project_root) {
-        anyhow::bail!(
-            "external source and managed workspace roots must not overlap: {} and {}",
-            source.display(),
-            project_root.display()
-        );
-    }
-    Ok(())
-}
-
-fn ensure_bare_external(workspace_root: &Path) -> Result<()> {
-    match detect_project_kind(workspace_root)? {
-        DetectedProjectKind::External { .. } => Ok(()),
-        DetectedProjectKind::Native { .. } | DetectedProjectKind::DeclaredExternal { .. } => {
-            anyhow::bail!("source declares project.yaml and must use normal project installation")
-        }
-    }
-}
-
-fn create_workspace_descriptor(source: &MaterializedExternalSource) -> Result<ProjectDescriptor> {
-    let id = derive_project_id(&source.source)?;
-    let title = derive_title(&source.source);
-    let descriptor = ProjectDescriptor {
-        schema_version: 1,
-        project: ProjectInner {
-            id,
-            title,
-            description: format!("Managed external workspace from {}", source.source),
-            project_type: ProjectType::ExternalWorkspace,
-            icon: None,
-            entry_surface_id: None,
-            packages: Vec::new(),
-            optional_packages: Vec::new(),
-            required_surfaces: Vec::new(),
-            required_capabilities: Vec::new(),
-            secret_policy: SecretPolicy::default(),
-            external: Some(ExternalProjectData {
-                source: source.source.clone(),
-                source_ref: source.source_ref.clone(),
-                adapter_manifest: None,
-                workspace_root: Some(source.workspace_root.to_string_lossy().to_string()),
-                source_kind: Some(source.source_kind),
-                workspace_ownership: Some(source.workspace_ownership),
-                source_digest: source.source_digest.clone(),
-            }),
-            metadata: BTreeMap::new(),
-        },
-    };
-    descriptor.validate()?;
-    Ok(descriptor)
-}
-
-fn ensure_existing_descriptor_is_compatible(
-    descriptor: &ProjectDescriptor,
-    data_dir: &Path,
-) -> Result<()> {
-    let existing_path = data_dir
-        .join("projects")
-        .join(descriptor.project.id.as_str())
-        .join("project.yaml");
-    if !existing_path.is_file() {
-        return Ok(());
-    }
-    let existing = read_project_descriptor(&existing_path)?;
-    anyhow::ensure!(
-        existing == *descriptor,
-        "external project id conflict for {}; uninstall the existing project or use its original source/ref",
-        descriptor.project.id
-    );
-    Ok(())
-}
-
-fn derive_project_id(source: &str) -> Result<ProjectId> {
-    let mut hasher = Sha256::new();
-    hasher.update(source.as_bytes());
-    let hash = hasher.finalize();
-    let suffix = hash[..12]
-        .iter()
-        .map(|byte| format!("{byte:02x}"))
-        .collect::<String>();
-    let slug = source_slug(source);
-    let mut safe_slug = slug
-        .chars()
-        .map(|character| {
-            if character.is_ascii_alphanumeric() || matches!(character, '_' | '-') {
-                character
-            } else {
-                '_'
-            }
-        })
-        .collect::<String>();
-    safe_slug = safe_slug.trim_matches('_').to_string();
-    if safe_slug.is_empty() {
-        safe_slug = "project".to_string();
-    }
-    safe_slug.truncate(64);
-    ProjectId::new(format!("{safe_slug}__{suffix}"))
-}
-
-fn derive_title(source: &str) -> String {
-    let slug = source_slug(source);
-    if slug.is_empty() {
-        "External Project".to_string()
-    } else {
-        slug
-    }
-}
-
-fn source_slug(source: &str) -> String {
-    if let Ok(parsed) = url::Url::parse(source) {
-        return parsed
-            .path()
-            .trim_matches('/')
-            .trim_end_matches(".git")
-            .rsplit('/')
-            .next()
-            .unwrap_or("project")
-            .to_string();
-    }
-    Path::new(source)
-        .file_name()
-        .and_then(|name| name.to_str())
-        .unwrap_or("project")
-        .to_string()
+fn remove_owned_workspace_root(workspace: ManagedDirectory) {
+    let _ = workspace.remove();
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    #[test]
-    fn project_id_uses_stable_wide_source_hash() {
-        let first = derive_project_id("https://example.com/acme/tool.git").unwrap();
-        let second = derive_project_id("https://example.com/acme/tool.git").unwrap();
-        assert_eq!(first, second);
-        assert!(first.as_str().starts_with("tool__"));
-        assert_eq!(first.as_str().rsplit("__").next().unwrap().len(), 24);
+    fn digest() -> String {
+        format!("sha256:{}", "a".repeat(64))
     }
 
     #[test]
-    fn project_id_distinguishes_sources_with_the_same_slug() {
-        let first = derive_project_id("https://example.com/acme/tool.git").unwrap();
-        let second = derive_project_id("https://mirror.example/acme/tool.git").unwrap();
-        assert_ne!(first, second);
-    }
-
-    #[test]
-    fn persisted_git_source_rejects_inline_credentials_and_query_parameters() {
-        assert!(ensure_persistable_git_source("https://github.com/acme/tool.git").is_ok());
-        assert!(ensure_persistable_git_source("ssh://git@github.com/acme/tool.git").is_err());
-        assert!(ensure_persistable_git_source("https://token@github.com/acme/tool.git").is_err());
-        assert!(
-            ensure_persistable_git_source("https://github.com/acme/tool.git?token=secret").is_err()
+    fn workspace_output_is_opaque_and_uses_a_uuid() -> Result<()> {
+        let workspace_id = Uuid::new_v4();
+        let record = WorkspaceRecord {
+            schema: WORKSPACE_SCHEMA.to_string(),
+            workspace_id: workspace_id.to_string(),
+            ownership: WorkspaceOwnership::LinkedLocal,
+            source_kind: WorkspaceSourceKind::Local,
+            source_locator: "C:\\private\\source".to_string(),
+            source_ref: None,
+            source_digest: digest(),
+            display_name: "source".to_string(),
+        };
+        let output = workspace_output(&record);
+        assert_eq!(
+            Uuid::parse_str(output["workspace_id"].as_str().unwrap())?,
+            workspace_id
         );
+        assert!(!output.to_string().contains("private"));
+        assert!(!output.to_string().contains("source_locator"));
+
+        let plan = foreign_plan(&record.source_digest, record.display_name.clone())?;
+        let response = json!({
+            "plan": plan,
+            "workspace": output,
+        });
+        assert!(!response.to_string().contains("private"));
+        assert!(!response.to_string().contains("source_locator"));
+        Ok(())
     }
 
     #[test]
-    fn managed_local_copy_preserves_source_metadata_and_skips_dependency_caches() -> Result<()> {
-        let tmp = tempfile::tempdir()?;
-        let source = tmp.path().join("source");
-        let destination = tmp.path().join("destination");
-        fs::create_dir_all(source.join("node_modules"))?;
-        fs::create_dir_all(source.join("target"))?;
-        fs::write(source.join("app.ts"), "export const app = true;\n")?;
-        fs::write(source.join(".gitignore"), "dist/\n")?;
-        fs::write(source.join("node_modules/dependency.js"), "ignored\n")?;
-        fs::write(source.join("target/artifact"), "ignored\n")?;
+    fn managed_local_intake_promotes_source_within_the_pinned_workspace() -> Result<()> {
+        let temporary = tempfile::tempdir()?;
+        let data = temporary.path().join("data");
+        let source = temporary.path().join("local-source");
+        fs::create_dir_all(&source)?;
+        fs::write(source.join("public.txt"), "public")?;
+        let workspace_id = Uuid::new_v4();
+        let workspace = create_workspace_root(Some(data.to_string_lossy().as_ref()), workspace_id)?;
+        let staging = workspace.create_child(".source-staging".as_ref())?;
+        copy_external_tree_bounded_into(&source, &staging)?;
+        promote_workspace_source(&workspace, &staging)?;
+        assert_eq!(
+            fs::read_to_string(workspace.path().join("source/public.txt"))?,
+            "public"
+        );
+        assert!(!fs::read_dir(workspace.path())?.any(|entry| {
+            entry
+                .ok()
+                .and_then(|entry| entry.file_name().into_string().ok())
+                .is_some_and(|name| name.starts_with(".source-"))
+        }));
+        drop(staging);
+        workspace.remove()?;
+        assert!(source.join("public.txt").is_file());
+        Ok(())
+    }
 
-        copy_external_tree_bounded(&source, &destination)?;
-        assert!(destination.join("app.ts").is_file());
-        assert!(destination.join(".gitignore").is_file());
-        assert!(!destination.join("node_modules").exists());
-        assert!(!destination.join("target").exists());
+    #[test]
+    fn linked_local_source_survives_workspace_cleanup() -> Result<()> {
+        let temporary = tempfile::tempdir()?;
+        let data = temporary.path().join("data");
+        let source = temporary.path().join("linked-source");
+        fs::create_dir_all(&source)?;
+        fs::write(source.join("owned-by-user"), "keep")?;
+        let workspace_id = Uuid::new_v4();
+        let workspace = create_workspace_root(Some(data.to_string_lossy().as_ref()), workspace_id)?;
+        let workspace_path = workspace.path().to_path_buf();
+        let record = WorkspaceRecord {
+            schema: WORKSPACE_SCHEMA.to_string(),
+            workspace_id: workspace_id.to_string(),
+            ownership: WorkspaceOwnership::LinkedLocal,
+            source_kind: WorkspaceSourceKind::Local,
+            source_locator: fs::canonicalize(&source)?.to_string_lossy().to_string(),
+            source_ref: None,
+            source_digest: digest(),
+            display_name: "linked-source".to_string(),
+        };
+        workspace.atomic_write("workspace.json".as_ref(), &serde_json::to_vec(&record)?)?;
+        drop(workspace);
+
+        cleanup_workspace(
+            Some(data.to_string_lossy().as_ref()),
+            &workspace_id.to_string(),
+        )?;
+        assert!(!workspace_path.exists());
+        assert!(source.join("owned-by-user").is_file());
         Ok(())
     }
 
     #[cfg(unix)]
     #[test]
-    fn managed_workspace_root_rejects_symlinked_ancestor() -> Result<()> {
-        let tmp = tempfile::tempdir()?;
-        let data_dir = tmp.path().join("data");
-        let outside = tmp.path().join("outside");
-        fs::create_dir_all(&data_dir)?;
+    fn workspace_root_rejects_a_symlinked_ancestor() -> Result<()> {
+        let temporary = tempfile::tempdir()?;
+        let data = temporary.path().join("data");
+        let outside = temporary.path().join("outside");
+        fs::create_dir_all(&data)?;
         fs::create_dir_all(&outside)?;
-        std::os::unix::fs::symlink(&outside, data_dir.join("workspaces"))?;
-
-        let project_id = ProjectId::new("safe-project")?;
-        let error = external_project_workspace_root(&data_dir, &project_id)
-            .expect_err("symlinked workspace ancestor must fail closed");
-        assert!(error.to_string().contains("not a symlink"));
+        std::os::unix::fs::symlink(&outside, data.join("workspaces"))?;
+        assert!(
+            create_workspace_root(Some(data.to_string_lossy().as_ref()), Uuid::new_v4()).is_err()
+        );
+        assert!(fs::read_dir(outside)?.next().is_none());
         Ok(())
     }
 }

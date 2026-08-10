@@ -37,6 +37,44 @@
       ],
       "type": "object"
     },
+    "AssetContentEncoding": {
+      "description": "Encoding used by the public `object.put` and `object.get` content field.",
+      "enum": [
+        "utf8",
+        "hex"
+      ],
+      "type": "string"
+    },
+    "AssetGetParams": {
+      "additionalProperties": false,
+      "description": "Original ordinary-Asset selector for `object.get`.",
+      "properties": {
+        "asset_id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "asset_id"
+      ],
+      "type": "object"
+    },
+    "AssetGetResponse": {
+      "additionalProperties": false,
+      "description": "Original ordinary-Asset result for `object.get`.",
+      "properties": {
+        "content": {
+          "type": "string"
+        },
+        "record": {
+          "$ref": "#/$defs/AssetRecord"
+        }
+      },
+      "required": [
+        "content",
+        "record"
+      ],
+      "type": "object"
+    },
     "AssetRecord": {
       "properties": {
         "created_at": {
@@ -106,35 +144,63 @@
       },
       "type": "array"
     },
-    "Params": {
-      "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "InstallationStateArtifactGetParams": {
+      "additionalProperties": false,
+      "description": "Audit-only selector for a journal-issued Installation state artifact.",
       "properties": {
-        "asset_id": {
-          "type": "string"
+        "installation_state_artifact": {
+          "$ref": "#/$defs/ArtifactDescriptor"
         }
       },
       "required": [
-        "asset_id"
+        "installation_state_artifact"
       ],
-      "title": "AssetGetParams",
       "type": "object"
     },
-    "Result": {
-      "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "InstallationStateArtifactGetResponse": {
+      "additionalProperties": false,
+      "description": "Audit-only result for a journal-issued Installation state artifact.",
       "properties": {
         "content": {
           "type": "string"
         },
-        "record": {
-          "$ref": "#/$defs/AssetRecord"
+        "content_encoding": {
+          "$ref": "#/$defs/AssetContentEncoding"
+        },
+        "descriptor": {
+          "$ref": "#/$defs/ArtifactDescriptor"
         }
       },
       "required": [
         "content",
-        "record"
+        "content_encoding",
+        "descriptor"
       ],
-      "title": "AssetGetResponse",
       "type": "object"
+    },
+    "Params": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "oneOf": [
+        {
+          "$ref": "#/$defs/AssetGetParams"
+        },
+        {
+          "$ref": "#/$defs/InstallationStateArtifactGetParams"
+        }
+      ],
+      "title": "ObjectGetRequest"
+    },
+    "Result": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "oneOf": [
+        {
+          "$ref": "#/$defs/AssetGetResponse"
+        },
+        {
+          "$ref": "#/$defs/InstallationStateArtifactGetResponse"
+        }
+      ],
+      "title": "ObjectGetResponse"
     }
   },
   "$id": "urn:plurora:schema:method:object.get:v1",

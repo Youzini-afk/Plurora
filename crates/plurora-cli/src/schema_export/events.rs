@@ -75,20 +75,16 @@ pub(crate) fn event_schemas() -> Vec<(&'static str, Value)> {
         ),
         (EVENT_PACKAGE_LOG, schema_value::<SubprocessLogLine>()),
         (
-            PROJECT_INSTALLED,
-            schema_value::<ProjectLifecyclePayloadSchema>(),
+            INSTALLATION_CREATED,
+            schema_value::<InstallationCreatedPayloadSchema>(),
         ),
         (
-            PROJECT_STARTED,
-            schema_value::<ProjectLifecyclePayloadSchema>(),
+            INSTALLATION_UPDATED,
+            schema_value::<InstallationUpdatedPayloadSchema>(),
         ),
         (
-            PROJECT_STOPPED,
-            schema_value::<ProjectLifecyclePayloadSchema>(),
-        ),
-        (
-            PROJECT_UNINSTALLED,
-            schema_value::<ProjectLifecyclePayloadSchema>(),
+            INSTALLATION_REMOVED,
+            schema_value::<InstallationRemovedPayloadSchema>(),
         ),
         (EVENT_ASSET_PUT, schema_value::<AssetRecord>()),
         (
@@ -197,4 +193,204 @@ pub(crate) fn event_schemas() -> Vec<(&'static str, Value)> {
             schema_value::<DeploymentHealthEventPayload>(),
         ),
     ]
+}
+
+#[cfg(test)]
+mod tests {
+    use std::collections::BTreeMap;
+    use std::sync::Arc;
+
+    use jsonschema::JSONSchema;
+    use plurora_core::{ArtifactDescriptor, INSTALLATION_REMOVED, INSTALLATION_UPDATED};
+    use plurora_runtime::{
+        EventStore, InMemoryEventStore, InMemoryObjectStore, InstallationCreateRequest,
+        InstallationMutationResult, InstallationRemoveRequest, InstallationStateAction,
+        InstallationUpdateRequest, ObjectStore, ProtocolContext, Runtime, RuntimeConfig,
+        StateDisposition,
+    };
+    use plurora_service::InstallationRegistry;
+    use plurora_work::{
+        AcquisitionKind, AcquisitionRecord, ArtifactModel, AssemblyId, AssemblyLock,
+        AssemblyRevision, WorkId, WorkRevision,
+    };
+    use serde_json::{json, Value};
+
+    use crate::schema_export::defs::normalize_schema;
+
+    use super::{event_schema, event_schemas};
+
+    async fn put_model<T: ArtifactModel>(
+        objects: &InMemoryObjectStore,
+        value: &T,
+    ) -> anyhow::Result<ArtifactDescriptor> {
+        let bytes = value.canonical_bytes()?;
+        let descriptor = value.artifact_descriptor()?;
+        let info = objects.put(bytes.into()).await?;
+        anyhow::ensure!(
+            info.digest == descriptor.digest && info.size_bytes == descriptor.size_bytes,
+            "object store changed the canonical model identity"
+        );
+        Ok(descriptor)
+    }
+
+    async fn put_work_pair(
+        objects: &InMemoryObjectStore,
+        marker: &str,
+    ) -> anyhow::Result<(ArtifactDescriptor, ArtifactDescriptor)> {
+        let assembly = AssemblyRevision {
+            schema: AssemblyRevision::SCHEMA.to_string(),
+            assembly_id: AssemblyId::parse(format!("schema-tests/{marker}-assembly"))?,
+            nodes: Vec::new(),
+            bindings: Vec::new(),
+            exposed_ports: Vec::new(),
+            state_slots: Vec::new(),
+            annotations: BTreeMap::new(),
+        };
+        let assembly = put_model(objects, &assembly).await?;
+        let work = WorkRevision {
+            schema: WorkRevision::SCHEMA.to_string(),
+            work_id: WorkId::parse(format!("schema-tests/{marker}"))?,
+            title: format!("Schema test {marker}"),
+            description: String::new(),
+            assembly: assembly.clone(),
+            content_roots: Vec::new(),
+            entrypoints: Vec::new(),
+            rights: None,
+            transparency: None,
+            operational_intent: None,
+            annotations: BTreeMap::new(),
+        };
+        let lock = AssemblyLock {
+            schema: AssemblyLock::SCHEMA.to_string(),
+            assembly,
+            nodes: Vec::new(),
+            bindings: Vec::new(),
+            protocol_profiles: Vec::new(),
+            content_roots: Vec::new(),
+        };
+        Ok((
+            put_model(objects, &work).await?,
+            put_model(objects, &lock).await?,
+        ))
+    }
+
+    #[tokio::test]
+    async fn installation_terminal_schemas_accept_real_required_null_operation_ids(
+    ) -> anyhow::Result<()> {
+        let store = Arc::new(InMemoryEventStore::default());
+        let objects = Arc::new(InMemoryObjectStore::default());
+        let registry = InstallationRegistry::ephemeral(store.clone(), objects.clone())?;
+        let runtime = Runtime::new(
+            store.clone(),
+            RuntimeConfig {
+                object_store: objects.clone(),
+                installation_control: registry,
+                ..RuntimeConfig::default()
+            },
+        );
+        let (work_one, lock_one) = put_work_pair(objects.as_ref(), "one").await?;
+        let created: InstallationMutationResult = serde_json::from_value(
+            runtime
+                .call_protocol(
+                    &ProtocolContext::host_dev("schema-event-test"),
+                    "host.installation.create",
+                    serde_json::to_value(InstallationCreateRequest {
+                        work_id: WorkId::parse("schema-tests/one")?,
+                        work_revision: work_one,
+                        assembly_lock: lock_one,
+                        display_name: "Schema test installation".to_string(),
+                        source: AcquisitionRecord {
+                            kind: AcquisitionKind::WorkBundle,
+                            source_ref: None,
+                            provenance_refs: Vec::new(),
+                            update_channel: None,
+                        },
+                        state_bindings: Vec::new(),
+                        secret_policy: Default::default(),
+                        idempotency_key: "schema-create".to_string(),
+                        authority: None,
+                    })?,
+                )
+                .await
+                .map_err(|error| anyhow::anyhow!("{}: {}", error.code, error.message))?,
+        )?;
+        let created = created.installation;
+        let (work_two, lock_two) = put_work_pair(objects.as_ref(), "two").await?;
+        let updated: InstallationMutationResult = serde_json::from_value(
+            runtime
+                .call_protocol(
+                    &ProtocolContext::host_dev("schema-event-test"),
+                    "host.installation.update",
+                    serde_json::to_value(InstallationUpdateRequest {
+                        installation_id: created.record.installation_id.clone(),
+                        expected_revision: created.revision,
+                        work_revision: work_two,
+                        assembly_lock: lock_two,
+                        display_name: None,
+                        source: None,
+                        state_bindings: None,
+                        secret_policy: None,
+                        state_action: InstallationStateAction::Preserve,
+                        idempotency_key: "schema-update".to_string(),
+                        authority: None,
+                    })?,
+                )
+                .await
+                .map_err(|error| anyhow::anyhow!("{}: {}", error.code, error.message))?,
+        )?;
+        let updated = updated.installation;
+        runtime
+            .call_protocol(
+                &ProtocolContext::host_dev("schema-event-test"),
+                "host.installation.remove",
+                serde_json::to_value(InstallationRemoveRequest {
+                    installation_id: updated.record.installation_id,
+                    expected_revision: updated.revision,
+                    state_disposition: StateDisposition::Keep,
+                    idempotency_key: "schema-remove".to_string(),
+                    authority: None,
+                })?,
+            )
+            .await
+            .map_err(|error| anyhow::anyhow!("{}: {}", error.code, error.message))?;
+
+        let payload_schemas = event_schemas().into_iter().collect::<BTreeMap<_, _>>();
+        let emitted = store
+            .list_session_range(&"host_installations".to_string(), None, None)
+            .await?;
+        for kind in [INSTALLATION_UPDATED, INSTALLATION_REMOVED] {
+            let event = emitted
+                .iter()
+                .find(|event| event.kind == kind)
+                .unwrap_or_else(|| panic!("Installation registry did not emit {kind}"));
+            assert_eq!(event.payload.get("operation_id"), Some(&Value::Null));
+
+            let mut schema = event_schema(
+                kind,
+                payload_schemas
+                    .get(kind)
+                    .unwrap_or_else(|| panic!("missing exported payload schema for {kind}"))
+                    .clone(),
+            );
+            normalize_schema(&mut schema);
+            let compiled = JSONSchema::compile(&schema)
+                .map_err(|error| anyhow::anyhow!("compile {kind} schema: {error}"))?;
+            let instance = json!({"kind": kind, "payload": event.payload});
+            if let Err(errors) = compiled.validate(&instance) {
+                let details = errors.map(|error| error.to_string()).collect::<Vec<_>>();
+                anyhow::bail!("real {kind} event did not validate: {details:?}");
+            }
+
+            let mut missing_operation_id = instance;
+            missing_operation_id["payload"]
+                .as_object_mut()
+                .expect("emitted Installation payload is an object")
+                .remove("operation_id");
+            anyhow::ensure!(
+                compiled.validate(&missing_operation_id).is_err(),
+                "{kind} operation_id must remain required even when nullable"
+            );
+        }
+        Ok(())
+    }
 }

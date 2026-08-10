@@ -8,7 +8,7 @@ Capability-package authoring guides grouped by domain. Each one targets a class 
 
 - [`PACKAGE_AUTHORING_WALKTHROUGH.md`](PACKAGE_AUTHORING_WALKTHROUGH.en.md) — third-party package authoring walkthrough (init-package, check, run-fixture, reload, composition)
 - [`PACKAGE_INSTALLATION.md`](PACKAGE_INSTALLATION.en.md) — package/project install and update, lockfiles, `~/.plurora` layout, signatures/integrity, bundle freshness, and consent prompts
-- [`PROJECT_MODEL.md`](PROJECT_MODEL.en.md) — `project.yaml`, Home project cards, project lifecycle, project-console diagnostics/update, and project-level secret policy
+- [`INSTALLATION_MODEL.md`](INSTALLATION_MODEL.en.md) — Work / Workspace / Installation boundaries, journal/projection, state update/removal, and Installation secret policy
 - [`DEPLOYMENT_RUNTIME.md`](DEPLOYMENT_RUNTIME.en.md) — target / exec / port / proxy deployment runtime, plurora-service reverse proxy, and Docker Deploy broker
 - [`HOST_OPERATIONS.md`](HOST_OPERATIONS.en.md) — Host liveness/readiness, offline SQLite backup and atomic restore, and release verification
 - [`SECRET_MANAGEMENT.md`](SECRET_MANAGEMENT.en.md) — `secret_ref:env:` / `secret_ref:store:`, local encrypted secret store, and API key management
@@ -38,4 +38,4 @@ Capability-package authoring guides grouped by domain. Each one targets a class 
 - [`SHARING_DISTRIBUTION.md`](SHARING_DISTRIBUTION.en.md) — sharing and distribution: composition bundles, package-set lockfiles, AI disclosure
 - [`STORAGE_BACKEND_NEUTRALITY.md`](STORAGE_BACKEND_NEUTRALITY.en.md) — backend-neutral storage contracts and the first-party lab
 - [`POSTGRES_TDB_INTEGRATION.md`](POSTGRES_TDB_INTEGRATION.en.md) — PostgreSQL (event backend) + TDB (retrieval provider) integration
-- [`EXTERNAL_PROJECT_OPERATING_PLANE.md`](EXTERNAL_PROJECT_OPERATING_PLANE.en.md) — external project operating plane (intake / workspace / adapter)
+- [`WORKSPACE_OPERATING_PLANE.md`](WORKSPACE_OPERATING_PLANE.en.md) — Workspace ownership, static intake, plan/effect separation, and controlled source changes

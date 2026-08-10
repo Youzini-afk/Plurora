@@ -36,55 +36,41 @@ cargo run -p plurora-cli -- conformance --slowest 3
 
 ## Current conformance coverage
 
-### Project model conformance cases
+### Installation model conformance cases
 
-The current matrix includes the following project-model cases. Verify the actual case ids with `cargo run -p plurora-cli -- conformance --list | grep -E "(host_profile|project|protocol\.project)"`.
+These cases cover the Installation journal, secret policy, and destructive no-alias boundary. Verify case ids with `cargo run -p plurora-cli -- conformance --list | grep -E "(installation|installation_secret)"`.
 
 | Group | Case id | Coverage | Status |
 |---|---|---|---|
-| secret resolver | `secret_store_resolver.host_profile_installs_composite_resolver` | host profile installs env+store/project composite resolver | implemented |
-| project secrets | `project_secret.put_then_resolve_via_project_ref` | `secret_ref:project:*` reads project store | implemented |
-| project secrets | `project_secret.fallback_to_platform_when_missing` | project miss falls back to platform store by policy | implemented |
-| project secrets | `project_secret.no_fallback_when_disabled` | disabled fallback fails closed | implemented |
-| project secrets | `project_secret.require_per_project_blocks_fallback` | `require_per_project` blocks platform fallback | implemented |
-| project secrets | `project_secret.isolation_between_projects` | project secret stores are softly isolated | implemented |
-| project secrets | `project_secret.no_session_context_fails_closed` | missing project/session context fails closed | implemented |
-| project secrets | `project_secret.list_returns_names_not_values` | project secret list returns names, not values | implemented |
-| project install | `project.detect_native_yaml` | detects native `project.yaml` | implemented |
-| project install | `project.detect_no_yaml` | no `project.yaml` enters external-project path | implemented |
-| project install | `project.detect_invalid_yaml_rejected` | invalid descriptor rejected | implemented |
-| project install | `project.register_creates_project_dir` | project registration creates data directory | implemented |
-| project registry | `project.list_returns_registered` | registry/list returns registered projects | implemented |
-| project runtime | `project.state_transitions` | start/stop state transitions | implemented |
-| project uninstall | `project.archive_keeps_data` | uninstall keep-data archives project directory | implemented |
-| project protocol | `protocol.project_list_returns_registered_projects` | `host.project.list` returns projects | implemented |
-| project protocol | `protocol.project_get_returns_full_descriptor` | `host.project.get` returns full descriptor | implemented |
-| project protocol | `protocol.project_start_transitions_state` | `host.project.start` transitions state | implemented |
-| project protocol | `protocol.project_methods_require_admin_principal` | project methods restricted to HostAdmin/HostDev | implemented |
-| project protocol | `protocol.project_lifecycle_event_emitted_on_start` | start emits project lifecycle event | implemented |
+| Installation protocol | `installation.protocol_crud_uses_service_registry` | five RPCs use the same Service registry owner | implemented |
+| Installation idempotency | `installation.idempotency_replay_and_conflict` | same-fingerprint replay and different-fingerprint conflict | implemented |
+| Installation concurrency | `installation.stale_revision_rejected` | stale expected revision rejects | implemented |
+| Installation state | `installation.state_migration_explicit` | incompatible state requires migration/reset | implemented |
+| Installation remove | `installation.remove_keep_delete_distinct` | keep/delete are distinct explicit terminals | implemented |
+| Installation restart | `installation.journal_restart_rehydrate` | journal rebuilds projection after restart | implemented |
+| Installation authority | `installation.exact_authority` | exact resource selectors prevent cross-resource access | implemented |
+| Installation events | `installation.lifecycle_events` | created/updated/removed payloads match public schemas | implemented |
+| destructive identity | `installation.retired_methods_invalid_request` | retired methods have no aliases | implemented |
+| Installation secret | `installation_secret.put_resolve_owned_path` | reads/writes only the Installation-owned secret path | implemented |
+| Installation secret | `installation_secret.policy_fallback_and_retired_scheme` | policy controls fallback and rejects the retired scheme | implemented |
+| Installation secret | `installation_secret.isolation_and_list_redaction` | Installation isolation and value-free list output | implemented |
 
 ### End-to-end real-path conformance cases
 
-The current matrix includes the following end-to-end-real-path cases. Verify the actual case ids with `cargo run -p plurora-cli -- conformance --list | grep -E "(surface\.resolve|project\.start_returns|session_metadata|running_session|stop_closes)"`.
+These are the Phase 3 surface-resolution cases. Phase 4 establishes Run/session lifecycle; Phase 3 does not fabricate it.
 
 | Group | Case id | Coverage | Status |
 |---|---|---|---|
 | dev bundle | `surface.resolve_via_dev_path` | dev-path surface bundle resolution | implemented |
-| installed bundle | `surface.resolve_via_installed_project` | installed-project surface bundle resolution | implemented |
 | bundle rejection | `surface.resolve_unknown_fails` | unknown surface bundle fails closed | implemented |
 | bundle authority | `surface.resolve_admin_principal_required` | resolve_bundle restricted to HostAdmin/HostDev | implemented |
-| project session | `project.start_returns_session_id` | `project.start` returns a project session id | implemented |
-| project session | `project.start_idempotent_returns_existing_session` | repeated start returns the existing session | implemented |
-| project session | `project.session_metadata_carries_project_id` | session metadata carries project_id | implemented |
-| project session | `project.stop_closes_session` | stop closes the project session | implemented |
-| project session | `project.get_returns_running_session_id` | get/status return running_session_id while Running | implemented |
 
 Surface/static bundle and bridge coverage also includes these stable assertions:
 
 | Assertion | Coverage | Status |
 |---|---|---|
 | static surface bundle | `surface_bundle` is a static browser entry and does not use the wasm sentinel or package execution | implemented |
-| project-root install surface dist | native project dist lives under Host/project-authority-gated `/surface-bundles/projects/<project_id>/...` | implemented |
+| Package surface source | bundles resolve from Host-identity-gated `/surface-bundles/packages/<package-id>/...` | implemented |
 | sandbox asset attenuation | authorized resolution issues a five-minute `/surface-assets/<lease>/...` handle bound to the grant/bundle root; cross-root, forged, expired, or revoked-grant access is denied | implemented |
 | bridge allowlist | typed `allowed_capability_ids` precisely constrains callable surface-bridge capabilities | implemented |
 | metadata not authority | surface metadata describes entries only and does not grant authority | implemented |
@@ -92,10 +78,8 @@ Surface/static bundle and bridge coverage also includes these stable assertions:
 | redacted diagnostics | bridge diagnostics, errors, and logs do not leak raw secrets or host absolute paths | implemented |
 | uncontrolled secret input | secret inputs remain uncontrolled/short-lived and are cleared on close | implemented |
 | schema timestamp stability | schema/export timestamps are stable and avoid nondeterministic generated timestamps | implemented |
-| surface-bundle freshness | `dist/` participates in `tree_hash`, so bundle-only changes trigger updates | implemented |
-| store schema migration | a store schema bump clears old store entries so stale hashes are not reused | implemented |
-| orphan store GC | install/update/uninstall remove store entries no longer referenced by lockfiles/profiles | implemented |
-| project updates | `plurora/install-lab/check_for_updates` and `update_project` power CLI and web update entries | implemented |
+| content-addressed freshness | bundle bytes enter the artifact closure, so changes alter the digest | implemented |
+| no fake Run | Installation detail returns the Phase 4 unavailable reason and creates no session | implemented |
 
 
 | Area | Case | Status |
@@ -404,371 +388,8 @@ Surface/static bundle and bridge coverage also includes these stable assertions:
 | publisher equality | an `plurora/...` package has no special routing or permissions | implemented |
 | publisher equality | kernel starts and conformance passes with no first-party Packages loaded | implemented |
 
-## CLI target output
+## Named CLI cases
 
-`cargo run -p plurora-cli -- conformance` should evolve from a smoke test into a named case runner:
+`cargo run -p plurora-cli -- conformance --list` is the executable source of truth for named cases; it currently emits 453 case ids plus tags. This document keeps only coverage that changes architectural judgment instead of duplicating a complete list that drifts.
 
-```text
-session.open_empty                         PASS
-event.append_authorized                    PASS
-event.append_without_permission_denied     PASS
-event.kernel_namespace_denied              PASS
-event.read_without_permission_denied       PASS
-event.closed_session_rejects_append        PASS
-event.range_replay                         PASS
-package.load_valid_manifest                PASS
-package.unload_removes_capabilities        PASS
-capability.invoke_rust_inproc              PASS
-capability.ambiguous_provider_denied       PASS
-capability.explicit_provider_selected      PASS
-first_party.no_privilege                      PASS
-schema.capability_input_rejects_invalid    PASS
-schema.event_payload_rejects_invalid       PASS
-protocol.structured_permission_error       PASS
-permission.grant_revoke_audit              PASS
-permission.assistant_capability_grant      PASS
-protocol.call_host_info                    PASS
-protocol.commons_advertised                PASS
-protocol.major_mismatch_rejected           PASS
-protocol.legacy_adapter_is_explicit        PASS
-protocol.reports_are_separate              PASS
-protocol.alias_equivalent                  PASS
-protocol.layered_namespace_smoke           PASS
-protocol.unsupported_version_rejected      PASS
-protocol.no_silent_downgrade               PASS
-protocol.call_capability_in_process        PASS
-principal.package_cannot_self_assert_writer PASS
-principal.package_cannot_self_assert_capability_caller PASS
-subprocess.load_ready                      PASS
-subprocess.invoke_echo                     PASS
-package.lifecycle_timeline                 PASS
-package.logs_capture                       PASS
-package.restart_subprocess                 PASS
-host.diagnostics                           PASS
-host.profile_autoload                      PASS
-surface.contribution_list                  PASS
-first_party.foundation_packages               PASS
-first_party.assistant_lab_proposal            PASS
-play_creation.blank_loop                   PASS
-proposal.lifecycle_apply                   PASS
-proposal.reject_and_apply_denied           PASS
-asset.put_get_list                         PASS
-asset.legacy_fnv_migration                 PASS
-object_store.portability_integrity         PASS
-session.fork_branch                        PASS
-projection.rebuild                         PASS
-substrate.sqlite_rehydrate                 PASS
-subprocess.bad_handshake                   PASS
-subprocess.invoke_timeout                  PASS
-subprocess.invalid_output_schema           PASS
-subprocess.unload_removes_capability       PASS
-hook.ordering_stable                       PASS
-hook.veto_blocks_event_append              PASS
-hook.metadata_mutation_allowed             PASS
-hook.package_owned_handler                 PASS
-hook.unload_removes_subscription           PASS
-package.generated_subprocess_conformance   PASS
-package.generated_typescript_subprocess_conformance PASS
-package.generated_experience_template      PASS
-work.nested_exposure                       PASS
-work.digest_is_deterministic               PASS
-assembly.component_identity_independent_of_package_envelope PASS
-assembly.component_replacement_preserves_content_roots PASS
-work.contract_none_is_foreign_capsule      PASS
-first_party.asset_lab                         PASS
-first_party.projection_lab                    PASS
-first_party.playable_seed                     PASS
-first_party.persona_lab                       PASS
-first_party.knowledge_lab                     PASS
-first_party.context_lab                       PASS
-first_party.text_transform_lab                PASS
-first_party.model_connector_lab               PASS
-first_party.model_provider_lab                 PASS
-first_party.model_provider_lab_invoke_core       PASS
-first_party.model_provider_lab_normalize_stream  PASS
-first_party.model_routing_lab                 PASS
-first_party.pi_agent_runtime_lab              PASS
-first_party.capability_tool_bridge_lab         PASS
-first_party.inference_local_lab_describe_capabilities PASS
-first_party.inference_local_lab_invoke          PASS
-first_party.inference_local_lab_invoke_rejects_http PASS
-first_party.inference_local_lab_stream          PASS
-first_party.inference_local_lab_explain_error   PASS
-first_party.inference_playtest_lab_draft         PASS
-first_party.inference_playtest_lab_inspect       PASS
-first_party.inference_playtest_lab_reject_apply_denied PASS
-first_party.inference_playtest_lab_apply_and_branch PASS
-plurora.inference_playtest_lab_no_chat_platform_terms PASS
-inproc.non_first_party_preview_rejected       PASS
-inproc.unknown_capability_errors           PASS
-replacement.thirdparty_seed_surfaces         PASS
-replacement.thirdparty_seed_invocation       PASS
-replacement.ambiguous_no_publisher_priority   PASS
-replacement.work_thirdparty                  PASS
-replacement.thirdparty_agent_runtime_surfaces   PASS
-replacement.thirdparty_agent_runtime_invocation PASS
-replacement.work_agent_runtime_replacement  PASS
-substrate.permission_grant_rehydrate          PASS
-secret.ref_validation                        PASS
-secret.raw_blocked_in_proposal               PASS
-secret.raw_blocked_in_asset_metadata         PASS
-first_party.no_secret_bypass                    PASS
-secret.env_resolver_allowed                  PASS
-secret.env_resolver_denied                   PASS
-secret.env_resolver_missing_no_leak          PASS
-network.no_permission_denied                  PASS
-network.allowlisted_host_method_allowed       PASS
-network.host_method_mismatch_denied           PASS
-network.first_party_no_network_bypass            PASS
-network.audit_no_raw_secrets                  PASS
-network.policy_pure_function                  PASS
-outbound.no_permission_executor_not_called      PASS
-outbound.allowlisted_fake_executor              PASS
-outbound.raw_body_not_audited                   PASS
-outbound.model_provider_shape_fake_executor   PASS
-outbound.secret_refs_only                       PASS
-outbound.host_mismatch_redirect_denied          PASS
-stream.normal_lifecycle                       PASS
-stream.cancel_blocks_chunks                   PASS
-stream.timeout_blocks_chunks                  PASS
-stream.error_terminal                         PASS
-stream.non_streaming_rejected                 PASS
-stream.no_model_agent_methods                 PASS
-stream.protocol_dispatch                      PASS
-package.generated_networked_template           PASS
-package.generated_streaming_template           PASS
-package.faux_model_readiness                   PASS
-package.faux_agent_readiness                   PASS
-outbound.live_http_default_disabled             PASS
-outbound.live_http_rejects_insecure_url         PASS
-outbound.live_http_redacted_shape               PASS
-outbound.execute_package_allowed                 PASS
-outbound.execute_spoofed_package_id_rejected     PASS
-outbound.execute_no_permission_denied             PASS
-outbound.execute_no_raw_secret_in_response        PASS
-outbound.secret_headers_parsed                    PASS
-outbound.live_loopback_secret_injection            PASS
-stream.sse_normalize_deepseek_canary              PASS
-outbound.live_deepseek_opt_in                     PASS
-canary.deepseek_profile_shape                     PASS
-outbound.openai_chat_loopback                     PASS
-outbound.openai_responses_loopback                 PASS
-outbound.anthropic_messages_loopback               PASS
-outbound.gemini_generate_content_loopback          PASS
-outbound.missing_secret_fails_closed               PASS
-outbound.provider_normalize_request_alignment      PASS
-outbound.no_raw_secret_leak_all_providers          PASS
-outbound.static_headers_safe_allowlist             PASS
-outbound.static_headers_block_secrets              PASS
-outbound.openrouter_loopback_headers               PASS
-outbound.xai_loopback                              PASS
-outbound.fireworks_loopback                        PASS
-stream.deepseek_reasoning_stream                   PASS
-stream.openrouter_midstream_error                   PASS
-outbound.provider_quirk_fixtures_no_secrets        PASS
-outbound.static_headers_openrouter_safe             PASS
-agentic_forge.describe_contract                       PASS
-agentic_forge.start_run_plan_graph_working_state      PASS
-agentic_forge.inspect_cancel_summarize                PASS
-agentic_forge.raw_secret_blocked                      PASS
-agentic_forge.no_kernel_agent_namespace                PASS
-agentic_forge.create_candidate_branch_aware            PASS
-agentic_forge.compare_candidate_stale_detection        PASS
-agentic_forge.draft_promote_proposal_no_mutation       PASS
-agentic_forge.stale_promote_blocked                    PASS
-agentic_forge.archive_candidate_target_unchanged       PASS
-agentic_forge.inference_node_deterministic_candidate_seed PASS
-agentic_forge.replay_match_mismatch_flagged             PASS
-agentic_forge.inference_output_privilege_escalation_rejected PASS
-agentic_forge.cloud_adapter_needs_host_policy_no_network PASS
-agentic_forge.inference_failure_taxonomy_recovery_hints PASS
-agentic_forge.explain_tool_call_scoped_no_ambient_authority PASS
-agentic_forge.record_observation_untrusted_large_output_redaction PASS
-agentic_forge.tool_risk_injection_exfiltration_outbound    PASS
-agentic_forge.replay_tool_plan_mismatch_flagged             PASS
-agentic_forge.plan_toolchain_requires_explicit_provider_nested_delegation_blocked PASS
-agentic_forge.thirdparty_work_shape_no_publisher_priority PASS
-agentic_forge.no_publisher_priority_ordinary_package PASS
-agentic_forge.hostile_injection_secret_blocked_cross_package PASS
-agentic_forge.budget_deadline_contract_cancellation_consistent PASS
-agentic_forge.cross_package_replay_mismatch_flagged PASS
-playable_board.describe_contract_shape PASS
-playable_board.launch_and_player_actions PASS
-playable_board.checkpoint_recovery_shape PASS
-playable_board.request_change_no_chat PASS
-playable_board.bind_agent_run_scoped PASS
-playable_board.candidate_proposal_no_target_mutation PASS
-playable_board.reject_approve_fork_proof PASS
-playable_board.thirdparty_no_publisher_priority PASS
-playable_board.no_forbidden_namespace PASS
-playable_board.no_raw_secrets PASS
-playable_board.content_address_stable PASS
-playable_board.checkpoint_metadata PASS
-playable_board.provenance_graph PASS
-playable_board.state_diff_preview PASS
-playable_board.describe_asset_provenance PASS
-playable_board.beta2_no_raw_secrets PASS
-first_party.asset_lab_content_address PASS
-first_party.asset_lab_provenance_graph PASS
-first_party.projection_lab_state_snapshot PASS
-experience_observability.contract_shape PASS
-experience_observability.session_health PASS
-experience_observability.package_health PASS
-experience_observability.agent_run_health PASS
-experience_observability.proposal_causality PASS
-experience_observability.cost_latency_summary PASS
-experience_observability.failure_breadcrumbs PASS
-experience_observability.guardrail_audit_summary PASS
-experience_observability.no_forbidden_namespace PASS
-experience_observability.no_raw_secrets PASS
-memory_lab.contract_shape PASS
-memory_lab.record_memory PASS
-memory_lab.retrieve_memory PASS
-memory_lab.trace_retrieval PASS
-memory_lab.draft_update_proposal_only PASS
-memory_lab.correction_proposal_gated PASS
-memory_lab.forget_redaction_plan PASS
-memory_lab.branch_view PASS
-memory_lab.no_forbidden_namespace PASS
-memory_lab.no_raw_secrets PASS
-creator_loop.playable_board_template PASS
-creator_loop.playable_experience_template PASS
-creator_loop.experience_surface_warnings PASS
-creator_loop.missing_checkpoint_warning PASS
-creator_loop.dangerous_permissions_warning PASS
-creator_loop.network_nondeterministic_hint PASS
-creator_loop.work_experience_diagnostics PASS
-creator_loop.walkthrough_reference PASS
-creator_loop.thirdparty_no_privilege PASS
-sharing_lab.contract_shape PASS
-sharing_lab.export_work_bundle PASS
-sharing_lab.import_work_bundle PASS
-sharing_lab.branch_session_bundle PASS
-sharing_lab.package_set_lockfile PASS
-sharing_lab.compatibility_report PASS
-sharing_lab.ai_disclosure_bundle PASS
-sharing_lab.read_only_share_manifest PASS
-sharing_lab.async_fork_share_plan PASS
-sharing_lab.no_marketplace_no_raw_secrets PASS
-storage_backend.in_memory_event_store_contract_append_range PASS
-storage_backend.sqlite_event_store_contract_append_range PASS
-storage_backend.backend_parity_kind_prefix PASS
-storage_backend.backend_parity_concurrent_append PASS
-storage_backend.backend_parity_subscription PASS
-storage_backend.rehydrate_parity PASS
-storage_lab.contract_shape_no_kernel_database_terms PASS
-storage_lab.backend_classes_no_secret_backend_config PASS
-storage_lab.package_state_plan_scoped PASS
-storage_lab.put_document_preview_no_write PASS
-storage_lab.get_document_preview_no_read PASS
-storage_lab.query_prefix_preview_no_query_execution PASS
-storage_lab.delete_tombstone_preview_no_delete PASS
-storage_lab.export_snapshot_preview_redacted PASS
-storage_lab.raw_secret_rejected PASS
-storage_lab.unsafe_id_rejected PASS
-storage_lab.blob_contract_shape PASS
-storage_lab.put_blob_preview_content_address_deterministic PASS
-storage_lab.put_blob_preview_no_storage_no_content_event PASS
-storage_lab.get_blob_metadata_preview_no_content PASS
-storage_lab.export_blob_manifest_refs_only PASS
-storage_lab.blob_raw_secret_and_unsafe_id_rejected PASS
-storage_lab.projection_contract_shape PASS
-storage_lab.projection_materialization_plan_only PASS
-storage_lab.projection_query_preview_no_execution PASS
-storage_lab.projection_migration_plan_no_rewrite PASS
-storage_lab.projection_rejects_raw_secret PASS
-storage_lab.projection_no_db_table_leakage PASS
-storage_lab.retrieval_contract_shape PASS
-storage_lab.multimodal_index_plan_no_embedding_no_storage PASS
-storage_lab.multimodal_index_rejects_invalid_modality_or_too_many_refs PASS
-storage_lab.vector_search_plan_no_execution PASS
-storage_lab.backend_fit_mentions_tdb_future_only PASS
-storage_lab.retrieval_rejects_raw_secret PASS
-storage_lab.retrieval_no_kernel_vector_namespace_or_credentials PASS
-tdb_retrieval_lab.contract_shape PASS
-tdb_retrieval_lab.index_plan_no_execution PASS
-tdb_retrieval_lab.query_plan_no_execution PASS
-tdb_retrieval_lab.backend_fit_boundary PASS
-tdb_retrieval_lab.invalid_input_rejected PASS
-tdb_retrieval_lab.raw_secret_and_unsafe_id_rejected PASS
-tdb_retrieval_lab.real_tdb_opt_in_seam_crate_adapter_available PASS
-integrity.tree_hash_deterministic PASS
-integrity.tree_hash_excludes_metadata PASS
-integrity.manifest_hash_yaml_json_equivalent PASS
-integrity.gpg_verify_valid_signature PASS
-integrity.gpg_verify_wrong_key_fails PASS
-integrity.gpg_verify_invalid_signature_no_panic PASS
-integrity.fingerprint_extraction_consistent PASS
-git_tools.url_validation_https_only PASS
-git_tools.url_validation_no_userinfo PASS
-git_tools.path_validation_absolute PASS
-git_tools.path_validation_no_traversal PASS
-git_tools.read_signed_tag_unsigned PASS
-install_lab.resolve_plan_local_source PASS
-install_lab.project_root_install_registers_surface_dist PASS
-install_lab.resolve_plan_runs_conformance PASS
-install_lab.resolve_plan_blocks_when_strict PASS
-install_lab.strict_conformance_blocks PASS
-install_lab.lenient_conformance_warns_not_blocks PASS
-install_lab.transitive_conformance_propagates PASS
-install_lab.resolve_plan_with_transitive PASS
-install_lab.resolve_plan_cycle_detection PASS
-install_lab.execute_plan_local PASS
-install_lab.execute_plan_consent_mismatch PASS
-install_lab.uninstall_removes_from_profile PASS
-install_lab.list_installed_reflects_lockfile PASS
-install_lab.check_lockfile_drift_detection PASS
-install_lab.check_for_updates_local_dangling_unsupported PASS
-install_lab.check_for_updates_external_project_not_applicable PASS
-install_lab.update_project_local_replaces_dist_and_lockfile PASS
-install_lab.update_project_local_current_noop PASS
-install_lab.update_project_local_force_reinstalls_current PASS
-install_lab.update_project_external_not_applicable PASS
-install_lab.update_project_permission_drift_blocks_before_mutation PASS
-install.real_github_smoke PASS
-secret_store_resolver.host_profile_installs_composite_resolver PASS
-project_secret.put_then_resolve_via_project_ref PASS
-project_secret.fallback_to_platform_when_missing PASS
-project_secret.no_fallback_when_disabled PASS
-project_secret.require_per_project_blocks_fallback PASS
-project_secret.isolation_between_projects PASS
-project_secret.no_session_context_fails_closed PASS
-project_secret.list_returns_names_not_values PASS
-project.detect_native_yaml PASS
-project.detect_no_yaml PASS
-project.detect_invalid_yaml_rejected PASS
-project.register_creates_project_dir PASS
-project.list_returns_registered PASS
-project.state_transitions PASS
-project.archive_keeps_data PASS
-protocol.project_list_returns_registered_projects PASS
-protocol.project_get_returns_full_descriptor PASS
-protocol.project_start_transitions_state PASS
-protocol.project_methods_require_admin_principal PASS
-protocol.project_lifecycle_event_emitted_on_start PASS
-surface.resolve_via_dev_path PASS
-surface.resolve_via_installed_project PASS
-surface.resolve_unknown_fails PASS
-surface.resolve_admin_principal_required PASS
-project.start_returns_session_id PASS
-project.start_idempotent_returns_existing_session PASS
-project.session_metadata_carries_project_id PASS
-project.stop_closes_session PASS
-project.get_returns_running_session_id PASS
-tdb_rust_adapter.subprocess_adapter_shell_invokes_disabled_smoke PASS
-tdb_rust_adapter.subprocess_adapter_rejects_secret_and_raw_path PASS
-tdb_rust_adapter.real_crate_smoke_opt_in PASS
-capability_handles.auto_mint PASS
-capability_handles.attenuate PASS
-capability_handles.revoke PASS
-capability_handles.list_for PASS
-invoke_instrumentation.invoked_event PASS
-invoke_instrumentation.completed_event PASS
-invoke_instrumentation.failed_event PASS
-bindings.subprocess_injection PASS
-bindings.rust_inproc_kernel_env PASS
-package.audit_report PASS
-package.path_b_self_contained PASS
-```
-
-The suite should fail closed: any case listed as required for the host must pass before the corresponding milestone is declared complete.
+The runner supports `--case`, `--tag`, `--fail-fast`, and `--slowest`. Every Host-required case must pass before the corresponding milestone is complete.

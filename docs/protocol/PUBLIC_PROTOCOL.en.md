@@ -64,7 +64,7 @@ Failure:
 
 Every method has:
 
-- `id`: an exact owner-based public method ID such as `context.open`, `host.project.list`, or `shell.contribution.list`.
+- `id`: an exact owner-based public method ID such as `context.open`, `host.installation.list`, or `shell.contribution.list`.
 - `input`: a JSON value validated against a published schema.
 - `output`: a JSON value, possibly a stream.
 - `errors`: a structured error model with `code`, `message`, `details`.

@@ -1,0 +1,44 @@
+{
+  "$defs": {
+    "InstallationStateSnapshotEntry": {
+      "additionalProperties": false,
+      "properties": {
+        "bytes": {
+          "items": {
+            "format": "uint8",
+            "minimum": 0.0,
+            "type": "integer"
+          },
+          "type": "array"
+        },
+        "path": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "bytes",
+        "path"
+      ],
+      "type": "object"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "entries": {
+      "items": {
+        "$ref": "#/$defs/InstallationStateSnapshotEntry"
+      },
+      "type": "array"
+    },
+    "schema": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "entries",
+    "schema"
+  ],
+  "title": "InstallationStateSnapshot",
+  "type": "object"
+}

@@ -11,18 +11,18 @@ use axum::http::StatusCode;
 use axum::routing::{get, post};
 use axum::{Json, Router};
 use chrono::Utc;
-use plurora_core::project::{ExternalWorkspaceOwnership, ProjectDescriptor, ProjectType};
 use plurora_core::{
     ArtifactDescriptor, ChangeCommit, ChangeCommitStatus, ChangeOperation, ChangePrecondition,
     ChangeSet, EffectReceipt, EffectReplayMode, EffectScope, EffectTerminalStatus, Intent,
-    PolicyDecision, PolicyDecisionOutcome, PrincipalIdentity, ProjectId,
-    COMPONENT_EVIDENCE_TYPE_URI, EFFECT_RECEIPT_TYPE_URI,
+    PolicyDecision, PolicyDecisionOutcome, PrincipalIdentity, COMPONENT_EVIDENCE_TYPE_URI,
+    EFFECT_RECEIPT_TYPE_URI,
 };
 use plurora_core::{EventEnvelope, EventSequence};
 use plurora_runtime::{
-    ArtifactCommitRequest, EventStore, ProtocolContext, ProtocolResourceSelector, ProxyRouteAccess,
-    Runtime,
+    ArtifactCommitRequest, EventStore, InstallationControl, ProtocolContext,
+    ProtocolResourceSelector, ProxyRouteAccess, Runtime,
 };
+use plurora_work::{InstallationId, WorkspaceId};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
@@ -38,17 +38,17 @@ use crate::target_agent::{
 };
 use crate::{
     call_host_protocol, deployment_effect_context, drain_previous_revision,
-    invoke_docker_runtime_lab, now_millis, persist_revision_activation, require_built_image,
-    require_identity_project, require_identity_target, required_string,
+    ensure_installation_exists, invoke_docker_runtime_lab, now_millis, persist_revision_activation,
+    require_built_image, require_identity_installation, require_identity_target, required_string,
     restore_proxy_route_if_candidate_active, service_public_url_for_route, value_field, AppState,
-    BuildDeployProjectGuard, DeploymentActionResponse, DeploymentAuthorityLease,
+    BuildDeployInstallationGuard, DeploymentActionResponse, DeploymentAuthorityLease,
     DeploymentOperation, DeploymentRevision, DeploymentSourceKind, HostBuildDeployResponse,
     ServiceError,
 };
 
 const DEVELOPMENT_JOURNAL_PREFIX: &str = "host/control/v1/development.";
 const DEVELOPMENT_SNAPSHOT_EVENT: &str = "host/control/v1/development.change.snapshot";
-const DEVELOPMENT_JOURNAL_SESSION_PREFIX: &str = "host_control_development_project";
+const DEVELOPMENT_JOURNAL_SESSION_PREFIX: &str = "host_control_development_subject";
 const DEVELOPMENT_JOURNAL_WRITER: &str = "host/control-plane";
 const DEVELOPMENT_HOST_LEASE_SESSION: &str = "host_control_development_lease";
 const DEVELOPMENT_HOST_LEASE_EVENT: &str = "host/control/v1/lease.development_host";
@@ -80,6 +80,8 @@ const DEVELOPMENT_DEPLOYMENT_OPERATION_TIMEOUT: std::time::Duration =
 pub struct DevelopmentDraftRequest {
     pub goal: String,
     pub operations: Vec<DevelopmentFileOperationRequest>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub target_installation_id: Option<InstallationId>,
     #[serde(default)]
     pub verification: DevelopmentVerificationPlan,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -146,9 +148,31 @@ impl DevelopmentNetworkMode {
 #[derive(Debug, Clone, Copy, Deserialize, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum DevelopmentWorkspaceOwnership {
-    ManagedExternal,
+    Managed,
     LinkedLocal,
-    NativeManaged,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
+pub enum DevelopmentSubject {
+    Installation { installation_id: InstallationId },
+    Workspace { workspace_id: WorkspaceId },
+}
+
+impl DevelopmentSubject {
+    fn as_str(&self) -> &str {
+        match self {
+            Self::Installation { installation_id } => installation_id.as_str(),
+            Self::Workspace { workspace_id } => workspace_id.as_str(),
+        }
+    }
+
+    fn workspace_id(&self) -> Option<&WorkspaceId> {
+        match self {
+            Self::Workspace { workspace_id } => Some(workspace_id),
+            Self::Installation { .. } => None,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, Deserialize, Serialize, PartialEq, Eq)]
@@ -273,6 +297,7 @@ pub struct DevelopmentDeploymentRecord {
     pub deployment_id: String,
     pub status: DevelopmentDeploymentStatus,
     pub target_id: String,
+    pub workspace_id: WorkspaceId,
     pub source_tree_digest: String,
     pub verification_ref: ArtifactDescriptor,
     pub build_context_ref: ArtifactDescriptor,
@@ -329,7 +354,9 @@ pub struct DevelopmentManagedPromotion {
 pub struct DevelopmentChangeRecord {
     pub schema_version: u16,
     pub revision: u64,
-    pub project_id: ProjectId,
+    pub subject: DevelopmentSubject,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub target_installation_id: Option<InstallationId>,
     pub workspace_ownership: DevelopmentWorkspaceOwnership,
     pub intent: Intent,
     pub intent_ref: ArtifactDescriptor,
@@ -398,7 +425,7 @@ struct DevelopmentExecuteResponse {
 #[derive(Debug, Serialize)]
 struct DevelopmentPatchBundle {
     schema_version: u16,
-    project_id: ProjectId,
+    subject: DevelopmentSubject,
     change_set_id: String,
     base_tree_digest: String,
     operations: Vec<DevelopmentPatchBundleOperation>,
@@ -421,11 +448,11 @@ enum DevelopmentPatchBundleOperation {
 #[derive(Debug)]
 pub struct DevelopmentRegistry {
     changes: Mutex<HashMap<String, StoredDevelopmentChange>>,
-    idempotency_claims: Mutex<HashMap<(ProjectId, String), (String, String)>>,
+    idempotency_claims: Mutex<HashMap<(DevelopmentSubject, String), (String, String)>>,
     change_locks: Mutex<HashMap<String, Arc<AsyncMutex<()>>>>,
     global_sem: Arc<Semaphore>,
-    project_active: Mutex<HashSet<ProjectId>>,
-    project_journal_next: Mutex<HashMap<ProjectId, EventSequence>>,
+    subject_active: Mutex<HashSet<DevelopmentSubject>>,
+    subject_journal_next: Mutex<HashMap<DevelopmentSubject, EventSequence>>,
     journal_apply: Mutex<()>,
     host_lease: Mutex<Option<DevelopmentHostLease>>,
 }
@@ -437,8 +464,8 @@ impl Default for DevelopmentRegistry {
             idempotency_claims: Mutex::new(HashMap::new()),
             change_locks: Mutex::new(HashMap::new()),
             global_sem: Arc::new(Semaphore::new(DEVELOPMENT_MAX_GLOBAL_ACTIVE)),
-            project_active: Mutex::new(HashSet::new()),
-            project_journal_next: Mutex::new(HashMap::new()),
+            subject_active: Mutex::new(HashSet::new()),
+            subject_journal_next: Mutex::new(HashMap::new()),
             journal_apply: Mutex::new(()),
             host_lease: Mutex::new(None),
         }
@@ -449,11 +476,23 @@ pub fn development_registry() -> Arc<DevelopmentRegistry> {
     Arc::new(DevelopmentRegistry::default())
 }
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct DevelopmentHostLease {
     owner_id: String,
     valid: Arc<AtomicBool>,
     expires_at_ms: Arc<AtomicI64>,
+    store: Arc<dyn EventStore>,
+}
+
+impl std::fmt::Debug for DevelopmentHostLease {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("DevelopmentHostLease")
+            .field("owner_id", &self.owner_id)
+            .field("valid", &self.valid.load(Ordering::Acquire))
+            .field("expires_at_ms", &self.expires_at_ms.load(Ordering::Acquire))
+            .finish_non_exhaustive()
+    }
 }
 
 impl DevelopmentHostLease {
@@ -470,6 +509,28 @@ impl DevelopmentHostLease {
         );
         Ok(())
     }
+
+    /// Re-read the authoritative lease tail immediately before an effect.
+    /// A handle is invalidated permanently as soon as durable ownership is
+    /// released, expires, or moves to another Host.
+    pub async fn ensure_durable_owner(&self) -> anyhow::Result<()> {
+        self.ensure_active()?;
+        let (_, current) = development_host_lease_tail(self.store.as_ref()).await?;
+        let current =
+            current.ok_or_else(|| anyhow::anyhow!("development Host lease disappeared"))?;
+        let current_owner = current.owner_id == self.owner_id;
+        let current_live =
+            !current.released && current.expires_at_ms > Utc::now().timestamp_millis();
+        if !current_owner || !current_live {
+            self.valid.store(false, Ordering::Release);
+            self.expires_at_ms
+                .store(Utc::now().timestamp_millis(), Ordering::Release);
+            anyhow::bail!("development Host lease is no longer the durable owner");
+        }
+        self.expires_at_ms
+            .store(current.expires_at_ms, Ordering::Release);
+        Ok(())
+    }
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -483,7 +544,7 @@ async fn development_host_lease_tail<S>(
     store: &S,
 ) -> anyhow::Result<(EventSequence, Option<DevelopmentHostLeaseEvent>)>
 where
-    S: EventStore,
+    S: EventStore + ?Sized,
 {
     let session_id = DEVELOPMENT_HOST_LEASE_SESSION.to_string();
     let next = store.next_sequence(&session_id).await?;
@@ -511,7 +572,7 @@ async fn append_development_host_lease<S>(
     payload: &DevelopmentHostLeaseEvent,
 ) -> anyhow::Result<bool>
 where
-    S: EventStore,
+    S: EventStore + ?Sized,
 {
     Ok(store
         .append_with_sequence_if_next(
@@ -534,6 +595,7 @@ pub async fn acquire_development_host_lease<S>(
 where
     S: EventStore,
 {
+    let lease_store: Arc<dyn EventStore> = store.clone();
     let owner_id = format!("host-{}", uuid::Uuid::new_v4().simple());
     for _ in 0..8 {
         let (expected_next, current) = development_host_lease_tail(store.as_ref()).await?;
@@ -553,6 +615,7 @@ where
                 owner_id,
                 valid: Arc::new(AtomicBool::new(true)),
                 expires_at_ms: Arc::new(AtomicI64::new(payload.expires_at_ms)),
+                store: lease_store.clone(),
             };
             registry.install_host_lease(&lease);
             return Ok(lease);
@@ -566,7 +629,7 @@ async fn renew_development_host_lease<S>(
     lease: &DevelopmentHostLease,
 ) -> anyhow::Result<()>
 where
-    S: EventStore,
+    S: EventStore + ?Sized,
 {
     for _ in 0..4 {
         let (expected_next, current) = development_host_lease_tail(store).await?;
@@ -594,7 +657,7 @@ where
 }
 
 pub fn spawn_development_host_lease_heartbeat<S>(
-    store: Arc<S>,
+    _store: Arc<S>,
     lease: DevelopmentHostLease,
 ) -> tokio::task::JoinHandle<()>
 where
@@ -607,7 +670,7 @@ where
         interval.tick().await;
         loop {
             interval.tick().await;
-            if let Err(error) = renew_development_host_lease(store.as_ref(), &lease).await {
+            if let Err(error) = renew_development_host_lease(lease.store.as_ref(), &lease).await {
                 lease.valid.store(false, Ordering::Release);
                 tracing::error!(error = %error, "development host lease heartbeat failed");
                 break;
@@ -617,13 +680,13 @@ where
 }
 
 pub async fn release_development_host_lease<S>(
-    store: Arc<S>,
+    _store: Arc<S>,
     lease: &DevelopmentHostLease,
 ) -> anyhow::Result<()>
 where
     S: EventStore,
 {
-    release_development_host_lease_inner(store, lease, false).await
+    release_development_host_lease_inner(lease.store.clone(), lease, false).await
 }
 
 /// Release the lease only if this handle is still the durable owner.
@@ -631,23 +694,20 @@ where
 /// This stricter form is used when a successful release authorizes a later
 /// effect, such as publishing a backup captured under the lease.
 pub async fn release_owned_development_host_lease<S>(
-    store: Arc<S>,
+    _store: Arc<S>,
     lease: &DevelopmentHostLease,
 ) -> anyhow::Result<()>
 where
     S: EventStore,
 {
-    release_development_host_lease_inner(store, lease, true).await
+    release_development_host_lease_inner(lease.store.clone(), lease, true).await
 }
 
-async fn release_development_host_lease_inner<S>(
-    store: Arc<S>,
+async fn release_development_host_lease_inner(
+    store: Arc<dyn EventStore>,
     lease: &DevelopmentHostLease,
     require_ownership: bool,
-) -> anyhow::Result<()>
-where
-    S: EventStore,
-{
+) -> anyhow::Result<()> {
     lease.valid.store(false, Ordering::Release);
     lease
         .expires_at_ms
@@ -730,13 +790,13 @@ impl DevelopmentRegistry {
             .map(|stored| stored.record.clone())
     }
 
-    fn list(&self, project_id: &ProjectId) -> Vec<DevelopmentChangeRecord> {
+    fn list(&self, subject: &DevelopmentSubject) -> Vec<DevelopmentChangeRecord> {
         let mut changes = self
             .changes
             .lock()
             .expect("development changes lock poisoned")
             .values()
-            .filter(|stored| &stored.record.project_id == project_id)
+            .filter(|stored| &stored.record.subject == subject)
             .map(|stored| stored.record.clone())
             .collect::<Vec<_>>();
         changes.sort_by_key(|record| std::cmp::Reverse(record.created_at_ms));
@@ -765,12 +825,12 @@ impl DevelopmentRegistry {
         );
         let snapshot: DevelopmentChangeSnapshot = serde_json::from_value(event.payload.clone())
             .with_context(|| format!("invalid durable development snapshot {}", event.id))?;
-        let project_id = snapshot.record.project_id.clone();
+        let subject = snapshot.record.subject.clone();
         anyhow::ensure!(
-            event.session_id == development_project_session(&project_id),
-            "development snapshot was written to the wrong project journal"
+            event.session_id == development_subject_session(&subject),
+            "development snapshot was written to the wrong subject journal"
         );
-        let expected_sequence = self.project_journal_next(&project_id);
+        let expected_sequence = self.subject_journal_next(&subject);
         if event.sequence < expected_sequence {
             // Concurrent refreshes can observe the same immutable journal page.
             // A sequence below the applied tail is already represented locally.
@@ -778,13 +838,13 @@ impl DevelopmentRegistry {
         }
         anyhow::ensure!(
             event.sequence == expected_sequence,
-            "development project journal sequence is not contiguous"
+            "development subject journal sequence is not contiguous"
         );
         self.apply_snapshot(snapshot)?;
-        self.project_journal_next
+        self.subject_journal_next
             .lock()
             .expect("development journal tails lock poisoned")
-            .insert(project_id, event.sequence.saturating_add(1));
+            .insert(subject, event.sequence.saturating_add(1));
         Ok(())
     }
 
@@ -806,8 +866,8 @@ impl DevelopmentRegistry {
                         "development change revision is not monotonic"
                     );
                     anyhow::ensure!(
-                        snapshot.record.project_id == existing.record.project_id,
-                        "development change project identity changed"
+                        snapshot.record.subject == existing.record.subject,
+                        "development change subject identity changed"
                     );
                 }
                 None => anyhow::ensure!(
@@ -821,7 +881,7 @@ impl DevelopmentRegistry {
                 .idempotency_claims
                 .lock()
                 .expect("development idempotency lock poisoned");
-            let claim_key = (snapshot.record.project_id.clone(), key);
+            let claim_key = (snapshot.record.subject.clone(), key);
             if let Some((fingerprint, claimed_id)) = claims.get(&claim_key) {
                 anyhow::ensure!(
                     fingerprint == &snapshot.request_fingerprint && claimed_id == &change_set_id,
@@ -847,18 +907,18 @@ impl DevelopmentRegistry {
         Ok(())
     }
 
-    fn project_journal_next(&self, project_id: &ProjectId) -> EventSequence {
-        self.project_journal_next
+    fn subject_journal_next(&self, subject: &DevelopmentSubject) -> EventSequence {
+        self.subject_journal_next
             .lock()
             .expect("development journal tails lock poisoned")
-            .get(project_id)
+            .get(subject)
             .copied()
             .unwrap_or(0)
     }
 
     fn claim_draft(
         &self,
-        project_id: &ProjectId,
+        subject: &DevelopmentSubject,
         idempotency_key: Option<&str>,
         request_fingerprint: &str,
         change_set_id: &str,
@@ -870,7 +930,7 @@ impl DevelopmentRegistry {
             .idempotency_claims
             .lock()
             .expect("development idempotency lock poisoned");
-        let claim_key = (project_id.clone(), key.to_string());
+        let claim_key = (subject.clone(), key.to_string());
         if let Some((existing_fingerprint, existing_id)) = claims.get(&claim_key) {
             anyhow::ensure!(
                 existing_fingerprint == request_fingerprint,
@@ -888,14 +948,14 @@ impl DevelopmentRegistry {
         Ok(DraftClaim::Reserved)
     }
 
-    fn release_draft_claim(&self, project_id: &ProjectId, idempotency_key: Option<&str>) {
+    fn release_draft_claim(&self, subject: &DevelopmentSubject, idempotency_key: Option<&str>) {
         let Some(key) = idempotency_key else {
             return;
         };
         self.idempotency_claims
             .lock()
             .expect("development idempotency lock poisoned")
-            .remove(&(project_id.clone(), key.to_string()));
+            .remove(&(subject.clone(), key.to_string()));
     }
 
     fn lock_for(&self, change_set_id: &str) -> Arc<AsyncMutex<()>> {
@@ -907,36 +967,34 @@ impl DevelopmentRegistry {
             .clone()
     }
 
-    fn try_begin(&self, project_id: &ProjectId) -> anyhow::Result<OwnedSemaphorePermit> {
+    fn try_begin(&self, subject: &DevelopmentSubject) -> anyhow::Result<OwnedSemaphorePermit> {
         let permit = self
             .global_sem
             .clone()
             .try_acquire_owned()
             .map_err(|_| anyhow::anyhow!("development global concurrency limit reached"))?;
         let mut active = self
-            .project_active
+            .subject_active
             .lock()
-            .expect("development project lock poisoned");
+            .expect("development subject lock poisoned");
         let durable_active = self
             .changes
             .lock()
             .expect("development changes lock poisoned")
             .values()
-            .any(|stored| {
-                &stored.record.project_id == project_id && stored.record.status.executing()
-            });
+            .any(|stored| &stored.record.subject == subject && stored.record.status.executing());
         anyhow::ensure!(
-            !durable_active && active.insert(project_id.clone()),
-            "another development change is already executing for this project"
+            !durable_active && active.insert(subject.clone()),
+            "another development change is already executing for this subject"
         );
         Ok(permit)
     }
 
-    fn release_project(&self, project_id: &ProjectId) {
-        self.project_active
+    fn release_subject(&self, subject: &DevelopmentSubject) {
+        self.subject_active
             .lock()
-            .expect("development project lock poisoned")
-            .remove(project_id);
+            .expect("development subject lock poisoned")
+            .remove(subject);
     }
 }
 
@@ -946,85 +1004,85 @@ where
 {
     Router::new()
         .route(
-            "/host/v1/projects/:project_id/changes",
+            "/host/v1/development/:subject_kind/:subject_id/changes",
             get(list_changes::<S>).post(draft_change::<S>),
         )
         .route(
-            "/host/v1/projects/:project_id/changes/:change_set_id",
+            "/host/v1/development/:subject_kind/:subject_id/changes/:change_set_id",
             get(get_change::<S>),
         )
         .route(
-            "/host/v1/projects/:project_id/changes/:change_set_id/bundle",
+            "/host/v1/development/:subject_kind/:subject_id/changes/:change_set_id/bundle",
             get(get_change_bundle::<S>),
         )
         .route(
-            "/host/v1/projects/:project_id/changes/:change_set_id/approve",
+            "/host/v1/development/:subject_kind/:subject_id/changes/:change_set_id/approve",
             post(approve_change::<S>),
         )
         .route(
-            "/host/v1/projects/:project_id/changes/:change_set_id/execute",
+            "/host/v1/development/:subject_kind/:subject_id/changes/:change_set_id/execute",
             post(execute_change::<S>),
         )
         .route(
-            "/host/v1/projects/:project_id/changes/:change_set_id/recover",
+            "/host/v1/development/:subject_kind/:subject_id/changes/:change_set_id/recover",
             post(recover_change::<S>),
         )
         .route(
-            "/host/v1/projects/:project_id/changes/:change_set_id/deployment/preview",
+            "/host/v1/development/:subject_kind/:subject_id/changes/:change_set_id/deployment/preview",
             post(create_deployment_preview::<S>),
         )
         .route(
-            "/host/v1/projects/:project_id/changes/:change_set_id/deployment/approve",
+            "/host/v1/development/:subject_kind/:subject_id/changes/:change_set_id/deployment/approve",
             post(approve_deployment::<S>),
         )
         .route(
-            "/host/v1/projects/:project_id/changes/:change_set_id/deployment/activate",
+            "/host/v1/development/:subject_kind/:subject_id/changes/:change_set_id/deployment/activate",
             post(activate_deployment::<S>),
         )
         .route(
-            "/host/v1/projects/:project_id/changes/:change_set_id/deployment/reconcile",
+            "/host/v1/development/:subject_kind/:subject_id/changes/:change_set_id/deployment/reconcile",
             post(reconcile_deployment::<S>),
         )
 }
 
 async fn list_changes<S>(
     State(state): State<AppState<S>>,
-    Path(project_id): Path<String>,
+    Path((subject_kind, subject_id)): Path<(String, String)>,
 ) -> Result<Json<DevelopmentChangeListResponse>, ServiceError>
 where
     S: EventStore,
 {
-    let project_id = parse_project_id(&project_id)?;
-    ensure_project_registered(&state, &project_id)?;
-    refresh_development_project(&state, &project_id).await?;
+    let subject = parse_development_subject(&subject_kind, &subject_id)?;
+    ensure_subject_exists(&state, &subject).await?;
+    refresh_development_subject(&state, &subject).await?;
     Ok(Json(DevelopmentChangeListResponse {
-        changes: state.development.list(&project_id),
+        changes: state.development.list(&subject),
     }))
 }
 
 async fn get_change<S>(
     State(state): State<AppState<S>>,
-    Path((project_id, change_set_id)): Path<(String, String)>,
+    Path((subject_kind, subject_id, change_set_id)): Path<(String, String, String)>,
 ) -> Result<Json<DevelopmentChangeRecord>, ServiceError>
 where
     S: EventStore,
 {
-    let project_id = parse_project_id(&project_id)?;
-    refresh_development_project(&state, &project_id).await?;
-    let record = change_for_project(&state, &project_id, &change_set_id)?;
+    let subject = parse_development_subject(&subject_kind, &subject_id)?;
+    refresh_development_subject(&state, &subject).await?;
+    let record = change_for_subject(&state, &subject, &change_set_id)?;
     Ok(Json(record))
 }
 
 async fn get_change_bundle<S>(
     State(state): State<AppState<S>>,
-    Path((project_id, change_set_id)): Path<(String, String)>,
+    Path((subject_kind, subject_id, change_set_id)): Path<(String, String, String)>,
 ) -> Result<Json<DevelopmentPatchBundle>, ServiceError>
 where
     S: EventStore,
 {
-    let project_id = parse_project_id(&project_id)?;
-    refresh_development_project(&state, &project_id).await?;
-    let record = change_for_project(&state, &project_id, &change_set_id)?;
+    let subject = parse_development_subject(&subject_kind, &subject_id)?;
+    refresh_development_subject(&state, &subject).await?;
+    let record = change_for_subject(&state, &subject, &change_set_id)?;
     let bundle = materialize_patch_bundle(state.runtime.as_ref(), &record)
         .await
         .map_err(|error| internal_development_error("failed to read development bundle", error))?;
@@ -1033,31 +1091,34 @@ where
 
 async fn draft_change<S>(
     State(state): State<AppState<S>>,
-    Path(project_id): Path<String>,
+    Path((subject_kind, subject_id)): Path<(String, String)>,
     Json(request): Json<DevelopmentDraftRequest>,
 ) -> Result<(StatusCode, Json<DevelopmentChangeRecord>), ServiceError>
 where
     S: EventStore,
 {
     ensure_development_host_lease(&state).await?;
-    let project_id = parse_project_id(&project_id)?;
+    let subject = parse_development_subject(&subject_kind, &subject_id)?;
     validate_draft_request(&request)?;
-    ensure_project_registered(&state, &project_id)?;
-    sync_project_journal(
+    ensure_subject_exists(&state, &subject).await?;
+    if let Some(installation_id) = request.target_installation_id.as_ref() {
+        ensure_installation_exists(&state, installation_id).await?;
+    }
+    sync_subject_journal(
         state.runtime.store().as_ref(),
         state.development.as_ref(),
-        &project_id,
+        &subject,
     )
     .await
     .map_err(|error| internal_development_error("failed to refresh development journal", error))?;
     let request_fingerprint = development_request_fingerprint(&request).map_err(|error| {
         internal_development_error("failed to fingerprint development request", error)
     })?;
-    let change_set_id = development_change_set_id(&project_id, &request);
+    let change_set_id = development_change_set_id(&subject, &request);
     let claim = state
         .development
         .claim_draft(
-            &project_id,
+            &subject,
             request.idempotency_key.as_deref(),
             &request_fingerprint,
             &change_set_id,
@@ -1071,7 +1132,7 @@ where
 
     let result = draft_change_inner(
         &state,
-        project_id.clone(),
+        subject.clone(),
         change_set_id,
         request.clone(),
         request_fingerprint,
@@ -1082,7 +1143,7 @@ where
         Err(error) => {
             state
                 .development
-                .release_draft_claim(&project_id, request.idempotency_key.as_deref());
+                .release_draft_claim(&subject, request.idempotency_key.as_deref());
             Err(error)
         }
     }
@@ -1090,21 +1151,21 @@ where
 
 async fn approve_change<S>(
     State(state): State<AppState<S>>,
-    Path((project_id, change_set_id)): Path<(String, String)>,
+    Path((subject_kind, subject_id, change_set_id)): Path<(String, String, String)>,
     Json(request): Json<DevelopmentApprovalRequest>,
 ) -> Result<Json<DevelopmentChangeRecord>, ServiceError>
 where
     S: EventStore,
 {
     ensure_development_host_lease(&state).await?;
-    let project_id = parse_project_id(&project_id)?;
+    let subject = parse_development_subject(&subject_kind, &subject_id)?;
     if let Some(reason) = request.reason.as_deref() {
         validate_short_text(reason, "approval reason", 2048)?;
     }
     let change_lock = state.development.lock_for(&change_set_id);
     let _guard = change_lock.lock().await;
-    refresh_development_project(&state, &project_id).await?;
-    let mut record = change_for_project(&state, &project_id, &change_set_id)?;
+    refresh_development_subject(&state, &subject).await?;
+    let mut record = change_for_subject(&state, &subject, &change_set_id)?;
     match (record.status, request.approved) {
         (DevelopmentChangeStatus::Approved, true) | (DevelopmentChangeStatus::Rejected, false) => {
             return Ok(Json(record))
@@ -1164,18 +1225,27 @@ where
 async fn execute_change<S>(
     State(state): State<AppState<S>>,
     Extension(identity): Extension<HostAccessIdentity>,
-    Path((project_id, change_set_id)): Path<(String, String)>,
+    Path((subject_kind, subject_id, change_set_id)): Path<(String, String, String)>,
 ) -> Result<(StatusCode, Json<DevelopmentExecuteResponse>), ServiceError>
 where
     S: EventStore,
 {
     ensure_development_host_lease(&state).await?;
-    let project_id = parse_project_id(&project_id)?;
-    require_identity_project(&identity, project_id.as_str())?;
+    let subject = parse_development_subject(&subject_kind, &subject_id)?;
+    require_identity_subject(&identity, &subject)?;
     let change_lock = state.development.lock_for(&change_set_id);
     let _guard = change_lock.lock().await;
-    refresh_development_project(&state, &project_id).await?;
-    let mut record = change_for_project(&state, &project_id, &change_set_id)?;
+    refresh_development_subject(&state, &subject).await?;
+    let mut record = change_for_subject(&state, &subject, &change_set_id)?;
+    if let Some(installation_id) = record.target_installation_id.as_ref() {
+        require_identity_installation(&identity, installation_id.as_str())?;
+    }
+    if matches!(
+        record.verification_plan,
+        DevelopmentVerificationPlan::DockerBuild { .. }
+    ) {
+        require_identity_target(&identity, "local")?;
+    }
     if matches!(
         record.status,
         DevelopmentChangeStatus::Staging
@@ -1196,7 +1266,7 @@ where
             "development change must be explicitly approved before execution",
         ));
     }
-    let permit = state.development.try_begin(&project_id).map_err(|error| {
+    let permit = state.development.try_begin(&subject).map_err(|error| {
         let status = if error.to_string().contains("global concurrency") {
             StatusCode::TOO_MANY_REQUESTS
         } else {
@@ -1209,7 +1279,7 @@ where
     record.updated_at_ms = now_millis();
     record.status = DevelopmentChangeStatus::Staging;
     if let Err(error) = persist_record(&state, record.clone()).await {
-        state.development.release_project(&project_id);
+        state.development.release_subject(&subject);
         drop(permit);
         return Err(development_persistence_error(
             "failed to persist development execution start",
@@ -1219,7 +1289,7 @@ where
 
     let task_state = state.clone();
     let task_change_id = change_set_id.clone();
-    let task_project_id = project_id.clone();
+    let task_subject = subject.clone();
     let task_identity = identity.clone();
     tokio::spawn(async move {
         let _permit = permit;
@@ -1227,7 +1297,7 @@ where
             run_development_change(&task_state, &task_change_id, &task_identity).await
         {
             tracing::warn!(
-                project_id = %task_project_id,
+                subject = ?task_subject,
                 change_set_id = %task_change_id,
                 error = %error,
                 "development execution failed"
@@ -1238,7 +1308,7 @@ where
                     Ok(()) => break,
                     Err(persist_error) => {
                         tracing::warn!(
-                            project_id = %task_project_id,
+                            subject = ?task_subject,
                             change_set_id = %task_change_id,
                             error = %persist_error,
                             "failed to persist terminal development failure; retrying while lease remains active"
@@ -1260,7 +1330,7 @@ where
                 }
             }
         }
-        task_state.development.release_project(&task_project_id);
+        task_state.development.release_subject(&task_subject);
     });
 
     Ok((
@@ -1275,18 +1345,21 @@ where
 async fn recover_change<S>(
     State(state): State<AppState<S>>,
     Extension(identity): Extension<HostAccessIdentity>,
-    Path((project_id, change_set_id)): Path<(String, String)>,
+    Path((subject_kind, subject_id, change_set_id)): Path<(String, String, String)>,
 ) -> Result<Json<DevelopmentChangeRecord>, ServiceError>
 where
     S: EventStore,
 {
     ensure_development_host_lease(&state).await?;
-    let project_id = parse_project_id(&project_id)?;
-    require_identity_project(&identity, project_id.as_str())?;
+    let subject = parse_development_subject(&subject_kind, &subject_id)?;
+    require_identity_subject(&identity, &subject)?;
     let change_lock = state.development.lock_for(&change_set_id);
     let _guard = change_lock.lock().await;
-    refresh_development_project(&state, &project_id).await?;
-    let record = change_for_project(&state, &project_id, &change_set_id)?;
+    refresh_development_subject(&state, &subject).await?;
+    let record = change_for_subject(&state, &subject, &change_set_id)?;
+    if let Some(installation_id) = record.target_installation_id.as_ref() {
+        require_identity_installation(&identity, installation_id.as_str())?;
+    }
     if record.status != DevelopmentChangeStatus::RecoveryRequired {
         return Err(ServiceError::with_status(
             StatusCode::CONFLICT,
@@ -1303,7 +1376,7 @@ where
         None => Err(anyhow::anyhow!("development recovery kind is missing")),
     }
         .map_err(|error| {
-            tracing::warn!(project_id = %project_id, change_set_id, error = %error, "development recovery reconciliation failed");
+            tracing::warn!(subject = ?subject, change_set_id, error = %error, "development recovery reconciliation failed");
             ServiceError::with_status(
                 StatusCode::CONFLICT,
                 "development side effects could not be reconciled automatically",
@@ -1315,28 +1388,30 @@ where
 async fn create_deployment_preview<S>(
     State(state): State<AppState<S>>,
     Extension(identity): Extension<HostAccessIdentity>,
-    Path((project_id, change_set_id)): Path<(String, String)>,
+    Path((subject_kind, subject_id, change_set_id)): Path<(String, String, String)>,
     Json(request): Json<DevelopmentDeploymentPreviewRequest>,
 ) -> Result<(StatusCode, Json<DevelopmentChangeRecord>), ServiceError>
 where
     S: EventStore,
 {
     ensure_development_host_lease(&state).await?;
-    let project_id = parse_project_id(&project_id)?;
-    require_identity_project(&identity, project_id.as_str())?;
+    let subject = parse_development_subject(&subject_kind, &subject_id)?;
+    require_identity_subject(&identity, &subject)?;
     require_identity_target(&identity, &request.target_id)?;
     validate_deployment_preview_request(&request)?;
 
     let change_lock = state.development.lock_for(&change_set_id);
     let _change_guard = change_lock.lock().await;
-    refresh_development_project(&state, &project_id).await?;
-    let mut record = change_for_project(&state, &project_id, &change_set_id)?;
-    if record.status != DevelopmentChangeStatus::Committed
-        || record.workspace_ownership != DevelopmentWorkspaceOwnership::ManagedExternal
+    refresh_development_subject(&state, &subject).await?;
+    let mut record = change_for_subject(&state, &subject, &change_set_id)?;
+    let installation_id = require_target_installation(&record)?.clone();
+    require_identity_installation(&identity, installation_id.as_str())?;
+    if record.status != DevelopmentChangeStatus::Verified
+        || record.workspace_ownership != DevelopmentWorkspaceOwnership::Managed
     {
         return Err(ServiceError::with_status(
             StatusCode::CONFLICT,
-            "deployment preview requires a committed managed-external change",
+            "deployment preview requires a verified managed workspace change",
         ));
     }
 
@@ -1356,13 +1431,13 @@ where
     let source_tree_digest = record.proposed_tree_digest.clone().ok_or_else(|| {
         ServiceError::with_status(
             StatusCode::CONFLICT,
-            "committed development change has no verified source tree",
+            "verified development change has no source tree",
         )
     })?;
     let verification = record.verification_result.clone().ok_or_else(|| {
         ServiceError::with_status(
             StatusCode::CONFLICT,
-            "committed development change has no verification result",
+            "verified development change has no verification result",
         )
     })?;
     let build_context_ref = validate_deployment_verification_provenance(
@@ -1375,44 +1450,18 @@ where
     verify_deployment_artifact_content(state.runtime.as_ref(), &verification.artifact_ref).await?;
     verify_deployment_artifact_content(state.runtime.as_ref(), &build_context_ref).await?;
 
-    let workspace = resolve_project_workspace(&state, &project_id).map_err(|error| {
-        tracing::warn!(project_id = %project_id, error = %error, "deployment workspace resolution failed");
-        ServiceError::with_status(
-            StatusCode::CONFLICT,
-            "managed project workspace is unavailable for deployment preview",
-        )
-    })?;
-    let live_tree = workspace_tree_hash(&workspace.root)
-        .await
-        .map_err(|error| {
-            internal_development_error("failed to verify the live deployment workspace", error)
-        })?;
-    ensure_descriptor_matches_workspace(&workspace, &live_tree.sha256).map_err(|error| {
-        tracing::warn!(project_id = %project_id, error = %error, "deployment workspace descriptor changed");
-        ServiceError::with_status(
-            StatusCode::CONFLICT,
-            "managed project workspace no longer matches its descriptor",
-        )
-    })?;
-    if live_tree.sha256 != source_tree_digest {
-        return Err(ServiceError::with_status(
-            StatusCode::CONFLICT,
-            "managed project workspace changed after Docker verification",
-        ));
-    }
-
     state
         .build_jobs
-        .ensure_route_available_for_project(&request.route_id, &project_id)
+        .ensure_route_available_for_installation(&request.route_id, &installation_id)
         .map_err(|error| ServiceError::with_status(StatusCode::CONFLICT, error.to_string()))?;
     if state
         .target_agents
-        .project_for_operation_route(&request.route_id)
-        .is_some_and(|owner| owner != project_id)
+        .installation_for_operation_route(&request.route_id)
+        .is_some_and(|owner| owner != installation_id)
     {
         return Err(ServiceError::with_status(
             StatusCode::CONFLICT,
-            "deployment route is owned by another project",
+            "deployment route is owned by another installation",
         ));
     }
 
@@ -1453,7 +1502,7 @@ where
     }
     let build_id = format!("verified-{deployment_suffix}");
     let build_descriptor_hash = deployment_build_descriptor_hash(
-        &project_id,
+        &installation_id,
         &build_context_ref,
         &source_tree_digest,
         &dockerfile,
@@ -1468,15 +1517,15 @@ where
     deployment_effect_context(
         &state,
         Some(&authority),
-        &project_id,
+        &installation_id,
         "host_development_deployment_prepare",
     )
     .await
     .map_err(|error| {
-        tracing::warn!(project_id = %project_id, change_set_id, error = %error, "deployment authority validation failed");
+        tracing::warn!(installation_id = %installation_id, change_set_id, error = %error, "deployment authority validation failed");
         ServiceError::with_status(
             StatusCode::FORBIDDEN,
-            "deployment authority is no longer valid for the selected project and target",
+            "deployment authority is no longer valid for the selected installation and target",
         )
     })?;
     let authority_ref = commit_json_artifact(
@@ -1485,7 +1534,7 @@ where
         &json!({
             "schema_version": 1,
             "deployment_id": deployment_id,
-            "project_id": project_id,
+            "installation_id": installation_id,
             "change_set_id": change_set_id,
             "target_id": request.target_id,
             "authority": authority,
@@ -1499,14 +1548,17 @@ where
                 .ok_or_else(|| {
                     ServiceError::with_status(
                         StatusCode::CONFLICT,
-                        "committed development change has no approval artifact",
+                        "verified development change has no approval artifact",
                     )
                 })?,
             verification.artifact_ref.digest.clone(),
             build_context_ref.digest.clone(),
         ],
         BTreeMap::from([
-            ("project_id".to_string(), json!(project_id.as_str())),
+            (
+                "installation_id".to_string(),
+                json!(installation_id.as_str()),
+            ),
             ("change_set_id".to_string(), json!(change_set_id)),
             ("target_id".to_string(), json!(request.target_id)),
             ("deployment_id".to_string(), json!(deployment_id)),
@@ -1517,12 +1569,12 @@ where
 
     let permit = state
         .build_jobs
-        .acquire_project_operation(&project_id)
+        .acquire_installation_operation(&installation_id)
         .await
         .map_err(|error| ServiceError::with_status(StatusCode::CONFLICT, error.to_string()))?;
-    let project_guard = BuildDeployProjectGuard {
+    let installation_guard = BuildDeployInstallationGuard {
         registry: state.build_jobs.clone(),
-        project_id: project_id.clone(),
+        installation_id: installation_id.clone(),
     };
     let now = now_millis();
     record.revision += 1;
@@ -1532,6 +1584,12 @@ where
         deployment_id: deployment_id.clone(),
         status: DevelopmentDeploymentStatus::Preparing,
         target_id: request.target_id.clone(),
+        workspace_id: record.subject.workspace_id().cloned().ok_or_else(|| {
+            ServiceError::with_status(
+                StatusCode::CONFLICT,
+                "deployment preview requires a workspace subject",
+            )
+        })?,
         source_tree_digest,
         verification_ref: verification.artifact_ref,
         build_context_ref,
@@ -1565,7 +1623,7 @@ where
     let record = match persist_record(&state, record).await {
         Ok(record) => record,
         Err(error) => {
-            drop(project_guard);
+            drop(installation_guard);
             drop(permit);
             return Err(development_persistence_error(
                 "failed to persist deployment preview start",
@@ -1576,15 +1634,15 @@ where
 
     let task_state = state.clone();
     let task_change_set_id = change_set_id.clone();
-    let task_project_id = project_id.clone();
+    let task_installation_id = installation_id.clone();
     tokio::spawn(async move {
         let _permit = permit;
-        let _project_guard = project_guard;
+        let _installation_guard = installation_guard;
         if let Err(error) =
             run_deployment_preview(&task_state, &task_change_set_id, &authority).await
         {
             tracing::warn!(
-                project_id = %task_project_id,
+                installation_id = %task_installation_id,
                 change_set_id = %task_change_set_id,
                 error = %error,
                 "development deployment preview failed"
@@ -1595,7 +1653,7 @@ where
                     Ok(()) => break,
                     Err(persist_error) => {
                         tracing::warn!(
-                            project_id = %task_project_id,
+                            installation_id = %task_installation_id,
                             change_set_id = %task_change_set_id,
                             error = %persist_error,
                             "failed to persist deployment preview failure; retrying while Host lease remains active"
@@ -1625,15 +1683,15 @@ where
 async fn approve_deployment<S>(
     State(state): State<AppState<S>>,
     Extension(identity): Extension<HostAccessIdentity>,
-    Path((project_id, change_set_id)): Path<(String, String)>,
+    Path((subject_kind, subject_id, change_set_id)): Path<(String, String, String)>,
     Json(request): Json<DevelopmentDeploymentApprovalRequest>,
 ) -> Result<Json<DevelopmentChangeRecord>, ServiceError>
 where
     S: EventStore,
 {
     ensure_development_host_lease(&state).await?;
-    let project_id = parse_project_id(&project_id)?;
-    require_identity_project(&identity, project_id.as_str())?;
+    let subject = parse_development_subject(&subject_kind, &subject_id)?;
+    require_identity_subject(&identity, &subject)?;
     if let Some(reason) = request.reason.as_deref() {
         validate_short_text(reason, "deployment approval reason", 2048)?;
     }
@@ -1641,9 +1699,11 @@ where
     let record = {
         let change_lock = state.development.lock_for(&change_set_id);
         let _guard = change_lock.lock().await;
-        refresh_development_project(&state, &project_id).await?;
-        change_for_project(&state, &project_id, &change_set_id)?
+        refresh_development_subject(&state, &subject).await?;
+        change_for_subject(&state, &subject, &change_set_id)?
     };
+    let installation_id = require_target_installation(&record)?.clone();
+    require_identity_installation(&identity, installation_id.as_str())?;
     let deployment = record.deployment.clone().ok_or_else(|| {
         ServiceError::with_status(
             StatusCode::CONFLICT,
@@ -1680,14 +1740,14 @@ where
     } else {
         let permit = state
             .build_jobs
-            .acquire_project_operation(&project_id)
+            .acquire_installation_operation(&installation_id)
             .await
             .map_err(|error| ServiceError::with_status(StatusCode::CONFLICT, error.to_string()))?;
         Some((
             permit,
-            BuildDeployProjectGuard {
+            BuildDeployInstallationGuard {
                 registry: state.build_jobs.clone(),
-                project_id: project_id.clone(),
+                installation_id: installation_id.clone(),
             },
         ))
     };
@@ -1707,7 +1767,7 @@ where
         principal: PrincipalIdentity::HostAdmin,
         reason: request.reason,
         evaluated_authority: vec![
-            "host.project.deploy".to_string(),
+            "host.installation.deploy".to_string(),
             format!("host.target.{}", deployment.target_id),
         ],
         decided_at: Utc::now(),
@@ -1725,7 +1785,10 @@ where
         ],
         BTreeMap::from([
             ("role".to_string(), json!("explicit_deployment_approval")),
-            ("project_id".to_string(), json!(project_id.as_str())),
+            (
+                "installation_id".to_string(),
+                json!(installation_id.as_str()),
+            ),
             ("change_set_id".to_string(), json!(change_set_id)),
             ("deployment_id".to_string(), json!(deployment.deployment_id)),
             ("target_id".to_string(), json!(deployment.target_id)),
@@ -1758,7 +1821,7 @@ where
 
     if !request.approved {
         let cleanup_complete =
-            match stop_completed_preview_candidate(&state, &project_id, &deployment).await {
+            match stop_completed_preview_candidate(&state, &installation_id, &deployment).await {
                 Ok(true) => cleanup_preview_host_resources(&state, &deployment)
                     .await
                     .unwrap_or(false),
@@ -1793,20 +1856,22 @@ where
 async fn activate_deployment<S>(
     State(state): State<AppState<S>>,
     Extension(identity): Extension<HostAccessIdentity>,
-    Path((project_id, change_set_id)): Path<(String, String)>,
+    Path((subject_kind, subject_id, change_set_id)): Path<(String, String, String)>,
 ) -> Result<Json<DevelopmentChangeRecord>, ServiceError>
 where
     S: EventStore,
 {
     ensure_development_host_lease(&state).await?;
-    let project_id = parse_project_id(&project_id)?;
-    require_identity_project(&identity, project_id.as_str())?;
+    let subject = parse_development_subject(&subject_kind, &subject_id)?;
+    require_identity_subject(&identity, &subject)?;
     let record = {
         let change_lock = state.development.lock_for(&change_set_id);
         let _guard = change_lock.lock().await;
-        refresh_development_project(&state, &project_id).await?;
-        change_for_project(&state, &project_id, &change_set_id)?
+        refresh_development_subject(&state, &subject).await?;
+        change_for_subject(&state, &subject, &change_set_id)?
     };
+    let installation_id = require_target_installation(&record)?.clone();
+    require_identity_installation(&identity, installation_id.as_str())?;
     let deployment = record.deployment.clone().ok_or_else(|| {
         ServiceError::with_status(
             StatusCode::CONFLICT,
@@ -1851,7 +1916,7 @@ where
         read_verified_preview_evidence(
             state.runtime.as_ref(),
             &preview_ref,
-            &project_id,
+            &installation_id,
             &change_set_id,
             &deployment.target_id,
             &deployment.source_tree_digest,
@@ -1860,7 +1925,7 @@ where
         )
         .await
         .map_err(|error| {
-            tracing::warn!(project_id = %project_id, change_set_id, error = %error, "deployment preview artifact validation failed");
+            tracing::warn!(installation_id = %installation_id, change_set_id, error = %error, "deployment preview artifact validation failed");
             ServiceError::with_status(
                 StatusCode::CONFLICT,
                 "deployment preview evidence is incomplete or inconsistent",
@@ -1873,14 +1938,14 @@ where
         &deployment.verification_ref,
         &deployment.build_context_ref,
         &evidence_authority_ref,
-        &project_id,
+        &installation_id,
         &change_set_id,
         &evidence_deployment_id,
         &deployment.target_id,
     )
     .await
     .map_err(|error| {
-        tracing::warn!(project_id = %project_id, change_set_id, error = %error, "deployment approval artifact validation failed");
+        tracing::warn!(installation_id = %installation_id, change_set_id, error = %error, "deployment approval artifact validation failed");
         ServiceError::with_status(
             StatusCode::CONFLICT,
             "deployment approval evidence is incomplete or inconsistent",
@@ -1896,9 +1961,9 @@ where
             "deployment approval is not bound to the ready preview candidate",
         ));
     }
-    validate_preview_target_operations(&state, &project_id, &deployment, &preview).map_err(
+    validate_preview_target_operations(&state, &installation_id, &deployment, &preview).map_err(
         |error| {
-            tracing::warn!(project_id = %project_id, change_set_id, error = %error, "deployment preview evidence validation failed");
+            tracing::warn!(installation_id = %installation_id, change_set_id, error = %error, "deployment preview evidence validation failed");
             ServiceError::with_status(
                 StatusCode::CONFLICT,
                 "deployment preview evidence is incomplete or inconsistent",
@@ -1908,7 +1973,7 @@ where
     ensure_preview_route_ready(&state, &deployment, &preview)
         .await
         .map_err(|error| {
-            tracing::warn!(project_id = %project_id, change_set_id, error = %error, "deployment preview readiness validation failed");
+            tracing::warn!(installation_id = %installation_id, change_set_id, error = %error, "deployment preview readiness validation failed");
             ServiceError::with_status(
                 StatusCode::CONFLICT,
                 "deployment preview is no longer ready",
@@ -1917,26 +1982,26 @@ where
 
     let permit = state
         .build_jobs
-        .acquire_project_operation(&project_id)
+        .acquire_installation_operation(&installation_id)
         .await
         .map_err(|error| ServiceError::with_status(StatusCode::CONFLICT, error.to_string()))?;
-    let _project_guard = BuildDeployProjectGuard {
+    let _installation_guard = BuildDeployInstallationGuard {
         registry: state.build_jobs.clone(),
-        project_id: project_id.clone(),
+        installation_id: installation_id.clone(),
     };
     let _permit = permit;
     state
         .build_jobs
-        .ensure_route_available_for_project(&deployment.route_id, &project_id)
+        .ensure_route_available_for_installation(&deployment.route_id, &installation_id)
         .map_err(|error| ServiceError::with_status(StatusCode::CONFLICT, error.to_string()))?;
     if state
         .target_agents
-        .project_for_operation_route(&deployment.route_id)
-        .is_some_and(|owner| owner != project_id)
+        .installation_for_operation_route(&deployment.route_id)
+        .is_some_and(|owner| owner != installation_id)
     {
         return Err(ServiceError::with_status(
             StatusCode::CONFLICT,
-            "deployment route is owned by another project",
+            "deployment route is owned by another installation",
         ));
     }
     let authority = DeploymentAuthorityLease::from_identity(
@@ -1947,15 +2012,15 @@ where
     let activation_context = deployment_effect_context(
         &state,
         Some(&authority),
-        &project_id,
+        &installation_id,
         "host_development_deployment_activate",
     )
     .await
     .map_err(|error| {
-        tracing::warn!(project_id = %project_id, change_set_id, error = %error, "deployment activation authority validation failed");
+        tracing::warn!(installation_id = %installation_id, change_set_id, error = %error, "deployment activation authority validation failed");
         ServiceError::with_status(
             StatusCode::FORBIDDEN,
-            "deployment authority is no longer valid for the selected project and target",
+            "deployment authority is no longer valid for the selected installation and target",
         )
     })?;
     ensure_preview_route_ready(&state, &deployment, &preview)
@@ -1966,7 +2031,7 @@ where
                 "deployment preview is no longer ready",
             )
         })?;
-    let previous_revision = state.build_jobs.active_revision(&project_id);
+    let previous_revision = state.build_jobs.active_revision(&installation_id);
     let previous_route = state
         .runtime
         .config()
@@ -1991,142 +2056,149 @@ where
     })?;
 
     let mut revision_committed = false;
-    let activation = async {
-        let route = call_host_protocol(
-            &state,
-            &activation_context,
-            "host.proxy.register",
-            json!({
-                "route_id": deployment.route_id,
-                "protocol": "http",
-                "access": deployment.route_access,
-                "upstream": {
-                    "port_lease_id": preview.port_lease_id,
-                    "port_name": deployment.port_name,
-                },
-            }),
-        )
-        .await
-        .and_then(|value| value_field(value, "route", "host.proxy.register"))?;
-        let route_id = required_string(&route, "id", "deployment activation route")?;
-        anyhow::ensure!(
-            route_id == deployment.route_id,
-            "deployment route identity changed during activation"
-        );
-        let fallback_public_url =
-            required_string(&route, "public_url", "deployment activation route")?;
-        ensure_preview_route_ready(&state, &deployment, &preview).await?;
-        anyhow::ensure!(
-            state
-                .runtime
-                .config()
-                .proxy_route_registry
-                .set_ready_if_active_with_lease(&route_id, &preview.port_lease_id, true)
-                .await
-                .is_some(),
-            "deployment route changed before readiness promotion"
-        );
-        let public_url = service_public_url_for_route(
-            &state,
-            &route_id,
-            &fallback_public_url,
-            deployment.route_access,
-        );
-        let receipt = HostBuildDeployResponse {
-            route_id: route_id.clone(),
-            public_url,
-            route_access: deployment.route_access,
-            port_lease_id: preview.port_lease_id.clone(),
-            container_id: preview.container_id.clone(),
-            container_name: preview.container_name.clone(),
-            image: preview.image_id.clone(),
-            build_id: deployment.build_id.clone(),
-            source_commit: deployment.source_tree_digest.clone(),
-            build_descriptor_hash: deployment.build_descriptor_hash.clone(),
-            strategy: "verified_artifact".to_string(),
-            runtime_env: Vec::new(),
-            runtime_mounts: Vec::new(),
-            warnings: Vec::new(),
-        };
-        let revision = DeploymentRevision {
-            revision_id: format!(
-                "drv-{}-{}",
-                now_millis(),
-                &uuid::Uuid::new_v4().simple().to_string()[..12]
-            ),
-            project_id: project_id.clone(),
-            job_id: None,
-            operation: DeploymentOperation::VerifiedActivate,
-            parent_revision_id: previous_revision
-                .as_ref()
-                .map(|revision| revision.revision_id.clone()),
-            created_at_ms: now_millis(),
-            target_id: deployment.target_id.clone(),
-            source_kind: DeploymentSourceKind::VerifiedArtifact,
-            source_url: format!("artifact:{}", deployment.build_context_ref.digest),
-            ref_name: change_set_id.clone(),
-            dockerfile: Some(deployment.dockerfile.clone()),
-            container_port: deployment.container_port,
-            port_name: deployment.port_name.clone(),
-            route_id,
-            route_access: deployment.route_access,
-            health_path: deployment.health_path.clone(),
-            image: preview.image_id.clone(),
-            build_id: deployment.build_id.clone(),
-            source_commit: deployment.source_tree_digest.clone(),
-            build_descriptor_hash: deployment.build_descriptor_hash.clone(),
-            strategy: "verified_artifact".to_string(),
-            runtime_env: Vec::new(),
-            verified_change_set_id: Some(change_set_id.clone()),
-            verification_ref: Some(deployment.verification_ref.clone()),
-            build_context_ref: Some(deployment.build_context_ref.clone()),
-            preview_ref: Some(preview_ref.clone()),
-            approval_ref: Some(approval_ref.clone()),
-            verified_build_network_mode: Some(development_target_network_mode(
-                deployment.network_mode,
-            )),
-            target_deployment: Some(preview.deployment.clone()),
-            recoverable: true,
-            recovery_blockers: Vec::new(),
-            receipt,
-        };
-        persist_revision_activation(&state, &revision, None, Some(authority.clone())).await?;
-        revision_committed = true;
-        let updated = update_deployment_record(&state, &change_set_id, |current| {
+    let activation =
+        async {
+            let route = call_host_protocol(
+                &state,
+                &activation_context,
+                "host.proxy.register",
+                json!({
+                    "route_id": deployment.route_id,
+                    "protocol": "http",
+                    "access": deployment.route_access,
+                    "upstream": {
+                        "port_lease_id": preview.port_lease_id,
+                        "port_name": deployment.port_name,
+                    },
+                }),
+            )
+            .await
+            .and_then(|value| value_field(value, "route", "host.proxy.register"))?;
+            let route_id = required_string(&route, "id", "deployment activation route")?;
             anyhow::ensure!(
-                current.deployment_id == deployment.deployment_id
-                    && current.status == DevelopmentDeploymentStatus::Activating,
-                "deployment changed before activation persistence"
+                route_id == deployment.route_id,
+                "deployment route identity changed during activation"
             );
-            current.status = DevelopmentDeploymentStatus::Active;
-            current.activation_revision_id = Some(revision.revision_id.clone());
-            current.previous_revision_id = previous_revision
-                .as_ref()
-                .map(|previous| previous.revision_id.clone());
-            current.error = None;
-            Ok(())
-        })
-        .await?;
-        Ok::<_, anyhow::Error>((updated, revision))
-    }
-    .await;
+            let fallback_public_url =
+                required_string(&route, "public_url", "deployment activation route")?;
+            ensure_preview_route_ready(&state, &deployment, &preview).await?;
+            anyhow::ensure!(
+                state
+                    .runtime
+                    .config()
+                    .proxy_route_registry
+                    .set_ready_if_active_with_lease(&route_id, &preview.port_lease_id, true)
+                    .await
+                    .is_some(),
+                "deployment route changed before readiness promotion"
+            );
+            let public_url = service_public_url_for_route(
+                &state,
+                &route_id,
+                &fallback_public_url,
+                deployment.route_access,
+            );
+            let receipt = HostBuildDeployResponse {
+                workspace_id: record.subject.workspace_id().cloned().ok_or_else(|| {
+                    anyhow::anyhow!("verified deployment has no workspace subject")
+                })?,
+                route_id: route_id.clone(),
+                public_url,
+                route_access: deployment.route_access,
+                port_lease_id: preview.port_lease_id.clone(),
+                container_id: preview.container_id.clone(),
+                container_name: preview.container_name.clone(),
+                image: preview.image_id.clone(),
+                build_id: deployment.build_id.clone(),
+                source_commit: deployment.source_tree_digest.clone(),
+                build_descriptor_hash: deployment.build_descriptor_hash.clone(),
+                strategy: "verified_artifact".to_string(),
+                runtime_env: Vec::new(),
+                runtime_mounts: Vec::new(),
+                warnings: Vec::new(),
+            };
+            let revision = DeploymentRevision {
+                revision_id: format!(
+                    "drv-{}-{}",
+                    now_millis(),
+                    &uuid::Uuid::new_v4().simple().to_string()[..12]
+                ),
+                installation_id: installation_id.clone(),
+                workspace_id: record.subject.workspace_id().cloned().ok_or_else(|| {
+                    anyhow::anyhow!("verified deployment has no workspace subject")
+                })?,
+                job_id: None,
+                operation: DeploymentOperation::VerifiedActivate,
+                parent_revision_id: previous_revision
+                    .as_ref()
+                    .map(|revision| revision.revision_id.clone()),
+                created_at_ms: now_millis(),
+                target_id: deployment.target_id.clone(),
+                source_kind: DeploymentSourceKind::VerifiedArtifact,
+                source_url: format!("artifact:{}", deployment.build_context_ref.digest),
+                ref_name: change_set_id.clone(),
+                dockerfile: Some(deployment.dockerfile.clone()),
+                container_port: deployment.container_port,
+                port_name: deployment.port_name.clone(),
+                route_id,
+                route_access: deployment.route_access,
+                health_path: deployment.health_path.clone(),
+                image: preview.image_id.clone(),
+                build_id: deployment.build_id.clone(),
+                source_commit: deployment.source_tree_digest.clone(),
+                build_descriptor_hash: deployment.build_descriptor_hash.clone(),
+                strategy: "verified_artifact".to_string(),
+                runtime_env: Vec::new(),
+                verified_change_set_id: Some(change_set_id.clone()),
+                verification_ref: Some(deployment.verification_ref.clone()),
+                build_context_ref: Some(deployment.build_context_ref.clone()),
+                preview_ref: Some(preview_ref.clone()),
+                approval_ref: Some(approval_ref.clone()),
+                verified_build_network_mode: Some(development_target_network_mode(
+                    deployment.network_mode,
+                )),
+                target_deployment: Some(preview.deployment.clone()),
+                recoverable: true,
+                recovery_blockers: Vec::new(),
+                receipt,
+            };
+            persist_revision_activation(&state, &revision, None, Some(authority.clone())).await?;
+            revision_committed = true;
+            let updated = update_deployment_record(&state, &change_set_id, |current| {
+                anyhow::ensure!(
+                    current.deployment_id == deployment.deployment_id
+                        && current.status == DevelopmentDeploymentStatus::Activating,
+                    "deployment changed before activation persistence"
+                );
+                current.status = DevelopmentDeploymentStatus::Active;
+                current.activation_revision_id = Some(revision.revision_id.clone());
+                current.previous_revision_id = previous_revision
+                    .as_ref()
+                    .map(|previous| previous.revision_id.clone());
+                current.error = None;
+                Ok(())
+            })
+            .await?;
+            Ok::<_, anyhow::Error>((updated, revision))
+        }
+        .await;
 
     match activation {
         Ok((updated, revision)) => {
             if let Some(previous) = previous_revision.as_ref() {
                 for warning in drain_previous_revision(&state, previous, &revision.route_id).await {
-                    tracing::warn!(project_id = %project_id, revision_id = %previous.revision_id, warning, "previous deployment revision cleanup incomplete");
+                    tracing::warn!(installation_id = %installation_id, revision_id = %previous.revision_id, warning, "previous deployment revision cleanup incomplete");
                 }
             }
             Ok(Json(updated))
         }
         Err(error) => {
-            tracing::warn!(project_id = %project_id, change_set_id, error = %error, revision_committed, "development deployment activation failed");
+            tracing::warn!(installation_id = %installation_id, change_set_id, error = %error, revision_committed, "development deployment activation failed");
             if revision_committed {
                 if let Some(active) =
                     state
                         .build_jobs
-                        .active_revision(&project_id)
+                        .active_revision(&installation_id)
                         .filter(|active| {
                             active.operation == DeploymentOperation::VerifiedActivate
                                 && active.verified_change_set_id.as_deref()
@@ -2157,13 +2229,13 @@ where
                                     drain_previous_revision(&state, previous, &active.route_id)
                                         .await
                                 {
-                                    tracing::warn!(project_id = %project_id, revision_id = %previous.revision_id, warning, "previous deployment revision cleanup incomplete");
+                                    tracing::warn!(installation_id = %installation_id, revision_id = %previous.revision_id, warning, "previous deployment revision cleanup incomplete");
                                 }
                             }
                             return Ok(Json(updated));
                         }
                         Err(persist_error) => {
-                            tracing::warn!(project_id = %project_id, change_set_id, error = %persist_error, "failed to reconcile development record after durable activation");
+                            tracing::warn!(installation_id = %installation_id, change_set_id, error = %persist_error, "failed to reconcile development record after durable activation");
                         }
                     }
                 }
@@ -2197,7 +2269,7 @@ where
                 )
                 .await
                 {
-                    tracing::warn!(project_id = %project_id, change_set_id, error = %persist_error, "failed to persist deployment activation compensation state");
+                    tracing::warn!(installation_id = %installation_id, change_set_id, error = %persist_error, "failed to persist deployment activation compensation state");
                 }
             }
             Err(ServiceError::with_status(
@@ -2211,16 +2283,18 @@ where
 async fn reconcile_deployment<S>(
     State(state): State<AppState<S>>,
     Extension(identity): Extension<HostAccessIdentity>,
-    Path((project_id, change_set_id)): Path<(String, String)>,
+    Path((subject_kind, subject_id, change_set_id)): Path<(String, String, String)>,
 ) -> Result<Json<DevelopmentChangeRecord>, ServiceError>
 where
     S: EventStore,
 {
     ensure_development_host_lease(&state).await?;
-    let project_id = parse_project_id(&project_id)?;
-    require_identity_project(&identity, project_id.as_str())?;
-    refresh_development_project(&state, &project_id).await?;
-    let initial = change_for_project(&state, &project_id, &change_set_id)?;
+    let subject = parse_development_subject(&subject_kind, &subject_id)?;
+    require_identity_subject(&identity, &subject)?;
+    refresh_development_subject(&state, &subject).await?;
+    let initial = change_for_subject(&state, &subject, &change_set_id)?;
+    let installation_id = require_target_installation(&initial)?.clone();
+    require_identity_installation(&identity, installation_id.as_str())?;
     let initial_deployment = initial.deployment.as_ref().ok_or_else(|| {
         ServiceError::with_status(
             StatusCode::CONFLICT,
@@ -2248,17 +2322,17 @@ where
 
     let permit = state
         .build_jobs
-        .acquire_project_operation(&project_id)
+        .acquire_installation_operation(&installation_id)
         .await
         .map_err(|error| ServiceError::with_status(StatusCode::CONFLICT, error.to_string()))?;
-    let _project_guard = BuildDeployProjectGuard {
+    let _installation_guard = BuildDeployInstallationGuard {
         registry: state.build_jobs.clone(),
-        project_id: project_id.clone(),
+        installation_id: installation_id.clone(),
     };
     let _permit = permit;
 
-    refresh_development_project(&state, &project_id).await?;
-    let record = change_for_project(&state, &project_id, &change_set_id)?;
+    refresh_development_subject(&state, &subject).await?;
+    let record = change_for_subject(&state, &subject, &change_set_id)?;
     let deployment = record.deployment.clone().ok_or_else(|| {
         ServiceError::with_status(
             StatusCode::CONFLICT,
@@ -2297,19 +2371,19 @@ where
     deployment_effect_context(
         &state,
         Some(&authority),
-        &project_id,
+        &installation_id,
         "host_development_deployment_reconcile",
     )
     .await
     .map_err(|error| {
-        tracing::warn!(project_id = %project_id, change_set_id, error = %error, "deployment reconciliation authority validation failed");
+        tracing::warn!(installation_id = %installation_id, change_set_id, error = %error, "deployment reconciliation authority validation failed");
         ServiceError::with_status(
             StatusCode::FORBIDDEN,
             "deployment reconciliation authority is no longer valid",
         )
     })?;
 
-    let active_revision = state.build_jobs.active_revision(&project_id);
+    let active_revision = state.build_jobs.active_revision(&installation_id);
     if let Some(active) = active_revision
         .as_ref()
         .filter(|active| verified_activation_matches_deployment(active, &record, &deployment))
@@ -2336,10 +2410,10 @@ where
         if let Some(previous) = active
             .parent_revision_id
             .as_deref()
-            .and_then(|revision_id| state.build_jobs.revision(&project_id, revision_id))
+            .and_then(|revision_id| state.build_jobs.revision(&installation_id, revision_id))
         {
             for warning in drain_previous_revision(&state, &previous, &active.route_id).await {
-                tracing::warn!(project_id = %project_id, revision_id = %previous.revision_id, warning, "previous deployment revision cleanup incomplete after reconciliation");
+                tracing::warn!(installation_id = %installation_id, revision_id = %previous.revision_id, warning, "previous deployment revision cleanup incomplete after reconciliation");
             }
         }
         return Ok(Json(updated));
@@ -2401,11 +2475,11 @@ where
         ));
     }
 
-    if !stop_preview_candidate_for_reconciliation(&state, &record.project_id, &deployment).await?
+    if !stop_preview_candidate_for_reconciliation(&state, &installation_id, &deployment).await?
         || !cleanup_preview_host_resources(&state, &deployment)
             .await
             .map_err(|error| {
-                tracing::warn!(project_id = %project_id, change_set_id, error = %error, "deployment reconciliation cleanup failed");
+                tracing::warn!(installation_id = %installation_id, change_set_id, error = %error, "deployment reconciliation cleanup failed");
                 ServiceError::with_status(
                     StatusCode::CONFLICT,
                     "deployment candidate cleanup still requires reconciliation",
@@ -2495,7 +2569,8 @@ fn verified_activation_matches_deployment(
         && deployment.build_operation_id.as_deref() == Some(preview.build_operation_id.as_str())
         && deployment.deployment_operation_id.as_deref()
             == Some(preview.deployment_operation_id.as_str())
-        && active.project_id == record.project_id
+        && record.target_installation_id.as_ref() == Some(&active.installation_id)
+        && record.subject.workspace_id() == Some(&active.workspace_id)
         && active.job_id.is_none()
         && active.operation == DeploymentOperation::VerifiedActivate
         && active.source_kind == DeploymentSourceKind::VerifiedArtifact
@@ -2554,7 +2629,7 @@ fn durable_revision_claims_deployment_candidate(
 
 fn validate_preview_target_operations<S>(
     state: &AppState<S>,
-    project_id: &ProjectId,
+    installation_id: &InstallationId,
     deployment: &DevelopmentDeploymentRecord,
     preview: &DevelopmentDeploymentPreview,
 ) -> anyhow::Result<()>
@@ -2567,8 +2642,8 @@ where
         .ok_or_else(|| anyhow::anyhow!("target build operation disappeared"))?;
     require_succeeded_target_operation(build.clone(), "target Docker build")?;
     anyhow::ensure!(
-        build.target_id == deployment.target_id && build.project_id == *project_id,
-        "target build operation belongs to another project or target"
+        build.target_id == deployment.target_id && build.installation_id == *installation_id,
+        "target build operation belongs to another installation or target"
     );
     let expected_verifier = DeclarativeVerifierDescriptor::DockerBuild {
         digest: deployment.build_context_ref.digest.clone(),
@@ -2576,6 +2651,7 @@ where
         dockerfile: deployment.dockerfile.clone(),
         network_mode: development_target_network_mode(deployment.network_mode),
         build_id: deployment.build_id.clone(),
+        workspace_id: deployment.workspace_id.clone(),
         source_tree_digest: deployment.source_tree_digest.clone(),
         build_descriptor_hash: deployment.build_descriptor_hash.clone(),
     };
@@ -2619,7 +2695,7 @@ where
     require_succeeded_target_operation(apply.clone(), "target deployment apply")?;
     anyhow::ensure!(
         apply.target_id == deployment.target_id
-            && apply.project_id == *project_id
+            && apply.installation_id == *installation_id
             && apply.spec
                 == TargetOperationSpec::DeploymentApply {
                     deployment: TargetDeploymentDescriptor {
@@ -2868,7 +2944,7 @@ where
         .verified_build_network_mode
         .ok_or_else(invalid_revision)?;
     let expected_descriptor_hash = deployment_build_descriptor_hash(
-        &target.project_id,
+        &target.installation_id,
         &build_context_ref,
         &target.source_commit,
         &dockerfile,
@@ -2885,9 +2961,9 @@ where
         && build_context_ref.media_type == "application/x-tar"
         && build_context_ref
             .annotations
-            .get("project_id")
+            .get("installation_id")
             .and_then(Value::as_str)
-            == Some(target.project_id.as_str())
+            == Some(target.installation_id.as_str())
         && build_context_ref
             .annotations
             .get("change_set_id")
@@ -2919,7 +2995,7 @@ where
         read_verified_preview_evidence(
             state.runtime.as_ref(),
             &preview_ref,
-            &target.project_id,
+            &target.installation_id,
             &change_set_id,
             &target.target_id,
             &target.source_commit,
@@ -2928,7 +3004,7 @@ where
         )
         .await
         .map_err(|error| {
-            tracing::warn!(project_id = %target.project_id, revision_id = %target.revision_id, error = %error, "verified deployment preview evidence validation failed");
+            tracing::warn!(installation_id = %target.installation_id, revision_id = %target.revision_id, error = %error, "verified deployment preview evidence validation failed");
             invalid_revision()
         })?;
     read_verified_deployment_approval(
@@ -2938,25 +3014,25 @@ where
         &verification_ref,
         &build_context_ref,
         &evidence_authority_ref,
-        &target.project_id,
+        &target.installation_id,
         &change_set_id,
         &evidence_deployment_id,
         &target.target_id,
     )
     .await
     .map_err(|error| {
-        tracing::warn!(project_id = %target.project_id, revision_id = %target.revision_id, error = %error, "verified deployment approval evidence validation failed");
+        tracing::warn!(installation_id = %target.installation_id, revision_id = %target.revision_id, error = %error, "verified deployment approval evidence validation failed");
         invalid_revision()
     })?;
     let replay_context = deployment_effect_context(
         state,
         Some(authority),
-        &target.project_id,
+        &target.installation_id,
         "host_verified_deployment_replay",
     )
     .await
     .map_err(|error| {
-        tracing::warn!(project_id = %target.project_id, revision_id = %target.revision_id, error = %error, "verified deployment replay authority validation failed");
+        tracing::warn!(installation_id = %target.installation_id, revision_id = %target.revision_id, error = %error, "verified deployment replay authority validation failed");
         ServiceError::with_status(
             StatusCode::FORBIDDEN,
             "deployment authority is no longer valid for the revision target",
@@ -2964,16 +3040,16 @@ where
     })?;
     state
         .build_jobs
-        .ensure_route_available_for_project(&target.route_id, &target.project_id)
+        .ensure_route_available_for_installation(&target.route_id, &target.installation_id)
         .map_err(|error| ServiceError::with_status(StatusCode::CONFLICT, error.to_string()))?;
     if state
         .target_agents
-        .project_for_operation_route(&target.route_id)
-        .is_some_and(|owner| owner != target.project_id)
+        .installation_for_operation_route(&target.route_id)
+        .is_some_and(|owner| owner != target.installation_id)
     {
         return Err(ServiceError::with_status(
             StatusCode::CONFLICT,
-            "deployment route is owned by another project",
+            "deployment route is owned by another installation",
         ));
     }
 
@@ -2982,7 +3058,7 @@ where
         state,
         &target.target_id,
         CreateTargetOperationRequest {
-            project_id: target.project_id.clone(),
+            installation_id: target.installation_id.clone(),
             spec: TargetOperationSpec::VerifierRun {
                 verifier: DeclarativeVerifierDescriptor::DockerBuild {
                     digest: build_context_ref.digest.clone(),
@@ -2990,6 +3066,7 @@ where
                     dockerfile: dockerfile.clone(),
                     network_mode,
                     build_id: target.build_id.clone(),
+                    workspace_id: target.workspace_id.clone(),
                     source_tree_digest: target.source_commit.clone(),
                     build_descriptor_hash: target.build_descriptor_hash.clone(),
                 },
@@ -3004,7 +3081,7 @@ where
         .await
         .and_then(|operation| require_succeeded_target_operation(operation, "target Docker build"))
         .map_err(|error| {
-            tracing::warn!(project_id = %target.project_id, revision_id = %target.revision_id, error = %error, "verified deployment artifact rebuild failed");
+            tracing::warn!(installation_id = %target.installation_id, revision_id = %target.revision_id, error = %error, "verified deployment artifact rebuild failed");
             ServiceError::with_status(
                 StatusCode::CONFLICT,
                 "verified deployment artifact could not be rebuilt on the selected target",
@@ -3082,7 +3159,7 @@ where
         Ok(route)
     });
     if let Err(error) = management_route {
-        tracing::warn!(project_id = %target.project_id, revision_id = %target.revision_id, error = %error, "verified replay management route registration failed");
+        tracing::warn!(installation_id = %target.installation_id, revision_id = %target.revision_id, error = %error, "verified replay management route registration failed");
         let _ = cleanup_target_host_resources(state, &target_deployment, &target.route_id).await;
         return Err(ServiceError::with_status(
             StatusCode::INTERNAL_SERVER_ERROR,
@@ -3094,7 +3171,7 @@ where
         state,
         &target.target_id,
         CreateTargetOperationRequest {
-            project_id: target.project_id.clone(),
+            installation_id: target.installation_id.clone(),
             spec: TargetOperationSpec::DeploymentApply {
                 deployment: TargetDeploymentDescriptor {
                     deployment: target_deployment.clone(),
@@ -3114,7 +3191,7 @@ where
     let apply_operation = match apply_operation {
         Ok(operation) => operation,
         Err(error) => {
-            tracing::warn!(project_id = %target.project_id, revision_id = %target.revision_id, error = %error.error, "verified replay candidate submission failed");
+            tracing::warn!(installation_id = %target.installation_id, revision_id = %target.revision_id, error = %error.error, "verified replay candidate submission failed");
             let _ =
                 cleanup_target_host_resources(state, &target_deployment, &target.route_id).await;
             return Err(ServiceError::with_status(
@@ -3129,7 +3206,7 @@ where
     {
         Ok(operation) => operation,
         Err(error) => {
-            tracing::warn!(project_id = %target.project_id, revision_id = %target.revision_id, error = %error, "verified replay candidate outcome is unknown");
+            tracing::warn!(installation_id = %target.installation_id, revision_id = %target.revision_id, error = %error, "verified replay candidate outcome is unknown");
             return Err(ServiceError::with_status(
                 StatusCode::CONFLICT,
                 "deployment replay candidate requires reconciliation; details redacted",
@@ -3142,7 +3219,7 @@ where
     ) {
         Ok(operation) => operation,
         Err(error) => {
-            tracing::warn!(project_id = %target.project_id, revision_id = %target.revision_id, error = %error, "verified replay candidate did not start");
+            tracing::warn!(installation_id = %target.installation_id, revision_id = %target.revision_id, error = %error, "verified replay candidate did not start");
             if !target_operation_outcome_is_uncertain(state, &apply_operation_id) {
                 let _ = cleanup_target_host_resources(state, &target_deployment, &target.route_id)
                     .await;
@@ -3182,10 +3259,10 @@ where
     let (container_id, container_name) = match candidate {
         Ok(candidate) => candidate,
         Err(error) => {
-            tracing::warn!(project_id = %target.project_id, revision_id = %target.revision_id, error = %error, "verified replay candidate receipt validation failed");
+            tracing::warn!(installation_id = %target.installation_id, revision_id = %target.revision_id, error = %error, "verified replay candidate receipt validation failed");
             let _ = compensate_verified_replay_candidate(
                 state,
-                &target.project_id,
+                &target.installation_id,
                 &target.target_id,
                 &target_deployment,
                 &target.route_id,
@@ -3246,10 +3323,10 @@ where
     let (route_id, fallback_public_url) = match route_switch {
         Ok(route) => route,
         Err(error) => {
-            tracing::warn!(project_id = %target.project_id, revision_id = %target.revision_id, error = %error, "verified deployment replay route switch failed");
+            tracing::warn!(installation_id = %target.installation_id, revision_id = %target.revision_id, error = %error, "verified deployment replay route switch failed");
             let _ = compensate_verified_replay_candidate(
                 state,
-                &target.project_id,
+                &target.installation_id,
                 &target.target_id,
                 &target_deployment,
                 &target.route_id,
@@ -3265,6 +3342,7 @@ where
     let public_url =
         service_public_url_for_route(state, &route_id, &fallback_public_url, target.route_access);
     let receipt = HostBuildDeployResponse {
+        workspace_id: target.workspace_id.clone(),
         route_id: route_id.clone(),
         public_url,
         route_access: target.route_access,
@@ -3286,7 +3364,8 @@ where
             now_millis(),
             &uuid::Uuid::new_v4().simple().to_string()[..12]
         ),
-        project_id: target.project_id.clone(),
+        installation_id: target.installation_id.clone(),
+        workspace_id: target.workspace_id.clone(),
         job_id: None,
         operation,
         parent_revision_id: previous.map(|revision| revision.revision_id.clone()),
@@ -3321,10 +3400,10 @@ where
     if let Err(error) =
         persist_revision_activation(state, &revision, None, Some(authority.clone())).await
     {
-        tracing::warn!(project_id = %target.project_id, revision_id = %target.revision_id, error = %error, "verified deployment replay journal commit failed");
+        tracing::warn!(installation_id = %target.installation_id, revision_id = %target.revision_id, error = %error, "verified deployment replay journal commit failed");
         let _ = compensate_verified_replay_candidate(
             state,
-            &target.project_id,
+            &target.installation_id,
             &target.target_id,
             &target_deployment,
             &target.route_id,
@@ -3384,7 +3463,7 @@ where
 
 async fn compensate_verified_replay_candidate<S>(
     state: &AppState<S>,
-    project_id: &ProjectId,
+    installation_id: &InstallationId,
     target_id: &str,
     deployment: &TargetDeploymentRef,
     production_route_id: &str,
@@ -3405,7 +3484,7 @@ where
         state,
         target_id,
         CreateTargetOperationRequest {
-            project_id: project_id.clone(),
+            installation_id: installation_id.clone(),
             spec: TargetOperationSpec::DeploymentStop {
                 deployment: deployment.clone(),
                 grace_seconds: 0,
@@ -3512,14 +3591,14 @@ where
     S: EventStore,
 {
     let Some(deployment) = previous.target_deployment.as_ref() else {
-        tracing::warn!(project_id = %previous.project_id, revision_id = %previous.revision_id, "verified deployment revision has no target deployment reference for cleanup");
+        tracing::warn!(installation_id = %previous.installation_id, revision_id = %previous.revision_id, "verified deployment revision has no target deployment reference for cleanup");
         return vec!["previous target deployment requires manual cleanup".to_string()];
     };
     let stop = crate::target_agent::submit_host_operation(
         state,
         &previous.target_id,
         CreateTargetOperationRequest {
-            project_id: previous.project_id.clone(),
+            installation_id: previous.installation_id.clone(),
             spec: TargetOperationSpec::DeploymentStop {
                 deployment: deployment.clone(),
                 grace_seconds: 10,
@@ -3535,17 +3614,17 @@ where
             match await_target_operation(state, &previous.target_id, operation).await {
                 Ok(operation) if operation.status == TargetOperationStatusKind::Succeeded => true,
                 Ok(operation) => {
-                    tracing::warn!(project_id = %previous.project_id, revision_id = %previous.revision_id, status = ?operation.status, "previous target deployment did not stop cleanly");
+                    tracing::warn!(installation_id = %previous.installation_id, revision_id = %previous.revision_id, status = ?operation.status, "previous target deployment did not stop cleanly");
                     false
                 }
                 Err(error) => {
-                    tracing::warn!(project_id = %previous.project_id, revision_id = %previous.revision_id, error = %error, "previous target deployment stop outcome is unknown");
+                    tracing::warn!(installation_id = %previous.installation_id, revision_id = %previous.revision_id, error = %error, "previous target deployment stop outcome is unknown");
                     false
                 }
             }
         }
         Err(error) => {
-            tracing::warn!(project_id = %previous.project_id, revision_id = %previous.revision_id, error = %error.error, "previous target deployment stop submission failed");
+            tracing::warn!(installation_id = %previous.installation_id, revision_id = %previous.revision_id, error = %error.error, "previous target deployment stop submission failed");
             false
         }
     };
@@ -3635,9 +3714,17 @@ fn validate_deployment_verification_provenance(
         && context.references.contains(&record.change_set_ref.digest)
         && context
             .annotations
-            .get("project_id")
+            .get("installation_id")
             .and_then(Value::as_str)
-            == Some(record.project_id.as_str())
+            == record
+                .target_installation_id
+                .as_ref()
+                .map(InstallationId::as_str)
+        && context
+            .annotations
+            .get("workspace_id")
+            .and_then(Value::as_str)
+            == record.subject.workspace_id().map(WorkspaceId::as_str)
         && context
             .annotations
             .get("change_set_id")
@@ -3688,7 +3775,7 @@ where
 async fn read_verified_preview_evidence<S>(
     runtime: &Runtime<S>,
     preview_ref: &ArtifactDescriptor,
-    project_id: &ProjectId,
+    installation_id: &InstallationId,
     change_set_id: &str,
     target_id: &str,
     source_tree_digest: &str,
@@ -3705,9 +3792,9 @@ where
             && preview_ref.references.contains(&build_context_ref.digest)
             && preview_ref
                 .annotations
-                .get("project_id")
+                .get("installation_id")
                 .and_then(Value::as_str)
-                == Some(project_id.as_str())
+                == Some(installation_id.as_str())
             && preview_ref
                 .annotations
                 .get("change_set_id")
@@ -3732,7 +3819,8 @@ where
         serde_json::from_slice(&runtime.object_store().get(&preview_ref.digest).await?)?;
     anyhow::ensure!(
         payload.get("schema_version").and_then(Value::as_u64) == Some(1)
-            && payload.get("project_id").and_then(Value::as_str) == Some(project_id.as_str())
+            && payload.get("installation_id").and_then(Value::as_str)
+                == Some(installation_id.as_str())
             && payload.get("change_set_id").and_then(Value::as_str) == Some(change_set_id)
             && payload.get("source_tree_digest").and_then(Value::as_str)
                 == Some(source_tree_digest),
@@ -3773,9 +3861,9 @@ where
             && authority_ref.media_type == "application/json"
             && authority_ref
                 .annotations
-                .get("project_id")
+                .get("installation_id")
                 .and_then(Value::as_str)
-                == Some(project_id.as_str())
+                == Some(installation_id.as_str())
             && authority_ref
                 .annotations
                 .get("change_set_id")
@@ -3802,7 +3890,7 @@ async fn read_verified_deployment_approval<S>(
     verification_ref: &ArtifactDescriptor,
     build_context_ref: &ArtifactDescriptor,
     authority_ref: &ArtifactDescriptor,
-    project_id: &ProjectId,
+    installation_id: &InstallationId,
     change_set_id: &str,
     deployment_id: &str,
     target_id: &str,
@@ -3821,9 +3909,9 @@ where
                 == Some("explicit_deployment_approval")
             && approval_ref
                 .annotations
-                .get("project_id")
+                .get("installation_id")
                 .and_then(Value::as_str)
-                == Some(project_id.as_str())
+                == Some(installation_id.as_str())
             && approval_ref
                 .annotations
                 .get("change_set_id")
@@ -3852,7 +3940,7 @@ where
             && decision.change_set_id == format!("{change_set_id}:deployment:{deployment_id}")
             && decision
                 .evaluated_authority
-                .contains(&"host.project.deploy".to_string())
+                .contains(&"host.installation.deploy".to_string())
             && decision
                 .evaluated_authority
                 .contains(&format!("host.target.{target_id}")),
@@ -3869,7 +3957,8 @@ fn deployment_preview_request_digest(
 ) -> anyhow::Result<String> {
     let bytes = serde_json::to_vec(&json!({
         "schema_version": 1,
-        "project_id": record.project_id,
+        "subject": record.subject,
+        "target_installation_id": record.target_installation_id,
         "change_set_id": record.change_set.id,
         "request": request,
         "verification_digest": verification_ref.digest,
@@ -3879,7 +3968,7 @@ fn deployment_preview_request_digest(
 }
 
 fn deployment_build_descriptor_hash(
-    project_id: &ProjectId,
+    installation_id: &InstallationId,
     build_context_ref: &ArtifactDescriptor,
     source_tree_digest: &str,
     dockerfile: &str,
@@ -3889,7 +3978,7 @@ fn deployment_build_descriptor_hash(
     let mut hasher = Sha256::new();
     for value in [
         "plurora.verified-deployment-build.v1",
-        project_id.as_str(),
+        installation_id.as_str(),
         &build_context_ref.digest,
         source_tree_digest,
         dockerfile,
@@ -4000,11 +4089,14 @@ where
         .deployment
         .clone()
         .ok_or_else(|| anyhow::anyhow!("development deployment disappeared"))?;
-    let project_id = building.project_id.clone();
+    let installation_id = building
+        .target_installation_id
+        .clone()
+        .ok_or_else(|| anyhow::anyhow!("development deployment has no target installation"))?;
     deployment_effect_context(
         state,
         Some(authority),
-        &project_id,
+        &installation_id,
         "host_development_deployment_build",
     )
     .await?;
@@ -4012,7 +4104,7 @@ where
         state,
         &deployment.target_id,
         CreateTargetOperationRequest {
-            project_id: project_id.clone(),
+            installation_id: installation_id.clone(),
             spec: TargetOperationSpec::VerifierRun {
                 verifier: DeclarativeVerifierDescriptor::DockerBuild {
                     digest: deployment.build_context_ref.digest.clone(),
@@ -4027,6 +4119,7 @@ where
                         }
                     },
                     build_id: deployment.build_id.clone(),
+                    workspace_id: deployment.workspace_id.clone(),
                     source_tree_digest: deployment.source_tree_digest.clone(),
                     build_descriptor_hash: deployment.build_descriptor_hash.clone(),
                 },
@@ -4082,7 +4175,7 @@ where
     let port_context = deployment_effect_context(
         state,
         Some(authority),
-        &project_id,
+        &installation_id,
         "host_development_deployment_port_lease",
     )
     .await?;
@@ -4120,7 +4213,7 @@ where
     let route_context = deployment_effect_context(
         state,
         Some(authority),
-        &project_id,
+        &installation_id,
         "host_development_deployment_preview_route",
     )
     .await?;
@@ -4156,7 +4249,7 @@ where
     deployment_effect_context(
         state,
         Some(authority),
-        &project_id,
+        &installation_id,
         "host_development_deployment_candidate_apply",
     )
     .await?;
@@ -4169,7 +4262,7 @@ where
         state,
         &deployment.target_id,
         CreateTargetOperationRequest {
-            project_id: project_id.clone(),
+            installation_id: installation_id.clone(),
             spec: TargetOperationSpec::DeploymentApply {
                 deployment: TargetDeploymentDescriptor {
                     deployment: target_deployment.clone(),
@@ -4257,7 +4350,7 @@ where
         DEVELOPMENT_DEPLOYMENT_PREVIEW_TYPE_URI,
         &json!({
             "schema_version": 1,
-            "project_id": project_id,
+            "installation_id": installation_id,
             "change_set_id": change_set_id,
             "deployment_id": deployment.deployment_id,
             "source_tree_digest": deployment.source_tree_digest,
@@ -4272,7 +4365,10 @@ where
             deployment.authority_ref.digest.clone(),
         ],
         BTreeMap::from([
-            ("project_id".to_string(), json!(project_id.as_str())),
+            (
+                "installation_id".to_string(),
+                json!(installation_id.as_str()),
+            ),
             ("change_set_id".to_string(), json!(change_set_id)),
             ("deployment_id".to_string(), json!(deployment.deployment_id)),
             ("target_id".to_string(), json!(deployment.target_id)),
@@ -4373,7 +4469,7 @@ where
 
 async fn stop_preview_candidate_for_reconciliation<S>(
     state: &AppState<S>,
-    project_id: &ProjectId,
+    installation_id: &InstallationId,
     deployment: &DevelopmentDeploymentRecord,
 ) -> Result<bool, ServiceError>
 where
@@ -4385,7 +4481,7 @@ where
     ) else {
         return Ok(state
             .target_agents
-            .project_for_operation_route(&deployment.preview_route_id)
+            .installation_for_operation_route(&deployment.preview_route_id)
             .is_none());
     };
     let target_deployment = TargetDeploymentRef {
@@ -4398,7 +4494,7 @@ where
         .operations_for_target(&deployment.target_id)
         .into_iter()
         .filter(|operation| {
-            if operation.project_id != *project_id {
+            if operation.installation_id != *installation_id {
                 return false;
             }
             match &operation.spec {
@@ -4433,7 +4529,7 @@ where
         state,
         &deployment.target_id,
         CreateTargetOperationRequest {
-            project_id: project_id.clone(),
+            installation_id: installation_id.clone(),
             spec: TargetOperationSpec::DeploymentStop {
                 deployment: target_deployment,
                 grace_seconds: 0,
@@ -4449,7 +4545,7 @@ where
     )
     .await
     .map_err(|error| {
-        tracing::warn!(project_id = %project_id, deployment_id = %deployment.deployment_id, error = %error.error, "failed to submit deployment reconciliation stop");
+        tracing::warn!(installation_id = %installation_id, deployment_id = %deployment.deployment_id, error = %error.error, "failed to submit deployment reconciliation stop");
         ServiceError::with_status(
             StatusCode::CONFLICT,
             "deployment target is not ready for candidate reconciliation",
@@ -4458,7 +4554,7 @@ where
     let stop = await_target_operation(state, &deployment.target_id, stop)
         .await
         .map_err(|error| {
-            tracing::warn!(project_id = %project_id, deployment_id = %deployment.deployment_id, error = %error, "deployment reconciliation stop outcome is unresolved");
+            tracing::warn!(installation_id = %installation_id, deployment_id = %deployment.deployment_id, error = %error, "deployment reconciliation stop outcome is unresolved");
             ServiceError::with_status(
                 StatusCode::CONFLICT,
                 "deployment candidate stop outcome is still unresolved",
@@ -4469,7 +4565,7 @@ where
 
 async fn stop_completed_preview_candidate<S>(
     state: &AppState<S>,
-    project_id: &ProjectId,
+    installation_id: &InstallationId,
     deployment: &DevelopmentDeploymentRecord,
 ) -> anyhow::Result<bool>
 where
@@ -4478,7 +4574,7 @@ where
     let Some(operation_id) = deployment.deployment_operation_id.as_deref() else {
         return Ok(state
             .target_agents
-            .project_for_operation_route(&deployment.preview_route_id)
+            .installation_for_operation_route(&deployment.preview_route_id)
             .is_none());
     };
     let Some(operation) = state.target_agents.operation(operation_id) else {
@@ -4504,7 +4600,7 @@ where
         state,
         &deployment.target_id,
         CreateTargetOperationRequest {
-            project_id: project_id.clone(),
+            installation_id: installation_id.clone(),
             spec: TargetOperationSpec::DeploymentStop {
                 deployment: TargetDeploymentRef {
                     deployment_id: target_deployment_id.clone(),
@@ -4640,7 +4736,14 @@ where
     let cleanup_complete = if operation_uncertain {
         false
     } else {
-        stop_completed_preview_candidate(state, &record.project_id, &deployment).await?
+        stop_completed_preview_candidate(
+            state,
+            record.target_installation_id.as_ref().ok_or_else(|| {
+                anyhow::anyhow!("development deployment has no target installation")
+            })?,
+            &deployment,
+        )
+        .await?
             && cleanup_preview_host_resources(state, &deployment).await?
     };
     update_deployment_record(state, change_set_id, |current| {
@@ -4663,47 +4766,46 @@ where
     Ok(())
 }
 
-fn development_project_session(project_id: &ProjectId) -> String {
+fn development_subject_session(subject: &DevelopmentSubject) -> String {
     format!(
-        "{DEVELOPMENT_JOURNAL_SESSION_PREFIX}/{}",
-        project_id.as_str()
+        "{DEVELOPMENT_JOURNAL_SESSION_PREFIX}/{}/{}",
+        match subject {
+            DevelopmentSubject::Installation { .. } => "installation",
+            DevelopmentSubject::Workspace { .. } => "workspace",
+        },
+        subject.as_str()
     )
 }
 
 async fn verify_development_host_lease<S>(
-    store: &S,
+    _store: &S,
     registry: &DevelopmentRegistry,
 ) -> anyhow::Result<DevelopmentHostLease>
 where
     S: EventStore,
 {
     let lease = registry.active_host_lease()?;
-    let (_, current) = development_host_lease_tail(store).await?;
-    let current = current.ok_or_else(|| anyhow::anyhow!("development Host lease disappeared"))?;
-    let current_owner = current.owner_id == lease.owner_id;
-    let current_live = !current.released && current.expires_at_ms > Utc::now().timestamp_millis();
-    if !current_owner || !current_live {
-        lease.valid.store(false, Ordering::Release);
-        anyhow::bail!("development Host lease is no longer the durable owner");
-    }
-    lease
-        .expires_at_ms
-        .store(current.expires_at_ms, Ordering::Release);
+    lease.ensure_durable_owner().await?;
     Ok(lease)
 }
 
 fn validate_development_authority(
     identity: &HostAccessIdentity,
     registry: &HostAccessRegistry,
-    project_id: &ProjectId,
+    subject: &DevelopmentSubject,
 ) -> anyhow::Result<()> {
     anyhow::ensure!(
         identity.allows(HostAccessScope::DevelopExecute),
         "development authority does not include develop_execute"
     );
     anyhow::ensure!(
-        identity.allows_project(project_id.as_str()),
-        "development authority does not include the project"
+        match subject {
+            DevelopmentSubject::Installation { installation_id } =>
+                identity.allows_installation(installation_id.as_str()),
+            DevelopmentSubject::Workspace { workspace_id } =>
+                identity.allows_workspace(workspace_id.as_str()),
+        },
+        "development authority does not include the exact subject"
     );
     if let Some(expires_at_ms) = identity.expires_at_ms {
         anyhow::ensure!(
@@ -4724,25 +4826,36 @@ fn validate_development_authority(
     Ok(())
 }
 
-fn development_authority_context(
+fn development_record_authority_context(
     identity: &HostAccessIdentity,
-    project_id: &ProjectId,
+    record: &DevelopmentChangeRecord,
     transport: &str,
 ) -> ProtocolContext {
-    identity.protocol_context(transport).with_host_operation(
-        HostAccessScope::DevelopExecute.as_str(),
-        vec![ProtocolResourceSelector {
+    let mut resources = vec![ProtocolResourceSelector {
+        owner: "host".to_string(),
+        kind: match &record.subject {
+            DevelopmentSubject::Installation { .. } => "installation",
+            DevelopmentSubject::Workspace { .. } => "workspace",
+        }
+        .to_string(),
+        id: Some(record.subject.as_str().to_string()),
+    }];
+    if let Some(installation_id) = record.target_installation_id.as_ref() {
+        resources.push(ProtocolResourceSelector {
             owner: "host".to_string(),
-            kind: "project".to_string(),
-            id: Some(project_id.to_string()),
-        }],
-    )
+            kind: "installation".to_string(),
+            id: Some(installation_id.to_string()),
+        });
+    }
+    identity
+        .protocol_context(transport)
+        .with_host_operation(HostAccessScope::DevelopExecute.as_str(), resources)
 }
 
 async fn verify_development_authority<S>(
     state: &AppState<S>,
     identity: &HostAccessIdentity,
-    project_id: &ProjectId,
+    subject: &DevelopmentSubject,
 ) -> anyhow::Result<()>
 where
     S: EventStore,
@@ -4753,7 +4866,29 @@ where
         sync_host_access_journal(state.runtime.store().as_ref(), state.host_access.as_ref())
             .await?;
     }
-    validate_development_authority(identity, state.host_access.as_ref(), project_id)
+    validate_development_authority(identity, state.host_access.as_ref(), subject)
+}
+
+async fn verify_development_record_authority<S>(
+    state: &AppState<S>,
+    identity: &HostAccessIdentity,
+    record: &DevelopmentChangeRecord,
+) -> anyhow::Result<()>
+where
+    S: EventStore,
+{
+    verify_development_authority(state, identity, &record.subject).await?;
+    if let Some(installation_id) = record.target_installation_id.as_ref() {
+        anyhow::ensure!(
+            identity.allows_installation(installation_id.as_str()),
+            "development authority does not include the exact target installation"
+        );
+        anyhow::ensure!(
+            state.installations.get(installation_id).await?.is_some(),
+            "development target installation is not registered"
+        );
+    }
+    Ok(())
 }
 
 pub(crate) async fn verify_host_control_plane_lease_if_installed<S>(
@@ -4793,7 +4928,7 @@ where
     let lease =
         verify_development_host_lease(state.runtime.store().as_ref(), state.development.as_ref())
             .await?;
-    if let Err(error) = renew_development_host_lease(state.runtime.store().as_ref(), &lease).await {
+    if let Err(error) = renew_development_host_lease(lease.store.as_ref(), &lease).await {
         lease.valid.store(false, Ordering::Release);
         return Err(error);
     }
@@ -4810,7 +4945,7 @@ where
 {
     store
         .append_with_sequence_if_next(
-            development_project_session(&snapshot.record.project_id),
+            development_subject_session(&snapshot.record.subject),
             expected_next_sequence,
             DEVELOPMENT_JOURNAL_WRITER.to_string(),
             DEVELOPMENT_SNAPSHOT_EVENT.to_string(),
@@ -4824,18 +4959,18 @@ where
         .await
 }
 
-async fn sync_project_journal<S>(
+async fn sync_subject_journal<S>(
     store: &S,
     registry: &DevelopmentRegistry,
-    project_id: &ProjectId,
+    subject: &DevelopmentSubject,
 ) -> anyhow::Result<usize>
 where
     S: EventStore,
 {
-    let session_id = development_project_session(project_id);
+    let session_id = development_subject_session(subject);
     let mut loaded = 0usize;
     loop {
-        let next = registry.project_journal_next(project_id);
+        let next = registry.subject_journal_next(subject);
         let after = next.checked_sub(1);
         let events = store
             .list_session_range(&session_id, after, Some(1_000))
@@ -4854,17 +4989,17 @@ where
     Ok(loaded)
 }
 
-async fn refresh_development_project<S>(
+async fn refresh_development_subject<S>(
     state: &AppState<S>,
-    project_id: &ProjectId,
+    subject: &DevelopmentSubject,
 ) -> Result<(), ServiceError>
 where
     S: EventStore,
 {
-    sync_project_journal(
+    sync_subject_journal(
         state.runtime.store().as_ref(),
         state.development.as_ref(),
-        project_id,
+        subject,
     )
     .await
     .map(|_| ())
@@ -4886,15 +5021,15 @@ async fn persist_snapshot<S>(
 where
     S: EventStore,
 {
-    let project_id = snapshot.record.project_id.clone();
+    let subject = snapshot.record.subject.clone();
     let change_set_id = snapshot.record.change_set.id.clone();
     for _ in 0..4 {
         verify_development_host_lease(state.runtime.store().as_ref(), state.development.as_ref())
             .await?;
-        sync_project_journal(
+        sync_subject_journal(
             state.runtime.store().as_ref(),
             state.development.as_ref(),
-            &project_id,
+            &subject,
         )
         .await?;
         match state.development.snapshot(&change_set_id) {
@@ -4917,7 +5052,7 @@ where
             None => anyhow::bail!("development change disappeared before persistence"),
         }
 
-        let expected_next = state.development.project_journal_next(&project_id);
+        let expected_next = state.development.subject_journal_next(&subject);
         verify_development_host_lease(state.runtime.store().as_ref(), state.development.as_ref())
             .await?;
         match append_development_journal_event(
@@ -4933,10 +5068,10 @@ where
             }
             Ok(None) => continue,
             Err(append_error) => {
-                if sync_project_journal(
+                if sync_subject_journal(
                     state.runtime.store().as_ref(),
                     state.development.as_ref(),
-                    &project_id,
+                    &subject,
                 )
                 .await
                 .is_ok()
@@ -4951,7 +5086,7 @@ where
             }
         }
     }
-    anyhow::bail!("development journal conflict: project state advanced concurrently")
+    anyhow::bail!("development journal conflict: subject state advanced concurrently")
 }
 
 async fn persist_record<S>(
@@ -5063,13 +5198,13 @@ where
                 "host restarted during development staging or verification",
             ));
         }
-        let expected_next = registry.project_journal_next(&snapshot.record.project_id);
+        let expected_next = registry.subject_journal_next(&snapshot.record.subject);
         let event = append_development_journal_event(store.as_ref(), &snapshot, expected_next)
             .await?
             .ok_or_else(|| anyhow::anyhow!("development journal changed during recovery"))?;
         registry.apply_journal_event(&event)?;
         if snapshot.record.status == DevelopmentChangeStatus::Failed {
-            cleanup_change_root(&snapshot.record.project_id, &change_set_id);
+            cleanup_change_root(&snapshot.record.subject, &change_set_id);
         }
     }
 
@@ -5108,7 +5243,7 @@ where
         deployment.updated_at_ms = now_millis();
         snapshot.record.revision = snapshot.record.revision.saturating_add(1);
         snapshot.record.updated_at_ms = now_millis();
-        let expected_next = registry.project_journal_next(&snapshot.record.project_id);
+        let expected_next = registry.subject_journal_next(&snapshot.record.subject);
         let event = append_development_journal_event(store.as_ref(), &snapshot, expected_next)
             .await?
             .ok_or_else(|| {
@@ -5121,7 +5256,7 @@ where
 
 async fn draft_change_inner<S>(
     state: &AppState<S>,
-    project_id: ProjectId,
+    subject: DevelopmentSubject,
     change_set_id: String,
     request: DevelopmentDraftRequest,
     request_fingerprint: String,
@@ -5129,26 +5264,26 @@ async fn draft_change_inner<S>(
 where
     S: EventStore,
 {
-    let workspace = resolve_project_workspace(state, &project_id).map_err(|error| {
-        tracing::warn!(project_id = %project_id, error = %error, "development workspace resolution failed");
+    let workspace = resolve_subject_workspace(&subject).map_err(|error| {
+        tracing::warn!(subject = ?subject, error = %error, "development workspace resolution failed");
         ServiceError::with_status(
             StatusCode::BAD_REQUEST,
-            "project workspace is unavailable or failed its ownership checks",
+            "workspace is unavailable or failed its ownership checks",
         )
     })?;
     if workspace.ownership == DevelopmentWorkspaceOwnership::LinkedLocal {
         return Err(ServiceError::with_status(
             StatusCode::CONFLICT,
-            "linked-local projects are proposal-only; import a managed workspace before Host verification",
+            "linked-local workspaces are proposal-only; import a managed workspace before Host verification",
         ));
     }
     let base_summary = workspace_tree_hash(&workspace.root)
         .await
         .map_err(|error| {
-            internal_development_error("failed to inspect project workspace", error)
+            internal_development_error("failed to inspect installation workspace", error)
         })?;
-    ensure_descriptor_matches_workspace(&workspace, &base_summary.sha256).map_err(|error| {
-        tracing::warn!(project_id = %project_id, error = %error, "managed workspace digest validation failed");
+    ensure_record_matches_workspace(&workspace, &base_summary.sha256).map_err(|error| {
+        tracing::warn!(subject = ?subject, error = %error, "managed workspace digest validation failed");
         ServiceError::with_status(
             StatusCode::CONFLICT,
             "managed workspace content no longer matches its immutable descriptor",
@@ -5158,7 +5293,7 @@ where
         if expected != base_summary.sha256 {
             return Err(ServiceError::with_status(
                 StatusCode::CONFLICT,
-                "expected_tree_digest does not match the current project workspace",
+                "expected_tree_digest does not match the current workspace",
             ));
         }
     }
@@ -5169,8 +5304,9 @@ where
         intent_type_uri: plurora_core::INTENT_TYPE_URI.to_string(),
         principal: PrincipalIdentity::HostDev,
         goal: json!({
-            "kind": "project_development",
-            "project_id": project_id.as_str(),
+            "kind": "workspace_development",
+            "subject": subject,
+            "target_installation_id": request.target_installation_id,
             "summary": request.goal,
         }),
         target_session_id: None,
@@ -5208,12 +5344,13 @@ where
         preconditions,
         required_authority,
         expected_effects: json!({
-            "kind": if workspace.ownership == DevelopmentWorkspaceOwnership::ManagedExternal {
+            "kind": if workspace.ownership == DevelopmentWorkspaceOwnership::Managed {
                 "workspace_tree_promotion"
             } else {
                 "verified_patch_bundle"
             },
-            "project_id": project_id.as_str(),
+            "subject": subject,
+            "target_installation_id": request.target_installation_id,
             "verification": request.verification,
             "linked_local_source_write": false,
         }),
@@ -5233,7 +5370,7 @@ where
         plurora_core::CHANGE_SET_TYPE_URI,
         &change_set,
         change_references,
-        BTreeMap::from([("project_id".to_string(), json!(project_id.as_str()))]),
+        BTreeMap::from([("subject".to_string(), json!(subject))]),
     )
     .await
     .map_err(|error| internal_development_error("failed to store development change set", error))?;
@@ -5264,7 +5401,8 @@ where
     let record = DevelopmentChangeRecord {
         schema_version: 1,
         revision: 1,
-        project_id,
+        subject,
+        target_installation_id: request.target_installation_id,
         workspace_ownership: workspace.ownership,
         intent,
         intent_ref,
@@ -5393,10 +5531,10 @@ fn required_development_authority(
     verification: &DevelopmentVerificationPlan,
 ) -> Vec<String> {
     let mut authority = vec![
-        "host.project.develop".to_string(),
+        HostAccessScope::DevelopExecute.as_str().to_string(),
         "host.workspace.stage".to_string(),
     ];
-    if ownership == DevelopmentWorkspaceOwnership::ManagedExternal {
+    if ownership == DevelopmentWorkspaceOwnership::Managed {
         authority.push("host.workspace.promote".to_string());
     }
     if let DevelopmentVerificationPlan::DockerBuild { network_mode, .. } = verification {
@@ -5408,179 +5546,102 @@ fn required_development_authority(
     authority
 }
 
-fn ensure_descriptor_matches_workspace(
-    workspace: &ResolvedProjectWorkspace,
+#[derive(Debug, Clone, Copy, Deserialize, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+enum WorkspaceRecordOwnership {
+    Managed,
+    LinkedLocal,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+struct WorkspaceRecord {
+    schema: String,
+    workspace_id: WorkspaceId,
+    ownership: WorkspaceRecordOwnership,
+    source_kind: String,
+    source_locator: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    source_ref: Option<String>,
+    source_digest: String,
+    display_name: String,
+}
+
+#[derive(Debug, Clone)]
+struct ResolvedWorkspace {
+    record: WorkspaceRecord,
+    root: PathBuf,
+    ownership: DevelopmentWorkspaceOwnership,
+}
+
+fn ensure_record_matches_workspace(
+    workspace: &ResolvedWorkspace,
     actual_digest: &str,
 ) -> anyhow::Result<()> {
-    if workspace.ownership != DevelopmentWorkspaceOwnership::ManagedExternal {
-        return Ok(());
-    }
-    let descriptor_digest = workspace
-        .descriptor
-        .project
-        .external
-        .as_ref()
-        .and_then(|external| external.source_digest.as_deref())
-        .ok_or_else(|| anyhow::anyhow!("managed workspace descriptor digest is missing"))?;
     anyhow::ensure!(
-        descriptor_digest == actual_digest,
-        "managed workspace content digest does not match its descriptor"
+        workspace.record.source_digest == actual_digest,
+        "workspace content digest does not match its record"
     );
     Ok(())
 }
 
-#[derive(Debug, Clone)]
-struct ResolvedProjectWorkspace {
-    descriptor: ProjectDescriptor,
-    descriptor_path: PathBuf,
-    descriptor_handle: Arc<same_file::Handle>,
-    root: PathBuf,
-    ownership: DevelopmentWorkspaceOwnership,
-    managed_external_root: Option<PathBuf>,
+fn resolve_subject_workspace(subject: &DevelopmentSubject) -> anyhow::Result<ResolvedWorkspace> {
+    let workspace_id = subject
+        .workspace_id()
+        .ok_or_else(|| anyhow::anyhow!("installed subjects do not imply a mutable workspace"))?;
+    let data_dir = canonical_real_directory(&plurora_core::paths::data_dir()?, "data directory")?;
+    let workspaces = canonical_owned_directory(&data_dir, "workspaces", "workspaces root")?;
+    let workspace_root =
+        canonical_owned_directory(&workspaces, workspace_id.as_str(), "workspace root")?;
+    let record_path = workspace_root.join("workspace.json");
+    let (record, _record_handle) = read_workspace_record(&record_path, workspace_id)?;
+    let (root, ownership) = match record.ownership {
+        WorkspaceRecordOwnership::Managed => (
+            canonical_owned_directory(&workspace_root, "source", "managed workspace source")?,
+            DevelopmentWorkspaceOwnership::Managed,
+        ),
+        WorkspaceRecordOwnership::LinkedLocal => (
+            canonical_real_directory(
+                &PathBuf::from(&record.source_locator),
+                "linked-local workspace source",
+            )?,
+            DevelopmentWorkspaceOwnership::LinkedLocal,
+        ),
+    };
+    Ok(ResolvedWorkspace {
+        record,
+        root,
+        ownership,
+    })
 }
 
-fn resolve_project_workspace<S>(
-    state: &AppState<S>,
-    project_id: &ProjectId,
-) -> anyhow::Result<ResolvedProjectWorkspace>
-where
-    S: EventStore,
-{
-    let entry = state
-        .runtime
-        .config()
-        .project_registry
-        .get(project_id)
-        .ok_or_else(|| anyhow::anyhow!("project is not registered"))?;
-    let data_dir = plurora_core::paths::data_dir()?;
-    let data_dir = canonical_real_directory(&data_dir, "data directory")?;
-    let projects = canonical_owned_directory(&data_dir, "projects", "projects root")?;
-    let project_dir = canonical_owned_directory(&projects, project_id.as_str(), "project root")?;
-    let descriptor_path = project_dir.join("project.yaml");
-    let descriptor_handle = Arc::new(open_expected_project_descriptor(
-        &descriptor_path,
-        &entry.descriptor,
-    )?);
-
-    match entry.descriptor.project.project_type {
-        ProjectType::PluroraNative => {
-            let root = canonical_owned_directory(&project_dir, "workspace", "project workspace")?;
-            Ok(ResolvedProjectWorkspace {
-                descriptor: entry.descriptor,
-                descriptor_path,
-                descriptor_handle,
-                root,
-                ownership: DevelopmentWorkspaceOwnership::NativeManaged,
-                managed_external_root: None,
-            })
-        }
-        ProjectType::ExternalWorkspace | ProjectType::ExternalWrapped => {
-            let external = entry
-                .descriptor
-                .project
-                .external
-                .as_ref()
-                .ok_or_else(|| anyhow::anyhow!("external project metadata is missing"))?;
-            let workspace_root = external
-                .workspace_root
-                .as_deref()
-                .filter(|value| !value.trim().is_empty())
-                .ok_or_else(|| anyhow::anyhow!("external workspace root is missing"))?;
-            let workspace_path = PathBuf::from(workspace_root);
-            anyhow::ensure!(
-                workspace_path.is_absolute(),
-                "workspace root must be absolute"
-            );
-            let root = canonical_real_directory(&workspace_path, "external workspace root")?;
-            match external.workspace_ownership {
-                Some(ExternalWorkspaceOwnership::Managed) => {
-                    let workspaces =
-                        canonical_owned_directory(&data_dir, "workspaces", "workspaces root")?;
-                    let external_root = canonical_owned_directory(
-                        &workspaces,
-                        "external",
-                        "external workspaces root",
-                    )?;
-                    let managed_project_root = canonical_owned_directory(
-                        &external_root,
-                        project_id.as_str(),
-                        "managed external project root",
-                    )?;
-                    anyhow::ensure!(
-                        root.parent() == Some(managed_project_root.as_path()),
-                        "managed workspace escaped its project root"
-                    );
-                    let digest = external
-                        .source_digest
-                        .as_deref()
-                        .ok_or_else(|| anyhow::anyhow!("managed workspace digest is missing"))?;
-                    let digest_dir = digest_directory_name(digest)?;
-                    anyhow::ensure!(
-                        root.file_name().and_then(|value| value.to_str())
-                            == Some(digest_dir.as_str()),
-                        "managed workspace path does not match its source digest"
-                    );
-                    Ok(ResolvedProjectWorkspace {
-                        descriptor: entry.descriptor,
-                        descriptor_path,
-                        descriptor_handle,
-                        root,
-                        ownership: DevelopmentWorkspaceOwnership::ManagedExternal,
-                        managed_external_root: Some(managed_project_root),
-                    })
-                }
-                Some(ExternalWorkspaceOwnership::LinkedLocal) => Ok(ResolvedProjectWorkspace {
-                    descriptor: entry.descriptor,
-                    descriptor_path,
-                    descriptor_handle,
-                    root,
-                    ownership: DevelopmentWorkspaceOwnership::LinkedLocal,
-                    managed_external_root: None,
-                }),
-                None => anyhow::bail!("external workspace ownership is missing"),
-            }
-        }
-    }
-}
-
-fn open_expected_project_descriptor(
+fn read_workspace_record(
     path: &FsPath,
-    expected: &ProjectDescriptor,
-) -> anyhow::Result<same_file::Handle> {
+    expected_id: &WorkspaceId,
+) -> anyhow::Result<(WorkspaceRecord, same_file::Handle)> {
     let metadata = fs::symlink_metadata(path)?;
     anyhow::ensure!(
         metadata.is_file() && !metadata.file_type().is_symlink(),
-        "project descriptor must be a real file"
+        "workspace record must be a real file"
     );
     let mut file = fs::File::open(path)?;
     let handle = same_file::Handle::from_file(file.try_clone()?)?;
-    let opened = file.metadata()?;
-    let current = fs::symlink_metadata(path)?;
-    anyhow::ensure!(
-        opened.is_file()
-            && current.is_file()
-            && !current.file_type().is_symlink()
-            && same_file::Handle::from_path(path)? == handle,
-        "project descriptor changed while it was being opened"
-    );
     let mut bytes = Vec::new();
     std::io::Read::by_ref(&mut file)
         .take(1024 * 1024 + 1)
         .read_to_end(&mut bytes)?;
+    anyhow::ensure!(bytes.len() <= 1024 * 1024, "workspace record is too large");
+    let record: WorkspaceRecord = serde_json::from_slice(&bytes)?;
     anyhow::ensure!(
-        bytes.len() <= 1024 * 1024,
-        "project descriptor exceeds 1 MiB"
-    );
-    let actual: ProjectDescriptor = serde_yaml::from_slice(&bytes)?;
-    anyhow::ensure!(
-        serde_json::to_value(&actual)? == serde_json::to_value(expected)?,
-        "project descriptor changed after it was loaded into the registry"
+        record.schema == "plurora.workspace-record.v1"
+            && &record.workspace_id == expected_id
+            && digest_directory_name(&record.source_digest).is_ok(),
+        "workspace record identity or digest is invalid"
     );
     anyhow::ensure!(
         same_file::Handle::from_path(path)? == handle,
-        "project descriptor changed while it was being read"
+        "workspace record changed while it was being read"
     );
-    Ok(handle)
+    Ok((record, handle))
 }
 
 fn canonical_real_directory(path: &FsPath, label: &str) -> anyhow::Result<PathBuf> {
@@ -5876,6 +5937,12 @@ fn validate_draft_request(request: &DevelopmentDraftRequest) -> Result<(), Servi
                 "docker verification timeout_secs must be in 1..=3600",
             ));
         }
+        if request.target_installation_id.is_none() {
+            return Err(ServiceError::with_status(
+                StatusCode::BAD_REQUEST,
+                "Docker verification requires target_installation_id",
+            ));
+        }
     }
     Ok(())
 }
@@ -5925,13 +5992,21 @@ fn development_request_fingerprint(request: &DevelopmentDraftRequest) -> anyhow:
     Ok(format!("sha256:{:x}", Sha256::digest(bytes)))
 }
 
-fn development_change_set_id(project_id: &ProjectId, request: &DevelopmentDraftRequest) -> String {
+fn development_change_set_id(
+    subject: &DevelopmentSubject,
+    request: &DevelopmentDraftRequest,
+) -> String {
     let Some(idempotency_key) = request.idempotency_key.as_deref() else {
         return format!("chg-{}", uuid::Uuid::new_v4().simple());
     };
     let mut hasher = Sha256::new();
     hasher.update(b"plurora.host-development.idempotency.v1\0");
-    hasher.update(project_id.as_str().as_bytes());
+    hasher.update(match subject {
+        DevelopmentSubject::Installation { .. } => b"installation".as_slice(),
+        DevelopmentSubject::Workspace { .. } => b"workspace".as_slice(),
+    });
+    hasher.update(b"\0");
+    hasher.update(subject.as_str().as_bytes());
     hasher.update(b"\0");
     hasher.update(idempotency_key.as_bytes());
     let digest = format!("{:x}", hasher.finalize());
@@ -6035,43 +6110,95 @@ where
     }
     Ok(DevelopmentPatchBundle {
         schema_version: 1,
-        project_id: record.project_id.clone(),
+        subject: record.subject.clone(),
         change_set_id: record.change_set.id.clone(),
         base_tree_digest: record.base_tree_digest.clone(),
         operations,
     })
 }
 
-fn parse_project_id(raw: &str) -> Result<ProjectId, ServiceError> {
-    ProjectId::new(raw)
-        .map_err(|_| ServiceError::with_status(StatusCode::BAD_REQUEST, "project_id is invalid"))
+fn parse_installation_id(raw: &str) -> Result<InstallationId, ServiceError> {
+    InstallationId::parse(raw).map_err(|_| {
+        ServiceError::with_status(StatusCode::BAD_REQUEST, "installation_id is invalid")
+    })
 }
 
-fn ensure_project_registered<S>(
+fn parse_development_subject(kind: &str, raw: &str) -> Result<DevelopmentSubject, ServiceError> {
+    match kind {
+        "installation" => Ok(DevelopmentSubject::Installation {
+            installation_id: parse_installation_id(raw)?,
+        }),
+        "workspace" => Ok(DevelopmentSubject::Workspace {
+            workspace_id: WorkspaceId::parse(raw).map_err(|_| {
+                ServiceError::with_status(StatusCode::BAD_REQUEST, "workspace_id is invalid")
+            })?,
+        }),
+        _ => Err(ServiceError::with_status(
+            StatusCode::BAD_REQUEST,
+            "development subject kind must be installation or workspace",
+        )),
+    }
+}
+
+fn require_target_installation(
+    record: &DevelopmentChangeRecord,
+) -> Result<&InstallationId, ServiceError> {
+    record.target_installation_id.as_ref().ok_or_else(|| {
+        ServiceError::with_status(
+            StatusCode::CONFLICT,
+            "deployment actions require a target installation",
+        )
+    })
+}
+
+fn require_identity_subject(
+    identity: &HostAccessIdentity,
+    subject: &DevelopmentSubject,
+) -> Result<(), ServiceError> {
+    let allowed = match subject {
+        DevelopmentSubject::Installation { installation_id } => {
+            identity.allows_installation(installation_id.as_str())
+        }
+        DevelopmentSubject::Workspace { workspace_id } => {
+            identity.allows_workspace(workspace_id.as_str())
+        }
+    };
+    allowed.then_some(()).ok_or_else(|| {
+        ServiceError::with_status(
+            StatusCode::FORBIDDEN,
+            "Host access grant does not include this development subject",
+        )
+    })
+}
+
+async fn ensure_subject_exists<S>(
     state: &AppState<S>,
-    project_id: &ProjectId,
+    subject: &DevelopmentSubject,
 ) -> Result<(), ServiceError>
 where
     S: EventStore,
 {
-    if state
-        .runtime
-        .config()
-        .project_registry
-        .get(project_id)
-        .is_none()
-    {
+    let exists = match subject {
+        DevelopmentSubject::Installation { installation_id } => state
+            .installations
+            .get(installation_id)
+            .await
+            .map_err(|error| internal_development_error("failed to read installation", error))?
+            .is_some(),
+        DevelopmentSubject::Workspace { .. } => resolve_subject_workspace(subject).is_ok(),
+    };
+    if !exists {
         return Err(ServiceError::with_status(
             StatusCode::NOT_FOUND,
-            "project was not found",
+            "development subject was not found",
         ));
     }
     Ok(())
 }
 
-fn change_for_project<S>(
+fn change_for_subject<S>(
     state: &AppState<S>,
-    project_id: &ProjectId,
+    subject: &DevelopmentSubject,
     change_set_id: &str,
 ) -> Result<DevelopmentChangeRecord, ServiceError>
 where
@@ -6080,7 +6207,7 @@ where
     let record = state.development.get(change_set_id).ok_or_else(|| {
         ServiceError::with_status(StatusCode::NOT_FOUND, "development change was not found")
     })?;
-    if &record.project_id != project_id {
+    if &record.subject != subject {
         return Err(ServiceError::with_status(
             StatusCode::NOT_FOUND,
             "development change was not found",
@@ -6119,7 +6246,7 @@ fn safe_error_message(error: &anyhow::Error) -> String {
     } else if message.contains("global concurrency") {
         "development global concurrency limit reached".to_string()
     } else if message.contains("already executing") {
-        "another development change is already executing for this project".to_string()
+        "another development change is already executing for this installation".to_string()
     } else {
         "development request could not be accepted".to_string()
     }
@@ -6142,26 +6269,26 @@ where
         .development
         .get(change_set_id)
         .ok_or_else(|| anyhow::anyhow!("development change disappeared"))?;
-    verify_development_authority(state, authority, &initial.project_id).await?;
+    verify_development_record_authority(state, authority, &initial).await?;
     anyhow::ensure!(
         initial.status == DevelopmentChangeStatus::Staging,
         "development change is not in staging state"
     );
-    let source = resolve_project_workspace(state, &initial.project_id)?;
+    let source = resolve_subject_workspace(&initial.subject)?;
     anyhow::ensure!(
         source.ownership == initial.workspace_ownership,
-        "project workspace ownership changed after approval"
+        "workspace ownership changed after approval"
     );
     let live_base = workspace_tree_hash(&source.root).await?;
-    ensure_descriptor_matches_workspace(&source, &live_base.sha256)?;
+    ensure_record_matches_workspace(&source, &live_base.sha256)?;
     anyhow::ensure!(
         live_base.sha256 == initial.base_tree_digest,
-        "project workspace changed after the development draft was approved"
+        "workspace changed after the development draft was approved"
     );
 
-    let scratch = create_development_scratch(&initial.project_id, change_set_id)?;
+    let scratch = create_development_scratch(&initial.subject, change_set_id)?;
     if let Err(error) = copy_workspace_snapshot(&source.root, &scratch.workspace).await {
-        cleanup_change_root(&initial.project_id, change_set_id);
+        cleanup_change_root(&initial.subject, change_set_id);
         return Err(error);
     }
     let copied = workspace_tree_hash(&scratch.workspace).await?;
@@ -6178,78 +6305,23 @@ where
         record.error = None;
     })
     .await?;
-    verify_development_authority(state, authority, &verifying.project_id).await?;
-    let verification =
-        verify_development_scratch(state, &verifying, &scratch.workspace, authority).await?;
-    verify_development_authority(state, authority, &verifying.project_id).await?;
+    verify_development_record_authority(state, authority, &verifying).await?;
+    let verification = verify_development_scratch(state, &verifying, authority).await?;
+    verify_development_record_authority(state, authority, &verifying).await?;
 
-    if verifying.workspace_ownership != DevelopmentWorkspaceOwnership::ManagedExternal {
-        let final_record = finalize_development_success(
-            state,
-            verifying,
-            verification,
-            DevelopmentChangeStatus::Verified,
-            "host.workspace.patch.verified",
-        )
-        .await?;
-        persist_record(state, final_record).await?;
-        cleanup_change_root(&initial.project_id, change_set_id);
-        return Ok(());
-    }
-
-    let source = resolve_project_workspace(state, &verifying.project_id)?;
-    let current = workspace_tree_hash(&source.root).await?;
-    ensure_descriptor_matches_workspace(&source, &current.sha256)?;
-    anyhow::ensure!(
-        current.sha256 == verifying.base_tree_digest,
-        "project workspace changed before promotion"
-    );
-    let proposed_digest = verifying
-        .proposed_tree_digest
-        .as_deref()
-        .ok_or_else(|| anyhow::anyhow!("proposed workspace digest is missing"))?;
-    let scratch_digest = workspace_tree_hash(&scratch.workspace).await?;
-    anyhow::ensure!(
-        scratch_digest.sha256 == proposed_digest,
-        "verified scratch workspace changed before promotion"
-    );
-    let promotion = prepare_managed_promotion(&verifying, &source).await?;
-    let promoting = update_development_record(state, change_set_id, |record| {
-        record.status = DevelopmentChangeStatus::Promoting;
-        record.verification_result = Some(verification.clone());
-        record.managed_promotion = Some(promotion.clone());
-    })
-    .await?;
-
-    renew_current_development_host_lease(state).await?;
-    verify_development_authority(state, authority, &promoting.project_id).await?;
-    let rollback =
-        promote_development_workspace(state, &promoting, &source, &scratch, authority).await?;
-    if let Err(error) = verify_development_authority(state, authority, &promoting.project_id).await
-    {
-        rollback_promotion(state, rollback)?;
-        return Err(error);
-    }
-    let final_record = match finalize_development_success(
+    // A ChangeSet produces a verified, content-addressed patch bundle. Applying that
+    // bundle to a managed Workspace is a separate explicit effect; linked-local
+    // sources are never mutated by this executor.
+    let final_record = finalize_development_success(
         state,
-        promoting,
+        verifying,
         verification,
-        DevelopmentChangeStatus::Committed,
-        "host.workspace.promote",
+        DevelopmentChangeStatus::Verified,
+        "host.workspace.patch.verified",
     )
-    .await
-    {
-        Ok(record) => record,
-        Err(error) => {
-            rollback_promotion(state, rollback)?;
-            return Err(error);
-        }
-    };
-    if let Err(error) = persist_record(state, final_record).await {
-        rollback_promotion(state, rollback)?;
-        return Err(error);
-    }
-    cleanup_change_root(&initial.project_id, change_set_id);
+    .await?;
+    persist_record(state, final_record).await?;
+    cleanup_change_root(&initial.subject, change_set_id);
     Ok(())
 }
 
@@ -6277,15 +6349,19 @@ where
 }
 
 fn create_development_scratch(
-    project_id: &ProjectId,
+    subject: &DevelopmentSubject,
     change_set_id: &str,
 ) -> anyhow::Result<DevelopmentScratch> {
     validate_identifier(change_set_id, "change_set_id", 64)
         .map_err(|_| anyhow::anyhow!("development change id is invalid"))?;
     let data_dir = canonical_real_directory(&plurora_core::paths::data_dir()?, "data directory")?;
-    let projects = canonical_owned_directory(&data_dir, "projects", "projects root")?;
-    let project = canonical_owned_directory(&projects, project_id.as_str(), "project root")?;
-    let development = ensure_owned_directory(&project, "development", "development root")?;
+    let workspace_id = subject
+        .workspace_id()
+        .ok_or_else(|| anyhow::anyhow!("development scratch requires a workspace subject"))?;
+    let workspaces = canonical_owned_directory(&data_dir, "workspaces", "workspaces root")?;
+    let workspace_root =
+        canonical_owned_directory(&workspaces, workspace_id.as_str(), "workspace root")?;
+    let development = ensure_owned_directory(&workspace_root, "development", "development root")?;
     let change_path = development.join(change_set_id);
     match fs::symlink_metadata(&change_path) {
         Ok(_) => anyhow::bail!("development scratch already exists"),
@@ -6585,7 +6661,6 @@ fn sync_directory(_path: &FsPath) -> anyhow::Result<()> {
 async fn verify_development_scratch<S>(
     state: &AppState<S>,
     record: &DevelopmentChangeRecord,
-    scratch: &FsPath,
     authority: &HostAccessIdentity,
 ) -> anyhow::Result<DevelopmentVerificationResult>
 where
@@ -6630,13 +6705,20 @@ where
                 .digest
                 .strip_prefix("sha256:")
                 .unwrap_or(&record.change_set_ref.digest);
-            let build_input = json!({
+            let workspace_id = record.subject.workspace_id().cloned().ok_or_else(|| {
+                anyhow::anyhow!("Docker verification requires a workspace subject")
+            })?;
+            let installation_id = record
+                .target_installation_id
+                .clone()
+                .ok_or_else(|| anyhow::anyhow!("Docker verification has no target installation"))?;
+            let prepare_input = json!({
                 "approved": true,
                 "strategy": "dockerfile",
-                "project_id": record.project_id.as_str(),
+                "installation_id": installation_id,
+                "workspace_id": workspace_id,
                 "build_id": build_id,
                 "development_change_id": record.change_set.id,
-                "context_dir": scratch.to_string_lossy(),
                 "dockerfile": dockerfile,
                 "build_descriptor_hash": descriptor_hash,
                 "network_mode": network_mode.as_str(),
@@ -6645,8 +6727,7 @@ where
                 "max_context_files": DEVELOPMENT_WORKSPACE_MAX_FILES,
             });
             let prepared = tokio::task::spawn_blocking({
-                let build_input = build_input.clone();
-                move || plurora_runtime::prepare_docker_build_context(&build_input)
+                move || plurora_runtime::prepare_docker_build_context(&prepare_input)
             })
             .await
             .context("deployable build context task failed")??;
@@ -6658,7 +6739,8 @@ where
                     bytes: prepared.bytes.into(),
                     references: vec![record.change_set_ref.digest.clone()],
                     annotations: BTreeMap::from([
-                        ("project_id".to_string(), json!(record.project_id.as_str())),
+                        ("installation_id".to_string(), json!(installation_id)),
+                        ("workspace_id".to_string(), json!(workspace_id)),
                         ("change_set_id".to_string(), json!(record.change_set.id)),
                         (
                             "tree_digest".to_string(),
@@ -6670,34 +6752,64 @@ where
                     ]),
                 })
                 .await?;
-            let mut verified_build_input = build_input;
-            verified_build_input["expected_context_digest"] = json!(deployment_artifact_ref.digest);
-            verify_development_authority(state, authority, &record.project_id).await?;
-            let context = development_authority_context(
-                authority,
-                &record.project_id,
-                "host_development_verification",
-            );
-            let output = invoke_docker_runtime_lab(
+            verify_development_record_authority(state, authority, record).await?;
+            let operation = crate::target_agent::submit_host_operation(
                 state,
-                &context,
-                "plurora/docker-runtime-lab/build_image",
-                verified_build_input,
+                "local",
+                CreateTargetOperationRequest {
+                    installation_id: installation_id.clone(),
+                    spec: TargetOperationSpec::VerifierRun {
+                        verifier: DeclarativeVerifierDescriptor::DockerBuild {
+                            digest: deployment_artifact_ref.digest.clone(),
+                            expected_size_bytes: Some(deployment_artifact_ref.size_bytes),
+                            dockerfile: dockerfile.clone(),
+                            network_mode: development_target_network_mode(*network_mode),
+                            build_id: build_id.clone(),
+                            workspace_id: workspace_id.clone(),
+                            source_tree_digest: record.proposed_tree_digest.clone().ok_or_else(
+                                || anyhow::anyhow!("proposed tree digest is missing"),
+                            )?,
+                            build_descriptor_hash: format!("sha256:{descriptor_hash}"),
+                        },
+                    },
+                    idempotency_key: Some(format!("development:{}:verify", record.change_set.id)),
+                    expires_in_seconds: timeout_secs.map(|value| value.min(15 * 60)),
+                },
+            )
+            .await
+            .map_err(|error| error.error)?;
+            let operation = crate::target_agent::wait_for_host_operation(
+                state,
+                "local",
+                &operation.operation_id,
+                std::time::Duration::from_secs(timeout_secs.unwrap_or(900)),
             )
             .await?;
+            let operation = require_succeeded_target_operation(operation, "target Docker build")?;
+            let output = operation
+                .receipt
+                .as_ref()
+                .map(|receipt| &receipt.output)
+                .ok_or_else(|| anyhow::anyhow!("target Docker build has no receipt"))?;
             let image = require_built_image(&output)?;
             let diagnostic_log_digest = output
                 .get("log_tail")
                 .and_then(Value::as_str)
                 .map(|value| format!("sha256:{:x}", Sha256::digest(value.as_bytes())));
-            verify_development_authority(state, authority, &record.project_id).await?;
+            verify_development_record_authority(state, authority, record).await?;
+            let context = development_record_authority_context(
+                authority,
+                record,
+                "host_development_verification_cleanup",
+            );
             let cleanup = invoke_docker_runtime_lab(
                 state,
                 &context,
                 "plurora/docker-runtime-lab/remove_image",
                 json!({
                     "approved": true,
-                    "project_id": record.project_id.as_str(),
+                    "installation_id": installation_id,
+                    "workspace_id": workspace_id,
                     "build_id": build_id,
                     "development_change_id": record.change_set.id,
                 }),
@@ -6710,7 +6822,7 @@ where
                     .unwrap_or(false),
                 "development verification image cleanup failed"
             );
-            verify_development_authority(state, authority, &record.project_id).await?;
+            verify_development_record_authority(state, authority, record).await?;
             let payload = json!({
                 "kind": "docker_build",
                 "succeeded": true,
@@ -6776,13 +6888,14 @@ where
         &bundle,
         bundle_references,
         BTreeMap::from([
-            ("project_id".to_string(), json!(record.project_id.as_str())),
+            ("subject".to_string(), json!(record.subject)),
             ("change_set_id".to_string(), json!(record.change_set.id)),
         ]),
     )
     .await?;
     let actual = json!({
-        "project_id": record.project_id.as_str(),
+        "subject": record.subject,
+        "target_installation_id": record.target_installation_id,
         "workspace_ownership": record.workspace_ownership,
         "base_tree_digest": record.base_tree_digest,
         "proposed_tree_digest": record.proposed_tree_digest,
@@ -6890,246 +7003,6 @@ where
     Ok(record)
 }
 
-enum PromotionRollback {
-    Managed {
-        descriptor_path: PathBuf,
-        descriptor_handle: Arc<same_file::Handle>,
-        previous_descriptor: ProjectDescriptor,
-        destination: PathBuf,
-        destination_created: bool,
-    },
-}
-
-async fn prepare_managed_promotion(
-    record: &DevelopmentChangeRecord,
-    source: &ResolvedProjectWorkspace,
-) -> anyhow::Result<DevelopmentManagedPromotion> {
-    anyhow::ensure!(
-        record.workspace_ownership == DevelopmentWorkspaceOwnership::ManagedExternal,
-        "only managed external workspaces support automatic promotion"
-    );
-    let proposed_tree_digest = record
-        .proposed_tree_digest
-        .clone()
-        .ok_or_else(|| anyhow::anyhow!("proposed tree digest is missing"))?;
-    let digest_dir = digest_directory_name(&proposed_tree_digest)?;
-    let managed_root = source
-        .managed_external_root
-        .as_deref()
-        .ok_or_else(|| anyhow::anyhow!("managed external root is missing"))?;
-    let destination = managed_root.join(digest_dir);
-    let destination_preexisting = match fs::symlink_metadata(&destination) {
-        Ok(metadata) => {
-            anyhow::ensure!(
-                metadata.is_dir() && !metadata.file_type().is_symlink(),
-                "managed workspace destination must be a real directory"
-            );
-            let destination = fs::canonicalize(&destination)?;
-            anyhow::ensure!(
-                destination.parent() == Some(managed_root),
-                "managed workspace destination escaped its project root"
-            );
-            let existing = workspace_tree_hash(&destination).await?;
-            anyhow::ensure!(
-                existing.sha256 == proposed_tree_digest,
-                "managed workspace digest destination contains different content"
-            );
-            true
-        }
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => false,
-        Err(error) => return Err(error.into()),
-    };
-    Ok(DevelopmentManagedPromotion {
-        previous_tree_digest: record.base_tree_digest.clone(),
-        proposed_tree_digest,
-        destination_preexisting,
-    })
-}
-
-async fn promote_development_workspace<S>(
-    state: &AppState<S>,
-    record: &DevelopmentChangeRecord,
-    source: &ResolvedProjectWorkspace,
-    scratch: &DevelopmentScratch,
-    authority: &HostAccessIdentity,
-) -> anyhow::Result<PromotionRollback>
-where
-    S: EventStore,
-{
-    anyhow::ensure!(
-        record.workspace_ownership == DevelopmentWorkspaceOwnership::ManagedExternal,
-        "only managed external workspaces support automatic promotion"
-    );
-    promote_managed_external_workspace(state, record, source, scratch, authority).await
-}
-
-async fn promote_managed_external_workspace<S>(
-    state: &AppState<S>,
-    record: &DevelopmentChangeRecord,
-    source: &ResolvedProjectWorkspace,
-    scratch: &DevelopmentScratch,
-    authority: &HostAccessIdentity,
-) -> anyhow::Result<PromotionRollback>
-where
-    S: EventStore,
-{
-    verify_development_authority(state, authority, &record.project_id).await?;
-    let digest = record
-        .proposed_tree_digest
-        .as_deref()
-        .ok_or_else(|| anyhow::anyhow!("proposed tree digest is missing"))?;
-    let digest_dir = digest_directory_name(digest)?;
-    let managed_root = source
-        .managed_external_root
-        .as_deref()
-        .ok_or_else(|| anyhow::anyhow!("managed external root is missing"))?;
-    let destination = managed_root.join(&digest_dir);
-    let promotion = record
-        .managed_promotion
-        .as_ref()
-        .ok_or_else(|| anyhow::anyhow!("durable managed promotion plan is missing"))?;
-    anyhow::ensure!(
-        promotion.previous_tree_digest == record.base_tree_digest
-            && promotion.proposed_tree_digest == digest,
-        "durable managed promotion plan does not match the change"
-    );
-    let destination_created = !promotion.destination_preexisting;
-    if promotion.destination_preexisting {
-        let destination = canonical_real_directory(&destination, "managed workspace destination")?;
-        anyhow::ensure!(
-            destination.parent() == Some(managed_root),
-            "managed workspace destination escaped its project root"
-        );
-        let existing = workspace_tree_hash(&destination).await?;
-        anyhow::ensure!(
-            existing.sha256 == digest,
-            "managed workspace digest destination contains different content"
-        );
-        fs::remove_dir_all(&scratch.workspace)?;
-    } else {
-        anyhow::ensure!(
-            fs::symlink_metadata(&destination)
-                .is_err_and(|error| error.kind() == std::io::ErrorKind::NotFound),
-            "managed workspace destination appeared after promotion was prepared"
-        );
-        fs::rename(&scratch.workspace, &destination).with_context(|| {
-            format!(
-                "failed to promote scratch workspace {}",
-                scratch.workspace.display()
-            )
-        })?;
-    }
-    let destination = canonical_real_directory(&destination, "promoted managed workspace")?;
-    anyhow::ensure!(
-        destination.parent() == Some(managed_root),
-        "promoted managed workspace escaped its project root"
-    );
-
-    let previous_descriptor = source.descriptor.clone();
-    let mut updated_descriptor = previous_descriptor.clone();
-    let external = updated_descriptor
-        .project
-        .external
-        .as_mut()
-        .ok_or_else(|| anyhow::anyhow!("external project metadata is missing"))?;
-    external.workspace_root = Some(destination.to_string_lossy().to_string());
-    external.source_digest = Some(digest.to_string());
-    external.workspace_ownership = Some(ExternalWorkspaceOwnership::Managed);
-    updated_descriptor.validate()?;
-    verify_development_authority(state, authority, &record.project_id).await?;
-    let updated_descriptor_handle = match write_project_descriptor_atomic(
-        &source.descriptor_path,
-        source.descriptor_handle.as_ref(),
-        &updated_descriptor,
-    ) {
-        Ok(handle) => Arc::new(handle),
-        Err(error) => {
-            state
-                .runtime
-                .config()
-                .project_registry
-                .register(previous_descriptor.clone())
-                .ok();
-            if destination_created {
-                move_promoted_workspace_back(&destination, &scratch.workspace).ok();
-            }
-            return Err(error);
-        }
-    };
-    if let Err(error) = state
-        .runtime
-        .config()
-        .project_registry
-        .register(updated_descriptor)
-    {
-        write_project_descriptor_atomic(
-            &source.descriptor_path,
-            updated_descriptor_handle.as_ref(),
-            &previous_descriptor,
-        )
-        .ok();
-        if destination_created {
-            move_promoted_workspace_back(&destination, &scratch.workspace).ok();
-        }
-        return Err(error);
-    }
-    Ok(PromotionRollback::Managed {
-        descriptor_path: source.descriptor_path.clone(),
-        descriptor_handle: updated_descriptor_handle,
-        previous_descriptor,
-        destination,
-        destination_created,
-    })
-}
-
-fn move_promoted_workspace_back(destination: &FsPath, scratch: &FsPath) -> anyhow::Result<()> {
-    if fs::symlink_metadata(scratch).is_ok() {
-        fs::remove_dir_all(scratch)?;
-    }
-    fs::rename(destination, scratch)?;
-    Ok(())
-}
-
-fn rollback_promotion<S>(state: &AppState<S>, rollback: PromotionRollback) -> anyhow::Result<()>
-where
-    S: EventStore,
-{
-    match rollback {
-        PromotionRollback::Managed {
-            descriptor_path,
-            descriptor_handle,
-            previous_descriptor,
-            destination,
-            destination_created,
-        } => {
-            write_project_descriptor_atomic(
-                &descriptor_path,
-                descriptor_handle.as_ref(),
-                &previous_descriptor,
-            )?;
-            state
-                .runtime
-                .config()
-                .project_registry
-                .register(previous_descriptor)?;
-            if destination_created {
-                match fs::symlink_metadata(&destination) {
-                    Ok(metadata) => {
-                        anyhow::ensure!(
-                            metadata.is_dir() && !metadata.file_type().is_symlink(),
-                            "promotion rollback destination must be a real directory"
-                        );
-                        fs::remove_dir_all(destination)?;
-                    }
-                    Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
-                    Err(error) => return Err(error.into()),
-                }
-            }
-            Ok(())
-        }
-    }
-}
-
 async fn reconcile_managed_promotion<S>(
     state: &AppState<S>,
     mut record: DevelopmentChangeRecord,
@@ -7138,90 +7011,21 @@ async fn reconcile_managed_promotion<S>(
 where
     S: EventStore,
 {
-    anyhow::ensure!(
-        record.workspace_ownership == DevelopmentWorkspaceOwnership::ManagedExternal,
-        "only managed external promotion can be reconciled"
-    );
-    verify_development_authority(state, authority, &record.project_id).await?;
-    let promotion = record
-        .managed_promotion
-        .clone()
-        .ok_or_else(|| anyhow::anyhow!("durable managed promotion plan is missing"))?;
-    let current = resolve_project_workspace(state, &record.project_id)?;
-    let current_tree = workspace_tree_hash(&current.root).await?;
-    ensure_descriptor_matches_workspace(&current, &current_tree.sha256)?;
-    let current_digest = current
-        .descriptor
-        .project
-        .external
-        .as_ref()
-        .and_then(|external| external.source_digest.as_deref())
-        .ok_or_else(|| anyhow::anyhow!("managed descriptor digest is missing"))?;
-
-    if current_digest == promotion.proposed_tree_digest {
-        verify_development_authority(state, authority, &record.project_id).await?;
-        let verification = record
-            .verification_result
-            .clone()
-            .ok_or_else(|| anyhow::anyhow!("durable verification result is missing"))?;
-        let committed = finalize_development_success(
-            state,
-            record,
-            verification,
-            DevelopmentChangeStatus::Committed,
-            "host.workspace.promote.reconciled",
-        )
-        .await?;
-        let committed = persist_record(state, committed).await?;
-        cleanup_change_root(&committed.project_id, &committed.change_set.id);
-        return Ok(committed);
-    }
-
-    anyhow::ensure!(
-        current_digest == promotion.previous_tree_digest,
-        "managed descriptor points to neither the previous nor proposed tree"
-    );
-    if !promotion.destination_preexisting {
-        let managed_root = current
-            .managed_external_root
-            .as_deref()
-            .ok_or_else(|| anyhow::anyhow!("managed external root is missing"))?;
-        let destination =
-            managed_root.join(digest_directory_name(&promotion.proposed_tree_digest)?);
-        match fs::symlink_metadata(&destination) {
-            Ok(metadata) => {
-                anyhow::ensure!(
-                    metadata.is_dir() && !metadata.file_type().is_symlink(),
-                    "recovery destination must be a real directory"
-                );
-                let destination = fs::canonicalize(destination)?;
-                anyhow::ensure!(
-                    destination.parent() == Some(managed_root),
-                    "recovery destination escaped its managed project root"
-                );
-                let digest = workspace_tree_hash(&destination).await?;
-                anyhow::ensure!(
-                    digest.sha256 == promotion.proposed_tree_digest,
-                    "recovery destination content did not match the proposed digest"
-                );
-                verify_development_authority(state, authority, &record.project_id).await?;
-                fs::remove_dir_all(destination)?;
-            }
-            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
-            Err(error) => return Err(error.into()),
-        }
-    }
+    verify_development_authority(state, authority, &record.subject).await?;
     record.revision = record.revision.saturating_add(1);
     record.updated_at_ms = now_millis();
     record.status = DevelopmentChangeStatus::Failed;
-    record.error =
-        Some("managed promotion was reconciled to the previous immutable workspace".to_string());
+    record.recovery_kind = None;
+    record.error = Some(
+        "retired descriptor-based workspace promotion was not resumed; the verified bundle remains available"
+            .to_string(),
+    );
     record.commit = Some(failed_change_commit(
         &record.change_set.id,
-        "managed promotion was rolled back before descriptor activation",
+        "retired workspace promotion requires a new explicit Workspace ChangeSet",
     ));
     let failed = persist_record(state, record).await?;
-    cleanup_change_root(&failed.project_id, &failed.change_set.id);
+    cleanup_change_root(&failed.subject, &failed.change_set.id);
     Ok(failed)
 }
 
@@ -7237,9 +7041,16 @@ where
         record.recovery_kind == Some(DevelopmentRecoveryKind::DockerVerification),
         "change does not require Docker verification recovery"
     );
-    verify_development_authority(state, authority, &record.project_id).await?;
+    verify_development_record_authority(state, authority, &record).await?;
     let context =
-        development_authority_context(authority, &record.project_id, "host_development_recovery");
+        development_record_authority_context(authority, &record, "host_development_recovery");
+    let installation_id = record.target_installation_id.as_ref().ok_or_else(|| {
+        anyhow::anyhow!("Docker verification recovery has no target installation")
+    })?;
+    let workspace_id = record
+        .subject
+        .workspace_id()
+        .ok_or_else(|| anyhow::anyhow!("Docker verification recovery has no workspace subject"))?;
     let build_id = development_build_id(&record.change_set.id);
     let cleanup = invoke_docker_runtime_lab(
         state,
@@ -7247,7 +7058,8 @@ where
         "plurora/docker-runtime-lab/remove_image",
         json!({
             "approved": true,
-            "project_id": record.project_id.as_str(),
+            "installation_id": installation_id,
+            "workspace_id": workspace_id,
             "build_id": build_id,
             "development_change_id": record.change_set.id,
         }),
@@ -7273,30 +7085,8 @@ where
         "Docker verification was interrupted before a durable success receipt",
     ));
     let failed = persist_record(state, record).await?;
-    cleanup_change_root(&failed.project_id, &failed.change_set.id);
+    cleanup_change_root(&failed.subject, &failed.change_set.id);
     Ok(failed)
-}
-
-fn write_project_descriptor_atomic(
-    path: &FsPath,
-    expected_handle: &same_file::Handle,
-    descriptor: &ProjectDescriptor,
-) -> anyhow::Result<same_file::Handle> {
-    let metadata = fs::symlink_metadata(path)?;
-    anyhow::ensure!(
-        metadata.is_file()
-            && !metadata.file_type().is_symlink()
-            && same_file::Handle::from_path(path)? == *expected_handle,
-        "project descriptor must be a real file"
-    );
-    let bytes = serde_yaml::to_string(descriptor)?.into_bytes();
-    write_file_atomic(path, &bytes, false)?;
-    let metadata = fs::symlink_metadata(path)?;
-    anyhow::ensure!(
-        metadata.is_file() && !metadata.file_type().is_symlink(),
-        "project descriptor replacement must be a real file"
-    );
-    Ok(same_file::Handle::from_path(path)?)
 }
 
 async fn complete_failed_change<S>(state: &AppState<S>, change_set_id: &str) -> anyhow::Result<()>
@@ -7351,7 +7141,7 @@ where
     }
     persist_record(state, record.clone()).await?;
     if record.status != DevelopmentChangeStatus::RecoveryRequired {
-        cleanup_change_root(&record.project_id, change_set_id);
+        cleanup_change_root(&record.subject, change_set_id);
     }
     Ok(())
 }
@@ -7399,14 +7189,21 @@ fn failed_change_commit(change_set_id: &str, error: &str) -> ChangeCommit {
     }
 }
 
-fn cleanup_change_root(project_id: &ProjectId, change_set_id: &str) {
+fn cleanup_change_root(subject: &DevelopmentSubject, change_set_id: &str) {
+    if subject.workspace_id().is_none() {
+        return;
+    }
     let result = (|| -> anyhow::Result<()> {
+        let workspace_id = subject
+            .workspace_id()
+            .ok_or_else(|| anyhow::anyhow!("development scratch has no workspace subject"))?;
         let data_dir =
             canonical_real_directory(&plurora_core::paths::data_dir()?, "data directory")?;
-        let projects = canonical_owned_directory(&data_dir, "projects", "projects root")?;
-        let project = canonical_owned_directory(&projects, project_id.as_str(), "project root")?;
-        let development = match fs::symlink_metadata(project.join("development")) {
-            Ok(_) => canonical_owned_directory(&project, "development", "development root")?,
+        let workspaces = canonical_owned_directory(&data_dir, "workspaces", "workspaces root")?;
+        let workspace =
+            canonical_owned_directory(&workspaces, workspace_id.as_str(), "workspace root")?;
+        let development = match fs::symlink_metadata(workspace.join("development")) {
+            Ok(_) => canonical_owned_directory(&workspace, "development", "development root")?,
             Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(()),
             Err(error) => return Err(error.into()),
         };
@@ -7429,7 +7226,7 @@ fn cleanup_change_root(project_id: &ProjectId, change_set_id: &str) {
     })();
     if let Err(error) = result {
         tracing::warn!(
-            project_id = %project_id,
+            subject = ?subject,
             change_set_id,
             error = %error,
             "failed to clean development scratch"
@@ -7461,7 +7258,9 @@ mod tests {
 
     fn record(status: DevelopmentChangeStatus) -> DevelopmentChangeRecord {
         let now = Utc::now();
-        let project_id = ProjectId::new("project-1").unwrap();
+        let installation_id =
+            InstallationId::parse("11111111-1111-4111-8111-111111111111").unwrap();
+        let workspace_id = WorkspaceId::parse("22222222-2222-4222-8222-222222222222").unwrap();
         let intent = Intent {
             id: "intent-1".to_string(),
             intent_type_uri: plurora_core::INTENT_TYPE_URI.to_string(),
@@ -7478,7 +7277,7 @@ mod tests {
             intent_id: intent.id.clone(),
             operations: Vec::new(),
             preconditions: Vec::new(),
-            required_authority: vec!["host.project.develop".to_string()],
+            required_authority: vec!["host.installation.develop".to_string()],
             expected_effects: json!({}),
             idempotency_key: Some("test-key".to_string()),
             created_at: now,
@@ -7497,8 +7296,9 @@ mod tests {
         DevelopmentChangeRecord {
             schema_version: 1,
             revision: 1,
-            project_id,
-            workspace_ownership: DevelopmentWorkspaceOwnership::ManagedExternal,
+            subject: DevelopmentSubject::Workspace { workspace_id },
+            target_installation_id: Some(installation_id),
+            workspace_ownership: DevelopmentWorkspaceOwnership::Managed,
             intent,
             intent_ref: artifact('a'),
             change_set,
@@ -7529,6 +7329,7 @@ mod tests {
             deployment_id: "dep-0123456789abcdef".to_string(),
             status,
             target_id: "local".to_string(),
+            workspace_id: WorkspaceId::parse("22222222-2222-4222-8222-222222222222").unwrap(),
             source_tree_digest: format!("sha256:{}", "1".repeat(64)),
             verification_ref: artifact('2'),
             build_context_ref: artifact('3'),
@@ -7537,7 +7338,7 @@ mod tests {
             network_mode: DevelopmentNetworkMode::None,
             container_port: 8080,
             port_name: "web".to_string(),
-            route_id: "project-web".to_string(),
+            route_id: "installation-web".to_string(),
             route_access: ProxyRouteAccess::HostAuthenticated,
             health_path: Some("/healthz".to_string()),
             preview_route_id: "preview-0123456789abcdef".to_string(),
@@ -7563,19 +7364,19 @@ mod tests {
 
     #[test]
     fn development_authority_fails_closed_for_unknown_device_grants() {
-        let project_id = ProjectId::new("project-1").unwrap();
+        let installation_id =
+            InstallationId::parse("11111111-1111-4111-8111-111111111111").unwrap();
+        let subject = DevelopmentSubject::Installation { installation_id };
         let registry = HostAccessRegistry::default();
-        assert!(validate_development_authority(
-            &HostAccessIdentity::root(),
-            &registry,
-            &project_id
-        )
-        .is_ok());
+        assert!(
+            validate_development_authority(&HostAccessIdentity::root(), &registry, &subject)
+                .is_ok()
+        );
 
         let mut device = HostAccessIdentity::root();
         device.kind = HostAccessIdentityKind::Device;
         device.grant_id = Some("missing-grant".to_string());
-        assert!(validate_development_authority(&device, &registry, &project_id).is_err());
+        assert!(validate_development_authority(&device, &registry, &subject).is_err());
     }
 
     #[test]
@@ -7601,7 +7402,14 @@ mod tests {
         context.media_type = "application/x-tar".to_string();
         context.references = vec![record.change_set_ref.digest.clone()];
         context.annotations = BTreeMap::from([
-            ("project_id".to_string(), json!(record.project_id.as_str())),
+            (
+                "installation_id".to_string(),
+                json!(record.target_installation_id.as_ref().unwrap()),
+            ),
+            (
+                "workspace_id".to_string(),
+                json!(record.subject.workspace_id().unwrap()),
+            ),
             ("change_set_id".to_string(), json!(record.change_set.id)),
             ("tree_digest".to_string(), json!(source_tree_digest)),
             ("dockerfile".to_string(), json!("Dockerfile")),
@@ -7653,7 +7461,7 @@ mod tests {
             target_id: "target-1".to_string(),
             container_port: 8080,
             port_name: "web".to_string(),
-            route_id: "project-web".to_string(),
+            route_id: "installation-web".to_string(),
             route_access: ProxyRouteAccess::HostAuthenticated,
             health_path: Some("/healthz".to_string()),
             idempotency_key: Some("preview-1".to_string()),
@@ -7702,7 +7510,8 @@ mod tests {
         record.deployment = Some(deployment.clone());
         let mut active = DeploymentRevision {
             revision_id: "revision-1".to_string(),
-            project_id: record.project_id.clone(),
+            installation_id: record.target_installation_id.clone().unwrap(),
+            workspace_id: deployment.workspace_id.clone(),
             job_id: None,
             operation: DeploymentOperation::VerifiedActivate,
             parent_revision_id: None,
@@ -7735,8 +7544,9 @@ mod tests {
             recoverable: true,
             recovery_blockers: Vec::new(),
             receipt: HostBuildDeployResponse {
+                workspace_id: deployment.workspace_id.clone(),
                 route_id: deployment.route_id.clone(),
-                public_url: "/p/project-web/".to_string(),
+                public_url: "/p/installation-web/".to_string(),
                 route_access: deployment.route_access,
                 port_lease_id: preview.port_lease_id.clone(),
                 container_id: preview.container_id.clone(),
@@ -7777,9 +7587,17 @@ mod tests {
 
     #[tokio::test]
     async fn deployment_reconciliation_does_not_guess_an_unrecorded_port_lease() {
+        let store = Arc::new(InMemoryEventStore::default());
+        let objects = Arc::new(plurora_runtime::InMemoryObjectStore::default());
+        let installations =
+            crate::InstallationRegistry::ephemeral(store.clone(), objects.clone()).unwrap();
         let runtime = Arc::new(Runtime::new(
-            Arc::new(InMemoryEventStore::default()),
-            RuntimeConfig::default(),
+            store,
+            RuntimeConfig {
+                object_store: objects,
+                installation_control: installations.clone(),
+                ..RuntimeConfig::default()
+            },
         ));
         let lease = runtime
             .config()
@@ -7800,6 +7618,7 @@ mod tests {
             build_jobs: crate::build_deploy_job_registry(),
             development: development_registry(),
             host_access: crate::host_access_registry(),
+            installations,
             target_agents: crate::target_agent_registry(),
         };
         let deployment = deployment(DevelopmentDeploymentStatus::RecoveryRequired);
@@ -7838,7 +7657,7 @@ mod tests {
             Arc::new(InMemoryEventStore::default()),
             RuntimeConfig::default(),
         ));
-        let project_id = ProjectId::new("project-1")?;
+        let installation_id = InstallationId::parse("11111111-1111-4111-8111-111111111111")?;
         let change_set_id = "chg-0123456789abcdef";
         let target_id = "local";
         let source_tree_digest = format!("sha256:{}", "1".repeat(64));
@@ -7849,7 +7668,10 @@ mod tests {
                 bytes: b"context".to_vec().into(),
                 references: Vec::new(),
                 annotations: BTreeMap::from([
-                    ("project_id".to_string(), json!(project_id.as_str())),
+                    (
+                        "installation_id".to_string(),
+                        json!(installation_id.as_str()),
+                    ),
                     ("change_set_id".to_string(), json!(change_set_id)),
                     ("tree_digest".to_string(), json!(source_tree_digest)),
                     ("dockerfile".to_string(), json!("Dockerfile")),
@@ -7871,7 +7693,10 @@ mod tests {
             &json!({ "deployment_id": deployment_id }),
             vec![verification_ref.digest.clone(), context_ref.digest.clone()],
             BTreeMap::from([
-                ("project_id".to_string(), json!(project_id.as_str())),
+                (
+                    "installation_id".to_string(),
+                    json!(installation_id.as_str()),
+                ),
                 ("change_set_id".to_string(), json!(change_set_id)),
                 ("target_id".to_string(), json!(target_id)),
                 ("deployment_id".to_string(), json!(deployment_id)),
@@ -7900,7 +7725,7 @@ mod tests {
             DEVELOPMENT_DEPLOYMENT_PREVIEW_TYPE_URI,
             &json!({
                 "schema_version": 1,
-                "project_id": project_id,
+                "installation_id": installation_id,
                 "change_set_id": change_set_id,
                 "deployment_id": deployment_id,
                 "source_tree_digest": source_tree_digest,
@@ -7915,7 +7740,10 @@ mod tests {
                 authority_ref.digest.clone(),
             ],
             BTreeMap::from([
-                ("project_id".to_string(), json!(project_id.as_str())),
+                (
+                    "installation_id".to_string(),
+                    json!(installation_id.as_str()),
+                ),
                 ("change_set_id".to_string(), json!(change_set_id)),
                 ("deployment_id".to_string(), json!(deployment_id)),
                 ("target_id".to_string(), json!(target_id)),
@@ -7931,7 +7759,7 @@ mod tests {
             principal: PrincipalIdentity::HostAdmin,
             reason: None,
             evaluated_authority: vec![
-                "host.project.deploy".to_string(),
+                "host.installation.deploy".to_string(),
                 format!("host.target.{target_id}"),
             ],
             decided_at: Utc::now(),
@@ -7949,7 +7777,10 @@ mod tests {
             ],
             BTreeMap::from([
                 ("role".to_string(), json!("explicit_deployment_approval")),
-                ("project_id".to_string(), json!(project_id.as_str())),
+                (
+                    "installation_id".to_string(),
+                    json!(installation_id.as_str()),
+                ),
                 ("change_set_id".to_string(), json!(change_set_id)),
                 ("deployment_id".to_string(), json!(deployment_id)),
                 ("target_id".to_string(), json!(target_id)),
@@ -7961,7 +7792,7 @@ mod tests {
             read_verified_preview_evidence(
                 runtime.as_ref(),
                 &preview_ref,
-                &project_id,
+                &installation_id,
                 change_set_id,
                 target_id,
                 &source_tree_digest,
@@ -7980,7 +7811,7 @@ mod tests {
                 &verification_ref,
                 &context_ref,
                 &authority_ref,
-                &project_id,
+                &installation_id,
                 change_set_id,
                 deployment_id,
                 target_id,
@@ -8000,7 +7831,7 @@ mod tests {
             &verification_ref,
             &context_ref,
             &authority_ref,
-            &project_id,
+            &installation_id,
             change_set_id,
             deployment_id,
             target_id,
@@ -8013,11 +7844,13 @@ mod tests {
     #[test]
     fn development_registry_idempotency_conflicts_fail_closed() {
         let registry = DevelopmentRegistry::default();
-        let project_id = ProjectId::new("project-1").unwrap();
+        let subject = DevelopmentSubject::Workspace {
+            workspace_id: WorkspaceId::parse("22222222-2222-4222-8222-222222222222").unwrap(),
+        };
         assert!(matches!(
             registry
                 .claim_draft(
-                    &project_id,
+                    &subject,
                     Some("key"),
                     "sha256:first",
                     "chg-0123456789abcdef"
@@ -8027,7 +7860,7 @@ mod tests {
         ));
         assert!(registry
             .claim_draft(
-                &project_id,
+                &subject,
                 Some("key"),
                 "sha256:different",
                 "chg-fedcba9876543210"
@@ -8057,10 +7890,7 @@ mod tests {
         registry.apply_journal_event(&event)?;
         registry.apply_journal_event(&event)?;
 
-        assert_eq!(
-            registry.project_journal_next(&snapshot.record.project_id),
-            1
-        );
+        assert_eq!(registry.subject_journal_next(&snapshot.record.subject), 1);
         assert_eq!(
             registry
                 .get(&snapshot.record.change_set.id)
@@ -8193,6 +8023,55 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn development_host_lease_expiry_fails_old_owner_closed_and_allows_takeover(
+    ) -> anyhow::Result<()> {
+        let store = Arc::new(InMemoryEventStore::default());
+        let first_registry = development_registry();
+        let first = acquire_development_host_lease(store.clone(), first_registry.clone()).await?;
+        let (next, current) = development_host_lease_tail(store.as_ref()).await?;
+        let current = current.expect("lease event exists");
+        assert!(
+            append_development_host_lease(
+                store.as_ref(),
+                next,
+                &DevelopmentHostLeaseEvent {
+                    owner_id: current.owner_id,
+                    expires_at_ms: Utc::now().timestamp_millis() - 1,
+                    released: false,
+                },
+            )
+            .await?
+        );
+
+        assert!(first.ensure_durable_owner().await.is_err());
+        assert!(
+            verify_development_host_lease(store.as_ref(), first_registry.as_ref())
+                .await
+                .is_err()
+        );
+        let second_registry = development_registry();
+        let second = acquire_development_host_lease(store.clone(), second_registry.clone()).await?;
+        assert!(second.ensure_durable_owner().await.is_ok());
+        assert!(first.ensure_durable_owner().await.is_err());
+        release_development_host_lease(store, &second).await?;
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn lease_verification_uses_its_authoritative_store_not_the_profile_store(
+    ) -> anyhow::Result<()> {
+        let installation_store = Arc::new(InMemoryEventStore::default());
+        let profile_memory_store = Arc::new(InMemoryEventStore::default());
+        let registry = development_registry();
+        let lease =
+            acquire_development_host_lease(installation_store.clone(), registry.clone()).await?;
+
+        verify_development_host_lease(profile_memory_store.as_ref(), registry.as_ref()).await?;
+        release_development_host_lease(installation_store, &lease).await?;
+        Ok(())
+    }
+
+    #[tokio::test]
     async fn strict_development_host_lease_release_rejects_a_new_owner() -> anyhow::Result<()> {
         let store = Arc::new(InMemoryEventStore::default());
         let first = acquire_development_host_lease(store.clone(), development_registry()).await?;
@@ -8209,7 +8088,16 @@ mod tests {
     #[tokio::test]
     async fn development_routes_remain_behind_the_host_token_gate() -> anyhow::Result<()> {
         let store = Arc::new(InMemoryEventStore::default());
-        let runtime = Arc::new(Runtime::new(store, RuntimeConfig::default()));
+        let objects = Arc::new(plurora_runtime::InMemoryObjectStore::default());
+        let installations = crate::InstallationRegistry::ephemeral(store.clone(), objects.clone())?;
+        let runtime = Arc::new(Runtime::new(
+            store,
+            RuntimeConfig {
+                object_store: objects,
+                installation_control: installations.clone(),
+                ..RuntimeConfig::default()
+            },
+        ));
         let app = crate::app_with_state(AppState {
             runtime,
             static_dir: None,
@@ -8218,13 +8106,14 @@ mod tests {
             build_jobs: crate::build_deploy_job_registry(),
             development: development_registry(),
             host_access: crate::host_access_registry(),
+            installations,
             target_agents: crate::target_agent_registry(),
         });
         let response = app
             .oneshot(
                 Request::builder()
                     .method("POST")
-                    .uri("/host/v1/projects/project-1/changes")
+                    .uri("/host/v1/development/workspace/22222222-2222-4222-8222-222222222222/changes")
                     .header("content-type", "application/json")
                     .body(Body::from(
                         r#"{"goal":"test","operations":[{"op":"file_delete","path":"src/a.rs"}]}"#,

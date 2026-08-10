@@ -14,8 +14,8 @@ const breadcrumbForRoute = (route: Route, t: ReturnType<typeof useT>): string =>
       return t("topbarHome");
     case "settings":
       return t("topbarSettings");
-    case "project":
-      return t("topbarProject", route.projectId);
+    case "installation":
+      return t("topbarInstallation", route.installationId);
   }
 };
 

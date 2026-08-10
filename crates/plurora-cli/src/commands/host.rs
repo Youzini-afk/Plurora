@@ -6,10 +6,11 @@ use std::sync::Arc;
 use anyhow::{Context, Result};
 use plurora_runtime::{
     DenyAllWebSocketExecutor, EventStore, FakeOutboundExecutor, FakeWebSocketExecutor,
-    FilesystemObjectStore, InMemoryEventStore, LiveHttpOutboundExecutor, LiveLocalExecExecutor,
-    LiveLocalExecExecutorConfig, LiveWebSocketExecutor, LiveWebSocketProfile,
-    LocalExecExecutorConfig, OutboundExecutePolicyConfig, OutboundExecutorConfig, ProtocolContext,
-    Runtime, RuntimeConfig, SqliteEventStore, WebSocketExecutor,
+    FilesystemObjectStore, InMemoryEventStore, InMemoryObjectStore, LiveHttpOutboundExecutor,
+    LiveLocalExecExecutor, LiveLocalExecExecutorConfig, LiveWebSocketExecutor,
+    LiveWebSocketProfile, LocalExecExecutorConfig, OutboundExecutePolicyConfig,
+    OutboundExecutorConfig, ProtocolContext, Runtime, RuntimeConfig, SqliteEventStore,
+    WebSocketExecutor,
 };
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 
@@ -72,6 +73,9 @@ pub(crate) async fn host_serve(
         plurora_core::paths::ensure_initialized().with_context(|| {
             format!("failed to initialize data directory {}", data_dir.display())
         })?;
+    } else {
+        plurora_core::paths::ensure_initialized()
+            .context("failed to initialize the default Host data directory")?;
     }
     let default_data_dir;
     let schema_data_dir = if let Some(data_dir) = data_dir.as_ref() {
@@ -80,31 +84,59 @@ pub(crate) async fn host_serve(
         default_data_dir = plurora_core::paths::data_dir()?;
         default_data_dir.as_path()
     };
-    ensure_host_store_schema(schema_data_dir)?;
-    if let Some(profile_path) = profile {
+    let object_root = prepare_host_owned_directory(schema_data_dir, "objects")?;
+    super::work::prepare_object_store_for_installation(&object_root)
+        .await
+        .map_err(|error| anyhow::anyhow!(error.to_string()))?;
+    let runtime_root = prepare_host_owned_directory(schema_data_dir, "runtime")?;
+    let installation_journal = super::installation::prepare_installation_journal(&runtime_root)?;
+    let installation_store = Arc::new(
+        SqliteEventStore::open(&installation_journal)
+            .context("failed to open the durable Installation authority journal")?,
+    );
+    let development = plurora_service::development_registry();
+    let owner_lease = plurora_service::acquire_development_host_lease(
+        installation_store.clone(),
+        development.clone(),
+    )
+    .await
+    .context("failed to acquire the durable Host owner lease")?;
+    let owner_heartbeat = plurora_service::spawn_development_host_lease_heartbeat(
+        installation_store.clone(),
+        owner_lease.clone(),
+    );
+
+    let serve_result: Result<()> = async {
+        if let Some(profile_path) = profile {
         println!("host profile: {}", profile_path.display());
         let raw = fs::read_to_string(&profile_path)
             .with_context(|| format!("failed to read host profile {}", profile_path.display()))?;
         let profile: HostProfile = serde_yaml::from_str(&raw)
             .with_context(|| format!("failed to parse host profile {}", profile_path.display()))?;
         let mut runtime_config = runtime_config_from_profile(&profile)?;
-        runtime_config.object_store =
-            Arc::new(FilesystemObjectStore::new(schema_data_dir.join("objects")));
+        runtime_config.object_store = Arc::new(FilesystemObjectStore::new(object_root.clone()));
         register_profile_package_roots(&mut runtime_config, &profile, Some(&profile_path)).await?;
         match &profile.event_store {
             HostEventStoreProfile::Memory => {
-                let runtime = Arc::new(Runtime::new(
+                let (runtime, installations) = runtime_with_installations(
                     Arc::new(InMemoryEventStore::default()),
                     runtime_config,
-                ));
+                    schema_data_dir,
+                    installation_store.clone(),
+                    &owner_lease,
+                )
+                .await?;
                 load_profile_packages(runtime.clone(), profile, profile_path.clone()).await?;
                 serve_runtime(
                     http,
                     runtime,
+                    installations,
                     "memory",
                     static_dir,
                     access_token,
                     app_base_domain,
+                    development.clone(),
+                    owner_lease.clone(),
                 )
                 .await
             }
@@ -118,12 +150,17 @@ pub(crate) async fn host_serve(
                         )
                     })?;
                 }
-                let runtime = Arc::new(Runtime::new(
-                    Arc::new(SqliteEventStore::open(&resolved).with_context(|| {
-                        format!("failed to open sqlite event store {}", resolved.display())
-                    })?),
+                let store = Arc::new(SqliteEventStore::open(&resolved).with_context(|| {
+                    format!("failed to open sqlite event store {}", resolved.display())
+                })?);
+                let (runtime, installations) = runtime_with_installations(
+                    store,
                     runtime_config,
-                ));
+                    schema_data_dir,
+                    installation_store.clone(),
+                    &owner_lease,
+                )
+                .await?;
                 runtime
                     .hydrate_substrate_from_events()
                     .await
@@ -132,10 +169,13 @@ pub(crate) async fn host_serve(
                 serve_runtime(
                     http,
                     runtime,
+                    installations,
                     "sqlite",
                     static_dir,
                     access_token,
                     app_base_domain,
+                    development.clone(),
+                    owner_lease.clone(),
                 )
                 .await
             }
@@ -148,7 +188,14 @@ pub(crate) async fn host_serve(
                         )
                     })?;
                     let store = plurora_runtime::PostgresEventStore::connect(&url).await?;
-                    let runtime = Arc::new(Runtime::new(Arc::new(store), runtime_config));
+                    let (runtime, installations) = runtime_with_installations(
+                        Arc::new(store),
+                        runtime_config,
+                        schema_data_dir,
+                        installation_store.clone(),
+                        &owner_lease,
+                    )
+                    .await?;
                     runtime
                         .hydrate_substrate_from_events()
                         .await
@@ -157,10 +204,13 @@ pub(crate) async fn host_serve(
                     serve_runtime(
                         http,
                         runtime,
+                        installations,
                         "postgres",
                         static_dir,
                         access_token,
                         app_base_domain,
+                        development.clone(),
+                        owner_lease.clone(),
                     )
                     .await
                 }
@@ -173,24 +223,104 @@ pub(crate) async fn host_serve(
         }
     } else {
         let mut runtime_config = RuntimeConfig::default();
-        runtime_config.object_store =
-            Arc::new(FilesystemObjectStore::new(schema_data_dir.join("objects")));
+        runtime_config.object_store = Arc::new(FilesystemObjectStore::new(object_root));
         runtime_config.deployment_reconcile_source =
             Arc::new(plurora_runtime::DockerDeploymentReconcileSource);
-        let runtime = Arc::new(Runtime::new(
-            Arc::new(InMemoryEventStore::default()),
+        let store = installation_store.clone();
+        let (runtime, installations) = runtime_with_installations(
+            store,
             runtime_config,
-        ));
+            schema_data_dir,
+            installation_store.clone(),
+            &owner_lease,
+        )
+        .await?;
+        runtime
+            .hydrate_substrate_from_events()
+            .await
+            .context("failed to rehydrate substrate from the default Host journal")?;
         serve_runtime(
             http,
             runtime,
-            "memory",
+            installations,
+            "sqlite",
             static_dir,
             access_token,
             app_base_domain,
+            development.clone(),
+            owner_lease.clone(),
         )
         .await
+        }
     }
+    .await;
+    owner_heartbeat.abort();
+    if let Err(error) =
+        plurora_service::release_development_host_lease(installation_store, &owner_lease).await
+    {
+        eprintln!("warning: failed to release durable Host owner lease: {error}");
+    }
+    serve_result
+}
+
+fn prepare_host_owned_directory(data_dir: &Path, name: &str) -> Result<PathBuf> {
+    let metadata = fs::symlink_metadata(data_dir).context("failed to inspect Host data root")?;
+    anyhow::ensure!(
+        metadata.file_type().is_dir()
+            && !metadata.file_type().is_symlink()
+            && !is_reparse_point(&metadata),
+        "Host data root must be a real directory"
+    );
+    let root = fs::canonicalize(data_dir).context("failed to resolve Host data root")?;
+    let path = root.join(name);
+    if !path.exists() {
+        fs::create_dir(&path).context("failed to create Host-owned directory")?;
+    }
+    let metadata = fs::symlink_metadata(&path).context("failed to inspect Host-owned directory")?;
+    anyhow::ensure!(
+        metadata.file_type().is_dir()
+            && !metadata.file_type().is_symlink()
+            && !is_reparse_point(&metadata),
+        "Host-owned directory must be a real directory"
+    );
+    let canonical = fs::canonicalize(&path).context("failed to resolve Host-owned directory")?;
+    anyhow::ensure!(
+        canonical.starts_with(&root),
+        "Host-owned directory escapes the data root"
+    );
+    Ok(canonical)
+}
+
+#[cfg(windows)]
+fn is_reparse_point(metadata: &fs::Metadata) -> bool {
+    use std::os::windows::fs::MetadataExt;
+    metadata.file_attributes() & 0x400 != 0
+}
+
+#[cfg(not(windows))]
+fn is_reparse_point(_metadata: &fs::Metadata) -> bool {
+    false
+}
+
+async fn runtime_with_installations<S>(
+    store: Arc<S>,
+    mut config: RuntimeConfig,
+    data_dir: &Path,
+    installation_store: Arc<dyn EventStore>,
+    owner_lease: &plurora_service::DevelopmentHostLease,
+) -> Result<(Arc<Runtime<S>>, Arc<plurora_service::InstallationRegistry>)>
+where
+    S: EventStore,
+{
+    let installations = plurora_service::InstallationRegistry::persistent(
+        installation_store,
+        config.object_store.clone(),
+        data_dir,
+    )?;
+    installations.install_owner_lease(owner_lease.clone())?;
+    config.installation_control = installations.clone();
+    let runtime = Arc::new(Runtime::new(store, config));
+    Ok((runtime, installations))
 }
 
 pub fn runtime_config_from_profile(profile: &HostProfile) -> Result<RuntimeConfig> {
@@ -255,25 +385,6 @@ async fn register_profile_package_roots(
     Ok(())
 }
 
-fn ensure_host_store_schema(data_dir: &Path) -> Result<()> {
-    if let Some(migration) = plurora_runtime::inproc::ensure_install_lab_store_schema(data_dir)
-        .with_context(|| format!("failed to ensure store schema under {}", data_dir.display()))?
-    {
-        println!(
-            "host/store_schema_migrated: from={:?} to={} preserved_paths_count={} preserved_path={}",
-            migration.from,
-            migration.to,
-            migration.preserved_paths_count,
-            migration
-                .preserved_path
-                .as_deref()
-                .map(|path| path.display().to_string())
-                .unwrap_or_else(|| "none".to_string())
-        );
-    }
-    Ok(())
-}
-
 fn should_skip_dangling_store_autoload(resolved_manifest: &Path) -> bool {
     if resolved_manifest.exists() {
         return false;
@@ -325,17 +436,9 @@ pub(crate) fn build_secret_resolver(
     profile: &HostSecretResolverProfile,
 ) -> Result<plurora_runtime::SecretResolverConfig> {
     use plurora_runtime::{
-        CompositeSecretResolver, DenyAllSecretResolver, EnvSecretResolver, SecretResolverConfig,
-        StoreSecretResolver,
+        CompositeSecretResolver, EnvSecretResolver, SecretResolverConfig, StoreSecretResolver,
     };
     use std::collections::HashSet;
-
-    // If both env and store are off, fall back to DenyAll for safety.
-    if profile.env_allowlist.is_empty() && !profile.store_enabled {
-        return Ok(SecretResolverConfig::with_resolver(Arc::new(
-            DenyAllSecretResolver,
-        )));
-    }
 
     let mut composite = CompositeSecretResolver::new();
 
@@ -355,19 +458,19 @@ pub(crate) fn build_secret_resolver(
         None
     };
 
-    // Always wire the project resolver when a composite is active. Platform
+    // Installation secrets remain scoped to the active Installation. Platform
     // fallback is whichever StoreSecretResolver we just built (or none).
-    let project_resolver = plurora_runtime::ProjectStoreSecretResolver::new(|| {
-        plurora_runtime::ACTIVE_PROJECT_SCOPE
+    let installation_resolver = plurora_runtime::InstallationStoreSecretResolver::new(|| {
+        plurora_runtime::ACTIVE_INSTALLATION_SCOPE
             .try_with(|scope| scope.clone())
             .ok()
     });
-    let project_resolver = if let Some(platform) = platform_store {
-        project_resolver.with_platform_fallback(platform)
+    let installation_resolver = if let Some(platform) = platform_store {
+        installation_resolver.with_platform_fallback(platform)
     } else {
-        project_resolver
+        installation_resolver
     };
-    composite = composite.with_project(Arc::new(project_resolver));
+    composite = composite.with_installation(Arc::new(installation_resolver));
 
     Ok(SecretResolverConfig::with_resolver(Arc::new(composite)))
 }
@@ -776,6 +879,72 @@ mod tests {
             "PLURORA_HOST_LISTEN_ADDR=127.0.0.1:43117"
         );
     }
+
+    #[tokio::test]
+    async fn installation_hydration_requires_the_live_exclusive_host_lease() -> Result<()> {
+        let store = Arc::new(InMemoryEventStore::default());
+        let objects = Arc::new(InMemoryObjectStore::default());
+        let installations =
+            plurora_service::InstallationRegistry::ephemeral(store.clone(), objects)?;
+        let owner_registry = plurora_service::development_registry();
+        let owner =
+            plurora_service::acquire_development_host_lease(store.clone(), owner_registry).await?;
+        assert!(plurora_service::acquire_development_host_lease(
+            store.clone(),
+            plurora_service::development_registry(),
+        )
+        .await
+        .is_err());
+        assert_eq!(
+            hydrate_installations_as_host_owner(installations.clone(), &owner).await?,
+            0
+        );
+
+        plurora_service::release_development_host_lease(store.clone(), &owner).await?;
+        let event_count = store.list_all().await?.len();
+        assert!(hydrate_installations_as_host_owner(installations, &owner)
+            .await
+            .is_err());
+        assert_eq!(store.list_all().await?.len(), event_count);
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn profile_memory_stores_do_not_fork_installation_authority() -> Result<()> {
+        let data = tempfile::tempdir()?;
+        let installation_store = Arc::new(InMemoryEventStore::default());
+        let owner = plurora_service::acquire_development_host_lease(
+            installation_store.clone(),
+            plurora_service::development_registry(),
+        )
+        .await?;
+        let profile_a = Arc::new(InMemoryEventStore::default());
+        let (_, installations_a) = runtime_with_installations(
+            profile_a.clone(),
+            RuntimeConfig::default(),
+            data.path(),
+            installation_store.clone(),
+            &owner,
+        )
+        .await?;
+        assert_eq!(installations_a.hydrate().await?, 0);
+        assert!(profile_a.list_all().await?.is_empty());
+
+        let profile_b = Arc::new(InMemoryEventStore::default());
+        let (_, installations_b) = runtime_with_installations(
+            profile_b.clone(),
+            RuntimeConfig::default(),
+            data.path(),
+            installation_store.clone(),
+            &owner,
+        )
+        .await?;
+        assert_eq!(installations_b.hydrate().await?, 0);
+        assert!(profile_b.list_all().await?.is_empty());
+        assert!(installation_store.list_all().await?.len() >= 1);
+        plurora_service::release_development_host_lease(installation_store, &owner).await?;
+        Ok(())
+    }
 }
 
 fn managed_host_listen_line(addr: SocketAddr) -> String {
@@ -785,14 +954,21 @@ fn managed_host_listen_line(addr: SocketAddr) -> String {
 async fn serve_runtime<S>(
     http: SocketAddr,
     runtime: Arc<Runtime<S>>,
+    installations: Arc<plurora_service::InstallationRegistry>,
     backend_kind: &'static str,
     static_dir: Option<PathBuf>,
     access_token: Option<String>,
     app_base_domain: Option<String>,
+    development: Arc<plurora_service::DevelopmentRegistry>,
+    owner_lease: plurora_service::DevelopmentHostLease,
 ) -> Result<()>
 where
     S: EventStore,
 {
+    owner_lease
+        .ensure_durable_owner()
+        .await
+        .context("Host owner lease is not current before control-plane hydration")?;
     anyhow::ensure!(
         http.ip().is_loopback()
             || access_token
@@ -800,19 +976,6 @@ where
                 .is_some_and(|token| !token.trim().is_empty()),
         "host serve requires a non-empty access token when binding a non-loopback address"
     );
-    let projects_dir = plurora_core::paths::projects_dir()?;
-    fs::create_dir_all(&projects_dir).with_context(|| {
-        format!(
-            "failed to create projects directory {}",
-            projects_dir.display()
-        )
-    })?;
-    let count = runtime
-        .config()
-        .project_registry
-        .load_from_projects_dir(&projects_dir)
-        .with_context(|| format!("failed to load projects from {}", projects_dir.display()))?;
-    println!("  projects loaded: {count}");
     let host_access = plurora_service::host_access_registry();
     let host_access_events =
         plurora_service::hydrate_host_access_control_plane(runtime.store(), host_access.clone())
@@ -828,65 +991,27 @@ where
     .await
     .context("failed to hydrate durable target agent control plane")?;
     println!("  target agent journal events loaded: {target_agent_events}");
-    let development = plurora_service::development_registry();
-    let development_lease =
-        plurora_service::acquire_development_host_lease(runtime.store(), development.clone())
+    let installation_count =
+        hydrate_installations_as_host_owner(installations.clone(), &owner_lease)
             .await
-            .context("failed to acquire the durable development Host lease")?;
-    let development_heartbeat = plurora_service::spawn_development_host_lease_heartbeat(
-        runtime.store(),
-        development_lease.clone(),
-    );
-    if let Err(error) = runtime.hydrate_deployment_from_events().await {
-        development_heartbeat.abort();
-        plurora_service::release_development_host_lease(runtime.store(), &development_lease)
-            .await
-            .ok();
-        return Err(error).context("failed to rehydrate deployment runtime state");
-    }
+            .context("failed to hydrate Installation registry as Host owner")?;
+    println!("  installations loaded: {installation_count}");
+    runtime
+        .hydrate_deployment_from_events()
+        .await
+        .context("failed to rehydrate deployment runtime state")?;
     let build_jobs = plurora_service::build_deploy_job_registry();
-    let deployment_events = match plurora_service::hydrate_deployment_control_plane(
-        runtime.store(),
-        build_jobs.clone(),
-    )
-    .await
-    {
-        Ok(events) => events,
-        Err(error) => {
-            development_heartbeat.abort();
-            plurora_service::release_development_host_lease(runtime.store(), &development_lease)
-                .await
-                .ok();
-            return Err(error).context("failed to hydrate durable deployment control plane");
-        }
-    };
+    let deployment_events =
+        plurora_service::hydrate_deployment_control_plane(runtime.store(), build_jobs.clone())
+            .await
+            .context("failed to hydrate durable deployment control plane")?;
     println!("  deployment journal events loaded: {deployment_events}");
-    let development_events = match plurora_service::hydrate_development_control_plane(
-        runtime.store(),
-        development.clone(),
-    )
-    .await
-    {
-        Ok(events) => events,
-        Err(error) => {
-            development_heartbeat.abort();
-            plurora_service::release_development_host_lease(runtime.store(), &development_lease)
-                .await
-                .ok();
-            return Err(error).context("failed to hydrate durable development control plane");
-        }
-    };
+    let development_events =
+        plurora_service::hydrate_development_control_plane(runtime.store(), development.clone())
+            .await
+            .context("failed to hydrate durable development control plane")?;
     println!("  development journal events loaded: {development_events}");
-    let listener = match tokio::net::TcpListener::bind(http).await {
-        Ok(listener) => listener,
-        Err(error) => {
-            development_heartbeat.abort();
-            plurora_service::release_development_host_lease(runtime.store(), &development_lease)
-                .await
-                .ok();
-            return Err(error.into());
-        }
-    };
+    let listener = tokio::net::TcpListener::bind(http).await?;
     let bound_http = listener.local_addr()?;
     println!("{}", managed_host_listen_line(bound_http));
     println!("Plurora host serving http://{bound_http}");
@@ -921,6 +1046,7 @@ where
         build_jobs,
         development,
         host_access,
+        installations,
         target_agents,
     };
     match plurora_service::reconcile_deployment_control_plane(&state).await {
@@ -943,15 +1069,23 @@ where
         .ok()
         .filter(|token| !token.is_empty());
     let app = plurora_service::app_with_state_and_bootstrap_token(state, bootstrap_token);
-    let serve_result = axum::serve(listener, app).await;
-    development_heartbeat.abort();
-    if let Err(error) =
-        plurora_service::release_development_host_lease(runtime.store(), &development_lease).await
-    {
-        eprintln!("warning: failed to release development Host lease: {error}");
-    }
-    serve_result?;
+    axum::serve(listener, app).await?;
     Ok(())
+}
+
+async fn hydrate_installations_as_host_owner(
+    installations: Arc<plurora_service::InstallationRegistry>,
+    owner_lease: &plurora_service::DevelopmentHostLease,
+) -> Result<usize> {
+    owner_lease
+        .ensure_durable_owner()
+        .await
+        .context("Installation recovery requires the active Host owner lease")?;
+    installations.install_owner_lease(owner_lease.clone())?;
+    installations
+        .hydrate()
+        .await
+        .context("Installation recovery failed")
 }
 
 pub(crate) fn resolve_profile_path(profile_path: &std::path::Path, path: PathBuf) -> PathBuf {
@@ -1044,7 +1178,21 @@ where
 
 pub(crate) async fn host_stdio() -> Result<()> {
     let store = Arc::new(InMemoryEventStore::default());
-    let runtime = Runtime::new(store, RuntimeConfig::default());
+    let object_store = Arc::new(InMemoryObjectStore::default());
+    let installations =
+        plurora_service::InstallationRegistry::ephemeral(store.clone(), object_store.clone())?;
+    installations
+        .hydrate()
+        .await
+        .context("failed to hydrate ephemeral Installation registry")?;
+    let runtime = Runtime::new(
+        store,
+        RuntimeConfig {
+            object_store,
+            installation_control: installations,
+            ..RuntimeConfig::default()
+        },
+    );
     let context = ProtocolContext::host_dev("host_stdio");
     let stdin = BufReader::new(tokio::io::stdin());
     let mut lines = stdin.lines();

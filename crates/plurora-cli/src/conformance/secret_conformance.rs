@@ -215,6 +215,7 @@ pub(crate) async fn raw_secret_blocked_in_asset_metadata() -> anyhow::Result<()>
             mime: "application/json".to_string(),
             content: "normal content".to_string(),
             metadata: json!({"api_key": "sk-abc123def456ghi789jkl012mno345"}),
+            artifact: None,
         })
         .await;
     anyhow::ensure!(
@@ -233,6 +234,7 @@ pub(crate) async fn raw_secret_blocked_in_asset_metadata() -> anyhow::Result<()>
             mime: "application/json".to_string(),
             content: "normal content".to_string(),
             metadata: json!({"secret": "secret_ref:env:MY_KEY"}),
+            artifact: None,
         })
         .await;
     anyhow::ensure!(
@@ -248,6 +250,7 @@ pub(crate) async fn raw_secret_blocked_in_asset_metadata() -> anyhow::Result<()>
             content: "sk-abc123def456ghi789jkl012mno345 this looks like a key but it's in content"
                 .to_string(),
             metadata: json!({"purpose": "conformance"}),
+            artifact: None,
         })
         .await;
     anyhow::ensure!(
@@ -269,6 +272,7 @@ pub(crate) async fn no_secret_bypass() -> anyhow::Result<()> {
             mime: "application/json".to_string(),
             content: "data".to_string(),
             metadata: json!({"api_key": "sk-abc123def456ghi789jkl012mno345"}),
+            artifact: None,
         })
         .await;
     anyhow::ensure!(

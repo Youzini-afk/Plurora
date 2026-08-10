@@ -8,6 +8,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::process::Command;
 
 use anyhow::{anyhow, Context, Result};
 use heck::{ToLowerCamelCase, ToPascalCase, ToSnakeCase};
@@ -720,6 +721,31 @@ fn write_rust(registry: &TypeRegistry, methods: &[MethodSpec], events: &[EventSp
         Path::new(RUST_DIR).join("lib.rs"),
         "pub mod client;\npub mod events;\npub mod methods;\npub mod types;\n\npub use client::{PluroraClient, PluroraTransport};\npub use events::*;\npub use types::*;\n",
     )?;
+    rustfmt_generated_sources(&["types.rs", "methods.rs", "events.rs", "lib.rs"])?;
+    Ok(())
+}
+
+fn rustfmt_generated_sources(files: &[&str]) -> Result<()> {
+    let rustfmt = std::env::var_os("RUSTFMT").unwrap_or_else(|| "rustfmt".into());
+    let paths = files
+        .iter()
+        .map(|file| Path::new(RUST_DIR).join(file))
+        .collect::<Vec<_>>();
+    let status = Command::new(&rustfmt)
+        .arg("--edition=2021")
+        .arg("--config-path")
+        .arg("rustfmt.toml")
+        .args(&paths)
+        .status()
+        .with_context(|| {
+            format!(
+                "running {} on generated Rust SDK",
+                rustfmt.to_string_lossy()
+            )
+        })?;
+    if !status.success() {
+        anyhow::bail!("rustfmt failed for generated Rust SDK with status {status}");
+    }
     Ok(())
 }
 

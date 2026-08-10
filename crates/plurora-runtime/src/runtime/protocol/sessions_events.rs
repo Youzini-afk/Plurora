@@ -13,19 +13,23 @@ where
     ) -> anyhow::Result<Value> {
         let request: OpenSessionRequest = serde_json::from_value(params)?;
         if context.is_host_device() {
-            if !context.allows_host_action("project_operate") {
-                anyhow::bail!("context.open permission denied: Host device lacks project_operate");
+            if !context.allows_host_action("run") {
+                anyhow::bail!("context.open permission denied: Host device lacks run");
             }
-            match request.metadata.get("project_id").and_then(Value::as_str) {
-                Some(project_id) if context.allows_host_resource("host", "project", project_id) => {
-                }
-                Some(project_id) => anyhow::bail!(
-                    "context.open permission denied for project '{}'",
-                    project_id
+            match request
+                .metadata
+                .get("installation_id")
+                .and_then(Value::as_str)
+            {
+                Some(installation_id)
+                    if context.allows_host_resource("host", "installation", installation_id) => {}
+                Some(installation_id) => anyhow::bail!(
+                    "context.open permission denied for installation '{}'",
+                    installation_id
                 ),
-                None if context.allows_all_host_resources("host", "project") => {}
+                None if context.allows_all_host_resources("host", "installation") => {}
                 None => anyhow::bail!(
-                    "project-scoped Host devices must open sessions with metadata.project_id"
+                    "installation-scoped Host devices must open sessions with metadata.installation_id"
                 ),
             }
         }
@@ -43,7 +47,7 @@ where
             .ok_or_else(|| anyhow::anyhow!("context.close requires session_id"))?
             .to_string();
         if context.is_host_device() {
-            self.ensure_host_session_access(context, "project_operate", &session_id)
+            self.ensure_host_session_access(context, "run", &session_id)
                 .await?;
         }
         Ok(serde_json::to_value(self.close_session(session_id).await?)?)
@@ -80,7 +84,7 @@ where
             .ok_or_else(|| anyhow::anyhow!("context.fork requires parent_session_id"))?
             .to_string();
         if context.is_host_device() {
-            self.ensure_host_session_access(context, "project_operate", &parent_session_id)
+            self.ensure_host_session_access(context, "run", &parent_session_id)
                 .await?;
         }
         let forked_from_sequence = params

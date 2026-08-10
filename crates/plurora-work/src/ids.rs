@@ -221,6 +221,7 @@ host_id!(RunId, "run id");
 host_id!(ExposureId, "exposure id");
 host_id!(BindingId, "binding id");
 host_id!(RealizationId, "realization id");
+host_id!(WorkspaceId, "workspace id");
 
 #[cfg(test)]
 mod tests {
@@ -248,6 +249,20 @@ mod tests {
                 .as_str(),
             first.as_str()
         );
+    }
+
+    #[test]
+    fn workspace_ids_are_opaque_uuid_values() {
+        let workspace_id = WorkspaceId::new();
+        assert!(Uuid::parse_str(workspace_id.as_str()).is_ok());
+        assert_eq!(
+            WorkspaceId::parse(workspace_id.as_str().to_ascii_uppercase())
+                .unwrap()
+                .as_str(),
+            workspace_id.as_str()
+        );
+        assert!(WorkspaceId::parse("workspace-slug").is_err());
+        assert!(WorkspaceId::parse("workspace/path").is_err());
     }
 
     #[test]

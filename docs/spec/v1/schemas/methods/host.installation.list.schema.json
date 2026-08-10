@@ -1,0 +1,355 @@
+{
+  "$defs": {
+    "AcquisitionKind": {
+      "enum": [
+        "work_bundle",
+        "package",
+        "git_snapshot",
+        "local_import",
+        "remote_catalog",
+        "foreign_binding"
+      ],
+      "type": "string"
+    },
+    "AcquisitionRecord": {
+      "properties": {
+        "kind": {
+          "$ref": "#/$defs/AcquisitionKind"
+        },
+        "provenance_refs": {
+          "items": {
+            "$ref": "#/$defs/ArtifactDescriptor"
+          },
+          "type": "array"
+        },
+        "source_ref": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ArtifactDescriptor"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "update_channel": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "kind"
+      ],
+      "type": "object"
+    },
+    "ArtifactDescriptor": {
+      "properties": {
+        "annotations": {
+          "additionalProperties": true,
+          "default": {},
+          "type": "object"
+        },
+        "artifact_type_uri": {
+          "type": "string"
+        },
+        "digest": {
+          "type": "string"
+        },
+        "media_type": {
+          "type": "string"
+        },
+        "references": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "size_bytes": {
+          "format": "uint64",
+          "minimum": 0.0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "artifact_type_uri",
+        "digest",
+        "media_type",
+        "size_bytes"
+      ],
+      "type": "object"
+    },
+    "Errors": {
+      "items": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "details": true,
+          "message": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "details",
+          "message"
+        ],
+        "title": "ErrorShape",
+        "type": "object"
+      },
+      "type": "array"
+    },
+    "InstallationId": {
+      "format": "uuid",
+      "type": "string"
+    },
+    "InstallationRecord": {
+      "properties": {
+        "assembly_lock": {
+          "$ref": "#/$defs/ArtifactDescriptor"
+        },
+        "created_at": {
+          "format": "date-time",
+          "type": "string"
+        },
+        "display_name": {
+          "type": "string"
+        },
+        "installation_id": {
+          "$ref": "#/$defs/InstallationId"
+        },
+        "schema_version": {
+          "const": 1,
+          "format": "uint16",
+          "type": "integer"
+        },
+        "secret_policy": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/InstallationSecretPolicy"
+            }
+          ],
+          "default": {
+            "allow_platform_fallback": false
+          }
+        },
+        "source": {
+          "$ref": "#/$defs/AcquisitionRecord"
+        },
+        "state_bindings": {
+          "items": {
+            "$ref": "#/$defs/StateBindingRecord"
+          },
+          "type": "array"
+        },
+        "status": {
+          "$ref": "#/$defs/InstallationStatus"
+        },
+        "updated_at": {
+          "format": "date-time",
+          "type": "string"
+        },
+        "work_revision": {
+          "$ref": "#/$defs/ArtifactDescriptor"
+        }
+      },
+      "required": [
+        "assembly_lock",
+        "created_at",
+        "display_name",
+        "installation_id",
+        "schema_version",
+        "source",
+        "status",
+        "updated_at",
+        "work_revision"
+      ],
+      "type": "object"
+    },
+    "InstallationRollbackPointer": {
+      "properties": {
+        "assembly_lock": {
+          "$ref": "#/$defs/ArtifactDescriptor"
+        },
+        "revision": {
+          "format": "uint64",
+          "minimum": 0.0,
+          "type": "integer"
+        },
+        "state_snapshot": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ArtifactDescriptor"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "work_revision": {
+          "$ref": "#/$defs/ArtifactDescriptor"
+        }
+      },
+      "required": [
+        "assembly_lock",
+        "revision",
+        "work_revision"
+      ],
+      "type": "object"
+    },
+    "InstallationSecretPolicy": {
+      "properties": {
+        "allow_platform_fallback": {
+          "default": false,
+          "type": "boolean"
+        },
+        "allowed_secret_refs": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "type": "object"
+    },
+    "InstallationStatus": {
+      "enum": [
+        "resolving",
+        "ready",
+        "updating",
+        "blocked",
+        "failed",
+        "removing",
+        "removed"
+      ],
+      "type": "string"
+    },
+    "Params": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "properties": {
+        "status": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/InstallationStatus"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "title": "InstallationListRequest",
+      "type": "object"
+    },
+    "Result": {
+      "items": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "properties": {
+          "record": {
+            "$ref": "#/$defs/InstallationRecord"
+          },
+          "revision": {
+            "format": "uint64",
+            "minimum": 0.0,
+            "type": "integer"
+          },
+          "rollback": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/InstallationRollbackPointer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "record",
+          "revision"
+        ],
+        "title": "InstallationView",
+        "type": "object"
+      },
+      "type": "array"
+    },
+    "StateBindingKind": {
+      "enum": [
+        "host_managed",
+        "external_provider"
+      ],
+      "type": "string"
+    },
+    "StateBindingRecord": {
+      "properties": {
+        "binding_id": {
+          "type": "string"
+        },
+        "kind": {
+          "$ref": "#/$defs/StateBindingKind"
+        },
+        "provider_ref": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ArtifactDescriptor"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "state_slot_id": {
+          "$ref": "#/$defs/StateSlotId"
+        }
+      },
+      "required": [
+        "binding_id",
+        "kind",
+        "state_slot_id"
+      ],
+      "type": "object"
+    },
+    "StateSlotId": {
+      "pattern": "^(?!.*\\.\\.)[A-Za-z0-9._-]+$",
+      "type": "string"
+    }
+  },
+  "$id": "urn:plurora:schema:method:host.installation.list:v1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Plurora public platform method host.installation.list.",
+  "properties": {
+    "errors": {
+      "$ref": "#/$defs/Errors"
+    },
+    "method": {
+      "const": "host.installation.list"
+    },
+    "params": {
+      "$ref": "#/$defs/Params"
+    },
+    "result": {
+      "$ref": "#/$defs/Result"
+    }
+  },
+  "required": [
+    "method",
+    "params"
+  ],
+  "title": "host.installation.list",
+  "type": "object",
+  "x-plurora-contract": {
+    "id": "host.installation.list",
+    "implementation_status": "implemented",
+    "introduced_in": "plurora.contract.default/v1@0.1.0",
+    "maturity": "candidate",
+    "owner_layer": "host",
+    "request_schema": "urn:plurora:schema:method:host.installation.list:v1#/$defs/Params",
+    "response_schema": "urn:plurora:schema:method:host.installation.list:v1#/$defs/Result",
+    "streaming": false
+  }
+}

@@ -30,7 +30,7 @@ const s2 = createMockStorage();
 recordOpen("p1", s2);
 const listAfterOne = loadStore(s2);
 assertEqual(listAfterOne.length, 1);
-assertEqual(listAfterOne[0].projectId, "p1");
+assertEqual(listAfterOne[0].installationId, "p1");
 
 // Test 3: dedupes existing id by moving to front
 const s3 = createMockStorage();
@@ -40,9 +40,9 @@ recordOpen("p3", s3);
 recordOpen("p1", s3); // p1 was last, should move to front
 const listAfterDedup = loadStore(s3);
 assertEqual(listAfterDedup.length, 3);
-assertEqual(listAfterDedup[0].projectId, "p1");
-assertEqual(listAfterDedup[1].projectId, "p3");
-assertEqual(listAfterDedup[2].projectId, "p2");
+assertEqual(listAfterDedup[0].installationId, "p1");
+assertEqual(listAfterDedup[1].installationId, "p3");
+assertEqual(listAfterDedup[2].installationId, "p2");
 
 // Test 4: cap at 8
 const s4 = createMockStorage();
@@ -54,8 +54,8 @@ for (let i = 4; i <= 10; i++) {
 }
 const listAfterCap = loadStore(s4);
 assertEqual(listAfterCap.length, 8);
-assertEqual(listAfterCap[0].projectId, "p10");
-assertEqual(listAfterCap[7].projectId, "p3");
+assertEqual(listAfterCap[0].installationId, "p10");
+assertEqual(listAfterCap[7].installationId, "p3");
 
 // Test 5: corrupt storage falls back to empty
 const s5 = createMockStorage();

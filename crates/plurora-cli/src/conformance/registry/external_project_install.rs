@@ -469,84 +469,23 @@ pub(super) fn secret_store_lab_round_10a_1_phase_b_cases() -> Vec<ConformanceCas
     ]
 }
 
-pub(super) fn project_scoped_secrets_round_10a_2_wave_2c_cases() -> Vec<ConformanceCase> {
+pub(super) fn installation_scoped_secret_cases() -> Vec<ConformanceCase> {
     vec![
-        // --- project-scoped secrets (Round 10A.2 Wave 2C) ---
+        // --- Installation-scoped secret policy and runtime resolution ---
         c!(
-            "project_secret.put_then_resolve_via_project_ref",
-            ["project", "secret"],
-            crate::conformance::project_secret::put_then_resolve_via_project_ref
+            "installation_secret.put_resolve_owned_path",
+            ["installation", "secret"],
+            crate::conformance::installation_secret::put_resolve_uses_installation_owned_path
         ),
         c!(
-            "project_secret.fallback_to_platform_when_missing",
-            ["project", "secret"],
-            crate::conformance::project_secret::fallback_to_platform_when_missing
+            "installation_secret.policy_fallback_and_retired_scheme",
+            ["installation", "secret", "policy", "negative"],
+            crate::conformance::installation_secret::policy_controls_fallback_and_rejects_retired_scheme
         ),
         c!(
-            "project_secret.no_fallback_when_disabled",
-            ["project", "secret"],
-            crate::conformance::project_secret::no_fallback_when_disabled
-        ),
-        c!(
-            "project_secret.require_per_project_blocks_fallback",
-            ["project", "secret"],
-            crate::conformance::project_secret::require_per_project_blocks_fallback
-        ),
-        c!(
-            "project_secret.isolation_between_projects",
-            ["project", "secret"],
-            crate::conformance::project_secret::isolation_between_projects
-        ),
-        c!(
-            "project_secret.no_session_context_fails_closed",
-            ["project", "secret", "outbound"],
-            crate::conformance::project_secret::no_session_context_fails_closed
-        ),
-        c!(
-            "project_secret.list_returns_names_not_values",
-            ["project", "secret"],
-            crate::conformance::project_secret::list_returns_names_not_values
-        ),
-    ]
-}
-
-pub(super) fn project_lifecycle_round_10a_2_wave_3_cases() -> Vec<ConformanceCase> {
-    vec![
-        // --- project lifecycle (Round 10A.2 Wave 3) ---
-        c!(
-            "project.detect_native_yaml",
-            ["project", "install"],
-            crate::conformance::project_lifecycle::detect_native_yaml
-        ),
-        c!(
-            "project.detect_no_yaml",
-            ["project", "install"],
-            crate::conformance::project_lifecycle::detect_no_yaml
-        ),
-        c!(
-            "project.detect_invalid_yaml_rejected",
-            ["project", "install"],
-            crate::conformance::project_lifecycle::detect_invalid_yaml_rejected
-        ),
-        c!(
-            "project.register_creates_project_dir",
-            ["project", "install"],
-            crate::conformance::project_lifecycle::register_creates_project_dir
-        ),
-        c!(
-            "project.list_returns_registered",
-            ["project"],
-            crate::conformance::project_lifecycle::list_returns_registered
-        ),
-        c!(
-            "project.state_transitions",
-            ["project"],
-            crate::conformance::project_lifecycle::state_transitions
-        ),
-        c!(
-            "project.archive_keeps_data",
-            ["project", "uninstall"],
-            crate::conformance::project_lifecycle::archive_keeps_data
+            "installation_secret.isolation_and_list_redaction",
+            ["installation", "secret", "redaction"],
+            crate::conformance::installation_secret::installation_secret_isolation_and_list_redaction
         ),
     ]
 }
@@ -584,159 +523,86 @@ pub(super) fn git_tools_lab_package_installation_foundation_i2_cases() -> Vec<Co
 
 pub(super) fn install_lab_package_installation_foundation_i4_cases() -> Vec<ConformanceCase> {
     vec![
-        // --- install-lab (Package Installation Foundation I4) ---
+        // --- install-lab (Work candidate and Installation hand-off) ---
         c!(
-            "install_lab.resolve_plan_local_source",
-            ["first_party", "install", "package_install", "fixture"],
-            crate::conformance::install_lab::resolve_plan_local_source
+            "install_lab.detect_source_work_package_foreign",
+            ["first_party", "installation", "source", "fixture"],
+            crate::conformance::install_lab::detect_source_classifies_work_package_and_foreign
         ),
         c!(
-            "install_lab.project_root_install_registers_surface_dist",
-            [
-                "first_party",
-                "install",
-                "package_install",
-                "project",
-                "surface"
-            ],
-            crate::conformance::install_lab::project_root_install_registers_surface_dist
+            "install_lab.resolve_plan_local_package",
+            ["first_party", "installation", "package", "fixture"],
+            crate::conformance::install_lab::resolve_plan_local_package
         ),
         c!(
             "install_lab.resolve_plan_runs_conformance",
-            ["first_party", "install", "package_install", "fixture"],
+            ["first_party", "installation", "package", "fixture"],
             crate::conformance::install_lab::resolve_plan_runs_conformance
         ),
         c!(
-            "install_lab.resolve_plan_blocks_when_strict",
-            ["first_party", "install", "package_install", "fixture"],
-            crate::conformance::install_lab::resolve_plan_blocks_when_strict
+            "install_lab.invalid_manifest_rejected_strict",
+            ["first_party", "installation", "package", "fixture"],
+            crate::conformance::install_lab::invalid_manifest_is_rejected_in_strict_mode
         ),
         c!(
-            "install_lab.strict_conformance_blocks",
-            ["first_party", "install", "package_install", "fixture"],
-            crate::conformance::install_lab::strict_conformance_blocks
+            "install_lab.invalid_manifest_rejected_lenient",
+            ["first_party", "installation", "package", "fixture"],
+            crate::conformance::install_lab::invalid_manifest_is_rejected_in_lenient_mode
         ),
         c!(
-            "install_lab.lenient_conformance_warns_not_blocks",
-            ["first_party", "install", "package_install", "fixture"],
-            crate::conformance::install_lab::lenient_conformance_warns_not_blocks
-        ),
-        c!(
-            "install_lab.transitive_conformance_propagates",
-            ["first_party", "install", "package_install", "fixture"],
-            crate::conformance::install_lab::transitive_conformance_propagates
+            "install_lab.invalid_transitive_manifest_rejected",
+            ["first_party", "installation", "package", "fixture"],
+            crate::conformance::install_lab::invalid_transitive_manifest_is_rejected
         ),
         c!(
             "install_lab.resolve_plan_with_transitive",
-            ["first_party", "install", "package_install", "fixture"],
+            ["first_party", "installation", "package", "fixture"],
             crate::conformance::install_lab::resolve_plan_with_transitive
         ),
         c!(
             "install_lab.resolve_plan_cycle_detection",
-            ["first_party", "install", "package_install", "fixture"],
+            ["first_party", "installation", "package", "fixture"],
             crate::conformance::install_lab::resolve_plan_cycle_detection
         ),
         c!(
-            "install_lab.execute_plan_local",
-            ["first_party", "install", "package_install", "fixture"],
-            crate::conformance::install_lab::execute_plan_local
+            "install_lab.execute_emits_installation_candidate",
+            ["first_party", "installation", "package", "fixture"],
+            crate::conformance::install_lab::execute_plan_emits_installation_candidate
         ),
         c!(
-            "install_lab.execute_plan_consent_mismatch",
-            ["first_party", "install", "package_install", "fixture"],
+            "install_lab.execute_persists_candidate_objects",
+            ["first_party", "installation", "object_store", "fixture"],
+            crate::conformance::install_lab::execute_plan_persists_candidate_objects
+        ),
+        c!(
+            "install_lab.execute_consent_mismatch",
+            ["first_party", "installation", "policy", "fixture"],
             crate::conformance::install_lab::execute_plan_consent_mismatch
         ),
         c!(
-            "install_lab.uninstall_removes_from_profile",
-            ["first_party", "install", "package_install", "fixture"],
-            crate::conformance::install_lab::uninstall_removes_from_profile
+            "install_lab.execute_source_drift_rejected",
+            ["first_party", "installation", "integrity", "fixture"],
+            crate::conformance::install_lab::execute_plan_rejects_source_drift
         ),
         c!(
-            "install_lab.list_installed_reflects_lockfile",
-            ["first_party", "install", "package_install", "fixture"],
-            crate::conformance::install_lab::list_installed_reflects_lockfile
+            "install_lab.work_source_requires_pack",
+            ["first_party", "installation", "work", "fixture"],
+            crate::conformance::install_lab::work_source_requires_pack
         ),
         c!(
-            "install_lab.check_lockfile_drift_detection",
-            ["first_party", "install", "package_install", "fixture"],
-            crate::conformance::install_lab::check_lockfile_drift_detection
+            "install_lab.external_intake_managed_workspace",
+            ["first_party", "installation", "workspace", "fixture"],
+            crate::conformance::install_lab::external_intake_creates_managed_workspace
         ),
         c!(
-            "install_lab.check_for_updates_local_dangling_unsupported",
-            [
-                "first_party",
-                "install",
-                "package_install",
-                "fixture",
-                "update"
-            ],
-            crate::conformance::install_lab::check_for_updates_local_dangling_unsupported
+            "install_lab.external_intake_linked_local_preserved",
+            ["first_party", "installation", "workspace", "fixture"],
+            crate::conformance::install_lab::linked_local_intake_preserves_user_source
         ),
         c!(
-            "install_lab.check_for_updates_external_project_not_applicable",
-            [
-                "first_party",
-                "install",
-                "package_install",
-                "fixture",
-                "update"
-            ],
-            crate::conformance::install_lab::check_for_updates_external_project_not_applicable
-        ),
-        c!(
-            "install_lab.update_project_local_replaces_dist_and_lockfile",
-            [
-                "first_party",
-                "install",
-                "package_install",
-                "fixture",
-                "update"
-            ],
-            crate::conformance::install_lab::update_project_local_replaces_dist_and_lockfile
-        ),
-        c!(
-            "install_lab.update_project_local_current_noop",
-            [
-                "first_party",
-                "install",
-                "package_install",
-                "fixture",
-                "update"
-            ],
-            crate::conformance::install_lab::update_project_local_current_noop
-        ),
-        c!(
-            "install_lab.update_project_local_force_reinstalls_current",
-            [
-                "first_party",
-                "install",
-                "package_install",
-                "fixture",
-                "update"
-            ],
-            crate::conformance::install_lab::update_project_local_force_reinstalls_current
-        ),
-        c!(
-            "install_lab.update_project_external_not_applicable",
-            [
-                "first_party",
-                "install",
-                "package_install",
-                "fixture",
-                "update"
-            ],
-            crate::conformance::install_lab::update_project_external_not_applicable
-        ),
-        c!(
-            "install_lab.update_project_permission_drift_blocks_before_mutation",
-            [
-                "first_party",
-                "install",
-                "package_install",
-                "fixture",
-                "update"
-            ],
-            crate::conformance::install_lab::update_project_permission_drift_blocks_before_mutation
+            "install_lab.external_workspace_installation_candidate",
+            ["first_party", "installation", "workspace", "fixture"],
+            crate::conformance::install_lab::external_workspace_emits_installation_candidate
         ),
         c!(
             "install.real_github_smoke",

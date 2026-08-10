@@ -35,7 +35,7 @@ pub use host::{
 };
 pub use ids::{
     AssemblyId, BindingId, ExposureId, InstallationId, NodeId, PortId, RealizationId, RunId,
-    StateSlotId, WorkId,
+    StateSlotId, WorkId, WorkspaceId,
 };
 pub use lock::{AssemblyLock, BindingLock, NodeLock, ASSEMBLY_LOCK_TYPE_URI};
 pub use operational::{

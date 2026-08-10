@@ -1,42 +1,18 @@
-import type { FilterChip } from "@/components/home/utility-strip";
-import type { ProjectRecord } from "@/protocol/client";
-import { FILTER_OPTIONS } from "./home-constants";
+import type { InstallationSummary } from "./use-home-installations";
 
-export interface ProjectCounts {
-  all: number;
-  running: number;
-  stopped: number;
-  failed: number;
+export interface InstallationCounts { all: number; ready: number; blocked: number; failed: number }
+
+export function countsForInstallations(items: InstallationSummary[]): InstallationCounts {
+  return {
+    all: items.length,
+    ready: items.filter((item) => item.status === "ready").length,
+    blocked: items.filter((item) => item.status === "blocked").length,
+    failed: items.filter((item) => item.status === "failed").length,
+  };
 }
 
-export function countsForProjects(projectList: ProjectRecord[]): ProjectCounts {
-  const running = projectList.filter((p) => p.state === "running").length;
-  const stopped = projectList.filter((p) => p.state === "stopped" || p.state === "installed").length;
-  const failed = projectList.filter((p) => p.state === "failed").length;
-  return { all: projectList.length, running, stopped, failed };
-}
-
-export function filtersWithCounts(
-  counts: ProjectCounts,
-  labels: { all: string; running: string; stopped: string; failed: string },
-): FilterChip[] {
-  return FILTER_OPTIONS.map((option) => ({
-    ...option,
-    label: labels[option.id as keyof typeof labels] ?? option.label,
-    count: counts[option.id as keyof ProjectCounts] ?? 0,
-  }));
-}
-
-export function filterProjects(projectList: ProjectRecord[], activeFilter: string, search: string): ProjectRecord[] {
-  return projectList.filter((p) => {
-    const matchesFilter =
-      activeFilter === "all" ||
-      (activeFilter === "stopped" && (p.state === "stopped" || p.state === "installed")) ||
-      p.state === activeFilter;
-    const matchesSearch =
-      !search ||
-      p.title.toLowerCase().includes(search.toLowerCase()) ||
-      (p.description ?? "").toLowerCase().includes(search.toLowerCase());
-    return matchesFilter && matchesSearch;
-  });
+export function filterInstallations(items: InstallationSummary[], search: string): InstallationSummary[] {
+  const query = search.trim().toLowerCase();
+  if (!query) return items;
+  return items.filter((item) => `${item.displayName} ${item.installationId} ${item.sourceKind}`.toLowerCase().includes(query));
 }

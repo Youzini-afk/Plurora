@@ -1,6 +1,5 @@
 use std::collections::HashMap;
 use std::future::Future;
-use std::path::Path;
 use std::pin::Pin;
 use std::sync::Arc;
 
@@ -12,7 +11,8 @@ use serde_json::Value;
 
 use crate::runtime::HandleTable;
 use crate::{
-    CapabilityInvocationRequest, CapabilityInvocationResult, EventStore, ProjectRegistry, Runtime,
+    CapabilityInvocationRequest, CapabilityInvocationResult, EventStore, InstallationControl,
+    Runtime,
 };
 
 mod agentic_forge_lab;
@@ -84,18 +84,7 @@ pub trait InprocCapabilityInvoker: Send + Sync {
         request: CapabilityInvocationRequest,
     ) -> Pin<Box<dyn Future<Output = anyhow::Result<CapabilityInvocationResult>> + Send>>;
 
-    fn project_registry(&self) -> Option<Arc<ProjectRegistry>> {
-        None
-    }
-
-    fn append_platform_event(
-        &self,
-        _session_id: &str,
-        _kind: &'static str,
-        _payload: Value,
-    ) -> Pin<Box<dyn Future<Output = anyhow::Result<()>> + Send>> {
-        Box::pin(async { Ok(()) })
-    }
+    fn installation_control(&self) -> Arc<dyn InstallationControl>;
 }
 
 struct RuntimeInprocInvoker<S>
@@ -121,24 +110,8 @@ where
         Box::pin(async move { runtime.invoke_capability(request).await })
     }
 
-    fn project_registry(&self) -> Option<Arc<ProjectRegistry>> {
-        Some(self.runtime.config().project_registry.clone())
-    }
-
-    fn append_platform_event(
-        &self,
-        session_id: &str,
-        kind: &'static str,
-        payload: Value,
-    ) -> Pin<Box<dyn Future<Output = anyhow::Result<()>> + Send>> {
-        let runtime = self.runtime.clone();
-        let session_id = session_id.to_string();
-        Box::pin(async move {
-            runtime
-                .append_platform_event(&session_id, kind, payload)
-                .await
-                .map(|_| ())
-        })
+    fn installation_control(&self) -> Arc<dyn InstallationControl> {
+        self.runtime.config().installation_control.clone()
     }
 }
 
@@ -175,34 +148,10 @@ pub(crate) async fn invoke_capability_from_inproc(
     invoker.invoke_capability(request).await
 }
 
-pub(crate) fn project_registry_from_inproc() -> anyhow::Result<Arc<ProjectRegistry>> {
-    let invoker = INPROC_INVOKER
-        .try_with(Clone::clone)
-        .map_err(|_| anyhow::anyhow!("inproc runtime invocation context is unavailable"))?;
-    invoker
-        .project_registry()
-        .ok_or_else(|| anyhow::anyhow!("inproc project registry context is unavailable"))
-}
-
-pub(crate) async fn append_platform_event_from_inproc(
-    session_id: &str,
-    kind: &'static str,
-    payload: Value,
-) -> anyhow::Result<()> {
-    let invoker = INPROC_INVOKER
-        .try_with(Clone::clone)
-        .map_err(|_| anyhow::anyhow!("inproc runtime invocation context is unavailable"))?;
-    invoker
-        .append_platform_event(session_id, kind, payload)
-        .await
-}
-
-pub use install_lab::StoreSchemaMigration;
-
-pub fn ensure_install_lab_store_schema(
-    data_dir: &Path,
-) -> anyhow::Result<Option<StoreSchemaMigration>> {
-    install_lab::ensure_store_schema(data_dir)
+pub(crate) fn installation_control_from_inproc() -> anyhow::Result<Arc<dyn InstallationControl>> {
+    INPROC_INVOKER
+        .try_with(|invoker| invoker.installation_control())
+        .map_err(|_| anyhow::anyhow!("inproc runtime invocation context is unavailable"))
 }
 
 #[derive(Clone, Default)]
@@ -316,6 +265,11 @@ async fn dispatch_first_party(mut request: InprocInvocation) -> anyhow::Result<V
             return result;
         }
     }
+    if request.provider_package_id == "plurora/secret-store-lab" {
+        if let Some(result) = secret_store_lab::try_handle(&request).await {
+            return result;
+        }
+    }
 
     let specific_result = match request.provider_package_id.as_str() {
         "plurora/persona-lab" => persona_lab::try_handle(&request),
@@ -349,7 +303,6 @@ async fn dispatch_first_party(mut request: InprocInvocation) -> anyhow::Result<V
         "plurora/workspace-lab" => workspace_lab::try_handle(&request),
         "plurora/git-tools-lab" => git_tools_lab::try_handle(&request),
         "plurora/integrity-lab" => integrity_lab::try_handle(&request),
-        "plurora/secret-store-lab" => secret_store_lab::try_handle(&request),
         _ => None,
     };
 

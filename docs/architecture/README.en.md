@@ -22,7 +22,7 @@ These documents cover Plurora's long-term layering, the current public-contract 
 
 - [`HOST_DEVELOPMENT_CONTROL_PLANE.md`](HOST_DEVELOPMENT_CONTROL_PLANE.en.md) — controlled source change, verification, promotion, and recovery
 - [`HOST_REMOTE_ACCESS.md`](HOST_REMOTE_ACCESS.en.md) — root/device identity, scope, HTTPS pairing, and application-route exposure
-- [`HOST_PROJECT_AUTHORITY.md`](HOST_PROJECT_AUTHORITY.en.md) — current Project resource authority, authenticated context, session binding, and audit
+- [`HOST_RESOURCE_AUTHORITY.md`](HOST_RESOURCE_AUTHORITY.en.md) — Host authority, authenticated context, and audit for Work / Workspace / Installation / Run resources
 - [`DURABLE_DEPLOYMENT_CONTROLLER.md`](DURABLE_DEPLOYMENT_CONTROLLER.en.md) — desired/observed state, idempotent operations, safe activation, and recovery
 - [`TARGET_AGENT_PROTOCOL.md`](TARGET_AGENT_PROTOCOL.en.md) — remote target identity, typed operations, artifact/secret, and tunnel boundaries
 - [`OPERATIONS_DATA_RELEASE.md`](OPERATIONS_DATA_RELEASE.en.md) — migration, backup, health, diagnostics, upgrades, and supply chain

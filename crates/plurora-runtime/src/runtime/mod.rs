@@ -1,23 +1,26 @@
 use std::collections::{BTreeMap, HashMap, HashSet};
+use std::fmt;
 use std::future::Future;
 use std::path::PathBuf;
 use std::sync::Arc;
 
 use plurora_core::{
-    project::ProjectId, ArtifactDescriptor, AssetRecord, EventEnvelope, PackageId, SessionId,
-    SessionRecord, SessionStatus, EVENT_ASSET_PUT, EVENT_DEPLOYMENT_RECONCILED,
-    EVENT_EXEC_COMPLETED, EVENT_EXEC_DENIED, EVENT_EXEC_FAILED, EVENT_EXEC_STARTED,
-    EVENT_EXEC_STOPPED, EVENT_PERMISSION_GRANTED, EVENT_PERMISSION_REVOKED, EVENT_PORT_LEASED,
-    EVENT_PORT_RELEASED, EVENT_PROJECTION_UPDATED, EVENT_PROXY_REGISTERED,
-    EVENT_PROXY_UNREGISTERED, EVENT_SESSION_FORKED,
+    ArtifactDescriptor, AssetRecord, EventEnvelope, PackageId, SessionId, SessionRecord,
+    SessionStatus, EVENT_ASSET_PUT, EVENT_DEPLOYMENT_RECONCILED, EVENT_EXEC_COMPLETED,
+    EVENT_EXEC_DENIED, EVENT_EXEC_FAILED, EVENT_EXEC_STARTED, EVENT_EXEC_STOPPED,
+    EVENT_PERMISSION_GRANTED, EVENT_PERMISSION_REVOKED, EVENT_PORT_LEASED, EVENT_PORT_RELEASED,
+    EVENT_PROJECTION_UPDATED, EVENT_PROXY_REGISTERED, EVENT_PROXY_UNREGISTERED,
+    EVENT_SESSION_FORKED,
 };
+use plurora_work::{InstallationId, InstallationStatus};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use tokio::sync::{Mutex, RwLock};
 
 use crate::{
-    EventStore, HostPolicy, InMemoryObjectStore, InprocPackageCatalog, ObjectStore,
-    ProjectRegistry, ProjectScopeContext, ProtocolContext, ProtocolPrincipal, SecretResolverConfig,
+    EventStore, HostPolicy, InMemoryObjectStore, InprocPackageCatalog, InstallationControl,
+    InstallationScopeContext, ObjectStore, ProtocolContext, ProtocolPrincipal,
+    SecretResolverConfig, UnavailableInstallationControl,
 };
 
 mod artifacts;
@@ -49,8 +52,10 @@ mod world_bundle;
 // Re-export public types so old paths like plurora_runtime::runtime::AssetPutRequest keep working.
 pub use self::artifacts::{ArtifactCommitRequest, GENERIC_BLOB_ARTIFACT_TYPE_URI};
 pub use self::assets::{
-    content_address, legacy_content_address, standard_asset_metadata, AssetGetResponse,
-    AssetPutRequest,
+    content_address, exact_artifact_upload, legacy_content_address, standard_asset_metadata,
+    AssetContentEncoding, AssetGetParams, AssetGetResponse, AssetPutRequest, ExactArtifactUpload,
+    InstallationStateArtifactGetParams, InstallationStateArtifactGetResponse, ObjectGetRequest,
+    ObjectGetResponse, ObjectPutResponse, ObjectPutScope,
 };
 pub use self::audit::{
     AuditPackageParams, DeclaredAuthority, PackageAuditReport, TighteningSuggestion,
@@ -108,7 +113,7 @@ pub use self::world_bundle::{
 };
 
 tokio::task_local! {
-    pub static ACTIVE_PROJECT_SCOPE: ProjectScopeContext;
+    pub static ACTIVE_INSTALLATION_SCOPE: InstallationScopeContext;
 }
 
 // ---------------------------------------------------------------------------
@@ -123,8 +128,8 @@ pub struct RuntimeConfig {
     pub secret_resolver: SecretResolverConfig,
     /// Content-addressed object storage. Defaults to an in-memory SHA-256 store.
     pub object_store: Arc<dyn ObjectStore>,
-    /// In-memory project registry. Default: empty.
-    pub project_registry: Arc<ProjectRegistry>,
+    /// Host-owned Installation control plane. The default fails closed.
+    pub installation_control: Arc<dyn InstallationControl>,
     /// Outbound executor configuration. Defaults to `DenyAll` (fail-closed).
     pub outbound_executor: OutboundExecutorConfig,
     /// Outbound execute host-level policy. Defaults disabled (fail-closed). (Y1)
@@ -153,6 +158,42 @@ pub struct RuntimeConfig {
     pub package_roots: BTreeMap<PackageId, PathBuf>,
 }
 
+impl fmt::Debug for RuntimeConfig {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let outbound_executor = match &self.outbound_executor {
+            OutboundExecutorConfig::DenyAll => "deny_all",
+            OutboundExecutorConfig::Custom(_) => "custom",
+            OutboundExecutorConfig::LiveHttp(_) => "live_http",
+        };
+        let local_exec_executor = match &self.local_exec_executor {
+            LocalExecExecutorConfig::DenyAll => "deny_all",
+            LocalExecExecutorConfig::Custom(_) => "custom",
+            LocalExecExecutorConfig::Fake => "fake",
+        };
+
+        formatter
+            .debug_struct("RuntimeConfig")
+            .field("default_labels", &self.default_labels)
+            .field("host_policy", &self.host_policy)
+            .field("inproc_packages", &"configured")
+            .field("secret_resolver", &"configured")
+            .field("object_store", &"configured")
+            .field("installation_control", &"configured")
+            .field("outbound_executor", &outbound_executor)
+            .field("outbound_execute_policy", &self.outbound_execute_policy)
+            .field("outbound_websocket_executor", &"configured")
+            .field("local_exec_executor", &local_exec_executor)
+            .field("exec_registry", &"configured")
+            .field("target_registry", &"configured")
+            .field("port_lease_registry", &"configured")
+            .field("proxy_route_registry", &"configured")
+            .field("deployment_reconcile_source", &"configured")
+            .field("surface_dev_path_count", &self.surface_dev_paths.len())
+            .field("package_root_count", &self.package_roots.len())
+            .finish()
+    }
+}
+
 impl Default for RuntimeConfig {
     fn default() -> Self {
         Self {
@@ -161,7 +202,7 @@ impl Default for RuntimeConfig {
             inproc_packages: InprocPackageCatalog::with_default_examples(),
             secret_resolver: SecretResolverConfig::default(),
             object_store: Arc::new(InMemoryObjectStore::new()),
-            project_registry: Arc::new(ProjectRegistry::new()),
+            installation_control: Arc::new(UnavailableInstallationControl),
             outbound_executor: OutboundExecutorConfig::default(),
             outbound_execute_policy: OutboundExecutePolicyConfig::default(),
             outbound_websocket_executor: Arc::new(DenyAllWebSocketExecutor),
@@ -184,6 +225,7 @@ impl Default for RuntimeConfig {
 #[derive(Debug, Clone)]
 pub(crate) struct StoredAsset {
     pub record: AssetRecord,
+    pub content_encoding: AssetContentEncoding,
 }
 
 struct HydratedSubstrateState {
@@ -337,20 +379,20 @@ where
         self.resolve_secret_ref_with_session(ref_id, None).await
     }
 
-    /// Resolve a secret reference with an explicit project scope.
+    /// Resolve a secret reference with an explicit Installation scope.
     ///
-    /// This is used by host-owned brokers that operate on a project but do not
-    /// have a project session yet. Raw values must never be written to events,
+    /// This is used by host-owned brokers that operate on an Installation but do
+    /// not have a bound session yet. Raw values must never be written to events,
     /// proposals, logs, or audit records.
-    pub async fn resolve_secret_ref_for_project(
+    pub async fn resolve_secret_ref_for_installation(
         &self,
         ref_id: &str,
-        project_id: &plurora_core::ProjectId,
+        installation_id: &InstallationId,
     ) -> anyhow::Result<String> {
-        if plurora_core::secret_ref::is_project_backed_ref(ref_id) {
-            let scope = self.build_project_scope(project_id)?;
+        if plurora_core::secret_ref::is_installation_backed_ref(ref_id) {
+            let scope = self.build_installation_scope(installation_id).await?;
             return self
-                .with_active_project_scope(scope, async {
+                .with_active_installation_scope(scope, async {
                     self.config.secret_resolver.resolver.resolve(ref_id).await
                 })
                 .await;
@@ -361,18 +403,18 @@ where
 
     /// Resolve a secret reference with optional session context.
     ///
-    /// For `secret_ref:project:NAME`, the `session_id` is used to look up the
-    /// session's `metadata.project_id`, which scopes the resolution.
+    /// For `secret_ref:installation:NAME`, the `session_id` is used to look up
+    /// `metadata.installation_id`, which scopes the resolution.
     pub async fn resolve_secret_ref_with_session(
         &self,
         ref_id: &str,
         session_id: Option<&str>,
     ) -> anyhow::Result<String> {
-        if plurora_core::secret_ref::is_project_backed_ref(ref_id) {
-            let project_id = self.lookup_project_id_from_session(session_id).await?;
-            let scope = self.build_project_scope(&project_id)?;
+        if plurora_core::secret_ref::is_installation_backed_ref(ref_id) {
+            let installation_id = self.lookup_installation_id_from_session(session_id).await?;
+            let scope = self.build_installation_scope(&installation_id).await?;
             return self
-                .with_active_project_scope(scope, async {
+                .with_active_installation_scope(scope, async {
                     self.config.secret_resolver.resolver.resolve(ref_id).await
                 })
                 .await;
@@ -381,12 +423,12 @@ where
         self.config.secret_resolver.resolver.resolve(ref_id).await
     }
 
-    async fn lookup_project_id_from_session(
+    async fn lookup_installation_id_from_session(
         &self,
         session_id: Option<&str>,
-    ) -> anyhow::Result<ProjectId> {
+    ) -> anyhow::Result<InstallationId> {
         let sid = session_id.ok_or_else(|| {
-            anyhow::anyhow!("project secret resolution requires session_id in context")
+            anyhow::anyhow!("installation secret resolution requires session_id in context")
         })?;
         let sessions = self.sessions.read().await;
         let session = sessions
@@ -397,10 +439,10 @@ where
         }
         let pid_str = session
             .metadata
-            .get("project_id")
+            .get("installation_id")
             .and_then(Value::as_str)
-            .ok_or_else(|| anyhow::anyhow!("session '{}' has no metadata.project_id", sid))?;
-        ProjectId::new(pid_str)
+            .ok_or_else(|| anyhow::anyhow!("session '{}' has no metadata.installation_id", sid))?;
+        Ok(InstallationId::parse(pid_str)?)
     }
 
     pub(crate) async fn ensure_host_session_access(
@@ -425,56 +467,60 @@ where
         if session.status != SessionStatus::Open {
             anyhow::bail!("session '{}' is closed", session_id);
         }
-        match session.metadata.get("project_id").and_then(Value::as_str) {
-            Some(project_id) if context.allows_host_resource("host", "project", project_id) => {
+        match session
+            .metadata
+            .get("installation_id")
+            .and_then(Value::as_str)
+        {
+            Some(installation_id)
+                if context.allows_host_resource("host", "installation", installation_id) =>
+            {
                 Ok(())
             }
-            Some(project_id) => anyhow::bail!(
-                "Host device authority does not include project '{}'",
-                project_id
+            Some(installation_id) => anyhow::bail!(
+                "Host device authority does not include installation '{}'",
+                installation_id
             ),
-            None if context.allows_all_host_resources("host", "project") => Ok(()),
-            None => anyhow::bail!("project-scoped Host device cannot access an unbound session"),
+            None if context.allows_all_host_resources("host", "installation") => Ok(()),
+            None => {
+                anyhow::bail!("installation-scoped Host device cannot access an unbound session")
+            }
         }
     }
 
-    fn build_project_scope(&self, project_id: &ProjectId) -> anyhow::Result<ProjectScopeContext> {
-        let entry = self
+    async fn build_installation_scope(
+        &self,
+        installation_id: &InstallationId,
+    ) -> anyhow::Result<InstallationScopeContext> {
+        let view = self
             .config
-            .project_registry
-            .get(project_id)
-            .ok_or_else(|| anyhow::anyhow!("project '{}' not registered", project_id))?;
-        let store_path = plurora_core::paths::project_secret_store_path(project_id)?;
-        Ok(ProjectScopeContext {
-            project_id: project_id.clone(),
-            project_store_path: store_path,
-            fallback_to_platform: entry.descriptor.project.secret_policy.fallback_to_platform,
-            require_per_project: entry
-                .descriptor
-                .project
-                .secret_policy
-                .require_per_project
-                .clone(),
+            .installation_control
+            .get(installation_id)
+            .await
+            .map_err(|_| anyhow::anyhow!("installation control unavailable"))?
+            .ok_or_else(|| anyhow::anyhow!("installation not found"))?;
+        anyhow::ensure!(
+            view.record.installation_id == *installation_id
+                && view.record.status == InstallationStatus::Ready,
+            "installation is not active for secret resolution"
+        );
+        Ok(InstallationScopeContext {
+            installation_id: installation_id.clone(),
+            revision: view.revision,
+            secret_policy: view.record.secret_policy,
+            installation_control: self.config.installation_control.clone(),
         })
     }
 
-    async fn with_active_project_scope<F, T>(&self, scope: ProjectScopeContext, future: F) -> T
+    async fn with_active_installation_scope<F, T>(
+        &self,
+        scope: InstallationScopeContext,
+        future: F,
+    ) -> T
     where
         F: Future<Output = T>,
     {
-        ACTIVE_PROJECT_SCOPE.scope(scope, future).await
-    }
-
-    pub(crate) async fn find_session_for_project(&self, project_id: &ProjectId) -> Option<String> {
-        let sessions = self.sessions.read().await;
-        sessions
-            .values()
-            .find(|session| {
-                session.status == SessionStatus::Open
-                    && session.metadata.get("project_id").and_then(Value::as_str)
-                        == Some(project_id.as_str())
-            })
-            .map(|session| session.id.clone())
+        ACTIVE_INSTALLATION_SCOPE.scope(scope, future).await
     }
 
     pub async fn get_session(&self, session_id: &str) -> Option<SessionRecord> {
@@ -499,8 +545,8 @@ where
         for event in events {
             match event.kind.as_str() {
                 EVENT_ASSET_PUT => {
-                    let record = self.hydrate_asset_event(event).await?;
-                    assets.insert(record.id.clone(), StoredAsset { record });
+                    let stored = self.hydrate_asset_event(event).await?;
+                    assets.insert(stored.record.id.clone(), stored);
                 }
                 EVENT_SESSION_FORKED => {
                     let branch: BranchRecord = serde_json::from_value(event.payload.clone())?;
@@ -916,4 +962,174 @@ fn artifact_descriptor_from_payload(payload: &Value) -> Option<ArtifactDescripto
         .get("receipt")
         .cloned()
         .and_then(|value| serde_json::from_value(value).ok())
+}
+
+#[cfg(test)]
+mod runtime_config_tests {
+    use std::sync::atomic::{AtomicBool, Ordering};
+
+    use super::*;
+
+    struct StatusInstallationControl {
+        view: crate::InstallationView,
+        secret_path_requested: AtomicBool,
+    }
+
+    #[async_trait::async_trait]
+    impl InstallationControl for StatusInstallationControl {
+        async fn list(
+            &self,
+            _request: crate::InstallationListRequest,
+        ) -> anyhow::Result<Vec<crate::InstallationView>> {
+            Ok(vec![self.view.clone()])
+        }
+
+        async fn get(
+            &self,
+            _installation_id: &InstallationId,
+        ) -> anyhow::Result<Option<crate::InstallationView>> {
+            Ok(Some(self.view.clone()))
+        }
+
+        async fn create(
+            &self,
+            _request: crate::InstallationCreateRequest,
+        ) -> anyhow::Result<crate::InstallationMutationResult> {
+            anyhow::bail!("not used")
+        }
+
+        async fn update(
+            &self,
+            _request: crate::InstallationUpdateRequest,
+        ) -> anyhow::Result<crate::InstallationMutationResult> {
+            anyhow::bail!("not used")
+        }
+
+        async fn remove(
+            &self,
+            _request: crate::InstallationRemoveRequest,
+        ) -> anyhow::Result<crate::InstallationMutationResult> {
+            anyhow::bail!("not used")
+        }
+
+        fn installation_secret_store_path(
+            &self,
+            _installation_id: &InstallationId,
+        ) -> anyhow::Result<PathBuf> {
+            self.secret_path_requested.store(true, Ordering::SeqCst);
+            Ok(PathBuf::from("sensitive-secret-root"))
+        }
+    }
+
+    fn installation_control_with_status(
+        status: InstallationStatus,
+    ) -> (Arc<StatusInstallationControl>, InstallationId) {
+        let installation_id = InstallationId::new();
+        let artifact = ArtifactDescriptor {
+            artifact_type_uri: "urn:plurora:test:artifact:v1".to_string(),
+            media_type: "application/json".to_string(),
+            digest: format!("sha256:{}", "a".repeat(64)),
+            size_bytes: 1,
+            references: Vec::new(),
+            annotations: BTreeMap::new(),
+        };
+        let now = chrono::Utc::now();
+        let control = Arc::new(StatusInstallationControl {
+            view: crate::InstallationView {
+                record: plurora_work::InstallationRecord {
+                    schema_version: plurora_work::InstallationRecord::SCHEMA_VERSION,
+                    installation_id: installation_id.clone(),
+                    work_revision: artifact.clone(),
+                    assembly_lock: artifact,
+                    display_name: "Runtime status fixture".to_string(),
+                    source: plurora_work::AcquisitionRecord {
+                        kind: plurora_work::AcquisitionKind::LocalImport,
+                        source_ref: None,
+                        provenance_refs: Vec::new(),
+                        update_channel: None,
+                    },
+                    state_bindings: Vec::new(),
+                    secret_policy: plurora_work::InstallationSecretPolicy::default(),
+                    created_at: now,
+                    updated_at: now,
+                    status,
+                },
+                revision: 1,
+                rollback: None,
+            },
+            secret_path_requested: AtomicBool::new(false),
+        });
+        (control, installation_id)
+    }
+
+    fn assert_debug_clone_default<T: fmt::Debug + Clone + Default>() {}
+
+    #[test]
+    fn runtime_config_supports_debug_clone_and_default_without_exposing_paths() {
+        assert_debug_clone_default::<RuntimeConfig>();
+        let mut config = RuntimeConfig::default();
+        config.package_roots.insert(
+            "example/runtime-config".to_string(),
+            PathBuf::from("sensitive-package-root"),
+        );
+        let debug = format!("{config:?}");
+        assert!(debug.contains("installation_control"));
+        assert!(debug.contains("package_root_count: 1"));
+        assert!(!debug.contains("sensitive-package-root"));
+        let _cloned = config.clone();
+    }
+
+    #[tokio::test]
+    async fn installation_secret_scope_captures_only_ready_revision_authority() {
+        for status in [
+            InstallationStatus::Resolving,
+            InstallationStatus::Updating,
+            InstallationStatus::Blocked,
+            InstallationStatus::Failed,
+            InstallationStatus::Removing,
+            InstallationStatus::Removed,
+        ] {
+            let (control, installation_id) = installation_control_with_status(status);
+            let runtime = Runtime::new(
+                Arc::new(crate::InMemoryEventStore::default()),
+                RuntimeConfig {
+                    installation_control: control.clone(),
+                    ..RuntimeConfig::default()
+                },
+            );
+            let error = runtime
+                .build_installation_scope(&installation_id)
+                .await
+                .expect_err("non-ready Installation must not create a secret scope");
+            let message = error.to_string();
+            assert_eq!(message, "installation is not active for secret resolution");
+            assert!(!message.contains(installation_id.as_str()));
+            assert!(!message.contains("sensitive-secret-root"));
+            assert!(!control.secret_path_requested.load(Ordering::SeqCst));
+        }
+
+        let (control, installation_id) =
+            installation_control_with_status(InstallationStatus::Ready);
+        let runtime = Runtime::new(
+            Arc::new(crate::InMemoryEventStore::default()),
+            RuntimeConfig {
+                installation_control: control.clone(),
+                ..RuntimeConfig::default()
+            },
+        );
+        let scope = runtime
+            .build_installation_scope(&installation_id)
+            .await
+            .expect("Ready Installation creates a revision-bound scope");
+        assert_eq!(scope.installation_id, installation_id);
+        assert_eq!(scope.revision, 1);
+        assert!(Arc::ptr_eq(
+            &scope.installation_control,
+            &(control.clone() as Arc<dyn InstallationControl>)
+        ));
+        assert!(
+            !control.secret_path_requested.load(Ordering::SeqCst),
+            "scope creation must not cache a reusable Installation filesystem path"
+        );
+    }
 }

@@ -155,6 +155,8 @@ pub(crate) async fn docker_runtime_lab_blocks_dangerous_spec() -> anyhow::Result
 
 pub(crate) async fn docker_runtime_lab_build_image_blocks_secret_and_non_dockerfile(
 ) -> anyhow::Result<()> {
+    const INSTALLATION_ID: &str = "00000000-0000-4000-8000-000000000123";
+    const WORKSPACE_ID: &str = "00000000-0000-4000-8000-000000000456";
     let (_store, runtime) = runtime();
     runtime
         .load_package(
@@ -168,16 +170,16 @@ pub(crate) async fn docker_runtime_lab_build_image_blocks_secret_and_non_dockerf
     for input in [
         json!({
             "approved": true,
-            "project_id": "build-test__abc123",
+            "installation_id": INSTALLATION_ID,
+            "workspace_id": WORKSPACE_ID,
             "build_id": "build-001",
-            "context_dir": "/tmp/not-used",
             "strategy": "compose"
         }),
         json!({
             "approved": true,
-            "project_id": "build-test__abc123",
+            "installation_id": INSTALLATION_ID,
+            "workspace_id": WORKSPACE_ID,
             "build_id": "build-001",
-            "context_dir": "/tmp/not-used",
             "build_args": {"API_KEY": "secret_ref:env:API_KEY"}
         }),
     ] {
@@ -199,9 +201,9 @@ pub(crate) async fn docker_runtime_lab_build_image_blocks_secret_and_non_dockerf
     let tmp = tempfile::tempdir()?;
     let data_dir = tmp.path().join("data");
     let workspace = data_dir
-        .join("projects")
-        .join("build-test__abc123")
-        .join("workspace");
+        .join("workspaces")
+        .join(WORKSPACE_ID)
+        .join("source");
     std::fs::create_dir_all(&workspace)?;
     let previous_data_dir = std::env::var("PLURORA_DATA_DIR").ok();
     std::env::set_var("PLURORA_DATA_DIR", &data_dir);
@@ -216,9 +218,9 @@ pub(crate) async fn docker_runtime_lab_build_image_blocks_secret_and_non_dockerf
             input: json!({
                 "approved": true,
                 "strategy": "nixpacks",
-                "project_id": "build-test__abc123",
+                "installation_id": INSTALLATION_ID,
+                "workspace_id": WORKSPACE_ID,
                 "build_id": "build-001",
-                "context_dir": workspace.to_string_lossy(),
                 "nixpacks_binary": "definitely-not-plurora-nixpacks"
             }),
         })

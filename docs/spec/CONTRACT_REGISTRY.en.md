@@ -35,7 +35,7 @@ The first ID segment declares ownership:
 | Prefix | Owner | Examples |
 |---|---|---|
 | `context`, `journal`, `capability`, `authority`, `object`, `identity` | Substrate | `context.open`, `journal.append`, `authority.handle.revoke` |
-| `host` | Host | `host.project.list`, `host.outbound.execute` |
+| `host` | Host | `host.installation.list`, `host.outbound.execute` |
 | `protocol`, `change`, `projection` | Protocol | `protocol.extension.list`, `change.proposal.apply` |
 | `shell` | Shell | `shell.contribution.list` |
 

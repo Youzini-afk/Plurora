@@ -1,8 +1,0 @@
-schema_version: 1
-id: fixture/project-engine
-version: 0.1.0
-entry:
-  kind: subprocess
-  command: ["node", "dist/index.js"]
-provides: []
-permissions: {}

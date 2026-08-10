@@ -109,6 +109,18 @@ pub(crate) struct WorkReport {
     diagnostics: DiagnosticReport,
 }
 
+/// Canonical Work inputs prepared for the Installation control plane.
+///
+/// This intentionally contains descriptors only. The source path remains an
+/// authoring input and must never become Installation authority or output.
+#[derive(Debug)]
+pub(crate) struct PackedInstallationWork {
+    pub(crate) work_revision: ArtifactDescriptor,
+    pub(crate) assembly_lock: ArtifactDescriptor,
+    pub(crate) closure: Vec<ArtifactDescriptor>,
+    pub(crate) display_name: String,
+}
+
 #[derive(Debug, Serialize)]
 struct ErrorReport {
     operation: &'static str,
@@ -385,6 +397,132 @@ pub(crate) fn check_work_path(path: &Path) -> ModelResult<WorkReport> {
         ));
     }
     Ok(materialized.report("check", false))
+}
+
+/// Materialize a Work through the same safe-open path used by `work pack`,
+/// persist its complete canonical closure, and return only portable
+/// descriptors for an Installation request.
+pub(crate) async fn pack_work_for_installation(
+    path: &Path,
+    object_root: &Path,
+) -> ModelResult<PackedInstallationWork> {
+    let materialized = materialize_work(path)?;
+    if !materialized.resolution.portable {
+        return Err(ModelError::new(
+            DiagnosticCode::PortUnresolved,
+            "Work has unresolved authoring-time requirements",
+        ));
+    }
+    let work: WorkRevision =
+        serde_json::from_slice(&materialized.work_object.bytes).map_err(|_| {
+            ModelError::new(
+                DiagnosticCode::WorkInvalid,
+                "Materialized Work object is invalid",
+            )
+        })?;
+    persist_objects(object_root, materialized.objects.values()).await?;
+    let mut closure = materialized
+        .objects
+        .values()
+        .map(|object| object.descriptor().clone())
+        .collect::<Vec<_>>();
+    closure.sort_by(|left, right| left.digest.cmp(&right.digest));
+    Ok(PackedInstallationWork {
+        work_revision: materialized.work_object.descriptor,
+        assembly_lock: materialized.resolution.root_lock_artifact.descriptor,
+        closure,
+        display_name: work.title,
+    })
+}
+
+/// Verify (or initialize) the real, contained ObjectStore directory structure
+/// before another subsystem receives a filesystem-backed ObjectStore handle.
+pub(crate) async fn prepare_object_store_for_installation(root: &Path) -> ModelResult<()> {
+    persist_objects(root, std::iter::empty::<&MaterializedObject>()).await
+}
+
+/// Read a small descriptor selected by the user without following a final
+/// symlink or exposing its path in diagnostics.
+pub(crate) fn read_artifact_descriptor(path: &Path) -> ModelResult<ArtifactDescriptor> {
+    let path = absolute_path(path)?;
+    let parent = path
+        .parent()
+        .ok_or_else(|| ModelError::new(DiagnosticCode::RawPath, "Descriptor path is invalid"))?;
+    ensure_real_directory(parent, false)?;
+    let root = fs::canonicalize(parent).map_err(|_| io_error())?;
+    let name = path
+        .file_name()
+        .ok_or_else(|| ModelError::new(DiagnosticCode::RawPath, "Descriptor path is invalid"))?;
+    let bytes = safe_read_contained(&root, &root, Path::new(name), true)?;
+    let descriptor: ArtifactDescriptor = serde_json::from_slice(&bytes).map_err(|_| {
+        ModelError::new(
+            DiagnosticCode::WorkInvalid,
+            "Artifact descriptor JSON is invalid",
+        )
+    })?;
+    plurora_work::validate_artifact_descriptor(&descriptor)?;
+    Ok(descriptor)
+}
+
+/// Read one already-persisted Work closure object without following links and
+/// re-verify it against the portable descriptor before it crosses the RPC
+/// boundary.
+pub(crate) fn read_packed_object(
+    root: &Path,
+    descriptor: &ArtifactDescriptor,
+) -> ModelResult<Vec<u8>> {
+    plurora_work::validate_artifact_descriptor(descriptor)?;
+    let root = absolute_path(root)?;
+    ensure_real_directory(&root, false)?;
+    let canonical_root = fs::canonicalize(&root).map_err(|_| io_error())?;
+    let root_dir = CapabilityDir::open_ambient_dir(&canonical_root, ambient_authority())
+        .map_err(|_| io_error())?;
+    verify_capability_directory(&root_dir, &canonical_root)?;
+    let algorithm_dir = root_dir.open_dir("sha256").map_err(|_| raw_path())?;
+    let canonical_algorithm = canonical_root.join("sha256");
+    verify_capability_directory(&algorithm_dir, &canonical_algorithm)?;
+    let hex = descriptor
+        .digest
+        .strip_prefix("sha256:")
+        .ok_or_else(|| object_store_error("ObjectStore artifact digest is invalid"))?;
+    let metadata = algorithm_dir
+        .symlink_metadata(hex)
+        .map_err(|_| io_error())?;
+    if metadata.file_type().is_symlink() || !metadata.is_file() {
+        return Err(raw_path());
+    }
+    let object_path = canonical_algorithm.join(hex);
+    let mut file = open_capability_object_nofollow(&algorithm_dir, hex)?;
+    let opened_handle =
+        Handle::from_file(file.try_clone().map_err(|_| io_error())?).map_err(|_| io_error())?;
+    let opened_metadata = file.metadata().map_err(|_| io_error())?;
+    verify_opened_capability_object_identity(
+        &algorithm_dir,
+        &object_path,
+        hex,
+        &file,
+        &opened_handle,
+        &opened_metadata,
+    )?;
+    let mut bytes = Vec::new();
+    file.read_to_end(&mut bytes).map_err(|_| io_error())?;
+    verify_opened_capability_object_identity(
+        &algorithm_dir,
+        &object_path,
+        hex,
+        &file,
+        &opened_handle,
+        &opened_metadata,
+    )?;
+    if bytes.len() as u64 != descriptor.size_bytes
+        || world_bundle_sha256_digest(&bytes) != descriptor.digest
+    {
+        return Err(ModelError::new(
+            DiagnosticCode::ArtifactDigestMismatch,
+            "Staged Work object does not match its portable descriptor",
+        ));
+    }
+    Ok(bytes)
 }
 
 fn materialize_work(input: &Path) -> ModelResult<MaterializedWork> {

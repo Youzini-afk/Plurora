@@ -2,7 +2,7 @@
 
 > [English](./OBJECT_STORE.en.md) · [中文](./OBJECT_STORE.md)
 
-This document defines the currently implemented content-addressed object foundation. It is an Experimental Constitutional Substrate contract and does not change the `platform.asset.*` method IDs or their existing request shapes.
+This document defines the currently implemented content-addressed object foundation. It is an Experimental Constitutional Substrate contract; Work, Installation, and their upload scopes are product protocols layered above it, not Constitutional Substrate concepts.
 
 ## Identity and descriptors
 
@@ -36,19 +36,22 @@ The current implementations are in-memory and filesystem-backed stores. Filesyst
 
 ## Separating bytes from journals
 
-Object bytes live only in ObjectStore. Journals, events, and future receipts store descriptors or digest references and must not copy large bodies. The `object/put` event payload carries the additive `AssetRecord.descriptor`; event metadata carries only `artifact_digest`, `size_bytes`, and `content_included: false`.
+Object bytes live only in ObjectStore. Journals, events, and future receipts store descriptors or digest references and must not copy large bodies. An ordinary Asset `object.put` event carries `AssetRecord.descriptor`; event metadata carries only `artifact_digest`, `size_bytes`, and `content_included: false`. An exact CAS upload creates no Asset event.
 
 This boundary does not change secret policy: asset content remains arbitrary user data and is not raw-secret scanned, while asset metadata continues to use the existing raw-secret rejection rule.
 
-## v1 Asset adapter
+## The two `object.put` identities
 
-`object.put/get/list` remain wire-compatible:
+The public result is uniformly `ObjectPutResponse { asset, descriptor }`, but every request must belong to exactly one of these modes:
 
-- `put` commits UTF-8 content as a generic blob artifact;
-- `AssetRecord.hash` is now the canonical SHA-256 digest;
-- `AssetRecord.descriptor` is an additive optional field that old clients may ignore;
-- `get` reads and verifies through the descriptor, then adapts bytes back to the v1 String content;
-- `list` returns records without loading object bodies.
+- An ordinary Asset omits `artifact`. The Host commits UTF-8 content as a generic blob, creates an `AssetRecord` and `EVENT_ASSET_PUT`, and returns `asset: Some(...)`. `object.get` preserves its original wire contract: request `{ "asset_id": string }`, response `{ "record": AssetRecord, "content": string }`. `object.list` likewise covers only these records.
+- An exact CAS upload must carry `ExactArtifactUpload`, whose descriptor, encoding, and bytes must agree exactly, plus a tagged `ObjectPutScope`. The Host only performs an idempotent `ObjectStore.put` and returns `asset: None` with the exact descriptor. It allocates no `asset_id`, appends no Asset event, never appears in `object.list`, and naturally converges across retries and Host restarts through CAS.
+
+`ObjectPutScope` has only `installation_create { work_id }` and `installation_update { installation_id, work_id }`. An ordinary Asset carrying scope, an exact upload missing scope, or unknown fields must fail closed. Scope only declares which subsequent Installation mutation will consume the object; it carries no local path, raw bytes, or secret and grants no authority.
+
+The HTTP Service and Runtime authorize the same typed params independently. An ordinary Asset requires `access_manage` plus an all-installation selector. A create exact upload requires `installation.manage` and exact `host/work/<work_id>`; an update exact upload additionally requires exact `host/installation/<installation_id>`. The Installation mutation separately checks current authority, its persisted request, and receipts; a plan or successful upload never authorizes the mutation by itself.
+
+Installation state audit on `object.get` is a separate, unambiguous branch: request `{ "installation_state_artifact": ArtifactDescriptor }`, response `{ "descriptor", "content", "content_encoding" }`. It reads only explicitly public state decision receipts / authority evidence whose complete descriptor matches one issued by the authoritative Installation journal. Snapshots, generic exact objects, forged descriptors, and tampered descriptors cannot be read through either branch. The retired tagged `kind: "asset"` form is not an alias.
 
 FNV-1a remains available only through `legacy_content_address()` and the explicit `scheme: "fnv1a64"` compatibility path. It cannot become canonical identity for new objects.
 
@@ -65,7 +68,7 @@ Migration is therefore interruptible and repeatable, with CAS providing natural 
 
 ## Failure and deployment boundaries
 
-An object is committed to CAS before its referencing event is appended. A failed event append may therefore leave an unreachable object, but it cannot return a successful reference to missing bytes. Future reachability-based GC uses the journal as its root set; the failure path must not directly delete a digest that another event may share. The filesystem implementation uses a temporary file, file sync, and atomic rename; on Unix it also syncs the parent directory after publication.
+An ordinary Asset is committed to CAS before its referencing event is appended. A failed event append may therefore leave an unreachable object, but it cannot return a successful reference to missing bytes. An exact upload promises only that CAS stored and verified its descriptor; if the subsequent Installation mutation fails, the object may remain temporarily unreachable, and the failure path must not delete a digest that may be shared. Future reachability-based GC uses the journal as its root set. The filesystem implementation uses a temporary file, file sync, and atomic rename; on Unix it also syncs the parent directory after publication.
 
 The default host stores objects under `<data-dir>/objects`. Moving a SQLite journal requires moving that directory with it; hosts sharing a PostgreSQL event store must likewise deploy/configure a shared object backend. Remote object backends and reachability GC remain later runtime work and do not change the current digest/descriptor contract.
 
@@ -74,4 +77,5 @@ The default host stores objects under `<data-dir>/objects`. Moving a SQLite jour
 - `asset.put_get_list` uses 1 MiB+ content to verify SHA-256 descriptors, v1 reads, and content-free events;
 - `asset.legacy_fnv_migration` verifies idempotent legacy migration and provenance retention;
 - `object_store.portability_integrity` verifies cross-host digest equality, unknown-type copying, streaming, and tamper rejection;
+- scoped exact `object.put` verifies exact Work/Installation authority, no Asset/event/list leakage, retry and restart idempotency, and that an upload failure cannot submit an Installation mutation;
 - `substrate.sqlite_rehydrate` verifies restart recovery using the SQLite journal plus an independent filesystem object directory.

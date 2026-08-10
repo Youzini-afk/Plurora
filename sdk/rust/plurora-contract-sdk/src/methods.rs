@@ -247,6 +247,51 @@ impl PluroraClient {
             .await?;
         Ok(serde_json::from_value(raw)?)
     }
+    pub async fn host_installation_create(
+        &self,
+        params: InstallationCreateRequest,
+    ) -> Result<InstallationMutationResult> {
+        let raw = self
+            .invoke("host.installation.create", serde_json::to_value(params)?)
+            .await?;
+        Ok(serde_json::from_value(raw)?)
+    }
+    pub async fn host_installation_get(
+        &self,
+        params: InstallationGetRequest,
+    ) -> Result<InstallationView> {
+        let raw = self
+            .invoke("host.installation.get", serde_json::to_value(params)?)
+            .await?;
+        Ok(serde_json::from_value(raw)?)
+    }
+    pub async fn host_installation_list(
+        &self,
+        params: InstallationListRequest,
+    ) -> Result<HostInstallationListResult> {
+        let raw = self
+            .invoke("host.installation.list", serde_json::to_value(params)?)
+            .await?;
+        Ok(serde_json::from_value(raw)?)
+    }
+    pub async fn host_installation_remove(
+        &self,
+        params: InstallationRemoveRequest,
+    ) -> Result<InstallationMutationResult> {
+        let raw = self
+            .invoke("host.installation.remove", serde_json::to_value(params)?)
+            .await?;
+        Ok(serde_json::from_value(raw)?)
+    }
+    pub async fn host_installation_update(
+        &self,
+        params: InstallationUpdateRequest,
+    ) -> Result<InstallationMutationResult> {
+        let raw = self
+            .invoke("host.installation.update", serde_json::to_value(params)?)
+            .await?;
+        Ok(serde_json::from_value(raw)?)
+    }
     pub async fn host_outbound_audit(
         &self,
         params: OutboundAuditParams,
@@ -397,42 +442,6 @@ impl PluroraClient {
             .await?;
         Ok(serde_json::from_value(raw)?)
     }
-    pub async fn host_project_get(&self, params: ProjectIdParams) -> Result<HostProjectGetResult> {
-        let raw = self
-            .invoke("host.project.get", serde_json::to_value(params)?)
-            .await?;
-        Ok(serde_json::from_value(raw)?)
-    }
-    pub async fn host_project_list(
-        &self,
-        params: ProjectListParams,
-    ) -> Result<ProjectListResultSchema> {
-        let raw = self
-            .invoke("host.project.list", serde_json::to_value(params)?)
-            .await?;
-        Ok(serde_json::from_value(raw)?)
-    }
-    pub async fn host_project_start(&self, params: ProjectIdParams) -> Result<ProjectStartResult> {
-        let raw = self
-            .invoke("host.project.start", serde_json::to_value(params)?)
-            .await?;
-        Ok(serde_json::from_value(raw)?)
-    }
-    pub async fn host_project_status(
-        &self,
-        params: ProjectIdParams,
-    ) -> Result<ProjectStatusResult> {
-        let raw = self
-            .invoke("host.project.status", serde_json::to_value(params)?)
-            .await?;
-        Ok(serde_json::from_value(raw)?)
-    }
-    pub async fn host_project_stop(&self, params: ProjectIdParams) -> Result<ProjectStopResult> {
-        let raw = self
-            .invoke("host.project.stop", serde_json::to_value(params)?)
-            .await?;
-        Ok(serde_json::from_value(raw)?)
-    }
     pub async fn host_proxy_list(&self, params: EmptyParams) -> Result<HostProxyListResult> {
         let raw = self
             .invoke("host.proxy.list", serde_json::to_value(params)?)
@@ -520,7 +529,7 @@ impl PluroraClient {
             .await?;
         Ok(serde_json::from_value(raw)?)
     }
-    pub async fn object_get(&self, params: AssetGetParams) -> Result<AssetGetResponse> {
+    pub async fn object_get(&self, params: ObjectGetRequest) -> Result<ObjectGetResponse> {
         let raw = self
             .invoke("object.get", serde_json::to_value(params)?)
             .await?;
@@ -532,7 +541,7 @@ impl PluroraClient {
             .await?;
         Ok(serde_json::from_value(raw)?)
     }
-    pub async fn object_put(&self, params: AssetPutRequest) -> Result<AssetRecord> {
+    pub async fn object_put(&self, params: AssetPutRequest) -> Result<ObjectPutResponse> {
         let raw = self
             .invoke("object.put", serde_json::to_value(params)?)
             .await?;

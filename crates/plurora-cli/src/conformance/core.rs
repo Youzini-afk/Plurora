@@ -626,10 +626,11 @@ pub(crate) async fn asset_put_get_list() -> anyhow::Result<()> {
         )
         .await
         .map_err(|error| anyhow::anyhow!(error.message))?;
-    let asset_id = record_value["id"]
+    let asset = &record_value["asset"];
+    let asset_id = asset["id"]
         .as_str()
         .ok_or_else(|| anyhow::anyhow!("asset put returned no id"))?;
-    let digest = record_value["hash"]
+    let digest = asset["hash"]
         .as_str()
         .ok_or_else(|| anyhow::anyhow!("asset put returned no digest"))?;
     anyhow::ensure!(
@@ -637,8 +638,9 @@ pub(crate) async fn asset_put_get_list() -> anyhow::Result<()> {
         "asset digest is not canonical sha256"
     );
     anyhow::ensure!(
-        record_value["descriptor"]["digest"] == json!(digest)
-            && record_value["descriptor"]["size_bytes"] == json!(sentinel.len()),
+        asset["descriptor"]["digest"] == json!(digest)
+            && asset["descriptor"]["size_bytes"] == json!(sentinel.len())
+            && record_value["descriptor"] == asset["descriptor"],
         "asset descriptor does not match legacy record fields"
     );
     let get_value = runtime
@@ -650,8 +652,10 @@ pub(crate) async fn asset_put_get_list() -> anyhow::Result<()> {
         .await
         .map_err(|error| anyhow::anyhow!(error.message))?;
     anyhow::ensure!(
-        get_value["content"] == json!(sentinel),
-        "asset get content mismatch"
+        get_value["content"] == json!(sentinel)
+            && get_value["record"] == *asset
+            && get_value.as_object().is_some_and(|value| value.len() == 2),
+        "asset get did not preserve the original record/content contract"
     );
     let list_value = runtime
         .call_protocol(

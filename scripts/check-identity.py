@@ -145,6 +145,9 @@ EXPECTED_TOP_LEVEL_SCHEMAS = {
     "event-envelope.schema.json",
     "exposure-record.schema.json",
     "installation-record.schema.json",
+    "installation-state-authority-evidence.schema.json",
+    "installation-state-decision-receipt.schema.json",
+    "installation-state-snapshot.schema.json",
     "intent.schema.json",
     "manifest.schema.json",
     "operational-intent.schema.json",
@@ -219,6 +222,14 @@ COMPOSITION_MIGRATION_BRIEFS = {
     "docs/roadmap/WORK_ASSEMBLY_REALIZATION.md",
     "docs/roadmap/WORK_ASSEMBLY_REALIZATION.en.md",
 }
+
+RETIRED_PROJECT_REFERENCES = (
+    literal("retired Project method namespace", "host", ".", "project"),
+    regex("retired Project event namespace", r"host/", "project", r"(?:[./]|$)"),
+    literal("retired Project descriptor", "Project", "Descriptor"),
+    literal("retired Project registry", "Project", "Registry"),
+)
+PROJECT_MIGRATION_BRIEFS = COMPOSITION_MIGRATION_BRIEFS
 
 
 def repository_paths() -> list[str]:
@@ -326,13 +337,57 @@ def check_generated_contract() -> list[str]:
     event_dir = ROOT / "docs/spec/v1/schemas/events"
     top_dir = ROOT / "docs/spec/v1/schemas"
 
+    protocol_source = (ROOT / "crates/plurora-runtime/src/protocol.rs").read_text(encoding="utf-8")
+    source_method_ids = {
+        value
+        for value in re.findall(r'Self::[A-Za-z0-9_]+\s*=>\s*"([a-z][a-z0-9_.]+)"', protocol_source)
+        if value.split(".", 1)[0] in METHOD_OWNERS
+    }
+    event_source = (ROOT / "crates/plurora-core/src/event.rs").read_text(encoding="utf-8")
+    event_constants = dict(
+        re.findall(
+            r'pub const ([A-Z][A-Z0-9_]+):\s*&str\s*=\s*"([a-z][a-z0-9_./-]+)";',
+            event_source,
+        )
+    )
+    registry_match = re.search(
+        r"pub const PLATFORM_EVENT_KINDS:\s*&\[&str\]\s*=\s*&\[(.*?)\];",
+        event_source,
+        flags=re.DOTALL,
+    )
+    if registry_match is None:
+        source_event_kinds: set[str] = set()
+        errors.append("core PLATFORM_EVENT_KINDS registry is missing")
+    else:
+        registry_names = re.findall(
+            r"^\s*([A-Z][A-Z0-9_]+),\s*$",
+            registry_match.group(1),
+            flags=re.MULTILINE,
+        )
+        unknown_names = sorted(set(registry_names) - event_constants.keys())
+        if unknown_names:
+            errors.append(f"core event registry contains unknown constants: {unknown_names}")
+        source_event_kinds = {
+            event_constants[name] for name in registry_names if name in event_constants
+        }
+    if len(source_method_ids) != 80:
+        errors.append(f"expected 80 runtime method identities, found {len(source_method_ids)}")
+    if len(source_event_kinds) != 58:
+        errors.append(f"expected 58 core event identities, found {len(source_event_kinds)}")
+
     method_paths = sorted(method_dir.glob("*.schema.json"))
     event_paths = sorted(event_dir.glob("*.schema.json"))
     top_paths = sorted(top_dir.glob("*.schema.json"))
-    if len(method_paths) != 80:
-        errors.append(f"expected 80 method schemas, found {len(method_paths)}")
-    if len(event_paths) != 59:
-        errors.append(f"expected 59 event schemas, found {len(event_paths)}")
+    if len(method_paths) != len(source_method_ids):
+        errors.append(
+            f"expected {len(source_method_ids)} method schemas from the runtime registry, "
+            f"found {len(method_paths)}"
+        )
+    if len(event_paths) != len(source_event_kinds):
+        errors.append(
+            f"expected {len(source_event_kinds)} event schemas from the core registry, "
+            f"found {len(event_paths)}"
+        )
     actual_top_level_schemas = {path.name for path in top_paths}
     missing_top_level = EXPECTED_TOP_LEVEL_SCHEMAS - actual_top_level_schemas
     extra_top_level = actual_top_level_schemas - EXPECTED_TOP_LEVEL_SCHEMAS
@@ -341,7 +396,7 @@ def check_generated_contract() -> list[str]:
             "top-level schema set differs: "
             f"missing={sorted(missing_top_level)}, extra={sorted(extra_top_level)}"
         )
-    expected_total = 80 + 59 + len(EXPECTED_TOP_LEVEL_SCHEMAS)
+    expected_total = len(source_method_ids) + len(source_event_kinds) + len(EXPECTED_TOP_LEVEL_SCHEMAS)
     if len(method_paths) + len(event_paths) + len(top_paths) != expected_total:
         errors.append(f"expected {expected_total} total public-contract schemas")
 
@@ -395,12 +450,6 @@ def check_generated_contract() -> list[str]:
         if status_mismatches:
             errors.append(f"{relative} method status mismatches: {status_mismatches}")
 
-    protocol_source = (ROOT / "crates/plurora-runtime/src/protocol.rs").read_text(encoding="utf-8")
-    source_method_ids = {
-        value
-        for value in re.findall(r'Self::[A-Za-z0-9_]+\s*=>\s*"([a-z][a-z0-9_.]+)"', protocol_source)
-        if value.split(".", 1)[0] in METHOD_OWNERS
-    }
     if source_method_ids != method_ids:
         errors.append(
             "runtime method registry differs from schemas: "
@@ -419,12 +468,6 @@ def check_generated_contract() -> list[str]:
             errors.append(f"duplicate event kind: {event_kind}")
         event_kinds.add(event_kind)
 
-    event_source = (ROOT / "crates/plurora-core/src/event.rs").read_text(encoding="utf-8")
-    source_event_kinds = {
-        value
-        for value in re.findall(r'pub const [A-Z0-9_]+:\s*&str\s*=\s*"([a-z][a-z0-9_./-]+)";', event_source)
-        if value != "plurora/runtime" and "/" in value
-    }
     if source_event_kinds != event_kinds:
         errors.append(
             "runtime event registry differs from schemas: "
@@ -514,6 +557,25 @@ def check_retired_composition_references(texts: Iterable[tuple[str, str]]) -> li
     return errors
 
 
+def check_retired_project_references(texts: Iterable[tuple[str, str]]) -> list[str]:
+    """Reject retired machine identities from implementation and generated contracts."""
+    errors: list[str] = []
+    source_roots = ("crates/", "clients/", "packages/", "profiles/", "examples/", "sdk/")
+    schema_root = "docs/spec/v1/schemas/"
+    for relative, text in texts:
+        if relative in PROJECT_MIGRATION_BRIEFS:
+            continue
+        if not (relative.startswith(source_roots) or relative.startswith(schema_root)):
+            continue
+        for redline in RETIRED_PROJECT_REFERENCES:
+            match = redline.pattern.search(text)
+            if match:
+                errors.append(
+                    f"{redline.name}: {relative}:{line_number(text, match.start())}"
+                )
+    return errors
+
+
 def main() -> int:
     paths = repository_paths()
     texts = list(tracked_texts(paths))
@@ -521,6 +583,7 @@ def main() -> int:
     errors.extend(check_forbidden_paths(paths))
     errors.extend(check_redlines(paths, texts))
     errors.extend(check_retired_composition_references(texts))
+    errors.extend(check_retired_project_references(texts))
     errors.extend(check_generated_contract())
     errors.extend(check_first_party_manifests())
     errors.extend(check_positive_markers())
@@ -533,7 +596,7 @@ def main() -> int:
 
     print(
         "Plurora identity check passed: "
-        f"zero retired identities; 80 methods, 59 events, {len(EXPECTED_TOP_LEVEL_SCHEMAS)} top-level schemas; "
+        f"zero retired identities; 80 methods, 58 events, {len(EXPECTED_TOP_LEVEL_SCHEMAS)} top-level schemas; "
         "34 first-party Package manifests."
     )
     return 0

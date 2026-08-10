@@ -5,6 +5,7 @@ use std::path::{Path, PathBuf};
 
 use anyhow::Context;
 use fs2::FileExt as _;
+use plurora_work::InstallationId;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 
@@ -20,9 +21,9 @@ struct HostConnectionProfile {
     endpoint: String,
 }
 
-#[derive(Debug, Clone, Default, Deserialize, Serialize, PartialEq, Eq)]
-struct HostProjectTargetContext {
-    project_id: String,
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq)]
+struct InstallationTargetContext {
+    installation_id: InstallationId,
     target_id: String,
 }
 
@@ -34,13 +35,13 @@ struct HostConnectionState {
     #[serde(default)]
     profiles: BTreeMap<String, HostConnectionProfile>,
     #[serde(default)]
-    contexts: BTreeMap<String, HostProjectTargetContext>,
+    contexts: BTreeMap<String, InstallationTargetContext>,
 }
 
 impl Default for HostConnectionState {
     fn default() -> Self {
         Self {
-            version: 1,
+            version: 2,
             active: None,
             profiles: BTreeMap::new(),
             contexts: BTreeMap::new(),
@@ -51,7 +52,7 @@ impl Default for HostConnectionState {
 impl HostConnectionState {
     fn validate(&self) -> anyhow::Result<()> {
         anyhow::ensure!(
-            self.version == 1,
+            self.version == 2,
             "Host connection state version is unsupported"
         );
         anyhow::ensure!(
@@ -87,8 +88,8 @@ impl HostConnectionState {
                 normalize_host_endpoint(endpoint)? == *endpoint,
                 "Host context endpoint is not normalized"
             );
-            normalized_context_id(&context.project_id, "project")?;
-            normalized_context_id(&context.target_id, "target")?;
+            InstallationId::parse(context.installation_id.as_str())?;
+            normalized_target_id(&context.target_id)?;
         }
         Ok(())
     }
@@ -168,9 +169,9 @@ impl HostConnectionState {
         Ok(())
     }
 
-    fn set_context(&mut self, project: &str, target: &str) -> anyhow::Result<()> {
-        let project_id = normalized_context_id(project, "project")?;
-        let target_id = normalized_context_id(target, "target")?;
+    fn set_context(&mut self, installation: &str, target: &str) -> anyhow::Result<()> {
+        let installation_id = InstallationId::parse(installation.trim())?;
+        let target_id = normalized_target_id(target)?;
         if !self.contexts.contains_key(self.endpoint()) {
             anyhow::ensure!(
                 self.contexts.len() < MAX_CONTEXTS,
@@ -179,8 +180,8 @@ impl HostConnectionState {
         }
         self.contexts.insert(
             self.endpoint().to_string(),
-            HostProjectTargetContext {
-                project_id,
+            InstallationTargetContext {
+                installation_id,
                 target_id,
             },
         );
@@ -190,7 +191,7 @@ impl HostConnectionState {
 
 pub(crate) struct ActiveHostContext {
     pub endpoint: String,
-    pub project_id: Option<String>,
+    pub installation_id: Option<InstallationId>,
     pub target_id: Option<String>,
 }
 
@@ -203,7 +204,7 @@ pub(crate) fn resolve(explicit_endpoint: Option<&str>) -> anyhow::Result<ActiveH
     let context = state.contexts.get(&endpoint);
     Ok(ActiveHostContext {
         endpoint,
-        project_id: context.map(|value| value.project_id.clone()),
+        installation_id: context.map(|value| value.installation_id.clone()),
         target_id: context.map(|value| value.target_id.clone()),
     })
 }
@@ -231,8 +232,8 @@ pub fn remove(name: &str) -> anyhow::Result<()> {
     mutate_state(|state| state.remove(name))
 }
 
-pub fn set_context(project: &str, target: &str) -> anyhow::Result<()> {
-    mutate_state(|state| state.set_context(project, target))
+pub fn set_context(installation: &str, target: &str) -> anyhow::Result<()> {
+    mutate_state(|state| state.set_context(installation, target))
 }
 
 pub fn clear_context() -> anyhow::Result<()> {
@@ -354,7 +355,7 @@ fn print_state(state: &HostConnectionState) -> anyhow::Result<()> {
             "active": {
                 "name": state.active.as_deref().unwrap_or("local"),
                 "endpoint": active_endpoint,
-                "project_id": context.map(|value| value.project_id.as_str()),
+                "installation_id": context.map(|value| value.installation_id.as_str()),
                 "target_id": context.map(|value| value.target_id.as_str()),
             },
             "connections": connections,
@@ -374,7 +375,7 @@ fn normalized_name(value: &str) -> anyhow::Result<String> {
     Ok(normalized.to_string())
 }
 
-fn normalized_context_id(value: &str, kind: &str) -> anyhow::Result<String> {
+fn normalized_target_id(value: &str) -> anyhow::Result<String> {
     let normalized = value.trim();
     anyhow::ensure!(
         !normalized.is_empty()
@@ -382,7 +383,7 @@ fn normalized_context_id(value: &str, kind: &str) -> anyhow::Result<String> {
             && normalized
                 .bytes()
                 .all(|byte| byte.is_ascii_alphanumeric() || b"._:/@-".contains(&byte)),
-        "{kind} id is invalid"
+        "target id is invalid"
     );
     Ok(normalized.to_string())
 }
@@ -396,26 +397,50 @@ mod tests {
         let directory = tempfile::tempdir()?;
         let path = directory.path().join(STATE_FILE);
         let mut state = HostConnectionState::default();
-        state.set_context("local-project", "local")?;
+        let local_installation = "11111111-1111-4111-8111-111111111111";
+        let remote_installation = "22222222-2222-4222-8222-222222222222";
+        state.set_context(local_installation, "local")?;
         state.save("remote", "https://host.example/")?;
-        state.set_context("remote-project", "target-a")?;
+        state.set_context(remote_installation, "target-a")?;
         write_state(&path, &state)?;
 
         let loaded = read_state(&path)?;
         assert_eq!(loaded.endpoint(), "https://host.example");
         assert_eq!(
-            loaded.contexts["https://host.example"].project_id,
-            "remote-project"
+            loaded.contexts["https://host.example"].installation_id,
+            InstallationId::parse(remote_installation)?
         );
         assert_eq!(
-            loaded.contexts[LOCAL_HOST_ENDPOINT].project_id,
-            "local-project"
+            loaded.contexts[LOCAL_HOST_ENDPOINT].installation_id,
+            InstallationId::parse(local_installation)?
         );
         let serialized = std::fs::read_to_string(path)?;
         assert!(!serialized.contains("token"));
+        assert!(serialized.contains("installation_id"));
+        assert_eq!(
+            serde_json::from_str::<serde_json::Value>(&serialized)?["version"],
+            2
+        );
+        let retired_key = ["project", "id"].join("_");
+        assert!(!serialized.contains(&retired_key));
 
         state.remove("remote")?;
         assert!(!state.contexts.contains_key("https://host.example"));
+        Ok(())
+    }
+
+    #[test]
+    fn retired_project_context_state_is_not_an_alias() -> anyhow::Result<()> {
+        let directory = tempfile::tempdir()?;
+        let path = directory.path().join(STATE_FILE);
+        let retired_key = ["project", "id"].join("_");
+        std::fs::write(
+            &path,
+            format!(
+                r#"{{"version":1,"active":null,"profiles":{{}},"contexts":{{"{LOCAL_HOST_ENDPOINT}":{{"{retired_key}":"legacy","target_id":"local"}}}}}}"#
+            ),
+        )?;
+        assert!(read_state(&path).is_err());
         Ok(())
     }
 
@@ -424,7 +449,9 @@ mod tests {
         let mut state = HostConnectionState::default();
         state.save("one", "https://host.example")?;
         assert!(state.save("two", "https://host.example/").is_err());
-        assert!(state.set_context("project one", "target-a").is_err());
+        assert!(state
+            .set_context("not-an-installation-uuid", "target-a")
+            .is_err());
         assert!(state.save("insecure", "http://host.example").is_err());
         Ok(())
     }

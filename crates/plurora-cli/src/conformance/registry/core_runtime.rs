@@ -391,74 +391,64 @@ pub(super) fn protocol_cases() -> Vec<ConformanceCase> {
             crate::conformance::protocol::call_capability_in_process
         ),
         c!(
-            "protocol.project_list_returns_registered_projects",
-            ["protocol", "project"],
-            crate::conformance::protocol_project::project_list_returns_registered_projects
+            "installation.protocol_crud_uses_service_registry",
+            ["protocol", "installation", "service"],
+            crate::conformance::protocol_installation::installation_crud_uses_service_registry
         ),
         c!(
-            "protocol.project_get_returns_full_descriptor",
-            ["protocol", "project"],
-            crate::conformance::protocol_project::project_get_returns_full_descriptor
+            "installation.idempotency_replay_and_conflict",
+            ["protocol", "installation", "idempotency"],
+            crate::conformance::protocol_installation::installation_idempotency_replay_and_conflict
         ),
         c!(
-            "protocol.project_start_transitions_state",
-            ["protocol", "project"],
-            crate::conformance::protocol_project::project_start_transitions_state
+            "installation.stale_revision_rejected",
+            ["protocol", "installation", "concurrency"],
+            crate::conformance::protocol_installation::installation_stale_revision_is_rejected
         ),
         c!(
-            "project.start_returns_session_id",
-            ["protocol", "project", "session"],
-            crate::conformance::protocol_project::project_start_returns_session_id
+            "installation.state_migration_explicit",
+            ["protocol", "installation", "state", "migration"],
+            crate::conformance::protocol_installation::installation_state_migration_is_explicit
         ),
         c!(
-            "project.start_idempotent_returns_existing_session",
-            ["protocol", "project", "session"],
-            crate::conformance::protocol_project::project_start_idempotent_returns_existing_session
+            "installation.remove_keep_delete_distinct",
+            ["protocol", "installation", "state", "remove"],
+            crate::conformance::protocol_installation::installation_remove_keep_and_delete_are_distinct
         ),
         c!(
-            "project.session_metadata_carries_project_id",
-            ["protocol", "project", "session"],
-            crate::conformance::protocol_project::project_session_metadata_carries_project_id
+            "installation.journal_restart_rehydrate",
+            ["protocol", "installation", "journal", "rehydrate"],
+            crate::conformance::protocol_installation::installation_journal_rehydrates_after_restart
         ),
         c!(
-            "project.stop_closes_session",
-            ["protocol", "project", "session"],
-            crate::conformance::protocol_project::project_stop_closes_session
+            "installation.exact_authority",
+            ["protocol", "installation", "permission"],
+            crate::conformance::protocol_installation::installation_authority_is_exact
         ),
         c!(
-            "project.get_returns_running_session_id",
-            ["protocol", "project", "session"],
-            crate::conformance::protocol_project::project_get_returns_running_session_id
+            "installation.lifecycle_events",
+            ["protocol", "installation", "event"],
+            crate::conformance::protocol_installation::installation_events_match_public_lifecycle
         ),
         c!(
-            "protocol.project_methods_require_admin_principal",
-            ["protocol", "project", "permission"],
-            crate::conformance::protocol_project::project_methods_require_admin_principal
-        ),
-        c!(
-            "protocol.project_lifecycle_event_emitted_on_start",
-            ["protocol", "project", "event"],
-            crate::conformance::protocol_project::project_lifecycle_event_emitted_on_start
+            "installation.retired_methods_invalid_request",
+            ["protocol", "installation", "identity", "negative"],
+            crate::conformance::protocol_installation::retired_host_methods_are_not_aliases
         ),
         c!(
             "surface.resolve_via_dev_path",
             ["protocol", "surface"],
-            crate::conformance::protocol_project::surface_resolve_via_dev_path
-        ),
-        c!(
-            "surface.resolve_via_installed_project",
-            ["protocol", "surface", "project"],
-            crate::conformance::protocol_project::surface_resolve_via_installed_project
+            crate::conformance::protocol_installation::surface_resolve_via_dev_path
         ),
         c!(
             "surface.resolve_unknown_fails",
             ["protocol", "surface"],
-            crate::conformance::protocol_project::surface_resolve_unknown_fails
+            crate::conformance::protocol_installation::surface_resolve_unknown_fails
         ),
         c!(
             "surface.resolve_admin_principal_required",
             ["protocol", "surface", "permission"],
-            crate::conformance::protocol_project::surface_resolve_admin_principal_required
+            crate::conformance::protocol_installation::surface_resolve_admin_principal_required
         ),
     ]
 }

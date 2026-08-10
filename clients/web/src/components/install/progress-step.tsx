@@ -5,7 +5,7 @@ import { ModalFooter, ModalHeader } from "@/components/ui/modal";
 import { EyebrowSm } from "@/components/ui/typography";
 import { cn } from "@/lib/cn";
 import { useT } from "@/lib/locale";
-import type { InstallExecuteResult, InstallPlan } from "@/protocol/client";
+import type { InstallationMutationResult, InstallPlan } from "@/protocol/client";
 import type { InstallPhase } from "./install-types";
 
 export function ProgressStep({
@@ -19,7 +19,7 @@ export function ProgressStep({
   url: string;
   plan: InstallPlan | null;
   phases: InstallPhase[];
-  result: InstallExecuteResult | null;
+  result: InstallationMutationResult | null;
   error: string | null;
   onCancel: () => void;
 }) {
@@ -29,7 +29,7 @@ export function ProgressStep({
     { id: "detecting", label: t("installPhaseDetectedKind"), detail: t("installPhaseComplete") },
     { id: "reviewed", label: t("installPhasePermissionsApproved"), detail: t("installPhaseComplete") },
     { id: "executing", label: t("installPhaseExecutingPlan"), detail: phases.includes("completed") ? t("installPhaseComplete") : t("installPhaseInProgress") },
-    { id: "completed", label: t("installPhaseInstallCompleted"), detail: result ? t("installPhaseInstalledCount", result.installed.length) : t("installPhaseWaiting") },
+    { id: "completed", label: t("installPhaseInstallCompleted"), detail: result ? t("installPhaseInstalledCount", 1) : t("installPhaseWaiting") },
   ];
   const failed = phases.includes("failed");
   const progress = phases.includes("completed") ? 1 : Math.min(phases.filter((p) => p !== "failed").length / phaseOrder.length, 0.92);
@@ -112,7 +112,7 @@ export function ProgressStep({
           {phases.includes("detecting") ? <p>{t("installActivityDetectKind")}</p> : null}
           {phases.includes("reviewed") ? <p>{t("installActivityPermissionsApproved")}</p> : null}
           {phases.includes("executing") ? <p className={cn("border-l-2 pl-2", failed ? "border-deep-rust text-deep-rust" : "border-aged-brass text-charcoal-ink")}>{t("installActivityExecutePlan", failed ? t("installActivityStatusFailed") : phases.includes("completed") ? t("installActivityStatusCompleted") : t("installActivityStatusRunning"))}</p> : null}
-          {result?.project?.project_id ? <p>{t("installActivityRegisteredProject", result.project.project_id)}</p> : null}
+          {result?.installation.record.installation_id ? <p>{t("installActivityRegisteredInstallation", result.installation.record.installation_id)}</p> : null}
           {result ? <p>{t("installActivityProfileUpdated")}</p> : null}
           {error ? <p className="whitespace-pre-wrap text-deep-rust">{error}</p> : null}
         </div>

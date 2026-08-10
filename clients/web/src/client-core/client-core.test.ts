@@ -4,8 +4,8 @@ import {
   PendingCredentialLease,
   browserAccessTokenStorageKey,
 } from "./credentials";
-import { PROJECT_SHELL_HISTORY_STATE, shouldReturnToShellHistory } from "./platform-adapter";
-import { BrowserProjectTargetContextStore } from "./project-target-context";
+import { INSTALLATION_SHELL_HISTORY_STATE, shouldReturnToShellHistory } from "./platform-adapter";
+import { BrowserInstallationTargetContextStore } from "./installation-target-context";
 import {
   BrowserHostConnectionStore,
   HOST_CONNECTIONS_STORAGE_KEY,
@@ -40,7 +40,7 @@ let replaced = "";
 const credential = new BrowserCredentialProvider({
   localStorage: storage,
   location: {
-    pathname: "/project/demo",
+    pathname: "/installation/demo",
     search: "?keep=1&plurora_token=&access_token=fallback-token",
     hash: "#view",
   },
@@ -51,7 +51,7 @@ const credential = new BrowserCredentialProvider({
 });
 
 assertEqual(credential.consumeBootstrap(), "fallback-token");
-assertEqual(replaced, "/project/demo?keep=1#view");
+assertEqual(replaced, "/installation/demo?keep=1#view");
 credential.write("stored-token");
 assertEqual(storage.getItem(BROWSER_ACCESS_TOKEN_STORAGE_KEY), "stored-token");
 assertEqual(credential.read(), "stored-token");
@@ -75,7 +75,7 @@ pending.clear();
 assertEqual(pending.resolve(), undefined);
 
 assertEqual(shouldReturnToShellHistory({ length: 5, state: null }), false);
-assertEqual(shouldReturnToShellHistory({ length: 5, state: { [PROJECT_SHELL_HISTORY_STATE]: true } }), true);
+assertEqual(shouldReturnToShellHistory({ length: 5, state: { [INSTALLATION_SHELL_HISTORY_STATE]: true } }), true);
 
 assertEqual(normalizeHostBaseUrl("https://host.example///"), "https://host.example");
 assertEqual(resolveHostBaseUrl("https://host.example/root/"), "https://host.example/root");
@@ -113,13 +113,13 @@ assertEqual(connections.active(), undefined);
 assertEqual(connections.list().length, 0);
 assertEqual(connectionStorage.getItem(HOST_CONNECTIONS_STORAGE_KEY), null);
 
-const projectContexts = new BrowserProjectTargetContextStore(connectionStorage, remote.id);
-projectContexts.set("project-one", "target-a");
-assertEqual(projectContexts.get("project-one"), "target-a");
-const otherHostContexts = new BrowserProjectTargetContextStore(
+const installationContexts = new BrowserInstallationTargetContextStore(connectionStorage, remote.id);
+installationContexts.set("installation-one", "target-a");
+assertEqual(installationContexts.get("installation-one"), "target-a");
+const otherHostContexts = new BrowserInstallationTargetContextStore(
   connectionStorage,
   "https://other.example",
 );
-assertEqual(otherHostContexts.get("project-one"), undefined);
-projectContexts.clear("project-one");
-assertEqual(projectContexts.get("project-one"), undefined);
+assertEqual(otherHostContexts.get("installation-one"), undefined);
+installationContexts.clear("installation-one");
+assertEqual(installationContexts.get("installation-one"), undefined);

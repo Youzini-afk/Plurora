@@ -135,7 +135,7 @@ cargo run -p plurora-cli -- play-create-demo
 | 接入公开协议 | [`docs/protocol/PUBLIC_PROTOCOL.md`](docs/protocol/PUBLIC_PROTOCOL.md) → [`docs/spec/PUBLIC_CONTRACT.md`](docs/spec/PUBLIC_CONTRACT.md) |
 | 看长期合同分层 | [`docs/architecture/CONSTITUTION_V2.md`](docs/architecture/CONSTITUTION_V2.md) → [`docs/spec/CONTRACT_LAYERING_MATRIX.md`](docs/spec/CONTRACT_LAYERING_MATRIX.md) |
 | 写第一个 Package / Component | [`docs/guides/PACKAGE_AUTHORING_WALKTHROUGH.md`](docs/guides/PACKAGE_AUTHORING_WALKTHROUGH.md) |
-| 安装 Package / Project | [`docs/guides/PACKAGE_INSTALLATION.md`](docs/guides/PACKAGE_INSTALLATION.md) → [`docs/guides/PROJECT_MODEL.md`](docs/guides/PROJECT_MODEL.md) |
+| 打包 Work / 创建 Installation | [`docs/guides/PACKAGE_INSTALLATION.md`](docs/guides/PACKAGE_INSTALLATION.md) → [`docs/guides/INSTALLATION_MODEL.md`](docs/guides/INSTALLATION_MODEL.md) |
 | 管理 API key / secret | [`docs/guides/SECRET_MANAGEMENT.md`](docs/guides/SECRET_MANAGEMENT.md) |
 | 写 agent / 模型 / 体验组件 | [`docs/guides/AGENT_PACKAGE_AUTHORING.md`](docs/guides/AGENT_PACKAGE_AUTHORING.md)、[`docs/guides/MODEL_PROVIDER_INTEGRATION.md`](docs/guides/MODEL_PROVIDER_INTEGRATION.md)、[`docs/guides/EXPERIENCE_RUNTIME_AUTHORING.md`](docs/guides/EXPERIENCE_RUNTIME_AUTHORING.md) |
 | 挂载第三方 Web Surface | [`docs/guides/SURFACE_HOSTING.md`](docs/guides/SURFACE_HOSTING.md) |

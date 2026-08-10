@@ -41,74 +41,6 @@ pub(crate) struct PackageIdParams {
     package_id: String,
 }
 #[derive(JsonSchema)]
-pub(crate) struct ProjectIdParams {
-    project_id: plurora_core::project::ProjectId,
-}
-#[derive(JsonSchema)]
-pub(crate) struct ProjectListParams {
-    filter_state: Option<plurora_core::project::ProjectState>,
-}
-#[derive(JsonSchema)]
-#[serde(rename_all = "snake_case")]
-pub(crate) enum StorageMeasurementStateSchema {
-    Measured,
-    Unknown,
-}
-#[derive(JsonSchema)]
-pub(crate) struct ProjectStorageSummarySchema {
-    data_bytes: Option<u64>,
-    cache_bytes: Option<u64>,
-    bundle_bytes: Option<u64>,
-    log_bytes: Option<u64>,
-    total_bytes: Option<u64>,
-    measured_at: Option<chrono::DateTime<chrono::Utc>>,
-    measurement_state: StorageMeasurementStateSchema,
-}
-#[derive(JsonSchema)]
-pub(crate) struct ProjectListItemSchema {
-    id: plurora_core::project::ProjectId,
-    title: String,
-    description: String,
-    #[serde(rename = "type")]
-    project_type: plurora_core::project::ProjectType,
-    state: plurora_core::project::ProjectState,
-    icon: Option<String>,
-    entry_surface_id: Option<String>,
-    storage_summary: Option<ProjectStorageSummarySchema>,
-    #[schemars(schema_with = "string_schema")]
-    running_session_id: Option<String>,
-}
-#[derive(JsonSchema)]
-pub(crate) struct ProjectListResultSchema {
-    projects: Vec<ProjectListItemSchema>,
-}
-#[derive(JsonSchema)]
-pub(crate) struct ProjectStartResult {
-    project_id: plurora_core::project::ProjectId,
-    previous_state: plurora_core::project::ProjectState,
-    new_state: plurora_core::project::ProjectState,
-    session_id: String,
-    already_running: bool,
-}
-#[derive(JsonSchema)]
-pub(crate) struct ProjectStopResult {
-    project_id: plurora_core::project::ProjectId,
-    previous_state: plurora_core::project::ProjectState,
-    new_state: plurora_core::project::ProjectState,
-    #[schemars(schema_with = "string_schema")]
-    session_id: Option<String>,
-}
-#[derive(JsonSchema)]
-pub(crate) struct ProjectStatusResult {
-    project_id: plurora_core::project::ProjectId,
-    state: plurora_core::project::ProjectState,
-    sessions_count: usize,
-    secrets_count: usize,
-    #[schemars(schema_with = "string_schema")]
-    running_session_id: Option<String>,
-    storage_summary: Option<ProjectStorageSummarySchema>,
-}
-#[derive(JsonSchema)]
 pub(crate) struct TargetIdParams {
     target_id: String,
 }
@@ -125,17 +57,35 @@ pub(crate) struct ProxyRouteIdParams {
     route_id: String,
 }
 #[derive(JsonSchema)]
-pub(crate) struct ProjectLifecyclePayloadSchema {
-    project_id: plurora_core::project::ProjectId,
-    title: String,
-    #[serde(rename = "type")]
-    project_type: plurora_core::project::ProjectType,
-    previous_state: Option<plurora_core::project::ProjectState>,
-    new_state: plurora_core::project::ProjectState,
+pub(crate) struct InstallationIdempotencyClaimSchema {
+    /// SHA-256 of the caller-supplied key. The raw idempotency key is never journaled.
+    key_hash: String,
+    /// SHA-256 of the canonical mutation request fingerprint.
+    fingerprint: String,
+    result: InstallationMutationResult,
 }
 #[derive(JsonSchema)]
-pub(crate) struct AssetGetParams {
-    asset_id: String,
+pub(crate) struct InstallationCreatedPayloadSchema {
+    view: InstallationView,
+    claim: InstallationIdempotencyClaimSchema,
+}
+#[derive(JsonSchema)]
+pub(crate) struct InstallationUpdatedPayloadSchema {
+    /// Internal UUID for a state-changing operation; null for pointer-only updates.
+    #[schemars(required, schema_with = "required_nullable_string_schema")]
+    operation_id: Option<String>,
+    previous_revision: u64,
+    view: InstallationView,
+    claim: InstallationIdempotencyClaimSchema,
+}
+#[derive(JsonSchema)]
+pub(crate) struct InstallationRemovedPayloadSchema {
+    /// Internal UUID for state deletion; null when state is explicitly retained.
+    #[schemars(required, schema_with = "required_nullable_string_schema")]
+    operation_id: Option<String>,
+    previous_revision: u64,
+    view: InstallationView,
+    claim: InstallationIdempotencyClaimSchema,
 }
 #[derive(JsonSchema)]
 pub(crate) struct ProjectionIdParams {
@@ -165,17 +115,18 @@ pub(crate) struct SurfaceResolveBundleParams {
 #[derive(JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub(crate) enum SurfaceBundleSourceSchema {
-    InstalledProject,
+    Package,
     DevPath,
 }
 #[derive(JsonSchema)]
 pub(crate) struct SurfaceResolveBundleResult {
     surface_id: String,
     bundle_url: String,
+    bundle_fingerprint: Option<String>,
     export_name: String,
     stylesheets: Vec<String>,
     wrapper_class: Option<String>,
-    project_id: Option<String>,
+    package_id: Option<String>,
     source: SurfaceBundleSourceSchema,
 }
 #[derive(JsonSchema)]
@@ -297,13 +248,16 @@ pub(crate) fn optional_json_value_schema(
     schemars::schema::Schema::Bool(true)
 }
 
-pub(crate) fn string_schema(
+pub(crate) fn required_nullable_string_schema(
     _gen: &mut schemars::r#gen::SchemaGenerator,
 ) -> schemars::schema::Schema {
     use schemars::schema::{InstanceType, Schema, SchemaObject, SingleOrVec};
 
     let mut schema = SchemaObject::default();
-    schema.instance_type = Some(SingleOrVec::Single(Box::new(InstanceType::String)));
+    schema.instance_type = Some(SingleOrVec::Vec(vec![
+        InstanceType::String,
+        InstanceType::Null,
+    ]));
     Schema::Object(schema)
 }
 

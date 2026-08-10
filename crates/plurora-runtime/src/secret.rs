@@ -207,12 +207,12 @@ impl HostSecretResolver for StoreSecretResolver {
 /// Routing:
 /// - `secret_ref:env:` (and variants) → env_resolver
 /// - `secret_ref:store:` (and variants) → store_resolver
-/// - `secret_ref:project:` → project_resolver
+/// - `secret_ref:installation:` → installation_resolver
 /// - Everything else → DenyAll error
 pub struct CompositeSecretResolver {
     env_resolver: Option<Arc<EnvSecretResolver>>,
     store_resolver: Option<Arc<StoreSecretResolver>>,
-    project_resolver: Option<Arc<crate::project_secret::ProjectStoreSecretResolver>>,
+    installation_resolver: Option<Arc<crate::installation_secret::InstallationStoreSecretResolver>>,
 }
 
 impl CompositeSecretResolver {
@@ -220,7 +220,7 @@ impl CompositeSecretResolver {
         Self {
             env_resolver: None,
             store_resolver: None,
-            project_resolver: None,
+            installation_resolver: None,
         }
     }
 
@@ -234,11 +234,11 @@ impl CompositeSecretResolver {
         self
     }
 
-    pub fn with_project(
+    pub fn with_installation(
         mut self,
-        r: Arc<crate::project_secret::ProjectStoreSecretResolver>,
+        resolver: Arc<crate::installation_secret::InstallationStoreSecretResolver>,
     ) -> Self {
-        self.project_resolver = Some(r);
+        self.installation_resolver = Some(resolver);
         self
     }
 }
@@ -264,13 +264,13 @@ impl HostSecretResolver for CompositeSecretResolver {
                 None => anyhow::bail!("store resolver not configured (ref_id='{}')", ref_id),
             };
         }
-        if plurora_core::secret_ref::is_project_backed_ref(ref_id) {
-            return match &self.project_resolver {
-                Some(r) => r.resolve(ref_id).await,
-                None => anyhow::bail!("project resolver not configured (ref_id='{}')", ref_id),
+        if plurora_core::secret_ref::is_installation_backed_ref(ref_id) {
+            return match &self.installation_resolver {
+                Some(resolver) => resolver.resolve(ref_id).await,
+                None => anyhow::bail!("installation resolver not configured"),
             };
         }
-        anyhow::bail!("unsupported secret reference scheme (ref_id='{}')", ref_id);
+        anyhow::bail!("unsupported secret reference scheme");
     }
 }
 

@@ -7,10 +7,10 @@ export interface HeroProps {
   meta: string;
   continueEntry: ContinueCardEntry | null;
   continueLabels: ContinueCardLabels;
-  hasInstalledProjects: boolean;
-  onContinue: (projectId: string) => void;
+  hasInstalledInstallations: boolean;
+  onContinue: (installationId: string) => void;
   onInstall: () => void;
-  onBrowseProjects?: () => void;
+  onBrowseInstallations?: () => void;
 }
 
 export function Hero({
@@ -19,10 +19,10 @@ export function Hero({
   meta,
   continueEntry,
   continueLabels,
-  hasInstalledProjects,
+  hasInstalledInstallations,
   onContinue,
   onInstall,
-  onBrowseProjects,
+  onBrowseInstallations,
 }: HeroProps) {
   return (
     <section className="grid grid-cols-1 gap-8 lg:grid-cols-[1fr_auto] lg:gap-12">
@@ -37,8 +37,8 @@ export function Hero({
           labels={continueLabels}
           onContinue={onContinue}
           onInstall={onInstall}
-          onBrowseProjects={onBrowseProjects}
-          hasInstalledProjects={hasInstalledProjects}
+          onBrowseInstallations={onBrowseInstallations}
+          hasInstalledInstallations={hasInstalledInstallations}
         />
       </div>
     </section>

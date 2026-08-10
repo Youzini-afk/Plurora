@@ -4,651 +4,394 @@ use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result};
 use plurora_core::{
-    DependencySource, LockEntry, Lockfile, PackageDependency, PackageManifest, PermissionSet,
+    package_envelope_for_manifest, protocol_profile_pins_for_envelope, ComponentLockPin,
+    PackageManifest, PermissionSet,
 };
 use serde_json::{json, Value};
 use uuid::Uuid;
 
+use super::candidate::{build_foreign_candidate, build_package_candidate};
+use super::detection::{detect_descriptor, detect_source_kind};
 use super::executor::{
-    compute_file_hash, compute_manifest_hash, compute_tree_hash, invoke_package_capability,
+    compute_external_tree_hash, compute_manifest_hash, compute_tree_hash, invoke_package_capability,
 };
 use super::source::{
-    block_on_current, manifest_path_in, parse_manifest_at, parse_project_descriptor_at,
-    parse_root_descriptor, resolve_dep, sorted_vec, value_str,
+    block_on_current, dependency_source, manifest_path_in, parse_manifest_at,
+    parse_root_descriptor, sorted_vec, value_str, SourceDescriptor,
 };
 use super::types::{
-    Consent, InstallPlan, IntegritySummary, PackageDescriptor, PermissionsSummary, PlannedPackage,
-    PlannedPermissions, PlannedRequirement, ResolvePlanInput, ResolvedPackages, SignatureSummary,
-    SourceDescriptor,
+    Consent, InstallPlan, IntegritySummary, PermissionsSummary, PlannedConformance, PlannedPackage,
+    PlannedPackageSourceKind, PlannedPermissions, PlannedRequirement, ResolvePlanInput,
+    SignatureSummary, SourceKind, WorkCandidate, WorkCandidateStatus,
 };
 
-const MAX_DEPTH: usize = 32;
+const MAX_DEPENDENCY_DEPTH: usize = 32;
+
+#[derive(Debug, Clone)]
+pub(super) struct ResolvedPackage {
+    pub(super) planned: PlannedPackage,
+    pub(super) manifest: PackageManifest,
+}
+
+#[derive(Debug)]
+pub(super) struct ResolvedPackageGraph {
+    pub(super) packages: Vec<ResolvedPackage>,
+    temporary_roots: Vec<PathBuf>,
+}
+
+impl Drop for ResolvedPackageGraph {
+    fn drop(&mut self) {
+        for root in &self.temporary_roots {
+            if root.is_dir() && !root.is_symlink() {
+                let _ = fs::remove_dir_all(root);
+            }
+        }
+    }
+}
 
 pub(super) async fn resolve_plan(input: Value) -> Result<Value> {
     if input.as_object().is_some_and(|object| object.is_empty()) {
         anyhow::bail!("unsupported smoke input: missing root_url");
     }
     let input: ResolvePlanInput = serde_json::from_value(input)?;
-    let root = parse_root_descriptor(&input.root_url, &input.root_ref)?;
-    let mut packages = Vec::new();
-    let mut project_descriptor = None;
-    let mut visited = HashSet::new();
-    let mut stack = Vec::new();
-    let mut resolving = HashSet::new();
-    match &root.source {
-        SourceDescriptor::Local { path } => {
-            let canonical = fs::canonicalize(path).with_context(|| {
-                format!("failed to canonicalize local package {}", path.display())
-            })?;
-            let project_yaml = canonical.join("project.yaml");
-            if project_yaml.is_file() {
-                let descriptor = parse_project_descriptor_at(&project_yaml)?;
-                project_descriptor = Some(descriptor.clone());
-                resolve_project_packages(
-                    &canonical,
-                    &descriptor,
-                    ProjectPackageSource::Local {
-                        path: project_root_path(&canonical),
-                    },
-                    input.strict_conformance,
-                    &mut visited,
-                    &mut resolving,
-                    &mut stack,
-                    &mut packages,
-                )?;
-            } else {
-                resolve_transitive(
-                    root,
-                    input.require_signed,
-                    input.strict_conformance,
-                    &mut project_descriptor,
-                    &mut visited,
-                    &mut resolving,
-                    &mut stack,
-                    &mut packages,
-                    MAX_DEPTH,
-                )?;
-            }
-        }
-        _ => resolve_transitive(
-            root,
-            input.require_signed,
-            input.strict_conformance,
-            &mut project_descriptor,
-            &mut visited,
-            &mut resolving,
-            &mut stack,
-            &mut packages,
-            MAX_DEPTH,
-        )?,
-    }
+    let source = parse_root_descriptor(&input.root_url, &input.root_ref)?;
+    let source_kind = detect_descriptor(&source).await?;
 
-    let mut lock_map = HashMap::<String, LockEntry>::new();
-    if let Some(lockfile) = input.lockfile.as_deref() {
-        let lock: Lockfile = toml::from_str(lockfile).context("failed to parse lockfile TOML")?;
-        lock.validate().context("invalid lockfile")?;
-        for entry in lock.package {
-            lock_map.insert(entry.id.clone(), entry);
+    let plan = match source_kind {
+        SourceKind::Work => work_authoring_plan(&source)?,
+        SourceKind::Package => {
+            let graph =
+                resolve_package_graph(source, input.require_signed, input.strict_conformance)
+                    .await?;
+            package_plan(&graph)?
         }
-    }
-    let mut drift = Vec::new();
-    for pkg in &packages {
-        if let Some(expected) = lock_map.get(&pkg.id) {
-            if expected.manifest_hash != pkg.manifest_hash {
-                drift.push(json!({
-                    "id": pkg.id,
-                    "kind": "manifest_hash",
-                    "expected": expected.manifest_hash,
-                    "actual": pkg.manifest_hash,
-                }));
-            }
-            if expected.package_envelope_digest.is_some()
-                && expected.package_envelope_digest != pkg.package_envelope_digest
-            {
-                drift.push(json!({
-                    "id": pkg.id,
-                    "kind": "package_envelope_digest",
-                    "expected": expected.package_envelope_digest,
-                    "actual": pkg.package_envelope_digest,
-                }));
-            }
-            if !expected.component_pins.is_empty() && expected.component_pins != pkg.component_pins
-            {
-                drift.push(json!({
-                    "id": pkg.id,
-                    "kind": "component_pins",
-                    "expected": expected.component_pins,
-                    "actual": pkg.component_pins,
-                }));
-            }
-            if !expected.protocol_profile_pins.is_empty()
-                && expected.protocol_profile_pins != pkg.protocol_profile_pins
-            {
-                drift.push(json!({
-                    "id": pkg.id,
-                    "kind": "protocol_profile_pins",
-                    "expected": expected.protocol_profile_pins,
-                    "actual": pkg.protocol_profile_pins,
-                }));
-            }
-            if !expected.content_roots.is_empty() && expected.content_roots != pkg.content_roots {
-                drift.push(json!({
-                    "id": pkg.id,
-                    "kind": "content_roots",
-                    "expected": expected.content_roots,
-                    "actual": pkg.content_roots,
-                }));
-            }
+        SourceKind::Foreign => {
+            let (source_digest, display_name) = inspect_foreign_source(&source).await?;
+            foreign_plan(&source_digest, display_name)?
         }
-    }
+    };
+    Ok(json!({ "plan": plan }))
+}
 
-    let permissions_summary = aggregate_permissions(&packages);
-    let unsigned_packages = packages
+fn work_authoring_plan(source: &SourceDescriptor) -> Result<InstallPlan> {
+    let display_name = source_display_name(source, "Work source");
+    Ok(InstallPlan {
+        source_kind: SourceKind::Work,
+        root_id: String::new(),
+        packages: Vec::new(),
+        work_candidate: WorkCandidate {
+            source_kind: SourceKind::Work,
+            status: WorkCandidateStatus::AuthoringRequired,
+            display_name,
+            work_revision: None,
+            assembly_lock: None,
+            closure: Vec::new(),
+            diagnostics: vec![json!({
+                "code": "work_pack_required",
+                "message": "work.yaml is an authoring source and must be packed before installation",
+                "next_step": "plurora work pack",
+            })],
+        },
+        permissions_summary: PermissionsSummary::default(),
+        signature_summary: SignatureSummary {
+            all_signed: true,
+            unsigned_packages: Vec::new(),
+        },
+        integrity_summary: IntegritySummary {
+            all_objects_content_addressed: false,
+            drift_detected: Vec::new(),
+        },
+    })
+}
+
+fn package_plan(graph: &ResolvedPackageGraph) -> Result<InstallPlan> {
+    let built = build_package_candidate(&graph.packages)?;
+    let packages = graph
+        .packages
         .iter()
-        .filter(|pkg| !pkg.signed)
-        .map(|pkg| pkg.id.clone())
+        .map(|package| package.planned.clone())
         .collect::<Vec<_>>();
     let root_id = packages
         .first()
-        .map(|pkg| pkg.id.clone())
-        .unwrap_or_default();
-    let plan = InstallPlan {
+        .map(|package| package.id.clone())
+        .ok_or_else(|| anyhow::anyhow!("package resolution produced no root package"))?;
+    let unsigned_packages = packages
+        .iter()
+        .filter(|package| !package.signed)
+        .map(|package| package.id.clone())
+        .collect::<Vec<_>>();
+    Ok(InstallPlan {
+        source_kind: SourceKind::Package,
         root_id,
-        packages,
-        project_descriptor,
-        permissions_summary,
+        permissions_summary: aggregate_permissions(&packages),
         signature_summary: SignatureSummary {
             all_signed: unsigned_packages.is_empty(),
             unsigned_packages,
         },
         integrity_summary: IntegritySummary {
-            manifest_hashes_match_lockfile: drift.is_empty(),
-            drift_detected: drift,
+            all_objects_content_addressed: true,
+            drift_detected: Vec::new(),
         },
+        packages,
+        work_candidate: built.work_candidate,
+    })
+}
+
+pub(super) fn foreign_plan(source_digest: &str, display_name: String) -> Result<InstallPlan> {
+    let built = build_foreign_candidate(source_digest, display_name)?;
+    Ok(InstallPlan {
+        source_kind: SourceKind::Foreign,
+        root_id: built.root_id,
+        packages: Vec::new(),
+        work_candidate: built.work_candidate,
+        permissions_summary: PermissionsSummary::default(),
+        signature_summary: SignatureSummary {
+            all_signed: false,
+            unsigned_packages: Vec::new(),
+        },
+        integrity_summary: IntegritySummary {
+            all_objects_content_addressed: true,
+            drift_detected: Vec::new(),
+        },
+    })
+}
+
+pub(super) async fn resolve_package_graph(
+    source: SourceDescriptor,
+    require_signed: bool,
+    strict_conformance: bool,
+) -> Result<ResolvedPackageGraph> {
+    let mut graph = ResolvedPackageGraph {
+        packages: Vec::new(),
+        temporary_roots: Vec::new(),
     };
-    Ok(json!({ "plan": plan }))
+    let mut visited = HashMap::<String, String>::new();
+    let mut stack = Vec::new();
+    resolve_package_recursive(
+        source,
+        require_signed,
+        strict_conformance,
+        MAX_DEPENDENCY_DEPTH,
+        &mut visited,
+        &mut stack,
+        &mut graph,
+    )?;
+    Ok(graph)
 }
 
-fn resolve_project_packages(
-    project_root: &Path,
-    descriptor: &plurora_core::ProjectDescriptor,
-    source: ProjectPackageSource,
-    strict_conformance: bool,
-    visited: &mut HashSet<String>,
-    resolving: &mut HashSet<String>,
-    stack: &mut Vec<String>,
-    plan: &mut Vec<PlannedPackage>,
-) -> Result<()> {
-    let tree_hash = block_on_current(compute_tree_hash(project_root))?;
-    let mut ignored_project_descriptor = None;
-    for manifest_ref in &descriptor.project.packages {
-        let relative = normalize_relative_manifest_path(manifest_ref)?;
-        let manifest_path = project_root.join(&relative);
-        if !manifest_path.is_file() {
-            anyhow::bail!(
-                "project package manifest does not exist: {}",
-                manifest_path.display()
-            );
-        }
-        let manifest = parse_manifest_at(&manifest_path)?;
-        let manifest_hash = block_on_current(compute_manifest_hash(&manifest_path))?;
-        let package_root = manifest_path.parent().unwrap_or(project_root);
-        let mut planned = planned_from_manifest(
-            &manifest,
-            package_root,
-            source.source_kind().to_string(),
-            source.url().map(str::to_string),
-            source.ref_name().map(str::to_string),
-            source.path().map(str::to_string),
-            source.commit_sha().map(str::to_string),
-            manifest_hash,
-            tree_hash.clone(),
-            Some(relative),
-            source.signed(),
-            None,
-        )?;
-        attach_conformance(&mut planned, package_root, strict_conformance)?;
-        push_resolved_package(
-            planned,
-            false,
-            strict_conformance,
-            &mut ignored_project_descriptor,
-            visited,
-            resolving,
-            stack,
-            plan,
-            MAX_DEPTH,
-        )?;
-    }
-    Ok(())
-}
-
-#[derive(Clone)]
-enum ProjectPackageSource {
-    Local {
-        path: String,
-    },
-    Git {
-        url: String,
-        ref_name: String,
-        commit_sha: String,
-        signed: bool,
-    },
-}
-
-impl ProjectPackageSource {
-    fn source_kind(&self) -> &'static str {
-        match self {
-            Self::Local { .. } => "local",
-            Self::Git { .. } => "git",
-        }
-    }
-
-    fn url(&self) -> Option<&str> {
-        match self {
-            Self::Local { .. } => None,
-            Self::Git { url, .. } => Some(url),
-        }
-    }
-
-    fn ref_name(&self) -> Option<&str> {
-        match self {
-            Self::Local { .. } => None,
-            Self::Git { ref_name, .. } => Some(ref_name),
-        }
-    }
-
-    fn path(&self) -> Option<&str> {
-        match self {
-            Self::Local { path } => Some(path),
-            Self::Git { .. } => None,
-        }
-    }
-
-    fn commit_sha(&self) -> Option<&str> {
-        match self {
-            Self::Local { .. } => None,
-            Self::Git { commit_sha, .. } => Some(commit_sha),
-        }
-    }
-
-    fn signed(&self) -> bool {
-        match self {
-            Self::Local { .. } => false,
-            Self::Git { signed, .. } => *signed,
-        }
-    }
-}
-
-fn project_root_path(path: &Path) -> String {
-    path.to_string_lossy().to_string()
-}
-
-fn resolve_transitive(
-    root: PackageDescriptor,
+#[allow(clippy::too_many_arguments)]
+fn resolve_package_recursive(
+    source: SourceDescriptor,
     require_signed: bool,
     strict_conformance: bool,
-    project_descriptor: &mut Option<plurora_core::ProjectDescriptor>,
-    visited: &mut HashSet<String>,
-    resolving: &mut HashSet<String>,
+    remaining_depth: usize,
+    visited: &mut HashMap<String, String>,
     stack: &mut Vec<String>,
-    plan: &mut Vec<PlannedPackage>,
-    max_depth: usize,
+    graph: &mut ResolvedPackageGraph,
 ) -> Result<()> {
-    if max_depth == 0 {
-        anyhow::bail!("dependency depth exceeded {MAX_DEPTH} (possible cycle)");
+    anyhow::ensure!(remaining_depth > 0, "package dependency depth exceeds 32");
+    let materialized = materialize_package_source(source, require_signed, graph)?;
+    let manifest_path = manifest_path_in(&materialized.root)?;
+    let manifest = parse_manifest_at(&manifest_path)?;
+    manifest
+        .validate_basic()
+        .context("package manifest is invalid")?;
+    let package_id = manifest.id.clone();
+    if let Some(position) = stack.iter().position(|id| id == &package_id) {
+        let mut cycle = stack[position..].to_vec();
+        cycle.push(package_id);
+        anyhow::bail!("package dependency cycle detected: {}", cycle.join(" -> "));
     }
 
-    match &root.source {
-        SourceDescriptor::Internal => return Ok(()),
-        SourceDescriptor::Local { path } => {
-            if !path.exists() {
-                anyhow::bail!("local dependency path does not exist: {}", path.display());
-            }
-        }
-        SourceDescriptor::Git { .. } => {}
-    }
-
-    let resolved = resolve_one(root, require_signed, strict_conformance)?;
-    if project_descriptor.is_none() {
-        *project_descriptor = resolved.project_descriptor;
-    }
-    for resolved in resolved.packages {
-        push_resolved_package(
-            resolved,
-            require_signed,
-            strict_conformance,
-            project_descriptor,
-            visited,
-            resolving,
-            stack,
-            plan,
-            max_depth,
-        )?;
-    }
-    Ok(())
-}
-
-fn push_resolved_package(
-    resolved: PlannedPackage,
-    require_signed: bool,
-    strict_conformance: bool,
-    project_descriptor: &mut Option<plurora_core::ProjectDescriptor>,
-    visited: &mut HashSet<String>,
-    resolving: &mut HashSet<String>,
-    stack: &mut Vec<String>,
-    plan: &mut Vec<PlannedPackage>,
-    max_depth: usize,
-) -> Result<()> {
-    if let Some(pos) = stack.iter().position(|id| id == &resolved.id) {
-        let mut cycle = stack[pos..].to_vec();
-        cycle.push(resolved.id.clone());
-        anyhow::bail!("dependency cycle detected: {}", cycle.join(" -> "));
-    }
-    if visited.contains(&resolved.id) {
+    let manifest_hash = block_on_current(compute_manifest_hash(&manifest_path))?;
+    let tree_hash = block_on_current(compute_tree_hash(&materialized.root))?;
+    if let Some(previous) = visited.get(&manifest.id) {
+        anyhow::ensure!(
+            previous == &tree_hash,
+            "package dependency identity resolved to more than one content digest"
+        );
         return Ok(());
     }
-    if !resolving.insert(resolved.id.clone()) {
-        anyhow::bail!("dependency cycle detected at {}", resolved.id);
-    }
-    visited.insert(resolved.id.clone());
-    stack.push(resolved.id.clone());
+    visited.insert(manifest.id.clone(), tree_hash.clone());
+    stack.push(manifest.id.clone());
 
-    let requires = resolved.requires.clone();
-    plan.push(resolved);
-    for req in requires {
-        let next = resolve_dep(&req)?;
-        resolve_transitive(
-            next,
+    let planned = planned_from_manifest(
+        &manifest,
+        &materialized.root,
+        materialized.source_kind,
+        materialized.commit_sha,
+        materialized.signed,
+        manifest_hash,
+        tree_hash,
+        strict_conformance,
+    )?;
+    graph.packages.push(ResolvedPackage {
+        planned,
+        manifest: manifest.clone(),
+    });
+
+    for dependency in &manifest.requires {
+        let dependency_source = dependency_source(dependency, &materialized.root)?;
+        if matches!(dependency_source, SourceDescriptor::Internal) {
+            continue;
+        }
+        resolve_package_recursive(
+            dependency_source,
             require_signed,
             strict_conformance,
-            project_descriptor,
+            remaining_depth - 1,
             visited,
-            resolving,
             stack,
-            plan,
-            max_depth - 1,
+            graph,
         )?;
     }
-    let done = stack.pop();
-    if let Some(done) = done {
-        resolving.remove(&done);
-    }
+    stack.pop();
     Ok(())
 }
 
-fn resolve_one(
-    desc: PackageDescriptor,
+struct MaterializedPackageSource {
+    root: PathBuf,
+    source_kind: PlannedPackageSourceKind,
+    commit_sha: Option<String>,
+    signed: bool,
+}
+
+fn materialize_package_source(
+    source: SourceDescriptor,
     require_signed: bool,
-    strict_conformance: bool,
-) -> Result<ResolvedPackages> {
-    match desc.source {
-        SourceDescriptor::Local { path } => Ok(ResolvedPackages {
-            packages: vec![resolve_local_package(path, strict_conformance)?],
-            project_descriptor: None,
-        }),
-        SourceDescriptor::Git { url, ref_name } => block_on_current(resolve_git_package(
-            url,
-            ref_name,
-            require_signed,
-            strict_conformance,
-        )),
-        SourceDescriptor::Internal => {
-            anyhow::bail!("internal packages do not require installation")
+    graph: &mut ResolvedPackageGraph,
+) -> Result<MaterializedPackageSource> {
+    match source {
+        SourceDescriptor::Local { path } => {
+            let root = fs::canonicalize(path)
+                .map_err(|_| anyhow::anyhow!("local package source could not be opened"))?;
+            anyhow::ensure!(root.is_dir(), "local package source must be a directory");
+            anyhow::ensure!(
+                detect_source_kind(&root) == SourceKind::Package,
+                "package dependency source does not contain a Package manifest"
+            );
+            Ok(MaterializedPackageSource {
+                root,
+                source_kind: PlannedPackageSourceKind::Local,
+                commit_sha: None,
+                signed: false,
+            })
         }
-    }
-}
-
-fn resolve_local_package(path: PathBuf, strict_conformance: bool) -> Result<PlannedPackage> {
-    let path = fs::canonicalize(&path)
-        .with_context(|| format!("failed to canonicalize local package {}", path.display()))?;
-    let manifest_path = manifest_path_in(&path)?;
-    let manifest = parse_manifest_at(&manifest_path)?;
-    let manifest_hash = block_on_current(compute_manifest_hash(&manifest_path))?;
-    let tree_hash = block_on_current(compute_tree_hash(&path))?;
-    let mut planned = planned_from_manifest(
-        &manifest,
-        manifest_path.parent().unwrap_or(&path),
-        "local".to_string(),
-        None,
-        None,
-        Some(path.to_string_lossy().to_string()),
-        None,
-        manifest_hash,
-        tree_hash,
-        None,
-        false,
-        None,
-    )?;
-    attach_conformance(&mut planned, &path, strict_conformance)?;
-    Ok(planned)
-}
-
-async fn resolve_git_package(
-    url: String,
-    ref_name: String,
-    require_signed: bool,
-    strict_conformance: bool,
-) -> Result<ResolvedPackages> {
-    let resolved = invoke_package_capability(
-        "plurora/git-tools-lab",
-        "plurora/git-tools-lab/resolve_ref",
-        json!({ "remote_url": url, "ref": ref_name }),
-    )
-    .await?;
-    let commit_sha = value_str(&resolved, "commit_sha")?.to_string();
-    let resolved_ref_name = value_str(&resolved, "ref_name")?.to_string();
-    let tmp = std::env::temp_dir().join(format!("plurora-git-install-{}", Uuid::new_v4()));
-    let fetch = invoke_package_capability(
-        "plurora/git-tools-lab",
-        "plurora/git-tools-lab/fetch_tree",
-        json!({ "remote_url": url, "commit_sha": commit_sha, "ref_name": resolved_ref_name, "dest_dir": tmp.to_string_lossy() }),
-    )
-    .await?;
-    let _git_tree_hash = value_str(&fetch, "tree_hash")?.to_string();
-    let result = async {
-        let tree_hash = compute_tree_hash(&tmp).await?;
-        let mut signed = false;
-        if require_signed {
-            let tag = invoke_package_capability(
+        SourceDescriptor::Git { url, ref_name } => {
+            let resolved = block_on_current(invoke_package_capability(
                 "plurora/git-tools-lab",
-                "plurora/git-tools-lab/read_signed_tag",
-                json!({ "remote_url": url, "tag": ref_name }),
-            )
-            .await?;
-            if tag.get("pgp_signature").and_then(Value::as_str).is_none() {
-                anyhow::bail!("git source {}@{} is unsigned", url, ref_name);
-            }
-            signed = true;
+                "plurora/git-tools-lab/resolve_ref",
+                json!({ "remote_url": url, "ref": ref_name }),
+            ))?;
+            let commit_sha = value_str(&resolved, "commit_sha")?.to_string();
+            let resolved_ref = resolved
+                .get("ref_name")
+                .and_then(Value::as_str)
+                .unwrap_or(&ref_name)
+                .to_string();
+            let temporary =
+                std::env::temp_dir().join(format!("plurora-package-source-{}", Uuid::new_v4()));
+            block_on_current(invoke_package_capability(
+                "plurora/git-tools-lab",
+                "plurora/git-tools-lab/fetch_tree",
+                json!({
+                    "remote_url": url,
+                    "commit_sha": commit_sha,
+                    "ref_name": resolved_ref,
+                    "dest_dir": temporary.to_string_lossy(),
+                }),
+            ))?;
+            let signed = if require_signed {
+                let tag = block_on_current(invoke_package_capability(
+                    "plurora/git-tools-lab",
+                    "plurora/git-tools-lab/read_signed_tag",
+                    json!({ "remote_url": url, "tag": ref_name }),
+                ))?;
+                anyhow::ensure!(
+                    tag.get("pgp_signature").and_then(Value::as_str).is_some(),
+                    "git package source is unsigned"
+                );
+                true
+            } else {
+                false
+            };
+            graph.temporary_roots.push(temporary.clone());
+            Ok(MaterializedPackageSource {
+                root: temporary,
+                source_kind: PlannedPackageSourceKind::Git,
+                commit_sha: Some(commit_sha),
+                signed,
+            })
         }
-        let project_yaml = tmp.join("project.yaml");
-        if project_yaml.is_file() {
-            let descriptor = parse_project_descriptor_at(&project_yaml)?;
-            let mut packages = Vec::new();
-            let mut visited = HashSet::new();
-            let mut resolving = HashSet::new();
-            let mut stack = Vec::new();
-            resolve_project_packages(
-                &tmp,
-                &descriptor,
-                ProjectPackageSource::Git {
-                    url: url.clone(),
-                    ref_name: resolved_ref_name.clone(),
-                    commit_sha: commit_sha.clone(),
-                    signed,
-                },
-                strict_conformance,
-                &mut visited,
-                &mut resolving,
-                &mut stack,
-                &mut packages,
-            )?;
-            return Ok(ResolvedPackages {
-                packages,
-                project_descriptor: Some(descriptor),
-            });
+        SourceDescriptor::Internal => {
+            anyhow::bail!("internal package does not require acquisition")
         }
-
-        let manifest_path = manifest_path_in(&tmp)?;
-        let manifest = parse_manifest_at(&manifest_path)?;
-        let manifest_hash = compute_manifest_hash(&manifest_path).await?;
-        let mut planned = planned_from_manifest(
-            &manifest,
-            manifest_path.parent().unwrap_or(&tmp),
-            "git".to_string(),
-            Some(url.clone()),
-            Some(resolved_ref_name.clone()),
-            None,
-            Some(commit_sha.clone()),
-            manifest_hash,
-            tree_hash,
-            None,
-            signed,
-            None,
-        )?;
-        attach_conformance(&mut planned, &tmp, strict_conformance)?;
-        Ok(ResolvedPackages {
-            packages: vec![planned],
-            project_descriptor: None,
-        })
     }
-    .await;
-    fs::remove_dir_all(&tmp).ok();
-    result
 }
 
+#[allow(clippy::too_many_arguments)]
 fn planned_from_manifest(
     manifest: &PackageManifest,
-    base_dir: &Path,
-    source: String,
-    url: Option<String>,
-    ref_name: Option<String>,
-    path: Option<String>,
+    package_root: &Path,
+    source_kind: PlannedPackageSourceKind,
     commit_sha: Option<String>,
+    signed: bool,
     manifest_hash: String,
     tree_hash: String,
-    manifest_relative_path: Option<String>,
-    signed: bool,
-    signed_by: Option<String>,
+    strict_conformance: bool,
 ) -> Result<PlannedPackage> {
-    if manifest.entry.component.is_some() {
-        manifest
-            .validate_basic()
-            .context("invalid explicit component declaration")?;
+    let envelope = package_envelope_for_manifest(manifest)?;
+    let report = block_on_current(plurora_core::conformance::run_checks(
+        package_root,
+        "v1",
+        true,
+    ))?;
+    let passed_blocking = report.summary.passed_all_blocking();
+    let failed_checks = report.failed_checks();
+    if strict_conformance && !passed_blocking {
+        anyhow::bail!(
+            "package {} fails v1 conformance: {}",
+            manifest.id,
+            failed_checks.join("; ")
+        );
     }
-    let surface_bundle_hash = compute_surface_bundle_hash(manifest, base_dir);
-    let package_envelope = plurora_core::package_envelope_for_manifest(manifest)?;
-    let package_envelope_digest = Some(package_envelope.artifact.digest.clone());
-    let component_pins = package_envelope
-        .components
-        .iter()
-        .map(plurora_core::ComponentLockPin::from_descriptor)
-        .collect();
-    let protocol_profile_pins = plurora_core::protocol_profile_pins_for_envelope(&package_envelope);
-    let content_roots = package_envelope.content_roots.clone();
     Ok(PlannedPackage {
         id: manifest.id.clone(),
         version: manifest.version.clone(),
-        source,
-        url,
-        ref_name,
-        path,
-        commit_sha,
+        source_kind,
         manifest_hash,
         tree_hash,
-        surface_bundle_hash,
-        package_envelope_digest,
-        component_pins,
-        protocol_profile_pins,
-        content_roots,
-        manifest_relative_path,
+        commit_sha,
+        package_envelope_digest: Some(envelope.artifact.digest.clone()),
+        component_pins: envelope
+            .components
+            .iter()
+            .map(ComponentLockPin::from_descriptor)
+            .collect(),
+        protocol_profile_pins: protocol_profile_pins_for_envelope(&envelope),
+        content_roots: envelope.content_roots.clone(),
         signed,
-        signed_by,
+        signed_by: None,
         permissions: permissions_from_manifest(&manifest.permissions),
         requires: manifest
             .requires
             .iter()
-            .map(|req| planned_requirement(req, base_dir))
-            .collect(),
-        conformance: None,
-    })
-}
-
-fn compute_surface_bundle_hash(manifest: &PackageManifest, base_dir: &Path) -> Option<String> {
-    let plurora_core::PackageEntry::SurfaceBundle { bundle } = &manifest.entry.kind else {
-        return None;
-    };
-    let path = normalize_relative_manifest_path(bundle)
-        .ok()
-        .map(|relative| base_dir.join(relative))?;
-    compute_file_hash(&path).ok()
-}
-
-fn normalize_relative_manifest_path(path: &str) -> Result<String> {
-    let path = Path::new(path);
-    if path.is_absolute() {
-        anyhow::bail!(
-            "project package manifest path must be relative: {}",
-            path.display()
-        );
-    }
-    let mut normalized = PathBuf::new();
-    for component in path.components() {
-        match component {
-            std::path::Component::Normal(part) => normalized.push(part),
-            std::path::Component::CurDir => {}
-            _ => anyhow::bail!("project package manifest path must stay inside project root"),
-        }
-    }
-    if normalized.as_os_str().is_empty() {
-        anyhow::bail!("project package manifest path must not be empty");
-    }
-    Ok(normalized
-        .components()
-        .map(|component| component.as_os_str().to_string_lossy())
-        .collect::<Vec<_>>()
-        .join("/"))
-}
-
-fn attach_conformance(
-    planned: &mut PlannedPackage,
-    package_path: &Path,
-    strict_conformance: bool,
-) -> Result<()> {
-    let report = block_on_current(plurora_core::conformance::run_checks(
-        package_path,
-        "v1",
-        true,
-    ))?;
-    if !report.summary.passed_all_blocking() && strict_conformance {
-        let errors = report.failed_checks().join("; ");
-        anyhow::bail!("package {} fails v1 conformance: {errors}", planned.id);
-    }
-    planned.conformance = Some(report);
-    Ok(())
-}
-
-fn planned_requirement(req: &PackageDependency, base_dir: &Path) -> PlannedRequirement {
-    let source = match &req.source {
-        DependencySource::Local { path } => {
-            let dep_path = PathBuf::from(path);
-            let absolute = if dep_path.is_absolute() {
-                dep_path
-            } else {
-                base_dir.join(dep_path)
-            };
-            serde_json::to_value(DependencySource::Local {
-                path: absolute.to_string_lossy().to_string(),
+            .map(|dependency| PlannedRequirement {
+                id: dependency.id.clone(),
+                source_kind: match &dependency.source {
+                    plurora_core::DependencySource::Internal => "internal",
+                    plurora_core::DependencySource::Git { .. } => "git",
+                    plurora_core::DependencySource::Local { .. } => "local",
+                }
+                .to_string(),
+                version: dependency.version.clone(),
             })
-            .unwrap_or(Value::Null)
-        }
-        other => serde_json::to_value(other).unwrap_or(Value::Null),
-    };
-    PlannedRequirement {
-        id: req.id.clone(),
-        source,
-        version: req.version.clone(),
-    }
+            .collect(),
+        conformance: Some(PlannedConformance {
+            passed_blocking,
+            failed_checks,
+        }),
+    })
 }
 
 fn permissions_from_manifest(permissions: &PermissionSet) -> PlannedPermissions {
@@ -658,7 +401,7 @@ fn permissions_from_manifest(permissions: &PermissionSet) -> PlannedPermissions 
             .network
             .declarations
             .iter()
-            .map(|d| d.host.clone()),
+            .map(|declaration| declaration.host.clone()),
     );
     PlannedPermissions {
         capabilities_invoke: sorted_vec(permissions.capabilities.invoke.iter().cloned()),
@@ -672,17 +415,17 @@ fn aggregate_permissions(packages: &[PlannedPackage]) -> PermissionsSummary {
         new_capabilities: sorted_vec(
             packages
                 .iter()
-                .flat_map(|pkg| pkg.permissions.capabilities_invoke.clone()),
+                .flat_map(|package| package.permissions.capabilities_invoke.clone()),
         ),
         new_network_hosts: sorted_vec(
             packages
                 .iter()
-                .flat_map(|pkg| pkg.permissions.network_hosts.clone()),
+                .flat_map(|package| package.permissions.network_hosts.clone()),
         ),
         new_secret_refs: sorted_vec(
             packages
                 .iter()
-                .flat_map(|pkg| pkg.permissions.secret_refs.clone()),
+                .flat_map(|package| package.permissions.secret_refs.clone()),
         ),
     }
 }
@@ -701,16 +444,117 @@ pub(super) fn verify_consent(plan: &InstallPlan, consent: &Consent) -> Result<()
     ensure_subset(
         &plan.permissions_summary.new_secret_refs,
         &consent.approved_secret_refs,
-        "secret ref",
-    )?;
-    Ok(())
+        "secret reference",
+    )
 }
 
 fn ensure_subset(required: &[String], approved: &[String], kind: &str) -> Result<()> {
+    let approved = approved.iter().collect::<HashSet<_>>();
     for item in required {
-        if !approved.iter().any(|approved| approved == item) {
-            anyhow::bail!("consent missing required {kind}: {item}");
-        }
+        anyhow::ensure!(
+            approved.contains(item),
+            "consent is missing a required {kind}"
+        );
     }
     Ok(())
+}
+
+pub(super) async fn inspect_foreign_source(source: &SourceDescriptor) -> Result<(String, String)> {
+    match source {
+        SourceDescriptor::Local { path } => {
+            let root = fs::canonicalize(path)
+                .map_err(|_| anyhow::anyhow!("foreign source could not be opened"))?;
+            anyhow::ensure!(root.is_dir(), "foreign source must be a directory");
+            let digest = compute_external_tree_hash(&root).await?;
+            Ok((digest, source_display_name(source, "Foreign source")))
+        }
+        SourceDescriptor::Git { url, ref_name } => {
+            let resolved = invoke_package_capability(
+                "plurora/git-tools-lab",
+                "plurora/git-tools-lab/resolve_ref",
+                json!({ "remote_url": url, "ref": ref_name }),
+            )
+            .await?;
+            let commit_sha = value_str(&resolved, "commit_sha")?.to_string();
+            let temporary =
+                std::env::temp_dir().join(format!("plurora-foreign-source-{}", Uuid::new_v4()));
+            let result = async {
+                invoke_package_capability(
+                    "plurora/git-tools-lab",
+                    "plurora/git-tools-lab/fetch_tree",
+                    json!({
+                        "remote_url": url,
+                        "commit_sha": commit_sha,
+                        "ref_name": ref_name,
+                        "dest_dir": temporary.to_string_lossy(),
+                        "max_files": super::intake::EXTERNAL_WORKSPACE_MAX_FILES,
+                        "max_directories": super::intake::EXTERNAL_WORKSPACE_MAX_DIRECTORIES,
+                        "max_total_bytes": super::intake::EXTERNAL_WORKSPACE_MAX_BYTES,
+                    }),
+                )
+                .await?;
+                let digest = compute_external_tree_hash(&temporary).await?;
+                Ok((digest, source_display_name(source, "Foreign source")))
+            }
+            .await;
+            if temporary.is_dir() && !temporary.is_symlink() {
+                let _ = fs::remove_dir_all(&temporary);
+            }
+            result
+        }
+        SourceDescriptor::Internal => anyhow::bail!("internal source cannot become a Foreign Work"),
+    }
+}
+
+pub(super) fn source_display_name(source: &SourceDescriptor, fallback: &str) -> String {
+    let candidate = match source {
+        SourceDescriptor::Local { path } => path
+            .file_name()
+            .and_then(|name| name.to_str())
+            .map(str::to_string),
+        SourceDescriptor::Git { url, .. } => url::Url::parse(url).ok().and_then(|parsed| {
+            parsed
+                .path_segments()
+                .and_then(|mut segments| segments.next_back().map(str::to_string))
+        }),
+        SourceDescriptor::Internal => None,
+    };
+    candidate
+        .map(|name| name.trim_end_matches(".git").to_string())
+        .filter(|name| !name.trim().is_empty())
+        .unwrap_or_else(|| fallback.to_string())
+}
+
+pub(super) fn planned_fingerprint(packages: &[PlannedPackage]) -> Result<Value> {
+    Ok(serde_json::to_value(packages)?)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn source_display_name_never_returns_a_full_local_path() {
+        let source = SourceDescriptor::Local {
+            path: PathBuf::from("C:/users/example/source-tree"),
+        };
+        assert_eq!(source_display_name(&source, "fallback"), "source-tree");
+    }
+
+    #[test]
+    fn work_authoring_plan_contains_a_pack_next_step() {
+        let plan = work_authoring_plan(&SourceDescriptor::Local {
+            path: PathBuf::from("work"),
+        })
+        .unwrap();
+        assert_eq!(plan.source_kind, SourceKind::Work);
+        assert_eq!(
+            plan.work_candidate.status,
+            WorkCandidateStatus::AuthoringRequired
+        );
+        assert_eq!(
+            plan.work_candidate.diagnostics[0]["next_step"],
+            json!("plurora work pack")
+        );
+    }
 }
