@@ -84,6 +84,7 @@ pub(crate) async fn docker_runtime_lab_contract_and_plan() -> anyhow::Result<()>
         .await?;
     let input = json!({
         "image": "nginx:alpine",
+        "installation_id": "00000000-0000-4000-8000-000000000123",
         "container_port": 80,
         "host_port": 39180,
         "route_id": "conformance-docker-route",

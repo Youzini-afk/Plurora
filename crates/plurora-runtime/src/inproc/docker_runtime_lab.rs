@@ -688,7 +688,6 @@ struct BuildImageSpec {
     installation_id: String,
     workspace_id: WorkspaceId,
     build_id: String,
-    context_dir: PathBuf,
     context_scope: BuildContextScope,
     network_mode: BuildNetworkMode,
     dockerfile: String,
@@ -721,6 +720,12 @@ struct PreparedBuildContext {
     dockerfile: String,
     buildpack_version: Option<String>,
     generated_dockerfile: Option<String>,
+}
+
+#[derive(Debug)]
+struct ValidatedBuildContextRoot {
+    path: PathBuf,
+    handle: same_file::Handle,
 }
 
 async fn build_image_async(spec: BuildImageSpec) -> Result<Value, String> {
@@ -1263,7 +1268,6 @@ fn parse_build_image_request(input: &Value) -> Result<BuildImageSpec, String> {
     if !valid_build_id(&build_id) {
         return Err("build_id must be label-safe".to_string());
     }
-    let context_dir = workspace_source_dir(&workspace_id)?;
     let context_scope = if let Some(change_set_id) = string_field(input, "development_change_id") {
         if !valid_development_change_id(&change_set_id) {
             return Err("development_change_id must be a valid Host change id".to_string());
@@ -1327,7 +1331,6 @@ fn parse_build_image_request(input: &Value) -> Result<BuildImageSpec, String> {
         installation_id,
         workspace_id,
         build_id,
-        context_dir,
         context_scope,
         network_mode,
         dockerfile,
@@ -1590,20 +1593,55 @@ fn prepare_build_context(spec: &BuildImageSpec) -> Result<PreparedBuildContext, 
     }
 }
 
-fn validate_build_context_scope(spec: &BuildImageSpec) -> Result<PathBuf, String> {
+fn validate_build_context_scope(
+    spec: &BuildImageSpec,
+) -> Result<ValidatedBuildContextRoot, String> {
     let data_dir = plurora_core::paths::data_dir()
         .map_err(|_| "failed to resolve Plurora data directory".to_string())?;
     let data_dir = canonical_real_directory(&data_dir, "data directory")?;
     let workspaces = canonical_owned_directory(&data_dir, "workspaces", "workspaces root")?;
-    let workspace =
-        canonical_owned_directory(&workspaces, spec.workspace_id.as_str(), "workspace root")?;
-    let expected = canonical_owned_directory(&workspace, "source", "workspace source")?;
-    let actual = std::fs::canonicalize(&spec.context_dir)
-        .map_err(|e| format!("failed to canonicalize context_dir: {e}"))?;
-    if actual != expected {
-        return Err("context_dir escaped its Host-owned workspace boundary".to_string());
+    let (scope_workspace_id, expected) = match &spec.context_scope {
+        BuildContextScope::Workspace { workspace_id } => {
+            let workspace =
+                canonical_owned_directory(&workspaces, workspace_id.as_str(), "workspace root")?;
+            let source = canonical_owned_directory(&workspace, "source", "workspace source")?;
+            (workspace_id, source)
+        }
+        BuildContextScope::DevelopmentScratch {
+            workspace_id,
+            change_set_id,
+        } => {
+            if !valid_development_change_id(change_set_id) {
+                return Err("development_change_id must be a valid Host change id".to_string());
+            }
+            let workspace =
+                canonical_owned_directory(&workspaces, workspace_id.as_str(), "workspace root")?;
+            let development =
+                canonical_owned_directory(&workspace, "development", "development root")?;
+            let change_root =
+                canonical_owned_directory(&development, change_set_id, "development change root")?;
+            let scratch =
+                canonical_owned_directory(&change_root, "workspace", "scratch workspace")?;
+            (workspace_id, scratch)
+        }
+    };
+    if scope_workspace_id != &spec.workspace_id {
+        return Err("build context scope did not match workspace_id".to_string());
     }
-    Ok(expected)
+    let handle = validated_context_directory_handle(&expected, &expected)?;
+    Ok(ValidatedBuildContextRoot {
+        path: expected,
+        handle,
+    })
+}
+
+fn revalidate_build_context_root(validated: &ValidatedBuildContextRoot) -> Result<PathBuf, String> {
+    let current = canonical_real_directory(&validated.path, "build context root")?;
+    let current_handle = validated_context_directory_handle(&current, &current)?;
+    if current != validated.path || current_handle != validated.handle {
+        return Err("build context root changed after Host ownership validation".to_string());
+    }
+    Ok(current)
 }
 
 fn canonical_real_directory(path: &Path, label: &str) -> Result<PathBuf, String> {
@@ -1626,25 +1664,18 @@ fn canonical_owned_directory(parent: &Path, name: &str, label: &str) -> Result<P
 
 fn prepare_nixpacks_context(
     spec: &BuildImageSpec,
-    validated_root: &Path,
+    validated_root: &ValidatedBuildContextRoot,
 ) -> Result<PreparedBuildContext, String> {
     prepare_nixpacks_context_with_binary(spec, validated_root, NIXPACKS_BINARY)
 }
 
 fn prepare_nixpacks_context_with_binary(
     spec: &BuildImageSpec,
-    validated_root: &Path,
+    validated_root: &ValidatedBuildContextRoot,
     binary: &str,
 ) -> Result<PreparedBuildContext, String> {
     validate_nixpacks_binary(binary)?;
-    let root = std::fs::canonicalize(&spec.context_dir)
-        .map_err(|e| format!("failed to canonicalize context_dir: {e}"))?;
-    if !root.is_dir() {
-        return Err("context_dir must be a directory".to_string());
-    }
-    if root != validated_root {
-        return Err("context_dir changed after Host ownership validation".to_string());
-    }
+    let root = revalidate_build_context_root(validated_root)?;
     let out_dir = root.join(".plurora-nixpacks").join(&spec.build_id);
     if out_dir.exists() {
         std::fs::remove_dir_all(&out_dir)
@@ -1670,10 +1701,8 @@ fn prepare_nixpacks_context_with_binary(
         return Err(message);
     }
     let mut generated = spec.clone();
-    generated.context_dir = out_dir;
     generated.dockerfile = NIXPACKS_GENERATED_DOCKERFILE.to_string();
-    let generated_root = std::fs::canonicalize(&generated.context_dir)
-        .map_err(|e| format!("failed to canonicalize generated context: {e}"))?;
+    let generated_root = validated_context_root(&out_dir, "generated context")?;
     Ok(PreparedBuildContext {
         context: create_context_tar_at(&generated, &generated_root)?,
         dockerfile: NIXPACKS_GENERATED_DOCKERFILE.to_string(),
@@ -1716,24 +1745,16 @@ fn nixpacks_version(binary: &str) -> Option<String> {
 }
 
 #[cfg(test)]
-fn create_context_tar(spec: &BuildImageSpec) -> Result<ContextTar, String> {
-    let root = std::fs::canonicalize(&spec.context_dir)
-        .map_err(|e| format!("failed to canonicalize context_dir: {e}"))?;
+fn create_context_tar(spec: &BuildImageSpec, root: &Path) -> Result<ContextTar, String> {
+    let root = validated_context_root(root, "test build context")?;
     create_context_tar_at(spec, &root)
 }
 
 fn create_context_tar_at(
     spec: &BuildImageSpec,
-    validated_root: &Path,
+    validated_root: &ValidatedBuildContextRoot,
 ) -> Result<ContextTar, String> {
-    let root = std::fs::canonicalize(&spec.context_dir)
-        .map_err(|e| format!("failed to canonicalize context_dir: {e}"))?;
-    if !root.is_dir() {
-        return Err("context_dir must be a directory".to_string());
-    }
-    if root != validated_root {
-        return Err("context_dir changed after Host ownership validation".to_string());
-    }
+    let root = revalidate_build_context_root(validated_root)?;
     let dockerfile = root.join(&spec.dockerfile);
     let dockerfile_metadata = std::fs::symlink_metadata(&dockerfile)
         .map_err(|e| format!("dockerfile not found or inaccessible: {e}"))?;
@@ -1750,7 +1771,16 @@ fn create_context_tar_at(
         DockerIgnore::load(&root).map_err(|e| format!("failed to read .dockerignore: {e}"))?;
     let mut tar = tar::Builder::new(Vec::new());
     let mut stats = ContextStats::default();
-    add_context_dir(&root, &root, &ignore, spec, &mut stats, &mut tar)?;
+    add_context_dir(
+        &root,
+        &validated_root.handle,
+        &root,
+        &ignore,
+        spec,
+        &mut stats,
+        &mut tar,
+    )?;
+    revalidate_build_context_root(validated_root)?;
     let bytes = tar
         .into_inner()
         .map_err(|e| format!("failed to finish context tar: {e}"))?;
@@ -1759,6 +1789,12 @@ fn create_context_tar_at(
         files: stats.files,
         total_bytes: stats.total_bytes,
     })
+}
+
+fn validated_context_root(path: &Path, label: &str) -> Result<ValidatedBuildContextRoot, String> {
+    let path = canonical_real_directory(path, label)?;
+    let handle = validated_context_directory_handle(&path, &path)?;
+    Ok(ValidatedBuildContextRoot { path, handle })
 }
 
 #[derive(Debug, Default)]
@@ -1845,6 +1881,7 @@ impl DockerIgnore {
 
 fn add_context_dir(
     root: &Path,
+    root_handle: &same_file::Handle,
     dir: &Path,
     ignore: &DockerIgnore,
     spec: &BuildImageSpec,
@@ -1852,6 +1889,9 @@ fn add_context_dir(
     tar: &mut tar::Builder<Vec<u8>>,
 ) -> Result<(), String> {
     let directory_handle = validated_context_directory_handle(root, dir)?;
+    if dir == root && &directory_handle != root_handle {
+        return Err("build context root changed before traversal".to_string());
+    }
     let mut entries = std::fs::read_dir(dir)
         .map_err(|e| format!("failed to read context dir {}: {e}", dir.display()))?
         .collect::<Result<Vec<_>, _>>()
@@ -1873,7 +1913,7 @@ fn add_context_dir(
         }
         if metadata.is_dir() {
             validated_context_directory_handle(root, &path)?;
-            add_context_dir(root, &path, ignore, spec, stats, tar)?;
+            add_context_dir(root, root_handle, &path, ignore, spec, stats, tar)?;
         } else if metadata.is_file() {
             stats.files += 1;
             if stats.files > spec.max_context_files {
@@ -2143,13 +2183,6 @@ fn is_reparse_point(_metadata: &std::fs::Metadata) -> bool {
     false
 }
 
-fn workspace_source_dir(workspace_id: &WorkspaceId) -> Result<PathBuf, String> {
-    Ok(plurora_core::paths::workspaces_dir()
-        .map_err(|_| "failed to resolve workspace data directory".to_string())?
-        .join(workspace_id.as_str())
-        .join("source"))
-}
-
 fn provenance(request: &InprocInvocation) -> Value {
     serde_json::json!({
         "package_id": request.provider_package_id,
@@ -2252,6 +2285,7 @@ fn redact_log_line(line: &str) -> String {
 
 #[cfg(test)]
 mod tests {
+    use std::ffi::OsString;
     use std::sync::Mutex;
 
     use super::*;
@@ -2259,6 +2293,70 @@ mod tests {
     static DATA_DIR_ENV_LOCK: Mutex<()> = Mutex::new(());
     const INSTALLATION_ID: &str = "00000000-0000-4000-8000-000000000001";
     const WORKSPACE_ID: &str = "00000000-0000-4000-8000-000000000002";
+    const CHANGE_SET_ID: &str = "chg-0123456789abcdef";
+
+    struct DataDirEnv {
+        previous: Option<OsString>,
+    }
+
+    impl DataDirEnv {
+        fn set(path: &Path) -> Self {
+            let previous = std::env::var_os("PLURORA_DATA_DIR");
+            std::env::set_var("PLURORA_DATA_DIR", path);
+            Self { previous }
+        }
+    }
+
+    impl Drop for DataDirEnv {
+        fn drop(&mut self) {
+            match self.previous.take() {
+                Some(value) => std::env::set_var("PLURORA_DATA_DIR", value),
+                None => std::env::remove_var("PLURORA_DATA_DIR"),
+            }
+        }
+    }
+
+    fn build_context_layout(data_dir: &Path, change_set_id: &str) -> (PathBuf, PathBuf) {
+        let workspace = data_dir.join("workspaces").join(WORKSPACE_ID);
+        let source = workspace.join("source");
+        let scratch = workspace
+            .join("development")
+            .join(change_set_id)
+            .join("workspace");
+        std::fs::create_dir_all(&source).unwrap();
+        std::fs::create_dir_all(&scratch).unwrap();
+        (source, scratch)
+    }
+
+    fn build_context_input(change_set_id: Option<&str>) -> Value {
+        let mut input = serde_json::json!({
+            "approved": true,
+            "strategy": "dockerfile",
+            "installation_id": INSTALLATION_ID,
+            "workspace_id": WORKSPACE_ID,
+            "build_id": "build-1",
+            "dockerfile": "Dockerfile",
+        });
+        if let Some(change_set_id) = change_set_id {
+            input["development_change_id"] = Value::String(change_set_id.to_string());
+        }
+        input
+    }
+
+    fn context_tar_entries(bytes: &[u8]) -> HashMap<String, Vec<u8>> {
+        let mut archive = tar::Archive::new(bytes);
+        archive
+            .entries()
+            .unwrap()
+            .map(|entry| {
+                let mut entry = entry.unwrap();
+                let path = entry.path().unwrap().to_string_lossy().replace('\\', "/");
+                let mut bytes = Vec::new();
+                entry.read_to_end(&mut bytes).unwrap();
+                (path, bytes)
+            })
+            .collect()
+    }
 
     fn request(capability: &str, input: Value) -> InprocInvocation {
         InprocInvocation {
@@ -2532,7 +2630,7 @@ mod tests {
         let data_dir = temp.path().to_path_buf();
         let previous_data_dir = std::env::var_os("PLURORA_DATA_DIR");
         std::env::set_var("PLURORA_DATA_DIR", &data_dir);
-        let change_set_id = "chg-0123456789abcdef";
+        let change_set_id = CHANGE_SET_ID;
         let result = parse_build_image_request(&serde_json::json!({
             "approved": true,
             "strategy": "dockerfile",
@@ -2565,7 +2663,7 @@ mod tests {
         let data_dir = temp.path().to_path_buf();
         let previous_data_dir = std::env::var_os("PLURORA_DATA_DIR");
         std::env::set_var("PLURORA_DATA_DIR", &data_dir);
-        let change_set_id = "chg-0123456789abcdef";
+        let change_set_id = CHANGE_SET_ID;
         let result = parse_build_image_request(&serde_json::json!({
             "approved": true,
             "strategy": "nixpacks",
@@ -2581,6 +2679,173 @@ mod tests {
         assert!(result
             .unwrap_err()
             .contains("only supports dockerfile strategy"));
+    }
+
+    #[test]
+    fn docker_runtime_lab_development_build_context_uses_only_exact_scratch() {
+        let _env_lock = DATA_DIR_ENV_LOCK
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        let temp = tempfile::tempdir().unwrap();
+        let _data_dir = DataDirEnv::set(temp.path());
+        let (source, scratch) = build_context_layout(temp.path(), CHANGE_SET_ID);
+        std::fs::write(source.join("source-only.txt"), "source").unwrap();
+        std::fs::write(scratch.join("Dockerfile"), "FROM scratch\n").unwrap();
+        std::fs::write(scratch.join("scratch-only.txt"), "scratch").unwrap();
+
+        let prepared = prepare_docker_build_context(&build_context_input(Some(CHANGE_SET_ID)))
+            .expect("development scratch context prepares without a source Dockerfile");
+        let entries = context_tar_entries(&prepared.bytes);
+        assert_eq!(entries.get("Dockerfile").unwrap(), b"FROM scratch\n");
+        assert_eq!(entries.get("scratch-only.txt").unwrap(), b"scratch");
+        assert!(!entries.contains_key("source-only.txt"));
+
+        std::fs::remove_file(scratch.join("Dockerfile")).unwrap();
+        std::fs::write(source.join("Dockerfile"), "FROM source\n").unwrap();
+        assert!(prepare_docker_build_context(&build_context_input(Some(CHANGE_SET_ID))).is_err());
+    }
+
+    #[test]
+    fn docker_runtime_lab_workspace_build_context_still_uses_source() {
+        let _env_lock = DATA_DIR_ENV_LOCK
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        let temp = tempfile::tempdir().unwrap();
+        let _data_dir = DataDirEnv::set(temp.path());
+        let (source, scratch) = build_context_layout(temp.path(), CHANGE_SET_ID);
+        std::fs::write(source.join("Dockerfile"), "FROM source\n").unwrap();
+        std::fs::write(source.join("source-only.txt"), "source").unwrap();
+        std::fs::write(scratch.join("Dockerfile"), "FROM scratch\n").unwrap();
+        std::fs::write(scratch.join("scratch-only.txt"), "scratch").unwrap();
+
+        let prepared = prepare_docker_build_context(&build_context_input(None))
+            .expect("workspace source context prepares");
+        let entries = context_tar_entries(&prepared.bytes);
+        assert_eq!(entries.get("Dockerfile").unwrap(), b"FROM source\n");
+        assert_eq!(entries.get("source-only.txt").unwrap(), b"source");
+        assert!(!entries.contains_key("scratch-only.txt"));
+    }
+
+    #[test]
+    fn docker_runtime_lab_build_context_rejects_raw_wrong_and_missing_scopes() {
+        let _env_lock = DATA_DIR_ENV_LOCK
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        let temp = tempfile::tempdir().unwrap();
+        let _data_dir = DataDirEnv::set(temp.path());
+        let (source, scratch) = build_context_layout(temp.path(), CHANGE_SET_ID);
+        std::fs::write(source.join("Dockerfile"), "FROM source\n").unwrap();
+        std::fs::write(scratch.join("Dockerfile"), "FROM scratch\n").unwrap();
+
+        let mut raw = build_context_input(Some(CHANGE_SET_ID));
+        raw["context_dir"] = Value::String(scratch.to_string_lossy().into_owned());
+        assert!(prepare_docker_build_context(&raw)
+            .unwrap_err()
+            .to_string()
+            .contains("context_dir is not accepted"));
+
+        let mut invalid_change = build_context_input(Some("chg-../../outside"));
+        assert!(prepare_docker_build_context(&invalid_change).is_err());
+        invalid_change["development_change_id"] = Value::String("chg-fedcba9876543210".into());
+        assert!(prepare_docker_build_context(&invalid_change).is_err());
+
+        let missing_workspace = WorkspaceId::parse("00000000-0000-4000-8000-000000000099").unwrap();
+        let mut wrong_workspace = build_context_input(Some(CHANGE_SET_ID));
+        wrong_workspace["workspace_id"] = Value::String(missing_workspace.to_string());
+        assert!(prepare_docker_build_context(&wrong_workspace).is_err());
+
+        let spec = parse_build_image_request(&build_context_input(Some(CHANGE_SET_ID))).unwrap();
+        let mut mismatched = spec.clone();
+        mismatched.workspace_id = missing_workspace;
+        assert!(validate_build_context_scope(&mismatched)
+            .unwrap_err()
+            .contains("did not match workspace_id"));
+
+        std::fs::remove_file(scratch.join("Dockerfile")).unwrap();
+        std::fs::remove_dir(&scratch).unwrap();
+        assert!(prepare_docker_build_context(&build_context_input(Some(CHANGE_SET_ID))).is_err());
+    }
+
+    #[test]
+    fn docker_runtime_lab_build_context_identity_rejects_path_swap() {
+        let _env_lock = DATA_DIR_ENV_LOCK
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        let temp = tempfile::tempdir().unwrap();
+        let _data_dir = DataDirEnv::set(temp.path());
+        let (_, scratch) = build_context_layout(temp.path(), CHANGE_SET_ID);
+        std::fs::write(scratch.join("Dockerfile"), "FROM original\n").unwrap();
+        let spec = parse_build_image_request(&build_context_input(Some(CHANGE_SET_ID))).unwrap();
+        let validated = validate_build_context_scope(&spec).unwrap();
+        let parked = scratch.with_file_name("workspace-parked");
+        match std::fs::rename(&scratch, &parked) {
+            Ok(()) => {
+                std::fs::create_dir(&scratch).unwrap();
+                std::fs::write(scratch.join("Dockerfile"), "FROM replacement\n").unwrap();
+                assert!(create_context_tar_at(&spec, &validated)
+                    .unwrap_err()
+                    .contains("changed after Host ownership validation"));
+            }
+            Err(_) => {
+                create_context_tar_at(&spec, &validated)
+                    .expect("a filesystem-blocked swap leaves the pinned context valid");
+            }
+        }
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn docker_runtime_lab_development_scope_rejects_intermediate_symlink() {
+        use std::os::unix::fs::symlink;
+
+        let _env_lock = DATA_DIR_ENV_LOCK
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        let temp = tempfile::tempdir().unwrap();
+        let _data_dir = DataDirEnv::set(temp.path());
+        let (source, scratch) = build_context_layout(temp.path(), CHANGE_SET_ID);
+        std::fs::write(source.join("Dockerfile"), "FROM source\n").unwrap();
+        let development = scratch.parent().unwrap().parent().unwrap().to_path_buf();
+        std::fs::remove_dir_all(&development).unwrap();
+        let outside = temp.path().join("outside-development");
+        let outside_scratch = outside.join(CHANGE_SET_ID).join("workspace");
+        std::fs::create_dir_all(&outside_scratch).unwrap();
+        std::fs::write(outside_scratch.join("Dockerfile"), "FROM outside\n").unwrap();
+        symlink(&outside, &development).unwrap();
+
+        assert!(prepare_docker_build_context(&build_context_input(Some(CHANGE_SET_ID))).is_err());
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn docker_runtime_lab_development_scope_rejects_intermediate_reparse_point() {
+        let _env_lock = DATA_DIR_ENV_LOCK
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        let temp = tempfile::tempdir().unwrap();
+        let _data_dir = DataDirEnv::set(temp.path());
+        let (source, scratch) = build_context_layout(temp.path(), CHANGE_SET_ID);
+        std::fs::write(source.join("Dockerfile"), "FROM source\n").unwrap();
+        let development = scratch.parent().unwrap().parent().unwrap().to_path_buf();
+        std::fs::remove_dir_all(&development).unwrap();
+        let outside = temp.path().join("outside-development");
+        let outside_scratch = outside.join(CHANGE_SET_ID).join("workspace");
+        std::fs::create_dir_all(&outside_scratch).unwrap();
+        std::fs::write(outside_scratch.join("Dockerfile"), "FROM outside\n").unwrap();
+        let output = Command::new("cmd")
+            .args(["/d", "/c", "mklink", "/J"])
+            .arg(&development)
+            .arg(&outside)
+            .output()
+            .unwrap();
+        assert!(
+            output.status.success(),
+            "Windows junction test setup failed: {}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+
+        assert!(prepare_docker_build_context(&build_context_input(Some(CHANGE_SET_ID))).is_err());
+        std::fs::remove_dir(&development).unwrap();
     }
 
     #[test]
@@ -2615,7 +2880,6 @@ mod tests {
             installation_id: INSTALLATION_ID.to_string(),
             workspace_id: WorkspaceId::parse(WORKSPACE_ID).unwrap(),
             build_id: "build-1".to_string(),
-            context_dir: tmp.path().to_path_buf(),
             context_scope: BuildContextScope::Workspace {
                 workspace_id: WorkspaceId::parse(WORKSPACE_ID).unwrap(),
             },
@@ -2629,7 +2893,7 @@ mod tests {
             max_context_files: 10,
             build_timeout_secs: 1,
         };
-        let validated_root = std::fs::canonicalize(&spec.context_dir).unwrap();
+        let validated_root = validated_context_root(tmp.path(), "test context").unwrap();
         let error = prepare_nixpacks_context_with_binary(
             &spec,
             &validated_root,
@@ -2691,7 +2955,6 @@ mod tests {
             installation_id: INSTALLATION_ID.to_string(),
             workspace_id: WorkspaceId::parse(WORKSPACE_ID).unwrap(),
             build_id: "build-1".to_string(),
-            context_dir: tmp.path().to_path_buf(),
             context_scope: BuildContextScope::Workspace {
                 workspace_id: WorkspaceId::parse(WORKSPACE_ID).unwrap(),
             },
@@ -2705,7 +2968,7 @@ mod tests {
             max_context_files: 10,
             build_timeout_secs: 1,
         };
-        let tar = create_context_tar(&spec).expect("context tar builds");
+        let tar = create_context_tar(&spec, tmp.path()).expect("context tar builds");
         assert_eq!(tar.files, 2);
         let digest = verified_context_digest(&spec, &tar).expect("context digest is computed");
         let mut mismatched = spec.clone();
@@ -2716,13 +2979,13 @@ mod tests {
 
         let mut tiny = spec.clone();
         tiny.max_context_bytes = 1;
-        assert!(create_context_tar(&tiny).is_err());
+        assert!(create_context_tar(&tiny, tmp.path()).is_err());
 
         #[cfg(unix)]
         {
             use std::os::unix::fs::symlink;
             symlink("app.txt", tmp.path().join("link.txt")).unwrap();
-            assert!(create_context_tar(&spec).is_err());
+            assert!(create_context_tar(&spec, tmp.path()).is_err());
         }
     }
 
@@ -2737,7 +3000,6 @@ mod tests {
             installation_id: INSTALLATION_ID.to_string(),
             workspace_id: WorkspaceId::parse(WORKSPACE_ID).unwrap(),
             build_id: "build-1".to_string(),
-            context_dir: tmp.path().to_path_buf(),
             context_scope: BuildContextScope::Workspace {
                 workspace_id: WorkspaceId::parse(WORKSPACE_ID).unwrap(),
             },
@@ -2751,7 +3013,7 @@ mod tests {
             max_context_files: 10,
             build_timeout_secs: 1,
         };
-        let tar = create_context_tar(&spec).expect("context tar builds");
+        let tar = create_context_tar(&spec, tmp.path()).expect("context tar builds");
         assert_eq!(tar.files, 1);
     }
 
