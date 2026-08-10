@@ -185,12 +185,20 @@ pub(super) async fn compute_tree_hash(path: &Path) -> Result<String> {
 }
 
 pub(super) async fn compute_external_tree_hash(path: &Path) -> Result<String> {
+    compute_external_tree_hash_with_profile(path, "external_workspace_v1").await
+}
+
+pub(super) async fn compute_external_git_tree_hash(path: &Path) -> Result<String> {
+    compute_external_tree_hash_with_profile(path, "external_git_workspace_v1").await
+}
+
+async fn compute_external_tree_hash_with_profile(path: &Path, profile: &str) -> Result<String> {
     let output = invoke_package_capability(
         "plurora/integrity-lab",
         "plurora/integrity-lab/compute_tree_hash",
         json!({
             "dir": path.to_string_lossy(),
-            "profile": "external_workspace_v1",
+            "profile": profile,
         }),
     )
     .await?;

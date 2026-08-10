@@ -102,45 +102,81 @@ where
     platform::copy_root(&source_root, destination.inner(), &mut stats, before_open)
 }
 
-pub(super) struct ManagedDirectory {
+pub(in crate::inproc) struct ManagedDirectory {
     inner: platform::ManagedDirectory,
 }
 
 impl ManagedDirectory {
-    pub(super) fn open(path: &Path) -> Result<Self> {
+    pub(in crate::inproc) fn open(path: &Path) -> Result<Self> {
         Ok(Self {
             inner: platform::ManagedDirectory::open(path)?,
         })
     }
 
-    pub(super) fn create(path: &Path) -> Result<Self> {
+    pub(in crate::inproc) fn create(path: &Path) -> Result<Self> {
         Ok(Self {
             inner: platform::ManagedDirectory::create(path)?,
         })
     }
 
-    pub(super) fn create_child(&self, name: &OsStr) -> Result<Self> {
+    pub(in crate::inproc) fn create_child(&self, name: &OsStr) -> Result<Self> {
         validate_child_name(name)?;
         Ok(Self {
             inner: self.inner.create_child(name)?,
         })
     }
 
-    pub(super) fn path(&self) -> &Path {
+    pub(in crate::inproc) fn open_child(&self, name: &OsStr) -> Result<Self> {
+        validate_child_name(name)?;
+        Ok(Self {
+            inner: self.inner.open_child(name)?,
+        })
+    }
+
+    pub(in crate::inproc) fn ensure_child_absent(&self, name: &OsStr) -> Result<()> {
+        validate_child_name(name)?;
+        self.inner.ensure_child_absent(name)
+    }
+
+    pub(in crate::inproc) fn path(&self) -> &Path {
         self.inner.path()
     }
 
-    pub(super) fn stable_access_path(&self) -> Result<PathBuf> {
+    pub(in crate::inproc) fn stable_access_path(&self) -> Result<PathBuf> {
         self.inner.stable_access_path()
     }
 
-    pub(super) fn ensure_path_identity(&self) -> Result<()> {
+    pub(in crate::inproc) fn ensure_path_identity(&self) -> Result<()> {
         self.inner.ensure_path_identity()
     }
 
-    pub(super) fn promote_child(&self, child: &ManagedDirectory, name: &OsStr) -> Result<()> {
+    pub(in crate::inproc) fn identity_fingerprint(&self) -> Result<[u64; 2]> {
+        self.inner.identity_fingerprint()
+    }
+
+    pub(in crate::inproc) fn promote_child(
+        &self,
+        child: &ManagedDirectory,
+        name: &OsStr,
+    ) -> Result<()> {
         validate_child_name(name)?;
         self.inner.promote_child(&child.inner, name)
+    }
+
+    pub(in crate::inproc) fn write_new_file(
+        &self,
+        name: &OsStr,
+        bytes: &[u8],
+        executable: bool,
+    ) -> Result<()> {
+        validate_child_name(name)?;
+        self.inner.write_new_file(name, bytes, executable)
+    }
+
+    #[cfg(unix)]
+    pub(in crate::inproc) fn create_symlink(&self, name: &OsStr, target: &Path) -> Result<()> {
+        validate_child_name(name)?;
+        self.inner.create_symlink(name, target)
     }
 
     pub(super) fn atomic_write(&self, name: &OsStr, bytes: &[u8]) -> Result<()> {
@@ -148,8 +184,39 @@ impl ManagedDirectory {
         self.inner.atomic_write(name, bytes)
     }
 
-    pub(super) fn remove(self) -> Result<()> {
+    pub(in crate::inproc) fn remove(self) -> Result<()> {
         self.inner.remove()
+    }
+
+    #[cfg(all(test, unix))]
+    fn remove_with_hook<F>(self, before_remove: &mut F) -> Result<()>
+    where
+        F: FnMut(&Path),
+    {
+        self.inner.remove_with_hook(before_remove)
+    }
+
+    #[cfg(all(test, unix))]
+    fn remove_with_quarantine_hook<F>(self, before_unlink: &mut F) -> Result<()>
+    where
+        F: FnMut(&Path),
+    {
+        self.inner.remove_with_quarantine_hook(before_unlink)
+    }
+
+    #[cfg(all(test, unix))]
+    fn create_child_with_hook<F>(&self, name: &OsStr, before_accept: &mut F) -> Result<Self>
+    where
+        F: FnMut(&Path),
+    {
+        validate_child_name(name)?;
+        Ok(Self {
+            inner: self.inner.create_child_with_hook(name, before_accept)?,
+        })
+    }
+
+    pub(in crate::inproc) fn remove_empty(self) -> Result<()> {
+        self.inner.remove_empty()
     }
 
     fn inner(&self) -> &platform::ManagedDirectory {
@@ -233,7 +300,7 @@ mod platform {
     use std::io::Write;
     use std::os::fd::{AsRawFd, FromRawFd, RawFd};
     use std::os::unix::ffi::{OsStrExt, OsStringExt};
-    use std::os::unix::fs::{MetadataExt, OpenOptionsExt};
+    use std::os::unix::fs::{MetadataExt, OpenOptionsExt, PermissionsExt};
     use std::path::{Path, PathBuf};
 
     use anyhow::{Context, Result};
@@ -319,6 +386,25 @@ mod platform {
         }
 
         pub(super) fn create_child(&self, name: &OsStr) -> Result<Self> {
+            self.create_child_inner(name, &mut |_| {})
+        }
+
+        #[cfg(test)]
+        pub(super) fn create_child_with_hook<F>(
+            &self,
+            name: &OsStr,
+            before_accept: &mut F,
+        ) -> Result<Self>
+        where
+            F: FnMut(&Path),
+        {
+            self.create_child_inner(name, before_accept)
+        }
+
+        fn create_child_inner<F>(&self, name: &OsStr, before_accept: &mut F) -> Result<Self>
+        where
+            F: FnMut(&Path),
+        {
             self.ensure_path_identity()?;
             let name_c = c_string(name, "managed workspace name contains a null byte")?;
             let result = unsafe { mkdirat(self.file.as_raw_fd(), name_c.as_ptr(), 0o700) };
@@ -327,13 +413,12 @@ mod platform {
             }
             let file = match open_directory_relative(self.file.as_raw_fd(), &name_c) {
                 Ok(file) => file,
-                Err(error) => {
-                    let _ =
-                        unsafe { unlinkat(self.file.as_raw_fd(), name_c.as_ptr(), AT_REMOVEDIR) };
-                    return Err(error);
-                }
+                // The entry may have been replaced after mkdirat. Leave it in place on
+                // failure; unlinking by its mutable name could delete the replacement.
+                Err(error) => return Err(error),
             };
             let metadata = file.metadata()?;
+            before_accept(&self.path.join(name));
             let child = Self {
                 file,
                 path: self.path.join(name),
@@ -343,10 +428,43 @@ mod platform {
                 inode: metadata.ino(),
             };
             if let Err(error) = child.ensure_path_identity() {
-                let _ = unsafe { unlinkat(self.file.as_raw_fd(), name_c.as_ptr(), AT_REMOVEDIR) };
+                // The child handle proves what we created, but POSIX unlinkat removes by
+                // name. If that name changed identity, preserving it is safer than cleanup.
                 return Err(error);
             }
             Ok(child)
+        }
+
+        pub(super) fn open_child(&self, name: &OsStr) -> Result<Self> {
+            self.ensure_path_identity()?;
+            let name_c = c_string(name, "managed workspace name contains a null byte")?;
+            let file = open_directory_relative(self.file.as_raw_fd(), &name_c)?;
+            let metadata = file.metadata()?;
+            let child = Self {
+                file,
+                path: self.path.join(name),
+                parent: Some(self.file.try_clone()?),
+                name: Some(name.to_os_string()),
+                device: metadata.dev(),
+                inode: metadata.ino(),
+            };
+            child.ensure_path_identity()?;
+            Ok(child)
+        }
+
+        pub(super) fn ensure_child_absent(&self, name: &OsStr) -> Result<()> {
+            self.ensure_path_identity()?;
+            match open_relative_handle(self.file.as_raw_fd(), name) {
+                Ok(_) => anyhow::bail!("managed destination child already exists"),
+                Err(error)
+                    if error
+                        .downcast_ref::<std::io::Error>()
+                        .is_some_and(|error| error.kind() == std::io::ErrorKind::NotFound) =>
+                {
+                    Ok(())
+                }
+                Err(error) => Err(error),
+            }
         }
 
         pub(super) fn path(&self) -> &Path {
@@ -355,7 +473,10 @@ mod platform {
 
         pub(super) fn stable_access_path(&self) -> Result<PathBuf> {
             self.ensure_path_identity()?;
-            Ok(proc_fd_path(self.file.as_raw_fd()))
+            // `/proc/self/fd/N` is itself a symlink, which public tree readers must
+            // reject as a caller-supplied root. Appending `.` makes the final pathname
+            // component the already-open directory while retaining fd-anchored access.
+            Ok(proc_fd_path(self.file.as_raw_fd()).join("."))
         }
 
         pub(super) fn ensure_path_identity(&self) -> Result<()> {
@@ -374,6 +495,11 @@ mod platform {
             Ok(())
         }
 
+        pub(super) fn identity_fingerprint(&self) -> Result<[u64; 2]> {
+            self.ensure_path_identity()?;
+            Ok([self.device, self.inode])
+        }
+
         pub(super) fn promote_child(&self, child: &Self, name: &OsStr) -> Result<()> {
             self.ensure_path_identity()?;
             child.ensure_path_identity()?;
@@ -381,11 +507,6 @@ mod platform {
                 .parent
                 .as_ref()
                 .ok_or_else(|| anyhow::anyhow!("managed staging directory has no owner"))?;
-            let parent_metadata = parent.metadata()?;
-            anyhow::ensure!(
-                parent_metadata.dev() == self.device && parent_metadata.ino() == self.inode,
-                "managed staging directory has a different owner"
-            );
             let old_name = c_string(
                 child.name.as_deref().unwrap_or_default(),
                 "managed staging name contains a null byte",
@@ -393,7 +514,7 @@ mod platform {
             let new_name = c_string(name, "managed source name contains a null byte")?;
             let result = unsafe {
                 renameat2(
-                    self.file.as_raw_fd(),
+                    parent.as_raw_fd(),
                     old_name.as_ptr(),
                     self.file.as_raw_fd(),
                     new_name.as_ptr(),
@@ -402,6 +523,21 @@ mod platform {
             };
             if result != 0 {
                 return Err(std::io::Error::last_os_error().into());
+            }
+            Ok(())
+        }
+
+        pub(super) fn write_new_file(
+            &self,
+            name: &OsStr,
+            bytes: &[u8],
+            executable: bool,
+        ) -> Result<()> {
+            let mut file = self.create_file(name)?;
+            file.write_all(bytes)?;
+            file.flush()?;
+            if executable {
+                file.set_permissions(fs::Permissions::from_mode(0o755))?;
             }
             Ok(())
         }
@@ -439,24 +575,81 @@ mod platform {
         }
 
         pub(super) fn remove(self) -> Result<()> {
-            self.remove_contents()?;
+            self.remove_inner(&mut |_| {}, &mut |_| {})
+        }
+
+        #[cfg(test)]
+        pub(super) fn remove_with_hook<F>(self, before_remove: &mut F) -> Result<()>
+        where
+            F: FnMut(&Path),
+        {
+            self.remove_inner(before_remove, &mut |_| {})
+        }
+
+        #[cfg(test)]
+        pub(super) fn remove_with_quarantine_hook<F>(self, before_unlink: &mut F) -> Result<()>
+        where
+            F: FnMut(&Path),
+        {
+            self.remove_inner(&mut |_| {}, before_unlink)
+        }
+
+        fn remove_inner<F, G>(self, before_remove: &mut F, before_unlink: &mut G) -> Result<()>
+        where
+            F: FnMut(&Path),
+            G: FnMut(&Path),
+        {
+            self.remove_contents(before_remove, before_unlink)?;
             let Some(parent) = self.parent.as_ref() else {
                 anyhow::bail!("managed destination owner is unavailable");
             };
             let name = self.name.as_deref().unwrap_or_default();
-            let name_c = c_string(name, "managed workspace name contains a null byte")?;
-            let current = open_directory_relative(parent.as_raw_fd(), &name_c)?;
-            let metadata = current.metadata()?;
+            before_remove(&self.path);
+            let claimed = claim_owned_entry(
+                parent.as_raw_fd(),
+                name,
+                self.device,
+                self.inode,
+                self.file.metadata()?.file_type(),
+            )?;
+            remove_claimed_entry(
+                parent.as_raw_fd(),
+                &claimed,
+                self.device,
+                self.inode,
+                self.file.metadata()?.file_type(),
+                AT_REMOVEDIR,
+                before_unlink,
+            )
+        }
+
+        pub(super) fn remove_empty(self) -> Result<()> {
+            let Some(parent) = self.parent.as_ref() else {
+                anyhow::bail!("managed destination owner is unavailable");
+            };
+            let name = self.name.as_deref().unwrap_or_default();
+            let claimed = claim_owned_entry(
+                parent.as_raw_fd(),
+                name,
+                self.device,
+                self.inode,
+                self.file.metadata()?.file_type(),
+            )?;
             anyhow::ensure!(
-                metadata.dev() == self.device && metadata.ino() == self.inode,
-                "managed destination identity changed before removal"
+                fs::read_dir(proc_fd_path(self.file.as_raw_fd()))?
+                    .next()
+                    .is_none(),
+                "managed destination is not empty"
             );
-            drop(current);
-            let result = unsafe { unlinkat(parent.as_raw_fd(), name_c.as_ptr(), AT_REMOVEDIR) };
-            if result != 0 {
-                return Err(std::io::Error::last_os_error().into());
-            }
-            Ok(())
+            remove_claimed_entry(
+                parent.as_raw_fd(),
+                &claimed,
+                self.device,
+                self.inode,
+                self.file.metadata()?.file_type(),
+                AT_REMOVEDIR,
+                &mut |_| {},
+            )
         }
 
         fn create_file(&self, name: &OsStr) -> Result<File> {
@@ -476,7 +669,7 @@ mod platform {
             Ok(unsafe { File::from_raw_fd(fd) })
         }
 
-        fn create_symlink(&self, name: &OsStr, target: &Path) -> Result<()> {
+        pub(super) fn create_symlink(&self, name: &OsStr, target: &Path) -> Result<()> {
             self.ensure_path_identity()?;
             let name = c_string(name, "managed workspace name contains a null byte")?;
             let target = CString::new(target.as_os_str().as_bytes())
@@ -489,10 +682,13 @@ mod platform {
             Ok(())
         }
 
-        fn remove_contents(&self) -> Result<()> {
+        fn remove_contents<F, G>(&self, before_remove: &mut F, before_unlink: &mut G) -> Result<()>
+        where
+            F: FnMut(&Path),
+            G: FnMut(&Path),
+        {
             for entry in fs::read_dir(proc_fd_path(self.file.as_raw_fd()))? {
                 let name = entry?.file_name();
-                let name_c = c_string(&name, "managed workspace name contains a null byte")?;
                 let opened = open_relative_handle(self.file.as_raw_fd(), &name)?;
                 let metadata = opened.metadata()?;
                 if metadata.is_dir() {
@@ -504,13 +700,25 @@ mod platform {
                         device: metadata.dev(),
                         inode: metadata.ino(),
                     };
-                    child.remove()?;
+                    child.remove_inner(before_remove, before_unlink)?;
                 } else {
-                    drop(opened);
-                    let result = unsafe { unlinkat(self.file.as_raw_fd(), name_c.as_ptr(), 0) };
-                    if result != 0 {
-                        return Err(std::io::Error::last_os_error().into());
-                    }
+                    before_remove(&self.path.join(&name));
+                    let claimed = claim_owned_entry(
+                        self.file.as_raw_fd(),
+                        &name,
+                        metadata.dev(),
+                        metadata.ino(),
+                        metadata.file_type(),
+                    )?;
+                    remove_claimed_entry(
+                        self.file.as_raw_fd(),
+                        &claimed,
+                        metadata.dev(),
+                        metadata.ino(),
+                        metadata.file_type(),
+                        0,
+                        before_unlink,
+                    )?;
                 }
             }
             Ok(())
@@ -658,6 +866,96 @@ mod platform {
         Ok(data)
     }
 
+    struct ClaimedEntry {
+        name: OsString,
+        encoded_name: CString,
+    }
+
+    fn claim_owned_entry(
+        parent: RawFd,
+        name: &OsStr,
+        expected_device: u64,
+        expected_inode: u64,
+        expected_type: fs::FileType,
+    ) -> Result<ClaimedEntry> {
+        let name_c = c_string(name, "managed workspace name contains a null byte")?;
+        let quarantine_name = OsString::from(format!(".plurora-remove-{}", uuid::Uuid::new_v4()));
+        let quarantine = c_string(
+            &quarantine_name,
+            "managed quarantine name contains a null byte",
+        )?;
+        let claimed = unsafe {
+            renameat2(
+                parent,
+                name_c.as_ptr(),
+                parent,
+                quarantine.as_ptr(),
+                RENAME_NOREPLACE,
+            )
+        };
+        if claimed != 0 {
+            return Err(std::io::Error::last_os_error().into());
+        }
+
+        let opened = open_relative_handle(parent, &quarantine_name)?;
+        let metadata = opened.metadata()?;
+        if metadata.dev() != expected_device
+            || metadata.ino() != expected_inode
+            || metadata.file_type() != expected_type
+        {
+            let restored = unsafe {
+                renameat2(
+                    parent,
+                    quarantine.as_ptr(),
+                    parent,
+                    name_c.as_ptr(),
+                    RENAME_NOREPLACE,
+                )
+            };
+            anyhow::ensure!(
+                restored == 0,
+                "managed destination replacement was preserved under a quarantine name"
+            );
+            anyhow::bail!("managed destination child identity changed before removal");
+        }
+        Ok(ClaimedEntry {
+            name: quarantine_name,
+            encoded_name: quarantine,
+        })
+    }
+
+    fn remove_claimed_entry<F>(
+        parent: RawFd,
+        claimed: &ClaimedEntry,
+        expected_device: u64,
+        expected_inode: u64,
+        expected_type: fs::FileType,
+        flags: i32,
+        before_unlink: &mut F,
+    ) -> Result<()>
+    where
+        F: FnMut(&Path),
+    {
+        // The user-visible mutable name is already absent. The remaining name is
+        // unpredictable and lives under a Host-owned managed directory. POSIX has no
+        // inode-addressed unlink, so re-open and compare immediately before unlinkat;
+        // a mismatch is fail-closed and preserves the exchanged object.
+        before_unlink(&proc_fd_path(parent).join(&claimed.name));
+        let current = open_relative_handle(parent, &claimed.name)?;
+        let current_metadata = current.metadata()?;
+        anyhow::ensure!(
+            current_metadata.dev() == expected_device
+                && current_metadata.ino() == expected_inode
+                && current_metadata.file_type() == expected_type,
+            "managed quarantine identity changed before removal"
+        );
+        let result = unsafe { unlinkat(parent, claimed.encoded_name.as_ptr(), flags) };
+        if result != 0 {
+            return Err(std::io::Error::last_os_error().into());
+        }
+        Ok(())
+    }
+
     fn validate_handle_containment(handle: &File, source_root: &Path) -> Result<()> {
         let actual = fs::canonicalize(proc_fd_path(handle.as_raw_fd()))
             .map_err(|_| anyhow::anyhow!("external workspace entry has no stable path"))?;
@@ -700,16 +998,41 @@ mod platform {
 
 #[cfg(all(unix, not(any(target_os = "linux", target_os = "android"))))]
 mod platform {
-    use std::ffi::{OsStr, OsString};
+    use std::ffi::{c_char, CString, OsStr, OsString};
     use std::fs::{self, File};
     use std::io::Write;
     use std::os::fd::AsRawFd;
+    use std::os::unix::ffi::OsStrExt;
     use std::os::unix::fs::MetadataExt;
     use std::path::{Path, PathBuf};
 
-    use anyhow::Result;
+    use anyhow::{Context, Result};
 
     use super::{copy_open_file, is_excluded, validate_relative_symlink, CopyStats};
+
+    #[cfg(target_vendor = "apple")]
+    const RENAME_EXCL: u32 = 0x0000_0004;
+    #[cfg(target_os = "freebsd")]
+    const AT_RENAME_NOREPLACE: u32 = 0x0000_0001;
+
+    unsafe extern "C" {
+        #[cfg(target_vendor = "apple")]
+        fn renameatx_np(
+            olddirfd: i32,
+            oldpath: *const c_char,
+            newdirfd: i32,
+            newpath: *const c_char,
+            flags: u32,
+        ) -> i32;
+        #[cfg(target_os = "freebsd")]
+        fn renameat2(
+            olddirfd: i32,
+            oldpath: *const c_char,
+            newdirfd: i32,
+            newpath: *const c_char,
+            flags: u32,
+        ) -> i32;
+    }
 
     pub(super) struct ManagedDirectory {
         file: File,
@@ -754,11 +1077,43 @@ mod platform {
         }
 
         pub(super) fn create_child(&self, name: &OsStr) -> Result<Self> {
+            self.create_child_inner(name, &mut |_| {})
+        }
+
+        #[cfg(test)]
+        pub(super) fn create_child_with_hook<F>(
+            &self,
+            name: &OsStr,
+            before_accept: &mut F,
+        ) -> Result<Self>
+        where
+            F: FnMut(&Path),
+        {
+            self.create_child_inner(name, before_accept)
+        }
+
+        fn create_child_inner<F>(&self, name: &OsStr, before_accept: &mut F) -> Result<Self>
+        where
+            F: FnMut(&Path),
+        {
             self.ensure_path_identity()?;
             let child_path = fd_directory_path(self.file.as_raw_fd()).join(name);
             fs::create_dir(&child_path)?;
+            let created = fs::symlink_metadata(&child_path)?;
+            before_accept(&self.path.join(name));
             let file = File::open(&child_path)?;
             let metadata = file.metadata()?;
+            let current = fs::symlink_metadata(&child_path)?;
+            anyhow::ensure!(
+                created.is_dir()
+                    && !created.file_type().is_symlink()
+                    && created.dev() == metadata.dev()
+                    && created.ino() == metadata.ino()
+                    && current.dev() == metadata.dev()
+                    && current.ino() == metadata.ino()
+                    && !current.file_type().is_symlink(),
+                "managed destination child changed while it was being opened"
+            );
             let child = Self {
                 file,
                 path: self.path.join(name),
@@ -771,13 +1126,43 @@ mod platform {
             Ok(child)
         }
 
+        pub(super) fn open_child(&self, name: &OsStr) -> Result<Self> {
+            self.ensure_path_identity()?;
+            let child_path = fd_directory_path(self.file.as_raw_fd()).join(name);
+            let file = File::open(&child_path)?;
+            let metadata = file.metadata()?;
+            anyhow::ensure!(
+                metadata.is_dir(),
+                "managed destination child must be a directory"
+            );
+            let child = Self {
+                file,
+                path: self.path.join(name),
+                parent: Some(self.file.try_clone()?),
+                name: Some(name.to_os_string()),
+                device: metadata.dev(),
+                inode: metadata.ino(),
+            };
+            child.ensure_path_identity()?;
+            Ok(child)
+        }
+
+        pub(super) fn ensure_child_absent(&self, name: &OsStr) -> Result<()> {
+            self.ensure_path_identity()?;
+            match fs::symlink_metadata(fd_directory_path(self.file.as_raw_fd()).join(name)) {
+                Ok(_) => anyhow::bail!("managed destination child already exists"),
+                Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(()),
+                Err(error) => Err(error.into()),
+            }
+        }
+
         pub(super) fn path(&self) -> &Path {
             &self.path
         }
 
         pub(super) fn stable_access_path(&self) -> Result<PathBuf> {
             self.ensure_path_identity()?;
-            Ok(fd_directory_path(self.file.as_raw_fd()))
+            Ok(fd_directory_path(self.file.as_raw_fd()).join("."))
         }
 
         pub(super) fn ensure_path_identity(&self) -> Result<()> {
@@ -795,6 +1180,11 @@ mod platform {
             Ok(())
         }
 
+        pub(super) fn identity_fingerprint(&self) -> Result<[u64; 2]> {
+            self.ensure_path_identity()?;
+            Ok([self.device, self.inode])
+        }
+
         pub(super) fn promote_child(&self, child: &Self, name: &OsStr) -> Result<()> {
             self.ensure_path_identity()?;
             child.ensure_path_identity()?;
@@ -802,22 +1192,27 @@ mod platform {
                 .parent
                 .as_ref()
                 .ok_or_else(|| anyhow::anyhow!("managed staging directory has no owner"))?;
-            let metadata = parent.metadata()?;
-            anyhow::ensure!(
-                metadata.dev() == self.device && metadata.ino() == self.inode,
-                "managed staging directory has a different owner"
-            );
-            let root = fd_directory_path(self.file.as_raw_fd());
-            let destination = root.join(name);
-            anyhow::ensure!(
-                fs::symlink_metadata(&destination)
-                    .is_err_and(|error| error.kind() == std::io::ErrorKind::NotFound),
-                "managed workspace source destination already exists"
-            );
-            fs::rename(
-                root.join(child.name.as_deref().unwrap_or_default()),
-                destination,
-            )?;
+            exclusive_rename(
+                parent.as_raw_fd(),
+                child.name.as_deref().unwrap_or_default(),
+                self.file.as_raw_fd(),
+                name,
+            )
+        }
+
+        pub(super) fn write_new_file(
+            &self,
+            name: &OsStr,
+            bytes: &[u8],
+            executable: bool,
+        ) -> Result<()> {
+            let mut file = self.create_file(name)?;
+            file.write_all(bytes)?;
+            file.flush()?;
+            if executable {
+                use std::os::unix::fs::PermissionsExt;
+                file.set_permissions(fs::Permissions::from_mode(0o755))?;
+            }
             Ok(())
         }
 
@@ -836,40 +1231,99 @@ mod platform {
             }
             drop(file);
             self.ensure_path_identity()?;
-            let destination = root.join(name);
-            if let Err(error) = fs::rename(&temporary, &destination) {
+            if let Err(error) = exclusive_rename(
+                self.file.as_raw_fd(),
+                temporary.file_name().unwrap_or_default(),
+                self.file.as_raw_fd(),
+                name,
+            ) {
                 let _ = fs::remove_file(&temporary);
-                return Err(error.into());
+                return Err(error);
             }
             Ok(())
         }
 
         pub(super) fn remove(self) -> Result<()> {
-            let root = fd_directory_path(self.file.as_raw_fd());
-            for entry in fs::read_dir(&root)? {
-                let path = entry?.path();
-                let metadata = fs::symlink_metadata(&path)?;
-                if metadata.is_dir() && !metadata.file_type().is_symlink() {
-                    fs::remove_dir_all(path)?;
-                } else {
-                    fs::remove_file(path)?;
-                }
-            }
+            self.remove_inner(&mut |_| {}, &mut |_| {})
+        }
+
+        #[cfg(test)]
+        pub(super) fn remove_with_hook<F>(self, before_remove: &mut F) -> Result<()>
+        where
+            F: FnMut(&Path),
+        {
+            self.remove_inner(before_remove, &mut |_| {})
+        }
+
+        #[cfg(test)]
+        pub(super) fn remove_with_quarantine_hook<F>(self, before_unlink: &mut F) -> Result<()>
+        where
+            F: FnMut(&Path),
+        {
+            self.remove_inner(&mut |_| {}, before_unlink)
+        }
+
+        fn remove_inner<F, G>(self, before_remove: &mut F, before_unlink: &mut G) -> Result<()>
+        where
+            F: FnMut(&Path),
+            G: FnMut(&Path),
+        {
+            self.remove_contents(before_remove, before_unlink)?;
             let parent = self
                 .parent
                 .as_ref()
                 .ok_or_else(|| anyhow::anyhow!("managed destination owner is unavailable"))?;
             let name = self.name.as_deref().unwrap_or_default();
-            let path = fd_directory_path(parent.as_raw_fd()).join(name);
-            let current = File::open(&path)?;
-            let metadata = current.metadata()?;
-            anyhow::ensure!(
-                metadata.dev() == self.device && metadata.ino() == self.inode,
-                "managed destination identity changed before removal"
-            );
-            drop(current);
+            before_remove(&self.path);
+            let claimed = claim_owned_entry(
+                parent.as_raw_fd(),
+                name,
+                self.device,
+                self.inode,
+                self.file.metadata()?.file_type(),
+            )?;
+            remove_claimed_entry(
+                parent.as_raw_fd(),
+                &claimed,
+                self.device,
+                self.inode,
+                self.file.metadata()?.file_type(),
+                true,
+                before_unlink,
+            )?;
             drop(self.file);
-            fs::remove_dir(path)?;
+            Ok(())
+        }
+
+        pub(super) fn remove_empty(self) -> Result<()> {
+            let parent = self
+                .parent
+                .as_ref()
+                .ok_or_else(|| anyhow::anyhow!("managed destination owner is unavailable"))?;
+            let name = self.name.as_deref().unwrap_or_default();
+            let claimed = claim_owned_entry(
+                parent.as_raw_fd(),
+                name,
+                self.device,
+                self.inode,
+                self.file.metadata()?.file_type(),
+            )?;
+            anyhow::ensure!(
+                fs::read_dir(fd_directory_path(self.file.as_raw_fd()))?
+                    .next()
+                    .is_none(),
+                "managed destination is not empty"
+            );
+            remove_claimed_entry(
+                parent.as_raw_fd(),
+                &claimed,
+                self.device,
+                self.inode,
+                self.file.metadata()?.file_type(),
+                true,
+                &mut |_| {},
+            )?;
+            drop(self.file);
             Ok(())
         }
 
@@ -881,12 +1335,61 @@ mod platform {
                 .open(fd_directory_path(self.file.as_raw_fd()).join(name))?)
         }
 
-        fn create_symlink(&self, name: &OsStr, target: &Path) -> Result<()> {
+        pub(super) fn create_symlink(&self, name: &OsStr, target: &Path) -> Result<()> {
             self.ensure_path_identity()?;
             std::os::unix::fs::symlink(
                 target,
                 fd_directory_path(self.file.as_raw_fd()).join(name),
             )?;
+            Ok(())
+        }
+
+        fn remove_contents<F, G>(&self, before_remove: &mut F, before_unlink: &mut G) -> Result<()>
+        where
+            F: FnMut(&Path),
+            G: FnMut(&Path),
+        {
+            let root = fd_directory_path(self.file.as_raw_fd());
+            for entry in fs::read_dir(&root)? {
+                let name = entry?.file_name();
+                let path = root.join(&name);
+                let metadata = fs::symlink_metadata(&path)?;
+                if metadata.is_dir() && !metadata.file_type().is_symlink() {
+                    let file = File::open(&path)?;
+                    let opened = file.metadata()?;
+                    anyhow::ensure!(
+                        opened.dev() == metadata.dev() && opened.ino() == metadata.ino(),
+                        "managed destination child changed while it was being opened"
+                    );
+                    let child = Self {
+                        file,
+                        path: self.path.join(&name),
+                        parent: Some(self.file.try_clone()?),
+                        name: Some(name),
+                        device: opened.dev(),
+                        inode: opened.ino(),
+                    };
+                    child.remove_inner(before_remove, before_unlink)?;
+                } else {
+                    before_remove(&self.path.join(&name));
+                    let claimed = claim_owned_entry(
+                        self.file.as_raw_fd(),
+                        &name,
+                        metadata.dev(),
+                        metadata.ino(),
+                        metadata.file_type(),
+                    )?;
+                    remove_claimed_entry(
+                        self.file.as_raw_fd(),
+                        &claimed,
+                        metadata.dev(),
+                        metadata.ino(),
+                        metadata.file_type(),
+                        false,
+                        before_unlink,
+                    )?;
+                }
+            }
             Ok(())
         }
     }
@@ -997,8 +1500,110 @@ mod platform {
         Ok(opened)
     }
 
+    fn claim_owned_entry(
+        parent: i32,
+        name: &OsStr,
+        expected_device: u64,
+        expected_inode: u64,
+        expected_type: fs::FileType,
+    ) -> Result<OsString> {
+        let quarantine = OsString::from(format!(".plurora-remove-{}", uuid::Uuid::new_v4()));
+        exclusive_rename(parent, name, parent, &quarantine)?;
+        let quarantine_path = fd_directory_path(parent).join(&quarantine);
+        let metadata = fs::symlink_metadata(&quarantine_path)?;
+        if metadata.dev() != expected_device
+            || metadata.ino() != expected_inode
+            || metadata.file_type() != expected_type
+        {
+            if let Err(restore_error) = exclusive_rename(parent, &quarantine, parent, name) {
+                return Err(restore_error).context(
+                    "managed destination replacement was preserved under a quarantine name",
+                );
+            }
+            anyhow::bail!("managed destination child identity changed before removal");
+        }
+        let current = fs::symlink_metadata(&quarantine_path)?;
+        anyhow::ensure!(
+            current.dev() == expected_device
+                && current.ino() == expected_inode
+                && current.file_type() == expected_type,
+            "managed quarantine identity changed before removal"
+        );
+        Ok(quarantine)
+    }
+
+    fn remove_claimed_entry<F>(
+        parent: i32,
+        claimed: &OsStr,
+        expected_device: u64,
+        expected_inode: u64,
+        expected_type: fs::FileType,
+        directory: bool,
+        before_unlink: &mut F,
+    ) -> Result<()>
+    where
+        F: FnMut(&Path),
+    {
+        let quarantine_path = fd_directory_path(parent).join(claimed);
+        before_unlink(&quarantine_path);
+        let current = fs::symlink_metadata(&quarantine_path)?;
+        anyhow::ensure!(
+            current.dev() == expected_device
+                && current.ino() == expected_inode
+                && current.file_type() == expected_type,
+            "managed quarantine identity changed before removal"
+        );
+        if directory {
+            fs::remove_dir(quarantine_path)?;
+        } else {
+            fs::remove_file(quarantine_path)?;
+        }
+        Ok(())
+    }
+
     fn fd_directory_path(fd: i32) -> PathBuf {
         PathBuf::from(format!("/dev/fd/{fd}"))
+    }
+
+    fn exclusive_rename(
+        old_parent: i32,
+        old_name: &OsStr,
+        new_parent: i32,
+        new_name: &OsStr,
+    ) -> Result<()> {
+        let old_name = CString::new(old_name.as_bytes())
+            .map_err(|_| anyhow::anyhow!("managed staging name contains a null byte"))?;
+        let new_name = CString::new(new_name.as_bytes())
+            .map_err(|_| anyhow::anyhow!("managed destination name contains a null byte"))?;
+        #[cfg(target_vendor = "apple")]
+        let result = unsafe {
+            renameatx_np(
+                old_parent,
+                old_name.as_ptr(),
+                new_parent,
+                new_name.as_ptr(),
+                RENAME_EXCL,
+            )
+        };
+        #[cfg(target_os = "freebsd")]
+        let result = unsafe {
+            renameat2(
+                old_parent,
+                old_name.as_ptr(),
+                new_parent,
+                new_name.as_ptr(),
+                AT_RENAME_NOREPLACE,
+            )
+        };
+        #[cfg(not(any(target_vendor = "apple", target_os = "freebsd")))]
+        anyhow::bail!("atomic no-clobber directory promotion is unsupported on this Unix target");
+        #[cfg(any(target_vendor = "apple", target_os = "freebsd"))]
+        {
+            if result != 0 {
+                return Err(std::io::Error::last_os_error().into());
+            }
+            Ok(())
+        }
     }
 }
 
@@ -1256,6 +1861,40 @@ mod platform {
             Ok(child)
         }
 
+        pub(super) fn open_child(&self, name: &OsStr) -> Result<Self> {
+            self.ensure_path_identity()?;
+            let file = nt_create_relative(&self.file, name, FILE_OPEN, Some(true))?;
+            let tag = file_attribute_tag(&file)?;
+            anyhow::ensure!(
+                tag.file_attributes & FILE_ATTRIBUTE_DIRECTORY != 0
+                    && tag.file_attributes & FILE_ATTRIBUTE_REPARSE_POINT == 0,
+                "managed destination child must be a real directory"
+            );
+            let child = Self {
+                identity: file_identity(&file)?,
+                file,
+                path: self.path.join(name),
+                parent: Some(self.file.try_clone()?),
+            };
+            child.ensure_path_identity()?;
+            Ok(child)
+        }
+
+        pub(super) fn ensure_child_absent(&self, name: &OsStr) -> Result<()> {
+            self.ensure_path_identity()?;
+            match nt_create_relative(&self.file, name, FILE_OPEN, None) {
+                Ok(_) => anyhow::bail!("managed destination child already exists"),
+                Err(error)
+                    if error
+                        .downcast_ref::<std::io::Error>()
+                        .is_some_and(|error| error.kind() == std::io::ErrorKind::NotFound) =>
+                {
+                    Ok(())
+                }
+                Err(error) => Err(error),
+            }
+        }
+
         pub(super) fn path(&self) -> &Path {
             &self.path
         }
@@ -1279,6 +1918,11 @@ mod platform {
             Ok(())
         }
 
+        pub(super) fn identity_fingerprint(&self) -> Result<[u64; 2]> {
+            self.ensure_path_identity()?;
+            Ok([u64::from(self.identity.volume), self.identity.index])
+        }
+
         pub(super) fn promote_child(&self, child: &Self, name: &OsStr) -> Result<()> {
             self.ensure_path_identity()?;
             child.ensure_path_identity()?;
@@ -1286,11 +1930,22 @@ mod platform {
                 .parent
                 .as_ref()
                 .ok_or_else(|| anyhow::anyhow!("managed staging directory has no owner"))?;
-            anyhow::ensure!(
-                file_identity(parent)? == self.identity,
-                "managed staging directory has a different owner"
-            );
+            // The child handle and its recorded parent prove the source identity. NT's
+            // handle-relative rename can safely move it into another pinned directory.
+            let _ = parent;
             rename_handle_relative(&child.file, &self.file, name)
+        }
+
+        pub(super) fn write_new_file(
+            &self,
+            name: &OsStr,
+            bytes: &[u8],
+            _executable: bool,
+        ) -> Result<()> {
+            let mut file = self.create_file(name)?;
+            file.write_all(bytes)?;
+            file.flush()?;
+            Ok(())
         }
 
         pub(super) fn atomic_write(&self, name: &OsStr, bytes: &[u8]) -> Result<()> {
@@ -1327,6 +1982,16 @@ mod platform {
                 }
                 Ok(())
             })?;
+            mark_delete(&self.file)
+        }
+
+        pub(super) fn remove_empty(self) -> Result<()> {
+            let mut has_entry = false;
+            visit_directory_names(&self.file, &mut |_| {
+                has_entry = true;
+                Ok(())
+            })?;
+            anyhow::ensure!(!has_entry, "managed destination is not empty");
             mark_delete(&self.file)
         }
 
@@ -2071,6 +2736,142 @@ mod tests {
         assert!(hook_called, "the controlled race hook did not execute");
         assert!(result.is_err());
         assert!(!outside.join("public.txt").exists());
+        Ok(())
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn managed_remove_refuses_a_leaf_swap_and_preserves_the_replacement() -> Result<()> {
+        let temporary = tempfile::tempdir()?;
+        let parent = ManagedDirectory::open(temporary.path())?;
+        let scratch = parent.create_child("scratch".as_ref())?;
+        scratch.write_new_file("victim".as_ref(), b"owned", false)?;
+        let victim = scratch.path().join("victim");
+        let parked = scratch.path().join("victim.parked");
+        let mut swapped = false;
+
+        let result = scratch.remove_with_hook(&mut |about_to_remove| {
+            if !swapped && about_to_remove == victim {
+                fs::rename(&victim, &parked).expect("park held leaf");
+                fs::write(&victim, "sentinel").expect("install replacement leaf");
+                swapped = true;
+            }
+        });
+
+        assert!(swapped, "leaf removal hook was not reached");
+        assert!(result.is_err(), "replacement identity must fail closed");
+        assert_eq!(fs::read_to_string(&victim)?, "sentinel");
+        assert_eq!(fs::read_to_string(&parked)?, "owned");
+        Ok(())
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn managed_remove_refuses_a_nested_directory_swap_and_preserves_its_sentinel() -> Result<()> {
+        let temporary = tempfile::tempdir()?;
+        let parent = ManagedDirectory::open(temporary.path())?;
+        let scratch = parent.create_child("scratch".as_ref())?;
+        let child = scratch.create_child("child".as_ref())?;
+        child.write_new_file("owned".as_ref(), b"owned", false)?;
+        let child_path = child.path().to_path_buf();
+        let parked = scratch.path().join("child.parked");
+        drop(child);
+        let mut swapped = false;
+
+        let result = scratch.remove_with_hook(&mut |about_to_remove| {
+            if !swapped && about_to_remove == child_path {
+                fs::rename(&child_path, &parked).expect("park held child");
+                fs::create_dir(&child_path).expect("install replacement child");
+                fs::write(child_path.join("sentinel"), "preserve")
+                    .expect("write replacement sentinel");
+                swapped = true;
+            }
+        });
+
+        assert!(swapped, "nested removal hook was not reached");
+        assert!(result.is_err(), "replacement identity must fail closed");
+        assert_eq!(fs::read_to_string(child_path.join("sentinel"))?, "preserve");
+        assert!(parked.is_dir(), "the held original child remains distinct");
+        Ok(())
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn managed_remove_refuses_an_exchange_after_quarantine_verification() -> Result<()> {
+        let temporary = tempfile::tempdir()?;
+        let parent = ManagedDirectory::open(temporary.path())?;
+        let scratch = parent.create_child("scratch".as_ref())?;
+        let mut replacement_path = None;
+        let mut parked_path = None;
+
+        let result = scratch.remove_with_quarantine_hook(&mut |quarantine_access| {
+            if replacement_path.is_some() {
+                return;
+            }
+            let actual = fs::canonicalize(quarantine_access)
+                .expect("resolve the quarantined owned directory");
+            let parked = actual.with_extension("parked-after-check");
+            fs::rename(quarantine_access, &parked).expect("park checked quarantine identity");
+            fs::create_dir(quarantine_access).expect("install replacement quarantine directory");
+            fs::write(quarantine_access.join("sentinel"), "preserve")
+                .expect("write replacement sentinel");
+            replacement_path = Some(actual);
+            parked_path = Some(parked);
+        });
+
+        assert!(result.is_err(), "post-check exchange must fail closed");
+        let replacement =
+            replacement_path.ok_or_else(|| anyhow::anyhow!("quarantine hook was not reached"))?;
+        assert_eq!(
+            fs::read_to_string(replacement.join("sentinel"))?,
+            "preserve"
+        );
+        assert!(
+            parked_path
+                .ok_or_else(|| anyhow::anyhow!("original quarantine was not parked"))?
+                .is_dir(),
+            "the originally verified directory must not be deleted by replacement name"
+        );
+        Ok(())
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn managed_stable_access_path_ends_at_the_held_directory_not_the_fd_symlink() -> Result<()> {
+        let temporary = tempfile::tempdir()?;
+        let parent = ManagedDirectory::open(temporary.path())?;
+        let scratch = parent.create_child("scratch".as_ref())?;
+        scratch.write_new_file("file".as_ref(), b"content", false)?;
+
+        let access = scratch.stable_access_path()?;
+        let metadata = fs::symlink_metadata(&access)?;
+        assert!(metadata.is_dir());
+        assert!(!metadata.file_type().is_symlink());
+        assert_eq!(fs::read_to_string(access.join("file"))?, "content");
+        scratch.remove()?;
+        Ok(())
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn managed_create_child_refuses_a_swap_before_accepting_the_identity() -> Result<()> {
+        let temporary = tempfile::tempdir()?;
+        let parent = ManagedDirectory::open(temporary.path())?;
+        let child_path = temporary.path().join("child");
+        let parked = temporary.path().join("child.parked");
+        let mut swapped = false;
+
+        let result = parent.create_child_with_hook("child".as_ref(), &mut |created| {
+            fs::rename(created, &parked).expect("park newly created child");
+            fs::create_dir(created).expect("install replacement child");
+            fs::write(created.join("sentinel"), "preserve").expect("write replacement sentinel");
+            swapped = true;
+        });
+
+        assert!(swapped, "child acceptance hook was not reached");
+        assert!(result.is_err(), "replacement child must not be accepted");
+        assert_eq!(fs::read_to_string(child_path.join("sentinel"))?, "preserve");
+        assert!(parked.is_dir(), "the held created child remains distinct");
         Ok(())
     }
 

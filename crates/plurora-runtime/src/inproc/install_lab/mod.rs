@@ -11,7 +11,7 @@ use super::InprocInvocation;
 mod candidate;
 mod detection;
 mod executor;
-mod fs_copy;
+pub(in crate::inproc) mod fs_copy;
 mod intake;
 mod layout;
 mod planner;

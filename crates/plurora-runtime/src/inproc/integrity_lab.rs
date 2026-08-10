@@ -36,6 +36,7 @@ const EXCLUDED_NAMES: &[&str] = &[
     "__pycache__",
 ];
 const EXTERNAL_WORKSPACE_PROFILE: &str = "external_workspace_v1";
+const EXTERNAL_GIT_WORKSPACE_PROFILE: &str = "external_git_workspace_v1";
 const EXTERNAL_WORKSPACE_EXCLUDED_NAMES: &[&str] = &[
     ".git",
     ".hg",
@@ -108,15 +109,10 @@ fn to_hex(bytes: &[u8]) -> String {
 
 fn compute_tree_hash(request: &InprocInvocation) -> Result<Value> {
     let dir = PathBuf::from(input_str(&request.input, "dir")?);
-    let external_workspace = request
-        .input
-        .get("profile")
-        .and_then(Value::as_str)
-        .is_some_and(|profile| profile == EXTERNAL_WORKSPACE_PROFILE);
-    let summary = if external_workspace {
-        compute_external_workspace_tree_hash(&dir)?
-    } else {
-        compute_workspace_tree_hash(&dir, EXCLUDED_NAMES, false)?
+    let summary = match request.input.get("profile").and_then(Value::as_str) {
+        Some(EXTERNAL_WORKSPACE_PROFILE) => compute_external_workspace_tree_hash(&dir)?,
+        Some(EXTERNAL_GIT_WORKSPACE_PROFILE) => compute_external_git_workspace_tree_hash(&dir)?,
+        _ => compute_workspace_tree_hash(&dir, EXCLUDED_NAMES, false, false)?,
     };
 
     Ok(serde_json::json!({
@@ -127,13 +123,18 @@ fn compute_tree_hash(request: &InprocInvocation) -> Result<Value> {
 }
 
 pub fn compute_external_workspace_tree_hash(dir: &Path) -> Result<WorkspaceTreeHash> {
-    compute_workspace_tree_hash(dir, EXTERNAL_WORKSPACE_EXCLUDED_NAMES, true)
+    compute_workspace_tree_hash(dir, EXTERNAL_WORKSPACE_EXCLUDED_NAMES, true, false)
+}
+
+fn compute_external_git_workspace_tree_hash(dir: &Path) -> Result<WorkspaceTreeHash> {
+    compute_workspace_tree_hash(dir, &[], true, true)
 }
 
 fn compute_workspace_tree_hash(
     dir: &Path,
     excluded_names: &[&str],
     external_workspace: bool,
+    include_git_executable_mode: bool,
 ) -> Result<WorkspaceTreeHash> {
     anyhow::ensure!(dir.is_absolute(), "dir must be an absolute path");
     let metadata = fs::symlink_metadata(dir)
@@ -142,17 +143,23 @@ fn compute_workspace_tree_hash(
         metadata.is_dir() && !metadata.file_type().is_symlink(),
         "dir must be a real directory, not a symlink"
     );
-    let root = fs::canonicalize(dir)
+    let containment_root = fs::canonicalize(dir)
         .with_context(|| format!("failed to canonicalize tree root {}", dir.display()))?;
+    // Keep the supplied access path for traversal. For an internally held managed
+    // directory this is `/proc/self/fd/N/.` or `/dev/fd/N/.`, so every descendant
+    // lookup remains anchored to the open directory rather than a mutable ancestor.
+    let access_root = dir.to_path_buf();
 
     let mut entries = Vec::new();
     let mut external_stats = external_workspace.then(ExternalTreeStats::default);
     collect_tree_entries(
-        &root,
-        &root,
+        &access_root,
+        &containment_root,
+        &access_root,
         &mut entries,
         excluded_names,
         external_workspace,
+        include_git_executable_mode,
         &mut external_stats,
     )?;
     entries.sort_by(|a, b| a.relative.cmp(&b.relative));
@@ -170,10 +177,21 @@ fn compute_workspace_tree_hash(
                 size,
                 identity,
                 handle,
+                executable,
             } => {
                 hasher.update(b"file\0");
                 hasher.update(size.to_string().as_bytes());
                 hasher.update(b"\0");
+                if include_git_executable_mode {
+                    #[cfg(unix)]
+                    {
+                        // Git's 100644/100755 distinction is only the executable bit;
+                        // avoid platform-specific permission noise in the digest.
+                        hasher.update(b"executable\0");
+                        hasher.update([u8::from(executable)]);
+                        hasher.update(b"\0");
+                    }
+                }
                 let mut file = fs::File::open(&path)
                     .with_context(|| format!("failed to open file {}", path.display()))?;
                 let opened_handle = same_file::Handle::from_file(file.try_clone()?)?;
@@ -181,7 +199,8 @@ fn compute_workspace_tree_hash(
                 anyhow::ensure!(
                     opened.is_file()
                         && file_identity(&opened) == identity
-                        && opened_handle == handle,
+                        && opened_handle == handle
+                        && (!include_git_executable_mode || is_executable(&opened) == executable),
                     "workspace file changed while tree hashing: {}",
                     path.display()
                 );
@@ -206,7 +225,8 @@ fn compute_workspace_tree_hash(
                     !after.file_type().is_symlink()
                         && file_identity(&after) == identity
                         && same_file::Handle::from_path(&path)? == handle
-                        && actual_size == size,
+                        && actual_size == size
+                        && (!include_git_executable_mode || is_executable(&after) == executable),
                     "workspace file changed during tree hashing: {}",
                     path.display()
                 );
@@ -242,6 +262,7 @@ enum TreeEntryKind {
         size: u64,
         identity: FileIdentity,
         handle: same_file::Handle,
+        executable: bool,
     },
     Symlink {
         target: PathBuf,
@@ -274,6 +295,19 @@ fn file_identity(metadata: &fs::Metadata) -> FileIdentity {
     }
 }
 
+fn is_executable(metadata: &fs::Metadata) -> bool {
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        metadata.permissions().mode() & 0o111 != 0
+    }
+    #[cfg(not(unix))]
+    {
+        let _ = metadata;
+        false
+    }
+}
+
 #[derive(Default)]
 struct ExternalTreeStats {
     files: u64,
@@ -282,14 +316,16 @@ struct ExternalTreeStats {
 }
 
 fn collect_tree_entries(
-    root: &Path,
+    access_root: &Path,
+    containment_root: &Path,
     dir: &Path,
     out: &mut Vec<TreeEntry>,
     excluded_names: &[&str],
     require_contained_symlinks: bool,
+    include_git_executable_mode: bool,
     external_stats: &mut Option<ExternalTreeStats>,
 ) -> Result<()> {
-    let directory_handle = validated_tree_directory_handle(root, dir)?;
+    let directory_handle = validated_tree_directory_handle(containment_root, dir)?;
     for entry in fs::read_dir(dir).with_context(|| format!("failed to read {}", dir.display()))? {
         let entry = entry?;
         let path = entry.path();
@@ -304,29 +340,13 @@ fn collect_tree_entries(
         if metadata.file_type().is_symlink() {
             let target = fs::read_link(&path)?;
             if require_contained_symlinks {
-                anyhow::ensure!(
-                    !target.is_absolute(),
-                    "external workspace contains an absolute symlink: {}",
-                    path.display()
-                );
-                let resolved = fs::canonicalize(path.parent().unwrap_or(root).join(&target))
-                    .with_context(|| {
-                        format!(
-                            "external workspace contains a dangling symlink: {}",
-                            path.display()
-                        )
-                    })?;
-                anyhow::ensure!(
-                    resolved.starts_with(root),
-                    "external workspace symlink escapes its root: {}",
-                    path.display()
-                );
+                validate_external_workspace_symlink(access_root, &path, &target)?;
             }
             if let Some(stats) = external_stats.as_mut() {
                 add_external_tree_file(stats, target.as_os_str().len() as u64)?;
             }
             out.push(TreeEntry {
-                relative: relative_path(root, &path)?,
+                relative: relative_path(access_root, &path)?,
                 kind: TreeEntryKind::Symlink { target },
             });
         } else if metadata.is_dir() {
@@ -334,11 +354,13 @@ fn collect_tree_entries(
                 add_external_tree_directory(stats)?;
             }
             collect_tree_entries(
-                root,
+                access_root,
+                containment_root,
                 &path,
                 out,
                 excluded_names,
                 require_contained_symlinks,
+                include_git_executable_mode,
                 external_stats,
             )?;
         } else if metadata.is_file() {
@@ -351,7 +373,9 @@ fn collect_tree_entries(
                     && current.is_file()
                     && !current.file_type().is_symlink()
                     && file_identity(&opened) == file_identity(&metadata)
-                    && same_file::Handle::from_path(&path)? == handle,
+                    && same_file::Handle::from_path(&path)? == handle
+                    && (!include_git_executable_mode
+                        || is_executable(&opened) == is_executable(&metadata)),
                 "workspace file changed while tree entries were collected: {}",
                 path.display()
             );
@@ -359,25 +383,29 @@ fn collect_tree_entries(
                 add_external_tree_file(stats, opened.len())?;
             }
             out.push(TreeEntry {
-                relative: relative_path(root, &path)?,
+                relative: relative_path(access_root, &path)?,
                 kind: TreeEntryKind::File {
                     path,
                     size: opened.len(),
                     identity: file_identity(&opened),
                     handle,
+                    executable: is_executable(&opened),
                 },
             });
         }
     }
     anyhow::ensure!(
-        validated_tree_directory_handle(root, dir)? == directory_handle,
+        validated_tree_directory_handle(containment_root, dir)? == directory_handle,
         "workspace directory changed during tree traversal: {}",
         dir.display()
     );
     Ok(())
 }
 
-fn validated_tree_directory_handle(root: &Path, dir: &Path) -> Result<same_file::Handle> {
+fn validated_tree_directory_handle(
+    containment_root: &Path,
+    dir: &Path,
+) -> Result<same_file::Handle> {
     let metadata = fs::symlink_metadata(dir)?;
     anyhow::ensure!(
         metadata.is_dir() && !metadata.file_type().is_symlink(),
@@ -386,11 +414,44 @@ fn validated_tree_directory_handle(root: &Path, dir: &Path) -> Result<same_file:
     );
     let canonical = fs::canonicalize(dir)?;
     anyhow::ensure!(
-        canonical.starts_with(root),
+        canonical.starts_with(containment_root),
         "workspace directory escaped its root: {}",
         dir.display()
     );
     Ok(same_file::Handle::from_path(dir)?)
+}
+
+fn validate_external_workspace_symlink(root: &Path, link: &Path, target: &Path) -> Result<()> {
+    anyhow::ensure!(
+        !target.as_os_str().is_empty() && !target.is_absolute(),
+        "external workspace contains an absolute or empty symlink: {}",
+        link.display()
+    );
+    let parent = link
+        .parent()
+        .context("external workspace symlink has no parent")?
+        .strip_prefix(root)
+        .context("external workspace symlink escaped its root")?;
+    let mut depth = parent
+        .components()
+        .filter(|component| matches!(component, std::path::Component::Normal(_)))
+        .count();
+    for component in target.components() {
+        match component {
+            std::path::Component::CurDir => {}
+            std::path::Component::Normal(_) => depth += 1,
+            std::path::Component::ParentDir if depth > 0 => depth -= 1,
+            std::path::Component::ParentDir
+            | std::path::Component::RootDir
+            | std::path::Component::Prefix(_) => {
+                anyhow::bail!(
+                    "external workspace symlink escapes its root: {}",
+                    link.display()
+                )
+            }
+        }
+    }
+    Ok(())
 }
 
 fn add_external_tree_directory(stats: &mut ExternalTreeStats) -> Result<()> {
@@ -696,6 +757,152 @@ mod tests {
             }),
         ));
         assert!(result.unwrap_err().to_string().contains("escapes its root"));
+        Ok(())
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn external_workspace_hash_preserves_a_contained_dangling_symlink() -> Result<()> {
+        let tmp = tempfile::tempdir()?;
+        let workspace = tmp.path().join("workspace");
+        fs::create_dir(&workspace)?;
+        std::os::unix::fs::symlink("missing-inside-root", workspace.join("alias"))?;
+
+        let first = compute_tree_hash(&request(
+            "integrity.compute_tree_hash",
+            serde_json::json!({
+                "dir": workspace,
+                "profile": EXTERNAL_WORKSPACE_PROFILE,
+            }),
+        ))?;
+        std::os::unix::fs::symlink("other-missing", workspace.join("other"))?;
+        let second = compute_tree_hash(&request(
+            "integrity.compute_tree_hash",
+            serde_json::json!({
+                "dir": workspace,
+                "profile": EXTERNAL_WORKSPACE_PROFILE,
+            }),
+        ))?;
+
+        assert_ne!(first["sha256"], second["sha256"]);
+        Ok(())
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn external_git_hash_includes_tracked_cache_names() -> Result<()> {
+        let tmp = tempfile::tempdir()?;
+        let workspace = tmp.path().join("workspace");
+        fs::create_dir_all(workspace.join("target/node_modules/.venv"))?;
+        let tracked = workspace.join("target/node_modules/.venv/tracked.txt");
+        fs::write(&tracked, "one")?;
+        let hash = || {
+            compute_tree_hash(&request(
+                "integrity.compute_tree_hash",
+                serde_json::json!({
+                    "dir": workspace,
+                    "profile": EXTERNAL_GIT_WORKSPACE_PROFILE,
+                }),
+            ))
+        };
+
+        let first = hash()?;
+        fs::write(tracked, "two")?;
+        let second = hash()?;
+        assert_ne!(first["sha256"], second["sha256"]);
+        Ok(())
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn external_git_hash_includes_only_the_executable_bit() -> Result<()> {
+        use std::os::unix::fs::PermissionsExt;
+
+        let tmp = tempfile::tempdir()?;
+        let workspace = tmp.path().join("workspace");
+        fs::create_dir(&workspace)?;
+        let script = workspace.join("run.sh");
+        fs::write(&script, "#!/bin/sh\necho stable\n")?;
+        let hash = || {
+            compute_tree_hash(&request(
+                "integrity.compute_tree_hash",
+                serde_json::json!({
+                    "dir": workspace,
+                    "profile": EXTERNAL_GIT_WORKSPACE_PROFILE,
+                }),
+            ))
+        };
+
+        fs::set_permissions(&script, fs::Permissions::from_mode(0o644))?;
+        let non_executable = hash()?;
+        fs::set_permissions(&script, fs::Permissions::from_mode(0o755))?;
+        let executable = hash()?;
+        assert_ne!(non_executable["sha256"], executable["sha256"]);
+
+        // Non-executable permission bits are intentionally not part of a Git digest.
+        fs::set_permissions(&script, fs::Permissions::from_mode(0o711))?;
+        let executable_with_different_non_exec_bits = hash()?;
+        assert_eq!(
+            executable["sha256"],
+            executable_with_different_non_exec_bits["sha256"]
+        );
+
+        // The ordinary external profile retains its content/path-only semantics.
+        fs::set_permissions(&script, fs::Permissions::from_mode(0o644))?;
+        let external_non_executable = compute_tree_hash(&request(
+            "integrity.compute_tree_hash",
+            serde_json::json!({
+                "dir": workspace,
+                "profile": EXTERNAL_WORKSPACE_PROFILE,
+            }),
+        ))?;
+        fs::set_permissions(&script, fs::Permissions::from_mode(0o755))?;
+        let external_executable = compute_tree_hash(&request(
+            "integrity.compute_tree_hash",
+            serde_json::json!({
+                "dir": workspace,
+                "profile": EXTERNAL_WORKSPACE_PROFILE,
+            }),
+        ))?;
+        assert_eq!(
+            external_non_executable["sha256"],
+            external_executable["sha256"]
+        );
+
+        // The ordinary local profile also remains content/path-only.
+        fs::set_permissions(&script, fs::Permissions::from_mode(0o644))?;
+        let local_non_executable = compute_tree_hash(&request(
+            "integrity.compute_tree_hash",
+            serde_json::json!({ "dir": workspace }),
+        ))?;
+        fs::set_permissions(&script, fs::Permissions::from_mode(0o755))?;
+        let local_executable = compute_tree_hash(&request(
+            "integrity.compute_tree_hash",
+            serde_json::json!({ "dir": workspace }),
+        ))?;
+        assert_eq!(local_non_executable["sha256"], local_executable["sha256"]);
+        Ok(())
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn public_tree_hash_still_rejects_a_symlink_root() -> Result<()> {
+        let tmp = tempfile::tempdir()?;
+        let real = tmp.path().join("real");
+        let alias = tmp.path().join("alias");
+        fs::create_dir(&real)?;
+        fs::write(real.join("file"), "content")?;
+        std::os::unix::fs::symlink(&real, &alias)?;
+
+        let error = compute_tree_hash(&request(
+            "integrity.compute_tree_hash",
+            serde_json::json!({
+                "dir": alias,
+                "profile": EXTERNAL_WORKSPACE_PROFILE,
+            }),
+        ))
+        .expect_err("a caller-supplied symlink root must remain rejected");
+        assert!(error.to_string().contains("real directory, not a symlink"));
         Ok(())
     }
 

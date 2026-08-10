@@ -5376,6 +5376,8 @@ dependencies = [
  "async-trait",
  "axum",
  "bollard",
+ "cap-fs-ext",
+ "cap-std",
  "chrono",
  "futures",
  "plurora-core",

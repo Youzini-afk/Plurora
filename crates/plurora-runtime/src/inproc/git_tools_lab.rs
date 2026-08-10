@@ -4,7 +4,7 @@
 //! are blocking and are executed through `tokio::task::spawn_blocking`.
 
 use std::fs;
-use std::io::Write;
+use std::panic::{catch_unwind, AssertUnwindSafe};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::Arc;
@@ -15,7 +15,7 @@ use serde::Deserialize;
 use serde_json::Value;
 use uuid::Uuid;
 
-use super::InprocInvocation;
+use super::{install_lab::fs_copy::ManagedDirectory, InprocInvocation};
 
 const PACKAGE_ID: &str = "plurora/git-tools-lab";
 const DEFAULT_MAX_FILES: u64 = 25_000;
@@ -135,7 +135,7 @@ impl FetchBudgetProgress {
             .state
             .downloaded_bytes
             .fetch_add(bytes, Ordering::Relaxed);
-        if previous > self.state.max_bytes.saturating_sub(bytes) {
+        if bytes > self.state.max_bytes.saturating_sub(previous) {
             self.state.exceeded.store(true, Ordering::Relaxed);
             self.state.interrupt.store(true, Ordering::Relaxed);
         }
@@ -316,6 +316,12 @@ fn fetch_refs(input: Value) -> Result<Value> {
 }
 
 fn fetch_tree(input: Value) -> Result<Value> {
+    anyhow::ensure!(
+        !input
+            .as_object()
+            .is_some_and(|input| input.contains_key("precreated_handle_anchored_dest")),
+        "precreated_handle_anchored_dest is not a public fetch_tree input"
+    );
     let input: FetchTreeInput = serde_json::from_value(input)?;
     validate_remote_url(&input.remote_url)?;
     let requested_dest = PathBuf::from(&input.dest_dir);
@@ -330,7 +336,6 @@ fn fetch_tree(input: Value) -> Result<Value> {
     };
     validate_tree_write_limits(&limits)?;
     let max_download_bytes = validate_download_budget(input.max_download_bytes)?;
-
     let parent = requested_dest
         .parent()
         .with_context(|| format!("dest_dir has no parent: {}", requested_dest.display()))?;
@@ -343,65 +348,105 @@ fn fetch_tree(input: Value) -> Result<Value> {
                 requested_dest.display()
             )
         })?;
-    let parent_metadata = fs::symlink_metadata(parent).with_context(|| {
+    let parent = ManagedDirectory::open(parent).with_context(|| {
         format!(
             "dest_dir parent must already exist as a real directory: {}",
             parent.display()
         )
     })?;
-    anyhow::ensure!(
-        parent_metadata.is_dir() && !parent_metadata.file_type().is_symlink(),
-        "dest_dir parent must be a real directory, not a symlink: {}",
-        parent.display()
-    );
-    let parent = fs::canonicalize(parent).with_context(|| {
-        format!(
-            "failed to canonicalize dest_dir parent {}",
-            parent.display()
-        )
-    })?;
-    let dest = parent.join(file_name);
-    match fs::symlink_metadata(&dest) {
-        Ok(_) => anyhow::bail!("dest_dir already exists: {}", dest.display()),
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
-        Err(error) => return Err(error.into()),
-    }
-    let tmp = parent.join(format!("{file_name}.tmp.{}", Uuid::new_v4()));
-    let repo_tmp = parent.join(format!("{file_name}.repo.tmp.{}", Uuid::new_v4()));
+    parent
+        .ensure_child_absent(file_name.as_ref())
+        .with_context(|| {
+            format!(
+                "dest_dir already exists or could not be checked: {}",
+                requested_dest.display()
+            )
+        })?;
+    let repo_scratch_name = format!("{file_name}.repo.tmp.{}", Uuid::new_v4());
+    let repo_scratch = parent.create_child(repo_scratch_name.as_ref())?;
+    let tree_staging_name = format!("{file_name}.tmp.{}", Uuid::new_v4());
+    let tree_staging = match parent.create_child(tree_staging_name.as_ref()) {
+        Ok(directory) => directory,
+        Err(error) => {
+            return finish_with_directory_cleanup(Err(error), repo_scratch, "Git repo scratch");
+        }
+    };
 
-    let outcome = (|| -> Result<Value> {
+    let materialized = (|| -> Result<(TreeWriteStats, u64, String)> {
+        let repo_access = repo_scratch.stable_access_path()?;
         let (repo, downloaded_bytes) =
-            fetch_bare_with_budget(&input.remote_url, &repo_tmp, max_download_bytes)?;
+            fetch_bare_with_budget(&input.remote_url, &repo_access, max_download_bytes)?;
         let commit_id = gix::ObjectId::from_hex(input.commit_sha.as_bytes())?;
         let commit = repo.find_object(commit_id)?.peel_to_commit()?;
         let tree = commit.tree()?;
         let tree_hash = tree.id.to_string();
 
-        fs::create_dir(&tmp)?;
         let mut stats = TreeWriteStats::default();
-        write_tree_recursive(&tree, &tmp, &tmp, &mut stats, &limits)
-            .with_context(|| format!("failed to write tree to {}", tmp.display()))?;
-        fs::rename(&tmp, &dest).with_context(|| {
-            format!(
-                "failed to atomically rename {} to {}",
-                tmp.display(),
-                dest.display()
-            )
-        })?;
-        Ok(serde_json::json!({
-            "files_written": stats.files_written,
-            "directories_written": stats.directories_written,
-            "total_bytes": stats.total_bytes,
-            "downloaded_bytes": downloaded_bytes,
-            "tree_hash": tree_hash,
-        }))
+        write_tree_recursive(&tree, &tree_staging, Path::new(""), &mut stats, &limits)
+            .context("failed to write fetched Git tree into handle-owned staging")?;
+        Ok((stats, downloaded_bytes, tree_hash))
     })();
-
-    if outcome.is_err() {
-        fs::remove_dir_all(&tmp).ok();
+    let materialized =
+        finish_with_directory_cleanup(materialized, repo_scratch, "Git repo scratch");
+    let (stats, downloaded_bytes, tree_hash) = match materialized {
+        Ok(materialized) => materialized,
+        Err(error) => {
+            return finish_with_directory_cleanup(Err(error), tree_staging, "Git tree staging");
+        }
+    };
+    if let Err(error) = publish_staged_tree(&parent, &tree_staging, file_name.as_ref()) {
+        return finish_with_directory_cleanup(Err(error), tree_staging, "Git tree staging");
     }
-    fs::remove_dir_all(&repo_tmp).ok();
-    outcome
+    Ok(serde_json::json!({
+        "files_written": stats.files_written,
+        "directories_written": stats.directories_written,
+        "total_bytes": stats.total_bytes,
+        "downloaded_bytes": downloaded_bytes,
+        "tree_hash": tree_hash,
+    }))
+}
+
+fn publish_staged_tree(
+    parent: &ManagedDirectory,
+    staging: &ManagedDirectory,
+    destination_name: &std::ffi::OsStr,
+) -> Result<()> {
+    publish_staged_tree_with(parent, staging, destination_name, || {})
+}
+
+fn publish_staged_tree_with<F>(
+    parent: &ManagedDirectory,
+    staging: &ManagedDirectory,
+    destination_name: &std::ffi::OsStr,
+    before_publish: F,
+) -> Result<()>
+where
+    F: FnOnce(),
+{
+    parent.ensure_path_identity()?;
+    staging.ensure_path_identity()?;
+    before_publish();
+    parent
+        .promote_child(staging, destination_name)
+        .context("failed to atomically publish fetched Git tree without clobbering")
+}
+
+fn finish_with_directory_cleanup<T>(
+    outcome: Result<T>,
+    directory: ManagedDirectory,
+    label: &str,
+) -> Result<T> {
+    let cleanup = directory.remove();
+    match (outcome, cleanup) {
+        (Ok(value), Ok(())) => Ok(value),
+        (Ok(_), Err(cleanup_error)) => {
+            Err(cleanup_error).with_context(|| format!("failed to clean {label}"))
+        }
+        (Err(error), Ok(())) => Err(error),
+        (Err(error), Err(cleanup_error)) => {
+            Err(error.context(format!("{label} cleanup also failed: {cleanup_error:#}")))
+        }
+    }
 }
 
 fn read_signed_tag(input: Value) -> Result<Value> {
@@ -421,9 +466,12 @@ fn read_signed_tag(input: Value) -> Result<Value> {
         })
         .with_context(|| format!("tag '{wanted}' not found on remote"))?;
 
-    let tmp = std::env::temp_dir().join(format!("plurora-git-tag-{}", Uuid::new_v4()));
+    let scratch = create_managed_system_temp_scratch("plurora-git-tag")?;
     let output = (|| -> Result<Value> {
-        let (repo, _) = fetch_bare_with_budget(&input.remote_url, &tmp, max_download_bytes)?;
+        let scratch_access = scratch.stable_access_path()?;
+        let (repo, _) =
+            fetch_bare_with_budget(&input.remote_url, &scratch_access, max_download_bytes)?;
+        scratch.ensure_path_identity()?;
         if let Some(tag_object) = &tag_ref.tag_object {
             let id = gix::ObjectId::from_hex(tag_object.as_bytes())?;
             let tag = repo.find_object(id)?.try_into_tag()?;
@@ -449,8 +497,41 @@ fn read_signed_tag(input: Value) -> Result<Value> {
             }))
         }
     })();
-    fs::remove_dir_all(&tmp).ok();
-    output
+    finish_with_directory_cleanup(output, scratch, "Git tag scratch")
+}
+
+fn create_managed_system_temp_scratch(prefix: &str) -> Result<ManagedDirectory> {
+    let temporary_root = fs::canonicalize(std::env::temp_dir())
+        .context("system temporary directory could not be resolved")?;
+    let temporary_parent = ManagedDirectory::open(&temporary_root)
+        .context("system temporary directory must be a real directory")?;
+    let scratch_name = format!("{prefix}-{}", Uuid::new_v4());
+    let scratch = temporary_parent.create_child(scratch_name.as_ref())?;
+
+    #[cfg(not(windows))]
+    {
+        // Unix directory handles do not prevent independent opens. Preserve the cloned
+        // parent identity carried by the child so cleanup remains owner-relative.
+        drop(temporary_parent);
+        Ok(scratch)
+    }
+    #[cfg(windows)]
+    {
+        let scratch_path = scratch.path().to_path_buf();
+        let identity = scratch.identity_fingerprint()?;
+        // Windows intentionally denies delete sharing on a managed directory. Do not
+        // retain a broad system-temp handle during the network fetch; hand the unique
+        // child off only after both handles observe the same filesystem identity.
+        drop(scratch);
+        drop(temporary_parent);
+        let scratch = ManagedDirectory::open(&scratch_path)
+            .context("Git tag scratch could not be reopened by identity")?;
+        anyhow::ensure!(
+            scratch.identity_fingerprint()? == identity,
+            "Git tag scratch identity changed during handle handoff"
+        );
+        Ok(scratch)
+    }
 }
 
 fn list_remote_refs_blocking(remote_url: &str) -> Result<Vec<RemoteRef>> {
@@ -586,28 +667,75 @@ fn fetch_bare_with_budget(
     // branch fetches. A bare full fetch is slower than a shallow single-branch
     // clone, but it is deterministic and avoids treating package installation as
     // a branch checkout operation.
-    let mut prep = gix::prepare_clone_bare(remote_url, path)?;
+    let prep = gix::prepare_clone_bare(remote_url, path)?;
     let budget = Arc::new(FetchBudgetState {
         max_bytes: max_download_bytes,
         downloaded_bytes: Arc::new(AtomicUsize::new(0)),
         interrupt: AtomicBool::new(false),
         exceeded: AtomicBool::new(false),
     });
-    let fetched = prep.fetch_only(FetchBudgetProgress::root(budget.clone()), &budget.interrupt);
-    if budget.exceeded.load(Ordering::Relaxed) {
+    let fetched = run_prepared_fetch_with_panic_containment(prep, |prep| {
+        prep.fetch_only(FetchBudgetProgress::root(budget.clone()), &budget.interrupt)
+    });
+    let fetched = match fetched {
+        Ok(fetched) => fetched,
+        Err(PreparedFetchFailure::Returned(error)) => {
+            if budget.exceeded.load(Ordering::Relaxed) {
+                anyhow::bail!(
+                    "git transport download budget exceeded (max {max_download_bytes} bytes)"
+                );
+            }
+            return Err(error.into());
+        }
+        Err(PreparedFetchFailure::Panicked) => {
+            anyhow::bail!(
+                "git_fetch_dependency_panicked: Git transport aborted while processing the remote"
+            );
+        }
+    };
+    let downloaded_bytes = budget.downloaded_bytes.load(Ordering::Relaxed);
+    if budget.exceeded.load(Ordering::Relaxed) || downloaded_bytes > max_download_bytes {
         anyhow::bail!("git transport download budget exceeded (max {max_download_bytes} bytes)");
     }
-    let (repo, _) = fetched?;
-    Ok((
-        repo,
-        u64::try_from(budget.downloaded_bytes.load(Ordering::Relaxed))?,
-    ))
+    let (repo, _) = fetched;
+    Ok((repo, u64::try_from(downloaded_bytes)?))
+}
+
+enum PreparedFetchFailure<E> {
+    Returned(E),
+    Panicked,
+}
+
+fn run_prepared_fetch_with_panic_containment<T, E, F>(
+    mut prep: gix::clone::PrepareFetch,
+    fetch: F,
+) -> std::result::Result<T, PreparedFetchFailure<E>>
+where
+    F: FnOnce(&mut gix::clone::PrepareFetch) -> std::result::Result<T, E>,
+{
+    match catch_unwind(AssertUnwindSafe(|| fetch(&mut prep))) {
+        Ok(Ok(value)) => Ok(value),
+        Ok(Err(error)) => {
+            // gix 0.83 recursively removes the repository path from PrepareFetch::drop.
+            // Persist first so only the caller's pinned ManagedDirectory cleanup owns
+            // deletion, including ordinary fetch errors.
+            drop(prep.persist());
+            Err(PreparedFetchFailure::Returned(error))
+        }
+        Err(_) => {
+            // The known gix 0.83 object-format mismatch path is an `unimplemented!`
+            // before ownership of the repository is returned. Do not expose panic text,
+            // the remote URL, or let gix path-recursive cleanup run during unwinding.
+            drop(prep.persist());
+            Err(PreparedFetchFailure::Panicked)
+        }
+    }
 }
 
 fn write_tree_recursive(
     tree: &gix::Tree<'_>,
-    root: &Path,
-    dest: &Path,
+    destination: &ManagedDirectory,
+    relative_directory: &Path,
     stats: &mut TreeWriteStats,
     limits: &TreeWriteLimits,
 ) -> Result<()> {
@@ -617,36 +745,33 @@ fn write_tree_recursive(
         if name == ".git" || name.contains('/') || name.contains('\\') || name == ".." {
             anyhow::bail!("unsafe tree entry name: {name}");
         }
-        let out = dest.join(&name);
+        let relative_out = relative_directory.join(&name);
         if entry.mode().is_tree() {
             reserve_tree_directory(stats, limits)?;
-            fs::create_dir(&out)?;
+            let child_destination = destination.create_child(name.as_ref())?;
             let child = entry.object()?.try_into_tree()?;
-            write_tree_recursive(&child, root, &out, stats, limits)?;
+            write_tree_recursive(&child, &child_destination, &relative_out, stats, limits)?;
         } else if entry.mode().is_blob_or_symlink() {
             let blob = entry.object()?.try_into_blob()?;
             reserve_tree_blob(stats, limits, blob.data.len() as u64)?;
             if entry.mode().is_link() {
                 #[cfg(unix)]
                 {
-                    use std::os::unix::fs::symlink;
                     let target = std::str::from_utf8(&blob.data)
                         .context("git symlink target must be valid UTF-8")?;
-                    validate_tree_symlink_target(root, &out, Path::new(target))?;
-                    symlink(target, &out)?;
+                    validate_tree_symlink_target(Path::new(""), &relative_out, Path::new(target))?;
+                    destination.create_symlink(name.as_ref(), Path::new(target))?;
                 }
                 #[cfg(not(unix))]
                 {
                     anyhow::bail!("git symlink entries are not supported on this platform");
                 }
             } else {
-                let mut file = fs::File::create(&out)?;
-                file.write_all(&blob.data)?;
-                #[cfg(unix)]
-                if entry.mode().is_executable() {
-                    use std::os::unix::fs::PermissionsExt;
-                    fs::set_permissions(&out, fs::Permissions::from_mode(0o755))?;
-                }
+                destination.write_new_file(
+                    name.as_ref(),
+                    &blob.data,
+                    entry.mode().is_executable(),
+                )?;
             }
         } else {
             anyhow::bail!("unsupported git tree entry mode for {name}");
@@ -863,6 +988,147 @@ mod tests {
     }
 
     #[test]
+    fn fetch_tree_rejects_the_retired_private_destination_flag() -> Result<()> {
+        let temporary = tempfile::tempdir()?;
+        let requested = temporary.path().join("checkout");
+        let error = fetch_tree(serde_json::json!({
+            "remote_url": "https://example.com/repository.git",
+            "commit_sha": "0123456789abcdef0123456789abcdef01234567",
+            "dest_dir": requested,
+            "precreated_handle_anchored_dest": true,
+        }))
+        .expect_err("retired private destination mode must not be accepted");
+        assert!(error
+            .to_string()
+            .contains("is not a public fetch_tree input"));
+        Ok(())
+    }
+
+    #[test]
+    fn fetch_tree_rejects_an_existing_destination_before_network_access() -> Result<()> {
+        let temporary = tempfile::tempdir()?;
+        let parent = temporary.path().join("parent");
+        fs::create_dir(&parent)?;
+        let requested = parent.join("checkout");
+        fs::create_dir(&requested)?;
+        let error = fetch_tree(serde_json::json!({
+            "remote_url": "https://example.com/repository.git",
+            "commit_sha": "0123456789abcdef0123456789abcdef01234567",
+            "dest_dir": requested,
+        }))
+        .expect_err("existing destination must be rejected");
+        assert!(
+            error.to_string().contains("already exists"),
+            "unexpected pre-network error: {error:#}"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn staged_tree_publish_succeeds_for_an_ordinary_new_destination() -> Result<()> {
+        let temporary = tempfile::tempdir()?;
+        let parent = ManagedDirectory::open(temporary.path())?;
+        let staging = parent.create_child("checkout.tmp".as_ref())?;
+        staging.write_new_file("README.md".as_ref(), b"published", false)?;
+
+        publish_staged_tree(&parent, &staging, "checkout".as_ref())?;
+
+        assert_eq!(
+            fs::read_to_string(temporary.path().join("checkout/README.md"))?,
+            "published"
+        );
+        assert!(!temporary.path().join("checkout.tmp").exists());
+        Ok(())
+    }
+
+    #[test]
+    fn staged_tree_publish_atomically_refuses_a_racing_empty_destination() -> Result<()> {
+        let temporary = tempfile::tempdir()?;
+        let parent = ManagedDirectory::open(temporary.path())?;
+        let staging = parent.create_child("checkout.tmp".as_ref())?;
+        staging.write_new_file("README.md".as_ref(), b"fetched", false)?;
+        let destination = temporary.path().join("checkout");
+        let sentinel = std::cell::RefCell::new(None);
+
+        let result = publish_staged_tree_with(&parent, &staging, "checkout".as_ref(), || {
+            fs::create_dir(&destination).expect("create racing empty destination");
+            fs::write(destination.join("sentinel"), "unchanged")
+                .expect("write destination sentinel");
+            sentinel.replace(Some(
+                ManagedDirectory::open(&destination).expect("pin destination sentinel"),
+            ));
+        });
+
+        assert!(result.is_err(), "racing destination must not be replaced");
+        sentinel
+            .borrow()
+            .as_ref()
+            .expect("sentinel was pinned")
+            .ensure_path_identity()?;
+        assert_eq!(
+            fs::read_to_string(destination.join("sentinel"))?,
+            "unchanged"
+        );
+        assert_eq!(
+            fs::read_to_string(temporary.path().join("checkout.tmp/README.md"))?,
+            "fetched"
+        );
+        drop(sentinel);
+        staging.remove()?;
+        Ok(())
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn scratch_cleanup_refuses_a_replaced_directory_and_preserves_its_sentinel() -> Result<()> {
+        let temporary = tempfile::tempdir()?;
+        let parent = ManagedDirectory::open(temporary.path())?;
+        let scratch = parent.create_child("checkout.repo.tmp".as_ref())?;
+        scratch.write_new_file("owned".as_ref(), b"owned", false)?;
+        let parked = temporary.path().join("checkout.repo.parked");
+        fs::rename(temporary.path().join("checkout.repo.tmp"), &parked)?;
+        fs::create_dir(temporary.path().join("checkout.repo.tmp"))?;
+        fs::write(
+            temporary.path().join("checkout.repo.tmp/sentinel"),
+            "preserve",
+        )?;
+
+        let outcome: Result<()> = Err(anyhow::anyhow!("simulated fetch failure"));
+        assert!(finish_with_directory_cleanup(outcome, scratch, "Git repo scratch").is_err());
+        assert_eq!(
+            fs::read_to_string(temporary.path().join("checkout.repo.tmp/sentinel"))?,
+            "preserve"
+        );
+        assert!(
+            parked.is_dir(),
+            "the held original directory remains distinct"
+        );
+        Ok(())
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn handle_owned_tree_write_rejects_an_ancestor_swap_without_writing_outside() -> Result<()> {
+        let temporary = tempfile::tempdir()?;
+        let parent_path = temporary.path().join("workspace");
+        let parked = temporary.path().join("workspace.parked");
+        let outside = temporary.path().join("outside");
+        fs::create_dir(&parent_path)?;
+        fs::create_dir(&outside)?;
+        let parent = ManagedDirectory::open(&parent_path)?;
+        let staging = parent.create_child("checkout.tmp".as_ref())?;
+
+        fs::rename(&parent_path, &parked)?;
+        std::os::unix::fs::symlink(&outside, &parent_path)?;
+        assert!(staging
+            .write_new_file("escaped".as_ref(), b"must not escape", false)
+            .is_err());
+        assert!(!outside.join("escaped").exists());
+        assert!(!outside.join("checkout.tmp").exists());
+        Ok(())
+    }
+
+    #[test]
     fn tree_write_limits_fail_before_unbounded_materialization() {
         let limits = TreeWriteLimits {
             max_files: Some(1),
@@ -899,11 +1165,68 @@ mod tests {
             GIX_READ_PACK_PROGRESS_ID,
         );
 
+        gix::Count::inc_by(&pack, 5);
+        assert!(state.exceeded.load(Ordering::Relaxed));
+        assert!(state.interrupt.load(Ordering::Relaxed));
+
+        state.downloaded_bytes.store(0, Ordering::Relaxed);
+        state.exceeded.store(false, Ordering::Relaxed);
+        state.interrupt.store(false, Ordering::Relaxed);
         gix::Count::inc_by(&pack, 4);
         assert!(!state.interrupt.load(Ordering::Relaxed));
         gix::Count::inc_by(&pack, 1);
         assert!(state.exceeded.load(Ordering::Relaxed));
         assert!(state.interrupt.load(Ordering::Relaxed));
+    }
+
+    #[test]
+    fn prepared_fetch_panic_persists_before_managed_identity_cleanup() -> Result<()> {
+        let temporary = tempfile::tempdir()?;
+        let parent = ManagedDirectory::open(temporary.path())?;
+        let scratch = parent.create_child("repo".as_ref())?;
+        let prep = gix::prepare_clone_bare(
+            "https://example.com/repository.git",
+            scratch.stable_access_path()?,
+        )?;
+
+        let outcome = run_prepared_fetch_with_panic_containment(prep, |_| {
+            panic!("simulated dependency panic with sensitive detail");
+            #[allow(unreachable_code)]
+            Ok::<(), anyhow::Error>(())
+        });
+
+        assert!(matches!(outcome, Err(PreparedFetchFailure::Panicked)));
+        scratch.ensure_path_identity()?;
+        assert!(scratch.path().exists(), "gix Drop must not remove scratch");
+        scratch.remove()?;
+        assert!(!temporary.path().join("repo").exists());
+        Ok(())
+    }
+
+    #[test]
+    fn signed_tag_scratch_cleanup_removes_only_the_pinned_identity() -> Result<()> {
+        let scratch = create_managed_system_temp_scratch("plurora-git-tag-test")?;
+        let scratch_path = scratch.path().to_path_buf();
+        scratch.write_new_file("owned".as_ref(), b"owned", false)?;
+
+        finish_with_directory_cleanup(Ok(()), scratch, "Git tag scratch")?;
+
+        assert!(!scratch_path.exists());
+        Ok(())
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn signed_tag_unix_success_path_retains_owner_for_cleanup() -> Result<()> {
+        let scratch = create_managed_system_temp_scratch("plurora-git-tag-unix-test")?;
+        let scratch_path = scratch.path().to_path_buf();
+        let access = scratch.stable_access_path()?;
+        fs::write(access.join("FETCH_HEAD"), "fetched")?;
+
+        finish_with_directory_cleanup(Ok(()), scratch, "Git tag scratch")?;
+
+        assert!(!scratch_path.exists());
+        Ok(())
     }
 
     #[test]

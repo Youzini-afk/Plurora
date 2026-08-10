@@ -6,6 +6,7 @@ use std::sync::{Arc, Mutex, RwLock};
 
 use anyhow::{anyhow, bail, ensure, Context};
 use async_trait::async_trait;
+use cap_fs_ext::{DirExt as _, FollowSymlinks, OpenOptionsFollowExt as _};
 use chrono::Utc;
 use plurora_core::{
     canonical_json_bytes, decode_component_artifact_payload, ArtifactDescriptor,
@@ -41,7 +42,7 @@ use plurora_work::{
 };
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
-use tempfile::{NamedTempFile, TempDir};
+use tempfile::TempDir;
 
 use crate::DevelopmentHostLease;
 
@@ -74,6 +75,8 @@ pub struct InstallationRegistry {
     owner_lease: RwLock<Option<DevelopmentHostLease>>,
     #[cfg(test)]
     projection_failure: Mutex<Option<ProjectionFailure>>,
+    #[cfg(test)]
+    authority_append_barrier: Mutex<Option<AuthorityAppendBarrier>>,
     _temporary_root: Option<TempDir>,
 }
 
@@ -150,10 +153,8 @@ struct NoopPayload {
 
 struct PreparedProjection {
     _installation: AnchoredDirectory,
-    record_target: PathBuf,
-    lock_target: PathBuf,
-    record_temporary: NamedTempFile,
-    lock_temporary: NamedTempFile,
+    record_replacement: AtomicReplacement,
+    lock_replacement: AtomicReplacement,
 }
 
 struct AnchoredDirectory {
@@ -162,12 +163,20 @@ struct AnchoredDirectory {
 }
 
 impl AnchoredDirectory {
+    fn capability(&self, label: &str) -> anyhow::Result<cap_std::fs::Dir> {
+        capability_directory(self, label)
+    }
+
     fn effect_path(&self) -> PathBuf {
         #[cfg(any(target_os = "linux", target_os = "android"))]
         {
             use std::os::fd::AsRawFd;
+            // Keep the procfs descriptor link as an intermediate component. A path
+            // ending at `/proc/self/fd/<fd>` is itself a symlink under lstat, while
+            // the trailing `/.` resolves to the already-open directory without
+            // weakening validation for ordinary caller-controlled symlinks.
             return PathBuf::from(format!(
-                "/proc/self/fd/{}",
+                "/proc/self/fd/{}/.",
                 self.handle.as_file().as_raw_fd()
             ));
         }
@@ -182,6 +191,36 @@ impl AnchoredDirectory {
             .map_err(|_| anyhow!("identify {label} failed"))?;
         ensure!(current == self.handle, "{label} identity changed");
         Ok(())
+    }
+}
+
+struct AtomicReplacement {
+    directory: cap_std::fs::Dir,
+    target_name: PathBuf,
+    temporary_name: Option<PathBuf>,
+    _temporary: cap_std::fs::File,
+}
+
+impl AtomicReplacement {
+    fn publish(mut self) -> anyhow::Result<()> {
+        validate_anchored_projection_target(&self.directory, &self.target_name)?;
+        let temporary_name = self
+            .temporary_name
+            .as_ref()
+            .ok_or_else(|| anyhow!("projection temporary file is no longer available"))?;
+        self.directory
+            .rename(temporary_name, &self.directory, &self.target_name)
+            .map_err(|_| anyhow!("publish projection file failed"))?;
+        self.temporary_name = None;
+        Ok(())
+    }
+}
+
+impl Drop for AtomicReplacement {
+    fn drop(&mut self) {
+        if let Some(temporary_name) = self.temporary_name.take() {
+            let _ = self.directory.remove_file(temporary_name);
+        }
     }
 }
 
@@ -212,14 +251,33 @@ enum ProjectionFailure {
     Publish,
 }
 
+#[cfg(test)]
+struct AuthorityAppendBarrier {
+    kind: String,
+    entered: Arc<tokio::sync::Barrier>,
+    release: Arc<tokio::sync::Barrier>,
+}
+
 #[cfg(all(test, unix))]
 struct StateOpenSwap {
+    relative: PathBuf,
     path: PathBuf,
     replacement: PathBuf,
 }
 
 #[cfg(all(test, unix))]
 static STATE_OPEN_SWAP: std::sync::OnceLock<Mutex<Option<StateOpenSwap>>> =
+    std::sync::OnceLock::new();
+
+#[cfg(all(test, unix))]
+struct StateRootOpenSwap {
+    path: PathBuf,
+    parked: PathBuf,
+    replacement: PathBuf,
+}
+
+#[cfg(all(test, unix))]
+static STATE_ROOT_OPEN_SWAP: std::sync::OnceLock<Mutex<Option<StateRootOpenSwap>>> =
     std::sync::OnceLock::new();
 
 #[cfg(all(test, unix))]
@@ -231,6 +289,22 @@ struct InstallationAncestorSwap {
 
 #[cfg(all(test, unix))]
 static INSTALLATION_ANCESTOR_SWAP: std::sync::OnceLock<Mutex<Option<InstallationAncestorSwap>>> =
+    std::sync::OnceLock::new();
+
+#[cfg(all(test, unix))]
+static PROJECTION_ANCESTOR_SWAP: std::sync::OnceLock<Mutex<Option<InstallationAncestorSwap>>> =
+    std::sync::OnceLock::new();
+
+#[cfg(all(test, unix))]
+struct RemoveTreeSwap {
+    root: PathBuf,
+    target: PathBuf,
+    parked: PathBuf,
+    replacement: PathBuf,
+}
+
+#[cfg(all(test, unix))]
+static REMOVE_TREE_SWAP: std::sync::OnceLock<Mutex<Option<RemoveTreeSwap>>> =
     std::sync::OnceLock::new();
 
 impl InstallationRegistry {
@@ -279,6 +353,8 @@ impl InstallationRegistry {
             owner_lease: RwLock::new(None),
             #[cfg(test)]
             projection_failure: Mutex::new(None),
+            #[cfg(test)]
+            authority_append_barrier: Mutex::new(None),
             _temporary_root: temporary_root,
         }))
     }
@@ -785,9 +861,48 @@ impl InstallationRegistry {
         let payload =
             serde_json::to_value(payload).context("encode installation journal payload")?;
         self.ensure_owner_lease().await?;
+        #[cfg(test)]
+        self.wait_authority_append_barrier(kind).await?;
         authority
             .refresh_current_for_installation(installation_id)
             .await?;
+        let appended = self
+            .store
+            .append_with_sequence_if_next(
+                JOURNAL_SESSION.to_string(),
+                sequence,
+                JOURNAL_WRITER.to_string(),
+                kind.to_string(),
+                JOURNAL_SCHEMA,
+                payload,
+                serde_json::json!({}),
+            )
+            .await
+            .context("append installation journal")?;
+        let Some(event) = appended else {
+            return Ok(false);
+        };
+        self.apply_event(&event)?;
+        Ok(true)
+    }
+
+    /// Create is authorized against the exact Work rather than a not-yet-existing
+    /// Installation. Keep the Host owner check before the grant refresh so the
+    /// refresh is the final asynchronous boundary before the journal append.
+    async fn append_payload_with_work_authority<T: Serialize>(
+        &self,
+        kind: &str,
+        payload: &T,
+        work_id: &plurora_work::WorkId,
+        authority: &InstallationMutationAuthority,
+    ) -> anyhow::Result<bool> {
+        let sequence = *self.next_sequence.lock().map_err(lock_error)?;
+        let payload =
+            serde_json::to_value(payload).context("encode installation journal payload")?;
+        self.ensure_owner_lease().await?;
+        #[cfg(test)]
+        self.wait_authority_append_barrier(kind).await?;
+        authority.refresh_current_for_work(work_id).await?;
         let appended = self
             .store
             .append_with_sequence_if_next(
@@ -1469,32 +1584,43 @@ impl InstallationRegistry {
             )?
             .handle,
         };
-        let installation = installations_anchor
-            .effect_path()
-            .join(installation_id.as_str());
-        prepare_real_directory(&installation, "installation projection root")?;
-        ensure_contained(
-            &installations_anchor.effect_path(),
-            &installation,
+        let installations_directory = installations_anchor.capability("installations root")?;
+        let installation_name = Path::new(installation_id.as_str());
+        prepare_capability_directory(
+            &installations_directory,
+            installation_name,
             "installation projection root",
         )?;
-        let mut anchored = open_anchored_directory(&installation, "installation projection root")?;
+        let installation_directory = installations_directory
+            .open_dir(installation_name)
+            .map_err(|_| anyhow!("open installation projection root failed"))?;
+        let installation_handle =
+            capability_directory_handle(&installation_directory, "installation projection root")?;
+        let mut anchored = open_anchored_directory(
+            &self.installation_dir(installation_id),
+            "installation projection root",
+        )?;
+        ensure!(
+            anchored.handle == installation_handle,
+            "installation projection root changed while its capability opened"
+        );
         anchored.path = self.installation_dir(installation_id);
         anchored.ensure_current_path("installation projection root")?;
-        let effect_root = anchored.effect_path();
+        let installation_directory = anchored.capability("installation projection root")?;
         for child in ["state", "diagnostics"] {
-            let child_path = effect_root.join(child);
-            prepare_real_directory(&child_path, "installation projection directory")?;
-            ensure_contained(
-                &effect_root,
-                &child_path,
+            prepare_capability_directory(
+                &installation_directory,
+                Path::new(child),
                 "installation projection directory",
             )?;
         }
-        let secrets = effect_root.join("secrets.dat");
-        if secrets.exists() {
-            ensure_real_regular_file(&secrets, "installation secret store")?;
-            ensure_contained(&effect_root, &secrets, "installation secret store")?;
+        match installation_directory.symlink_metadata("secrets.dat") {
+            Ok(metadata) => ensure!(
+                metadata.file_type().is_file() && !metadata.file_type().is_symlink(),
+                "installation secret store is not a regular file"
+            ),
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+            Err(_) => bail!("inspect installation secret store failed"),
         }
         Ok(anchored)
     }
@@ -1515,23 +1641,20 @@ impl InstallationRegistry {
         validate_view(view)?;
         self.ensure_owner_lease().await?;
         let installation = self.prepare_installation_tree(&view.record.installation_id)?;
-        let installation_root = installation.effect_path();
-        self.cleanup_state_temporaries(&installation_root)?;
+        self.cleanup_state_temporaries(&installation)?;
         let verified = self
             .verify_work_and_lock(&view.record.work_revision, &view.record.assembly_lock)
             .await?;
         let record_bytes = canonical_json_bytes(view).context("encode installation projection")?;
-        let record_target = installation_root.join("installation.json");
-        let lock_target = installation_root.join("assembly.lock.json");
         self.ensure_owner_lease().await?;
-        let record_temporary = prepare_atomic_replacement(&record_target, &record_bytes)?;
-        let lock_temporary = prepare_atomic_replacement(&lock_target, &verified.lock_bytes)?;
+        let record_replacement =
+            prepare_atomic_replacement(&installation, "installation.json", &record_bytes)?;
+        let lock_replacement =
+            prepare_atomic_replacement(&installation, "assembly.lock.json", &verified.lock_bytes)?;
         Ok(PreparedProjection {
             _installation: installation,
-            record_target,
-            lock_target,
-            record_temporary,
-            lock_temporary,
+            record_replacement,
+            lock_replacement,
         })
     }
 
@@ -1539,10 +1662,21 @@ impl InstallationRegistry {
         &self,
         prepared: PreparedProjection,
     ) -> anyhow::Result<()> {
-        let installation = prepared._installation.path.clone();
+        let installation_name = prepared
+            ._installation
+            .path
+            .file_name()
+            .map(PathBuf::from)
+            .ok_or_else(|| anyhow!("Installation projection has no directory name"))?;
         drop(prepared);
-        remove_safe_tree(&installation, &self.data_root.join("installations"))
-            .map_err(|_| anyhow!("discard uncommitted Installation projection failed"))
+        let owner =
+            open_anchored_directory(&self.data_root.join("installations"), "installations root")?;
+        ensure!(
+            owner.handle == self.installations_root_anchor,
+            "installations root identity changed"
+        );
+        remove_safe_tree(&owner, &installation_name)
+            .map_err(|error| anyhow!("discard uncommitted Installation projection failed: {error}"))
     }
 
     async fn publish_projection(&self, prepared: PreparedProjection) -> anyhow::Result<()> {
@@ -1572,21 +1706,6 @@ impl InstallationRegistry {
         }
     }
 
-    async fn rebuild_committed_projection(&self, view: &InstallationView) {
-        match self.prepare_projection(view).await {
-            Ok(prepared) => self.publish_committed_projection(view, prepared).await,
-            Err(error) => tracing::error!(
-                target: "plurora_service::installations",
-                installation_id = %view.record.installation_id,
-                revision = view.revision,
-                committed = true,
-                repair = "rehydrate_installation_projection",
-                %error,
-                "installation mutation is committed but projection preparation failed"
-            ),
-        }
-    }
-
     #[cfg(test)]
     fn inject_projection_failure(&self, failure: ProjectionFailure) -> anyhow::Result<()> {
         *self.projection_failure.lock().map_err(lock_error)? = Some(failure);
@@ -1603,9 +1722,39 @@ impl InstallationRegistry {
         Ok(false)
     }
 
-    fn cleanup_state_temporaries(&self, installation: &Path) -> anyhow::Result<()> {
-        prepare_existing_real_directory(installation, "installation projection root")?;
-        for entry in fs::read_dir(installation)
+    #[cfg(test)]
+    fn inject_authority_append_barrier(
+        &self,
+        kind: &str,
+        entered: Arc<tokio::sync::Barrier>,
+        release: Arc<tokio::sync::Barrier>,
+    ) -> anyhow::Result<()> {
+        *self.authority_append_barrier.lock().map_err(lock_error)? = Some(AuthorityAppendBarrier {
+            kind: kind.to_string(),
+            entered,
+            release,
+        });
+        Ok(())
+    }
+
+    #[cfg(test)]
+    async fn wait_authority_append_barrier(&self, kind: &str) -> anyhow::Result<()> {
+        let barrier = {
+            let mut pending = self.authority_append_barrier.lock().map_err(lock_error)?;
+            if !pending.as_ref().is_some_and(|barrier| barrier.kind == kind) {
+                return Ok(());
+            }
+            pending.take().expect("checked authority append barrier")
+        };
+        barrier.entered.wait().await;
+        barrier.release.wait().await;
+        Ok(())
+    }
+
+    fn cleanup_state_temporaries(&self, installation: &AnchoredDirectory) -> anyhow::Result<()> {
+        let directory = installation.capability("installation projection root")?;
+        for entry in directory
+            .entries()
             .map_err(|_| anyhow!("read installation projection root failed"))?
         {
             let entry = entry.map_err(|_| anyhow!("read installation projection root failed"))?;
@@ -1614,7 +1763,7 @@ impl InstallationRegistry {
                 continue;
             };
             if name.starts_with(".state-staging-") || name.starts_with(".state-backup-") {
-                remove_safe_tree(&entry.path(), installation)?;
+                remove_safe_tree(installation, Path::new(name))?;
             }
         }
         Ok(())
@@ -1622,8 +1771,7 @@ impl InstallationRegistry {
 
     fn state_has_entries(&self, installation_id: &InstallationId) -> anyhow::Result<bool> {
         let installation = self.prepare_installation_tree(installation_id)?;
-        let state = installation.effect_path().join("state");
-        Ok(!read_state_entries(&state)?.is_empty())
+        Ok(!read_state_entries(&installation)?.is_empty())
     }
 
     async fn snapshot_state(
@@ -1632,10 +1780,9 @@ impl InstallationRegistry {
     ) -> anyhow::Result<ArtifactDescriptor> {
         self.ensure_owner_lease().await?;
         let installation = self.prepare_installation_tree(installation_id)?;
-        let state = installation.effect_path().join("state");
         let snapshot = StateSnapshot {
             schema: INSTALLATION_STATE_SNAPSHOT_SCHEMA.to_string(),
-            entries: read_state_entries(&state)?,
+            entries: read_state_entries(&installation)?,
         };
         let bytes = snapshot
             .canonical_bytes()
@@ -1704,26 +1851,80 @@ impl InstallationRegistry {
         snapshot: &StateSnapshot,
     ) -> anyhow::Result<()> {
         let installation = self.prepare_installation_tree(installation_id)?;
-        let installation_root = installation.effect_path();
         #[cfg(all(test, unix))]
         apply_installation_ancestor_swap(&installation.path)?;
         installation.ensure_current_path("installation projection root")?;
-        let state = installation_root.join("state");
+        let directory = installation.capability("installation projection root")?;
+        let state = PathBuf::from("state");
+        #[cfg(not(windows))]
+        let state_directory = directory
+            .open_dir(&state)
+            .map_err(|_| anyhow!("open installation state root failed"))?;
+        #[cfg(not(windows))]
+        let state_handle =
+            capability_directory_handle(&state_directory, "installation state root")?;
+        #[cfg(windows)]
+        let state_identity = {
+            let metadata = directory
+                .symlink_metadata(&state)
+                .map_err(|_| anyhow!("inspect installation state root failed"))?;
+            ensure!(
+                metadata.file_type().is_dir() && !metadata.file_type().is_symlink(),
+                "installation state root is not a real directory"
+            );
+            let state_directory = directory
+                .open_dir(&state)
+                .map_err(|_| anyhow!("open installation state root failed"))?;
+            windows_directory_identity(&state_directory, "installation state root")?
+        };
         let nonce = uuid::Uuid::new_v4();
-        let staging = installation_root.join(format!(".state-staging-{nonce}"));
-        let backup = installation_root.join(format!(".state-backup-{nonce}"));
-        prepare_new_real_directory(&staging, "state staging directory")?;
-        if let Err(error) = write_snapshot_tree(&staging, snapshot) {
-            let _ = remove_safe_tree(&staging, &installation_root);
+        let staging = PathBuf::from(format!(".state-staging-{nonce}"));
+        let backup = PathBuf::from(format!(".state-backup-{nonce}"));
+        prepare_new_capability_directory(&directory, &staging, "state staging directory")?;
+        let staging_directory = directory
+            .open_dir(&staging)
+            .map_err(|_| anyhow!("open state staging directory failed"))?;
+        #[cfg(not(windows))]
+        let staging_handle =
+            capability_directory_handle(&staging_directory, "state staging directory")?;
+        #[cfg(windows)]
+        let staging_identity =
+            windows_directory_identity(&staging_directory, "state staging directory")?;
+        if let Err(error) = write_snapshot_tree(&staging_directory, snapshot) {
+            let _ = remove_safe_tree(&installation, &staging);
             return Err(error);
         }
-        fs::rename(&state, &backup).map_err(|_| anyhow!("replace installation state failed"))?;
-        if fs::rename(&staging, &state).is_err() {
-            let _ = fs::rename(&backup, &state);
-            let _ = remove_safe_tree(&staging, &installation_root);
+        #[cfg(windows)]
+        drop(staging_directory);
+        directory
+            .rename(&state, &directory, &backup)
+            .map_err(|_| anyhow!("replace installation state failed"))?;
+        #[cfg(not(windows))]
+        if !capability_path_matches_directory(&directory, &backup, &state_handle)? {
+            let _ = directory.rename(&backup, &directory, &state);
+            let _ = remove_safe_tree(&installation, &staging);
+            bail!("replace installation state failed: active state identity changed");
+        }
+        #[cfg(windows)]
+        if !windows_path_matches_directory(&directory, &backup, state_identity)? {
+            let _ = directory.rename(&backup, &directory, &state);
+            let _ = remove_safe_tree(&installation, &staging);
+            bail!("replace installation state failed: active state identity changed");
+        }
+        if directory.rename(&staging, &directory, &state).is_err() {
+            let _ = directory.rename(&backup, &directory, &state);
+            let _ = remove_safe_tree(&installation, &staging);
             bail!("replace installation state failed");
         }
-        if let Err(error) = remove_safe_tree(&backup, &installation_root) {
+        #[cfg(not(windows))]
+        if !capability_path_matches_directory(&directory, &state, &staging_handle)? {
+            bail!("replace installation state failed: staged state identity changed");
+        }
+        #[cfg(windows)]
+        if !windows_path_matches_directory(&directory, &state, staging_identity)? {
+            bail!("replace installation state failed: staged state identity changed");
+        }
+        if let Err(error) = remove_safe_tree(&installation, &backup) {
             // The active state is already atomically installed. Leaving a validated backup
             // is safer than attempting a second destructive transition.
             tracing::warn!(target: "plurora_service::installations", %error, "state backup cleanup failed");
@@ -1884,9 +2085,6 @@ impl InstallationControl for InstallationRegistry {
         self.sync_journal().await?;
         self.refresh_create_authority(&request).await?;
         if let Some(result) = self.claimed_result(&key_hash, &fingerprint)? {
-            self.refresh_create_authority(&request).await?;
-            self.rebuild_committed_projection(&result.installation)
-                .await;
             return Ok(result);
         }
         self.refresh_create_authority(&request).await?;
@@ -1903,9 +2101,6 @@ impl InstallationControl for InstallationRegistry {
             self.sync_journal().await?;
             self.refresh_create_authority(&request).await?;
             if let Some(result) = self.claimed_result(&key_hash, &fingerprint)? {
-                self.refresh_create_authority(&request).await?;
-                self.rebuild_committed_projection(&result.installation)
-                    .await;
                 return Ok(result);
             }
             let now = Utc::now();
@@ -1941,16 +2136,27 @@ impl InstallationControl for InstallationRegistry {
                 fingerprint: fingerprint.clone(),
                 result: result.clone(),
             };
-            self.refresh_create_authority(&request).await?;
             let projection = self.prepare_projection(&result.installation).await?;
-            if let Err(error) = self.refresh_create_authority(&request).await {
-                self.discard_uncommitted_create_projection(projection)?;
-                return Err(error);
-            }
-            if self
-                .append_payload(INSTALLATION_CREATED, &CreatedPayload { view, claim })
-                .await?
-            {
+            let authority = request
+                .authority
+                .as_ref()
+                .ok_or_else(|| anyhow!("authority_denied: trusted Work authority is required"))?;
+            let appended = self
+                .append_payload_with_work_authority(
+                    INSTALLATION_CREATED,
+                    &CreatedPayload { view, claim },
+                    &request.work_id,
+                    authority,
+                )
+                .await;
+            let appended = match appended {
+                Ok(appended) => appended,
+                Err(error) => {
+                    self.discard_uncommitted_create_projection(projection)?;
+                    return Err(error);
+                }
+            };
+            if appended {
                 self.publish_committed_projection(&result.installation, projection)
                     .await;
                 return Ok(result);
@@ -1972,9 +2178,6 @@ impl InstallationControl for InstallationRegistry {
         self.sync_journal().await?;
         self.refresh_update_authority(&request).await?;
         if let Some(result) = self.claimed_result(&key_hash, &fingerprint)? {
-            self.refresh_update_authority(&request).await?;
-            self.rebuild_committed_projection(&result.installation)
-                .await;
             return Ok(result);
         }
         self.refresh_update_authority(&request).await?;
@@ -1994,9 +2197,6 @@ impl InstallationControl for InstallationRegistry {
             self.sync_journal().await?;
             self.refresh_update_authority(&request).await?;
             if let Some(result) = self.claimed_result(&key_hash, &fingerprint)? {
-                self.refresh_update_authority(&request).await?;
-                self.rebuild_committed_projection(&result.installation)
-                    .await;
                 return Ok(result);
             }
             let previous = self
@@ -2115,13 +2315,17 @@ impl InstallationControl for InstallationRegistry {
                     state_snapshot: state_snapshot.expect("state-changing update has snapshot"),
                     receipts,
                 };
-                self.refresh_update_authority(&request).await?;
+                let authority = request.authority.as_ref().ok_or_else(|| {
+                    anyhow!("authority_denied: trusted Installation authority is required")
+                })?;
                 if !self
-                    .append_payload(
+                    .append_payload_with_installation_authority(
                         UPDATE_STARTED,
                         &StartedPayload {
                             pending: pending.clone(),
                         },
+                        &request.installation_id,
+                        authority,
                     )
                     .await?
                 {
@@ -2148,12 +2352,23 @@ impl InstallationControl for InstallationRegistry {
                     view: new_view,
                     claim,
                 };
-                if let Err(error) = self.refresh_update_authority(&request).await {
-                    self.rollback_started(&pending, "authority_expired_after_state_effect")
-                        .await?;
-                    return Err(error);
-                }
-                if !self.append_payload(INSTALLATION_UPDATED, &payload).await? {
+                let terminal = self
+                    .append_payload_with_installation_authority(
+                        INSTALLATION_UPDATED,
+                        &payload,
+                        &request.installation_id,
+                        authority,
+                    )
+                    .await;
+                let terminal_appended = match terminal {
+                    Ok(appended) => appended,
+                    Err(error) => {
+                        self.rollback_started(&pending, "authority_expired_after_state_effect")
+                            .await?;
+                        return Err(error);
+                    }
+                };
+                if !terminal_appended {
                     self.sync_journal().await?;
                     self.rollback_started(&pending, "terminal_append_conflict")
                         .await?;
@@ -2170,8 +2385,18 @@ impl InstallationControl for InstallationRegistry {
                 view: new_view,
                 claim,
             };
-            self.refresh_update_authority(&request).await?;
-            if self.append_payload(INSTALLATION_UPDATED, &payload).await? {
+            let authority = request.authority.as_ref().ok_or_else(|| {
+                anyhow!("authority_denied: trusted Installation authority is required")
+            })?;
+            if self
+                .append_payload_with_installation_authority(
+                    INSTALLATION_UPDATED,
+                    &payload,
+                    &request.installation_id,
+                    authority,
+                )
+                .await?
+            {
                 self.publish_committed_projection(&result.installation, projection)
                     .await;
                 return Ok(result);
@@ -3000,12 +3225,6 @@ fn prepare_real_directory(path: &Path, label: &str) -> anyhow::Result<()> {
     }
 }
 
-fn prepare_new_real_directory(path: &Path, label: &str) -> anyhow::Result<()> {
-    ensure!(!path.exists(), "{label} already exists");
-    fs::create_dir(path).map_err(|_| anyhow!("create {label} failed"))?;
-    prepare_existing_real_directory(path, label)
-}
-
 fn open_anchored_directory(path: &Path, label: &str) -> anyhow::Result<AnchoredDirectory> {
     prepare_existing_real_directory(path, label)?;
     #[cfg(windows)]
@@ -3039,6 +3258,198 @@ fn open_anchored_directory(path: &Path, label: &str) -> anyhow::Result<AnchoredD
         path: stable_path,
         handle,
     })
+}
+
+fn capability_directory(
+    directory: &AnchoredDirectory,
+    label: &str,
+) -> anyhow::Result<cap_std::fs::Dir> {
+    let directory = cap_std::fs::Dir::from_std_file(
+        directory
+            .handle
+            .as_file()
+            .try_clone()
+            .map_err(|_| anyhow!("clone {label} anchor failed"))?,
+    );
+    ensure!(
+        directory
+            .dir_metadata()
+            .map_err(|_| anyhow!("inspect {label} failed"))?
+            .is_dir(),
+        "{label} is not a real directory"
+    );
+    Ok(directory)
+}
+
+fn capability_directory_handle(
+    directory: &cap_std::fs::Dir,
+    label: &str,
+) -> anyhow::Result<same_file::Handle> {
+    same_file::Handle::from_file(
+        directory
+            .try_clone()
+            .map_err(|_| anyhow!("clone {label} capability failed"))?
+            .into_std_file(),
+    )
+    .map_err(|_| anyhow!("identify {label} capability failed"))
+}
+
+#[cfg(windows)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct WindowsDirectoryIdentity {
+    volume_serial_number: u32,
+    file_index: u64,
+}
+
+#[cfg(windows)]
+#[repr(C)]
+struct WindowsFileTime {
+    low_date_time: u32,
+    high_date_time: u32,
+}
+
+#[cfg(windows)]
+#[repr(C)]
+struct WindowsByHandleFileInformation {
+    file_attributes: u32,
+    creation_time: WindowsFileTime,
+    last_access_time: WindowsFileTime,
+    last_write_time: WindowsFileTime,
+    volume_serial_number: u32,
+    file_size_high: u32,
+    file_size_low: u32,
+    number_of_links: u32,
+    file_index_high: u32,
+    file_index_low: u32,
+}
+
+#[cfg(windows)]
+#[link(name = "kernel32")]
+unsafe extern "system" {
+    fn GetFileInformationByHandle(
+        file: *mut std::ffi::c_void,
+        information: *mut WindowsByHandleFileInformation,
+    ) -> i32;
+}
+
+#[cfg(windows)]
+fn windows_directory_identity(
+    directory: &cap_std::fs::Dir,
+    label: &str,
+) -> anyhow::Result<WindowsDirectoryIdentity> {
+    use std::mem::MaybeUninit;
+    use std::os::windows::io::AsRawHandle;
+
+    let file = directory
+        .try_clone()
+        .map_err(|_| anyhow!("clone {label} capability failed"))?
+        .into_std_file();
+    let mut information = MaybeUninit::<WindowsByHandleFileInformation>::uninit();
+    // SAFETY: `file` remains open for the call and `information` points to enough writable
+    // storage for the exact Windows BY_HANDLE_FILE_INFORMATION layout above.
+    let identified =
+        unsafe { GetFileInformationByHandle(file.as_raw_handle(), information.as_mut_ptr()) };
+    ensure!(identified != 0, "identify {label} capability failed");
+    // SAFETY: a successful GetFileInformationByHandle call initializes the whole structure.
+    let information = unsafe { information.assume_init() };
+    Ok(WindowsDirectoryIdentity {
+        volume_serial_number: information.volume_serial_number,
+        file_index: (u64::from(information.file_index_high) << 32)
+            | u64::from(information.file_index_low),
+    })
+}
+
+#[cfg(windows)]
+fn windows_path_matches_directory(
+    owner: &cap_std::fs::Dir,
+    name: &Path,
+    expected: WindowsDirectoryIdentity,
+) -> anyhow::Result<bool> {
+    let metadata = match owner.symlink_metadata(name) {
+        Ok(metadata) => metadata,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(false),
+        Err(_) => bail!("inspect anchored directory entry failed"),
+    };
+    if !metadata.file_type().is_dir() || metadata.file_type().is_symlink() {
+        return Ok(false);
+    }
+    let directory = owner
+        .open_dir(name)
+        .map_err(|_| anyhow!("open anchored directory entry failed"))?;
+    Ok(windows_directory_identity(&directory, "anchored directory entry")? == expected)
+}
+
+fn prepare_capability_directory(
+    owner: &cap_std::fs::Dir,
+    name: &Path,
+    label: &str,
+) -> anyhow::Result<()> {
+    match owner.symlink_metadata(name) {
+        Ok(metadata) => ensure!(
+            metadata.file_type().is_dir() && !metadata.file_type().is_symlink(),
+            "{label} is not a real directory"
+        ),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+            owner
+                .create_dir(name)
+                .map_err(|_| anyhow!("create {label} failed"))?;
+            let metadata = owner
+                .symlink_metadata(name)
+                .map_err(|_| anyhow!("inspect {label} failed"))?;
+            ensure!(
+                metadata.file_type().is_dir() && !metadata.file_type().is_symlink(),
+                "{label} is not a real directory"
+            );
+        }
+        Err(_) => bail!("inspect {label} failed"),
+    }
+    let opened = owner
+        .open_dir(name)
+        .map_err(|_| anyhow!("open {label} failed"))?;
+    ensure!(
+        opened
+            .dir_metadata()
+            .map_err(|_| anyhow!("inspect {label} failed"))?
+            .is_dir(),
+        "{label} is not a real directory"
+    );
+    Ok(())
+}
+
+fn prepare_new_capability_directory(
+    owner: &cap_std::fs::Dir,
+    name: &Path,
+    label: &str,
+) -> anyhow::Result<()> {
+    match owner.symlink_metadata(name) {
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+        Ok(_) => bail!("{label} already exists"),
+        Err(_) => bail!("inspect {label} failed"),
+    }
+    owner
+        .create_dir(name)
+        .map_err(|_| anyhow!("create {label} failed"))?;
+    prepare_capability_directory(owner, name, label)
+}
+
+#[cfg(not(windows))]
+fn capability_path_matches_directory(
+    owner: &cap_std::fs::Dir,
+    name: &Path,
+    expected: &same_file::Handle,
+) -> anyhow::Result<bool> {
+    let metadata = match owner.symlink_metadata(name) {
+        Ok(metadata) => metadata,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(false),
+        Err(_) => bail!("inspect anchored directory entry failed"),
+    };
+    if !metadata.file_type().is_dir() || metadata.file_type().is_symlink() {
+        return Ok(false);
+    }
+    let directory = owner
+        .open_dir(name)
+        .map_err(|_| anyhow!("open anchored directory entry failed"))?;
+    Ok(&capability_directory_handle(&directory, "anchored directory entry")? == expected)
 }
 
 fn prepare_existing_real_directory(path: &Path, label: &str) -> anyhow::Result<()> {
@@ -3100,115 +3511,196 @@ impl PreparedProjection {
     fn publish(self) -> anyhow::Result<()> {
         self._installation
             .ensure_current_path("installation projection root")?;
-        validate_projection_target(&self.record_target)?;
-        validate_projection_target(&self.lock_target)?;
-        let parent = self
-            .record_target
-            .parent()
-            .ok_or_else(|| anyhow!("projection path has no parent"))?;
-        self.record_temporary
-            .persist(&self.record_target)
-            .map_err(|_| anyhow!("publish projection file failed"))?;
-        self.lock_temporary
-            .persist(&self.lock_target)
-            .map_err(|_| anyhow!("publish projection file failed"))?;
-        sync_directory(parent)
+        #[cfg(all(test, unix))]
+        apply_projection_ancestor_swap(&self._installation.path)?;
+        self.record_replacement.publish()?;
+        self.lock_replacement.publish()?;
+        sync_directory(&self._installation)
     }
 }
 
-fn validate_projection_target(path: &Path) -> anyhow::Result<()> {
-    match fs::symlink_metadata(path) {
-        Ok(_) => ensure_real_regular_file(path, "projection file"),
+fn prepare_atomic_replacement(
+    directory: &AnchoredDirectory,
+    file_name: &str,
+    bytes: &[u8],
+) -> anyhow::Result<AtomicReplacement> {
+    use cap_std::fs::OpenOptions as CapabilityOpenOptions;
+
+    directory.ensure_current_path("projection directory")?;
+    let directory = capability_directory(directory, "projection directory")?;
+    let target_name = PathBuf::from(file_name);
+    validate_anchored_projection_target(&directory, &target_name)?;
+    let temporary_name = PathBuf::from(format!(".projection-{}.tmp", uuid::Uuid::new_v4()));
+    let mut options = CapabilityOpenOptions::new();
+    options.write(true).create_new(true);
+    let mut temporary = directory
+        .open_with(&temporary_name, &options)
+        .map_err(|_| anyhow!("create projection temporary file failed"))?;
+    if temporary
+        .write_all(bytes)
+        .and_then(|_| temporary.flush())
+        .and_then(|_| temporary.sync_all())
+        .is_err()
+    {
+        drop(temporary);
+        let _ = directory.remove_file(&temporary_name);
+        bail!("write projection temporary file failed");
+    }
+    Ok(AtomicReplacement {
+        directory,
+        target_name,
+        temporary_name: Some(temporary_name),
+        _temporary: temporary,
+    })
+}
+
+fn validate_anchored_projection_target(
+    directory: &cap_std::fs::Dir,
+    name: &Path,
+) -> anyhow::Result<()> {
+    match directory.symlink_metadata(name) {
+        Ok(metadata) => {
+            ensure!(
+                metadata.file_type().is_file() && !metadata.file_type().is_symlink(),
+                "projection file is not a regular file"
+            );
+            Ok(())
+        }
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(()),
         Err(_) => bail!("inspect projection file failed"),
     }
 }
 
-fn prepare_atomic_replacement(path: &Path, bytes: &[u8]) -> anyhow::Result<NamedTempFile> {
-    let parent = path
-        .parent()
-        .ok_or_else(|| anyhow!("projection path has no parent"))?;
-    prepare_existing_real_directory(parent, "projection directory")?;
-    validate_projection_target(path)?;
-    let mut temporary = NamedTempFile::new_in(parent)
-        .map_err(|_| anyhow!("create projection temporary file failed"))?;
-    temporary
-        .write_all(bytes)
-        .and_then(|_| temporary.flush())
-        .and_then(|_| temporary.as_file().sync_all())
-        .map_err(|_| anyhow!("write projection temporary file failed"))?;
-    Ok(temporary)
-}
-
 #[cfg(unix)]
-fn sync_directory(path: &Path) -> anyhow::Result<()> {
-    fs::File::open(path)
-        .and_then(|directory| directory.sync_all())
+fn sync_directory(directory: &AnchoredDirectory) -> anyhow::Result<()> {
+    directory
+        .handle
+        .as_file()
+        .sync_all()
         .map_err(|_| anyhow!("sync projection directory failed"))
 }
 
 #[cfg(not(unix))]
-fn sync_directory(_path: &Path) -> anyhow::Result<()> {
+fn sync_directory(_directory: &AnchoredDirectory) -> anyhow::Result<()> {
     Ok(())
 }
 
-fn read_state_entries(root: &Path) -> anyhow::Result<Vec<StateSnapshotEntry>> {
-    prepare_existing_real_directory(root, "installation state root")?;
-    let canonical_root =
-        fs::canonicalize(root).map_err(|_| anyhow!("resolve installation state root failed"))?;
-    let root_handle =
-        validated_directory_handle(&canonical_root, &canonical_root, "installation state root")?;
+fn read_state_entries(installation: &AnchoredDirectory) -> anyhow::Result<Vec<StateSnapshotEntry>> {
+    #[cfg(all(test, unix))]
+    apply_installation_ancestor_swap(&installation.path)?;
+
+    // The Installation handle, not its ambient path, is the authority for the
+    // state read. Every descendant is then opened one component at a time with
+    // no-follow semantics from its already-open parent capability.
+    let installation_directory = installation.capability("installation projection root")?;
+    #[cfg(all(test, unix))]
+    apply_state_root_open_swap(&installation.path)?;
+    let state_name = Path::new("state");
+    let state_metadata = installation_directory
+        .symlink_metadata(state_name)
+        .map_err(|_| anyhow!("inspect installation state root failed"))?;
+    ensure!(
+        state_metadata.file_type().is_dir() && !state_metadata.file_type().is_symlink(),
+        "installation state root must be a real directory, not a symlink or reparse point"
+    );
+    let state_directory = installation_directory
+        .open_dir_nofollow(state_name)
+        .map_err(|_| anyhow!("open installation state root failed"))?;
+    ensure!(
+        state_directory
+            .dir_metadata()
+            .map_err(|_| anyhow!("inspect installation state root failed"))?
+            .is_dir(),
+        "installation state root is not a real directory"
+    );
+    let state_handle = capability_directory_handle(&state_directory, "installation state root")?;
+    ensure!(
+        state_directory_still_matches(&installation_directory, state_name, &state_handle)?,
+        "installation state root changed while it was opened"
+    );
+
     let mut entries = Vec::new();
-    read_state_directory(&canonical_root, &canonical_root, &root_handle, &mut entries)?;
+    read_state_directory(&state_directory, Path::new(""), &state_handle, &mut entries)?;
+    ensure!(
+        state_directory_still_matches(&installation_directory, state_name, &state_handle)?,
+        "installation state root changed during traversal"
+    );
     entries.sort_by(|left, right| left.path.cmp(&right.path));
     Ok(entries)
 }
 
 fn read_state_directory(
-    root: &Path,
-    directory: &Path,
+    directory: &cap_std::fs::Dir,
+    prefix: &Path,
     expected_handle: &same_file::Handle,
     entries: &mut Vec<StateSnapshotEntry>,
 ) -> anyhow::Result<()> {
     ensure!(
-        &validated_directory_handle(root, directory, "installation state directory")?
-            == expected_handle,
+        &capability_directory_handle(directory, "installation state directory")? == expected_handle,
         "installation state directory changed during traversal"
     );
-    let mut children = fs::read_dir(directory)
+    let mut children = directory
+        .entries()
         .map_err(|_| anyhow!("read installation state directory failed"))?
         .collect::<Result<Vec<_>, _>>()
         .map_err(|_| anyhow!("read installation state directory failed"))?;
-    ensure!(
-        &validated_directory_handle(root, directory, "installation state directory")?
-            == expected_handle,
-        "installation state directory changed while it was read"
-    );
     children.sort_by_key(|entry| entry.file_name());
+
     for child in children {
-        let path = child.path();
-        let metadata = fs::symlink_metadata(&path)
+        let name = child.file_name();
+        ensure_single_relative_component(Path::new(&name), "installation state entry")?;
+        let relative = prefix.join(&name);
+        let file_type = child
+            .file_type()
             .map_err(|_| anyhow!("inspect installation state entry failed"))?;
         ensure!(
-            !metadata.file_type().is_symlink() && !is_reparse_point(&metadata),
+            !file_type.is_symlink(),
             "installation state must not contain symlinks or reparse points"
         );
-        if metadata.file_type().is_dir() {
+
+        if file_type.is_dir() {
+            let child_directory = directory
+                .open_dir_nofollow(&name)
+                .map_err(|_| anyhow!("open installation state directory failed"))?;
+            ensure!(
+                child_directory
+                    .dir_metadata()
+                    .map_err(|_| anyhow!("inspect installation state directory failed"))?
+                    .is_dir(),
+                "installation state directory is not a real directory"
+            );
             let child_handle =
-                validated_directory_handle(root, &path, "installation state directory")?;
-            read_state_directory(root, &path, &child_handle, entries)?;
-        } else if metadata.file_type().is_file() {
-            let relative = portable_relative(root, &path)?;
-            let (mut file, opened_handle) = open_verified_state_file(root, &path)?;
+                capability_directory_handle(&child_directory, "installation state directory")?;
+            read_state_directory(&child_directory, &relative, &child_handle, entries)?;
+            ensure!(
+                state_directory_still_matches(directory, Path::new(&name), &child_handle)?,
+                "installation state directory changed during traversal"
+            );
+        } else if file_type.is_file() {
+            let mut options = cap_std::fs::OpenOptions::new();
+            options.read(true).follow(FollowSymlinks::No);
+            let mut file = directory
+                .open_with(&name, &options)
+                .map_err(|_| anyhow!("open installation state file failed"))?;
+            let metadata = file
+                .metadata()
+                .map_err(|_| anyhow!("inspect installation state file failed"))?;
+            ensure!(
+                metadata.file_type().is_file() && !metadata.file_type().is_symlink(),
+                "installation state file is not a regular file"
+            );
+            let opened_handle = capability_file_handle(&file, "installation state file")?;
+            #[cfg(all(test, unix))]
+            apply_state_open_swap(&relative)?;
             let mut bytes = Vec::new();
             file.read_to_end(&mut bytes)
                 .map_err(|_| anyhow!("read installation state file failed"))?;
             ensure!(
-                verified_open_file_still_matches(root, &path, &opened_handle)?,
+                state_file_still_matches(directory, Path::new(&name), &opened_handle)?,
                 "installation state file changed while it was read"
             );
             entries.push(StateSnapshotEntry {
-                path: relative,
+                path: portable_state_path(&relative)?,
                 bytes,
             });
         } else {
@@ -3216,66 +3708,156 @@ fn read_state_directory(
         }
     }
     ensure!(
-        &validated_directory_handle(root, directory, "installation state directory")?
-            == expected_handle,
+        &capability_directory_handle(directory, "installation state directory")? == expected_handle,
         "installation state directory changed during traversal"
     );
     Ok(())
 }
 
-fn validated_directory_handle(
-    root: &Path,
-    directory: &Path,
+fn capability_file_handle(
+    file: &cap_std::fs::File,
     label: &str,
 ) -> anyhow::Result<same_file::Handle> {
-    prepare_existing_real_directory(directory, label)?;
-    let canonical = fs::canonicalize(directory).map_err(|_| anyhow!("resolve {label} failed"))?;
-    ensure!(
-        canonical.starts_with(root),
-        "{label} escapes its owner root"
-    );
-    same_file::Handle::from_path(directory).map_err(|_| anyhow!("identify {label} failed"))
+    same_file::Handle::from_file(
+        file.try_clone()
+            .map_err(|_| anyhow!("clone {label} capability failed"))?
+            .into_std(),
+    )
+    .map_err(|_| anyhow!("identify {label} capability failed"))
 }
 
-fn open_verified_state_file(
-    root: &Path,
-    path: &Path,
-) -> anyhow::Result<(fs::File, same_file::Handle)> {
-    #[cfg(all(test, unix))]
-    apply_state_open_swap(path)?;
-    let file = fs::File::open(path).map_err(|_| anyhow!("open installation state file failed"))?;
-    let opened_handle = same_file::Handle::from_file(
-        file.try_clone()
-            .map_err(|_| anyhow!("identify installation state file failed"))?,
-    )
-    .map_err(|_| anyhow!("identify installation state file failed"))?;
+fn state_directory_still_matches(
+    owner: &cap_std::fs::Dir,
+    name: &Path,
+    expected: &same_file::Handle,
+) -> anyhow::Result<bool> {
+    let metadata = match owner.symlink_metadata(name) {
+        Ok(metadata) => metadata,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(false),
+        Err(_) => bail!("inspect installation state directory failed"),
+    };
+    if !metadata.file_type().is_dir() || metadata.file_type().is_symlink() {
+        return Ok(false);
+    }
+    let current = match owner.open_dir_nofollow(name) {
+        Ok(current) => current,
+        Err(_) => return Ok(false),
+    };
+    Ok(&capability_directory_handle(&current, "installation state directory")? == expected)
+}
+
+fn state_file_still_matches(
+    owner: &cap_std::fs::Dir,
+    name: &Path,
+    expected: &same_file::Handle,
+) -> anyhow::Result<bool> {
+    let metadata = match owner.symlink_metadata(name) {
+        Ok(metadata) => metadata,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(false),
+        Err(_) => bail!("inspect installation state file failed"),
+    };
+    if !metadata.file_type().is_file() || metadata.file_type().is_symlink() {
+        return Ok(false);
+    }
+    let mut options = cap_std::fs::OpenOptions::new();
+    options.read(true).follow(FollowSymlinks::No);
+    let current = match owner.open_with(name, &options) {
+        Ok(current) => current,
+        Err(_) => return Ok(false),
+    };
+    let current_metadata = current
+        .metadata()
+        .map_err(|_| anyhow!("inspect installation state file failed"))?;
+    if !current_metadata.file_type().is_file() || current_metadata.file_type().is_symlink() {
+        return Ok(false);
+    }
+    Ok(&capability_file_handle(&current, "installation state file")? == expected)
+}
+
+fn portable_state_path(path: &Path) -> anyhow::Result<String> {
+    let mut segments = Vec::new();
+    for component in path.components() {
+        match component {
+            Component::Normal(segment) => segments.push(
+                segment
+                    .to_str()
+                    .ok_or_else(|| anyhow!("installation state path is not UTF-8"))?
+                    .to_string(),
+            ),
+            _ => bail!("installation state path is not relative"),
+        }
+    }
     ensure!(
-        verified_open_file_still_matches(root, path, &opened_handle)?,
-        "installation state file changed while it was opened"
+        !segments.is_empty(),
+        "installation state file has an empty path"
     );
-    Ok((file, opened_handle))
+    Ok(segments.join("/"))
 }
 
 #[cfg(all(test, unix))]
-fn inject_state_open_swap(path: PathBuf, replacement: PathBuf) -> anyhow::Result<()> {
+fn inject_state_open_swap(
+    relative: PathBuf,
+    path: PathBuf,
+    replacement: PathBuf,
+) -> anyhow::Result<()> {
     let swap = STATE_OPEN_SWAP.get_or_init(|| Mutex::new(None));
-    *swap.lock().map_err(lock_error)? = Some(StateOpenSwap { path, replacement });
+    *swap.lock().map_err(lock_error)? = Some(StateOpenSwap {
+        relative,
+        path,
+        replacement,
+    });
     Ok(())
 }
 
 #[cfg(all(test, unix))]
-fn apply_state_open_swap(path: &Path) -> anyhow::Result<()> {
+fn apply_state_open_swap(relative: &Path) -> anyhow::Result<()> {
     use std::os::unix::fs::symlink;
 
     let swap = STATE_OPEN_SWAP.get_or_init(|| Mutex::new(None));
     let mut swap = swap.lock().map_err(lock_error)?;
-    let should_apply = swap.as_ref().is_some_and(|pending| pending.path == path);
+    let should_apply = swap
+        .as_ref()
+        .is_some_and(|pending| pending.relative == relative);
     if !should_apply {
         return Ok(());
     }
     let pending = swap.take().expect("checked pending state swap");
-    fs::remove_file(path).map_err(|_| anyhow!("apply state test swap failed"))?;
-    symlink(pending.replacement, path).map_err(|_| anyhow!("apply state test swap failed"))
+    fs::remove_file(&pending.path).map_err(|_| anyhow!("apply state test swap failed"))?;
+    symlink(pending.replacement, pending.path).map_err(|_| anyhow!("apply state test swap failed"))
+}
+
+#[cfg(all(test, unix))]
+fn inject_state_root_open_swap(
+    path: PathBuf,
+    parked: PathBuf,
+    replacement: PathBuf,
+) -> anyhow::Result<()> {
+    let swap = STATE_ROOT_OPEN_SWAP.get_or_init(|| Mutex::new(None));
+    *swap.lock().map_err(lock_error)? = Some(StateRootOpenSwap {
+        path,
+        parked,
+        replacement,
+    });
+    Ok(())
+}
+
+#[cfg(all(test, unix))]
+fn apply_state_root_open_swap(installation: &Path) -> anyhow::Result<()> {
+    use std::os::unix::fs::symlink;
+
+    let swap = STATE_ROOT_OPEN_SWAP.get_or_init(|| Mutex::new(None));
+    let mut swap = swap.lock().map_err(lock_error)?;
+    if !swap
+        .as_ref()
+        .is_some_and(|pending| pending.path.parent() == Some(installation))
+    {
+        return Ok(());
+    }
+    let pending = swap.take().expect("checked pending state-root swap");
+    fs::rename(&pending.path, &pending.parked)
+        .map_err(|_| anyhow!("apply state root test swap failed"))?;
+    symlink(&pending.replacement, &pending.path)
+        .map_err(|_| anyhow!("apply state root test swap failed"))
 }
 
 #[cfg(all(test, unix))]
@@ -3309,50 +3891,68 @@ fn apply_installation_ancestor_swap(path: &Path) -> anyhow::Result<()> {
         .map_err(|_| anyhow!("apply installation ancestor test swap failed"))
 }
 
-fn verified_open_file_still_matches(
-    root: &Path,
-    path: &Path,
-    opened_handle: &same_file::Handle,
-) -> anyhow::Result<bool> {
-    let current = fs::symlink_metadata(path)
-        .map_err(|_| anyhow!("inspect installation state file failed"))?;
-    if !current.file_type().is_file()
-        || current.file_type().is_symlink()
-        || is_reparse_point(&current)
-    {
-        return Ok(false);
-    }
-    let canonical =
-        fs::canonicalize(path).map_err(|_| anyhow!("resolve installation state file failed"))?;
-    if !canonical.starts_with(root) {
-        return Ok(false);
-    }
-    let current_handle = same_file::Handle::from_path(path)
-        .map_err(|_| anyhow!("identify installation state file failed"))?;
-    Ok(&current_handle == opened_handle)
+#[cfg(all(test, unix))]
+fn inject_projection_ancestor_swap(
+    path: PathBuf,
+    parked: PathBuf,
+    replacement: PathBuf,
+) -> anyhow::Result<()> {
+    let swap = PROJECTION_ANCESTOR_SWAP.get_or_init(|| Mutex::new(None));
+    *swap.lock().map_err(lock_error)? = Some(InstallationAncestorSwap {
+        path,
+        parked,
+        replacement,
+    });
+    Ok(())
 }
 
-fn portable_relative(root: &Path, path: &Path) -> anyhow::Result<String> {
-    let relative = path
-        .strip_prefix(root)
-        .map_err(|_| anyhow!("installation state path escapes its root"))?;
-    let mut segments = Vec::new();
-    for component in relative.components() {
-        match component {
-            Component::Normal(segment) => segments.push(
-                segment
-                    .to_str()
-                    .ok_or_else(|| anyhow!("installation state path is not UTF-8"))?
-                    .to_string(),
-            ),
-            _ => bail!("installation state path is not relative"),
-        }
+#[cfg(all(test, unix))]
+fn apply_projection_ancestor_swap(path: &Path) -> anyhow::Result<()> {
+    use std::os::unix::fs::symlink;
+
+    let swap = PROJECTION_ANCESTOR_SWAP.get_or_init(|| Mutex::new(None));
+    let mut swap = swap.lock().map_err(lock_error)?;
+    if !swap.as_ref().is_some_and(|pending| pending.path == path) {
+        return Ok(());
     }
-    ensure!(
-        !segments.is_empty(),
-        "installation state file has an empty path"
-    );
-    Ok(segments.join("/"))
+    let pending = swap.take().expect("checked pending projection swap");
+    fs::rename(&pending.path, &pending.parked)
+        .map_err(|_| anyhow!("apply projection ancestor test swap failed"))?;
+    symlink(&pending.replacement, &pending.path)
+        .map_err(|_| anyhow!("apply projection ancestor test swap failed"))
+}
+
+#[cfg(all(test, unix))]
+fn inject_remove_tree_swap(
+    root: PathBuf,
+    target: PathBuf,
+    parked: PathBuf,
+    replacement: PathBuf,
+) -> anyhow::Result<()> {
+    let swap = REMOVE_TREE_SWAP.get_or_init(|| Mutex::new(None));
+    *swap.lock().map_err(lock_error)? = Some(RemoveTreeSwap {
+        root,
+        target,
+        parked,
+        replacement,
+    });
+    Ok(())
+}
+
+#[cfg(all(test, unix))]
+fn apply_remove_tree_swap(root: &Path) -> anyhow::Result<()> {
+    use std::os::unix::fs::symlink;
+
+    let swap = REMOVE_TREE_SWAP.get_or_init(|| Mutex::new(None));
+    let mut swap = swap.lock().map_err(lock_error)?;
+    if !swap.as_ref().is_some_and(|pending| pending.root == root) {
+        return Ok(());
+    }
+    let pending = swap.take().expect("checked pending remove-tree swap");
+    fs::rename(&pending.target, &pending.parked)
+        .map_err(|_| anyhow!("apply remove-tree test swap failed"))?;
+    symlink(&pending.replacement, &pending.target)
+        .map_err(|_| anyhow!("apply remove-tree test swap failed"))
 }
 
 fn safe_relative_path(value: &str) -> anyhow::Result<PathBuf> {
@@ -3376,75 +3976,355 @@ fn safe_relative_path(value: &str) -> anyhow::Result<PathBuf> {
     Ok(result)
 }
 
-fn write_snapshot_tree(root: &Path, snapshot: &StateSnapshot) -> anyhow::Result<()> {
-    let root_anchor = open_anchored_directory(root, "state staging root")?;
-    let stable_root = root_anchor.effect_path();
+fn write_snapshot_tree(root: &cap_std::fs::Dir, snapshot: &StateSnapshot) -> anyhow::Result<()> {
+    ensure!(
+        root.dir_metadata()
+            .map_err(|_| anyhow!("inspect state staging root failed"))?
+            .is_dir(),
+        "state staging root is not a real directory"
+    );
     for entry in &snapshot.entries {
         let relative = safe_relative_path(&entry.path)?;
         let parent_relative = relative.parent().unwrap_or_else(|| Path::new(""));
-        let parent = create_snapshot_directories(&root_anchor, parent_relative)?;
+        let parent = create_snapshot_directories(root, parent_relative)?;
         let file_name = relative
             .file_name()
             .ok_or_else(|| anyhow!("state snapshot file has no name"))?;
-        let path = parent.effect_path().join(file_name);
-        let mut file = OpenOptions::new()
-            .write(true)
-            .create_new(true)
-            .open(&path)
+        let mut options = cap_std::fs::OpenOptions::new();
+        options.write(true).create_new(true);
+        let mut file = parent
+            .open_with(file_name, &options)
             .map_err(|_| anyhow!("create installation state file failed"))?;
-        let opened_handle = same_file::Handle::from_file(
-            file.try_clone()
-                .map_err(|_| anyhow!("identify installation state file failed"))?,
-        )
-        .map_err(|_| anyhow!("identify installation state file failed"))?;
-        ensure!(
-            verified_open_file_still_matches(&stable_root, &path, &opened_handle)?,
-            "installation state file changed while it was created"
-        );
-        parent.ensure_current_path("state staging directory")?;
         file.write_all(&entry.bytes)
             .and_then(|_| file.flush())
             .and_then(|_| file.sync_all())
             .map_err(|_| anyhow!("write installation state file failed"))?;
-        ensure!(
-            verified_open_file_still_matches(&stable_root, &path, &opened_handle)?,
-            "installation state file changed while it was written"
-        );
-        parent.ensure_current_path("state staging directory")?;
     }
-    root_anchor.ensure_current_path("state staging root")?;
+    #[cfg(unix)]
+    root.try_clone()
+        .map_err(|_| anyhow!("clone state staging root failed"))?
+        .into_std_file()
+        .sync_all()
+        .map_err(|_| anyhow!("sync state staging root failed"))?;
     Ok(())
 }
 
 fn create_snapshot_directories(
-    root: &AnchoredDirectory,
+    root: &cap_std::fs::Dir,
     relative: &Path,
-) -> anyhow::Result<AnchoredDirectory> {
-    let mut current = open_anchored_directory(&root.effect_path(), "state staging root")?;
+) -> anyhow::Result<cap_std::fs::Dir> {
+    let mut current = root
+        .try_clone()
+        .map_err(|_| anyhow!("clone state staging root failed"))?;
     for component in relative.components() {
         let Component::Normal(segment) = component else {
             bail!("state snapshot directory is invalid");
         };
-        let child = current.effect_path().join(segment);
-        match fs::symlink_metadata(&child) {
-            Ok(_) => prepare_existing_real_directory(&child, "state staging directory")?,
-            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
-                prepare_new_real_directory(&child, "state staging directory")?
-            }
-            Err(_) => bail!("inspect state staging directory failed"),
-        }
-        current = open_anchored_directory(&child, "state staging directory")?;
+        prepare_capability_directory(&current, Path::new(segment), "state staging directory")?;
+        current = current
+            .open_dir(segment)
+            .map_err(|_| anyhow!("open state staging directory failed"))?;
     }
     Ok(current)
 }
 
-fn remove_safe_tree(path: &Path, owner: &Path) -> anyhow::Result<()> {
-    prepare_existing_real_directory(owner, "installation owner root")?;
-    prepare_existing_real_directory(path, "installation temporary state root")?;
-    ensure_contained(owner, path, "installation temporary state root")?;
-    // A complete walk rejects links/reparse points before deletion is attempted.
-    let _ = read_state_entries(path)?;
-    fs::remove_dir_all(path).map_err(|_| anyhow!("remove installation temporary state failed"))
+#[cfg(not(windows))]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum SafeTreeEntryKind {
+    Directory,
+    File,
+}
+
+#[cfg(not(windows))]
+struct SafeTreeIdentity {
+    kind: SafeTreeEntryKind,
+    handle: same_file::Handle,
+}
+
+fn remove_safe_tree(owner: &AnchoredDirectory, name: &Path) -> anyhow::Result<()> {
+    ensure_single_relative_component(name, "installation temporary state root")?;
+    owner.ensure_current_path("installation owner root")?;
+    let owner_directory = owner.capability("installation owner root")?;
+    let metadata = owner_directory
+        .symlink_metadata(name)
+        .map_err(|_| anyhow!("inspect installation temporary state root failed"))?;
+    ensure!(
+        metadata.file_type().is_dir() && !metadata.file_type().is_symlink(),
+        "installation temporary state root is not a real directory"
+    );
+    let tree = owner_directory
+        .open_dir(name)
+        .map_err(|_| anyhow!("open installation temporary state root failed"))?;
+
+    #[cfg(windows)]
+    {
+        // Windows directory handles deny delete sharing. Keeping this handle open
+        // pins the validated leaf while every child is removed relative to it.
+        // After the tree is empty, move it to an unpredictable owner-relative
+        // name and compare its detached file identity before the final remove_dir.
+        let tree_identity = windows_directory_identity(&tree, "installation temporary state root")?;
+        remove_windows_tree_contents(&tree)?;
+        drop(tree);
+        let quarantine = PathBuf::from(format!(".removal-{}.tmp", uuid::Uuid::new_v4()));
+        owner_directory
+            .rename(name, &owner_directory, &quarantine)
+            .map_err(|_| anyhow!("quarantine installation temporary state failed"))?;
+        if !windows_path_matches_directory(&owner_directory, &quarantine, tree_identity)? {
+            let _ = owner_directory.rename(&quarantine, &owner_directory, name);
+            bail!("installation temporary state identity changed before removal");
+        }
+        owner_directory
+            .remove_dir(&quarantine)
+            .map_err(|_| anyhow!("remove installation temporary state failed"))?;
+        return Ok(());
+    }
+
+    #[cfg(not(windows))]
+    let tree_handle = capability_directory_handle(&tree, "installation temporary state root")?;
+    #[cfg(not(windows))]
+    let mut inventory = BTreeMap::new();
+    #[cfg(not(windows))]
+    inventory_safe_tree(&tree, Path::new(""), &mut inventory)?;
+
+    #[cfg(all(test, unix))]
+    apply_remove_tree_swap(&owner.path.join(name))?;
+
+    // First move the validated leaf to an unpredictable owner-relative name. If
+    // the caller-controlled leaf changed after validation, the moved identity no
+    // longer matches and nothing is recursively removed.
+    #[cfg(not(windows))]
+    let quarantine = PathBuf::from(format!(".removal-{}.tmp", uuid::Uuid::new_v4()));
+    #[cfg(not(windows))]
+    owner_directory
+        .rename(name, &owner_directory, &quarantine)
+        .map_err(|_| anyhow!("quarantine installation temporary state failed"))?;
+    #[cfg(not(windows))]
+    let quarantined = owner_directory.open_dir(&quarantine);
+    #[cfg(not(windows))]
+    let identity_matches = quarantined
+        .as_ref()
+        .ok()
+        .and_then(|directory| {
+            capability_directory_handle(directory, "quarantined installation state")
+                .ok()
+                .map(|handle| handle == tree_handle)
+        })
+        .unwrap_or(false);
+    #[cfg(not(windows))]
+    if !identity_matches {
+        let _ = owner_directory.rename(&quarantine, &owner_directory, name);
+        bail!("installation temporary state identity changed before removal");
+    }
+    #[cfg(not(windows))]
+    let quarantined = quarantined.expect("identity match requires an open directory");
+    #[cfg(not(windows))]
+    remove_inventory_tree(&quarantined, Path::new(""), &inventory)?;
+    #[cfg(not(windows))]
+    ensure!(
+        capability_path_matches_directory(&owner_directory, &quarantine, &tree_handle)?,
+        "installation temporary state identity changed during removal"
+    );
+    #[cfg(not(windows))]
+    owner_directory
+        .remove_dir(&quarantine)
+        .map_err(|_| anyhow!("remove installation temporary state failed"))?;
+    #[cfg(not(windows))]
+    Ok(())
+}
+
+fn ensure_single_relative_component(path: &Path, label: &str) -> anyhow::Result<()> {
+    let mut components = path.components();
+    ensure!(
+        matches!(components.next(), Some(Component::Normal(_))) && components.next().is_none(),
+        "{label} is not an owner-relative child"
+    );
+    Ok(())
+}
+
+#[cfg(not(windows))]
+fn inventory_safe_tree(
+    directory: &cap_std::fs::Dir,
+    prefix: &Path,
+    inventory: &mut BTreeMap<PathBuf, SafeTreeIdentity>,
+) -> anyhow::Result<()> {
+    let mut entries = directory
+        .entries()
+        .map_err(|_| anyhow!("read installation temporary state failed"))?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|_| anyhow!("read installation temporary state failed"))?;
+    entries.sort_by_key(|entry| entry.file_name());
+    for entry in entries {
+        let name = entry.file_name();
+        ensure_single_relative_component(Path::new(&name), "installation state entry")?;
+        let path = prefix.join(&name);
+        let file_type = entry
+            .file_type()
+            .map_err(|_| anyhow!("inspect installation state entry failed"))?;
+        ensure!(
+            !file_type.is_symlink(),
+            "installation state must not contain symlinks or reparse points"
+        );
+        let identity = if file_type.is_dir() {
+            let child = entry
+                .open_dir()
+                .map_err(|_| anyhow!("open installation state directory failed"))?;
+            let handle = capability_directory_handle(&child, "installation state directory")?;
+            inventory_safe_tree(&child, &path, inventory)?;
+            SafeTreeIdentity {
+                kind: SafeTreeEntryKind::Directory,
+                handle,
+            }
+        } else if file_type.is_file() {
+            let file = entry
+                .open()
+                .map_err(|_| anyhow!("open installation state file failed"))?;
+            let handle = same_file::Handle::from_file(file.into_std())
+                .map_err(|_| anyhow!("identify installation state file failed"))?;
+            SafeTreeIdentity {
+                kind: SafeTreeEntryKind::File,
+                handle,
+            }
+        } else {
+            bail!("installation state contains a non-regular entry");
+        };
+        ensure!(
+            inventory.insert(path, identity).is_none(),
+            "installation state repeats an entry"
+        );
+    }
+    Ok(())
+}
+
+#[cfg(windows)]
+fn remove_windows_tree_contents(directory: &cap_std::fs::Dir) -> anyhow::Result<()> {
+    let mut entries = directory
+        .entries()
+        .map_err(|_| anyhow!("read installation temporary state failed"))?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|_| anyhow!("read installation temporary state failed"))?;
+    entries.sort_by_key(|entry| entry.file_name());
+    for entry in entries {
+        let file_type = entry
+            .file_type()
+            .map_err(|_| anyhow!("inspect installation state entry failed"))?;
+        ensure!(
+            !file_type.is_symlink(),
+            "installation state must not contain symlinks or reparse points"
+        );
+        if file_type.is_dir() {
+            let child = entry
+                .open_dir()
+                .map_err(|_| anyhow!("open installation state directory failed"))?;
+            let child_identity =
+                windows_directory_identity(&child, "installation state directory")?;
+            remove_windows_tree_contents(&child)?;
+            drop(child);
+            let current = entry
+                .open_dir()
+                .map_err(|_| anyhow!("reopen installation state directory failed"))?;
+            ensure!(
+                windows_directory_identity(&current, "installation state directory")?
+                    == child_identity,
+                "installation temporary state directory identity changed"
+            );
+            drop(current);
+            entry
+                .remove_dir()
+                .map_err(|_| anyhow!("remove installation state directory failed"))?;
+        } else if file_type.is_file() {
+            entry
+                .remove_file()
+                .map_err(|_| anyhow!("remove installation state file failed"))?;
+        } else {
+            bail!("installation state contains a non-regular entry");
+        }
+    }
+    Ok(())
+}
+
+#[cfg(not(windows))]
+fn remove_inventory_tree(
+    directory: &cap_std::fs::Dir,
+    prefix: &Path,
+    inventory: &BTreeMap<PathBuf, SafeTreeIdentity>,
+) -> anyhow::Result<()> {
+    let mut entries = directory
+        .entries()
+        .map_err(|_| anyhow!("read installation temporary state failed"))?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|_| anyhow!("read installation temporary state failed"))?;
+    entries.sort_by_key(|entry| entry.file_name());
+    let expected_count = inventory
+        .keys()
+        .filter(|path| path.parent().is_some_and(|parent| parent == prefix))
+        .count();
+    ensure!(
+        entries.len() == expected_count,
+        "installation temporary state changed before removal"
+    );
+    for entry in entries {
+        let name = entry.file_name();
+        let path = prefix.join(&name);
+        let expected = inventory
+            .get(&path)
+            .ok_or_else(|| anyhow!("installation temporary state changed before removal"))?;
+        let file_type = entry
+            .file_type()
+            .map_err(|_| anyhow!("inspect installation state entry failed"))?;
+        ensure!(
+            !file_type.is_symlink(),
+            "installation temporary state changed to a link before removal"
+        );
+        match expected.kind {
+            SafeTreeEntryKind::Directory => {
+                ensure!(
+                    file_type.is_dir(),
+                    "installation temporary state entry type changed"
+                );
+                let child = entry
+                    .open_dir()
+                    .map_err(|_| anyhow!("open installation state directory failed"))?;
+                let child_handle =
+                    capability_directory_handle(&child, "installation state directory")?;
+                ensure!(
+                    &child_handle == &expected.handle,
+                    "installation temporary state directory identity changed"
+                );
+                remove_inventory_tree(&child, &path, inventory)?;
+                let current = entry
+                    .open_dir()
+                    .map_err(|_| anyhow!("reopen installation state directory failed"))?;
+                let current_handle =
+                    capability_directory_handle(&current, "installation state directory")?;
+                ensure!(
+                    &current_handle == &expected.handle,
+                    "installation temporary state directory identity changed"
+                );
+                entry
+                    .remove_dir()
+                    .map_err(|_| anyhow!("remove installation state directory failed"))?;
+            }
+            SafeTreeEntryKind::File => {
+                ensure!(
+                    file_type.is_file(),
+                    "installation temporary state entry type changed"
+                );
+                let file = entry
+                    .open()
+                    .map_err(|_| anyhow!("open installation state file failed"))?;
+                let file_handle = same_file::Handle::from_file(file.into_std())
+                    .map_err(|_| anyhow!("identify installation state file failed"))?;
+                ensure!(
+                    &file_handle == &expected.handle,
+                    "installation temporary state file identity changed"
+                );
+                entry
+                    .remove_file()
+                    .map_err(|_| anyhow!("remove installation state file failed"))?;
+            }
+        }
+    }
+    Ok(())
 }
 
 #[cfg(test)]
@@ -3754,10 +4634,19 @@ mod tests {
     async fn create_idempotency_replays_same_request_and_rejects_reuse() -> anyhow::Result<()> {
         let fixture = fixture().await?;
         let first = fixture.create(fixture.request.clone()).await?;
+        let projection_root = fixture
+            .registry
+            .installation_dir(&first.installation.record.installation_id);
+        let projection_record = projection_root.join("installation.json");
+        let projection_lock = projection_root.join("assembly.lock.json");
+        fs::remove_file(&projection_record)?;
+        fs::remove_file(&projection_lock)?;
         let second = fixture.create(fixture.request.clone()).await?;
         assert_eq!(first.installation, second.installation);
         assert!(!first.idempotent);
         assert!(second.idempotent);
+        assert!(!projection_record.exists());
+        assert!(!projection_lock.exists());
 
         let mut conflicting = fixture.request.clone();
         conflicting.display_name = "Different".to_string();
@@ -4627,7 +5516,11 @@ mod tests {
             )
             .await
             .expect_err("authority that expires across refresh I/O must fail closed");
-        assert!(error.message.contains("authority_denied"));
+        assert!(
+            error.message.contains("authority_denied"),
+            "unexpected create error: {}",
+            error.message
+        );
         assert_eq!(fs::read(state.join("save.bin"))?, b"old-state");
 
         let revoked_during_effect = context(
@@ -5681,6 +6574,13 @@ mod tests {
                 .await
                 .map_err(|error| anyhow!(error.message))?,
         )?;
+        let update_projection_root = fixture
+            .registry
+            .installation_dir(&first.installation.record.installation_id);
+        let update_projection_record = update_projection_root.join("installation.json");
+        let update_projection_lock = update_projection_root.join("assembly.lock.json");
+        fs::remove_file(&update_projection_record)?;
+        fs::remove_file(&update_projection_lock)?;
         let replay_update: InstallationMutationResult = serde_json::from_value(
             runtime
                 .call_protocol(
@@ -5693,6 +6593,329 @@ mod tests {
         )?;
         assert!(!first_update.idempotent && replay_update.idempotent);
         assert_eq!(first_update.installation, replay_update.installation);
+        assert!(!update_projection_record.exists());
+        assert!(!update_projection_lock.exists());
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn authority_append_barrier_blocks_create_and_update_commits_after_revoke_or_expiry(
+    ) -> anyhow::Result<()> {
+        fn context(
+            grant_id: &str,
+            kind: &str,
+            id: String,
+            expires_at_ms: i64,
+            active: Arc<AtomicBool>,
+        ) -> ProtocolContext {
+            ProtocolContext::host_device(
+                grant_id,
+                vec!["installation.manage".to_string()],
+                vec![ProtocolResourceSelector {
+                    owner: "host".to_string(),
+                    kind: kind.to_string(),
+                    id: Some(id),
+                }],
+                Vec::new(),
+                "authority-append-barrier",
+            )
+            .with_verified_authority_expiry(Some(expires_at_ms))
+            .with_installation_authority_refresh(InstallationAuthorityRefresh::new(Arc::new(
+                ToggleAuthorityValidator {
+                    active,
+                    grant_id: grant_id.to_string(),
+                },
+            )))
+        }
+
+        async fn wait_at_barrier(
+            entered: &tokio::sync::Barrier,
+            task: &tokio::task::JoinHandle<
+                Result<serde_json::Value, plurora_runtime::ProtocolError>,
+            >,
+        ) -> anyhow::Result<()> {
+            tokio::time::timeout(Duration::from_secs(5), entered.wait())
+                .await
+                .map_err(|_| anyhow!("authority append did not reach its post-owner barrier"))?;
+            ensure!(
+                !task.is_finished(),
+                "mutation passed its authority append barrier"
+            );
+            Ok(())
+        }
+
+        let fixture = fixture().await?;
+        let runtime = Arc::new(fixture.runtime());
+
+        let create_active = Arc::new(AtomicBool::new(true));
+        let create_entered = Arc::new(tokio::sync::Barrier::new(2));
+        let create_release = Arc::new(tokio::sync::Barrier::new(2));
+        fixture.registry.inject_authority_append_barrier(
+            INSTALLATION_CREATED,
+            create_entered.clone(),
+            create_release.clone(),
+        )?;
+        let create_context = context(
+            "grant-create-append",
+            "work",
+            fixture.request.work_id.to_string(),
+            Utc::now().timestamp_millis() + 60_000,
+            create_active.clone(),
+        );
+        let create_params = serde_json::to_value(&fixture.request)?;
+        let create_runtime = runtime.clone();
+        let create_task = tokio::spawn(async move {
+            create_runtime
+                .call_protocol(&create_context, "host.installation.create", create_params)
+                .await
+        });
+        wait_at_barrier(&create_entered, &create_task).await?;
+        create_active.store(false, Ordering::SeqCst);
+        create_release.wait().await;
+        let error = create_task
+            .await?
+            .expect_err("revoked Work grant must block the create terminal commit");
+        assert!(
+            error.message.contains("authority_denied"),
+            "unexpected create error: {}",
+            error.message
+        );
+        assert!(fixture
+            .store
+            .list_session(&JOURNAL_SESSION.to_string())
+            .await?
+            .is_empty());
+        assert!(fs::read_dir(fixture._data.path().join("installations"))?
+            .next()
+            .is_none());
+
+        let created = fixture.create(fixture.request.clone()).await?.installation;
+        let state = fixture.registry.state_dir(&created.record.installation_id);
+        fs::write(state.join("save.bin"), b"original-state")?;
+        let projection = fixture
+            .registry
+            .installation_dir(&created.record.installation_id)
+            .join("installation.json");
+        let projection_before = fs::read(&projection)?;
+
+        let noop_active = Arc::new(AtomicBool::new(true));
+        let noop_entered = Arc::new(tokio::sync::Barrier::new(2));
+        let noop_release = Arc::new(tokio::sync::Barrier::new(2));
+        fixture.registry.inject_authority_append_barrier(
+            IDEMPOTENT_NOOP,
+            noop_entered.clone(),
+            noop_release.clone(),
+        )?;
+        let noop = update_request(
+            &created,
+            created.record.work_revision.clone(),
+            created.record.assembly_lock.clone(),
+            "noop-terminal-revoked",
+        );
+        let noop_context = context(
+            "grant-noop-append",
+            "installation",
+            created.record.installation_id.to_string(),
+            Utc::now().timestamp_millis() + 60_000,
+            noop_active.clone(),
+        );
+        let noop_runtime = runtime.clone();
+        let noop_task = tokio::spawn(async move {
+            noop_runtime
+                .call_protocol(
+                    &noop_context,
+                    "host.installation.update",
+                    serde_json::to_value(noop).expect("serialize no-op request"),
+                )
+                .await
+        });
+        wait_at_barrier(&noop_entered, &noop_task).await?;
+        noop_active.store(false, Ordering::SeqCst);
+        noop_release.wait().await;
+        let error = noop_task
+            .await?
+            .expect_err("revoked Installation grant must block the no-op claim");
+        assert!(error.message.contains("authority_denied"));
+        assert_eq!(
+            fixture
+                .registry
+                .get(&created.record.installation_id)
+                .await?,
+            Some(created.clone())
+        );
+        assert_eq!(fs::read(state.join("save.bin"))?, b"original-state");
+        assert_eq!(fs::read(&projection)?, projection_before);
+        assert_eq!(
+            fixture
+                .store
+                .list_session(&JOURNAL_SESSION.to_string())
+                .await?
+                .len(),
+            1
+        );
+
+        let preserve_entered = Arc::new(tokio::sync::Barrier::new(2));
+        let preserve_release = Arc::new(tokio::sync::Barrier::new(2));
+        fixture.registry.inject_authority_append_barrier(
+            INSTALLATION_UPDATED,
+            preserve_entered.clone(),
+            preserve_release.clone(),
+        )?;
+        let mut preserve = update_request(
+            &created,
+            created.record.work_revision.clone(),
+            created.record.assembly_lock.clone(),
+            "preserve-terminal-expiry",
+        );
+        preserve.display_name = Some("must not commit".to_string());
+        let preserve_context = context(
+            "grant-preserve-append",
+            "installation",
+            created.record.installation_id.to_string(),
+            Utc::now().timestamp_millis() + 100,
+            Arc::new(AtomicBool::new(true)),
+        );
+        let preserve_runtime = runtime.clone();
+        let preserve_task = tokio::spawn(async move {
+            preserve_runtime
+                .call_protocol(
+                    &preserve_context,
+                    "host.installation.update",
+                    serde_json::to_value(preserve).expect("serialize Preserve request"),
+                )
+                .await
+        });
+        wait_at_barrier(&preserve_entered, &preserve_task).await?;
+        tokio::time::sleep(Duration::from_millis(120)).await;
+        preserve_release.wait().await;
+        let error = preserve_task
+            .await?
+            .expect_err("expired Installation grant must block Preserve terminal commit");
+        assert!(error.message.contains("authority_denied"));
+        assert_eq!(
+            fixture
+                .registry
+                .get(&created.record.installation_id)
+                .await?,
+            Some(created.clone())
+        );
+        assert_eq!(fs::read(state.join("save.bin"))?, b"original-state");
+        assert_eq!(fs::read(&projection)?, projection_before);
+        assert_eq!(
+            fixture
+                .store
+                .list_session(&JOURNAL_SESSION.to_string())
+                .await?
+                .len(),
+            1
+        );
+
+        let start_active = Arc::new(AtomicBool::new(true));
+        let start_entered = Arc::new(tokio::sync::Barrier::new(2));
+        let start_release = Arc::new(tokio::sync::Barrier::new(2));
+        fixture.registry.inject_authority_append_barrier(
+            UPDATE_STARTED,
+            start_entered.clone(),
+            start_release.clone(),
+        )?;
+        let mut start_request = update_request(
+            &created,
+            created.record.work_revision.clone(),
+            created.record.assembly_lock.clone(),
+            "reset-start-revoked",
+        );
+        start_request.state_action = InstallationStateAction::Reset;
+        let start_context = context(
+            "grant-start-append",
+            "installation",
+            created.record.installation_id.to_string(),
+            Utc::now().timestamp_millis() + 60_000,
+            start_active.clone(),
+        );
+        let start_runtime = runtime.clone();
+        let start_task = tokio::spawn(async move {
+            start_runtime
+                .call_protocol(
+                    &start_context,
+                    "host.installation.update",
+                    serde_json::to_value(start_request).expect("serialize Reset request"),
+                )
+                .await
+        });
+        wait_at_barrier(&start_entered, &start_task).await?;
+        start_active.store(false, Ordering::SeqCst);
+        start_release.wait().await;
+        let error = start_task
+            .await?
+            .expect_err("revoked grant must block UPDATE_STARTED");
+        assert!(error.message.contains("authority_denied"));
+        assert_eq!(fs::read(state.join("save.bin"))?, b"original-state");
+        assert_eq!(fs::read(&projection)?, projection_before);
+        assert_eq!(
+            fixture
+                .store
+                .list_session(&JOURNAL_SESSION.to_string())
+                .await?
+                .len(),
+            1
+        );
+
+        let terminal_active = Arc::new(AtomicBool::new(true));
+        let terminal_entered = Arc::new(tokio::sync::Barrier::new(2));
+        let terminal_release = Arc::new(tokio::sync::Barrier::new(2));
+        fixture.registry.inject_authority_append_barrier(
+            INSTALLATION_UPDATED,
+            terminal_entered.clone(),
+            terminal_release.clone(),
+        )?;
+        let mut terminal_request = update_request(
+            &created,
+            created.record.work_revision.clone(),
+            created.record.assembly_lock.clone(),
+            "reset-terminal-revoked",
+        );
+        terminal_request.state_action = InstallationStateAction::Reset;
+        let terminal_context = context(
+            "grant-terminal-append",
+            "installation",
+            created.record.installation_id.to_string(),
+            Utc::now().timestamp_millis() + 60_000,
+            terminal_active.clone(),
+        );
+        let terminal_runtime = runtime.clone();
+        let terminal_task = tokio::spawn(async move {
+            terminal_runtime
+                .call_protocol(
+                    &terminal_context,
+                    "host.installation.update",
+                    serde_json::to_value(terminal_request).expect("serialize Reset request"),
+                )
+                .await
+        });
+        wait_at_barrier(&terminal_entered, &terminal_task).await?;
+        assert!(fs::read_dir(&state)?.next().is_none());
+        terminal_active.store(false, Ordering::SeqCst);
+        terminal_release.wait().await;
+        let error = terminal_task
+            .await?
+            .expect_err("revoked grant must block the update terminal commit");
+        assert!(error.message.contains("authority_denied"));
+        assert_eq!(
+            fixture
+                .registry
+                .get(&created.record.installation_id)
+                .await?,
+            Some(created.clone())
+        );
+        assert_eq!(fs::read(state.join("save.bin"))?, b"original-state");
+        assert_eq!(fs::read(&projection)?, projection_before);
+        let journal = fixture
+            .store
+            .list_session(&JOURNAL_SESSION.to_string())
+            .await?;
+        assert_eq!(journal.len(), 3);
+        assert_eq!(journal[1].kind, UPDATE_STARTED);
+        assert_eq!(journal[2].kind, UPDATE_ROLLBACK);
         Ok(())
     }
 
@@ -6315,6 +7538,36 @@ mod tests {
         Ok(())
     }
 
+    #[tokio::test]
+    async fn state_snapshot_reads_regular_tree_in_deterministic_order() -> anyhow::Result<()> {
+        let fixture = fixture().await?;
+        let created = fixture.create(fixture.request.clone()).await?.installation;
+        let state = fixture.registry.state_dir(&created.record.installation_id);
+        fs::create_dir(state.join("nested"))?;
+        fs::write(state.join("z.bin"), [3, 2, 1])?;
+        fs::write(state.join("nested/a.bin"), [0, 1, 2, 255])?;
+
+        let descriptor = fixture
+            .registry
+            .snapshot_state(&created.record.installation_id)
+            .await?;
+        let snapshot = fixture.registry.load_snapshot(&descriptor).await?;
+        assert_eq!(
+            snapshot.entries,
+            vec![
+                StateSnapshotEntry {
+                    path: "nested/a.bin".to_string(),
+                    bytes: vec![0, 1, 2, 255],
+                },
+                StateSnapshotEntry {
+                    path: "z.bin".to_string(),
+                    bytes: vec![3, 2, 1],
+                },
+            ]
+        );
+        Ok(())
+    }
+
     #[cfg(unix)]
     #[tokio::test]
     async fn state_snapshot_and_projection_reject_symlinks() -> anyhow::Result<()> {
@@ -6349,11 +7602,86 @@ mod tests {
         Ok(())
     }
 
+    #[cfg(any(target_os = "linux", target_os = "android"))]
+    #[test]
+    fn anchored_effect_path_is_validated_as_the_open_directory() -> anyhow::Result<()> {
+        let data = tempfile::tempdir()?;
+        let anchor = open_anchored_directory(data.path(), "test anchor")?;
+        let effect_path = anchor.effect_path();
+
+        prepare_existing_real_directory(&effect_path, "test anchor effect path")?;
+        fs::write(effect_path.join("through-anchor"), b"anchored")?;
+        assert_eq!(fs::read(data.path().join("through-anchor"))?, b"anchored");
+        prepare_atomic_replacement(&anchor, "atomic-through-anchor", b"atomic")?.publish()?;
+        assert_eq!(
+            fs::read(data.path().join("atomic-through-anchor"))?,
+            b"atomic"
+        );
+        Ok(())
+    }
+
+    #[cfg(all(unix, not(any(target_os = "linux", target_os = "android"))))]
+    #[test]
+    fn anchored_atomic_replacement_uses_handle_relative_non_linux_unix_io() -> anyhow::Result<()> {
+        use std::os::unix::fs::symlink;
+
+        let data = tempfile::tempdir()?;
+        let anchor = open_anchored_directory(data.path(), "test anchor")?;
+        prepare_atomic_replacement(&anchor, "through-anchor", b"anchored")?.publish()?;
+        assert_eq!(fs::read(data.path().join("through-anchor"))?, b"anchored");
+
+        let outside = tempfile::tempdir()?;
+        let outside_file = outside.path().join("outside");
+        fs::write(&outside_file, b"outside")?;
+        symlink(&outside_file, data.path().join("symlink-target"))?;
+        assert!(prepare_atomic_replacement(&anchor, "symlink-target", b"rejected").is_err());
+        assert_eq!(fs::read(outside_file)?, b"outside");
+        Ok(())
+    }
+
     #[cfg(unix)]
     #[tokio::test]
-    async fn state_snapshot_rejects_controlled_symlink_swap_before_read() -> anyhow::Result<()> {
+    async fn projection_publish_remains_on_anchor_after_post_validation_ancestor_swap(
+    ) -> anyhow::Result<()> {
         let fixture = fixture().await?;
         let created = fixture.create(fixture.request.clone()).await?.installation;
+        let prepared = fixture.registry.prepare_projection(&created).await?;
+        let installation = fixture
+            .registry
+            .installation_dir(&created.record.installation_id);
+        let parked = installation.with_file_name(format!(
+            "{}.projection-parked",
+            created.record.installation_id.as_str()
+        ));
+        let outside = tempfile::tempdir()?;
+        inject_projection_ancestor_swap(
+            installation.clone(),
+            parked.clone(),
+            outside.path().to_path_buf(),
+        )?;
+
+        fixture.registry.publish_projection(prepared).await?;
+        let projected: InstallationView =
+            serde_json::from_slice(&fs::read(parked.join("installation.json"))?)?;
+        assert_eq!(projected, created);
+        assert!(parked.join("assembly.lock.json").is_file());
+        assert!(!outside.path().join("installation.json").exists());
+        assert!(!outside.path().join("assembly.lock.json").exists());
+
+        fs::remove_file(&installation)?;
+        fs::rename(&parked, &installation)?;
+        Ok(())
+    }
+
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn state_snapshot_never_follows_terminal_or_leaf_swaps() -> anyhow::Result<()> {
+        let fixture = fixture().await?;
+        let created = fixture.create(fixture.request.clone()).await?.installation;
+        let installation = fixture
+            .registry
+            .installation_dir(&created.record.installation_id);
+        let state = fixture.registry.state_dir(&created.record.installation_id);
         let state_file = fixture
             .registry
             .state_dir(&created.record.installation_id)
@@ -6362,13 +7690,88 @@ mod tests {
         let outside = tempfile::tempdir()?;
         let outside_file = outside.path().join("outside.bin");
         fs::write(&outside_file, b"outside")?;
-        inject_state_open_swap(state_file, outside_file.clone())?;
+        inject_state_open_swap(
+            PathBuf::from("save.bin"),
+            state_file.clone(),
+            outside_file.clone(),
+        )?;
         assert!(fixture
             .registry
             .snapshot_state(&created.record.installation_id)
             .await
             .is_err());
         assert_eq!(fs::read(outside_file)?, b"outside");
+
+        fs::remove_file(&state_file)?;
+        fs::write(&state_file, b"owned")?;
+        let state_parked = installation.join("state-parked");
+        inject_state_root_open_swap(
+            state.clone(),
+            state_parked.clone(),
+            outside.path().to_path_buf(),
+        )?;
+        assert!(fixture
+            .registry
+            .snapshot_state(&created.record.installation_id)
+            .await
+            .is_err());
+        assert_eq!(fs::read(state_parked.join("save.bin"))?, b"owned");
+        assert_eq!(fs::read(outside.path().join("outside.bin"))?, b"outside");
+        fs::remove_file(&state)?;
+        fs::rename(&state_parked, &state)?;
+        Ok(())
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn safe_tree_removal_fails_closed_on_post_validation_leaf_and_nested_swaps(
+    ) -> anyhow::Result<()> {
+        let owner_root = tempfile::tempdir()?;
+        let owner = open_anchored_directory(owner_root.path(), "test removal owner")?;
+
+        let leaf = owner_root.path().join("leaf");
+        fs::create_dir(&leaf)?;
+        fs::write(leaf.join("owned.bin"), b"owned")?;
+        let leaf_parked = owner_root.path().join("leaf-parked");
+        let outside_leaf = tempfile::tempdir()?;
+        fs::write(outside_leaf.path().join("external.bin"), b"external")?;
+        inject_remove_tree_swap(
+            leaf.clone(),
+            leaf.clone(),
+            leaf_parked.clone(),
+            outside_leaf.path().to_path_buf(),
+        )?;
+        let error = remove_safe_tree(&owner, Path::new("leaf"))
+            .expect_err("a replaced leaf must not be recursively removed");
+        assert!(error.to_string().contains("identity changed"));
+        assert_eq!(fs::read(leaf_parked.join("owned.bin"))?, b"owned");
+        assert_eq!(
+            fs::read(outside_leaf.path().join("external.bin"))?,
+            b"external"
+        );
+
+        let nested_root = owner_root.path().join("nested-root");
+        let nested = nested_root.join("nested");
+        fs::create_dir_all(&nested)?;
+        fs::write(nested.join("owned.bin"), b"nested-owned")?;
+        let nested_parked = nested_root.join("nested-parked");
+        let outside_nested = tempfile::tempdir()?;
+        fs::write(
+            outside_nested.path().join("external.bin"),
+            b"nested-external",
+        )?;
+        inject_remove_tree_swap(
+            nested_root.clone(),
+            nested.clone(),
+            nested_parked.clone(),
+            outside_nested.path().to_path_buf(),
+        )?;
+        assert!(remove_safe_tree(&owner, Path::new("nested-root")).is_err());
+        assert_eq!(fs::read(nested_parked.join("owned.bin"))?, b"nested-owned");
+        assert_eq!(
+            fs::read(outside_nested.path().join("external.bin"))?,
+            b"nested-external"
+        );
         Ok(())
     }
 
@@ -6412,6 +7815,31 @@ mod tests {
 
         fs::remove_file(&installation)?;
         fs::rename(&parked, &installation)?;
+
+        let outside_state = outside.path().join("state");
+        fs::create_dir(&outside_state)?;
+        fs::write(outside_state.join("external.bin"), b"external")?;
+        inject_installation_ancestor_swap(
+            installation.clone(),
+            parked.clone(),
+            outside.path().to_path_buf(),
+        )?;
+        let descriptor = fixture
+            .registry
+            .snapshot_state(&created.record.installation_id)
+            .await?;
+        let snapshot = fixture.registry.load_snapshot(&descriptor).await?;
+        assert_eq!(
+            snapshot.entries,
+            vec![StateSnapshotEntry {
+                path: "save.bin".to_string(),
+                bytes: b"owned".to_vec(),
+            }]
+        );
+        assert_eq!(fs::read(outside_state.join("external.bin"))?, b"external");
+        fs::remove_file(&installation)?;
+        fs::rename(&parked, &installation)?;
+
         let prepared = fixture.registry.prepare_projection(&created).await?;
         fs::rename(&installation, &parked)?;
         symlink(outside.path(), &installation)?;
@@ -6420,6 +7848,58 @@ mod tests {
         assert!(!outside.path().join("assembly.lock.json").exists());
         fs::remove_file(&installation)?;
         fs::rename(&parked, &installation)?;
+        Ok(())
+    }
+
+    #[cfg(windows)]
+    #[tokio::test]
+    async fn state_snapshot_rejects_reparse_root_and_pins_installation_ancestor(
+    ) -> anyhow::Result<()> {
+        use std::os::windows::fs::symlink_dir;
+
+        let fixture = fixture().await?;
+        let created = fixture.create(fixture.request.clone()).await?.installation;
+        let installation = fixture
+            .registry
+            .installation_dir(&created.record.installation_id);
+        let state = fixture.registry.state_dir(&created.record.installation_id);
+        fs::write(state.join("save.bin"), b"owned")?;
+        let anchored = fixture
+            .registry
+            .prepare_installation_tree(&created.record.installation_id)?;
+        let parked_installation = installation.with_file_name(format!(
+            "{}.snapshot-parked",
+            created.record.installation_id.as_str()
+        ));
+        assert!(
+            fs::rename(&installation, &parked_installation).is_err(),
+            "the Installation anchor must prevent an ancestor junction swap"
+        );
+        assert_eq!(
+            read_state_entries(&anchored)?,
+            vec![StateSnapshotEntry {
+                path: "save.bin".to_string(),
+                bytes: b"owned".to_vec(),
+            }]
+        );
+        drop(anchored);
+
+        let outside = tempfile::tempdir()?;
+        fs::write(outside.path().join("external.bin"), b"external")?;
+        let parked_state = installation.join("state-parked");
+        fs::rename(&state, &parked_state)?;
+        if symlink_dir(outside.path(), &state).is_err() {
+            fs::rename(&parked_state, &state)?;
+            return Ok(());
+        }
+        assert!(fixture
+            .registry
+            .snapshot_state(&created.record.installation_id)
+            .await
+            .is_err());
+        assert_eq!(fs::read(outside.path().join("external.bin"))?, b"external");
+        fs::remove_dir(&state)?;
+        fs::rename(&parked_state, &state)?;
         Ok(())
     }
 
