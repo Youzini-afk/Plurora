@@ -19,8 +19,8 @@ use plurora_core::{
 };
 use plurora_core::{EventEnvelope, EventSequence};
 use plurora_runtime::{
-    ArtifactCommitRequest, EventStore, InstallationControl, ProtocolContext,
-    ProtocolResourceSelector, ProxyRouteAccess, Runtime,
+    ArtifactCommitRequest, EventStore, InstallationControl, ProtocolContext, ProxyRouteAccess,
+    Runtime,
 };
 use plurora_work::{InstallationId, WorkspaceId};
 use serde::{Deserialize, Serialize};
@@ -38,8 +38,8 @@ use crate::target_agent::{
 };
 use crate::{
     call_host_protocol, deployment_effect_context, drain_previous_revision,
-    ensure_installation_exists, invoke_docker_runtime_lab, now_millis, persist_revision_activation,
-    require_built_image, require_identity_installation, require_identity_target, required_string,
+    ensure_installation_exists, now_millis, persist_revision_activation,
+    require_identity_installation, require_identity_target, required_string,
     restore_proxy_route_if_candidate_active, service_public_url_for_route, value_field, AppState,
     BuildDeployInstallationGuard, DeploymentActionResponse, DeploymentAuthorityLease,
     DeploymentOperation, DeploymentRevision, DeploymentSourceKind, HostBuildDeployResponse,
@@ -496,6 +496,10 @@ impl std::fmt::Debug for DevelopmentHostLease {
 }
 
 impl DevelopmentHostLease {
+    pub(crate) fn owner_id(&self) -> &str {
+        &self.owner_id
+    }
+
     /// Check the locally observed lease state. Durable ownership is kept fresh
     /// by the heartbeat; a heartbeat failure invalidates this handle.
     pub fn ensure_active(&self) -> anyhow::Result<()> {
@@ -773,7 +777,7 @@ impl DevelopmentRegistry {
             .is_some()
     }
 
-    fn active_host_lease(&self) -> anyhow::Result<DevelopmentHostLease> {
+    pub(crate) fn active_host_lease(&self) -> anyhow::Result<DevelopmentHostLease> {
         self.ensure_active_host_lease()?;
         self.host_lease
             .lock()
@@ -1368,6 +1372,7 @@ where
     }
     let recovered = match record.recovery_kind {
         Some(DevelopmentRecoveryKind::DockerVerification) => {
+            require_identity_target(&identity, "local")?;
             reconcile_docker_verification(&state, record, &identity).await
         }
         Some(DevelopmentRecoveryKind::ManagedPromotion) => {
@@ -2645,11 +2650,16 @@ where
         build.target_id == deployment.target_id && build.installation_id == *installation_id,
         "target build operation belongs to another installation or target"
     );
+    let build_receipt = require_target_image_build_receipt(
+        &build,
+        plurora_runtime::ManagedTargetImageDisposition::RetainForDeployment,
+    )?;
     let expected_verifier = DeclarativeVerifierDescriptor::DockerBuild {
         digest: deployment.build_context_ref.digest.clone(),
         expected_size_bytes: Some(deployment.build_context_ref.size_bytes),
         dockerfile: deployment.dockerfile.clone(),
         network_mode: development_target_network_mode(deployment.network_mode),
+        disposition: plurora_runtime::ManagedTargetImageDisposition::RetainForDeployment,
         build_id: deployment.build_id.clone(),
         workspace_id: deployment.workspace_id.clone(),
         source_tree_digest: deployment.source_tree_digest.clone(),
@@ -2662,29 +2672,13 @@ where
             },
         "target build operation does not match verified provenance"
     );
-    let build_output = &build
-        .receipt
-        .as_ref()
-        .expect("succeeded operation receipt")
-        .output;
     anyhow::ensure!(
-        required_string(build_output, "image_id", "target Docker build receipt")?
-            == preview.image_id
-            && required_string(
-                build_output,
-                "context_digest",
-                "target Docker build receipt"
-            )? == deployment.build_context_ref.digest
-            && required_string(
-                build_output,
-                "source_tree_digest",
-                "target Docker build receipt"
-            )? == deployment.source_tree_digest
-            && required_string(
-                build_output,
-                "build_descriptor_hash",
-                "target Docker build receipt"
-            )? == deployment.build_descriptor_hash,
+        build_receipt.image_id == preview.image_id
+            && build_receipt.context_digest == deployment.build_context_ref.digest
+            && build_receipt.source_tree_digest == deployment.source_tree_digest
+            && build_receipt.build_descriptor_hash == deployment.build_descriptor_hash
+            && !build_receipt.image_removed
+            && build_receipt.image_retained,
         "target build receipt does not match preview provenance"
     );
 
@@ -3065,6 +3059,8 @@ where
                     expected_size_bytes: Some(build_context_ref.size_bytes),
                     dockerfile: dockerfile.clone(),
                     network_mode,
+                    disposition:
+                        plurora_runtime::ManagedTargetImageDisposition::RetainForDeployment,
                     build_id: target.build_id.clone(),
                     workspace_id: target.workspace_id.clone(),
                     source_tree_digest: target.source_commit.clone(),
@@ -3087,30 +3083,17 @@ where
                 "verified deployment artifact could not be rebuilt on the selected target",
             )
         })?;
-    let build_output = &build_operation
-        .receipt
-        .as_ref()
-        .expect("succeeded target operation has a receipt")
-        .output;
-    let _image = required_string(build_output, "image", "target Docker build receipt")?;
-    let image_id = required_string(build_output, "image_id", "target Docker build receipt")?;
-    let output_matches = required_string(
-        build_output,
-        "context_digest",
-        "target Docker build receipt",
-    )? == build_context_ref.digest
-        && required_string(
-            build_output,
-            "source_tree_digest",
-            "target Docker build receipt",
-        )? == target.source_commit
-        && required_string(
-            build_output,
-            "build_descriptor_hash",
-            "target Docker build receipt",
-        )? == target.build_descriptor_hash
-        && required_string(build_output, "build_id", "target Docker build receipt")?
-            == target.build_id;
+    let build_receipt = require_target_image_build_receipt(
+        &build_operation,
+        plurora_runtime::ManagedTargetImageDisposition::RetainForDeployment,
+    )?;
+    let image_id = build_receipt.image_id.clone();
+    let output_matches = build_receipt.context_digest == build_context_ref.digest
+        && build_receipt.source_tree_digest == target.source_commit
+        && build_receipt.build_descriptor_hash == target.build_descriptor_hash
+        && build_receipt.build_id == target.build_id
+        && !build_receipt.image_removed
+        && build_receipt.image_retained;
     if !output_matches {
         return Err(invalid_revision());
     }
@@ -4064,6 +4047,25 @@ fn require_succeeded_target_operation(
     Ok(operation)
 }
 
+fn require_target_image_build_receipt(
+    operation: &TargetOperationRecord,
+    expected_disposition: plurora_runtime::ManagedTargetImageDisposition,
+) -> anyhow::Result<plurora_runtime::ManagedTargetImageBuildReceipt> {
+    let output = &operation
+        .receipt
+        .as_ref()
+        .ok_or_else(|| anyhow::anyhow!("target Docker build completed without a receipt"))?
+        .output;
+    let receipt: plurora_runtime::ManagedTargetImageBuildReceipt =
+        serde_json::from_value(output.clone())?;
+    plurora_runtime::validate_managed_target_image_build_receipt(&receipt)?;
+    anyhow::ensure!(
+        receipt.disposition == expected_disposition,
+        "target Docker build receipt has the wrong image disposition"
+    );
+    Ok(receipt)
+}
+
 async fn run_deployment_preview<S>(
     state: &AppState<S>,
     change_set_id: &str,
@@ -4118,6 +4120,8 @@ where
                             plurora_runtime::ManagedTargetBuildNetworkMode::Bridge
                         }
                     },
+                    disposition:
+                        plurora_runtime::ManagedTargetImageDisposition::RetainForDeployment,
                     build_id: deployment.build_id.clone(),
                     workspace_id: deployment.workspace_id.clone(),
                     source_tree_digest: deployment.source_tree_digest.clone(),
@@ -4144,31 +4148,19 @@ where
         await_target_operation(state, &deployment.target_id, build_operation).await?,
         "target Docker build",
     )?;
-    let build_output = &build_operation
-        .receipt
-        .as_ref()
-        .expect("succeeded target operation has a receipt")
-        .output;
-    let image = required_string(build_output, "image", "target Docker build receipt")?;
-    let image_id = required_string(build_output, "image_id", "target Docker build receipt")?;
+    let build_receipt = require_target_image_build_receipt(
+        &build_operation,
+        plurora_runtime::ManagedTargetImageDisposition::RetainForDeployment,
+    )?;
+    let image = build_receipt.image.clone();
+    let image_id = build_receipt.image_id.clone();
     anyhow::ensure!(
-        required_string(
-            build_output,
-            "context_digest",
-            "target Docker build receipt"
-        )? == deployment.build_context_ref.digest
-            && required_string(
-                build_output,
-                "source_tree_digest",
-                "target Docker build receipt"
-            )? == deployment.source_tree_digest
-            && required_string(
-                build_output,
-                "build_descriptor_hash",
-                "target Docker build receipt"
-            )? == deployment.build_descriptor_hash
-            && required_string(build_output, "build_id", "target Docker build receipt")?
-                == deployment.build_id,
+        build_receipt.context_digest == deployment.build_context_ref.digest
+            && build_receipt.source_tree_digest == deployment.source_tree_digest
+            && build_receipt.build_descriptor_hash == deployment.build_descriptor_hash
+            && build_receipt.build_id == deployment.build_id
+            && !build_receipt.image_removed
+            && build_receipt.image_retained,
         "target Docker build receipt does not match the verified build descriptor"
     );
 
@@ -4824,32 +4816,6 @@ fn validate_development_authority(
         );
     }
     Ok(())
-}
-
-fn development_record_authority_context(
-    identity: &HostAccessIdentity,
-    record: &DevelopmentChangeRecord,
-    transport: &str,
-) -> ProtocolContext {
-    let mut resources = vec![ProtocolResourceSelector {
-        owner: "host".to_string(),
-        kind: match &record.subject {
-            DevelopmentSubject::Installation { .. } => "installation",
-            DevelopmentSubject::Workspace { .. } => "workspace",
-        }
-        .to_string(),
-        id: Some(record.subject.as_str().to_string()),
-    }];
-    if let Some(installation_id) = record.target_installation_id.as_ref() {
-        resources.push(ProtocolResourceSelector {
-            owner: "host".to_string(),
-            kind: "installation".to_string(),
-            id: Some(installation_id.to_string()),
-        });
-    }
-    identity
-        .protocol_context(transport)
-        .with_host_operation(HostAccessScope::DevelopExecute.as_str(), resources)
 }
 
 async fn verify_development_authority<S>(
@@ -6787,6 +6753,7 @@ where
                             expected_size_bytes: Some(deployment_artifact_ref.size_bytes),
                             dockerfile: dockerfile.clone(),
                             network_mode: development_target_network_mode(*network_mode),
+                            disposition: plurora_runtime::ManagedTargetImageDisposition::RemoveAfterVerification,
                             build_id: build_id.clone(),
                             workspace_id: workspace_id.clone(),
                             source_tree_digest: record.proposed_tree_digest.clone().ok_or_else(
@@ -6795,7 +6762,7 @@ where
                             build_descriptor_hash: format!("sha256:{descriptor_hash}"),
                         },
                     },
-                    idempotency_key: Some(format!("development:{}:verify", record.change_set.id)),
+                    idempotency_key: Some(docker_verification_operation_key(&record.change_set.id)),
                     expires_in_seconds: timeout_secs.map(|value| value.min(15 * 60)),
                 },
             )
@@ -6809,42 +6776,24 @@ where
             )
             .await?;
             let operation = require_succeeded_target_operation(operation, "target Docker build")?;
-            let output = operation
+            let build_receipt = require_target_image_build_receipt(
+                &operation,
+                plurora_runtime::ManagedTargetImageDisposition::RemoveAfterVerification,
+            )?;
+            anyhow::ensure!(
+                build_receipt.image_removed && !build_receipt.image_retained,
+                "development verification image removal was not confirmed"
+            );
+            let image = build_receipt.image.clone();
+            let output = &operation
                 .receipt
                 .as_ref()
-                .map(|receipt| &receipt.output)
-                .ok_or_else(|| anyhow::anyhow!("target Docker build has no receipt"))?;
-            let image = require_built_image(&output)?;
+                .expect("succeeded target operation has a receipt")
+                .output;
             let diagnostic_log_digest = output
                 .get("log_tail")
                 .and_then(Value::as_str)
                 .map(|value| format!("sha256:{:x}", Sha256::digest(value.as_bytes())));
-            verify_development_record_authority(state, authority, record).await?;
-            let context = development_record_authority_context(
-                authority,
-                record,
-                "host_development_verification_cleanup",
-            );
-            let cleanup = invoke_docker_runtime_lab(
-                state,
-                &context,
-                "plurora/docker-runtime-lab/remove_image",
-                json!({
-                    "approved": true,
-                    "installation_id": installation_id,
-                    "workspace_id": workspace_id,
-                    "build_id": build_id,
-                    "development_change_id": record.change_set.id,
-                }),
-            )
-            .await?;
-            anyhow::ensure!(
-                cleanup
-                    .get("image_removed")
-                    .and_then(Value::as_bool)
-                    .unwrap_or(false),
-                "development verification image cleanup failed"
-            );
             verify_development_record_authority(state, authority, record).await?;
             let payload = json!({
                 "kind": "docker_build",
@@ -6853,6 +6802,7 @@ where
                 "tree_digest": record.proposed_tree_digest,
                 "network_mode": network_mode,
                 "image_ref": image,
+                "image_removed": true,
                 "image_retained": false,
                 "deployment_artifact_ref": deployment_artifact_ref,
                 "diagnostic_log_digest": diagnostic_log_digest,
@@ -7054,19 +7004,122 @@ where
 
 async fn reconcile_docker_verification<S>(
     state: &AppState<S>,
-    mut record: DevelopmentChangeRecord,
+    record: DevelopmentChangeRecord,
     authority: &HostAccessIdentity,
 ) -> anyhow::Result<DevelopmentChangeRecord>
 where
     S: EventStore,
 {
     anyhow::ensure!(
-        record.recovery_kind == Some(DevelopmentRecoveryKind::DockerVerification),
+        record.status == DevelopmentChangeStatus::RecoveryRequired
+            && record.recovery_kind == Some(DevelopmentRecoveryKind::DockerVerification),
         "change does not require Docker verification recovery"
     );
-    verify_development_record_authority(state, authority, &record).await?;
-    let context =
-        development_record_authority_context(authority, &record, "host_development_recovery");
+    verify_docker_verification_recovery_authority(state, authority, &record).await?;
+    // Establish the current Host as the durable Target-journal writer before
+    // interpreting absence. The fence is appended in the same CAS-ordered
+    // journal as operation snapshots, so an old writer that paused before its
+    // append cannot fill the observed gap after this synchronization point.
+    crate::target_agent::synchronize_target_operations_as_owner(state).await?;
+    let operations = state.target_agents.operations_for_target("local");
+    let original = select_original_docker_verification_operation(&record, &operations)?;
+    if let Some(original) = original.as_ref() {
+        validate_original_docker_verification_operation(state, &record, original).await?;
+    }
+    let (resolution, reason) = resolve_docker_verification_recovery(original.as_ref())?;
+    verify_docker_verification_recovery_authority(state, authority, &record).await?;
+    complete_docker_verification_reconciliation(state, record, resolution, reason).await
+}
+
+fn docker_verification_operation_key(change_set_id: &str) -> String {
+    format!("development:{change_set_id}:verify")
+}
+
+fn select_original_docker_verification_operation(
+    record: &DevelopmentChangeRecord,
+    operations: &[TargetOperationRecord],
+) -> anyhow::Result<Option<TargetOperationRecord>> {
+    let installation_id = record.target_installation_id.as_ref().ok_or_else(|| {
+        anyhow::anyhow!("Docker verification recovery has no target installation")
+    })?;
+    let base_key = docker_verification_operation_key(&record.change_set.id);
+    let mut originals = operations.iter().filter(|operation| {
+        operation.target_id == "local"
+            && operation.installation_id == *installation_id
+            && operation.idempotency_key.as_deref() == Some(base_key.as_str())
+    });
+    let Some(original) = originals.next() else {
+        return Ok(None);
+    };
+    anyhow::ensure!(
+        originals.next().is_none(),
+        "multiple durable Docker verification operations share the original identity"
+    );
+    Ok(Some(original.clone()))
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum DockerVerificationRecoveryResolution {
+    OperationMissing,
+    OriginalReceiptRemovedImage,
+}
+
+fn resolve_docker_verification_recovery(
+    original: Option<&TargetOperationRecord>,
+) -> anyhow::Result<(DockerVerificationRecoveryResolution, &'static str)> {
+    let Some(original) = original else {
+        // Target operation creation durably appends Requested before dispatching
+        // the effect, so a hydrated journal with no original operation proves
+        // that this verifier effect was never sent.
+        return Ok((
+            DockerVerificationRecoveryResolution::OperationMissing,
+            "Docker verification operation was never durably created; no Target effect exists",
+        ));
+    };
+    match original.status {
+        TargetOperationStatusKind::Succeeded => {
+            require_removed_verification_image(original)?;
+            Ok((
+                DockerVerificationRecoveryResolution::OriginalReceiptRemovedImage,
+                "interrupted Docker verification was reconciled from its durable Target receipt",
+            ))
+        }
+        TargetOperationStatusKind::Failed => anyhow::bail!(
+            "original durable Docker verification failed; automatic rebuild or cleanup is not authorized"
+        ),
+        TargetOperationStatusKind::OutcomeUnknown => anyhow::bail!(
+            "original durable Docker verification outcome is unknown; automatic rebuild or cleanup is not authorized"
+        ),
+        _ => anyhow::bail!(
+            "original durable Docker verification has no reconcilable terminal receipt"
+        ),
+    }
+}
+
+async fn verify_docker_verification_recovery_authority<S>(
+    state: &AppState<S>,
+    authority: &HostAccessIdentity,
+    record: &DevelopmentChangeRecord,
+) -> anyhow::Result<()>
+where
+    S: EventStore,
+{
+    verify_development_record_authority(state, authority, record).await?;
+    anyhow::ensure!(
+        authority.allows_target("local"),
+        "development recovery authority does not include the local Target"
+    );
+    Ok(())
+}
+
+async fn validate_original_docker_verification_operation<S>(
+    state: &AppState<S>,
+    record: &DevelopmentChangeRecord,
+    operation: &TargetOperationRecord,
+) -> anyhow::Result<()>
+where
+    S: EventStore,
+{
     let installation_id = record.target_installation_id.as_ref().ok_or_else(|| {
         anyhow::anyhow!("Docker verification recovery has no target installation")
     })?;
@@ -7074,42 +7127,148 @@ where
         .subject
         .workspace_id()
         .ok_or_else(|| anyhow::anyhow!("Docker verification recovery has no workspace subject"))?;
-    let build_id = development_build_id(&record.change_set.id);
-    let cleanup = invoke_docker_runtime_lab(
-        state,
-        &context,
-        "plurora/docker-runtime-lab/remove_image",
-        json!({
-            "approved": true,
-            "installation_id": installation_id,
-            "workspace_id": workspace_id,
-            "build_id": build_id,
-            "development_change_id": record.change_set.id,
-        }),
-    )
-    .await?;
-    anyhow::ensure!(
-        cleanup
-            .get("image_removed")
-            .and_then(Value::as_bool)
-            .unwrap_or(false),
-        "Docker verification image cleanup was not confirmed"
+    let proposed_tree_digest = record
+        .proposed_tree_digest
+        .as_deref()
+        .ok_or_else(|| anyhow::anyhow!("Docker verification recovery has no proposed tree"))?;
+    let DevelopmentVerificationPlan::DockerBuild {
+        dockerfile,
+        network_mode,
+        ..
+    } = &record.verification_plan
+    else {
+        anyhow::bail!("Docker verification recovery has a non-Docker plan")
+    };
+    let TargetOperationSpec::VerifierRun {
+        verifier:
+            DeclarativeVerifierDescriptor::DockerBuild {
+                digest,
+                expected_size_bytes,
+                dockerfile: operation_dockerfile,
+                network_mode: operation_network_mode,
+                disposition,
+                build_id,
+                workspace_id: operation_workspace_id,
+                source_tree_digest,
+                build_descriptor_hash,
+            },
+    } = &operation.spec
+    else {
+        anyhow::bail!("durable Docker verification operation has the wrong effect spec")
+    };
+    let expected_descriptor_hash = format!(
+        "sha256:{}",
+        record
+            .change_set_ref
+            .digest
+            .strip_prefix("sha256:")
+            .unwrap_or(&record.change_set_ref.digest)
     );
+    anyhow::ensure!(
+        operation.target_id == "local"
+            && operation.installation_id == *installation_id
+            && operation.idempotency_key.as_deref()
+                == Some(docker_verification_operation_key(&record.change_set.id).as_str())
+            && operation_dockerfile == dockerfile
+            && *operation_network_mode == development_target_network_mode(*network_mode)
+            && *disposition
+                == plurora_runtime::ManagedTargetImageDisposition::RemoveAfterVerification
+            && build_id == &development_build_id(&record.change_set.id)
+            && operation_workspace_id == workspace_id
+            && source_tree_digest == proposed_tree_digest
+            && build_descriptor_hash == &expected_descriptor_hash,
+        "durable Docker verification operation does not match the approved immutable spec"
+    );
+    let info = state.runtime.object_store().verify(digest).await?;
+    anyhow::ensure!(
+        expected_size_bytes == &Some(info.size_bytes),
+        "durable Docker verification artifact size does not match its immutable spec"
+    );
+    Ok(())
+}
+
+fn require_removed_verification_image(operation: &TargetOperationRecord) -> anyhow::Result<()> {
+    let durable_receipt = operation.receipt.as_ref().ok_or_else(|| {
+        anyhow::anyhow!("Docker verification succeeded without a durable receipt")
+    })?;
+    anyhow::ensure!(
+        durable_receipt.status == crate::target_agent::TargetOperationReceiptStatus::Succeeded,
+        "Docker verification durable receipt did not succeed"
+    );
+    let receipt = require_target_image_build_receipt(
+        operation,
+        plurora_runtime::ManagedTargetImageDisposition::RemoveAfterVerification,
+    )?;
+    let TargetOperationSpec::VerifierRun {
+        verifier:
+            DeclarativeVerifierDescriptor::DockerBuild {
+                digest,
+                dockerfile,
+                network_mode,
+                build_id,
+                workspace_id,
+                source_tree_digest,
+                build_descriptor_hash,
+                ..
+            },
+    } = &operation.spec
+    else {
+        anyhow::bail!("Docker verification operation has the wrong effect spec")
+    };
+    anyhow::ensure!(
+        receipt.target_id == operation.target_id
+            && receipt.installation_id == operation.installation_id
+            && receipt.workspace_id == *workspace_id
+            && receipt.build_id == *build_id
+            && receipt.dockerfile == *dockerfile
+            && receipt.network_mode == *network_mode
+            && receipt.context_digest == *digest
+            && receipt.source_tree_digest == *source_tree_digest
+            && receipt.build_descriptor_hash == *build_descriptor_hash
+            && receipt.image_removed
+            && !receipt.image_retained,
+        "Docker verification receipt did not prove removal of the exact verifier image"
+    );
+    Ok(())
+}
+
+async fn complete_docker_verification_reconciliation<S>(
+    state: &AppState<S>,
+    record: DevelopmentChangeRecord,
+    resolution: DockerVerificationRecoveryResolution,
+    reason: &str,
+) -> anyhow::Result<DevelopmentChangeRecord>
+where
+    S: EventStore,
+{
+    let record = reconciled_docker_verification_record(record, resolution, reason);
+    let failed = persist_record(state, record).await?;
+    cleanup_change_root(&failed.subject, &failed.change_set.id);
+    Ok(failed)
+}
+
+fn reconciled_docker_verification_record(
+    mut record: DevelopmentChangeRecord,
+    resolution: DockerVerificationRecoveryResolution,
+    reason: &str,
+) -> DevelopmentChangeRecord {
     record.revision = record.revision.saturating_add(1);
     record.updated_at_ms = now_millis();
     record.status = DevelopmentChangeStatus::Failed;
     record.recovery_kind = None;
-    record.error = Some(
-        "interrupted Docker verification was reconciled and its labeled image was removed or absent"
-            .to_string(),
-    );
+    record.error = Some(reason.to_string());
     record.commit = Some(failed_change_commit(
         &record.change_set.id,
-        "Docker verification was interrupted before a durable success receipt",
+        match resolution {
+            DockerVerificationRecoveryResolution::OperationMissing => {
+                "Docker verification was interrupted before a durable Target operation existed"
+            }
+            DockerVerificationRecoveryResolution::OriginalReceiptRemovedImage => {
+                "Docker verification was interrupted after its durable image-removal receipt"
+            }
+        },
     ));
-    let failed = persist_record(state, record).await?;
-    cleanup_change_root(&failed.subject, &failed.change_set.id);
-    Ok(failed)
+    record
 }
 
 async fn complete_failed_change<S>(state: &AppState<S>, change_set_id: &str) -> anyhow::Result<()>
@@ -7382,6 +7541,243 @@ mod tests {
             updated_at_ms: 1,
             idempotency_key: Some("preview-1".to_string()),
             request_digest: format!("sha256:{}", "6".repeat(64)),
+        }
+    }
+
+    fn docker_recovery_record(revision: u64) -> DevelopmentChangeRecord {
+        let mut record = record(DevelopmentChangeStatus::RecoveryRequired);
+        record.revision = revision;
+        record.recovery_kind = Some(DevelopmentRecoveryKind::DockerVerification);
+        record.verification_plan = DevelopmentVerificationPlan::DockerBuild {
+            dockerfile: "Dockerfile".to_string(),
+            network_mode: DevelopmentNetworkMode::None,
+            timeout_secs: Some(120),
+        };
+        record
+    }
+
+    fn docker_recovery_operation(
+        record: &DevelopmentChangeRecord,
+        target_id: &str,
+        idempotency_key: &str,
+        status: TargetOperationStatusKind,
+    ) -> TargetOperationRecord {
+        let installation_id = record.target_installation_id.clone().unwrap();
+        let workspace_id = record.subject.workspace_id().unwrap().clone();
+        let spec = TargetOperationSpec::VerifierRun {
+            verifier: DeclarativeVerifierDescriptor::DockerBuild {
+                digest: format!("sha256:{}", "7".repeat(64)),
+                expected_size_bytes: Some(1),
+                dockerfile: "Dockerfile".to_string(),
+                network_mode: plurora_runtime::ManagedTargetBuildNetworkMode::None,
+                disposition:
+                    plurora_runtime::ManagedTargetImageDisposition::RemoveAfterVerification,
+                build_id: development_build_id(&record.change_set.id),
+                workspace_id: workspace_id.clone(),
+                source_tree_digest: record.proposed_tree_digest.clone().unwrap(),
+                build_descriptor_hash: record.change_set_ref.digest.clone(),
+            },
+        };
+        let operation_id = format!("operation-{}", idempotency_key.replace(':', "-"));
+        let execution_id = "8".repeat(32);
+        let receipt = status
+            .is_terminal()
+            .then(|| crate::target_agent::TargetOperationReceipt {
+                operation_id: operation_id.clone(),
+                target_id: target_id.to_string(),
+                execution_id: execution_id.clone(),
+                step_id: "execute".to_string(),
+                request_digest: format!("sha256:{}", "9".repeat(64)),
+                authority_digest: format!("sha256:{}", "a".repeat(64)),
+                status: match status {
+                    TargetOperationStatusKind::Succeeded => {
+                        crate::target_agent::TargetOperationReceiptStatus::Succeeded
+                    }
+                    TargetOperationStatusKind::OutcomeUnknown => {
+                        crate::target_agent::TargetOperationReceiptStatus::OutcomeUnknown
+                    }
+                    _ => crate::target_agent::TargetOperationReceiptStatus::Failed,
+                },
+                completed_at_ms: 1,
+                output: if status == TargetOperationStatusKind::Succeeded {
+                    serde_json::to_value(plurora_runtime::ManagedTargetImageBuildReceipt {
+                        target_id: target_id.to_string(),
+                        image: format!(
+                            "plurora/{}:{}",
+                            installation_id.as_str(),
+                            development_build_id(&record.change_set.id)
+                        ),
+                        image_id: format!("sha256:{}", "b".repeat(64)),
+                        installation_id: installation_id.clone(),
+                        workspace_id: workspace_id.clone(),
+                        build_id: development_build_id(&record.change_set.id),
+                        dockerfile: "Dockerfile".to_string(),
+                        network_mode: plurora_runtime::ManagedTargetBuildNetworkMode::None,
+                        disposition:
+                            plurora_runtime::ManagedTargetImageDisposition::RemoveAfterVerification,
+                        context_digest: format!("sha256:{}", "7".repeat(64)),
+                        source_tree_digest: record.proposed_tree_digest.clone().unwrap(),
+                        build_descriptor_hash: record.change_set_ref.digest.clone(),
+                        image_removed: true,
+                        image_retained: false,
+                    })
+                    .unwrap()
+                } else {
+                    Value::Null
+                },
+                diagnostics: Vec::new(),
+            });
+        TargetOperationRecord {
+            operation_id: operation_id.clone(),
+            target_id: target_id.to_string(),
+            installation_id: installation_id.clone(),
+            revision: 4,
+            status,
+            execution_id: status.is_terminal().then_some(execution_id),
+            authority: crate::target_agent::TargetOperationAuthority {
+                target_id: target_id.to_string(),
+                operation_id,
+                step_id: "execute".to_string(),
+                installation_id,
+                effect: crate::target_agent::TargetOperationEffect::VerifierRun,
+                artifact_digests: spec.artifact_digests(),
+                lease_epoch: 1,
+                policy_epoch: 1,
+                issued_at_ms: 1,
+                expires_at_ms: 120_001,
+                nonce: "nonce".to_string(),
+                request_digest: format!("sha256:{}", "9".repeat(64)),
+                authority_digest: format!("sha256:{}", "a".repeat(64)),
+            },
+            spec,
+            idempotency_key: Some(idempotency_key.to_string()),
+            receipt,
+            created_at_ms: 1,
+            updated_at_ms: 1,
+        }
+    }
+
+    #[test]
+    fn docker_verification_recovery_selects_only_the_original_durable_operation(
+    ) -> anyhow::Result<()> {
+        let record = docker_recovery_record(6);
+        let base_key = docker_verification_operation_key(&record.change_set.id);
+        assert!(select_original_docker_verification_operation(&record, &[])?.is_none());
+
+        let remote = docker_recovery_operation(
+            &record,
+            "remote-1",
+            &base_key,
+            TargetOperationStatusKind::Succeeded,
+        );
+        assert!(select_original_docker_verification_operation(&record, &[remote])?.is_none());
+
+        let unrelated = docker_recovery_operation(
+            &record,
+            "local",
+            "unrelated-verifier",
+            TargetOperationStatusKind::Succeeded,
+        );
+        let original = docker_recovery_operation(
+            &record,
+            "local",
+            &base_key,
+            TargetOperationStatusKind::Failed,
+        );
+        let selected =
+            select_original_docker_verification_operation(&record, &[unrelated, original.clone()])?
+                .expect("original operation exists");
+        assert_eq!(selected.operation_id, original.operation_id);
+
+        let duplicate = docker_recovery_operation(
+            &record,
+            "local",
+            &base_key,
+            TargetOperationStatusKind::Succeeded,
+        );
+        assert!(
+            select_original_docker_verification_operation(&record, &[original, duplicate]).is_err()
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn docker_verification_recovery_terminals_only_missing_or_removed_original_effects(
+    ) -> anyhow::Result<()> {
+        let record = docker_recovery_record(6);
+        let (resolution, reason) = resolve_docker_verification_recovery(None)?;
+        assert_eq!(
+            resolution,
+            DockerVerificationRecoveryResolution::OperationMissing
+        );
+        let terminal = reconciled_docker_verification_record(record.clone(), resolution, reason);
+        assert_eq!(terminal.status, DevelopmentChangeStatus::Failed);
+        assert_eq!(terminal.recovery_kind, None);
+        assert_eq!(terminal.revision, record.revision + 1);
+
+        let base_key = docker_verification_operation_key(&record.change_set.id);
+        let succeeded = docker_recovery_operation(
+            &record,
+            "local",
+            &base_key,
+            TargetOperationStatusKind::Succeeded,
+        );
+        let (resolution, reason) = resolve_docker_verification_recovery(Some(&succeeded))?;
+        assert_eq!(
+            resolution,
+            DockerVerificationRecoveryResolution::OriginalReceiptRemovedImage
+        );
+        let terminal = reconciled_docker_verification_record(record.clone(), resolution, reason);
+        assert_eq!(terminal.status, DevelopmentChangeStatus::Failed);
+        assert_eq!(terminal.recovery_kind, None);
+        assert_eq!(terminal.revision, record.revision + 1);
+
+        let mut wrong_receipt = succeeded;
+        let output = &mut wrong_receipt.receipt.as_mut().unwrap().output;
+        output["image_removed"] = json!(false);
+        output["image_retained"] = json!(true);
+        assert!(resolve_docker_verification_recovery(Some(&wrong_receipt)).is_err());
+        Ok(())
+    }
+
+    #[test]
+    fn failed_or_unknown_docker_verification_stays_recovery_required_without_new_operation() {
+        for status in [
+            TargetOperationStatusKind::Failed,
+            TargetOperationStatusKind::OutcomeUnknown,
+        ] {
+            let record = docker_recovery_record(6);
+            let base_key = docker_verification_operation_key(&record.change_set.id);
+            let operations = vec![docker_recovery_operation(
+                &record, "local", &base_key, status,
+            )];
+            let operation_ids = operations
+                .iter()
+                .map(|operation| operation.operation_id.clone())
+                .collect::<Vec<_>>();
+            let original = select_original_docker_verification_operation(&record, &operations)
+                .unwrap()
+                .expect("original operation exists");
+
+            let error = resolve_docker_verification_recovery(Some(&original)).unwrap_err();
+
+            assert!(error
+                .to_string()
+                .contains("automatic rebuild or cleanup is not authorized"));
+            assert_eq!(record.status, DevelopmentChangeStatus::RecoveryRequired);
+            assert_eq!(
+                record.recovery_kind,
+                Some(DevelopmentRecoveryKind::DockerVerification)
+            );
+            assert_eq!(record.revision, 6);
+            assert_eq!(operations.len(), 1);
+            assert_eq!(
+                operations
+                    .iter()
+                    .map(|operation| operation.operation_id.clone())
+                    .collect::<Vec<_>>(),
+                operation_ids
+            );
         }
     }
 

@@ -11,7 +11,7 @@ use futures::{SinkExt, StreamExt};
 use plurora_core::{EventEnvelope, EventSequence};
 use plurora_runtime::{
     EventStore, ExecutionTargetCapability, ExecutionTargetObservedSummary,
-    ExecutionTargetReachability, SqliteEventStore,
+    ExecutionTargetReachability, ManagedTargetEffectGuard, SqliteEventStore,
 };
 use plurora_service::{
     decode_target_tunnel_data, encode_target_tunnel_data, verify_target_operation_authority,
@@ -305,6 +305,106 @@ struct LedgerProjection {
 
 struct LocalOperationLedger {
     store: Arc<SqliteEventStore>,
+}
+
+struct AgentRuntimeEffectGuard<'a> {
+    client: &'a Client,
+    config: &'a AgentConfig,
+    credential: &'a str,
+    ledger: &'a LocalOperationLedger,
+    operation: &'a TargetOperationRecord,
+    execution_id: &'a str,
+}
+
+impl AgentRuntimeEffectGuard<'_> {
+    async fn load_current_local(&self) -> anyhow::Result<LocalOperationSnapshot> {
+        let projection = self
+            .ledger
+            .load()
+            .await
+            .map_err(|_| anyhow::anyhow!("durable agent operation could not be verified"))?;
+        let local = projection
+            .operations
+            .get(&self.operation.operation_id)
+            .context("durable agent operation disappeared while executing")?;
+        validate_local_binding(local, self.operation)
+            .map_err(|_| anyhow::anyhow!("durable agent operation binding changed"))?;
+        anyhow::ensure!(
+            local.status == TargetOperationStatusKind::Running
+                && local.execution_id == self.execution_id
+                && local.receipt.is_none(),
+            "durable agent operation no longer permits this execution"
+        );
+        Ok(local.clone())
+    }
+}
+
+#[async_trait::async_trait]
+impl plurora_runtime::ManagedTargetEffectGuard for AgentRuntimeEffectGuard<'_> {
+    async fn ensure_current(&self) -> anyhow::Result<()> {
+        anyhow::ensure!(
+            credential_target_id(self.credential) == Some(self.config.target_id.as_str())
+                && self.operation.target_id == self.config.target_id
+                && self.operation.authority.target_id == self.config.target_id
+                && self.operation.authority.operation_id == self.operation.operation_id
+                && self.operation.authority.installation_id == self.operation.installation_id
+                && self.operation.authority.lease_epoch == self.config.lease_epoch
+                && self.operation.authority.policy_epoch == self.config.policy_epoch
+                && self.operation.status == TargetOperationStatusKind::Running
+                && self.operation.execution_id.as_deref() == Some(self.execution_id)
+                && self.operation.receipt.is_none(),
+            "agent operation guard binding is invalid"
+        );
+
+        self.load_current_local().await?;
+        let remote = post_progress(
+            self.client,
+            self.config,
+            self.credential,
+            self.operation,
+            self.execution_id,
+            TargetOperationStatusKind::Running,
+        )
+        .await
+        .map_err(|_| anyhow::anyhow!("Host no longer confirms the running agent operation"))?;
+        let local = self.load_current_local().await?;
+        validate_remote_running_binding(
+            &local,
+            self.operation,
+            &remote,
+            self.config,
+            self.execution_id,
+        )
+        .map_err(|_| anyhow::anyhow!("Host returned a conflicting agent operation binding"))?;
+        Ok(())
+    }
+}
+
+fn validate_remote_running_binding(
+    local: &LocalOperationSnapshot,
+    expected: &TargetOperationRecord,
+    remote: &TargetOperationRecord,
+    config: &AgentConfig,
+    execution_id: &str,
+) -> anyhow::Result<()> {
+    validate_local_binding(local, remote)?;
+    anyhow::ensure!(
+        remote.operation_id == expected.operation_id
+            && remote.target_id == config.target_id
+            && remote.installation_id == expected.installation_id
+            && remote.spec == expected.spec
+            && remote.authority == expected.authority
+            && remote.authority.target_id == config.target_id
+            && remote.authority.operation_id == expected.operation_id
+            && remote.authority.installation_id == expected.installation_id
+            && remote.authority.lease_epoch == config.lease_epoch
+            && remote.authority.policy_epoch == config.policy_epoch
+            && remote.status == TargetOperationStatusKind::Running
+            && remote.execution_id.as_deref() == Some(execution_id)
+            && remote.receipt.is_none(),
+        "Host operation is not the exact current Running execution"
+    );
+    Ok(())
 }
 
 impl LocalOperationLedger {
@@ -1174,6 +1274,22 @@ async fn handle_operation(
         return Ok(());
     }
 
+    if local.status == TargetOperationStatusKind::Running {
+        let receipt = interrupted_running_receipt(&operation, &local)?;
+        let completed = ledger.complete(&operation, &receipt).await?;
+        post_receipt(
+            client,
+            config,
+            credential,
+            completed
+                .receipt
+                .as_ref()
+                .context("interrupted agent operation lost its terminal receipt")?,
+        )
+        .await?;
+        return Ok(());
+    }
+
     let local = ledger.mark_running(&operation).await?;
     if local.status.is_terminal() {
         let receipt = local
@@ -1201,23 +1317,41 @@ async fn handle_operation(
     // when this operation was restored from a durable Running ledger entry.
     heartbeat(client, config, credential, data_dir, ledger).await?;
 
-    let (status, output, diagnostics) =
-        match execute_operation(client, config, credential, data_dir, &operation).await {
-            Ok(output) => (TargetOperationReceiptStatus::Succeeded, output, Vec::new()),
-            Err(error) => {
-                let status =
-                    if plurora_runtime::is_managed_target_deployment_outcome_unknown(&error) {
-                        TargetOperationReceiptStatus::OutcomeUnknown
-                    } else {
-                        TargetOperationReceiptStatus::Failed
-                    };
-                (
-                    status,
-                    Value::Null,
-                    vec![safe_diagnostic(&format!("{error:#}"), credential)],
-                )
-            }
-        };
+    let runtime_guard = AgentRuntimeEffectGuard {
+        client,
+        config,
+        credential,
+        ledger,
+        operation: &operation,
+        execution_id: &local.execution_id,
+    };
+    runtime_guard.ensure_current().await?;
+
+    let (status, output, diagnostics) = match execute_operation(
+        client,
+        config,
+        credential,
+        data_dir,
+        &operation,
+        &runtime_guard,
+    )
+    .await
+    {
+        Ok(output) => (TargetOperationReceiptStatus::Succeeded, output, Vec::new()),
+        Err(error) => {
+            let status = if plurora_runtime::is_managed_target_deployment_outcome_unknown(&error) {
+                TargetOperationReceiptStatus::OutcomeUnknown
+            } else {
+                TargetOperationReceiptStatus::Failed
+            };
+            (
+                status,
+                Value::Null,
+                vec![safe_diagnostic(&format!("{error:#}"), credential)],
+            )
+        }
+    };
+    runtime_guard.ensure_current().await?;
     let completed_at_ms = Utc::now().timestamp_millis();
     let receipt = TargetOperationReceipt {
         operation_id: operation.operation_id.clone(),
@@ -1234,6 +1368,31 @@ async fn handle_operation(
     ledger.complete(&operation, &receipt).await?;
     post_receipt(client, config, credential, &receipt).await?;
     Ok(())
+}
+
+fn interrupted_running_receipt(
+    operation: &TargetOperationRecord,
+    local: &LocalOperationSnapshot,
+) -> anyhow::Result<TargetOperationReceipt> {
+    validate_local_binding(local, operation)?;
+    anyhow::ensure!(
+        local.status == TargetOperationStatusKind::Running && local.receipt.is_none(),
+        "only an unresolved durable Running operation can be interrupted"
+    );
+    Ok(TargetOperationReceipt {
+        operation_id: operation.operation_id.clone(),
+        target_id: operation.target_id.clone(),
+        execution_id: local.execution_id.clone(),
+        step_id: operation.authority.step_id.clone(),
+        request_digest: operation.authority.request_digest.clone(),
+        authority_digest: operation.authority.authority_digest.clone(),
+        status: TargetOperationReceiptStatus::OutcomeUnknown,
+        completed_at_ms: Utc::now().timestamp_millis().max(local.updated_at_ms),
+        output: Value::Null,
+        diagnostics: vec![
+            "target agent restarted while the effect outcome was unresolved".to_string(),
+        ],
+    })
 }
 
 async fn post_progress(
@@ -1314,6 +1473,7 @@ async fn execute_operation(
     credential: &str,
     data_dir: &Path,
     operation: &TargetOperationRecord,
+    runtime_guard: &(dyn plurora_runtime::ManagedTargetEffectGuard + Send + Sync),
 ) -> anyhow::Result<Value> {
     match &operation.spec {
         TargetOperationSpec::ArtifactMaterialize {
@@ -1356,11 +1516,13 @@ async fn execute_operation(
                     pull_if_missing: deployment.pull_if_missing,
                     operation_id: operation.operation_id.clone(),
                 },
+                runtime_guard,
             )
             .await?;
             if let Err(error) = plurora_runtime::wait_for_managed_target_deployment_readiness(
                 &applied,
                 deployment.health_path.as_deref(),
+                runtime_guard,
             )
             .await
             {
@@ -1368,6 +1530,7 @@ async fn execute_operation(
                     &managed_deployment_ref(operation, &deployment.deployment),
                     0,
                     true,
+                    runtime_guard,
                 )
                 .await;
                 if cleanup.is_err() {
@@ -1382,6 +1545,7 @@ async fn execute_operation(
         TargetOperationSpec::DeploymentObserve { deployment } => {
             let observed = plurora_runtime::observe_managed_target_deployment(
                 &managed_deployment_ref(operation, deployment),
+                runtime_guard,
             )
             .await?;
             Ok(json!({ "deployment": observed }))
@@ -1393,6 +1557,7 @@ async fn execute_operation(
             plurora_runtime::drain_managed_target_deployment(
                 &managed_deployment_ref(operation, deployment),
                 *grace_seconds,
+                runtime_guard,
             )
             .await?,
         )?),
@@ -1405,6 +1570,7 @@ async fn execute_operation(
                 &managed_deployment_ref(operation, deployment),
                 *grace_seconds,
                 *force_remove,
+                runtime_guard,
             )
             .await?,
         )?),
@@ -1441,6 +1607,7 @@ async fn execute_operation(
                     expected_size_bytes,
                     dockerfile,
                     network_mode,
+                    disposition,
                     build_id,
                     workspace_id,
                     source_tree_digest,
@@ -1458,22 +1625,25 @@ async fn execute_operation(
             )
             .await?;
             let context_tar = tokio::fs::read(artifact_path(data_dir, digest)?).await?;
+            let built = plurora_runtime::build_managed_target_image(
+                plurora_runtime::ManagedTargetImageBuild {
+                    target_id: operation.target_id.clone(),
+                    installation_id: operation.installation_id.clone(),
+                    workspace_id: workspace_id.clone(),
+                    build_id: build_id.clone(),
+                    dockerfile: dockerfile.clone(),
+                    network_mode: *network_mode,
+                    disposition: *disposition,
+                    source_tree_digest: source_tree_digest.clone(),
+                    build_descriptor_hash: build_descriptor_hash.clone(),
+                    context_digest: digest.clone(),
+                    context_tar,
+                },
+                runtime_guard,
+            )
+            .await?;
             Ok(serde_json::to_value(
-                plurora_runtime::build_managed_target_image(
-                    plurora_runtime::ManagedTargetImageBuild {
-                        target_id: operation.target_id.clone(),
-                        installation_id: operation.installation_id.clone(),
-                        workspace_id: workspace_id.clone(),
-                        build_id: build_id.clone(),
-                        dockerfile: dockerfile.clone(),
-                        network_mode: *network_mode,
-                        source_tree_digest: source_tree_digest.clone(),
-                        build_descriptor_hash: build_descriptor_hash.clone(),
-                        context_digest: digest.clone(),
-                        context_tar,
-                    },
-                )
-                .await?,
+                plurora_runtime::finalize_managed_target_image_build(built, runtime_guard).await?,
             )?)
         }
     }
@@ -1706,7 +1876,109 @@ async fn hash_regular_file(path: &Path) -> anyhow::Result<(String, u64)> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use axum::extract::{Path as AxumPath, State};
+    use axum::http::{header, HeaderMap};
+    use axum::routing::post;
+    use axum::{Json, Router};
     use plurora_service::{TargetOperationAuthority, TargetOperationEffect};
+    use std::sync::atomic::{AtomicUsize, Ordering};
+    use std::sync::Mutex;
+
+    #[derive(Clone)]
+    enum TestProgressReply {
+        Record(TargetOperationRecord),
+        Status(axum::http::StatusCode),
+    }
+
+    #[derive(Clone)]
+    struct TestProgressHostState {
+        expected_credential: String,
+        reply: Arc<Mutex<TestProgressReply>>,
+        requests: Arc<Mutex<Vec<TargetOperationProgressRequest>>>,
+    }
+
+    struct TestProgressServer {
+        endpoint: String,
+        state: TestProgressHostState,
+        task: tokio::task::JoinHandle<()>,
+    }
+
+    impl TestProgressServer {
+        async fn spawn(
+            expected_credential: String,
+            reply: TestProgressReply,
+        ) -> anyhow::Result<Self> {
+            let state = TestProgressHostState {
+                expected_credential,
+                reply: Arc::new(Mutex::new(reply)),
+                requests: Arc::new(Mutex::new(Vec::new())),
+            };
+            let router = Router::new()
+                .route(
+                    "/target-agent/v1/operations/:operation_id/progress",
+                    post(test_progress_handler),
+                )
+                .with_state(state.clone());
+            let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await?;
+            let endpoint = format!("http://{}", listener.local_addr()?);
+            let task = tokio::spawn(async move {
+                let _ = axum::serve(listener, router).await;
+            });
+            Ok(Self {
+                endpoint,
+                state,
+                task,
+            })
+        }
+
+        fn set_reply(&self, reply: TestProgressReply) {
+            *self.state.reply.lock().expect("test reply lock poisoned") = reply;
+        }
+
+        fn request_count(&self) -> usize {
+            self.state
+                .requests
+                .lock()
+                .expect("test requests lock poisoned")
+                .len()
+        }
+    }
+
+    impl Drop for TestProgressServer {
+        fn drop(&mut self) {
+            self.task.abort();
+        }
+    }
+
+    async fn test_progress_handler(
+        State(state): State<TestProgressHostState>,
+        AxumPath(_operation_id): AxumPath<String>,
+        headers: HeaderMap,
+        Json(request): Json<TargetOperationProgressRequest>,
+    ) -> Result<Json<TargetOperationRecord>, axum::http::StatusCode> {
+        let expected = format!("PluroraTarget {}", state.expected_credential);
+        if headers
+            .get(header::AUTHORIZATION)
+            .and_then(|value| value.to_str().ok())
+            != Some(expected.as_str())
+        {
+            return Err(axum::http::StatusCode::UNAUTHORIZED);
+        }
+        state
+            .requests
+            .lock()
+            .expect("test requests lock poisoned")
+            .push(request);
+        let reply = state
+            .reply
+            .lock()
+            .expect("test reply lock poisoned")
+            .clone();
+        match reply {
+            TestProgressReply::Record(operation) => Ok(Json(operation)),
+            TestProgressReply::Status(status) => Err(status),
+        }
+    }
 
     fn operation() -> TargetOperationRecord {
         let digest = format!("sha256:{}", "a".repeat(64));
@@ -1755,6 +2027,239 @@ mod tests {
         }
     }
 
+    fn agent_config(endpoint: String) -> AgentConfig {
+        AgentConfig {
+            endpoint,
+            capabilities: vec![ExecutionTargetCapability::Deployment],
+            ..tunnel_config()
+        }
+    }
+
+    fn agent_credential() -> String {
+        format!("plurora_agent.remote-1.{}", "e".repeat(64))
+    }
+
+    async fn persist_running_operation(
+        ledger: &LocalOperationLedger,
+    ) -> anyhow::Result<(TargetOperationRecord, LocalOperationSnapshot)> {
+        let mut operation = operation();
+        ledger.accept(&operation).await?;
+        let running = ledger.mark_running(&operation).await?;
+        operation.status = TargetOperationStatusKind::Running;
+        operation.execution_id = Some(running.execution_id.clone());
+        Ok((operation, running))
+    }
+
+    fn terminal_host_operation(operation: &TargetOperationRecord) -> TargetOperationRecord {
+        let mut terminal = operation.clone();
+        terminal.status = TargetOperationStatusKind::Succeeded;
+        terminal.receipt = Some(TargetOperationReceipt {
+            operation_id: operation.operation_id.clone(),
+            target_id: operation.target_id.clone(),
+            execution_id: operation
+                .execution_id
+                .clone()
+                .expect("running execution id"),
+            step_id: operation.authority.step_id.clone(),
+            request_digest: operation.authority.request_digest.clone(),
+            authority_digest: operation.authority.authority_digest.clone(),
+            status: TargetOperationReceiptStatus::Succeeded,
+            completed_at_ms: 2,
+            output: Value::Null,
+            diagnostics: Vec::new(),
+        });
+        terminal
+    }
+
+    #[tokio::test]
+    async fn effect_guard_confirms_exact_running_operation_with_host_every_time(
+    ) -> anyhow::Result<()> {
+        let directory = tempfile::tempdir()?;
+        let ledger = LocalOperationLedger::open(directory.path())?;
+        let (operation, running) = persist_running_operation(&ledger).await?;
+        let credential = agent_credential();
+        let server = TestProgressServer::spawn(
+            credential.clone(),
+            TestProgressReply::Record(operation.clone()),
+        )
+        .await?;
+        let config = agent_config(server.endpoint.clone());
+        let client = hardened_client()?;
+        let guard = AgentRuntimeEffectGuard {
+            client: &client,
+            config: &config,
+            credential: &credential,
+            ledger: &ledger,
+            operation: &operation,
+            execution_id: &running.execution_id,
+        };
+
+        guard.ensure_current().await?;
+        guard.ensure_current().await?;
+
+        let requests = server
+            .state
+            .requests
+            .lock()
+            .expect("test requests lock poisoned");
+        assert_eq!(requests.len(), 2);
+        assert!(requests.iter().all(|request| {
+            request.status == TargetOperationStatusKind::Running
+                && request.execution_id == running.execution_id
+                && request.request_digest == operation.authority.request_digest
+                && request.authority_digest == operation.authority.authority_digest
+        }));
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn effect_guard_stops_before_create_after_host_fence_changes() -> anyhow::Result<()> {
+        let directory = tempfile::tempdir()?;
+        let ledger = LocalOperationLedger::open(directory.path())?;
+        let (operation, running) = persist_running_operation(&ledger).await?;
+        let credential = agent_credential();
+        let server = TestProgressServer::spawn(
+            credential.clone(),
+            TestProgressReply::Record(operation.clone()),
+        )
+        .await?;
+        let config = agent_config(server.endpoint.clone());
+        let client = hardened_client()?;
+        let guard = AgentRuntimeEffectGuard {
+            client: &client,
+            config: &config,
+            credential: &credential,
+            ledger: &ledger,
+            operation: &operation,
+            execution_id: &running.execution_id,
+        };
+
+        for reply in [
+            TestProgressReply::Status(axum::http::StatusCode::UNAUTHORIZED),
+            TestProgressReply::Status(axum::http::StatusCode::CONFLICT),
+            TestProgressReply::Record(terminal_host_operation(&operation)),
+        ] {
+            server.set_reply(TestProgressReply::Record(operation.clone()));
+            guard.ensure_current().await?;
+            server.set_reply(reply);
+
+            let create_calls = AtomicUsize::new(0);
+            let result = async {
+                guard.ensure_current().await.map_err(|_| {
+                    plurora_runtime::managed_target_deployment_outcome_unknown(
+                        "fake pull fence confirmation",
+                    )
+                })?;
+                create_calls.fetch_add(1, Ordering::AcqRel);
+                Ok::<_, anyhow::Error>(())
+            }
+            .await;
+            let error = result.expect_err("changed Host fence must stop the fake driver");
+            assert!(plurora_runtime::is_managed_target_deployment_outcome_unknown(&error));
+            assert_eq!(create_calls.load(Ordering::Acquire), 0);
+
+            let current = ledger.load().await?;
+            let current = current.operations.get(&operation.operation_id).unwrap();
+            assert_eq!(current.status, TargetOperationStatusKind::Running);
+            assert!(current.receipt.is_none());
+        }
+        assert_eq!(server.request_count(), 6);
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn effect_guard_rejects_wrong_host_operation_execution_and_digest() -> anyhow::Result<()>
+    {
+        let directory = tempfile::tempdir()?;
+        let ledger = LocalOperationLedger::open(directory.path())?;
+        let (operation, running) = persist_running_operation(&ledger).await?;
+        let credential = agent_credential();
+        let server = TestProgressServer::spawn(
+            credential.clone(),
+            TestProgressReply::Record(operation.clone()),
+        )
+        .await?;
+        let config = agent_config(server.endpoint.clone());
+        let client = hardened_client()?;
+        let guard = AgentRuntimeEffectGuard {
+            client: &client,
+            config: &config,
+            credential: &credential,
+            ledger: &ledger,
+            operation: &operation,
+            execution_id: &running.execution_id,
+        };
+
+        let mut wrong_operation = operation.clone();
+        wrong_operation.operation_id = "wrong-operation".to_string();
+        let mut wrong_execution = operation.clone();
+        wrong_execution.execution_id = Some("f".repeat(32));
+        let mut wrong_digest = operation.clone();
+        wrong_digest.authority.request_digest = format!("sha256:{}", "b".repeat(64));
+        for reply in [wrong_operation, wrong_execution, wrong_digest] {
+            server.set_reply(TestProgressReply::Record(reply));
+            assert!(guard.ensure_current().await.is_err());
+        }
+        assert_eq!(server.request_count(), 3);
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn effect_guard_never_exposes_or_persists_agent_credential() -> anyhow::Result<()> {
+        let directory = tempfile::tempdir()?;
+        let ledger = LocalOperationLedger::open(directory.path())?;
+        let (operation, running) = persist_running_operation(&ledger).await?;
+        let credential = agent_credential();
+        let server = TestProgressServer::spawn(
+            credential.clone(),
+            TestProgressReply::Record(operation.clone()),
+        )
+        .await?;
+        let config = agent_config(server.endpoint.clone());
+        let client = hardened_client()?;
+        let wrong_credential = format!("plurora_agent.remote-1.{}", "d".repeat(64));
+        let guard = AgentRuntimeEffectGuard {
+            client: &client,
+            config: &config,
+            credential: &wrong_credential,
+            ledger: &ledger,
+            operation: &operation,
+            execution_id: &running.execution_id,
+        };
+
+        let error = guard.ensure_current().await.unwrap_err().to_string();
+        assert!(!error.contains(&wrong_credential));
+        assert!(!error.contains(&credential));
+        assert!(!error.contains(&server.endpoint));
+        assert!(!error.contains("/target-agent/"));
+        assert!(!format!("{config:?}").contains(&credential));
+        assert_eq!(server.request_count(), 0);
+
+        let database = std::fs::read(directory.path().join(LEDGER_FILE))?;
+        assert!(!database
+            .windows(credential.len())
+            .any(|window| window == credential.as_bytes()));
+
+        let partition_config = agent_config("http://127.0.0.1:1".to_string());
+        let partition_guard = AgentRuntimeEffectGuard {
+            client: &client,
+            config: &partition_config,
+            credential: &credential,
+            ledger: &ledger,
+            operation: &operation,
+            execution_id: &running.execution_id,
+        };
+        let partition_error = partition_guard
+            .ensure_current()
+            .await
+            .unwrap_err()
+            .to_string();
+        assert!(!partition_error.contains(&credential));
+        assert!(!partition_error.contains(&server.endpoint));
+        assert!(!partition_error.contains("/target-agent/"));
+        Ok(())
+    }
+
     #[tokio::test]
     async fn local_ledger_replays_terminal_receipt() -> anyhow::Result<()> {
         let directory = tempfile::tempdir()?;
@@ -1784,6 +2289,38 @@ mod tests {
         let mut claimed_elsewhere = operation;
         claimed_elsewhere.execution_id = Some("d".repeat(32));
         assert!(validate_local_binding(restored, &claimed_elsewhere).is_err());
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn restarted_running_agent_records_outcome_unknown_without_reexecuting_driver(
+    ) -> anyhow::Result<()> {
+        let directory = tempfile::tempdir()?;
+        let ledger = LocalOperationLedger::open(directory.path())?;
+        let mut host_operation = operation();
+        ledger.accept(&host_operation).await?;
+        let running = ledger.mark_running(&host_operation).await?;
+        host_operation.status = TargetOperationStatusKind::Running;
+        host_operation.execution_id = Some(running.execution_id.clone());
+
+        let driver_executions = std::sync::atomic::AtomicUsize::new(0);
+        let receipt = interrupted_running_receipt(&host_operation, &running)?;
+        let completed = ledger.complete(&host_operation, &receipt).await?;
+        assert_eq!(
+            driver_executions.load(std::sync::atomic::Ordering::Acquire),
+            0
+        );
+        assert_eq!(completed.status, TargetOperationStatusKind::OutcomeUnknown);
+        assert_eq!(completed.receipt.as_ref(), Some(&receipt));
+
+        let reopened = LocalOperationLedger::open(directory.path())?;
+        let replayed = reopened.complete(&host_operation, &receipt).await?;
+        assert_eq!(replayed, completed);
+        assert_eq!(replayed.receipt.as_ref(), Some(&receipt));
+        assert_eq!(
+            driver_executions.load(std::sync::atomic::Ordering::Acquire),
+            0
+        );
         Ok(())
     }
 

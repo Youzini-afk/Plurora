@@ -25,7 +25,9 @@ mod driver;
 mod operation;
 mod tunnel;
 
-pub(crate) use operation::{submit_host_operation, wait_for_host_operation};
+pub(crate) use operation::{
+    submit_host_operation, synchronize_target_operations_as_owner, wait_for_host_operation,
+};
 pub use operation::{
     verify_target_operation_authority, CreateTargetOperationRequest, CreateTargetOperationResponse,
     DeclarativeVerifierDescriptor, NextTargetOperationResponse, TargetDeploymentDescriptor,
@@ -1060,10 +1062,6 @@ where
     loaded = loaded.saturating_add(
         operation::sync_target_operation_journal(store.as_ref(), registry.as_ref()).await?,
     );
-    loaded = loaded.saturating_add(
-        operation::recover_local_operations_after_restart(store.as_ref(), registry.as_ref())
-            .await?,
-    );
     registry.mark_offline_after_hydration();
     mirror_targets(registry.as_ref(), targets.as_ref()).await;
     Ok(loaded)
@@ -1075,6 +1073,7 @@ pub async fn reconcile_target_deployment_control_plane<S>(
 where
     S: EventStore,
 {
+    operation::recover_local_operations_after_restart(state).await?;
     operation::reconcile_all_target_deployment_projections(state).await
 }
 

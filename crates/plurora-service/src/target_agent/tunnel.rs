@@ -679,7 +679,8 @@ mod tests {
 
     use super::*;
     use crate::{
-        app_with_state, development_registry, host_access_registry, AppState,
+        acquire_development_host_lease, app_with_state, development_registry, host_access_registry,
+        release_development_host_lease, spawn_development_host_lease_heartbeat, AppState,
         BuildDeployJobRegistry,
     };
 
@@ -1292,11 +1293,16 @@ mod tests {
 
         let store = Arc::new(InMemoryEventStore::default());
         let objects = Arc::new(plurora_runtime::InMemoryObjectStore::default());
+        let development = development_registry();
+        let lease = acquire_development_host_lease(store.clone(), development.clone()).await?;
+        lease.ensure_active()?;
+        let heartbeat = spawn_development_host_lease_heartbeat(store.clone(), lease.clone());
         let installations = crate::InstallationRegistry::ephemeral(store.clone(), objects.clone())?;
+        installations.install_owner_lease(lease.clone())?;
         let installation_id =
             create_acceptance_installation(&store, &installations, &objects).await?;
         let runtime = Arc::new(Runtime::new(
-            store,
+            store.clone(),
             RuntimeConfig {
                 object_store: objects,
                 installation_control: installations.clone(),
@@ -1358,7 +1364,7 @@ mod tests {
             access_token: Some(HOST_TOKEN.to_string()),
             app_base_domain: Some("apps.example.test".to_string()),
             build_jobs: Arc::new(BuildDeployJobRegistry::default()),
-            development: development_registry(),
+            development,
             host_access: host_access_registry(),
             installations,
             target_agents: target_agent_registry(),
@@ -1649,6 +1655,8 @@ mod tests {
         let _ = reconnected.await;
         host_server.abort();
         upstream_server.abort();
+        heartbeat.abort();
+        release_development_host_lease(store, &lease).await?;
         Ok(())
     }
 

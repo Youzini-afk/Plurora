@@ -13,6 +13,8 @@ use crate::require_identity_installation;
 
 const OPERATION_JOURNAL_SESSION: &str = "host_control_target_operations";
 const OPERATION_JOURNAL_EVENT: &str = "host/control/v1/target_operation.snapshot";
+const OPERATION_HOST_FENCE_EVENT: &str = "host/control/v1/target_operation.host_fence";
+const OPERATION_EXECUTOR_CLAIM_EVENT: &str = "host/control/v1/target_operation.executor_claim";
 const DEFAULT_AUTHORITY_TTL_SECS: u64 = 5 * 60;
 const MAX_AUTHORITY_TTL_SECS: u64 = 15 * 60;
 const MAX_RECEIPT_OUTPUT_BYTES: usize = 256 * 1024;
@@ -70,6 +72,7 @@ pub enum DeclarativeVerifierDescriptor {
         expected_size_bytes: Option<u64>,
         dockerfile: String,
         network_mode: plurora_runtime::ManagedTargetBuildNetworkMode,
+        disposition: plurora_runtime::ManagedTargetImageDisposition,
         build_id: String,
         workspace_id: WorkspaceId,
         source_tree_digest: String,
@@ -354,11 +357,36 @@ struct TargetOperationSnapshot {
     record: TargetOperationRecord,
 }
 
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+struct TargetOperationHostFence {
+    owner_id: String,
+    generation: u64,
+    fenced_at_ms: i64,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+struct TargetOperationExecutorClaim {
+    operation_id: String,
+    target_id: String,
+    owner_id: String,
+    host_fence_generation: u64,
+    generation: u64,
+    execution_id: String,
+    claimed_at_ms: i64,
+}
+
 #[derive(Debug, Default)]
 pub(super) struct TargetOperationState {
     next_sequence: EventSequence,
     operations: HashMap<String, TargetOperationRecord>,
     idempotency: HashMap<(String, InstallationId, String), (String, String)>,
+    host_fence: Option<TargetOperationHostFence>,
+    executor_claims: HashMap<String, TargetOperationExecutorClaim>,
+    terminal_projection_order: Vec<String>,
+    #[cfg(test)]
+    projection_invocations: usize,
     local_execution_locks: HashMap<String, Arc<tokio::sync::Mutex<()>>>,
 }
 
@@ -395,6 +423,28 @@ impl TargetAgentRegistry {
                 .then_with(|| left.operation_id.cmp(&right.operation_id))
         });
         operations
+    }
+
+    fn terminal_operations_for_target(&self, target_id: &str) -> Vec<TargetOperationRecord> {
+        let state = self
+            .operations
+            .lock()
+            .expect("target operation state lock poisoned");
+        state
+            .terminal_projection_order
+            .iter()
+            .filter_map(|operation_id| state.operations.get(operation_id))
+            .filter(|operation| operation.target_id == target_id)
+            .cloned()
+            .collect()
+    }
+
+    #[cfg(test)]
+    fn projection_invocations(&self) -> usize {
+        self.operations
+            .lock()
+            .expect("target operation state lock poisoned")
+            .projection_invocations
     }
 
     pub(crate) fn installation_for_operation_route(
@@ -444,6 +494,23 @@ impl TargetAgentRegistry {
             .clone()
     }
 
+    fn operation_host_fence(&self) -> Option<TargetOperationHostFence> {
+        self.operations
+            .lock()
+            .expect("target operation state lock poisoned")
+            .host_fence
+            .clone()
+    }
+
+    fn executor_claim(&self, operation_id: &str) -> Option<TargetOperationExecutorClaim> {
+        self.operations
+            .lock()
+            .expect("target operation state lock poisoned")
+            .executor_claims
+            .get(operation_id)
+            .cloned()
+    }
+
     fn idempotent_operation(
         &self,
         target_id: &str,
@@ -469,16 +536,14 @@ impl TargetAgentRegistry {
     fn apply_operation_event(&self, envelope: &EventEnvelope) -> anyhow::Result<()> {
         anyhow::ensure!(
             envelope.session_id == OPERATION_JOURNAL_SESSION
-                && envelope.kind == OPERATION_JOURNAL_EVENT,
+                && matches!(
+                    envelope.kind.as_str(),
+                    OPERATION_JOURNAL_EVENT
+                        | OPERATION_HOST_FENCE_EVENT
+                        | OPERATION_EXECUTOR_CLAIM_EVENT
+                ),
             "invalid target operation journal envelope"
         );
-        let snapshot: TargetOperationSnapshot = serde_json::from_value(envelope.payload.clone())?;
-        let record = snapshot.record;
-        let authority_key = self
-            .operation_authority_key(&record.target_id, record.authority.lease_epoch)
-            .ok_or_else(|| anyhow::anyhow!("target operation authority key is unknown"))?;
-        validate_record_integrity(&record, &authority_key)?;
-
         let mut state = self
             .operations
             .lock()
@@ -491,48 +556,131 @@ impl TargetAgentRegistry {
             "target operation journal sequence is not contiguous"
         );
 
-        if let Some(previous) = state.operations.get(&record.operation_id) {
-            anyhow::ensure!(
-                record.revision == previous.revision.saturating_add(1)
-                    && immutable_operation_fields_match(previous, &record)
-                    && valid_execution_owner_transition(previous, &record)
-                    && record.updated_at_ms >= previous.updated_at_ms
-                    && valid_status_transition(previous.status, record.status),
-                "target operation snapshot transition is invalid"
-            );
-        } else {
-            anyhow::ensure!(
-                record.revision == 1
-                    && record.status == TargetOperationStatusKind::Requested
-                    && record.execution_id.is_none()
-                    && record.receipt.is_none(),
-                "new target operation snapshot is invalid"
-            );
-        }
-
-        if let Some(key) = record.idempotency_key.as_deref() {
-            let index_key = (
-                record.target_id.clone(),
-                record.installation_id.clone(),
-                key.to_string(),
-            );
-            if let Some((request_digest, operation_id)) = state.idempotency.get(&index_key) {
+        match envelope.kind.as_str() {
+            OPERATION_HOST_FENCE_EVENT => {
+                let fence: TargetOperationHostFence =
+                    serde_json::from_value(envelope.payload.clone())?;
                 anyhow::ensure!(
-                    request_digest == &record.authority.request_digest
-                        && operation_id == &record.operation_id,
-                    "target operation idempotency key was reused"
+                    !fence.owner_id.is_empty() && fence.generation > 0,
+                    "target operation Host fence is invalid"
                 );
-            } else {
-                state.idempotency.insert(
-                    index_key,
-                    (
-                        record.authority.request_digest.clone(),
-                        record.operation_id.clone(),
-                    ),
-                );
+                if let Some(previous) = state.host_fence.as_ref() {
+                    anyhow::ensure!(
+                        fence.owner_id != previous.owner_id
+                            && fence.generation == previous.generation.saturating_add(1)
+                            && fence.fenced_at_ms >= previous.fenced_at_ms,
+                        "target operation Host fence transition is invalid"
+                    );
+                } else {
+                    anyhow::ensure!(
+                        fence.generation == 1,
+                        "initial target operation Host fence generation is invalid"
+                    );
+                }
+                state.host_fence = Some(fence);
             }
+            OPERATION_EXECUTOR_CLAIM_EVENT => {
+                let claim: TargetOperationExecutorClaim =
+                    serde_json::from_value(envelope.payload.clone())?;
+                let fence = state.host_fence.as_ref().ok_or_else(|| {
+                    anyhow::anyhow!("target operation executor claim has no Host fence")
+                })?;
+                let operation = state.operations.get(&claim.operation_id).ok_or_else(|| {
+                    anyhow::anyhow!("target operation executor claim has no operation")
+                })?;
+                anyhow::ensure!(
+                    claim.target_id == "local"
+                        && operation.target_id == claim.target_id
+                        && !operation.status.is_terminal()
+                        && claim.owner_id == fence.owner_id
+                        && claim.host_fence_generation == fence.generation
+                        && claim.generation > 0
+                        && is_execution_id(&claim.execution_id),
+                    "target operation executor claim is invalid"
+                );
+                if let Some(previous) = state.executor_claims.get(&claim.operation_id) {
+                    anyhow::ensure!(
+                        claim.owner_id != previous.owner_id
+                            && claim.generation == previous.generation.saturating_add(1)
+                            && claim.claimed_at_ms >= previous.claimed_at_ms,
+                        "target operation executor claim transition is invalid"
+                    );
+                    if let Some(execution_id) = operation.execution_id.as_deref() {
+                        anyhow::ensure!(
+                            claim.execution_id == execution_id,
+                            "target operation takeover changed the execution identity"
+                        );
+                    }
+                } else {
+                    anyhow::ensure!(
+                        claim.generation == 1,
+                        "initial target operation executor generation is invalid"
+                    );
+                }
+                state
+                    .executor_claims
+                    .insert(claim.operation_id.clone(), claim);
+            }
+            OPERATION_JOURNAL_EVENT => {
+                let snapshot: TargetOperationSnapshot =
+                    serde_json::from_value(envelope.payload.clone())?;
+                let record = snapshot.record;
+                let authority_key = self
+                    .operation_authority_key(&record.target_id, record.authority.lease_epoch)
+                    .ok_or_else(|| anyhow::anyhow!("target operation authority key is unknown"))?;
+                validate_record_integrity(&record, &authority_key)?;
+
+                if let Some(previous) = state.operations.get(&record.operation_id) {
+                    anyhow::ensure!(
+                        record.revision == previous.revision.saturating_add(1)
+                            && immutable_operation_fields_match(previous, &record)
+                            && valid_execution_owner_transition(previous, &record)
+                            && record.updated_at_ms >= previous.updated_at_ms
+                            && valid_status_transition(previous.status, record.status),
+                        "target operation snapshot transition is invalid"
+                    );
+                    if !previous.status.is_terminal() && record.status.is_terminal() {
+                        state
+                            .terminal_projection_order
+                            .push(record.operation_id.clone());
+                    }
+                } else {
+                    anyhow::ensure!(
+                        record.revision == 1
+                            && record.status == TargetOperationStatusKind::Requested
+                            && record.execution_id.is_none()
+                            && record.receipt.is_none(),
+                        "new target operation snapshot is invalid"
+                    );
+                }
+
+                if let Some(key) = record.idempotency_key.as_deref() {
+                    let index_key = (
+                        record.target_id.clone(),
+                        record.installation_id.clone(),
+                        key.to_string(),
+                    );
+                    if let Some((request_digest, operation_id)) = state.idempotency.get(&index_key)
+                    {
+                        anyhow::ensure!(
+                            request_digest == &record.authority.request_digest
+                                && operation_id == &record.operation_id,
+                            "target operation idempotency key was reused"
+                        );
+                    } else {
+                        state.idempotency.insert(
+                            index_key,
+                            (
+                                record.authority.request_digest.clone(),
+                                record.operation_id.clone(),
+                            ),
+                        );
+                    }
+                }
+                state.operations.insert(record.operation_id.clone(), record);
+            }
+            _ => unreachable!("validated target operation journal event kind"),
         }
-        state.operations.insert(record.operation_id.clone(), record);
         state.next_sequence = envelope.sequence.saturating_add(1);
         Ok(())
     }
@@ -786,6 +934,50 @@ fn validate_receipt_for_record(
                     })
             }),
         "target operation receipt diagnostics exceed their limits"
+    );
+    if receipt.status == TargetOperationReceiptStatus::Succeeded {
+        validate_succeeded_operation_output(record, &receipt.output)?;
+    }
+    Ok(())
+}
+
+fn validate_succeeded_operation_output(
+    record: &TargetOperationRecord,
+    output: &Value,
+) -> anyhow::Result<()> {
+    let TargetOperationSpec::VerifierRun {
+        verifier:
+            DeclarativeVerifierDescriptor::DockerBuild {
+                digest,
+                dockerfile,
+                network_mode,
+                disposition,
+                build_id,
+                workspace_id,
+                source_tree_digest,
+                build_descriptor_hash,
+                ..
+            },
+    } = &record.spec
+    else {
+        return Ok(());
+    };
+    let build: plurora_runtime::ManagedTargetImageBuildReceipt =
+        serde_json::from_value(output.clone())
+            .context("target Docker build receipt output is malformed")?;
+    plurora_runtime::validate_managed_target_image_build_receipt(&build)?;
+    anyhow::ensure!(
+        build.target_id == record.target_id
+            && build.installation_id == record.installation_id
+            && build.workspace_id == *workspace_id
+            && build.build_id == *build_id
+            && build.dockerfile == *dockerfile
+            && build.network_mode == *network_mode
+            && build.disposition == *disposition
+            && build.context_digest == *digest
+            && build.source_tree_digest == *source_tree_digest
+            && build.build_descriptor_hash == *build_descriptor_hash,
+        "target Docker build receipt output does not match its immutable operation spec"
     );
     Ok(())
 }
@@ -1058,6 +1250,185 @@ where
     Ok(())
 }
 
+async fn current_operation_host_fence<S>(
+    state: &AppState<S>,
+) -> anyhow::Result<(
+    crate::development::DevelopmentHostLease,
+    TargetOperationHostFence,
+)>
+where
+    S: EventStore,
+{
+    let lease = state.development.active_host_lease()?;
+    establish_operation_host_fence(
+        state.runtime.store().as_ref(),
+        state.target_agents.as_ref(),
+        &lease,
+    )
+    .await
+    .map(|fence| (lease, fence))
+}
+
+async fn establish_operation_host_fence<S>(
+    store: &S,
+    registry: &TargetAgentRegistry,
+    lease: &crate::development::DevelopmentHostLease,
+) -> anyhow::Result<TargetOperationHostFence>
+where
+    S: EventStore,
+{
+    for _ in 0..8 {
+        lease.ensure_durable_owner().await?;
+        sync_target_operation_journal(store, registry).await?;
+        if let Some(current) = registry.operation_host_fence() {
+            if current.owner_id == lease.owner_id() {
+                lease.ensure_durable_owner().await?;
+                return Ok(current);
+            }
+        }
+        let previous = registry.operation_host_fence();
+        let fence = TargetOperationHostFence {
+            owner_id: lease.owner_id().to_string(),
+            generation: previous
+                .as_ref()
+                .map_or(1, |fence| fence.generation.saturating_add(1)),
+            fenced_at_ms: Utc::now().timestamp_millis(),
+        };
+        lease.ensure_durable_owner().await?;
+        let event = store
+            .append_with_sequence_if_next(
+                OPERATION_JOURNAL_SESSION.to_string(),
+                registry.operation_next_sequence(),
+                JOURNAL_WRITER.to_string(),
+                OPERATION_HOST_FENCE_EVENT.to_string(),
+                1,
+                serde_json::to_value(&fence)?,
+                json!({ "owner": "host_control_plane", "durable_fence": true }),
+            )
+            .await?;
+        if let Some(event) = event {
+            registry.apply_operation_event(&event)?;
+            return Ok(fence);
+        }
+    }
+    anyhow::bail!("target operation Host fence changed too frequently")
+}
+
+async fn ensure_operation_host_fence<S>(
+    store: &S,
+    registry: &TargetAgentRegistry,
+    lease: &crate::development::DevelopmentHostLease,
+    fence: &TargetOperationHostFence,
+) -> anyhow::Result<()>
+where
+    S: EventStore,
+{
+    lease.ensure_durable_owner().await?;
+    sync_target_operation_journal(store, registry).await?;
+    anyhow::ensure!(
+        registry.operation_host_fence().as_ref() == Some(fence)
+            && fence.owner_id == lease.owner_id(),
+        "target operation Host fence is no longer current"
+    );
+    Ok(())
+}
+
+async fn claim_local_operation<S>(
+    store: &S,
+    registry: &TargetAgentRegistry,
+    lease: &crate::development::DevelopmentHostLease,
+    fence: &TargetOperationHostFence,
+    operation_id: &str,
+) -> anyhow::Result<Option<TargetOperationExecutorClaim>>
+where
+    S: EventStore,
+{
+    for _ in 0..8 {
+        ensure_operation_host_fence(store, registry, lease, fence).await?;
+        let operation = registry
+            .operation(operation_id)
+            .ok_or_else(|| anyhow::anyhow!("local target operation disappeared"))?;
+        if operation.status.is_terminal() {
+            return Ok(None);
+        }
+        if let Some(current) = registry.executor_claim(operation_id) {
+            if current.owner_id == fence.owner_id
+                && current.host_fence_generation == fence.generation
+            {
+                return Ok(Some(current));
+            }
+        }
+        let previous = registry.executor_claim(operation_id);
+        let execution_id = operation
+            .execution_id
+            .clone()
+            .unwrap_or_else(|| uuid::Uuid::new_v4().simple().to_string());
+        let claim = TargetOperationExecutorClaim {
+            operation_id: operation.operation_id,
+            target_id: operation.target_id,
+            owner_id: fence.owner_id.clone(),
+            host_fence_generation: fence.generation,
+            generation: previous
+                .as_ref()
+                .map_or(1, |claim| claim.generation.saturating_add(1)),
+            execution_id,
+            claimed_at_ms: Utc::now().timestamp_millis(),
+        };
+        lease.ensure_durable_owner().await?;
+        let event = store
+            .append_with_sequence_if_next(
+                OPERATION_JOURNAL_SESSION.to_string(),
+                registry.operation_next_sequence(),
+                JOURNAL_WRITER.to_string(),
+                OPERATION_EXECUTOR_CLAIM_EVENT.to_string(),
+                1,
+                serde_json::to_value(&claim)?,
+                json!({ "owner": "host_control_plane", "executor_fence": true }),
+            )
+            .await?;
+        if let Some(event) = event {
+            registry.apply_operation_event(&event)?;
+            return Ok(Some(claim));
+        }
+    }
+    anyhow::bail!("target operation executor claim changed too frequently")
+}
+
+async fn ensure_executor_claim<S>(
+    store: &S,
+    registry: &TargetAgentRegistry,
+    lease: &crate::development::DevelopmentHostLease,
+    fence: &TargetOperationHostFence,
+    claim: &TargetOperationExecutorClaim,
+) -> anyhow::Result<()>
+where
+    S: EventStore,
+{
+    ensure_operation_host_fence(store, registry, lease, fence).await?;
+    anyhow::ensure!(
+        registry.executor_claim(&claim.operation_id).as_ref() == Some(claim),
+        "target operation executor generation is no longer current"
+    );
+    Ok(())
+}
+
+pub(crate) async fn synchronize_target_operations_as_owner<S>(
+    state: &AppState<S>,
+) -> anyhow::Result<usize>
+where
+    S: EventStore,
+{
+    let (_, fence) = current_operation_host_fence(state).await?;
+    let loaded =
+        sync_target_operation_journal(state.runtime.store().as_ref(), state.target_agents.as_ref())
+            .await?;
+    anyhow::ensure!(
+        state.target_agents.operation_host_fence().as_ref() == Some(&fence),
+        "target operation Host fence changed during synchronization"
+    );
+    Ok(loaded)
+}
+
 pub(super) fn protected_routes<S>() -> Router<AppState<S>>
 where
     S: EventStore,
@@ -1120,6 +1491,9 @@ where
     S: EventStore,
 {
     validate_create_request(&target_id, &request)?;
+    let (host_lease, host_fence) = current_operation_host_fence(state)
+        .await
+        .map_err(target_internal_error)?;
     if state
         .installations
         .get(&request.installation_id)
@@ -1188,6 +1562,8 @@ where
     let operation = create_operation_record(
         state.runtime.store().as_ref(),
         state.target_agents.as_ref(),
+        &host_lease,
+        &host_fence,
         &authority_key,
         target,
         request,
@@ -1195,9 +1571,12 @@ where
     .await
     .map_err(target_conflict_error)?;
     let operation = match driver {
-        TargetDriverKind::Local => drive_local_operation(state, &operation.operation_id)
-            .await
-            .map_err(target_internal_error)?,
+        TargetDriverKind::Local if !operation.status.is_terminal() => {
+            drive_local_operation(state, &operation.operation_id)
+                .await
+                .map_err(target_internal_error)?
+        }
+        TargetDriverKind::Local => operation,
         TargetDriverKind::Agent => operation,
     };
     Ok(operation)
@@ -1321,6 +1700,9 @@ where
     S: EventStore,
 {
     let agent = authenticated_agent(&state, &headers).await?;
+    let (host_lease, host_fence) = current_operation_host_fence(&state)
+        .await
+        .map_err(target_internal_error)?;
     'refresh: for _ in 0..8 {
         sync_target_operation_journal(state.runtime.store().as_ref(), state.target_agents.as_ref())
             .await
@@ -1342,6 +1724,9 @@ where
                 if append_target_operation_snapshot(
                     state.runtime.store().as_ref(),
                     state.target_agents.as_ref(),
+                    &host_lease,
+                    &host_fence,
+                    None,
                     state.target_agents.operation_next_sequence(),
                     &expired,
                 )
@@ -1386,6 +1771,9 @@ where
         ));
     }
     let agent = authenticated_agent(&state, &headers).await?;
+    let (host_lease, host_fence) = current_operation_host_fence(&state)
+        .await
+        .map_err(target_internal_error)?;
     for _ in 0..8 {
         sync_target_operation_journal(state.runtime.store().as_ref(), state.target_agents.as_ref())
             .await
@@ -1446,6 +1834,9 @@ where
         if append_target_operation_snapshot(
             state.runtime.store().as_ref(),
             state.target_agents.as_ref(),
+            &host_lease,
+            &host_fence,
+            None,
             state.target_agents.operation_next_sequence(),
             &next,
         )
@@ -1485,6 +1876,34 @@ where
         ));
     }
     let agent = authenticated_agent(&state, &headers).await?;
+    sync_target_operation_journal(state.runtime.store().as_ref(), state.target_agents.as_ref())
+        .await
+        .map_err(target_internal_error)?;
+    let operation = state
+        .target_agents
+        .operation(&operation_id)
+        .filter(|operation| operation.target_id == agent.target.id)
+        .ok_or_else(|| ServiceError::with_status(StatusCode::NOT_FOUND, "operation not found"))?;
+    validate_agent_operation_binding(
+        &operation,
+        &agent,
+        &receipt.request_digest,
+        &receipt.authority_digest,
+        Some(&receipt.execution_id),
+    )?;
+    if operation.status.is_terminal() {
+        if operation.receipt.as_ref() == Some(&receipt) {
+            return Ok(Json(operation));
+        }
+        return Err(ServiceError::with_status(
+            StatusCode::CONFLICT,
+            "operation already has a different terminal receipt",
+        ));
+    }
+
+    let (host_lease, host_fence) = current_operation_host_fence(&state)
+        .await
+        .map_err(target_internal_error)?;
     for _ in 0..8 {
         sync_target_operation_journal(state.runtime.store().as_ref(), state.target_agents.as_ref())
             .await
@@ -1496,18 +1915,6 @@ where
             .ok_or_else(|| {
                 ServiceError::with_status(StatusCode::NOT_FOUND, "operation not found")
             })?;
-        if operation.status.is_terminal() {
-            if operation.receipt.as_ref() == Some(&receipt) {
-                installation_deployment_operation(&state, &operation)
-                    .await
-                    .map_err(target_internal_error)?;
-                return Ok(Json(operation));
-            }
-            return Err(ServiceError::with_status(
-                StatusCode::CONFLICT,
-                "operation already has a different terminal receipt",
-            ));
-        }
         validate_agent_operation_binding(
             &operation,
             &agent,
@@ -1515,6 +1922,15 @@ where
             &receipt.authority_digest,
             Some(&receipt.execution_id),
         )?;
+        if operation.status.is_terminal() {
+            if operation.receipt.as_ref() == Some(&receipt) {
+                return Ok(Json(operation));
+            }
+            return Err(ServiceError::with_status(
+                StatusCode::CONFLICT,
+                "operation already has a different terminal receipt",
+            ));
+        }
         if !matches!(
             operation.status,
             TargetOperationStatusKind::Accepted | TargetOperationStatusKind::Running
@@ -1547,6 +1963,9 @@ where
         if append_target_operation_snapshot(
             state.runtime.store().as_ref(),
             state.target_agents.as_ref(),
+            &host_lease,
+            &host_fence,
+            None,
             state.target_agents.operation_next_sequence(),
             &next,
         )
@@ -1603,6 +2022,9 @@ where
 {
     validate_sha256_digest(&digest)?;
     let agent = authenticated_agent(&state, &headers).await?;
+    current_operation_host_fence(&state)
+        .await
+        .map_err(target_internal_error)?;
     sync_target_operation_journal(state.runtime.store().as_ref(), state.target_agents.as_ref())
         .await
         .map_err(target_internal_error)?;
@@ -1683,79 +2105,257 @@ async fn drive_local_operation<S>(
 where
     S: EventStore,
 {
-    let execution_lock = state.target_agents.local_execution_lock(operation_id);
-    let _execution_guard = execution_lock.lock().await;
-    let execution_id = local_execution_id(operation_id);
-    let accepted = advance_local_operation(
-        state,
-        operation_id,
-        TargetOperationStatusKind::Accepted,
-        &execution_id,
-    )
-    .await?;
-    if accepted.status.is_terminal() {
-        return Ok(accepted);
+    drive_local_operation_with_driver(state, operation_id, &RuntimeLocalOperationDriver).await
+}
+
+struct RuntimeLocalOperationDriver;
+
+#[async_trait::async_trait]
+trait LocalOperationDriver: Send + Sync {
+    async fn execute<S>(
+        &self,
+        state: &AppState<S>,
+        operation: &TargetOperationRecord,
+        execution_fence: &LocalOperationExecutionFence,
+    ) -> anyhow::Result<Value>
+    where
+        S: EventStore;
+}
+
+#[async_trait::async_trait]
+impl LocalOperationDriver for RuntimeLocalOperationDriver {
+    async fn execute<S>(
+        &self,
+        state: &AppState<S>,
+        operation: &TargetOperationRecord,
+        execution_fence: &LocalOperationExecutionFence,
+    ) -> anyhow::Result<Value>
+    where
+        S: EventStore,
+    {
+        execute_local_operation(state, operation, execution_fence).await
     }
-    let running = advance_local_operation(
-        state,
-        operation_id,
-        TargetOperationStatusKind::Running,
-        &execution_id,
-    )
-    .await?;
-    if running.status.is_terminal() {
-        return Ok(running);
+}
+
+#[derive(Clone)]
+struct LocalOperationExecutionFence {
+    host_lease: crate::development::DevelopmentHostLease,
+    host_fence: TargetOperationHostFence,
+    executor_claim: TargetOperationExecutorClaim,
+}
+
+impl LocalOperationExecutionFence {
+    async fn ensure_current<S>(&self, state: &AppState<S>) -> anyhow::Result<TargetOperationRecord>
+    where
+        S: EventStore,
+    {
+        ensure_executor_claim(
+            state.runtime.store().as_ref(),
+            state.target_agents.as_ref(),
+            &self.host_lease,
+            &self.host_fence,
+            &self.executor_claim,
+        )
+        .await?;
+        let operation = state
+            .target_agents
+            .operation(&self.executor_claim.operation_id)
+            .context("local target operation disappeared while executing")?;
+        validate_local_executor_binding(&operation, &self.executor_claim)?;
+        let target = state
+            .runtime
+            .config()
+            .target_registry
+            .status(&operation.target_id)
+            .await
+            .context("local target disappeared while executing")?;
+        anyhow::ensure!(
+            target.status == ExecutionTargetStatusKind::Available
+                && resolve_target_driver(&target) == TargetDriverKind::Local
+                && target.lease_epoch == operation.authority.lease_epoch
+                && target.policy_epoch == operation.authority.policy_epoch
+                && required_capabilities(&operation.spec)
+                    .iter()
+                    .all(|required| target.capabilities.contains(required)),
+            "local target authority changed while executing"
+        );
+        Ok(operation)
+    }
+}
+
+struct LocalRuntimeEffectGuard<'a, S>
+where
+    S: EventStore,
+{
+    state: &'a AppState<S>,
+    execution_fence: &'a LocalOperationExecutionFence,
+}
+
+#[async_trait::async_trait]
+impl<S> plurora_runtime::ManagedTargetEffectGuard for LocalRuntimeEffectGuard<'_, S>
+where
+    S: EventStore,
+{
+    async fn ensure_current(&self) -> anyhow::Result<()> {
+        self.execution_fence
+            .ensure_current(self.state)
+            .await
+            .map(|_| ())
+    }
+}
+
+fn validate_local_executor_binding(
+    operation: &TargetOperationRecord,
+    claim: &TargetOperationExecutorClaim,
+) -> anyhow::Result<()> {
+    let execution_matches = match operation.status {
+        TargetOperationStatusKind::Requested => operation
+            .execution_id
+            .as_deref()
+            .is_none_or(|execution_id| execution_id == claim.execution_id),
+        TargetOperationStatusKind::Accepted | TargetOperationStatusKind::Running => {
+            operation.execution_id.as_deref() == Some(claim.execution_id.as_str())
+        }
+        TargetOperationStatusKind::Succeeded
+        | TargetOperationStatusKind::Failed
+        | TargetOperationStatusKind::Cancelled
+        | TargetOperationStatusKind::OutcomeUnknown
+        | TargetOperationStatusKind::Expired => false,
+    };
+    anyhow::ensure!(
+        operation.operation_id == claim.operation_id
+            && operation.target_id == "local"
+            && claim.target_id == operation.target_id
+            && execution_matches,
+        "local target operation no longer permits this executor"
+    );
+    Ok(())
+}
+
+struct LocalOperationAdvance {
+    record: TargetOperationRecord,
+    appended: bool,
+}
+
+async fn drive_local_operation_with_driver<S, D>(
+    state: &AppState<S>,
+    operation_id: &str,
+    driver: &D,
+) -> anyhow::Result<TargetOperationRecord>
+where
+    S: EventStore,
+    D: LocalOperationDriver,
+{
+    sync_target_operation_journal(state.runtime.store().as_ref(), state.target_agents.as_ref())
+        .await?;
+    let current = state
+        .target_agents
+        .operation(operation_id)
+        .context("local target operation disappeared")?;
+    if current.status.is_terminal() {
+        return Ok(current);
     }
 
-    let live_target = state
-        .runtime
-        .config()
-        .target_registry
-        .status(&running.target_id)
+    let execution_lock = state.target_agents.local_execution_lock(operation_id);
+    let _execution_guard = execution_lock.lock().await;
+    sync_target_operation_journal(state.runtime.store().as_ref(), state.target_agents.as_ref())
+        .await?;
+    let current = state
+        .target_agents
+        .operation(operation_id)
+        .context("local target operation disappeared")?;
+    if current.status.is_terminal() {
+        return Ok(current);
+    }
+    let (host_lease, host_fence) = current_operation_host_fence(state).await?;
+    let executor_claim = claim_local_operation(
+        state.runtime.store().as_ref(),
+        state.target_agents.as_ref(),
+        &host_lease,
+        &host_fence,
+        operation_id,
+    )
+    .await?
+    .context("local target operation became terminal before executor claim")?;
+    let execution_fence = LocalOperationExecutionFence {
+        host_lease,
+        host_fence,
+        executor_claim,
+    };
+
+    // Once Running is durable, a crash or Host takeover cannot distinguish an
+    // effect that never started from one whose outcome was lost. Replaying it
+    // would violate at-most-once execution, so close it as OutcomeUnknown.
+    let current = execution_fence.ensure_current(state).await?;
+    if current.status == TargetOperationStatusKind::Running {
+        let completed_at_ms = Utc::now().timestamp_millis().max(current.updated_at_ms);
+        return complete_local_operation(
+            state,
+            &execution_fence,
+            TargetOperationReceipt {
+                operation_id: current.operation_id.clone(),
+                target_id: current.target_id.clone(),
+                execution_id: execution_fence.executor_claim.execution_id.clone(),
+                step_id: OPERATION_STEP_ID.to_string(),
+                request_digest: current.authority.request_digest.clone(),
+                authority_digest: current.authority.authority_digest.clone(),
+                status: TargetOperationReceiptStatus::OutcomeUnknown,
+                completed_at_ms,
+                output: Value::Null,
+                diagnostics: vec![
+                    "local target effect outcome was unresolved before executor takeover"
+                        .to_string(),
+                ],
+            },
+        )
         .await;
-    let authority_is_current = live_target.is_some_and(|target| {
-        target.status == ExecutionTargetStatusKind::Available
-            && resolve_target_driver(&target) == TargetDriverKind::Local
-            && target.lease_epoch == running.authority.lease_epoch
-            && target.policy_epoch == running.authority.policy_epoch
-            && required_capabilities(&running.spec)
-                .iter()
-                .all(|required| target.capabilities.contains(required))
-    });
-    let (status, output, diagnostics) = if !authority_is_current {
-        (
+    }
+
+    let accepted =
+        advance_local_operation(state, &execution_fence, TargetOperationStatusKind::Accepted)
+            .await?;
+    if accepted.record.status.is_terminal() {
+        return Ok(accepted.record);
+    }
+    let running =
+        advance_local_operation(state, &execution_fence, TargetOperationStatusKind::Running)
+            .await?;
+    if running.record.status.is_terminal() {
+        return Ok(running.record);
+    }
+    anyhow::ensure!(
+        running.appended,
+        "local target operation was already Running before this executor"
+    );
+    execution_fence.ensure_current(state).await?;
+    let (status, output, diagnostics) = match driver
+        .execute(state, &running.record, &execution_fence)
+        .await
+    {
+        Ok(output) => (TargetOperationReceiptStatus::Succeeded, output, Vec::new()),
+        Err(error) if plurora_runtime::is_managed_target_deployment_outcome_unknown(&error) => (
+            TargetOperationReceiptStatus::OutcomeUnknown,
+            Value::Null,
+            vec!["local target deployment outcome is unknown".to_string()],
+        ),
+        Err(_) => (
             TargetOperationReceiptStatus::Failed,
             Value::Null,
-            vec!["local target authority changed before execution".to_string()],
-        )
-    } else {
-        match execute_local_operation(state, &running).await {
-            Ok(output) => (TargetOperationReceiptStatus::Succeeded, output, Vec::new()),
-            Err(error) if plurora_runtime::is_managed_target_deployment_outcome_unknown(&error) => {
-                (
-                    TargetOperationReceiptStatus::OutcomeUnknown,
-                    Value::Null,
-                    vec!["local target deployment outcome is unknown".to_string()],
-                )
-            }
-            Err(_) => (
-                TargetOperationReceiptStatus::Failed,
-                Value::Null,
-                vec!["local target operation failed".to_string()],
-            ),
-        }
+            vec!["local target operation failed".to_string()],
+        ),
     };
+    execution_fence.ensure_current(state).await?;
     let completed_at_ms = Utc::now().timestamp_millis();
     complete_local_operation(
         state,
-        operation_id,
+        &execution_fence,
         TargetOperationReceipt {
             operation_id: operation_id.to_string(),
-            target_id: running.target_id.clone(),
-            execution_id,
+            target_id: running.record.target_id.clone(),
+            execution_id: execution_fence.executor_claim.execution_id.clone(),
             step_id: OPERATION_STEP_ID.to_string(),
-            request_digest: running.authority.request_digest.clone(),
-            authority_digest: running.authority.authority_digest.clone(),
+            request_digest: running.record.authority.request_digest.clone(),
+            authority_digest: running.record.authority.authority_digest.clone(),
             status,
             completed_at_ms,
             output,
@@ -1765,16 +2365,11 @@ where
     .await
 }
 
-fn local_execution_id(operation_id: &str) -> String {
-    format!("{:x}", Sha256::digest(operation_id.as_bytes()))[..32].to_string()
-}
-
 async fn advance_local_operation<S>(
     state: &AppState<S>,
-    operation_id: &str,
+    execution_fence: &LocalOperationExecutionFence,
     requested_status: TargetOperationStatusKind,
-    execution_id: &str,
-) -> anyhow::Result<TargetOperationRecord>
+) -> anyhow::Result<LocalOperationAdvance>
 where
     S: EventStore,
 {
@@ -1786,18 +2381,16 @@ where
         "local target progress status is invalid"
     );
     for _ in 0..8 {
-        sync_target_operation_journal(state.runtime.store().as_ref(), state.target_agents.as_ref())
-            .await?;
-        let current = state
-            .target_agents
-            .operation(operation_id)
-            .ok_or_else(|| anyhow::anyhow!("local target operation disappeared"))?;
+        let current = execution_fence.ensure_current(state).await?;
         if current.status.is_terminal()
             || current.status == requested_status
             || (requested_status == TargetOperationStatusKind::Accepted
                 && current.status == TargetOperationStatusKind::Running)
         {
-            return Ok(current);
+            return Ok(LocalOperationAdvance {
+                record: current,
+                appended: false,
+            });
         }
         let now_ms = Utc::now().timestamp_millis();
         if current.status == TargetOperationStatusKind::Requested
@@ -1810,13 +2403,19 @@ where
             if append_target_operation_snapshot(
                 state.runtime.store().as_ref(),
                 state.target_agents.as_ref(),
+                &execution_fence.host_lease,
+                &execution_fence.host_fence,
+                None,
                 state.target_agents.operation_next_sequence(),
                 &expired,
             )
             .await?
             .is_some()
             {
-                return Ok(expired);
+                return Ok(LocalOperationAdvance {
+                    record: expired,
+                    appended: true,
+                });
             }
             continue;
         }
@@ -1837,23 +2436,30 @@ where
         next.revision = next.revision.saturating_add(1);
         next.status = requested_status;
         if next.execution_id.is_none() {
-            next.execution_id = Some(execution_id.to_string());
+            next.execution_id = Some(execution_fence.executor_claim.execution_id.clone());
         }
         anyhow::ensure!(
-            next.execution_id.as_deref() == Some(execution_id),
+            next.execution_id.as_deref()
+                == Some(execution_fence.executor_claim.execution_id.as_str()),
             "local target operation execution owner changed"
         );
         next.updated_at_ms = now_ms;
         if append_target_operation_snapshot(
             state.runtime.store().as_ref(),
             state.target_agents.as_ref(),
+            &execution_fence.host_lease,
+            &execution_fence.host_fence,
+            Some(&execution_fence.executor_claim),
             state.target_agents.operation_next_sequence(),
             &next,
         )
         .await?
         .is_some()
         {
-            return Ok(next);
+            return Ok(LocalOperationAdvance {
+                record: next,
+                appended: true,
+            });
         }
     }
     anyhow::bail!("local target operation journal changed too frequently")
@@ -1862,10 +2468,15 @@ where
 async fn execute_local_operation<S>(
     state: &AppState<S>,
     operation: &TargetOperationRecord,
+    execution_fence: &LocalOperationExecutionFence,
 ) -> anyhow::Result<Value>
 where
     S: EventStore,
 {
+    let runtime_guard = LocalRuntimeEffectGuard {
+        state,
+        execution_fence,
+    };
     match &operation.spec {
         TargetOperationSpec::ArtifactMaterialize {
             digest,
@@ -1889,6 +2500,7 @@ where
         })),
         TargetOperationSpec::DeploymentApply { deployment } => {
             let reference = &deployment.deployment;
+            execution_fence.ensure_current(state).await?;
             let applied = plurora_runtime::apply_managed_target_deployment(
                 &plurora_runtime::ManagedTargetDeploymentApply {
                     target_id: operation.target_id.clone(),
@@ -1903,18 +2515,27 @@ where
                     pull_if_missing: deployment.pull_if_missing,
                     operation_id: operation.operation_id.clone(),
                 },
+                &runtime_guard,
             )
             .await?;
+            execution_fence.ensure_current(state).await?;
             if let Err(error) = plurora_runtime::wait_for_managed_target_deployment_readiness(
                 &applied,
                 deployment.health_path.as_deref(),
+                &runtime_guard,
             )
             .await
             {
+                if execution_fence.ensure_current(state).await.is_err() {
+                    return Err(plurora_runtime::managed_target_deployment_outcome_unknown(
+                        "candidate readiness after executor fencing",
+                    ));
+                }
                 let cleanup = plurora_runtime::stop_managed_target_deployment(
                     &managed_deployment_ref(operation, &deployment.deployment),
                     0,
                     true,
+                    &runtime_guard,
                 )
                 .await;
                 if cleanup.is_err() {
@@ -1927,8 +2548,10 @@ where
             Ok(serde_json::to_value(applied)?)
         }
         TargetOperationSpec::DeploymentObserve { deployment } => {
+            execution_fence.ensure_current(state).await?;
             let observed = plurora_runtime::observe_managed_target_deployment(
                 &managed_deployment_ref(operation, deployment),
+                &runtime_guard,
             )
             .await?;
             Ok(json!({ "deployment": observed }))
@@ -1936,25 +2559,33 @@ where
         TargetOperationSpec::DeploymentDrain {
             deployment,
             grace_seconds,
-        } => Ok(serde_json::to_value(
-            plurora_runtime::drain_managed_target_deployment(
-                &managed_deployment_ref(operation, deployment),
-                *grace_seconds,
-            )
-            .await?,
-        )?),
+        } => {
+            execution_fence.ensure_current(state).await?;
+            Ok(serde_json::to_value(
+                plurora_runtime::drain_managed_target_deployment(
+                    &managed_deployment_ref(operation, deployment),
+                    *grace_seconds,
+                    &runtime_guard,
+                )
+                .await?,
+            )?)
+        }
         TargetOperationSpec::DeploymentStop {
             deployment,
             grace_seconds,
             force_remove,
-        } => Ok(serde_json::to_value(
-            plurora_runtime::stop_managed_target_deployment(
-                &managed_deployment_ref(operation, deployment),
-                *grace_seconds,
-                *force_remove,
-            )
-            .await?,
-        )?),
+        } => {
+            execution_fence.ensure_current(state).await?;
+            Ok(serde_json::to_value(
+                plurora_runtime::stop_managed_target_deployment(
+                    &managed_deployment_ref(operation, deployment),
+                    *grace_seconds,
+                    *force_remove,
+                    &runtime_guard,
+                )
+                .await?,
+            )?)
+        }
         TargetOperationSpec::HealthProbe => Ok(json!({
             "healthy": true,
             "checked_at_ms": Utc::now().timestamp_millis()
@@ -1984,6 +2615,7 @@ where
                     expected_size_bytes,
                     dockerfile,
                     network_mode,
+                    disposition,
                     build_id,
                     workspace_id,
                     source_tree_digest,
@@ -1995,22 +2627,27 @@ where
                 expected_size_bytes.is_none_or(|expected| expected == context_tar.len() as u64),
                 "local target build context size did not match"
             );
+            execution_fence.ensure_current(state).await?;
+            let built = plurora_runtime::build_managed_target_image(
+                plurora_runtime::ManagedTargetImageBuild {
+                    target_id: operation.target_id.clone(),
+                    installation_id: operation.installation_id.clone(),
+                    workspace_id: workspace_id.clone(),
+                    build_id: build_id.clone(),
+                    dockerfile: dockerfile.clone(),
+                    network_mode: *network_mode,
+                    disposition: *disposition,
+                    source_tree_digest: source_tree_digest.clone(),
+                    build_descriptor_hash: build_descriptor_hash.clone(),
+                    context_digest: digest.clone(),
+                    context_tar: context_tar.to_vec(),
+                },
+                &runtime_guard,
+            )
+            .await?;
+            execution_fence.ensure_current(state).await?;
             Ok(serde_json::to_value(
-                plurora_runtime::build_managed_target_image(
-                    plurora_runtime::ManagedTargetImageBuild {
-                        target_id: operation.target_id.clone(),
-                        installation_id: operation.installation_id.clone(),
-                        workspace_id: workspace_id.clone(),
-                        build_id: build_id.clone(),
-                        dockerfile: dockerfile.clone(),
-                        network_mode: *network_mode,
-                        source_tree_digest: source_tree_digest.clone(),
-                        build_descriptor_hash: build_descriptor_hash.clone(),
-                        context_digest: digest.clone(),
-                        context_tar: context_tar.to_vec(),
-                    },
-                )
-                .await?,
+                plurora_runtime::finalize_managed_target_image_build(built, &runtime_guard).await?,
             )?)
         }
     }
@@ -2036,6 +2673,15 @@ async fn installation_deployment_operation<S>(
 where
     S: EventStore,
 {
+    #[cfg(test)]
+    {
+        state
+            .target_agents
+            .operations
+            .lock()
+            .expect("target operation state lock poisoned")
+            .projection_invocations += 1;
+    }
     if operation.status != TargetOperationStatusKind::Succeeded {
         return Ok(false);
     }
@@ -2251,7 +2897,10 @@ where
     S: EventStore,
 {
     let mut projected = 0usize;
-    for operation in state.target_agents.operations_for_target(target_id) {
+    for operation in state
+        .target_agents
+        .terminal_operations_for_target(target_id)
+    {
         if installation_deployment_operation(state, &operation).await? {
             projected = projected.saturating_add(1);
         }
@@ -2310,23 +2959,29 @@ where
 
 async fn complete_local_operation<S>(
     state: &AppState<S>,
-    operation_id: &str,
+    execution_fence: &LocalOperationExecutionFence,
     receipt: TargetOperationReceipt,
 ) -> anyhow::Result<TargetOperationRecord>
 where
     S: EventStore,
 {
     for _ in 0..8 {
-        sync_target_operation_journal(state.runtime.store().as_ref(), state.target_agents.as_ref())
-            .await?;
+        ensure_executor_claim(
+            state.runtime.store().as_ref(),
+            state.target_agents.as_ref(),
+            &execution_fence.host_lease,
+            &execution_fence.host_fence,
+            &execution_fence.executor_claim,
+        )
+        .await?;
         let current = state
             .target_agents
-            .operation(operation_id)
-            .ok_or_else(|| anyhow::anyhow!("local target operation disappeared"))?;
+            .operation(&execution_fence.executor_claim.operation_id)
+            .context("local target operation disappeared while completing")?;
         if current.status.is_terminal() {
-            installation_deployment_operation(state, &current).await?;
             return Ok(current);
         }
+        execution_fence.ensure_current(state).await?;
         anyhow::ensure!(
             matches!(
                 current.status,
@@ -2347,12 +3002,16 @@ where
         if append_target_operation_snapshot(
             state.runtime.store().as_ref(),
             state.target_agents.as_ref(),
+            &execution_fence.host_lease,
+            &execution_fence.host_fence,
+            Some(&execution_fence.executor_claim),
             state.target_agents.operation_next_sequence(),
             &next,
         )
         .await?
         .is_some()
         {
+            execution_fence.host_lease.ensure_durable_owner().await?;
             installation_deployment_operation(state, &next).await?;
             return Ok(next);
         }
@@ -2363,6 +3022,8 @@ where
 async fn create_operation_record<S>(
     store: &S,
     registry: &TargetAgentRegistry,
+    host_lease: &crate::development::DevelopmentHostLease,
+    host_fence: &TargetOperationHostFence,
     authority_key: &str,
     target: ExecutionTarget,
     request: CreateTargetOperationRequest,
@@ -2416,7 +3077,7 @@ where
     validate_record_integrity(&record, authority_key)?;
 
     for _ in 0..8 {
-        sync_target_operation_journal(store, registry).await?;
+        ensure_operation_host_fence(store, registry, host_lease, host_fence).await?;
         if let Some(key) = record.idempotency_key.as_deref() {
             if let Some((existing_digest, existing)) =
                 registry.idempotent_operation(&record.target_id, &record.installation_id, key)
@@ -2431,6 +3092,9 @@ where
         if append_target_operation_snapshot(
             store,
             registry,
+            host_lease,
+            host_fence,
+            None,
             registry.operation_next_sequence(),
             &record,
         )
@@ -2446,16 +3110,42 @@ where
 async fn append_target_operation_snapshot<S>(
     store: &S,
     registry: &TargetAgentRegistry,
+    host_lease: &crate::development::DevelopmentHostLease,
+    host_fence: &TargetOperationHostFence,
+    executor_claim: Option<&TargetOperationExecutorClaim>,
     expected_next: EventSequence,
     record: &TargetOperationRecord,
 ) -> anyhow::Result<Option<EventEnvelope>>
 where
     S: EventStore,
 {
+    ensure_operation_host_fence(store, registry, host_lease, host_fence).await?;
+    if record.target_id == "local"
+        && !matches!(
+            record.status,
+            TargetOperationStatusKind::Requested | TargetOperationStatusKind::Expired
+        )
+    {
+        let claim = executor_claim.ok_or_else(|| {
+            anyhow::anyhow!("local target operation append has no executor claim")
+        })?;
+        ensure_executor_claim(store, registry, host_lease, host_fence, claim).await?;
+        anyhow::ensure!(
+            claim.operation_id == record.operation_id
+                && record.execution_id.as_deref() == Some(claim.execution_id.as_str()),
+            "local target operation append does not match its executor claim"
+        );
+    } else {
+        anyhow::ensure!(
+            executor_claim.is_none(),
+            "non-executing target operation append unexpectedly has an executor claim"
+        );
+    }
     let authority_key = registry
         .operation_authority_key(&record.target_id, record.authority.lease_epoch)
         .ok_or_else(|| anyhow::anyhow!("target operation authority key is unknown"))?;
     validate_record_integrity(record, &authority_key)?;
+    host_lease.ensure_durable_owner().await?;
     let event = store
         .append_with_sequence_if_next(
             OPERATION_JOURNAL_SESSION.to_string(),
@@ -2511,52 +3201,57 @@ where
 }
 
 pub(super) async fn recover_local_operations_after_restart<S>(
-    store: &S,
-    registry: &TargetAgentRegistry,
+    state: &AppState<S>,
 ) -> anyhow::Result<usize>
 where
     S: EventStore,
 {
-    let candidates = registry
+    let (host_lease, host_fence) = current_operation_host_fence(state).await?;
+    // The Host fence is in the same CAS journal as every operation snapshot.
+    // Once it is established and synchronized, an old writer cannot append
+    // behind a missing/Running conclusion made below.
+    sync_target_operation_journal(state.runtime.store().as_ref(), state.target_agents.as_ref())
+        .await?;
+    let candidates = state
+        .target_agents
         .operations_for_target("local")
         .into_iter()
-        .filter(|operation| {
-            matches!(
-                operation.status,
-                TargetOperationStatusKind::Accepted | TargetOperationStatusKind::Running
-            )
-        })
+        .filter(|operation| operation.status == TargetOperationStatusKind::Running)
         .map(|operation| operation.operation_id)
         .collect::<Vec<_>>();
     let mut recovered = 0usize;
     for operation_id in candidates {
-        let mut completed = false;
-        for _ in 0..8 {
-            sync_target_operation_journal(store, registry).await?;
-            let current = registry
-                .operation(&operation_id)
-                .ok_or_else(|| anyhow::anyhow!("local target operation disappeared"))?;
-            if current.status.is_terminal()
-                || !matches!(
-                    current.status,
-                    TargetOperationStatusKind::Accepted | TargetOperationStatusKind::Running
-                )
-            {
-                completed = true;
-                break;
-            }
-            let execution_id = current
-                .execution_id
-                .clone()
-                .context("recovered local operation has no execution owner")?;
-            let completed_at_ms = Utc::now()
-                .timestamp_millis()
-                .max(current.updated_at_ms)
-                .max(current.authority.issued_at_ms);
-            let receipt = TargetOperationReceipt {
+        let Some(executor_claim) = claim_local_operation(
+            state.runtime.store().as_ref(),
+            state.target_agents.as_ref(),
+            &host_lease,
+            &host_fence,
+            &operation_id,
+        )
+        .await?
+        else {
+            continue;
+        };
+        let execution_fence = LocalOperationExecutionFence {
+            host_lease: host_lease.clone(),
+            host_fence: host_fence.clone(),
+            executor_claim,
+        };
+        let current = execution_fence.ensure_current(state).await?;
+        if current.status != TargetOperationStatusKind::Running {
+            continue;
+        }
+        let completed_at_ms = Utc::now()
+            .timestamp_millis()
+            .max(current.updated_at_ms)
+            .max(current.authority.issued_at_ms);
+        complete_local_operation(
+            state,
+            &execution_fence,
+            TargetOperationReceipt {
                 operation_id: current.operation_id.clone(),
                 target_id: current.target_id.clone(),
-                execution_id,
+                execution_id: execution_fence.executor_claim.execution_id.clone(),
                 step_id: OPERATION_STEP_ID.to_string(),
                 request_digest: current.authority.request_digest.clone(),
                 authority_digest: current.authority.authority_digest.clone(),
@@ -2566,30 +3261,10 @@ where
                 diagnostics: vec![
                     "Host restarted while the local effect outcome was unresolved".to_string(),
                 ],
-            };
-            let mut next = current;
-            next.revision = next.revision.saturating_add(1);
-            next.status = TargetOperationStatusKind::OutcomeUnknown;
-            next.updated_at_ms = completed_at_ms;
-            next.receipt = Some(receipt);
-            if append_target_operation_snapshot(
-                store,
-                registry,
-                registry.operation_next_sequence(),
-                &next,
-            )
-            .await?
-            .is_some()
-            {
-                recovered = recovered.saturating_add(1);
-                completed = true;
-                break;
-            }
-        }
-        anyhow::ensure!(
-            completed,
-            "local target recovery journal changed too frequently"
-        );
+            },
+        )
+        .await?;
+        recovered = recovered.saturating_add(1);
     }
     Ok(recovered)
 }
@@ -2597,6 +3272,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
+    use axum::response::IntoResponse;
     use plurora_runtime::InMemoryEventStore;
 
     const TEST_CREDENTIAL: &str =
@@ -2653,22 +3329,152 @@ mod tests {
         }
     }
 
+    async fn explain_service_error(error: ServiceError) -> anyhow::Error {
+        use axum::response::IntoResponse;
+
+        let response = error.into_response();
+        let status = response.status();
+        let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+            .await
+            .map(|bytes| String::from_utf8_lossy(&bytes).into_owned())
+            .unwrap_or_else(|body_error| format!("<body decode failed: {body_error}>"));
+        anyhow::anyhow!("status={status} body={body}")
+    }
+
+    async fn test_operation_authority(
+        store: Arc<InMemoryEventStore>,
+        development: Arc<crate::DevelopmentRegistry>,
+        registry: Arc<TargetAgentRegistry>,
+    ) -> anyhow::Result<(crate::DevelopmentHostLease, TargetOperationHostFence)> {
+        let lease = crate::acquire_development_host_lease(store.clone(), development).await?;
+        let fence =
+            establish_operation_host_fence(store.as_ref(), registry.as_ref(), &lease).await?;
+        Ok((lease, fence))
+    }
+
+    fn test_state(
+        store: Arc<InMemoryEventStore>,
+        objects: Arc<plurora_runtime::InMemoryObjectStore>,
+        target_agents: Arc<TargetAgentRegistry>,
+    ) -> anyhow::Result<AppState<InMemoryEventStore>> {
+        let installations = crate::InstallationRegistry::ephemeral(store.clone(), objects.clone())?;
+        let runtime = Arc::new(plurora_runtime::Runtime::new(
+            store,
+            plurora_runtime::RuntimeConfig {
+                object_store: objects,
+                installation_control: installations.clone(),
+                ..plurora_runtime::RuntimeConfig::default()
+            },
+        ));
+        Ok(AppState {
+            runtime,
+            static_dir: None,
+            access_token: None,
+            app_base_domain: None,
+            build_jobs: Arc::new(crate::BuildDeployJobRegistry::default()),
+            development: crate::development_registry(),
+            host_access: crate::host_access_registry(),
+            installations,
+            target_agents,
+        })
+    }
+
+    #[derive(Default)]
+    struct CountingLocalOperationDriver {
+        executions: std::sync::atomic::AtomicUsize,
+    }
+
+    impl CountingLocalOperationDriver {
+        fn executions(&self) -> usize {
+            self.executions.load(std::sync::atomic::Ordering::Acquire)
+        }
+    }
+
+    #[async_trait::async_trait]
+    impl LocalOperationDriver for CountingLocalOperationDriver {
+        async fn execute<S>(
+            &self,
+            state: &AppState<S>,
+            operation: &TargetOperationRecord,
+            execution_fence: &LocalOperationExecutionFence,
+        ) -> anyhow::Result<Value>
+        where
+            S: EventStore,
+        {
+            let current = execution_fence.ensure_current(state).await?;
+            anyhow::ensure!(
+                current == *operation && current.status == TargetOperationStatusKind::Running,
+                "test driver received a non-current operation"
+            );
+            self.executions
+                .fetch_add(1, std::sync::atomic::Ordering::AcqRel);
+            Ok(json!({ "healthy": true }))
+        }
+    }
+
+    #[derive(Default)]
+    struct BarrierLocalOperationDriver {
+        entered_effect: tokio::sync::Notify,
+        release_effect: tokio::sync::Notify,
+        effects: std::sync::atomic::AtomicUsize,
+    }
+
+    impl BarrierLocalOperationDriver {
+        fn effects(&self) -> usize {
+            self.effects.load(std::sync::atomic::Ordering::Acquire)
+        }
+    }
+
+    #[async_trait::async_trait]
+    impl LocalOperationDriver for BarrierLocalOperationDriver {
+        async fn execute<S>(
+            &self,
+            state: &AppState<S>,
+            operation: &TargetOperationRecord,
+            execution_fence: &LocalOperationExecutionFence,
+        ) -> anyhow::Result<Value>
+        where
+            S: EventStore,
+        {
+            execution_fence.ensure_current(state).await?;
+            anyhow::ensure!(
+                operation.status == TargetOperationStatusKind::Running,
+                "barrier driver requires a durable Running operation"
+            );
+            self.effects
+                .fetch_add(1, std::sync::atomic::Ordering::AcqRel);
+            self.entered_effect.notify_one();
+            self.release_effect.notified().await;
+            execution_fence.ensure_current(state).await?;
+            self.effects
+                .fetch_add(1, std::sync::atomic::Ordering::AcqRel);
+            Ok(json!({ "healthy": true }))
+        }
+    }
+
     #[tokio::test]
     async fn operation_idempotency_and_hydration_preserve_one_authority() -> anyhow::Result<()> {
-        let store = InMemoryEventStore::default();
-        let registry = test_registry();
+        let store = Arc::new(InMemoryEventStore::default());
+        let registry = Arc::new(test_registry());
+        let development = crate::development_registry();
+        let (lease, fence) =
+            test_operation_authority(store.clone(), development, registry.clone()).await?;
         let authority_key = credential_digest("agent", TEST_CREDENTIAL);
         let first = create_operation_record(
-            &store,
-            &registry,
+            store.as_ref(),
+            registry.as_ref(),
+            &lease,
+            &fence,
             &authority_key,
             test_target(),
             operation_request("retry-1"),
         )
         .await?;
         let duplicate = create_operation_record(
-            &store,
-            &registry,
+            store.as_ref(),
+            registry.as_ref(),
+            &lease,
+            &fence,
             &authority_key,
             test_target(),
             operation_request("retry-1"),
@@ -2678,19 +3484,27 @@ mod tests {
         assert_eq!(first.authority, duplicate.authority);
 
         let restored = test_registry();
-        assert_eq!(sync_target_operation_journal(&store, &restored).await?, 1);
+        assert_eq!(
+            sync_target_operation_journal(store.as_ref(), &restored).await?,
+            2
+        );
         assert_eq!(restored.operation(&first.operation_id), Some(first));
         Ok(())
     }
 
     #[tokio::test]
     async fn authority_tampering_and_raw_secret_receipts_fail_closed() -> anyhow::Result<()> {
-        let store = InMemoryEventStore::default();
-        let registry = test_registry();
+        let store = Arc::new(InMemoryEventStore::default());
+        let registry = Arc::new(test_registry());
+        let development = crate::development_registry();
+        let (lease, fence) =
+            test_operation_authority(store.clone(), development, registry.clone()).await?;
         let authority_key = credential_digest("agent", TEST_CREDENTIAL);
         let record = create_operation_record(
-            &store,
-            &registry,
+            store.as_ref(),
+            registry.as_ref(),
+            &lease,
+            &fence,
             &authority_key,
             test_target(),
             operation_request("retry-1"),
@@ -2755,30 +3569,15 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn local_driver_uses_the_durable_operation_state_and_receipt() -> anyhow::Result<()> {
+    async fn fresh_local_driver_binds_claim_and_executes_exactly_once() -> anyhow::Result<()> {
         let store = Arc::new(InMemoryEventStore::default());
         let objects = Arc::new(plurora_runtime::InMemoryObjectStore::default());
-        let installations = crate::InstallationRegistry::ephemeral(store.clone(), objects.clone())?;
-        let runtime = Arc::new(plurora_runtime::Runtime::new(
-            store.clone(),
-            plurora_runtime::RuntimeConfig {
-                object_store: objects,
-                installation_control: installations.clone(),
-                ..plurora_runtime::RuntimeConfig::default()
-            },
-        ));
         let registry = Arc::new(TargetAgentRegistry::default());
-        let state = AppState {
-            runtime: runtime.clone(),
-            static_dir: None,
-            access_token: None,
-            app_base_domain: None,
-            build_jobs: Arc::new(crate::BuildDeployJobRegistry::default()),
-            development: crate::development_registry(),
-            host_access: crate::host_access_registry(),
-            installations,
-            target_agents: registry.clone(),
-        };
+        let state = test_state(store.clone(), objects, registry.clone())?;
+        let (lease, fence) =
+            test_operation_authority(store.clone(), state.development.clone(), registry.clone())
+                .await?;
+        let runtime = state.runtime.clone();
         let target = runtime
             .config()
             .target_registry
@@ -2791,6 +3590,8 @@ mod tests {
         let requested = create_operation_record(
             store.as_ref(),
             registry.as_ref(),
+            &lease,
+            &fence,
             &authority_key,
             target,
             CreateTargetOperationRequest {
@@ -2802,9 +3603,15 @@ mod tests {
         )
         .await?;
 
-        let completed = drive_local_operation(&state, &requested.operation_id).await?;
+        assert_eq!(requested.status, TargetOperationStatusKind::Requested);
+        assert_eq!(requested.execution_id, None);
+        let driver = CountingLocalOperationDriver::default();
+        let completed =
+            drive_local_operation_with_driver(&state, &requested.operation_id, &driver).await?;
         assert_eq!(completed.status, TargetOperationStatusKind::Succeeded);
         assert_eq!(completed.revision, 4);
+        assert_eq!(driver.executions(), 1);
+        assert_eq!(registry.projection_invocations(), 1);
         assert_eq!(
             completed
                 .receipt
@@ -2814,24 +3621,139 @@ mod tests {
             Some(true)
         );
         assert_eq!(
-            drive_local_operation(&state, &requested.operation_id).await?,
+            drive_local_operation_with_driver(&state, &requested.operation_id, &driver).await?,
             completed
         );
+        assert_eq!(driver.executions(), 1);
+        assert_eq!(registry.projection_invocations(), 1);
 
         let restored = TargetAgentRegistry::default();
         assert_eq!(
             sync_target_operation_journal(store.as_ref(), &restored).await?,
-            4
+            6
         );
         assert_eq!(restored.operation(&requested.operation_id), Some(completed));
         Ok(())
     }
 
     #[tokio::test]
-    async fn hydration_marks_interrupted_local_effect_outcome_unknown() -> anyhow::Result<()> {
-        let store = InMemoryEventStore::default();
-        let registry = TargetAgentRegistry::default();
-        let target = ExecutionTargetRegistry::default()
+    async fn terminal_local_replay_after_owner_release_is_zero_journal() -> anyhow::Result<()> {
+        let store = Arc::new(InMemoryEventStore::default());
+        let objects = Arc::new(plurora_runtime::InMemoryObjectStore::default());
+        let owner_a_registry = Arc::new(TargetAgentRegistry::default());
+        let owner_a_state = test_state(store.clone(), objects.clone(), owner_a_registry.clone())?;
+        let (owner_a_lease, owner_a_fence) = test_operation_authority(
+            store.clone(),
+            owner_a_state.development.clone(),
+            owner_a_registry.clone(),
+        )
+        .await?;
+        let target = owner_a_state
+            .runtime
+            .config()
+            .target_registry
+            .status("local")
+            .await
+            .context("local target missing")?;
+        let authority_key = owner_a_registry
+            .operation_authority_key("local", target.lease_epoch)
+            .context("local target authority key missing")?;
+        let requested = create_operation_record(
+            store.as_ref(),
+            owner_a_registry.as_ref(),
+            &owner_a_lease,
+            &owner_a_fence,
+            &authority_key,
+            target,
+            CreateTargetOperationRequest {
+                installation_id: InstallationId::parse("11111111-1111-4111-8111-111111111111")?,
+                spec: TargetOperationSpec::HealthProbe,
+                idempotency_key: Some("local-terminal-owner-replay".to_string()),
+                expires_in_seconds: Some(120),
+            },
+        )
+        .await?;
+        let owner_a_driver = CountingLocalOperationDriver::default();
+        let completed = drive_local_operation_with_driver(
+            &owner_a_state,
+            &requested.operation_id,
+            &owner_a_driver,
+        )
+        .await?;
+        assert_eq!(completed.status, TargetOperationStatusKind::Succeeded);
+        assert_eq!(owner_a_driver.executions(), 1);
+        assert_eq!(owner_a_registry.projection_invocations(), 1);
+
+        let journal_before = store
+            .list_session_range(&OPERATION_JOURNAL_SESSION.to_string(), None, None)
+            .await?;
+        let snapshot_count_before = journal_before
+            .iter()
+            .filter(|event| event.kind == OPERATION_JOURNAL_EVENT)
+            .count();
+        let host_fence_count_before = journal_before
+            .iter()
+            .filter(|event| event.kind == OPERATION_HOST_FENCE_EVENT)
+            .count();
+        assert_eq!(journal_before.len(), 6);
+        assert_eq!(snapshot_count_before, 4);
+        assert_eq!(host_fence_count_before, 1);
+        crate::release_development_host_lease(store.clone(), &owner_a_lease).await?;
+
+        let owner_b_registry = Arc::new(TargetAgentRegistry::default());
+        let owner_b_state = test_state(store.clone(), objects, owner_b_registry.clone())?;
+        let owner_b_driver = CountingLocalOperationDriver::default();
+        let replayed = drive_local_operation_with_driver(
+            &owner_b_state,
+            &requested.operation_id,
+            &owner_b_driver,
+        )
+        .await?;
+        assert_eq!(replayed, completed);
+        assert_eq!(owner_b_driver.executions(), 0);
+        assert_eq!(owner_b_registry.projection_invocations(), 0);
+        assert!(owner_b_registry
+            .operations
+            .lock()
+            .expect("target operation state lock poisoned")
+            .local_execution_locks
+            .is_empty());
+
+        let journal_after = store
+            .list_session_range(&OPERATION_JOURNAL_SESSION.to_string(), None, None)
+            .await?;
+        assert_eq!(journal_after.len(), journal_before.len());
+        assert_eq!(
+            journal_after
+                .iter()
+                .filter(|event| event.kind == OPERATION_JOURNAL_EVENT)
+                .count(),
+            snapshot_count_before
+        );
+        assert_eq!(
+            journal_after
+                .iter()
+                .filter(|event| event.kind == OPERATION_HOST_FENCE_EVENT)
+                .count(),
+            host_fence_count_before
+        );
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn local_executor_binding_is_state_exact_and_accept_binds_the_claim() -> anyhow::Result<()>
+    {
+        let store = Arc::new(InMemoryEventStore::default());
+        let objects = Arc::new(plurora_runtime::InMemoryObjectStore::default());
+        let registry = Arc::new(TargetAgentRegistry::default());
+        let state = test_state(store.clone(), objects, registry.clone())?;
+        let (lease, fence) =
+            test_operation_authority(store.clone(), state.development.clone(), registry.clone())
+                .await?;
+        let target = state
+            .runtime
+            .config()
+            .target_registry
             .status("local")
             .await
             .expect("local target exists");
@@ -2839,8 +3761,350 @@ mod tests {
             .operation_authority_key("local", target.lease_epoch)
             .expect("local target authority key exists");
         let requested = create_operation_record(
-            &store,
-            &registry,
+            store.as_ref(),
+            registry.as_ref(),
+            &lease,
+            &fence,
+            &authority_key,
+            target,
+            CreateTargetOperationRequest {
+                installation_id: InstallationId::parse("11111111-1111-4111-8111-111111111111")?,
+                spec: TargetOperationSpec::HealthProbe,
+                idempotency_key: Some("local-binding-matrix".to_string()),
+                expires_in_seconds: Some(120),
+            },
+        )
+        .await?;
+        let executor_claim = claim_local_operation(
+            store.as_ref(),
+            registry.as_ref(),
+            &lease,
+            &fence,
+            &requested.operation_id,
+        )
+        .await?
+        .context("executor claim was not created")?;
+        let execution_fence = LocalOperationExecutionFence {
+            host_lease: lease,
+            host_fence: fence,
+            executor_claim: executor_claim.clone(),
+        };
+
+        validate_local_executor_binding(&requested, &executor_claim)?;
+        let mut requested_with_owner = requested.clone();
+        requested_with_owner.execution_id = Some(executor_claim.execution_id.clone());
+        validate_local_executor_binding(&requested_with_owner, &executor_claim)?;
+        requested_with_owner.execution_id = Some("f".repeat(32));
+        assert!(validate_local_executor_binding(&requested_with_owner, &executor_claim).is_err());
+
+        let accepted = advance_local_operation(
+            &state,
+            &execution_fence,
+            TargetOperationStatusKind::Accepted,
+        )
+        .await?;
+        assert!(accepted.appended);
+        assert_eq!(accepted.record.status, TargetOperationStatusKind::Accepted);
+        assert_eq!(
+            accepted.record.execution_id.as_deref(),
+            Some(executor_claim.execution_id.as_str())
+        );
+
+        for status in [
+            TargetOperationStatusKind::Accepted,
+            TargetOperationStatusKind::Running,
+        ] {
+            let mut candidate = accepted.record.clone();
+            candidate.status = status;
+            candidate.execution_id = None;
+            assert!(validate_local_executor_binding(&candidate, &executor_claim).is_err());
+            candidate.execution_id = Some("f".repeat(32));
+            assert!(validate_local_executor_binding(&candidate, &executor_claim).is_err());
+            candidate.execution_id = Some(executor_claim.execution_id.clone());
+            validate_local_executor_binding(&candidate, &executor_claim)?;
+        }
+
+        let mut terminal = accepted.record;
+        terminal.status = TargetOperationStatusKind::Failed;
+        assert!(validate_local_executor_binding(&terminal, &executor_claim).is_err());
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn executor_takeover_fences_old_owner_and_does_not_repeat_running_effect(
+    ) -> anyhow::Result<()> {
+        let store = Arc::new(InMemoryEventStore::default());
+        let objects = Arc::new(plurora_runtime::InMemoryObjectStore::default());
+        let first_registry = Arc::new(TargetAgentRegistry::default());
+        let first_state = test_state(store.clone(), objects.clone(), first_registry.clone())?;
+        let (first_lease, first_host_fence) = test_operation_authority(
+            store.clone(),
+            first_state.development.clone(),
+            first_registry.clone(),
+        )
+        .await?;
+        let target = first_state
+            .runtime
+            .config()
+            .target_registry
+            .status("local")
+            .await
+            .expect("local target exists");
+        let authority_key = first_registry
+            .operation_authority_key("local", target.lease_epoch)
+            .expect("local target authority key exists");
+        let requested = create_operation_record(
+            store.as_ref(),
+            first_registry.as_ref(),
+            &first_lease,
+            &first_host_fence,
+            &authority_key,
+            target,
+            CreateTargetOperationRequest {
+                installation_id: InstallationId::parse("11111111-1111-4111-8111-111111111111")?,
+                spec: TargetOperationSpec::HealthProbe,
+                idempotency_key: Some("local-owner-takeover".to_string()),
+                expires_in_seconds: Some(120),
+            },
+        )
+        .await?;
+        let first_claim = claim_local_operation(
+            store.as_ref(),
+            first_registry.as_ref(),
+            &first_lease,
+            &first_host_fence,
+            &requested.operation_id,
+        )
+        .await?
+        .context("first executor claim was not created")?;
+        let first_execution_fence = LocalOperationExecutionFence {
+            host_lease: first_lease.clone(),
+            host_fence: first_host_fence.clone(),
+            executor_claim: first_claim.clone(),
+        };
+        advance_local_operation(
+            &first_state,
+            &first_execution_fence,
+            TargetOperationStatusKind::Accepted,
+        )
+        .await?;
+        let running = advance_local_operation(
+            &first_state,
+            &first_execution_fence,
+            TargetOperationStatusKind::Running,
+        )
+        .await?;
+        assert!(running.appended);
+
+        crate::release_development_host_lease(store.clone(), &first_lease).await?;
+        let second_registry = Arc::new(TargetAgentRegistry::default());
+        let second_state = test_state(store.clone(), objects, second_registry.clone())?;
+        let (second_lease, second_host_fence) = test_operation_authority(
+            store.clone(),
+            second_state.development.clone(),
+            second_registry.clone(),
+        )
+        .await?;
+        let second_claim = claim_local_operation(
+            store.as_ref(),
+            second_registry.as_ref(),
+            &second_lease,
+            &second_host_fence,
+            &requested.operation_id,
+        )
+        .await?
+        .context("takeover executor claim was not created")?;
+        assert_ne!(second_claim.owner_id, first_claim.owner_id);
+        assert_eq!(second_claim.generation, first_claim.generation + 1);
+        assert_eq!(second_claim.execution_id, first_claim.execution_id);
+        assert!(ensure_executor_claim(
+            store.as_ref(),
+            second_registry.as_ref(),
+            &second_lease,
+            &second_host_fence,
+            &first_claim,
+        )
+        .await
+        .is_err());
+
+        assert!(first_execution_fence
+            .ensure_current(&first_state)
+            .await
+            .is_err());
+        assert!(advance_local_operation(
+            &first_state,
+            &first_execution_fence,
+            TargetOperationStatusKind::Accepted,
+        )
+        .await
+        .is_err());
+        assert!(complete_local_operation(
+            &first_state,
+            &first_execution_fence,
+            TargetOperationReceipt {
+                operation_id: requested.operation_id.clone(),
+                target_id: "local".to_string(),
+                execution_id: first_claim.execution_id.clone(),
+                step_id: OPERATION_STEP_ID.to_string(),
+                request_digest: requested.authority.request_digest.clone(),
+                authority_digest: requested.authority.authority_digest.clone(),
+                status: TargetOperationReceiptStatus::Succeeded,
+                completed_at_ms: Utc::now().timestamp_millis(),
+                output: json!({ "healthy": true }),
+                diagnostics: Vec::new(),
+            },
+        )
+        .await
+        .is_err());
+
+        let driver = CountingLocalOperationDriver::default();
+        assert!(
+            drive_local_operation_with_driver(&first_state, &requested.operation_id, &driver,)
+                .await
+                .is_err()
+        );
+        assert_eq!(driver.executions(), 0);
+        let recovered =
+            drive_local_operation_with_driver(&second_state, &requested.operation_id, &driver)
+                .await?;
+        assert_eq!(recovered.status, TargetOperationStatusKind::OutcomeUnknown);
+        assert_eq!(
+            recovered.receipt.as_ref().map(|receipt| receipt.status),
+            Some(TargetOperationReceiptStatus::OutcomeUnknown)
+        );
+        assert_eq!(driver.executions(), 0);
+        crate::release_development_host_lease(store, &second_lease).await?;
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn two_registry_takeover_stops_an_inflight_owner_before_its_next_effect_and_append(
+    ) -> anyhow::Result<()> {
+        let store = Arc::new(InMemoryEventStore::default());
+        let objects = Arc::new(plurora_runtime::InMemoryObjectStore::default());
+        let first_registry = Arc::new(TargetAgentRegistry::default());
+        let first_state = test_state(store.clone(), objects.clone(), first_registry.clone())?;
+        let (first_lease, first_fence) = test_operation_authority(
+            store.clone(),
+            first_state.development.clone(),
+            first_registry.clone(),
+        )
+        .await?;
+        let target = first_state
+            .runtime
+            .config()
+            .target_registry
+            .status("local")
+            .await
+            .context("local target missing")?;
+        let authority_key = first_registry
+            .operation_authority_key("local", target.lease_epoch)
+            .context("local authority key missing")?;
+        let requested = create_operation_record(
+            store.as_ref(),
+            first_registry.as_ref(),
+            &first_lease,
+            &first_fence,
+            &authority_key,
+            target,
+            CreateTargetOperationRequest {
+                installation_id: InstallationId::parse("11111111-1111-4111-8111-111111111111")?,
+                spec: TargetOperationSpec::HealthProbe,
+                idempotency_key: Some("barrier-owner-takeover".to_string()),
+                expires_in_seconds: Some(120),
+            },
+        )
+        .await?;
+
+        let driver = Arc::new(BarrierLocalOperationDriver::default());
+        let first_task_state = first_state.clone();
+        let first_task_driver = driver.clone();
+        let operation_id = requested.operation_id.clone();
+        let first_task = tokio::spawn(async move {
+            drive_local_operation_with_driver(
+                &first_task_state,
+                &operation_id,
+                first_task_driver.as_ref(),
+            )
+            .await
+        });
+        driver.entered_effect.notified().await;
+        assert_eq!(driver.effects(), 1);
+
+        crate::release_development_host_lease(store.clone(), &first_lease).await?;
+        let second_registry = Arc::new(TargetAgentRegistry::default());
+        let second_state = test_state(store.clone(), objects, second_registry.clone())?;
+        let second_lease =
+            crate::acquire_development_host_lease(store.clone(), second_state.development.clone())
+                .await?;
+        synchronize_target_operations_as_owner(&second_state).await?;
+        let second_claim = claim_local_operation(
+            store.as_ref(),
+            second_registry.as_ref(),
+            &second_lease,
+            &second_registry
+                .operation_host_fence()
+                .context("second Host fence missing")?,
+            &requested.operation_id,
+        )
+        .await?
+        .context("second executor claim missing")?;
+        assert_eq!(
+            second_claim.execution_id,
+            first_registry
+                .operation(&requested.operation_id)
+                .and_then(|operation| operation.execution_id)
+                .context("first execution identity missing")?
+        );
+
+        let second_driver = CountingLocalOperationDriver::default();
+        let recovered = drive_local_operation_with_driver(
+            &second_state,
+            &requested.operation_id,
+            &second_driver,
+        )
+        .await?;
+        assert_eq!(recovered.status, TargetOperationStatusKind::OutcomeUnknown);
+        assert_eq!(second_driver.executions(), 0);
+
+        driver.release_effect.notify_one();
+        assert!(first_task.await?.is_err());
+        assert_eq!(driver.effects(), 1);
+        sync_target_operation_journal(store.as_ref(), first_registry.as_ref()).await?;
+        assert_eq!(
+            first_registry
+                .operation(&requested.operation_id)
+                .context("final operation missing")?,
+            recovered
+        );
+        crate::release_development_host_lease(store, &second_lease).await?;
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn hydration_marks_interrupted_local_effect_outcome_unknown() -> anyhow::Result<()> {
+        let store = Arc::new(InMemoryEventStore::default());
+        let objects = Arc::new(plurora_runtime::InMemoryObjectStore::default());
+        let registry = Arc::new(TargetAgentRegistry::default());
+        let state = test_state(store.clone(), objects, registry.clone())?;
+        let (lease, fence) =
+            test_operation_authority(store.clone(), state.development.clone(), registry.clone())
+                .await?;
+        let target = state
+            .runtime
+            .config()
+            .target_registry
+            .status("local")
+            .await
+            .expect("local target exists");
+        let authority_key = registry
+            .operation_authority_key("local", target.lease_epoch)
+            .expect("local target authority key exists");
+        let requested = create_operation_record(
+            store.as_ref(),
+            registry.as_ref(),
+            &lease,
+            &fence,
             &authority_key,
             target,
             CreateTargetOperationRequest {
@@ -2851,37 +4115,67 @@ mod tests {
             },
         )
         .await?;
-        let execution_id = local_execution_id(&requested.operation_id);
+        let executor_claim = claim_local_operation(
+            store.as_ref(),
+            registry.as_ref(),
+            &lease,
+            &fence,
+            &requested.operation_id,
+        )
+        .await?
+        .context("executor claim was not created")?;
         let mut accepted = requested.clone();
         accepted.revision = 2;
         accepted.status = TargetOperationStatusKind::Accepted;
-        accepted.execution_id = Some(execution_id.clone());
+        accepted.execution_id = Some(executor_claim.execution_id.clone());
         accepted.updated_at_ms = accepted.updated_at_ms.saturating_add(1);
         append_target_operation_snapshot(
-            &store,
-            &registry,
+            store.as_ref(),
+            registry.as_ref(),
+            &lease,
+            &fence,
+            Some(&executor_claim),
             registry.operation_next_sequence(),
             &accepted,
         )
         .await?
         .context("accepted snapshot was not appended")?;
-        let mut running = accepted;
+        let mut running = accepted.clone();
         running.revision = 3;
         running.status = TargetOperationStatusKind::Running;
         running.updated_at_ms = running.updated_at_ms.saturating_add(1);
         append_target_operation_snapshot(
-            &store,
-            &registry,
+            store.as_ref(),
+            registry.as_ref(),
+            &lease,
+            &fence,
+            Some(&executor_claim),
             registry.operation_next_sequence(),
             &running,
         )
         .await?
         .context("running snapshot was not appended")?;
+        assert_eq!(accepted.status, TargetOperationStatusKind::Accepted);
+        assert_eq!(running.status, TargetOperationStatusKind::Running);
 
-        let restored = TargetAgentRegistry::default();
-        assert_eq!(sync_target_operation_journal(&store, &restored).await?, 3);
+        crate::release_development_host_lease(store.clone(), &lease).await?;
+        let restored = Arc::new(TargetAgentRegistry::default());
+        let restored_state = test_state(
+            store.clone(),
+            Arc::new(plurora_runtime::InMemoryObjectStore::default()),
+            restored.clone(),
+        )?;
+        let restored_lease = crate::acquire_development_host_lease(
+            store.clone(),
+            restored_state.development.clone(),
+        )
+        .await?;
         assert_eq!(
-            recover_local_operations_after_restart(&store, &restored).await?,
+            sync_target_operation_journal(store.as_ref(), restored.as_ref()).await?,
+            5
+        );
+        assert_eq!(
+            recover_local_operations_after_restart(&restored_state).await?,
             1
         );
         let recovered = restored
@@ -2894,8 +4188,12 @@ mod tests {
         );
 
         let replayed = TargetAgentRegistry::default();
-        assert_eq!(sync_target_operation_journal(&store, &replayed).await?, 4);
+        assert_eq!(
+            sync_target_operation_journal(store.as_ref(), &replayed).await?,
+            8
+        );
         assert_eq!(replayed.operation(&requested.operation_id), Some(recovered));
+        crate::release_development_host_lease(store, &restored_lease).await?;
         Ok(())
     }
 
@@ -3090,6 +4388,420 @@ mod tests {
         Ok(())
     }
 
+    #[tokio::test]
+    async fn terminal_receipt_replay_has_zero_projection_effect_and_hydration_uses_journal_order(
+    ) -> anyhow::Result<()> {
+        let store = Arc::new(InMemoryEventStore::default());
+        let objects = Arc::new(plurora_runtime::InMemoryObjectStore::default());
+        let registry = Arc::new(TargetAgentRegistry::default());
+        let state = test_state(store.clone(), objects, registry.clone())?;
+        let (enrollment, enrollment_token) = create_enrollment_record(
+            store.as_ref(),
+            registry.as_ref(),
+            state.runtime.config().target_registry.as_ref(),
+            "remote-1".to_string(),
+            CreateTargetEnrollmentRequest {
+                display_name: "remote deployment target".to_string(),
+                reachability: ExecutionTargetReachability::ReverseTunnel,
+                allowed_capabilities: vec![ExecutionTargetCapability::Deployment],
+                labels: BTreeMap::new(),
+                expires_in_seconds: Some(120),
+            },
+        )
+        .await?;
+        let (target, agent_credential) = claim_enrollment_record(
+            store.as_ref(),
+            registry.as_ref(),
+            state.runtime.config().target_registry.as_ref(),
+            ClaimTargetEnrollmentRequest {
+                enrollment_token,
+                protocol_versions: vec![PROTOCOL_VERSION.to_string()],
+                declared_capabilities: enrollment.allowed_capabilities,
+            },
+        )
+        .await?;
+        let (host_lease, host_fence) =
+            test_operation_authority(store.clone(), state.development.clone(), registry.clone())
+                .await?;
+        let installation_id = InstallationId::parse("11111111-1111-4111-8111-111111111111")?;
+        let lease = state
+            .runtime
+            .config()
+            .port_lease_registry
+            .lease(plurora_runtime::PortLeaseRequest {
+                target_id: target.id.clone(),
+                port_name: "http".to_string(),
+                protocol: plurora_runtime::PortProtocol::Tcp,
+                requested_port: Some(40_001),
+            })
+            .await
+            .lease;
+        state
+            .runtime
+            .config()
+            .proxy_route_registry
+            .register(plurora_runtime::ProxyRouteRegisterRequest {
+                route_id: Some("route-replay".to_string()),
+                upstream: plurora_runtime::ProxyRouteUpstream {
+                    port_lease_id: lease.id.clone(),
+                    port_name: "http".to_string(),
+                },
+                protocol: plurora_runtime::ProxyProtocol::Http,
+                access: plurora_runtime::ProxyRouteAccess::HostAuthenticated,
+            })
+            .await;
+        let deployment = TargetDeploymentDescriptor {
+            deployment: TargetDeploymentRef {
+                deployment_id: "deployment-replay".to_string(),
+                route_id: "route-replay".to_string(),
+                port_lease_id: lease.id.clone(),
+            },
+            port_name: "http".to_string(),
+            image: "registry.example/app:latest".to_string(),
+            container_port: 8080,
+            requested_host_port: None,
+            pull_if_missing: false,
+            health_path: None,
+        };
+        let authority_key = registry
+            .operation_authority_key(&target.id, target.lease_epoch)
+            .context("remote target operation authority key missing")?;
+
+        let mut apply = create_operation_record(
+            store.as_ref(),
+            registry.as_ref(),
+            &host_lease,
+            &host_fence,
+            &authority_key,
+            target.clone(),
+            CreateTargetOperationRequest {
+                installation_id: installation_id.clone(),
+                spec: TargetOperationSpec::DeploymentApply {
+                    deployment: deployment.clone(),
+                },
+                idempotency_key: Some("projection-apply".to_string()),
+                expires_in_seconds: Some(120),
+            },
+        )
+        .await?;
+        let execution_id = "a".repeat(32);
+        for status in [
+            TargetOperationStatusKind::Accepted,
+            TargetOperationStatusKind::Running,
+        ] {
+            apply.revision = apply.revision.saturating_add(1);
+            apply.status = status;
+            apply.execution_id = Some(execution_id.clone());
+            apply.updated_at_ms = apply.updated_at_ms.saturating_add(1);
+            append_target_operation_snapshot(
+                store.as_ref(),
+                registry.as_ref(),
+                &host_lease,
+                &host_fence,
+                None,
+                registry.operation_next_sequence(),
+                &apply,
+            )
+            .await?
+            .context("remote apply progress snapshot lost")?;
+        }
+        let apply_receipt = TargetOperationReceipt {
+            operation_id: apply.operation_id.clone(),
+            target_id: target.id.clone(),
+            execution_id: execution_id.clone(),
+            step_id: OPERATION_STEP_ID.to_string(),
+            request_digest: apply.authority.request_digest.clone(),
+            authority_digest: apply.authority.authority_digest.clone(),
+            status: TargetOperationReceiptStatus::Succeeded,
+            completed_at_ms: apply.updated_at_ms.saturating_add(1),
+            output: json!({
+                "bind_host": "127.0.0.1",
+                "host_port": 49_152,
+                "running": true
+            }),
+            diagnostics: Vec::new(),
+        };
+        let mut headers = HeaderMap::new();
+        headers.insert(
+            header::AUTHORIZATION,
+            HeaderValue::from_str(&format!("PluroraTarget {agent_credential}"))?,
+        );
+        let applied = match complete_operation::<InMemoryEventStore>(
+            State(state.clone()),
+            headers.clone(),
+            Path(apply.operation_id.clone()),
+            Json(apply_receipt.clone()),
+        )
+        .await
+        {
+            Ok(Json(record)) => record,
+            Err(error) => return Err(explain_service_error(error).await),
+        };
+        assert_eq!(applied.status, TargetOperationStatusKind::Succeeded);
+        assert_eq!(registry.projection_invocations(), 1);
+
+        let mut stop = create_operation_record(
+            store.as_ref(),
+            registry.as_ref(),
+            &host_lease,
+            &host_fence,
+            &authority_key,
+            target.clone(),
+            CreateTargetOperationRequest {
+                installation_id,
+                spec: TargetOperationSpec::DeploymentStop {
+                    deployment: deployment.deployment.clone(),
+                    grace_seconds: 0,
+                    force_remove: true,
+                },
+                idempotency_key: Some("projection-stop".to_string()),
+                expires_in_seconds: Some(120),
+            },
+        )
+        .await?;
+        let stop_execution_id = "b".repeat(32);
+        for status in [
+            TargetOperationStatusKind::Accepted,
+            TargetOperationStatusKind::Running,
+        ] {
+            stop.revision = stop.revision.saturating_add(1);
+            stop.status = status;
+            stop.execution_id = Some(stop_execution_id.clone());
+            stop.updated_at_ms = stop.updated_at_ms.saturating_add(1);
+            append_target_operation_snapshot(
+                store.as_ref(),
+                registry.as_ref(),
+                &host_lease,
+                &host_fence,
+                None,
+                registry.operation_next_sequence(),
+                &stop,
+            )
+            .await?
+            .context("remote stop progress snapshot lost")?;
+        }
+        let stop_receipt = TargetOperationReceipt {
+            operation_id: stop.operation_id.clone(),
+            target_id: stop.target_id.clone(),
+            execution_id: stop_execution_id,
+            step_id: OPERATION_STEP_ID.to_string(),
+            request_digest: stop.authority.request_digest.clone(),
+            authority_digest: stop.authority.authority_digest.clone(),
+            status: TargetOperationReceiptStatus::Succeeded,
+            completed_at_ms: stop.updated_at_ms.saturating_add(1),
+            output: json!({ "stopped": true, "removed": true }),
+            diagnostics: Vec::new(),
+        };
+        let Json(stopped) = match complete_operation::<InMemoryEventStore>(
+            State(state.clone()),
+            headers.clone(),
+            Path(stop.operation_id.clone()),
+            Json(stop_receipt),
+        )
+        .await
+        {
+            Ok(record) => record,
+            Err(error) => return Err(explain_service_error(error).await),
+        };
+        assert_eq!(stopped.status, TargetOperationStatusKind::Succeeded);
+        assert_eq!(registry.projection_invocations(), 2);
+        assert!(state
+            .runtime
+            .config()
+            .proxy_route_registry
+            .status("route-replay")
+            .await
+            .is_some_and(|route| {
+                !route.ready && route.status == plurora_runtime::ProxyRouteStatusKind::Stale
+            }));
+
+        let journal_before = store
+            .list_session_range(&OPERATION_JOURNAL_SESSION.to_string(), None, None)
+            .await?;
+        let snapshot_count_before = journal_before
+            .iter()
+            .filter(|event| event.kind == OPERATION_JOURNAL_EVENT)
+            .count();
+        let host_fence_count_before = journal_before
+            .iter()
+            .filter(|event| event.kind == OPERATION_HOST_FENCE_EVENT)
+            .count();
+        assert_eq!(journal_before.len(), 9);
+        assert_eq!(snapshot_count_before, 8);
+        assert_eq!(host_fence_count_before, 1);
+        let lease_before = state
+            .runtime
+            .config()
+            .port_lease_registry
+            .status(&lease.id)
+            .await
+            .map(|lease| (lease.port, lease.status));
+        let route_before = state
+            .runtime
+            .config()
+            .proxy_route_registry
+            .status("route-replay")
+            .await
+            .map(|route| {
+                (
+                    route.status,
+                    route.ready,
+                    route.upstream.port_lease_id,
+                    route.upstream.port_name,
+                )
+            });
+        crate::release_development_host_lease(store.clone(), &host_lease).await?;
+
+        let replay_registry = Arc::new(TargetAgentRegistry::default());
+        let replay_state = AppState {
+            runtime: state.runtime.clone(),
+            static_dir: None,
+            access_token: None,
+            app_base_domain: None,
+            build_jobs: state.build_jobs.clone(),
+            development: crate::development_registry(),
+            host_access: state.host_access.clone(),
+            installations: state.installations.clone(),
+            target_agents: replay_registry.clone(),
+        };
+        let unauthenticated = complete_operation::<InMemoryEventStore>(
+            State(replay_state.clone()),
+            HeaderMap::new(),
+            Path(apply.operation_id.clone()),
+            Json(apply_receipt.clone()),
+        )
+        .await
+        .expect_err("terminal operation must not be visible without the current agent credential")
+        .into_response();
+        assert_eq!(unauthenticated.status(), StatusCode::UNAUTHORIZED);
+
+        let Json(replayed) = match complete_operation::<InMemoryEventStore>(
+            State(replay_state.clone()),
+            headers.clone(),
+            Path(apply.operation_id.clone()),
+            Json(apply_receipt.clone()),
+        )
+        .await
+        {
+            Ok(record) => record,
+            Err(error) => return Err(explain_service_error(error).await),
+        };
+        assert_eq!(replayed, applied);
+        assert_eq!(replay_registry.projection_invocations(), 0);
+
+        let mut different_receipt = apply_receipt;
+        different_receipt.diagnostics = vec!["different terminal receipt".to_string()];
+        let different = complete_operation::<InMemoryEventStore>(
+            State(replay_state),
+            headers,
+            Path(apply.operation_id.clone()),
+            Json(different_receipt),
+        )
+        .await
+        .expect_err("a different terminal receipt must conflict")
+        .into_response();
+        assert_eq!(different.status(), StatusCode::CONFLICT);
+        assert_eq!(replay_registry.projection_invocations(), 0);
+
+        let journal_after = store
+            .list_session_range(&OPERATION_JOURNAL_SESSION.to_string(), None, None)
+            .await?;
+        assert_eq!(journal_after.len(), journal_before.len());
+        assert_eq!(
+            journal_after
+                .iter()
+                .filter(|event| event.kind == OPERATION_JOURNAL_EVENT)
+                .count(),
+            snapshot_count_before
+        );
+        assert_eq!(
+            journal_after
+                .iter()
+                .filter(|event| event.kind == OPERATION_HOST_FENCE_EVENT)
+                .count(),
+            host_fence_count_before
+        );
+        assert_eq!(
+            state
+                .runtime
+                .config()
+                .port_lease_registry
+                .status(&lease.id)
+                .await
+                .map(|lease| (lease.port, lease.status)),
+            lease_before
+        );
+        assert_eq!(
+            state
+                .runtime
+                .config()
+                .proxy_route_registry
+                .status("route-replay")
+                .await
+                .map(|route| {
+                    (
+                        route.status,
+                        route.ready,
+                        route.upstream.port_lease_id,
+                        route.upstream.port_name,
+                    )
+                }),
+            route_before
+        );
+
+        state
+            .runtime
+            .config()
+            .port_lease_registry
+            .set_status(&lease.id, plurora_runtime::PortLeaseStatusKind::Active)
+            .await;
+        state
+            .runtime
+            .config()
+            .proxy_route_registry
+            .set_status(
+                "route-replay",
+                plurora_runtime::ProxyRouteStatusKind::Active,
+            )
+            .await;
+        state
+            .runtime
+            .config()
+            .proxy_route_registry
+            .set_ready("route-replay", true)
+            .await;
+        let restored_registry = Arc::new(TargetAgentRegistry::default());
+        sync_target_agent_journal(
+            store.as_ref(),
+            restored_registry.as_ref(),
+            state.runtime.config().target_registry.as_ref(),
+        )
+        .await?;
+        sync_target_operation_journal(store.as_ref(), restored_registry.as_ref()).await?;
+        let restored_state = AppState {
+            runtime: state.runtime.clone(),
+            static_dir: None,
+            access_token: None,
+            app_base_domain: None,
+            build_jobs: state.build_jobs.clone(),
+            development: state.development.clone(),
+            host_access: state.host_access.clone(),
+            installations: state.installations.clone(),
+            target_agents: restored_registry,
+        };
+        reconcile_target_deployment_projections(&restored_state, "remote-1").await?;
+        assert!(restored_state
+            .runtime
+            .config()
+            .proxy_route_registry
+            .status("route-replay")
+            .await
+            .is_some_and(|route| {
+                !route.ready && route.status == plurora_runtime::ProxyRouteStatusKind::Stale
+            }));
+        Ok(())
+    }
+
     #[test]
     fn deployment_operation_binds_ownership_and_rejects_unknown_fields() -> anyhow::Result<()> {
         let installation_id = InstallationId::parse("11111111-1111-4111-8111-111111111111")?;
@@ -3172,6 +4884,8 @@ mod tests {
                 expected_size_bytes: Some(1024),
                 dockerfile: "docker/Dockerfile".to_string(),
                 network_mode: plurora_runtime::ManagedTargetBuildNetworkMode::None,
+                disposition:
+                    plurora_runtime::ManagedTargetImageDisposition::RemoveAfterVerification,
                 build_id: "build-1".to_string(),
                 workspace_id,
                 source_tree_digest: format!("sha256:{}", "b".repeat(64)),
@@ -3194,6 +4908,82 @@ mod tests {
             operation_request_digest("remote-1", &installation_id, &spec)?,
             operation_request_digest("remote-1", &installation_id, &changed)?
         );
+        let mut changed_disposition = spec.clone();
+        let TargetOperationSpec::VerifierRun {
+            verifier: DeclarativeVerifierDescriptor::DockerBuild { disposition, .. },
+        } = &mut changed_disposition
+        else {
+            unreachable!()
+        };
+        *disposition = plurora_runtime::ManagedTargetImageDisposition::RetainForDeployment;
+        assert_ne!(
+            operation_request_digest("remote-1", &installation_id, &spec)?,
+            operation_request_digest("remote-1", &installation_id, &changed_disposition)?
+        );
+        let serialized = serde_json::to_value(&spec)?;
+        let mut missing_disposition = serialized.clone();
+        missing_disposition["verifier"]
+            .as_object_mut()
+            .expect("verifier object")
+            .remove("disposition");
+        assert!(serde_json::from_value::<TargetOperationSpec>(missing_disposition).is_err());
+        let mut unknown_disposition = serialized;
+        unknown_disposition["verifier"]["disposition"] = json!("delete_maybe");
+        assert!(serde_json::from_value::<TargetOperationSpec>(unknown_disposition).is_err());
+
+        let now_ms = Utc::now().timestamp_millis();
+        let operation = TargetOperationRecord {
+            operation_id: "operation-docker-build".to_string(),
+            target_id: "remote-1".to_string(),
+            installation_id: installation_id.clone(),
+            revision: 4,
+            status: TargetOperationStatusKind::Succeeded,
+            execution_id: Some("d".repeat(32)),
+            spec: spec.clone(),
+            authority: TargetOperationAuthority {
+                target_id: "remote-1".to_string(),
+                operation_id: "operation-docker-build".to_string(),
+                step_id: OPERATION_STEP_ID.to_string(),
+                installation_id: installation_id.clone(),
+                effect: TargetOperationEffect::VerifierRun,
+                artifact_digests: spec.artifact_digests(),
+                lease_epoch: 7,
+                policy_epoch: 11,
+                issued_at_ms: now_ms,
+                expires_at_ms: now_ms + 120_000,
+                nonce: "nonce".to_string(),
+                request_digest: format!("sha256:{}", "d".repeat(64)),
+                authority_digest: format!("sha256:{}", "e".repeat(64)),
+            },
+            idempotency_key: Some("docker-build-1".to_string()),
+            receipt: None,
+            created_at_ms: now_ms,
+            updated_at_ms: now_ms,
+        };
+        let output = serde_json::to_value(plurora_runtime::ManagedTargetImageBuildReceipt {
+            target_id: "remote-1".to_string(),
+            image: format!("plurora/{}:build-1", installation_id.as_str()),
+            image_id: format!("sha256:{}", "f".repeat(64)),
+            installation_id,
+            workspace_id: WorkspaceId::parse("22222222-2222-4222-8222-222222222222")?,
+            build_id: "build-1".to_string(),
+            dockerfile: "docker/Dockerfile".to_string(),
+            network_mode: plurora_runtime::ManagedTargetBuildNetworkMode::None,
+            disposition: plurora_runtime::ManagedTargetImageDisposition::RemoveAfterVerification,
+            context_digest: format!("sha256:{}", "a".repeat(64)),
+            source_tree_digest: format!("sha256:{}", "b".repeat(64)),
+            build_descriptor_hash: format!("sha256:{}", "c".repeat(64)),
+            image_removed: true,
+            image_retained: false,
+        })?;
+        validate_succeeded_operation_output(&operation, &output)?;
+        let mut retained = output.clone();
+        retained["image_removed"] = json!(false);
+        retained["image_retained"] = json!(true);
+        assert!(validate_succeeded_operation_output(&operation, &retained).is_err());
+        let mut wrong_target = output;
+        wrong_target["target_id"] = json!("remote-2");
+        assert!(validate_succeeded_operation_output(&operation, &wrong_target).is_err());
         Ok(())
     }
 }

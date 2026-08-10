@@ -140,13 +140,15 @@ pub use secret::{
 pub use subprocess::{dispatch_reverse_platform_frame, SubprocessLogLine, SubprocessSupervisor};
 pub use target_deployment::{
     apply_managed_target_deployment, build_managed_target_image, count_managed_target_deployments,
-    drain_managed_target_deployment, is_managed_target_deployment_outcome_unknown,
-    managed_target_deployment_outcome_unknown, observe_managed_target_deployment,
-    open_managed_target_tunnel_stream, stop_managed_target_deployment,
-    validate_managed_target_deployment_runtime, wait_for_managed_target_deployment_readiness,
-    ManagedTargetBuildNetworkMode, ManagedTargetDeploymentApply,
-    ManagedTargetDeploymentDrainReceipt, ManagedTargetDeploymentObservation,
-    ManagedTargetDeploymentOutcomeUnknown, ManagedTargetDeploymentRef,
-    ManagedTargetDeploymentStopReceipt, ManagedTargetImageBuild, ManagedTargetImageBuildReceipt,
+    drain_managed_target_deployment, finalize_managed_target_image_build,
+    is_managed_target_deployment_outcome_unknown, managed_target_deployment_outcome_unknown,
+    observe_managed_target_deployment, open_managed_target_tunnel_stream,
+    remove_managed_target_image, stop_managed_target_deployment,
+    validate_managed_target_deployment_runtime, validate_managed_target_image_build_receipt,
+    wait_for_managed_target_deployment_readiness, ManagedTargetBuildNetworkMode,
+    ManagedTargetDeploymentApply, ManagedTargetDeploymentDrainReceipt,
+    ManagedTargetDeploymentObservation, ManagedTargetDeploymentOutcomeUnknown,
+    ManagedTargetDeploymentRef, ManagedTargetDeploymentStopReceipt, ManagedTargetEffectGuard,
+    ManagedTargetImageBuild, ManagedTargetImageBuildReceipt, ManagedTargetImageDisposition,
 };
 pub use tavern::TAVERN_COMPAT_DEFERRED;
