@@ -2519,9 +2519,12 @@ components:
             anyOf:
             - $ref: '#/components/schemas/InstallationRollbackPointer'
             - type: 'null'
+          work_summary:
+            $ref: '#/components/schemas/InstallationWorkSummary'
         required:
         - record
         - revision
+        - work_summary
         title: InstallationView
         type: object
       type: array
@@ -2859,6 +2862,30 @@ components:
       type: object
     HostProxyUnregisteredPayload:
       type: object
+    HostRunListResult:
+      items:
+        $schema: https://json-schema.org/draft/2020-12/schema
+        properties:
+          entrypoint_id:
+            type: string
+          installation_revision:
+            format: uint64
+            minimum: 0.0
+            type: integer
+          record:
+            $ref: '#/components/schemas/RunRecord'
+          revision:
+            format: uint64
+            minimum: 0.0
+            type: integer
+        required:
+        - entrypoint_id
+        - installation_revision
+        - record
+        - revision
+        title: RunView
+        type: object
+      type: array
     HostTargetListResult:
       items:
         $schema: https://json-schema.org/draft/2020-12/schema
@@ -3972,9 +3999,53 @@ components:
           anyOf:
           - $ref: '#/components/schemas/InstallationRollbackPointer'
           - type: 'null'
+        work_summary:
+          $ref: '#/components/schemas/InstallationWorkSummary'
       required:
       - record
       - revision
+      - work_summary
+      type: object
+    InstallationWorkSummary:
+      additionalProperties: false
+      description: Host-projected discovery metadata from the exact, verified WorkRevision selected by an Installation. This is descriptive content, not authority.
+      properties:
+        annotations:
+          additionalProperties: true
+          type: object
+        content_roots:
+          items:
+            $ref: '#/components/schemas/ArtifactDescriptor'
+          type: array
+        description:
+          type: string
+        entrypoints:
+          items:
+            $ref: '#/components/schemas/WorkEntrypoint'
+          type: array
+        operational_intent:
+          anyOf:
+          - $ref: '#/components/schemas/ArtifactDescriptor'
+          - type: 'null'
+        rights:
+          anyOf:
+          - $ref: '#/components/schemas/ArtifactDescriptor'
+          - type: 'null'
+        title:
+          type: string
+        transparency:
+          anyOf:
+          - $ref: '#/components/schemas/ArtifactDescriptor'
+          - type: 'null'
+        work_id:
+          $ref: '#/components/schemas/WorkId'
+      required:
+      - annotations
+      - content_roots
+      - description
+      - entrypoints
+      - title
+      - work_id
       type: object
     Intent:
       $schema: https://json-schema.org/draft/2020-12/schema
@@ -7285,6 +7356,51 @@ components:
       - redistribute_artifacts
       title: RightsDeclaration
       type: object
+    RunEntrypointPreflight:
+      additionalProperties: false
+      properties:
+        entrypoint_id:
+          type: string
+        gaps:
+          items:
+            $ref: '#/components/schemas/RunGap'
+          type: array
+      required:
+      - entrypoint_id
+      - gaps
+      type: object
+    RunGap:
+      additionalProperties: false
+      properties:
+        next_step:
+          type: string
+        node_id:
+          type:
+          - string
+          - 'null'
+        port_id:
+          type:
+          - string
+          - 'null'
+        reason_code:
+          type: string
+      required:
+      - next_step
+      - reason_code
+      type: object
+    RunGetRequest:
+      $schema: https://json-schema.org/draft/2020-12/schema
+      additionalProperties: false
+      properties:
+        installation_id:
+          $ref: '#/components/schemas/InstallationId'
+        run_id:
+          $ref: '#/components/schemas/RunId'
+      required:
+      - installation_id
+      - run_id
+      title: RunGetRequest
+      type: object
     RunHealth:
       properties:
         diagnostic_refs:
@@ -7303,6 +7419,41 @@ components:
     RunId:
       format: uuid
       type: string
+    RunLifecyclePayloadSchema:
+      $schema: https://json-schema.org/draft/2020-12/schema
+      properties:
+        run:
+          $ref: '#/components/schemas/RunView'
+      required:
+      - run
+      title: RunLifecyclePayloadSchema
+      type: object
+    RunListRequest:
+      $schema: https://json-schema.org/draft/2020-12/schema
+      additionalProperties: false
+      properties:
+        installation_id:
+          anyOf:
+          - $ref: '#/components/schemas/InstallationId'
+          - type: 'null'
+        status:
+          anyOf:
+          - $ref: '#/components/schemas/RunStatus'
+          - type: 'null'
+      title: RunListRequest
+      type: object
+    RunMutationResult:
+      $schema: https://json-schema.org/draft/2020-12/schema
+      properties:
+        idempotent:
+          type: boolean
+        run:
+          $ref: '#/components/schemas/RunView'
+      required:
+      - idempotent
+      - run
+      title: RunMutationResult
+      type: object
     RunRecord:
       $schema: https://json-schema.org/draft/2020-12/schema
       properties:
@@ -7342,6 +7493,44 @@ components:
       - status
       title: RunRecord
       type: object
+    RunStartRequest:
+      $schema: https://json-schema.org/draft/2020-12/schema
+      additionalProperties: false
+      properties:
+        entrypoint_id:
+          type: string
+        expected_installation_revision:
+          format: uint64
+          minimum: 0.0
+          type: integer
+        idempotency_key:
+          type: string
+        installation_id:
+          $ref: '#/components/schemas/InstallationId'
+      required:
+      - entrypoint_id
+      - expected_installation_revision
+      - idempotency_key
+      - installation_id
+      title: RunStartRequest
+      type: object
+    RunStartResult:
+      $schema: https://json-schema.org/draft/2020-12/schema
+      properties:
+        gaps:
+          items:
+            $ref: '#/components/schemas/RunGap'
+          type: array
+        idempotent:
+          type: boolean
+        run:
+          anyOf:
+          - $ref: '#/components/schemas/RunView'
+          - type: 'null'
+      required:
+      - idempotent
+      title: RunStartResult
+      type: object
     RunStatus:
       enum:
       - starting
@@ -7352,6 +7541,89 @@ components:
       - failed
       - interrupted
       type: string
+    RunStatusRequest:
+      $schema: https://json-schema.org/draft/2020-12/schema
+      additionalProperties: false
+      properties:
+        entrypoint_id:
+          type:
+          - string
+          - 'null'
+        installation_id:
+          $ref: '#/components/schemas/InstallationId'
+      required:
+      - installation_id
+      title: RunStatusRequest
+      type: object
+    RunStatusView:
+      $schema: https://json-schema.org/draft/2020-12/schema
+      additionalProperties: false
+      properties:
+        active_run:
+          anyOf:
+          - $ref: '#/components/schemas/RunView'
+          - type: 'null'
+        installation_id:
+          $ref: '#/components/schemas/InstallationId'
+        installation_revision:
+          format: uint64
+          minimum: 0.0
+          type: integer
+        preflight:
+          anyOf:
+          - $ref: '#/components/schemas/RunEntrypointPreflight'
+          - type: 'null'
+        work_revision:
+          $ref: '#/components/schemas/ArtifactDescriptor'
+      required:
+      - installation_id
+      - installation_revision
+      - work_revision
+      title: RunStatusView
+      type: object
+    RunStopRequest:
+      $schema: https://json-schema.org/draft/2020-12/schema
+      additionalProperties: false
+      properties:
+        expected_revision:
+          format: uint64
+          minimum: 0.0
+          type: integer
+        idempotency_key:
+          type: string
+        installation_id:
+          $ref: '#/components/schemas/InstallationId'
+        run_id:
+          $ref: '#/components/schemas/RunId'
+      required:
+      - expected_revision
+      - idempotency_key
+      - installation_id
+      - run_id
+      title: RunStopRequest
+      type: object
+    RunView:
+      $schema: https://json-schema.org/draft/2020-12/schema
+      properties:
+        entrypoint_id:
+          type: string
+        installation_revision:
+          format: uint64
+          minimum: 0.0
+          type: integer
+        record:
+          $ref: '#/components/schemas/RunRecord'
+        revision:
+          format: uint64
+          minimum: 0.0
+          type: integer
+      required:
+      - entrypoint_id
+      - installation_revision
+      - record
+      - revision
+      title: RunView
+      type: object
     SandboxPolicy:
       properties:
         cpu_quota_ms_per_invoke:
@@ -12094,9 +12366,12 @@ paths:
                         anyOf:
                         - $ref: '#/components/schemas/InstallationRollbackPointer'
                         - type: 'null'
+                      work_summary:
+                        $ref: '#/components/schemas/InstallationWorkSummary'
                     required:
                     - record
                     - revision
+                    - work_summary
                     title: InstallationView
                     type: object
                 required:
@@ -12180,9 +12455,12 @@ paths:
                           anyOf:
                           - $ref: '#/components/schemas/InstallationRollbackPointer'
                           - type: 'null'
+                        work_summary:
+                          $ref: '#/components/schemas/InstallationWorkSummary'
                       required:
                       - record
                       - revision
+                      - work_summary
                       title: InstallationView
                       type: object
                     type: array
@@ -15091,6 +15369,480 @@ paths:
                 type: object
           description: JSON-RPC response envelope
       summary: Invoke host.proxy.unregister
+  /rpc/host.run.get:
+    post:
+      operationId: hostRunGet
+      requestBody:
+        content:
+          application/json:
+            schema:
+              additionalProperties: false
+              properties:
+                contract:
+                  $ref: '#/components/schemas/ContractSelection'
+                id:
+                  oneOf:
+                  - type: string
+                  - type: integer
+                  - type: 'null'
+                jsonrpc:
+                  const: '2.0'
+                method:
+                  const: host.run.get
+                params:
+                  $schema: https://json-schema.org/draft/2020-12/schema
+                  additionalProperties: false
+                  properties:
+                    installation_id:
+                      $ref: '#/components/schemas/InstallationId'
+                    run_id:
+                      $ref: '#/components/schemas/RunId'
+                  required:
+                  - installation_id
+                  - run_id
+                  title: RunGetRequest
+                  type: object
+              required:
+              - jsonrpc
+              - id
+              - method
+              - params
+              type: object
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: integer
+                      data: true
+                      message:
+                        type: string
+                    required:
+                    - code
+                    - message
+                    type: object
+                  id:
+                    oneOf:
+                    - type: string
+                    - type: integer
+                    - type: 'null'
+                  jsonrpc:
+                    const: '2.0'
+                  result:
+                    $schema: https://json-schema.org/draft/2020-12/schema
+                    properties:
+                      entrypoint_id:
+                        type: string
+                      installation_revision:
+                        format: uint64
+                        minimum: 0.0
+                        type: integer
+                      record:
+                        $ref: '#/components/schemas/RunRecord'
+                      revision:
+                        format: uint64
+                        minimum: 0.0
+                        type: integer
+                    required:
+                    - entrypoint_id
+                    - installation_revision
+                    - record
+                    - revision
+                    title: RunView
+                    type: object
+                required:
+                - jsonrpc
+                - id
+                type: object
+          description: JSON-RPC response envelope
+      summary: Invoke host.run.get
+  /rpc/host.run.list:
+    post:
+      operationId: hostRunList
+      requestBody:
+        content:
+          application/json:
+            schema:
+              additionalProperties: false
+              properties:
+                contract:
+                  $ref: '#/components/schemas/ContractSelection'
+                id:
+                  oneOf:
+                  - type: string
+                  - type: integer
+                  - type: 'null'
+                jsonrpc:
+                  const: '2.0'
+                method:
+                  const: host.run.list
+                params:
+                  $schema: https://json-schema.org/draft/2020-12/schema
+                  additionalProperties: false
+                  properties:
+                    installation_id:
+                      anyOf:
+                      - $ref: '#/components/schemas/InstallationId'
+                      - type: 'null'
+                    status:
+                      anyOf:
+                      - $ref: '#/components/schemas/RunStatus'
+                      - type: 'null'
+                  title: RunListRequest
+                  type: object
+              required:
+              - jsonrpc
+              - id
+              - method
+              - params
+              type: object
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: integer
+                      data: true
+                      message:
+                        type: string
+                    required:
+                    - code
+                    - message
+                    type: object
+                  id:
+                    oneOf:
+                    - type: string
+                    - type: integer
+                    - type: 'null'
+                  jsonrpc:
+                    const: '2.0'
+                  result:
+                    items:
+                      $schema: https://json-schema.org/draft/2020-12/schema
+                      properties:
+                        entrypoint_id:
+                          type: string
+                        installation_revision:
+                          format: uint64
+                          minimum: 0.0
+                          type: integer
+                        record:
+                          $ref: '#/components/schemas/RunRecord'
+                        revision:
+                          format: uint64
+                          minimum: 0.0
+                          type: integer
+                      required:
+                      - entrypoint_id
+                      - installation_revision
+                      - record
+                      - revision
+                      title: RunView
+                      type: object
+                    type: array
+                required:
+                - jsonrpc
+                - id
+                type: object
+          description: JSON-RPC response envelope
+      summary: Invoke host.run.list
+  /rpc/host.run.start:
+    post:
+      operationId: hostRunStart
+      requestBody:
+        content:
+          application/json:
+            schema:
+              additionalProperties: false
+              properties:
+                contract:
+                  $ref: '#/components/schemas/ContractSelection'
+                id:
+                  oneOf:
+                  - type: string
+                  - type: integer
+                  - type: 'null'
+                jsonrpc:
+                  const: '2.0'
+                method:
+                  const: host.run.start
+                params:
+                  $schema: https://json-schema.org/draft/2020-12/schema
+                  additionalProperties: false
+                  properties:
+                    entrypoint_id:
+                      type: string
+                    expected_installation_revision:
+                      format: uint64
+                      minimum: 0.0
+                      type: integer
+                    idempotency_key:
+                      type: string
+                    installation_id:
+                      $ref: '#/components/schemas/InstallationId'
+                  required:
+                  - entrypoint_id
+                  - expected_installation_revision
+                  - idempotency_key
+                  - installation_id
+                  title: RunStartRequest
+                  type: object
+              required:
+              - jsonrpc
+              - id
+              - method
+              - params
+              type: object
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: integer
+                      data: true
+                      message:
+                        type: string
+                    required:
+                    - code
+                    - message
+                    type: object
+                  id:
+                    oneOf:
+                    - type: string
+                    - type: integer
+                    - type: 'null'
+                  jsonrpc:
+                    const: '2.0'
+                  result:
+                    $schema: https://json-schema.org/draft/2020-12/schema
+                    properties:
+                      gaps:
+                        items:
+                          $ref: '#/components/schemas/RunGap'
+                        type: array
+                      idempotent:
+                        type: boolean
+                      run:
+                        anyOf:
+                        - $ref: '#/components/schemas/RunView'
+                        - type: 'null'
+                    required:
+                    - idempotent
+                    title: RunStartResult
+                    type: object
+                required:
+                - jsonrpc
+                - id
+                type: object
+          description: JSON-RPC response envelope
+      summary: Invoke host.run.start
+  /rpc/host.run.status:
+    post:
+      operationId: hostRunStatus
+      requestBody:
+        content:
+          application/json:
+            schema:
+              additionalProperties: false
+              properties:
+                contract:
+                  $ref: '#/components/schemas/ContractSelection'
+                id:
+                  oneOf:
+                  - type: string
+                  - type: integer
+                  - type: 'null'
+                jsonrpc:
+                  const: '2.0'
+                method:
+                  const: host.run.status
+                params:
+                  $schema: https://json-schema.org/draft/2020-12/schema
+                  additionalProperties: false
+                  properties:
+                    entrypoint_id:
+                      type:
+                      - string
+                      - 'null'
+                    installation_id:
+                      $ref: '#/components/schemas/InstallationId'
+                  required:
+                  - installation_id
+                  title: RunStatusRequest
+                  type: object
+              required:
+              - jsonrpc
+              - id
+              - method
+              - params
+              type: object
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: integer
+                      data: true
+                      message:
+                        type: string
+                    required:
+                    - code
+                    - message
+                    type: object
+                  id:
+                    oneOf:
+                    - type: string
+                    - type: integer
+                    - type: 'null'
+                  jsonrpc:
+                    const: '2.0'
+                  result:
+                    $schema: https://json-schema.org/draft/2020-12/schema
+                    additionalProperties: false
+                    properties:
+                      active_run:
+                        anyOf:
+                        - $ref: '#/components/schemas/RunView'
+                        - type: 'null'
+                      installation_id:
+                        $ref: '#/components/schemas/InstallationId'
+                      installation_revision:
+                        format: uint64
+                        minimum: 0.0
+                        type: integer
+                      preflight:
+                        anyOf:
+                        - $ref: '#/components/schemas/RunEntrypointPreflight'
+                        - type: 'null'
+                      work_revision:
+                        $ref: '#/components/schemas/ArtifactDescriptor'
+                    required:
+                    - installation_id
+                    - installation_revision
+                    - work_revision
+                    title: RunStatusView
+                    type: object
+                required:
+                - jsonrpc
+                - id
+                type: object
+          description: JSON-RPC response envelope
+      summary: Invoke host.run.status
+  /rpc/host.run.stop:
+    post:
+      operationId: hostRunStop
+      requestBody:
+        content:
+          application/json:
+            schema:
+              additionalProperties: false
+              properties:
+                contract:
+                  $ref: '#/components/schemas/ContractSelection'
+                id:
+                  oneOf:
+                  - type: string
+                  - type: integer
+                  - type: 'null'
+                jsonrpc:
+                  const: '2.0'
+                method:
+                  const: host.run.stop
+                params:
+                  $schema: https://json-schema.org/draft/2020-12/schema
+                  additionalProperties: false
+                  properties:
+                    expected_revision:
+                      format: uint64
+                      minimum: 0.0
+                      type: integer
+                    idempotency_key:
+                      type: string
+                    installation_id:
+                      $ref: '#/components/schemas/InstallationId'
+                    run_id:
+                      $ref: '#/components/schemas/RunId'
+                  required:
+                  - expected_revision
+                  - idempotency_key
+                  - installation_id
+                  - run_id
+                  title: RunStopRequest
+                  type: object
+              required:
+              - jsonrpc
+              - id
+              - method
+              - params
+              type: object
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: integer
+                      data: true
+                      message:
+                        type: string
+                    required:
+                    - code
+                    - message
+                    type: object
+                  id:
+                    oneOf:
+                    - type: string
+                    - type: integer
+                    - type: 'null'
+                  jsonrpc:
+                    const: '2.0'
+                  result:
+                    $schema: https://json-schema.org/draft/2020-12/schema
+                    properties:
+                      idempotent:
+                        type: boolean
+                      run:
+                        $ref: '#/components/schemas/RunView'
+                    required:
+                    - idempotent
+                    - run
+                    title: RunMutationResult
+                    type: object
+                required:
+                - jsonrpc
+                - id
+                type: object
+          description: JSON-RPC response envelope
+      summary: Invoke host.run.stop
   /rpc/host.surface.bundle.resolve:
     post:
       operationId: hostSurfaceBundleResolve

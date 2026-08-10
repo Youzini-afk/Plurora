@@ -327,6 +327,13 @@ where
                 self.dispatch_installation_remove(context, params).await
             }
 
+            // Run domain
+            PlatformMethod::RunList => self.dispatch_run_list(context, params).await,
+            PlatformMethod::RunGet => self.dispatch_run_get(context, params).await,
+            PlatformMethod::RunStart => self.dispatch_run_start(context, params).await,
+            PlatformMethod::RunStop => self.dispatch_run_stop(context, params).await,
+            PlatformMethod::RunStatus => self.dispatch_run_status(context, params).await,
+
             // Deployment Hub Phase 1 primitives
             PlatformMethod::TargetList => self.dispatch_target_list(context).await,
             PlatformMethod::TargetStatus => self.dispatch_target_status(context, &params).await,
@@ -521,7 +528,8 @@ fn host_action_for_method(method: PlatformMethod) -> &'static str {
     match method {
         PlatformMethod::SessionOpen
         | PlatformMethod::SessionClose
-        | PlatformMethod::SessionFork => "run",
+        | PlatformMethod::SessionFork => "access_manage",
+        PlatformMethod::RunStart | PlatformMethod::RunStop => "run",
         PlatformMethod::InstallationCreate
         | PlatformMethod::InstallationUpdate
         | PlatformMethod::InstallationRemove => "installation.manage",
@@ -541,6 +549,9 @@ fn host_action_for_method(method: PlatformMethod) -> &'static str {
         | PlatformMethod::HostDiagnostics
         | PlatformMethod::InstallationList
         | PlatformMethod::InstallationGet
+        | PlatformMethod::RunList
+        | PlatformMethod::RunGet
+        | PlatformMethod::RunStatus
         | PlatformMethod::TargetList
         | PlatformMethod::TargetStatus
         | PlatformMethod::ExecStatus

@@ -1,6 +1,6 @@
 # 事件类型注册表（v1）
 
-本表列出 58 个只能由 Plurora 平台运行时发出的事件 kind。普通 Package writer 使用自己的 Package ID 命名空间，不能冒充平台拥有的事件。
+本表列出 63 个只能由 Plurora 平台运行时发出的事件 kind。普通 Package writer 使用自己的 Package ID 命名空间，不能冒充平台拥有的事件。
 
 | 事件类型 | Payload schema | Writer | 触发 | 状态 |
 |---|---|---|---|---|
@@ -19,6 +19,11 @@
 | `host/installation.created` | [`./schemas/events/host__installation.created.schema.json`](./schemas/events/host__installation.created.schema.json) | `plurora/runtime` | Installation journal 已创建并投影 | implemented |
 | `host/installation.updated` | [`./schemas/events/host__installation.updated.schema.json`](./schemas/events/host__installation.updated.schema.json) | `plurora/runtime` | Installation active Work/Lock 或状态已更新 | implemented |
 | `host/installation.removed` | [`./schemas/events/host__installation.removed.schema.json`](./schemas/events/host__installation.removed.schema.json) | `plurora/runtime` | Installation 已移除并记录显式 state disposition | implemented |
+| `host/run.starting` | [`./schemas/events/host__run.starting.schema.json`](./schemas/events/host__run.starting.schema.json) | `plurora/runtime` | Run journal 已记录 starting，准备开始激活 | implemented |
+| `host/run.started` | [`./schemas/events/host__run.started.schema.json`](./schemas/events/host__run.started.schema.json) | `plurora/runtime` | Run 激活完成并进入 running | implemented |
+| `host/run.stopping` | [`./schemas/events/host__run.stopping.schema.json`](./schemas/events/host__run.stopping.schema.json) | `plurora/runtime` | Run 停止已获准并进入 stopping | implemented |
+| `host/run.stopped` | [`./schemas/events/host__run.stopped.schema.json`](./schemas/events/host__run.stopped.schema.json) | `plurora/runtime` | Run 激活上下文已停止并提交 terminal record | implemented |
+| `host/run.failed` | [`./schemas/events/host__run.failed.schema.json`](./schemas/events/host__run.failed.schema.json) | `plurora/runtime` | Run 激活失败或 Host 重启将未完成 Run 标为 interrupted | implemented |
 | `object/put` | [`./schemas/events/object__put.schema.json`](./schemas/events/object__put.schema.json) | `plurora/runtime` | 不透明 asset 已存储 | implemented |
 | `projection/updated` | [`./schemas/events/projection__updated.schema.json`](./schemas/events/projection__updated.schema.json) | `plurora/runtime` | projection 状态已重建/更新 | implemented |
 | `change/proposal.created` | [`./schemas/events/change__proposal.created.schema.json`](./schemas/events/change__proposal.created.schema.json) | `plurora/runtime` | proposal 已创建 | partial |

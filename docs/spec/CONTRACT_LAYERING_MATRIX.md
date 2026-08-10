@@ -31,12 +31,12 @@
 
 ## 当前事实基线
 
-- 80 个精确公开 method ID 与 80 个 method schema。
-- 58 个显式平台 event kind 与 58 个 payload schema。
-- 39 个顶层 schema；共 177 个 schema。
+- 85 个精确公开 method ID 与 85 个 method schema。
+- 63 个显式平台 event kind 与 63 个 payload schema。
+- 39 个顶层 schema；共 187 个 schema。
 - Contract Registry `0.1.0` 对每个 method 只暴露一个 wire ID，不提供 alias。
 - Method ID 通过第一个 dot segment 声明 owner。
-- 平台 event owner 由显式 registry 定义；58 个 kind 都要求 writer `plurora/runtime`。
+- 平台 event owner 由显式 registry 定义；63 个 kind 都要求 writer `plurora/runtime`。
 - Package event 与 capability ID 仍位于精确 Package ID 的 slash namespace 下。
 - 显式 contract 与 Protocol Commons negotiation 在 dispatch 前完成，并 fail closed。
 
@@ -50,7 +50,7 @@
 | `authority.*` | 7 | `S` | handle、grant、revocation、decision |
 | `object.*` | 3 | `S` / `H` | put/get 接近 substrate；全局 list 更接近 Host |
 | `identity.*` | 1 | `S` | authenticated principal/context discovery |
-| `host.*` | 40 | `H` / `X` | Host-local operation；effect 仍依赖 substrate authority 与 receipt |
+| `host.*` | 45 | `H` / `X` | Host-local operation；effect 仍依赖 substrate authority 与 receipt |
 | `protocol.*` | 3 | `C` | extension contract discovery 与 subscription |
 | `change.*` | 6 | `C` | approval-gated Change protocol facade |
 | `projection.*` | 4 | `C` | derived-view protocol operation |
@@ -61,7 +61,8 @@
 | Host area | Count | 分类 |
 |---|---:|---|
 | Package lifecycle 与 audit | 8 | `X`：Host artifact/process 与 runtime component evidence 混合 |
-| Project | 5 | `H`：当前发行版的 installation-instance model |
+| Installation | 5 | `H`：Host-owned adoption record |
+| Run lifecycle | 5 | `H`：durable Run journal 与本地 activation |
 | target / exec / port / proxy | 17 | `H`，并依赖 `S` authority 与 receipt evidence |
 | outbound | 6 | `X`：Host network adapter 与 `S` policy、secret、stream、receipt 混合 |
 | surface bundle resolution | 1 | `X`：Host serving 与 Shell Profile interpretation 混合 |
@@ -74,7 +75,8 @@ Mixed classification 不会创建私有 API；它只指出实现还可继续拆�
 | Group | Count | Owner |
 |---|---:|---:|
 | Context | 3 | `S` |
-| Package 与 Project lifecycle | 13 | `H` / `X` |
+| Package 与 Installation lifecycle | 12 | `H` / `X` |
+| Run lifecycle | 5 | `H` |
 | Capability 与 stream lifecycle | 10 | `S` |
 | Authority | 3 | `S` |
 | Object | 1 | `S` |

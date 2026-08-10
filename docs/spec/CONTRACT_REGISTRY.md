@@ -20,7 +20,7 @@ HTTP RPC、Host stdio、in-process 调用与 subprocess reverse stdio 共用这�
 
 ## Registry 形状
 
-Registry `0.1.0` 发布 80 条 `ContractMethod` 记录。每条记录包含：
+Registry `0.1.0` 发布 85 条 `ContractMethod` 记录。每条记录包含：
 
 - `id` —— 唯一公开 wire ID；
 - `owner_layer` —— `substrate`、`host`、`protocol` 或 `shell`；

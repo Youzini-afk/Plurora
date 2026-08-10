@@ -16,8 +16,8 @@ use super::effects::{principal_identity, request_principal, EffectReceiptRequest
 use super::Runtime;
 use crate::{
     sha256_digest, validate_json_schema_subset, CapabilityInvocationRequest,
-    CapabilityInvocationResult, EventStore, InprocInvocation, PackageState, ProtocolContext,
-    ProtocolPrincipal, RegisteredCapability, DEFAULT_CONTRACT_PROFILE,
+    CapabilityInvocationResult, EventStore, InprocInvocation, ProtocolContext, ProtocolPrincipal,
+    RegisteredCapability, DEFAULT_CONTRACT_PROFILE,
 };
 
 #[derive(Debug, Clone)]
@@ -561,6 +561,7 @@ where
                 PackageEntry::Subprocess { .. } => match self
                     .subprocesses
                     .invoke(
+                        self.clone(),
                         &provider.provider_package_id,
                         capability_id,
                         session_id,
@@ -569,17 +570,7 @@ where
                     .await
                 {
                     Ok(output) => output,
-                    Err(error) => {
-                        if let Some(record) = self
-                            .packages
-                            .set_state(&provider.provider_package_id, PackageState::Degraded)
-                            .await
-                        {
-                            self.append_package_degraded_event(&record, &error.to_string())
-                                .await?;
-                        }
-                        return Err(error);
-                    }
+                    Err(error) => return Err(error),
                 },
                 other => anyhow::bail!(
                     "entry kind '{}' cannot execute capabilities yet",

@@ -12,6 +12,7 @@ Plurora v1 reserves JSON-RPC application error numbers `-32000..-32099`. The cur
 | -32005 | `runtime/error/schema_invalid` | SchemaInvalid | Manifest/capability input/output/event schema validation failed. | Validate locally with the public schemas and resend. |
 | -32006 | `runtime/error/package_state` | PackageState | Package/session/stream is closed, not loaded, degraded, or not ready. | Load/restart/open the resource before retrying. |
 | -32007 | `protocol/error/unsupported_contract` | UnsupportedContract | An explicitly requested contract profile, layer, or version cannot be satisfied exactly. | Read `host.info` and select an advertised profile/version; do not assume automatic downgrade. |
+| -32008 | `runtime/error/conflict` | Conflict | The revision is stale, an idempotency key identifies another request, an active Run already exists, or the durable base changed before commit. | Refresh the current record; reuse a key only for the same request and retry with the new expected revision. |
 | -32010 | `manifest/invalid_package_id` | InvalidPackageId | Manifest package id is not a namespaced id. | Use an id like `org/package`. |
 | -32011 | `manifest/invalid_namespaced_id` | InvalidNamespacedId | Capability, schema, surface, extension point, or hook id lacks namespace. | Use slash-separated package-owned ids. |
 | -32012 | `manifest/invalid_version` | InvalidVersion | Semver-like version validation failed. | Use `MAJOR.MINOR.PATCH`. |

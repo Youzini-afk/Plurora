@@ -8,10 +8,11 @@ import { useT } from "@/lib/locale";
 export function StoragePanel() {
   const client = usePlurora();
   const t = useT();
-  const diagnostics = useAsync(() => client.diagnostics().catch(() => null), [client]);
+  const diagnostics = useAsync(() => client.diagnostics(), [client]);
 
-  const eventStoreKind =
-    (diagnostics.data as { event_store?: { kind?: string } } | null)?.event_store?.kind ?? "sqlite";
+  const eventStoreKind = diagnostics.error
+    ? "unavailable"
+    : (diagnostics.data as { event_store?: { kind?: string } } | null)?.event_store?.kind ?? "host-global";
 
   const storageAreas = [
     { label: t("storageAreaInstallationData"), description: t("storageAreaInstallationDataDesc") },
@@ -66,13 +67,15 @@ export function StoragePanel() {
             <span className="font-mono">{eventStoreKind}</span>
             <span className="mx-2 text-muted-tone">·</span>
             <span className="text-steel-secondary">
-              {eventStoreKind === "sqlite"
-                ? t("storageSqliteDesc")
-                : eventStoreKind === "postgres"
-                  ? t("storagePostgresDesc")
-                  : eventStoreKind === "memory"
-                    ? t("storageMemoryDesc")
-                    : t("storageCustomDesc")}
+              {eventStoreKind === "unavailable"
+                ? "Host diagnostics did not report the event-store backend. Installation state remains Host-owned."
+                : eventStoreKind === "sqlite"
+                  ? t("storageSqliteDesc")
+                  : eventStoreKind === "postgres"
+                    ? t("storagePostgresDesc")
+                    : eventStoreKind === "memory"
+                      ? t("storageMemoryDesc")
+                      : t("storageCustomDesc")}
             </span>
           </p>
         </CardSection>

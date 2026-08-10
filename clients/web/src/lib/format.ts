@@ -55,8 +55,8 @@ export function formatGreetingTime(locale: string = "en", now = new Date(), pref
   return `${prefix} · ${day} ${time}`;
 }
 
-/** Categorize a package_id into one of the inventory kinds for filtering. */
-export function classifyPackageKind(packageId: string): "PROJECT" | "PLURORA" | "THIRD-PARTY" {
+/** Categorize a package id for filtering. Package ids are not Installation ids. */
+export function classifyPackageKind(packageId: string): "EXTERNAL" | "PLURORA" | "THIRD-PARTY" {
   if (packageId.startsWith("plurora/") || packageId.startsWith("plurora__")) return "PLURORA";
   if (
     packageId.includes("__") ||
@@ -64,7 +64,7 @@ export function classifyPackageKind(packageId: string): "PROJECT" | "PLURORA" | 
     packageId.startsWith("local__") ||
     packageId.includes("/")
   ) {
-    return "PROJECT";
+    return "EXTERNAL";
   }
   return "THIRD-PARTY";
 }

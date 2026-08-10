@@ -57,7 +57,7 @@ cargo run -p plurora-cli -- conformance --slowest 3
 
 ### End-to-end real-path conformance cases
 
-以下是 Phase 3 保留的 surface resolve 覆盖。Run/session 生命周期在 Phase 4 建立，不在本 Phase 伪造。
+以下是 surface resolve 与 Run 入口边界覆盖。Run lifecycle 已由 Phase 4 独立 Run journal 提供；surface resolve 不应绕过显式 Run authority。
 
 | 分组 | Case id | 覆盖 | 状态 |
 |---|---|---|---|
@@ -79,7 +79,7 @@ Surface/static bundle 与 bridge 还覆盖以下稳定断言：
 | uncontrolled secret input | secret 输入保持 uncontrolled/短生命周期，关闭时清理 | implemented |
 | schema timestamp stability | schema/export timestamp 稳定，不引入非确定性时间戳 | implemented |
 | content-addressed freshness | bundle bytes 进入 artifact closure，变化会改变 digest | implemented |
-| no fake Run | Installation detail 返回 Phase 4 unavailable reason，不创建 session | implemented |
+| no implicit Run | Installation detail 只返回 projection/affordance；不创建 Run 或 session，启动必须走 `host.run.start` | implemented |
 
 
 | 领域 | 用例 | 状态 |

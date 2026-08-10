@@ -30,6 +30,7 @@ mod protocol;
 mod protocol_installation;
 mod registry;
 mod replacement;
+mod run;
 mod runner;
 mod secret_conformance;
 mod secret_store;

@@ -33,12 +33,12 @@ use plurora_runtime::{
 use plurora_runtime::{
     AppendEventRequest, EventStore, InMemoryEventStore, InstallationAuthorityRefresh,
     InstallationAuthoritySubject, InstallationAuthorityValidator, InstallationControl,
-    OpenSessionRequest, Runtime, RuntimeConfig,
+    OpenSessionRequest, RunAuthorityRefresh, RunAuthorityValidator, Runtime, RuntimeConfig,
 };
 use plurora_runtime::{
     PortBindScope, PortLeaseStatusKind, ProxyProtocol, ProxyRouteAccess, ProxyRouteStatusKind,
 };
-use plurora_work::{InstallationId, InstallationStatus, WorkspaceId};
+use plurora_work::{InstallationId, InstallationStatus, RunId, WorkspaceId};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use sha2::{Digest, Sha256};
@@ -52,6 +52,7 @@ use tower_http::cors::{Any, CorsLayer};
 mod development;
 mod host_access;
 mod installations;
+mod runs;
 mod target_agent;
 
 pub use development::{
@@ -69,6 +70,7 @@ pub use host_access::{
     HostAccessResourceSelector, HostAccessScope,
 };
 pub use installations::InstallationRegistry;
+pub use runs::RunRegistry;
 pub use target_agent::{
     decode_target_tunnel_data, encode_target_tunnel_data, hydrate_target_agent_control_plane,
     reconcile_target_deployment_control_plane, target_agent_registry,
@@ -244,6 +246,54 @@ where
     }))
 }
 
+struct CurrentRunAuthority<S>
+where
+    S: EventStore,
+{
+    store: Arc<S>,
+    host_access: Arc<HostAccessRegistry>,
+}
+
+#[async_trait::async_trait]
+impl<S> RunAuthorityValidator for CurrentRunAuthority<S>
+where
+    S: EventStore,
+{
+    async fn validate_current(
+        &self,
+        grant_id: &str,
+        installation_id: &InstallationId,
+        run_id: Option<&RunId>,
+    ) -> anyhow::Result<()> {
+        host_access::sync_host_access_journal(self.store.as_ref(), self.host_access.as_ref())
+            .await?;
+        anyhow::ensure!(
+            self.host_access.grant_allows_current(
+                grant_id,
+                HostAccessScope::Run,
+                HostAccessResourceKind::Installation,
+                installation_id.as_str(),
+            ),
+            "Host access grant is no longer current for Run authority on the exact parent Installation"
+        );
+        // The RunRegistry validates the exact Installation/Run relationship
+        // under its mutation lock. This refresh proves that the parent grant
+        // remains current; the trusted sidecar separately pins the child RunId.
+        let _ = run_id;
+        Ok(())
+    }
+}
+
+fn run_authority_refresh<S>(state: &AppState<S>) -> RunAuthorityRefresh
+where
+    S: EventStore,
+{
+    RunAuthorityRefresh::new(Arc::new(CurrentRunAuthority {
+        store: state.runtime.store(),
+        host_access: state.host_access.clone(),
+    }))
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum HostCredentialSource {
     OptionalLoopback,
@@ -312,14 +362,20 @@ pub fn app() -> Router {
     let object_store = Arc::new(plurora_runtime::InMemoryObjectStore::default());
     let installations = InstallationRegistry::ephemeral(store.clone(), object_store.clone())
         .expect("create ephemeral installation registry");
+    let runs = RunRegistry::new(store.clone());
     let runtime = Arc::new(Runtime::new(
         store,
         RuntimeConfig {
             object_store,
             installation_control: installations.clone(),
+            run_control: runs.clone(),
             ..RuntimeConfig::default()
         },
     ));
+    runs.install_driver(Arc::new(plurora_runtime::AssemblyRuntimeDriver::new(
+        Arc::downgrade(&runtime),
+    )))
+    .expect("install Run lifecycle driver");
     app_with_state(AppState {
         runtime,
         static_dir: None,
@@ -8317,7 +8373,8 @@ where
     if identity.kind == HostAccessIdentityKind::Device && !operation_resources.is_empty() {
         context = context
             .with_host_operation(required_scope.as_str(), operation_resources)
-            .with_installation_authority_refresh(installation_authority_refresh(&state));
+            .with_installation_authority_refresh(installation_authority_refresh(&state))
+            .with_run_authority_refresh(run_authority_refresh(&state));
     }
     context.session_id = session_id;
     let result = state
@@ -8356,6 +8413,9 @@ fn required_host_scope_for_protocol_method(method: &str) -> HostAccessScope {
         | "host.package.describe"
         | "host.installation.list"
         | "host.installation.get"
+        | "host.run.list"
+        | "host.run.get"
+        | "host.run.status"
         | "host.target.list"
         | "host.target.status"
         | "host.exec.list"
@@ -8389,7 +8449,9 @@ fn required_host_scope_for_protocol_method(method: &str) -> HostAccessScope {
             HostAccessScope::InstallationManage
         }
 
-        "context.open" | "context.close" | "context.fork" => HostAccessScope::Run,
+        "host.run.start" | "host.run.stop" => HostAccessScope::Run,
+
+        "context.open" | "context.close" | "context.fork" => HostAccessScope::AccessManage,
 
         "host.target.register"
         | "host.target.unregister"
@@ -8415,7 +8477,14 @@ fn host_operation_resources_for_protocol_method(
 ) -> Vec<ProtocolResourceSelector> {
     if matches!(
         method,
-        "host.installation.get" | "host.installation.update" | "host.installation.remove"
+        "host.installation.get"
+            | "host.installation.update"
+            | "host.installation.remove"
+            | "host.run.list"
+            | "host.run.get"
+            | "host.run.start"
+            | "host.run.stop"
+            | "host.run.status"
     ) {
         let resources = params
             .get("installation_id")
@@ -9293,6 +9362,24 @@ mod tests {
             required_host_scope_for_protocol_method("host.installation.start"),
             HostAccessScope::AccessManage
         );
+        assert_eq!(
+            required_host_scope_for_protocol_method("host.run.start"),
+            HostAccessScope::Run
+        );
+        assert_eq!(
+            required_host_scope_for_protocol_method("host.run.status"),
+            HostAccessScope::Observe
+        );
+        assert_eq!(
+            required_host_scope_for_protocol_method("context.open"),
+            HostAccessScope::AccessManage
+        );
+        let run_resources = host_operation_resources_for_protocol_method(
+            "host.run.stop",
+            &json!({"installation_id": "11111111-1111-4111-8111-111111111111"}),
+        );
+        assert_eq!(run_resources.len(), 1);
+        assert_eq!(run_resources[0].kind, "installation");
         assert_eq!(
             required_host_scope_for_protocol_method("unknown.future.method"),
             HostAccessScope::AccessManage

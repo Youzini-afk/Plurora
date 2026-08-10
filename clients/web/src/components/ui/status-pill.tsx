@@ -10,6 +10,7 @@ const pillVariants = cva(
         stopped: "bg-whisper-border-strong/40 text-steel-secondary",
         starting: "bg-whisper-border-strong/40 text-muted-tone",
         failed: "bg-deep-rust-surface text-deep-rust",
+        interrupted: "bg-deep-rust-surface text-deep-rust",
         // Update is muted+shimmer per spec — brass is reserved for Running.
         update: "bg-whisper-border-strong/40 text-steel-secondary",
         neutral: "bg-whisper-border-strong/40 text-steel-secondary",
@@ -27,6 +28,7 @@ const dotVariants = cva("inline-block size-1.5 rounded-full", {
       stopped: "bg-steel-secondary",
       starting: "bg-muted-tone",
       failed: "bg-deep-rust",
+      interrupted: "bg-deep-rust",
       update: "bg-muted-tone shimmer",
       neutral: "bg-steel-secondary",
       accent: "bg-aged-brass",
@@ -62,6 +64,7 @@ export const STATUS_DOT_CLASS: Record<StatusTone, string> = {
   stopped: "bg-steel-secondary",
   starting: "bg-muted-tone",
   failed: "bg-deep-rust",
+  interrupted: "bg-deep-rust",
   update: "bg-muted-tone",
   neutral: "bg-steel-secondary",
   accent: "bg-aged-brass",
@@ -76,11 +79,16 @@ const STATE_TO_TONE: Record<string, StatusTone> = {
   ready: "stopped",
   running: "running",
   failed: "failed",
+  interrupted: "interrupted",
   degraded: "failed",
   loading: "starting",
   archived: "stopped",
 };
 
 export function installationStateTone(state: string): StatusTone {
+  return STATE_TO_TONE[state] ?? "neutral";
+}
+
+export function runStateTone(state: string): StatusTone {
   return STATE_TO_TONE[state] ?? "neutral";
 }

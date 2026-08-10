@@ -12,6 +12,7 @@ Plurora v1 保留 JSON-RPC application error 数值区间 `-32000..-32099`。当
 | -32005 | `runtime/error/schema_invalid` | Schema 无效 | manifest、能力输入/输出或事件 schema 校验失败。 | 使用公开 schema 本地校验后重发。 |
 | -32006 | `runtime/error/package_state` | 包/资源状态错误 | 包、session 或 stream 已关闭、未加载、降级或未就绪。 | 加载/重启/打开资源后重试。 |
 | -32007 | `protocol/error/unsupported_contract` | 合同不支持 | 显式请求的 contract profile、layer 或 version 无法精确满足。 | 读取 `host.info`，选择公开的 profile/version；不要假定 host 会自动降级。 |
+| -32008 | `runtime/error/conflict` | 并发冲突 | revision 已过期、幂等键对应不同请求、已存在 active Run，或持久化基线在提交前发生变化。 | 刷新当前记录；只对同一请求复用幂等键，并以新的 expected revision 重试。 |
 | -32010 | `manifest/invalid_package_id` | 包 ID 无效 | manifest 包 ID 不是 namespaced id。 | 使用类似 `org/package` 的 id。 |
 | -32011 | `manifest/invalid_namespaced_id` | 命名空间 ID 无效 | 能力、schema、surface、extension point 或 hook id 缺少 namespace。 | 使用斜杠分隔、归属包的 id。 |
 | -32012 | `manifest/invalid_version` | 版本无效 | semver-like 版本校验失败。 | 使用 `MAJOR.MINOR.PATCH`。 |

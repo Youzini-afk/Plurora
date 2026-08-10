@@ -175,9 +175,9 @@ pub struct InstallationRemoveArgs {
     pub format: OutputFormat,
 }
 
-struct HostInstallationClient {
-    endpoint: String,
-    access_token: String,
+pub(crate) struct HostInstallationClient {
+    pub(crate) endpoint: String,
+    pub(crate) access_token: String,
 }
 
 pub async fn run(args: InstallationArgs) -> Result<()> {
@@ -476,7 +476,7 @@ fn parse_installation_id(value: String) -> Result<InstallationId> {
     InstallationId::parse(value).map_err(|_| anyhow!("installation id must be a UUID"))
 }
 
-async fn call_host_protocol<Q, R>(
+pub(crate) async fn call_host_protocol<Q, R>(
     client: &HostInstallationClient,
     method: &str,
     request: Q,
@@ -498,7 +498,15 @@ where
     )
     .await?;
     if let Some(error) = response.get("error") {
-        return Err(anyhow!("Host RPC method '{method}' failed: {error}"));
+        // Error payloads are untrusted Host data. Keep the stable reason/code
+        // useful to a CLI caller without echoing raw diagnostics, paths, or
+        // credentials into terminal/JSON output.
+        let code = error
+            .get("code")
+            .and_then(serde_json::Value::as_str)
+            .filter(|code| code.starts_with("runtime/error/") || code.starts_with("host/"))
+            .unwrap_or("unknown");
+        return Err(anyhow!("Host RPC method '{method}' failed ({code})"));
     }
     let value = response
         .get("result")
@@ -814,6 +822,17 @@ mod tests {
                 "created_at": "2026-08-10T00:00:00Z",
                 "updated_at": "2026-08-10T00:00:00Z",
                 "status": "ready"
+            },
+            "work_summary": {
+                "work_id": "tests/remote-installation",
+                "title": "Remote Installation",
+                "description": "",
+                "content_roots": [],
+                "entrypoints": [],
+                "rights": null,
+                "transparency": null,
+                "operational_intent": null,
+                "annotations": {}
             },
             "revision": 1
         });

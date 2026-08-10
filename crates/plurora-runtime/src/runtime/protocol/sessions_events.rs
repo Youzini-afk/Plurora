@@ -13,25 +13,10 @@ where
     ) -> anyhow::Result<Value> {
         let request: OpenSessionRequest = serde_json::from_value(params)?;
         if context.is_host_device() {
-            if !context.allows_host_action("run") {
-                anyhow::bail!("context.open permission denied: Host device lacks run");
-            }
-            match request
-                .metadata
-                .get("installation_id")
-                .and_then(Value::as_str)
-            {
-                Some(installation_id)
-                    if context.allows_host_resource("host", "installation", installation_id) => {}
-                Some(installation_id) => anyhow::bail!(
-                    "context.open permission denied for installation '{}'",
-                    installation_id
-                ),
-                None if context.allows_all_host_resources("host", "installation") => {}
-                None => anyhow::bail!(
-                    "installation-scoped Host devices must open sessions with metadata.installation_id"
-                ),
-            }
+            anyhow::ensure!(
+                context.allows_host_action("access_manage"),
+                "context.open permission denied: Host device lacks access_manage"
+            );
         }
         Ok(serde_json::to_value(self.open_session(request).await?)?)
     }
@@ -46,8 +31,16 @@ where
             .and_then(Value::as_str)
             .ok_or_else(|| anyhow::anyhow!("context.close requires session_id"))?
             .to_string();
+        let session = self
+            .get_session(&session_id)
+            .await
+            .ok_or_else(|| anyhow::anyhow!("session '{session_id}' not found"))?;
+        anyhow::ensure!(
+            session.metadata.get("kind").and_then(Value::as_str) != Some("run"),
+            "Host-owned Run contexts can only be closed through host.run.stop"
+        );
         if context.is_host_device() {
-            self.ensure_host_session_access(context, "run", &session_id)
+            self.ensure_host_session_access(context, "access_manage", &session_id)
                 .await?;
         }
         Ok(serde_json::to_value(self.close_session(session_id).await?)?)
@@ -83,8 +76,16 @@ where
             .and_then(Value::as_str)
             .ok_or_else(|| anyhow::anyhow!("context.fork requires parent_session_id"))?
             .to_string();
+        let parent = self
+            .get_session(&parent_session_id)
+            .await
+            .ok_or_else(|| anyhow::anyhow!("session '{parent_session_id}' not found"))?;
+        anyhow::ensure!(
+            parent.metadata.get("kind").and_then(Value::as_str) != Some("run"),
+            "Host-owned Run contexts cannot be forked"
+        );
         if context.is_host_device() {
-            self.ensure_host_session_access(context, "run", &parent_session_id)
+            self.ensure_host_session_access(context, "access_manage", &parent_session_id)
                 .await?;
         }
         let forked_from_sequence = params
@@ -127,5 +128,49 @@ where
             self.list_events_range_with_context(context, &request)
                 .await?,
         )?)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::sync::Arc;
+
+    use serde_json::json;
+
+    use crate::{InMemoryEventStore, OpenSessionRequest, ProtocolContext, Runtime, RuntimeConfig};
+
+    #[tokio::test]
+    async fn public_context_methods_cannot_take_over_host_owned_run_contexts() -> anyhow::Result<()>
+    {
+        let runtime = Runtime::new(
+            Arc::new(InMemoryEventStore::default()),
+            RuntimeConfig::default(),
+        );
+        let session = runtime
+            .open_session(OpenSessionRequest {
+                metadata: json!({"kind": "run"}),
+                ..OpenSessionRequest::default()
+            })
+            .await?;
+        let context = ProtocolContext::host_dev("run-context-test");
+        assert!(runtime
+            .call_protocol(&context, "context.close", json!({"session_id": session.id}),)
+            .await
+            .is_err());
+        assert!(runtime
+            .call_protocol(
+                &context,
+                "context.fork",
+                json!({
+                    "parent_session_id": session.id,
+                    "forked_from_sequence": 0,
+                    "metadata": {},
+                }),
+            )
+            .await
+            .is_err());
+        assert!(runtime.get_session(&session.id).await.is_some());
+        runtime.close_session(session.id).await?;
+        Ok(())
     }
 }

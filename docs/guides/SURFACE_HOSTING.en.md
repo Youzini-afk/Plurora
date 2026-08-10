@@ -178,7 +178,7 @@ The implementation places hard limits on owned streams and concurrent subscripti
 
 ## Installation / Run boundary
 
-Phase 3 `/installation/<installation-id>` displays the Installation projection only; it neither mounts a surface nor fabricates a Run. Phase 4 establishes sessions and endpoints through a separate Run / Exposure journal before mounting. Closing an iframe grants no implicit stop authority; the host page still uses an explicit public Run method.
+`/installation/<installation-id>` displays the Installation projection and Library affordances. Only a successful explicit `host.run.start` creates the Run context that a Shell may then mount as a surface. The Run journal owns its lifecycle independently; closing an iframe, tab, or PWA connection grants no stop authority. The host page must call `host.run.stop` with exact Installation + Run selectors. Run start never implicitly builds/deploys; missing local matches return structured gaps. Exposure and cross-Installation Binding remain Phase 5.
 
 Iframe memory is not persistent state. Recoverable state belongs in Package capabilities, events, assets, or projections and is reloaded through public contracts. `initialProps` is suitable only for session, descriptor, and read-only startup information.
 

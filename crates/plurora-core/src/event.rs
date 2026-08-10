@@ -26,6 +26,11 @@ pub const EVENT_PACKAGE_LOG: &str = "host/package.log";
 pub const INSTALLATION_CREATED: &str = "host/installation.created";
 pub const INSTALLATION_UPDATED: &str = "host/installation.updated";
 pub const INSTALLATION_REMOVED: &str = "host/installation.removed";
+pub const EVENT_RUN_STARTING: &str = "host/run.starting";
+pub const EVENT_RUN_STARTED: &str = "host/run.started";
+pub const EVENT_RUN_STOPPING: &str = "host/run.stopping";
+pub const EVENT_RUN_STOPPED: &str = "host/run.stopped";
+pub const EVENT_RUN_FAILED: &str = "host/run.failed";
 pub const EVENT_ASSET_PUT: &str = "object/put";
 pub const EVENT_PROJECTION_UPDATED: &str = "projection/updated";
 pub const EVENT_PROPOSAL_CREATED: &str = "change/proposal.created";
@@ -90,6 +95,11 @@ pub const PLATFORM_EVENT_KINDS: &[&str] = &[
     INSTALLATION_CREATED,
     INSTALLATION_UPDATED,
     INSTALLATION_REMOVED,
+    EVENT_RUN_STARTING,
+    EVENT_RUN_STARTED,
+    EVENT_RUN_STOPPING,
+    EVENT_RUN_STOPPED,
+    EVENT_RUN_FAILED,
     EVENT_ASSET_PUT,
     EVENT_PROJECTION_UPDATED,
     EVENT_PROPOSAL_CREATED,

@@ -107,6 +107,25 @@ pub(crate) fn method_schemas() -> Vec<(PlatformMethod, Value, Value)> {
                     schema_value::<InstallationRemoveRequest>(),
                     schema_value::<InstallationMutationResult>(),
                 ),
+                PlatformMethod::RunList => (
+                    schema_value::<RunListRequest>(),
+                    json!({"type":"array","items":schema_value::<RunView>()}),
+                ),
+                PlatformMethod::RunGet => {
+                    (schema_value::<RunGetRequest>(), schema_value::<RunView>())
+                }
+                PlatformMethod::RunStatus => (
+                    schema_value::<RunStatusRequest>(),
+                    schema_value::<RunStatusView>(),
+                ),
+                PlatformMethod::RunStart => (
+                    schema_value::<RunStartRequest>(),
+                    schema_value::<RunStartResult>(),
+                ),
+                PlatformMethod::RunStop => (
+                    schema_value::<RunStopRequest>(),
+                    schema_value::<RunMutationResult>(),
+                ),
                 PlatformMethod::TargetList => (
                     schema_value::<EmptyParams>(),
                     json!({"type":"array","items":schema_value::<ExecutionTarget>()}),

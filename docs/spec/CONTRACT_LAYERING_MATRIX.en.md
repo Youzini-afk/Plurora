@@ -31,12 +31,12 @@ It answers:
 
 ## Current factual baseline
 
-- 80 exact public method IDs and 80 method schemas.
-- 58 explicit platform-owned event kinds and 58 payload schemas.
-- 39 top-level schemas; 177 schemas total.
+- 85 exact public method IDs and 85 method schemas.
+- 63 explicit platform-owned event kinds and 63 payload schemas.
+- 39 top-level schemas; 187 schemas total.
 - Contract Registry `0.1.0` exposes one wire ID per method and no aliases.
 - Method IDs declare owner through their first dot segment.
-- Platform event ownership is explicit; all 58 kinds require writer `plurora/runtime`.
+- Platform event ownership is explicit; all 63 kinds require writer `plurora/runtime`.
 - Package event and capability IDs remain under the exact Package ID slash namespace.
 - Explicit contract and Protocol Commons negotiation occurs before dispatch and fails closed.
 
@@ -50,7 +50,7 @@ It answers:
 | `authority.*` | 7 | `S` | Handles, grants, revocation, decisions |
 | `object.*` | 3 | `S` / `H` | Put/get are substrate-shaped; global listing remains Host-shaped |
 | `identity.*` | 1 | `S` | Authenticated principal/context discovery |
-| `host.*` | 40 | `H` / `X` | Host-local operations; effects still depend on substrate authority and receipts |
+| `host.*` | 45 | `H` / `X` | Host-local operations; effects still depend on substrate authority and receipts |
 | `protocol.*` | 3 | `C` | Extension-contract discovery and subscriptions |
 | `change.*` | 6 | `C` | Approval-gated Change protocol facade |
 | `projection.*` | 4 | `C` | Derived-view protocol operations |
@@ -61,7 +61,8 @@ It answers:
 | Host area | Count | Classification |
 |---|---:|---|
 | package lifecycle and audit | 8 | `X`: Host artifact/process concerns plus runtime component evidence |
-| project | 5 | `H`: current distribution installation-instance model |
+| Installation | 5 | `H`: Host-owned adoption record |
+| Run lifecycle | 5 | `H`: durable Run journal and local activation |
 | target / exec / port / proxy | 17 | `H`, with `S` authority and receipt evidence |
 | outbound | 6 | `X`: Host network adapters plus `S` policy, secrets, streams, and receipts |
 | surface bundle resolution | 1 | `X`: Host serving plus Shell Profile interpretation |
@@ -74,7 +75,8 @@ A mixed classification does not create a private API. It identifies where implem
 | Group | Count | Owner |
 |---|---:|---:|
 | Context | 3 | `S` |
-| Package and Project lifecycle | 13 | `H` / `X` |
+| Package and Installation lifecycle | 12 | `H` / `X` |
+| Run lifecycle | 5 | `H` |
 | Capability and stream lifecycle | 10 | `S` |
 | Authority | 3 | `S` |
 | Object | 1 | `S` |

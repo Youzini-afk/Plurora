@@ -29,7 +29,7 @@ plurora installation remove <installation-id> \
   --state keep --idempotency-key remove-my-work
 ```
 
-Phase 4 前，Installation `ready` 不代表已经启动。CLI 和 Web 不会把 create 伪装成 Run。
+Installation `ready` 仍不代表已经启动；CLI 和 Web 必须通过显式 `host.run.start` 创建 Run。打开详情不会启动，缺少可用本地实现时 start 返回结构化 gap；`host.run.stop` 只停止该 Run，不卸载全局 Package。
 
 ## 可接受来源
 

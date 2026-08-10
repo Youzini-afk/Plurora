@@ -12,7 +12,7 @@ use cli::{
 };
 use commands::audit;
 use commands::{
-    capability, conformance_package, demo, host, installation, manifest, package, perf,
+    capability, conformance_package, demo, host, installation, manifest, package, perf, run,
     world_bundle,
 };
 
@@ -176,6 +176,7 @@ pub async fn run_cli(cli: Cli) -> anyhow::Result<()> {
         },
         Command::Audit(args) => audit::run(args).await,
         Command::Installation(args) => installation::run(args).await,
+        Command::Run(args) => run::run(args).await,
         Command::Work(args) => commands::work::run(args).await,
         Command::InitPackage {
             path,

@@ -52,7 +52,7 @@ flowchart LR
 
 ## CLI 生命周期
 
-`plurora host access ... changes` 只使用上表公开路由和当前选择的 Host/project 连接 context。草拟输入就是精确的类型化 JSON 请求，通过有界文件读取，或以 `--request -` 从 stdin 读取；CLI 不读取 workspace，也不直接写 Host journal。
+`plurora host access ... changes` 只使用上表公开路由和当前选择的 Host 连接 context。草拟输入就是精确的类型化 JSON 请求，通过有界文件读取，或以 `--request -` 从 stdin 读取；CLI 不读取 workspace，也不直接写 Host journal。
 
 ```json
 {

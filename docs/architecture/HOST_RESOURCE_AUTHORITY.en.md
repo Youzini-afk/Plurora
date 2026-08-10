@@ -109,7 +109,7 @@ Unknown resources, ownership conflicts, missing selectors, expired grants, and r
 - `host.installation.create` requires `installation.manage` plus the exact Work named by the requested `work_id`; `WorkRevision.work_id` in canonical CAS must match it. `update|remove` require the exact Installation.
 - Runtime mints a non-wire-constructible Host-only sidecar for create, every update state action (including `preserve`), and remove. After waiting for the apply lock and before each durable/effect boundary, the service synchronizes the HostAccess journal and rechecks grant activity, expiry, delegation, action, and exact resource. Request fields never grant authority.
 - Installation-local secret scope comes from a Host-verified Installation context.
-- Phase 4 Run start/stop and Run-bound sessions require `run` plus exact Installation / Run selectors.
+- Run start requires `run` plus an exact Installation. The Host generates RunId after preflight. Later get/stop calls carry both I/R, and the registry must prove that the Run is a child of that exact Installation before deriving authority for that child request. The rule never crosses Installations and is not a first-party private bypass. Host restart marks active Runs `interrupted`.
 - Package surfaces receive only short-lived, method-allowlisted attenuated handles, never root/device credentials.
 
 ## Audit linkage

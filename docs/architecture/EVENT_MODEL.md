@@ -26,11 +26,12 @@ Runtime 分配 `id`、`sequence`、`timestamp` 与最终 writer 身份。Package
 
 ## 平台拥有的事件 kind
 
-58 个平台事件由显式 registry 定义，不依赖魔法字符串前缀。它们使用语义 owner namespace，例如：
+63 个平台事件由显式 registry 定义，不依赖魔法字符串前缀。它们使用语义 owner namespace，例如：
 
 ```text
 context/opened
 host/package.loading
+host/run.started
 capability/stream.started
 authority/grant.created
 object/put

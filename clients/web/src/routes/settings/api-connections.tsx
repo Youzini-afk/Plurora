@@ -60,22 +60,26 @@ export function ApiConnectionsPanel() {
   const toast = useToast();
   const t = useT();
 
-  const platform = useAsync(() => client.listSecrets(), [client]);
+  const installations = useAsync(() => client.listInstallations().catch(() => []), [client]);
+  const [scope, setScope] = useState<"platform" | "installation">("platform");
+  const [selectedInstallationId, setSelectedInstallationId] = useState<string | null>(null);
+  const selectedScopeId = scope === "installation" ? selectedInstallationId ?? undefined : undefined;
+  const platform = useAsync(() => client.listSecrets(selectedScopeId), [client, selectedScopeId]);
   const health = useAsync(() => client.secretsHealth().catch(() => null), [client]);
   const [showAdd, setShowAdd] = useState(false);
 
   const secrets = useMemo<SecretView[]>(() => {
     return (platform.data ?? []).map((name) => ({
       name,
-      scope: "platform",
-      scopeLabel: "PLATFORM",
+      scope: selectedScopeId ? "installation" : "platform",
+      scopeLabel: selectedScopeId ? "INSTALLATION" : "PLATFORM",
       provider: PROVIDER_HINTS[name] ?? "Custom",
     }));
-  }, [platform.data]);
+  }, [platform.data, selectedScopeId]);
 
   const handleDelete = async (name: string) => {
     try {
-      await client.deleteSecret(name);
+      await client.deleteSecret(name, selectedScopeId);
       platform.refresh();
       health.refresh();
       toast.push({ variant: "info", title: t("apiRemoved", name) });
@@ -96,7 +100,7 @@ export function ApiConnectionsPanel() {
   const handleSave = async (entry: DraftSecret) => {
     if (!entry.name || !entry.value) return;
     try {
-      await client.putSecret(entry.name, entry.value);
+      await client.putSecret(entry.name, entry.value, selectedScopeId);
       platform.refresh();
       health.refresh();
       setShowAdd(false);
@@ -258,7 +262,18 @@ export function ApiConnectionsPanel() {
         </aside>
       </div>
 
-      <AddSecretModal open={showAdd} onClose={() => setShowAdd(false)} onSave={handleSave} />
+      <AddSecretModal
+        open={showAdd}
+        onClose={() => setShowAdd(false)}
+        onSave={handleSave}
+        scope={scope}
+        selectedInstallationId={selectedInstallationId}
+        installations={installations.data ?? []}
+        onScopeChange={(nextScope, installationId) => {
+          setScope(nextScope);
+          setSelectedInstallationId(installationId);
+        }}
+      />
     </>
   );
 }
@@ -343,15 +358,22 @@ function AddSecretModal({
   open,
   onClose,
   onSave,
+  scope,
+  selectedInstallationId,
+  installations,
+  onScopeChange,
 }: {
   open: boolean;
   onClose: () => void;
   onSave: (entry: DraftSecret) => void;
+  scope: "platform" | "installation";
+  selectedInstallationId: string | null;
+  installations: Array<{ record: { installation_id: string; display_name: string } }>;
+  onScopeChange: (scope: "platform" | "installation", installationId: string | null) => void;
 }) {
   const t = useT();
   const [name, setName] = useState("");
   const [provider, setProvider] = useState("OpenAI");
-  const [scope, setScope] = useState<string>("platform");
   const valueRef = useRef<HTMLInputElement>(null);
 
   const wipeValueInput = () => {
@@ -366,7 +388,7 @@ function AddSecretModal({
       wipeValueInput();
       setName("");
       setProvider("OpenAI");
-      setScope("platform");
+      onScopeChange("platform", null);
     }
   }, [open]);
 
@@ -430,8 +452,11 @@ function AddSecretModal({
               <button
                 key={option.id}
                 type="button"
-                onClick={() => setScope(option.id)}
-                disabled={option.id !== "platform"}
+                onClick={() => {
+                  if (option.id === "platform") onScopeChange("platform", null);
+                  else if (installations[0]) onScopeChange("installation", selectedInstallationId ?? installations[0].record.installation_id);
+                }}
+                disabled={option.id === "installation" && installations.length === 0}
                 className={cn(
                   "rounded-full border px-3 py-1 text-[12px] font-medium transition disabled:opacity-50",
                   scope === option.id
@@ -443,6 +468,17 @@ function AddSecretModal({
               </button>
             ))}
           </div>
+          {scope === "installation" ? (
+            <select
+              className="mt-3 h-10 w-full rounded-[10px] border border-whisper-border bg-transparent px-3 text-[13px] outline-none focus-visible:border-aged-brass"
+              value={selectedInstallationId ?? ""}
+              onChange={(event) => onScopeChange("installation", event.target.value || null)}
+              required
+            >
+              <option value="" disabled>Select an Installation</option>
+              {installations.map((installation) => <option key={installation.record.installation_id} value={installation.record.installation_id}>{installation.record.display_name} ({installation.record.installation_id})</option>)}
+            </select>
+          ) : null}
         </Field>
         <ModalFooter className="justify-end">
           <Button tone="secondary" type="button" onClick={onClose}>

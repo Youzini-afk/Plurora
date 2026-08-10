@@ -194,7 +194,7 @@ mod tests {
 
     use plurora_core::ArtifactDescriptor;
     use plurora_work::{
-        AcquisitionKind, AcquisitionRecord, InstallationRecord, InstallationStatus,
+        AcquisitionKind, AcquisitionRecord, InstallationRecord, InstallationStatus, WorkId,
     };
     use tokio::sync::{Mutex, Semaphore};
 
@@ -202,7 +202,7 @@ mod tests {
     use crate::installation_control::{
         InstallationCreateRequest, InstallationListRequest, InstallationMutationResult,
         InstallationRemoveRequest, InstallationSecretStoreGuard, InstallationStateAction,
-        InstallationUpdateRequest, InstallationView, StateDisposition,
+        InstallationUpdateRequest, InstallationView, InstallationWorkSummary, StateDisposition,
     };
 
     const SECRET_REF: &str = "secret_ref:installation:API_KEY";
@@ -406,6 +406,17 @@ mod tests {
     ) -> InstallationView {
         let now = chrono::Utc::now();
         InstallationView {
+            work_summary: InstallationWorkSummary {
+                work_id: WorkId::parse("tests/secret-resolver").expect("valid Work id"),
+                title: "Resolver guard fixture".to_string(),
+                description: String::new(),
+                content_roots: Vec::new(),
+                entrypoints: Vec::new(),
+                rights: None,
+                transparency: None,
+                operational_intent: None,
+                annotations: BTreeMap::new(),
+            },
             record: InstallationRecord {
                 schema_version: InstallationRecord::SCHEMA_VERSION,
                 installation_id,

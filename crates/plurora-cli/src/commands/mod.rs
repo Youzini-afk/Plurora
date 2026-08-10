@@ -10,6 +10,7 @@ pub mod installation;
 pub(crate) mod manifest;
 pub(crate) mod package;
 pub(crate) mod perf;
+pub mod run;
 pub mod target_agent;
 pub(crate) mod work;
 pub(crate) mod world_bundle;

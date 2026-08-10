@@ -8,10 +8,10 @@ For platform goals and principles, see [`CHARTER.md`](CHARTER.en.md) and [`archi
 
 ## Summary
 
-- **Conformance:** named CLI conformance plus crate and service unit tests continue to pass; 177 v1 schemas validate (80 methods + 58 events + 39 top-level).
+- **Conformance:** named CLI conformance plus crate and service unit tests continue to pass; 187 v1 schemas validate (85 methods + 63 events + 39 top-level).
 - **Charter discipline:** content-free kernel; no privilege for first-party Packages; public protocol only; equal entry forms; capability handles, binding injection, Path A / Path B, the conformance kit, and generated SDKs are implemented; trusted paths block raw secrets and use manifest-declared `secret_ref` everywhere; permission grants rehydrate; network permissions are audited and redacted; generic streaming and cancel lifecycle; outbound execution has a boundary, deny-all by default; public HTTPS outbound uses the same host-policy / audit / redaction boundary; unary outbound, SSE/NDJSON/raw streams, and WebSocket all emit completion audit events.
 - **Code health:** the CLI, runtime domain behavior, protocol dispatch, in-process handlers, and the event store are all split by domain. We're not stacking more onto single files.
-- **Human-testing substrate:** Work sources safely pack into content-addressed WorkRevision, AssemblyRevision, and AssemblyLock artifacts. Install Lab produces an Installation candidate, while `host.installation.*` creates, updates, and removes Installations through a durable journal, idempotency claims, and revision CAS. Workspaces and Installations are separate, and linked-local sources are never deleted. Web/Desktop/PWA share one public client core and Home reads Installation projections. Actual Run / Exposure lifecycle is the next Phase. The Surface bridge retains allowlists, stream ownership, redacted diagnostics, secret-input cleanup, and CSP/CORS; existing target / exec / port / proxy and the Deployment broker will be replaced in the later Realization Phase.
+- **Human-testing substrate:** Work sources safely pack into content-addressed WorkRevision, AssemblyRevision, and AssemblyLock artifacts. Install Lab produces an Installation candidate, while `host.installation.*` creates, updates, and removes Installations through a durable journal, idempotency claims, and revision CAS. Workspaces and Installations are separate, and linked-local sources are never deleted. RunRegistry, `host.run.*`, and Run lifecycle events now use an independent durable journal; Library actions explicitly start, inspect, and stop Runs, while opening detail never starts one. Exposure remains Phase 5. The Surface bridge retains allowlists, stream ownership, redacted diagnostics, secret-input cleanup, and CSP/CORS; managed Realization remains the Phase 6 boundary.
 
 The repository now has a substantial operational surface, but neither the platform nor the official product is “finished.” Further construction addresses openness, plurality, advanced execution and protocol capability, long-term data evolution, and complete experiences for users and creators.
 
@@ -30,7 +30,7 @@ The repository now has a substantial operational surface, but neither the platfo
 - The Contract V1 principal union remains `host_admin`, `host_dev`, `package`, `human`, `assistant`, and `anonymous`. Paired devices use the fail-closed `anonymous` V1 sentinel at the remote RPC boundary while a Host-established authority envelope retains the grant, delegation chain, and resource constraints; an older runtime that ignores the envelope can only deny rather than amplify authority. Redacted Host control-plane audit records still identify the logical `host_device`; human and assistant principals get scoped grants.
 - Audit events: `authority/grant.created|revoked`, `authority/denied`, the `host/package.*` lifecycle, and the `change/proposal.*` lifecycle; the Host control plane also writes redacted `host/control/v1/authority.decision` records outside Contract V1.
 - Persistent grants: grant / revoke events rehydrate inside a SQLite-backed runtime.
-- Contract V1 is the public platform spec: 80 protocol methods, 58 event kinds, and 177 JSON Schemas. `authority.handle.*`, `host.package.audit`, capability handles, binding injection, Path B, the conformance kit, and SDK generation are implemented.
+- Contract V1 is the public platform spec: 85 protocol methods, 63 event kinds, and 187 JSON Schemas. `host.run.*`, Run lifecycle events, `authority.handle.*`, `host.package.audit`, capability handles, binding injection, Path B, the conformance kit, and SDK generation are implemented.
 
 ## Secure execution
 
@@ -49,7 +49,7 @@ The repository now has a substantial operational surface, but neither the platfo
 
 - A canonical request / response envelope carrying a host-bound principal context. Callers can't claim to be a package or admin.
 - The same dispatcher handles HTTP `POST /rpc` and host JSON-RPC stdio (`plurora host-stdio`).
-- Contract Registry `0.1.0` publishes 80 exact owner-based method IDs, two explicit contract profiles, per-layer version requirements, and fail-closed Protocol Commons negotiation. HTTP RPC, Host stdio, in-process calls, and subprocess reverse stdio use the same exact resolver. The generated SDKs expose one method identity per wire ID, and the Web client sends only those IDs.
+- Contract Registry `0.1.0` publishes 85 exact owner-based method IDs, two explicit contract profiles, per-layer version requirements, and fail-closed Protocol Commons negotiation. HTTP RPC, Host stdio, in-process calls, and subprocess reverse stdio use the same exact resolver. The generated SDKs expose one method identity per wire ID, and the Web client sends only those IDs.
 - Event subscription via SSE, with `after_sequence` replay and live tailing.
 - Profile-driven `plurora host serve` autoloads packages and exposes both `/rpc` and SSE.
 - The Host control plane remains separate from Contract V1: the root token is the root credential, while durable device grants attenuate both action scopes and Work / Workspace / Installation / Run / Target / Exposure / Binding / Realization resource selectors, with bounded delegation, ancestor-revocation cascade, expiry, single revoke, and atomic administrator bulk revoke. HTTP and RPC preserve the same device identity and authority before entering the runtime, and every device protocol call records a redacted allow/deny decision. The mobile PWA and `plurora host access` CLI manage authority through the same Host API; pairing still exchanges a one-time HTTPS token for a Secure/HttpOnly cookie. See [`architecture/HOST_REMOTE_ACCESS.md`](architecture/HOST_REMOTE_ACCESS.en.md).
@@ -97,7 +97,8 @@ The repository now has a substantial operational surface, but neither the platfo
 | new `objects/`, `installations/`, `workspaces/`, and `runtime/` layout | implemented |
 | `secret_ref:installation:NAME` plus optional platform fallback | implemented |
 | Web Home Installation cards / detail | implemented |
-| Run / Exposure lifecycle | Phase 4 |
+| Run lifecycle (`host.run.*` plus five Run events) | implemented |
+| Exposure lifecycle | Phase 5 |
 | Planner / Realization | Phases 5–6 |
 
 Work packing and Installation creation are separate: pack produces immutable artifacts only; create/update/remove mutate the Host journal. Workspace locations are Host-local bindings and never enter portable Work identity.
@@ -112,7 +113,8 @@ Work packing and Installation creation are separate: pack produces immutable art
 | Host-identity-gated `/surface-bundles/<prefix>/<file>` route | implemented |
 | grant/root-bound five-minute `/surface-assets/<lease>/...` sandbox handle | implemented |
 | Installation-scoped secret and authority context | implemented |
-| Installation → Run / Exposure start and stop | Phase 4 |
+| Installation → Run start and stop | implemented |
+| Exposure lifecycle | Phase 5 |
 | Surface receives `session_id` via `initialProps` | implemented |
 | `TavernProvider.sendMessage` invokes engine `model.live_call` | implemented |
 | API Connections drawer scope toggle (platform / Installation) | implemented |
@@ -194,7 +196,7 @@ Under `sdk/typescript/`:
 ## Contract v1 and SDK generation
 
 - `docs/spec/PUBLIC_CONTRACT.md` is the public platform spec.
-- `docs/spec/v1/schemas/` is the single source of truth for SDKs and conformance: 80 methods, 58 events, 39 top-level schemas, 177 total.
+- `docs/spec/v1/schemas/` is the single source of truth for SDKs and conformance: 85 methods, 63 events, 39 top-level schemas, 187 total.
 - `sdk/typescript/contract-sdk/` and `sdk/rust/plurora-contract-sdk/` are generated from schemas; the TypeScript package can be consumed through npm, workspace path, or independent codegen.
 - `plurora conformance package --contract v1 --path <package>` provides 8 third-party package acceptance checks.
 
@@ -215,7 +217,7 @@ The platform user-facing chrome — Home, Settings, Installation flow, Installat
   - Host Access — current root/device identity, action scopes, Work / Workspace / Installation / Run / Target / Exposure / Binding / Realization resource selectors, delegation chains, HTTPS pairing links, pending invitations, device expiry, and cascading grant revocation; new invitations select only `observe` by default.
   - About — platform identity, license, links, gratitude.
 - **Installation flow:** the UI uses the real public `host.installation.create|update|remove` DTOs. Update carries an expected revision plus explicit state action; remove requires keep/delete.
-- **Installation Frame:** `/installation/<id>` displays Installation detail and status. Before Phase 4 it does not fabricate a Run and instead returns the structured `run_unavailable_phase4` reason.
+- **Installation Frame:** `/installation/<id>` displays Installation detail, Library affordances, and current Run status. Start and stop use explicit `host.run.start` / `host.run.stop`; missing local matches or Realization requirements show structured gaps and next steps, while opening the page never starts a Run.
 - **Failure Modal:** Deep Rust accent stripe, two-column diagnosis / impact, redacted stderr panel (with Copy log), and Restart / Stop-and-uninstall / Close actions. Data comes from `host.package.list/status/logs`; raw logs are not copied into the UI.
 - **Toast system:** five variants (info/success/warning/error/progress), bottom-right queue; honors `prefers-reduced-motion`.
 - **Responsive and dark mode:** explicit `data-theme` switch (system/light/dark); `@custom-variant dark` binds Tailwind's `dark:` to that attribute; the modal overlay uses a dedicated `--color-overlay` token that does not flip with theme; `prefers-reduced-motion` collapses motion; `:focus-visible` paints a keyboard navigation ring.
@@ -273,7 +275,7 @@ Plus crate and service unit tests via `cargo test --workspace`, and `npm run che
 - Richer resource policy (filesystem enforcement matrix).
 - Content-addressed asset blob storage and package-principal asset permissions: stable content-address helpers and metadata conventions are done; full blob storage and runtime enforcement aren't.
 - Package-owned projection execution.
-- Richer failure monitoring and health checks.
+- Active health probes, automatic recovery/rebind, and richer failure monitoring; definitively observed permanent JSON-RPC stdio transport loss already durably fails affected Runs.
 - Broader transport consistency coverage.
 - Desktop release code signing / notarization, auto-updater, real app icons, plus richer managed-Host crash recovery and sidecar-update coordination.
 - Surface lifecycle callbacks such as `onClose` and `onProposalDraft`, plus a cross-origin surface-bundle allowlist.

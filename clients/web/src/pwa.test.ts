@@ -1,4 +1,5 @@
 import { canRegisterServiceWorker } from "./pwa";
+import { parseInstallationPath } from "./lib/router";
 
 function assertEqual<T>(actual: T, expected: T) {
   if (actual !== expected) throw new Error(`expected ${String(expected)}, got ${String(actual)}`);
@@ -9,3 +10,6 @@ assertEqual(canRegisterServiceWorker({ protocol: "http:", hostname: "127.0.0.1",
 assertEqual(canRegisterServiceWorker({ protocol: "http:", hostname: "tauri.localhost", search: "" }, true), false);
 assertEqual(canRegisterServiceWorker({ protocol: "file:", hostname: "", search: "" }, true), false);
 assertEqual(canRegisterServiceWorker({ protocol: "https:", hostname: "host.test", search: "" }, false), false);
+if (parseInstallationPath("/installation/demo-installation")?.installationId !== "demo-installation") {
+  throw new Error("PWA installation deep links must resolve to the exact Installation route");
+}

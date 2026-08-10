@@ -1,3 +1,4 @@
+pub mod assembly_runtime;
 pub mod capability;
 pub mod contract;
 pub mod event_store;
@@ -10,6 +11,7 @@ pub mod pi;
 pub mod protocol;
 pub mod protocol_commons;
 pub mod redaction;
+pub mod run_control;
 pub mod runtime;
 pub mod schema;
 pub mod secret;
@@ -19,6 +21,7 @@ pub mod subprocess;
 pub mod target_deployment;
 pub mod tavern;
 
+pub use assembly_runtime::AssemblyRuntimeDriver;
 pub use capability::{
     CapabilityFabric, CapabilityInvocationRequest, CapabilityInvocationResult,
     ExtensionDispatchResult, ExtensionRegistry, RegisteredCapability, RegisteredHook,
@@ -48,7 +51,8 @@ pub use installation_control::{
     InstallationStateAction, InstallationStateAuthorityEvidence, InstallationStateDecision,
     InstallationStateDecisionAction, InstallationStateDecisionReceipt, InstallationStateSlotChange,
     InstallationStateSlotDiff, InstallationStateSlotRequirement, InstallationStateSnapshot,
-    InstallationStateSnapshotEntry, InstallationUpdateRequest, InstallationView, StateDisposition,
+    InstallationStateSnapshotEntry, InstallationUpdateRequest, InstallationView,
+    InstallationWorkSummary, RunInstallationArtifacts, RunInstallationGuard, StateDisposition,
     UnavailableInstallationControl, INSTALLATION_STATE_AUTHORITY_EVIDENCE_MEDIA_TYPE,
     INSTALLATION_STATE_AUTHORITY_EVIDENCE_SCHEMA, INSTALLATION_STATE_AUTHORITY_EVIDENCE_TYPE_URI,
     INSTALLATION_STATE_OPERATION, INSTALLATION_STATE_RECEIPT_MEDIA_TYPE,
@@ -91,6 +95,13 @@ pub use protocol_commons::{
 pub use redaction::{
     redact_effect_value, redact_secrets_in_value, scan_effect_value_for_raw_secrets,
     scan_value_for_raw_secrets, SecretDetection, SecretFinding, SecretScanResult,
+};
+pub use run_control::{
+    validate_run_idempotency_key, RunActivation, RunAuthorityRefresh, RunAuthorityValidator,
+    RunControl, RunEntrypointPreflight, RunGap, RunGetRequest, RunLifecycleDriver, RunListRequest,
+    RunMutationAuthority, RunMutationResult, RunPreparation, RunStartRequest, RunStartResult,
+    RunStatusInspection, RunStatusRequest, RunStatusView, RunStopRequest, RunView,
+    UnavailableRunControl,
 };
 pub use runtime::{
     audit_world_bundle_archive, check_network_policy, content_address, exact_artifact_upload,

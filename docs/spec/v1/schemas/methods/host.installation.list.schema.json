@@ -228,6 +228,76 @@
       ],
       "type": "string"
     },
+    "InstallationWorkSummary": {
+      "additionalProperties": false,
+      "description": "Host-projected discovery metadata from the exact, verified WorkRevision selected by an Installation. This is descriptive content, not authority.",
+      "properties": {
+        "annotations": {
+          "additionalProperties": true,
+          "type": "object"
+        },
+        "content_roots": {
+          "items": {
+            "$ref": "#/$defs/ArtifactDescriptor"
+          },
+          "type": "array"
+        },
+        "description": {
+          "type": "string"
+        },
+        "entrypoints": {
+          "items": {
+            "$ref": "#/$defs/WorkEntrypoint"
+          },
+          "type": "array"
+        },
+        "operational_intent": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ArtifactDescriptor"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "rights": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ArtifactDescriptor"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "title": {
+          "type": "string"
+        },
+        "transparency": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ArtifactDescriptor"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "work_id": {
+          "$ref": "#/$defs/WorkId"
+        }
+      },
+      "required": [
+        "annotations",
+        "content_roots",
+        "description",
+        "entrypoints",
+        "title",
+        "work_id"
+      ],
+      "type": "object"
+    },
     "Params": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "properties": {
@@ -244,6 +314,10 @@
       },
       "title": "InstallationListRequest",
       "type": "object"
+    },
+    "PortId": {
+      "pattern": "^(?!.*\\.\\.)[A-Za-z0-9._-]+$",
+      "type": "string"
     },
     "Result": {
       "items": {
@@ -266,11 +340,15 @@
                 "type": "null"
               }
             ]
+          },
+          "work_summary": {
+            "$ref": "#/$defs/InstallationWorkSummary"
           }
         },
         "required": [
           "record",
-          "revision"
+          "revision",
+          "work_summary"
         ],
         "title": "InstallationView",
         "type": "object"
@@ -315,6 +393,91 @@
     },
     "StateSlotId": {
       "pattern": "^(?!.*\\.\\.)[A-Za-z0-9._-]+$",
+      "type": "string"
+    },
+    "WorkEntrypoint": {
+      "properties": {
+        "annotations": {
+          "additionalProperties": true,
+          "type": "object"
+        },
+        "id": {
+          "type": "string"
+        },
+        "intent_uri": {
+          "type": "string"
+        },
+        "target": {
+          "$ref": "#/$defs/WorkEntrypointTarget"
+        }
+      },
+      "required": [
+        "id",
+        "intent_uri",
+        "target"
+      ],
+      "type": "object"
+    },
+    "WorkEntrypointTarget": {
+      "oneOf": [
+        {
+          "properties": {
+            "kind": {
+              "enum": [
+                "assembly_port"
+              ],
+              "type": "string"
+            },
+            "port_id": {
+              "$ref": "#/$defs/PortId"
+            }
+          },
+          "required": [
+            "kind",
+            "port_id"
+          ],
+          "type": "object"
+        },
+        {
+          "properties": {
+            "kind": {
+              "enum": [
+                "surface"
+              ],
+              "type": "string"
+            },
+            "surface_id": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "surface_id"
+          ],
+          "type": "object"
+        },
+        {
+          "properties": {
+            "kind": {
+              "enum": [
+                "foreign_launch"
+              ],
+              "type": "string"
+            },
+            "launch_id": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "launch_id"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "WorkId": {
+      "pattern": "^(?!.*\\.\\.)[A-Za-z0-9._-]+(?:/[A-Za-z0-9._-]+)+$",
       "type": "string"
     }
   },

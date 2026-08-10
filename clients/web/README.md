@@ -1,12 +1,12 @@
 # Plurora platform shell (`clients/web`)
 
-The Plurora platform's shared Web/PWA chrome — Home, Settings, Install flow,
-project frame, scoped Host pairing, and toast/notification system. Built as a React 19 single-page
+The Plurora platform's shared Web/PWA chrome — Library, Settings, Installation flow,
+Installation frame, scoped Host pairing, and toast/notification system. Built as a React 19 single-page
 app with Tailwind v4 and an installable service-worker shell. Styles, layout, and behavior follow the Editorial
 Workshop design system in [`../../docs/design/PLATFORM_UI_DESIGN.md`](../../docs/design/PLATFORM_UI_DESIGN.md).
 
-This client is the platform shell only. Project surfaces (YdlTavern, custom
-projects, etc.) mount inside the project frame as iframes through `SurfaceHost`
+This client is the platform shell only. Package-contributed surfaces (including YdlTavern)
+mount inside the Installation frame as iframes through `SurfaceHost`
 and own their own visual identity; the shell does not impose a style on them.
 
 ---
@@ -70,7 +70,7 @@ src/
 ├── styles/app.css              # Tailwind v4 @theme tokens, base, custom utilities
 ├── lib/
 │   ├── theme.tsx               # Theme provider (system/light/dark, data-theme attr)
-│   ├── router.ts               # Hash router — home / settings / project
+│   ├── router.ts               # Hash router — Library / Settings plus Installation path route
 │   ├── auth-gate.tsx           # root-token and same-origin device-cookie startup probe
 │   ├── plurora-client.tsx       # PluroraProvider, usePlurora, useAsync, useEventTail
 │   ├── format.ts               # Shared display helpers (relative time, bytes, etc)
@@ -113,9 +113,9 @@ src/
 │       └── failure-modal.tsx   # redacted failure diagnostics with deep-rust accent
 ├── routes/
 │   ├── home.tsx
-│   ├── home/                   # Home hooks/helpers (projects, disk, timeline, failure diagnostics)
+│   ├── home/                   # Library hooks/helpers (Installations, Runs, failure diagnostics)
 │   ├── pairing.tsx             # one-time HTTPS device pairing screen
-│   ├── installation-frame.tsx       # iframe wrapper + project/deploy/development console
+│   ├── installation-frame.tsx       # Work entrypoints, Run controls, and Run history
 │   └── settings/
 │       ├── index.tsx           # Tab dispatcher
 │       ├── api-connections.tsx # secret-store-lab wired
@@ -148,7 +148,7 @@ src/
 | `#/settings/host-access` | Settings — Host identities, pairing, scopes, revoke |
 | `#/settings/about` | Settings — version, license, links |
 | `/pair?pairing_token=...` | HTTPS one-time device pairing; token is scrubbed immediately |
-| `/installation/<id>` | Standalone project tab with a full-viewport mounted surface |
+| `/installation/<id>` | Standalone Installation tab with a full-viewport mounted surface |
 
 Home and Settings keep hash routing because:
 
@@ -158,11 +158,11 @@ Home and Settings keep hash routing because:
 - It composes naturally with the surface iframe (the surface owns its own
   internal navigation independent of the shell route).
 
-Projects use a path route instead. Home opens `/installation/<id>` in a separate
-named tab with `noopener,noreferrer`. The project page bypasses the platform
+Installations use a path route instead. Home opens `/installation/<id>` in a separate
+named tab with `noopener,noreferrer`. The Installation page bypasses the platform
 topbar and fills the viewport with the sandboxed surface iframe. Closing that
-tab does not stop the project session; `⌘ .` / `Ctrl .` stops the current
-project from the project tab.
+tab does not stop the Run context. The visible Stop action sends an explicit,
+revisioned `host.run.stop` request.
 
 ---
 
@@ -186,15 +186,15 @@ mode for legibility on bark backgrounds.
 
 | Page | Source |
 | ---- | ------ |
-| Home — projects | `host.installation.list` + installation records |
+| Library | `host.installation.list` + exact per-Installation `host.run.list` |
 | Home — shell contributions | `shell.contribution.list` filtered to `quick_action`, `workshop_card`, and schema-versioned `home_card` |
 | Settings — API Connections | `plurora/secret-store-lab/{list,put,delete}_secret` + `health` |
 | Settings — Installed Packages | `host.package.list` + `host.installation.list` (installation flag) |
 | Settings — Profiles | `host.diagnostics` (active profile, packages_loaded, allowlist) |
 | Settings — Storage | storage-area summary + event store kind |
 | Settings — Host Access | `/host/v1/access*` identity, pairing, grant, and revoke APIs |
-| Project tab | `host.installation.get`; Run is unavailable until Phase 4 |
-| Project deployment | `platform.port.*` + `platform.proxy.*` (Phase 4+ surface) |
+| Installation tab | `host.installation.get` + `host.run.get/status`; Run controls use explicit `host.run.*` |
+| Managed deployment | `platform.port.*` + `platform.proxy.*` (transitional surface; Realization remains later) |
 | Install Modal | `host.installation.create` with a typed Installation DTO |
 | Failure Modal | `host.package.list/status/logs` redacted failure summaries |
 
@@ -213,12 +213,10 @@ bundle, parse HTML, or create an iframe for these entries. Package-contributed
 quick actions are discovery affordances in the current slice; executable wiring
 must still cross proposal, permission, and audit boundaries.
 
-Project deployment is also explicit. If a project exposes
-`project.metadata.deployment.docker`, the project console shows Deploy / Stop
-controls. Deploy leases a loopback port, invokes `plurora/docker-runtime-lab`,
-then registers a reverse-proxy route. Route exposure defaults to
-`host_authenticated`; the user must explicitly select `public` before a vhost
-can bypass Host identity. Run lifecycle is unavailable in the Phase 3 Web shell; deployment and realization controls are deferred to later phases.
+Run lifecycle uses only explicit `host.run.start|stop|status` calls. Starting a
+Run never invokes the transitional deployment broker, creates a managed
+Realization, or publishes a route. Managed Realization and Exposure remain
+separate later-phase surfaces.
 
 The Host exposes authenticated routes through `/p/<route_id>/...`. When a route
 is explicitly public and `PLURORA_APP_BASE_DOMAIN` / `--app-base-domain` is
@@ -226,12 +224,6 @@ configured, it also exposes a virtual host such as
 `https://<slug>.apps.example.com/`. Merely configuring the wildcard domain does
 not publish private routes. The Web shell displays and opens the URL returned by
 the Host broker; enforcement stays service-side.
-
-If a project exposes `project.metadata.deployment.build_deploy`, the console can
-start a Build & Deploy job instead: clone source, build with Dockerfile or
-nixpacks, inject approved runtime env / volumes, deploy the built image, and
-stream job progress through the host broker. This still requires an explicit
-user action; project start remains a state/session transition only.
 
 ### Remote PWA control
 
@@ -250,7 +242,7 @@ for TLS topology, scope mapping, revocation, and application-route exposure.
 ## Surface hosting
 
 `src/surfaces/surface-host.ts` mounts third-party surface bundles in sandboxed
-iframes using `/surface-frame.html`. Project tabs use the same host, only without
+iframes using `/surface-frame.html`. Installation tabs use the same host, only without
 the shell chrome around it. Surface bundles are ESM modules with a
 named export that is either callable as `(root, props) => void` or exposes
 `{ mount(root, props) }`.
@@ -285,7 +277,6 @@ Production hosting still needs a static fileserver route (deferred).
 | Shortcut | Action |
 | -------- | ------ |
 | `⌘ N` / `Ctrl N` | Open Install modal (Home only) |
-| `⌘ .` / `Ctrl .` | Stop current project (standalone project tab only) |
 | `⌘ F` / `Ctrl F` | Focus package filter input (Settings → Installed Packages) |
 | `Esc` | Close modal |
 | `↵` | Confirm primary action in modals |
@@ -306,11 +297,11 @@ Production hosting still needs a static fileserver route (deferred).
 ## What this shell is not
 
 - It is not a Studio. There are no privileged tools that bypass public protocol.
-- It is not a chat UI. Project surfaces own conversational behavior.
+- It is not a chat UI. Package-contributed surfaces own conversational behavior.
 - It is not a marketplace. Settings → Installed Packages shows local
   inventory only; the web install flow accepts public HTTPS Git URLs, never a
   curated catalog.
-- It is not a content runtime. All experience-level state lives in projects.
+- It is not a content runtime. Experience-level state remains owned by the installed Work and its explicit Installation state bindings.
 
 ---
 
@@ -323,7 +314,7 @@ Production hosting still needs a static fileserver route (deferred).
 - [`../../docs/guides/INSTALLATION_MODEL.md`](../../docs/guides/INSTALLATION_MODEL.md)
   — Work / Installation lifecycle and Home card semantics.
 - [`../../docs/guides/SECRET_MANAGEMENT.md`](../../docs/guides/SECRET_MANAGEMENT.md)
-  — `secret_ref` contract and platform/project scoping.
+  — `secret_ref` contract and platform/Installation scoping.
 - [`../../docs/architecture/HOST_REMOTE_ACCESS.md`](../../docs/architecture/HOST_REMOTE_ACCESS.md)
   — Host root/device identity, HTTPS pairing, and explicit public routes.
 - [`../../docs/spec/PUBLIC_CONTRACT.md`](../../docs/spec/PUBLIC_CONTRACT.md)

@@ -52,7 +52,7 @@ All routes are inside Host authentication middleware. The root token remains the
 
 ## CLI lifecycle
 
-`plurora host access ... changes` uses only the routes above and the selected Host/project connection context. Draft input is the exact typed JSON request, read from a bounded file or from stdin with `--request -`; the CLI does not read a workspace or write the Host journal directly.
+`plurora host access ... changes` uses only the routes above and the selected Host connection context. Draft input is the exact typed JSON request, read from a bounded file or from stdin with `--request -`; the CLI does not read a workspace or write the Host journal directly.
 
 ```json
 {

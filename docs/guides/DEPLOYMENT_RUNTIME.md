@@ -159,11 +159,11 @@ job intent、最新状态快照、不可变部署修订和 active pointer 都写
 
 recover / rollback 都是显式用户动作。普通修订要求 replay-safe、本地镜像仍存在且 secret 仍可解析；verified 修订要求 artifact closure、preview/approval evidence 与当前 project/target authority 仍有效。verified replay 永不读取 live workspace 或重新抓取源码。任何失败都会保留原 active pointer 并显示 recovery required，不会静默声称已经恢复。直接的预构建镜像 `/host/v1/deploy` 目前仍是临时 broker 操作，不会创建 durable revision。
 
-## `project.start` 不自动部署
+## Run 不自动部署
 
-Installation `ready` 只表示采用记录有效；它不启动进程、不分配端口、不注册 proxy。Phase 4 使用独立 Run / Exposure lifecycle，Phase 6 再用 Realization 取代本页的过渡 deployment controller。
+Installation `ready` 只表示采用记录有效；它不启动进程、不分配端口、不注册 proxy。Phase 4 的 `host.run.start` 只激活已安装、已验证且唯一匹配的本地 Run-bound 实现；缺少组件或需要机器资源时返回结构化 gap，不隐式 build/deploy。打开 Library/Installation UI 与 Run 启动保持可见分离。
 
-部署是单独的、显式的 host-broker 行为。这样可以保留“打开项目 UI”和“运行外部服务”之间的可见边界。
+部署仍是单独、显式的 Host 行为。Managed Realization 的 plan/apply 属于 Phase 6；本页的 transitional deployment controller 不定义 Run 生命周期。
 
 ## 安全红线
 

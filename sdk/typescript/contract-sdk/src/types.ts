@@ -879,6 +879,7 @@ export type HostInstallationListResult = Array<{
   "record": InstallationRecord;
   "revision": number;
   "rollback"?: InstallationRollbackPointer | null;
+  "work_summary": InstallationWorkSummary;
 }>;
 
 export type HostOutboundAuditResult = Array<{
@@ -1037,6 +1038,13 @@ export type HostProxyListResult = Array<{
 export type HostProxyRegisteredPayload = Record<string, unknown>;
 
 export type HostProxyUnregisteredPayload = Record<string, unknown>;
+
+export type HostRunListResult = Array<{
+  "entrypoint_id": string;
+  "installation_revision": number;
+  "record": RunRecord;
+  "revision": number;
+}>;
 
 export type HostTargetListResult = Array<{
   /**
@@ -1424,6 +1432,22 @@ export interface InstallationView {
   "record": InstallationRecord;
   "revision": number;
   "rollback"?: InstallationRollbackPointer | null;
+  "work_summary": InstallationWorkSummary;
+}
+
+/**
+ * Host-projected discovery metadata from the exact, verified WorkRevision selected by an Installation. This is descriptive content, not authority.
+ */
+export interface InstallationWorkSummary {
+  "annotations": Record<string, unknown>;
+  "content_roots": Array<ArtifactDescriptor>;
+  "description": string;
+  "entrypoints": Array<WorkEntrypoint>;
+  "operational_intent"?: ArtifactDescriptor | null;
+  "rights"?: ArtifactDescriptor | null;
+  "title": string;
+  "transparency"?: ArtifactDescriptor | null;
+  "work_id": WorkId;
 }
 
 export interface Intent {
@@ -2723,6 +2747,23 @@ export interface RightsDeclaration {
   "terms_uri"?: null | string;
 }
 
+export interface RunEntrypointPreflight {
+  "entrypoint_id": string;
+  "gaps": Array<RunGap>;
+}
+
+export interface RunGap {
+  "next_step": string;
+  "node_id"?: null | string;
+  "port_id"?: null | string;
+  "reason_code": string;
+}
+
+export interface RunGetRequest {
+  "installation_id": InstallationId;
+  "run_id": RunId;
+}
+
 export interface RunHealth {
   "diagnostic_refs"?: Array<ArtifactDescriptor>;
   "reason_code"?: null | string;
@@ -2730,6 +2771,20 @@ export interface RunHealth {
 }
 
 export type RunId = string;
+
+export interface RunLifecyclePayloadSchema {
+  "run": RunView;
+}
+
+export interface RunListRequest {
+  "installation_id"?: InstallationId | null;
+  "status"?: RunStatus | null;
+}
+
+export interface RunMutationResult {
+  "idempotent": boolean;
+  "run": RunView;
+}
 
 export interface RunRecord {
   "bindings"?: Array<ActiveBindingRecord>;
@@ -2743,7 +2798,47 @@ export interface RunRecord {
   "stopped_at"?: null | string;
 }
 
+export interface RunStartRequest {
+  "entrypoint_id": string;
+  "expected_installation_revision": number;
+  "idempotency_key": string;
+  "installation_id": InstallationId;
+}
+
+export interface RunStartResult {
+  "gaps"?: Array<RunGap>;
+  "idempotent": boolean;
+  "run"?: RunView | null;
+}
+
 export type RunStatus = "starting" | "running" | "degraded" | "stopping" | "stopped" | "failed" | "interrupted";
+
+export interface RunStatusRequest {
+  "entrypoint_id"?: null | string;
+  "installation_id": InstallationId;
+}
+
+export interface RunStatusView {
+  "active_run"?: RunView | null;
+  "installation_id": InstallationId;
+  "installation_revision": number;
+  "preflight"?: RunEntrypointPreflight | null;
+  "work_revision": ArtifactDescriptor;
+}
+
+export interface RunStopRequest {
+  "expected_revision": number;
+  "idempotency_key": string;
+  "installation_id": InstallationId;
+  "run_id": RunId;
+}
+
+export interface RunView {
+  "entrypoint_id": string;
+  "installation_revision": number;
+  "record": RunRecord;
+  "revision": number;
+}
 
 export interface SandboxPolicy {
   "cpu_quota_ms_per_invoke"?: number;

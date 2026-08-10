@@ -106,12 +106,12 @@ fn main() -> anyhow::Result<()> {
         .map(|entry| entry.file_name().to_string_lossy().into_owned())
         .collect::<BTreeSet<_>>();
     anyhow::ensure!(
-        expected_method_ids.len() == 80,
-        "method registry must contain exactly 80 identities"
+        expected_method_ids.len() == 85,
+        "method registry must contain exactly 85 identities"
     );
     anyhow::ensure!(
-        expected_event_kinds.len() == 58,
-        "event registry must contain exactly 58 identities"
+        expected_event_kinds.len() == 63,
+        "event registry must contain exactly 63 identities"
     );
     anyhow::ensure!(
         expected_top_level.len() == 39,
@@ -146,8 +146,8 @@ fn main() -> anyhow::Result<()> {
     let expected_total =
         expected_method_ids.len() + expected_event_kinds.len() + expected_top_level.len();
     anyhow::ensure!(
-        expected_total == 177,
-        "public contract registry must contain exactly 177 identities"
+        expected_total == 187,
+        "public contract registry must contain exactly 187 identities"
     );
     anyhow::ensure!(
         files.len() == expected_total,

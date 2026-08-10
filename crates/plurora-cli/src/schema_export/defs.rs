@@ -88,6 +88,10 @@ pub(crate) struct InstallationRemovedPayloadSchema {
     claim: InstallationIdempotencyClaimSchema,
 }
 #[derive(JsonSchema)]
+pub(crate) struct RunLifecyclePayloadSchema {
+    run: RunView,
+}
+#[derive(JsonSchema)]
 pub(crate) struct ProjectionIdParams {
     projection_id: String,
 }

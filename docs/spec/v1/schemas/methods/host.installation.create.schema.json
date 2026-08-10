@@ -1333,11 +1333,85 @@
               "type": "null"
             }
           ]
+        },
+        "work_summary": {
+          "$ref": "#/$defs/InstallationWorkSummary"
         }
       },
       "required": [
         "record",
-        "revision"
+        "revision",
+        "work_summary"
+      ],
+      "type": "object"
+    },
+    "InstallationWorkSummary": {
+      "additionalProperties": false,
+      "description": "Host-projected discovery metadata from the exact, verified WorkRevision selected by an Installation. This is descriptive content, not authority.",
+      "properties": {
+        "annotations": {
+          "additionalProperties": true,
+          "type": "object"
+        },
+        "content_roots": {
+          "items": {
+            "$ref": "#/$defs/ArtifactDescriptor"
+          },
+          "type": "array"
+        },
+        "description": {
+          "type": "string"
+        },
+        "entrypoints": {
+          "items": {
+            "$ref": "#/$defs/WorkEntrypoint"
+          },
+          "type": "array"
+        },
+        "operational_intent": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ArtifactDescriptor"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "rights": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ArtifactDescriptor"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "title": {
+          "type": "string"
+        },
+        "transparency": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ArtifactDescriptor"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "work_id": {
+          "$ref": "#/$defs/WorkId"
+        }
+      },
+      "required": [
+        "annotations",
+        "content_roots",
+        "description",
+        "entrypoints",
+        "title",
+        "work_id"
       ],
       "type": "object"
     },

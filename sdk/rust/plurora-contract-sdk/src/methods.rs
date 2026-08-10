@@ -472,6 +472,36 @@ impl PluroraClient {
             .await?;
         Ok(serde_json::from_value(raw)?)
     }
+    pub async fn host_run_get(&self, params: RunGetRequest) -> Result<RunView> {
+        let raw = self
+            .invoke("host.run.get", serde_json::to_value(params)?)
+            .await?;
+        Ok(serde_json::from_value(raw)?)
+    }
+    pub async fn host_run_list(&self, params: RunListRequest) -> Result<HostRunListResult> {
+        let raw = self
+            .invoke("host.run.list", serde_json::to_value(params)?)
+            .await?;
+        Ok(serde_json::from_value(raw)?)
+    }
+    pub async fn host_run_start(&self, params: RunStartRequest) -> Result<RunStartResult> {
+        let raw = self
+            .invoke("host.run.start", serde_json::to_value(params)?)
+            .await?;
+        Ok(serde_json::from_value(raw)?)
+    }
+    pub async fn host_run_status(&self, params: RunStatusRequest) -> Result<RunStatusView> {
+        let raw = self
+            .invoke("host.run.status", serde_json::to_value(params)?)
+            .await?;
+        Ok(serde_json::from_value(raw)?)
+    }
+    pub async fn host_run_stop(&self, params: RunStopRequest) -> Result<RunMutationResult> {
+        let raw = self
+            .invoke("host.run.stop", serde_json::to_value(params)?)
+            .await?;
+        Ok(serde_json::from_value(raw)?)
+    }
     pub async fn host_surface_bundle_resolve(
         &self,
         params: SurfaceResolveBundleParams,

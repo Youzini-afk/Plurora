@@ -13,6 +13,16 @@ import type {
   StateAction as GeneratedStateAction,
   StateBindingRecord as GeneratedStateBindingRecord,
   WorkId as GeneratedWorkId,
+  HostRunListResult as GeneratedHostRunListResult,
+  RunGetRequest as GeneratedRunGetRequest,
+  RunListRequest as GeneratedRunListRequest,
+  RunMutationResult as GeneratedRunMutationResult,
+  RunStartRequest as GeneratedRunStartRequest,
+  RunStartResult as GeneratedRunStartResult,
+  RunStatusRequest as GeneratedRunStatusRequest,
+  RunStatusView as GeneratedRunStatusView,
+  RunStopRequest as GeneratedRunStopRequest,
+  RunView as GeneratedRunView,
 } from "../../../../sdk/typescript/contract-sdk/src/types";
 import type {
   AcquisitionRecord,
@@ -29,6 +39,16 @@ import type {
   StateAction,
   StateBindingRecord,
   WorkId,
+  HostRunListResult,
+  RunGetRequest,
+  RunListRequest,
+  RunMutationResult,
+  RunStartRequest,
+  RunStartResult,
+  RunStatusRequest,
+  RunStatusView,
+  RunStopRequest,
+  RunView,
 } from "./client";
 
 type Assert<T extends true> = T;
@@ -49,6 +69,16 @@ type WebToGenerated = [
   Assert<Extends<StateAction, GeneratedStateAction>>,
   Assert<Extends<StateBindingRecord, GeneratedStateBindingRecord>>,
   Assert<Extends<WorkId, GeneratedWorkId>>,
+  Assert<Extends<HostRunListResult, GeneratedHostRunListResult>>,
+  Assert<Extends<RunGetRequest, GeneratedRunGetRequest>>,
+  Assert<Extends<RunListRequest, GeneratedRunListRequest>>,
+  Assert<Extends<RunMutationResult, GeneratedRunMutationResult>>,
+  Assert<Extends<RunStartRequest, GeneratedRunStartRequest>>,
+  Assert<Extends<RunStartResult, GeneratedRunStartResult>>,
+  Assert<Extends<RunStatusRequest, GeneratedRunStatusRequest>>,
+  Assert<Extends<RunStatusView, GeneratedRunStatusView>>,
+  Assert<Extends<RunStopRequest, GeneratedRunStopRequest>>,
+  Assert<Extends<RunView, GeneratedRunView>>,
 ];
 
 type GeneratedToWeb = [
@@ -66,6 +96,16 @@ type GeneratedToWeb = [
   Assert<Extends<GeneratedStateAction, StateAction>>,
   Assert<Extends<GeneratedStateBindingRecord, StateBindingRecord>>,
   Assert<Extends<GeneratedWorkId, WorkId>>,
+  Assert<Extends<GeneratedHostRunListResult, HostRunListResult>>,
+  Assert<Extends<GeneratedRunGetRequest, RunGetRequest>>,
+  Assert<Extends<GeneratedRunListRequest, RunListRequest>>,
+  Assert<Extends<GeneratedRunMutationResult, RunMutationResult>>,
+  Assert<Extends<GeneratedRunStartRequest, RunStartRequest>>,
+  Assert<Extends<GeneratedRunStartResult, RunStartResult>>,
+  Assert<Extends<GeneratedRunStatusRequest, RunStatusRequest>>,
+  Assert<Extends<GeneratedRunStatusView, RunStatusView>>,
+  Assert<Extends<GeneratedRunStopRequest, RunStopRequest>>,
+  Assert<Extends<GeneratedRunView, RunView>>,
 ];
 
 // Keep these aliases evaluated by the compiler even though this test has no runtime assertions.

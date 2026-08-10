@@ -1,12 +1,22 @@
 import type {
   ArtifactDescriptor,
   HostInstallationListResult,
+  HostRunListResult,
   InstallationCreateRequest,
   InstallationMutationResult,
   InstallationRemoveRequest,
   InstallationStatus,
   InstallationUpdateRequest,
   InstallationView,
+  RunGetRequest,
+  RunListRequest,
+  RunMutationResult,
+  RunStartRequest,
+  RunStartResult,
+  RunStatusRequest,
+  RunStatusView,
+  RunStopRequest,
+  RunView,
 } from "./generated-types";
 
 export interface ProtocolResponse<T = unknown> {
@@ -173,6 +183,18 @@ export interface InstallExecuteResult {
   installation?: { installation_id?: string } | null;
 }
 
+/** Structured public-contract error. UI can render reason codes without parsing prose. */
+export class ProtocolRpcError extends Error {
+  constructor(
+    readonly code: string,
+    message: string,
+    readonly details?: unknown,
+  ) {
+    super(`${code}: ${message}`);
+    this.name = "ProtocolRpcError";
+  }
+}
+
 export interface InstallUninstallResult {
   removed_from_profile: boolean;
   store_path_orphaned?: string | null;
@@ -331,6 +353,7 @@ export type {
   AcquisitionRecord,
   ArtifactDescriptor,
   HostInstallationListResult,
+  HostRunListResult,
   InstallationChangeForArtifactDescriptor,
   InstallationChangeForAssemblyBinding,
   InstallationChangeForAssemblyNode,
@@ -368,6 +391,22 @@ export type {
   InstallationStatus,
   InstallationUpdateRequest,
   InstallationView,
+  InstallationWorkSummary,
+  RunEntrypointPreflight,
+  RunGap,
+  RunGetRequest,
+  RunHealth,
+  RunId,
+  RunListRequest,
+  RunMutationResult,
+  RunRecord,
+  RunStartRequest,
+  RunStartResult,
+  RunStatus,
+  RunStatusRequest,
+  RunStatusView,
+  RunStopRequest,
+  RunView,
   StateAction,
   StateActionKind,
   StateBindingKind,
@@ -375,6 +414,8 @@ export type {
   StateDisposition,
   StateSlotId,
   WorkId,
+  WorkEntrypoint,
+  WorkEntrypointTarget,
 } from "./generated-types";
 
 export interface ProjectionRecord {
@@ -994,9 +1035,7 @@ export class PluroraProtocolClient {
     });
     await throwForHttpError(response);
     const envelope = (await response.json()) as ProtocolResponse<unknown>;
-    if (envelope.error) {
-      throw new Error(`${envelope.error.code}: ${envelope.error.message}`);
-    }
+    if (envelope.error) throw new ProtocolRpcError(envelope.error.code, envelope.error.message, envelope.error.details);
     return envelope.result;
   }
 
@@ -1009,9 +1048,7 @@ export class PluroraProtocolClient {
     });
     await throwForHttpError(response);
     const envelope = (await response.json()) as ProtocolResponse<T>;
-    if (envelope.error) {
-      throw new Error(`${envelope.error.code}: ${envelope.error.message}`);
-    }
+    if (envelope.error) throw new ProtocolRpcError(envelope.error.code, envelope.error.message, envelope.error.details);
     return envelope.result as T;
   }
 
@@ -1164,6 +1201,26 @@ export class PluroraProtocolClient {
 
   removeInstallation(input: InstallationRemoveRequest): Promise<InstallationMutationResult> {
     return this.invoke<InstallationMutationResult>("host.installation.remove", input);
+  }
+
+  listRuns(input: RunListRequest = {}): Promise<HostRunListResult> {
+    return this.invoke<HostRunListResult>("host.run.list", input);
+  }
+
+  getRun(input: RunGetRequest): Promise<RunView> {
+    return this.invoke<RunView>("host.run.get", input);
+  }
+
+  statusRun(input: RunStatusRequest): Promise<RunStatusView> {
+    return this.invoke<RunStatusView>("host.run.status", input);
+  }
+
+  startRun(input: RunStartRequest): Promise<RunStartResult> {
+    return this.invoke<RunStartResult>("host.run.start", input);
+  }
+
+  stopRun(input: RunStopRequest): Promise<RunMutationResult> {
+    return this.invoke<RunMutationResult>("host.run.stop", input);
   }
 
   openSession(labels: string[] = [], metadata: Record<string, unknown> = {}, activePackageSet: string[] = []) {

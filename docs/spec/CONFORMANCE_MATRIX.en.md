@@ -57,7 +57,7 @@ These cases cover the Installation journal, secret policy, and destructive no-al
 
 ### End-to-end real-path conformance cases
 
-These are the Phase 3 surface-resolution cases. Phase 4 establishes Run/session lifecycle; Phase 3 does not fabricate it.
+These cases cover surface resolution and the Run entry boundary. Phase 4 now provides Run lifecycle through an independent Run journal; surface resolution must not bypass explicit Run authority.
 
 | Group | Case id | Coverage | Status |
 |---|---|---|---|
@@ -79,7 +79,7 @@ Surface/static bundle and bridge coverage also includes these stable assertions:
 | uncontrolled secret input | secret inputs remain uncontrolled/short-lived and are cleared on close | implemented |
 | schema timestamp stability | schema/export timestamps are stable and avoid nondeterministic generated timestamps | implemented |
 | content-addressed freshness | bundle bytes enter the artifact closure, so changes alter the digest | implemented |
-| no fake Run | Installation detail returns the Phase 4 unavailable reason and creates no session | implemented |
+| no implicit Run | Installation detail returns only projection/affordances; it creates no Run or session, and start must use `host.run.start` | implemented |
 
 
 | Area | Case | Status |

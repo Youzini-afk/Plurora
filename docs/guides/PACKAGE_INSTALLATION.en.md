@@ -29,7 +29,7 @@ plurora installation remove <installation-id> \
   --state keep --idempotency-key remove-my-work
 ```
 
-Before Phase 4, Installation `ready` does not mean running. CLI and Web never disguise create as a Run.
+Installation `ready` still does not mean running; CLI and Web must call explicit `host.run.start` to create a Run. Opening detail never starts one, and an unavailable local implementation returns structured gaps. `host.run.stop` stops only that Run and does not unload global Packages.
 
 ## Accepted sources
 

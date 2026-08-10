@@ -24,7 +24,7 @@ Host executor resolves secret at the last moment
 terminal EffectReceipt + redacted audit
 ```
 
-Before Phase 4, Web Installation detail does not automatically create a Run. Focused conformance and Host protocol tests can verify secret/outbound behavior inside an explicit Installation context. The user-facing Run/session/surface chain is connected in the next Phase.
+Web Installation detail does not automatically create a Run. Real calls must run inside the context created by an explicit successful `host.run.start`, which activates only an installed, verified, uniquely matching local implementation. Missing, ambiguous, unsupported-backend, or machine-resource requirements return structured gaps instead of implicit build/deploy. Closing a tab does not stop the Run; explicit `host.run.stop` stops only that Run.
 
 ## Configure secrets
 
@@ -89,6 +89,6 @@ Events, logs, stream frames, proposals, and receipts never contain raw request b
 | installation entry absent | Local value is missing and fallback is disabled | Write the Installation store or explicitly enable fallback |
 | outbound denied | Manifest/handle/policy denies destination | Correct declarations and reapprove |
 | binding ambiguous | Multiple providers are equally compatible | Bind an explicit provider in Work/Assembly |
-| run unavailable | Installation exists but Phase 4 Run does not | Use the Phase 4 Run API when available |
+| run gap | Run start lacks a matching local implementation, binding, or satisfiable target | Show `reason_code` and `next_step`, repair the Installation/local Package, and retry `host.run.start` |
 
 See [`SECRET_MANAGEMENT.md`](SECRET_MANAGEMENT.en.md) for resolver details and [`INSTALLATION_MODEL.md`](INSTALLATION_MODEL.en.md) for Work / Installation boundaries.

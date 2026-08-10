@@ -49,13 +49,8 @@ where
         }
         let mut record = self
             .packages
-            .load(manifest, &self.config.host_policy)
+            .begin_load(manifest, &self.config.host_policy)
             .await?;
-        record = self
-            .packages
-            .set_state(&record.id, PackageState::Loading)
-            .await
-            .unwrap_or(record);
         self.append_package_lifecycle_event(&record, EVENT_PACKAGE_LOADING, None)
             .await?;
         let is_surface_bundle = matches!(
@@ -81,6 +76,7 @@ where
         } else {
             HashMap::new()
         };
+        let mut ready_event_committed = false;
         match &record.manifest.entry.kind {
             PackageEntry::Subprocess { .. } => {
                 record = self
@@ -90,27 +86,54 @@ where
                     .unwrap_or(record);
                 self.append_package_lifecycle_event(&record, EVENT_PACKAGE_STARTING, None)
                     .await?;
-                if let Err(error) = self
+                let generation = match self
                     .subprocesses
-                    .start(&record.manifest, (*self).clone(), bindings)
+                    .start_generation(&record.manifest, (*self).clone(), bindings)
                     .await
                 {
-                    let degraded = self
-                        .packages
-                        .set_state(&record.id, PackageState::Degraded)
-                        .await
-                        .unwrap_or_else(|| record.clone());
-                    self.capabilities.unregister_package(&record.id).await;
-                    self.extensions.unregister_package(&record.id).await;
-                    self.append_package_degraded_event(&degraded, &error.to_string())
-                        .await?;
-                    return Err(error);
-                }
-                record = self
-                    .packages
-                    .set_state(&record.id, PackageState::Ready)
+                    Ok(generation) => generation,
+                    Err(error) => {
+                        let degraded = self
+                            .packages
+                            .set_state(&record.id, PackageState::Degraded)
+                            .await
+                            .unwrap_or_else(|| record.clone());
+                        self.capabilities.unregister_package(&record.id).await;
+                        self.extensions.unregister_package(&record.id).await;
+                        self.append_package_degraded_event(&degraded, &error.to_string())
+                            .await?;
+                        return Err(error);
+                    }
+                };
+                match self
+                    .subprocesses
+                    .complete_start(self, &record.id, generation, None)
                     .await
-                    .unwrap_or(record);
+                {
+                    Ok(ready) => {
+                        record = ready;
+                        ready_event_committed = true;
+                    }
+                    Err(error) => {
+                        let degraded = self
+                            .packages
+                            .status(&record.id)
+                            .await
+                            .unwrap_or_else(|| record.clone());
+                        self.capabilities.unregister_package(&record.id).await;
+                        self.extensions.unregister_package(&record.id).await;
+                        if degraded.last_failure.is_none() {
+                            let degraded = self
+                                .packages
+                                .set_state(&record.id, PackageState::Degraded)
+                                .await
+                                .unwrap_or(degraded);
+                            self.append_package_degraded_event(&degraded, &error.to_string())
+                                .await?;
+                        }
+                        return Err(error);
+                    }
+                }
             }
             PackageEntry::RustInproc {
                 crate_ref, symbol, ..
@@ -163,8 +186,10 @@ where
                 .await
                 .unwrap_or(record);
         }
-        self.append_package_lifecycle_event(&record, EVENT_PACKAGE_READY, None)
-            .await?;
+        if !ready_event_committed {
+            self.append_package_lifecycle_event(&record, EVENT_PACKAGE_READY, None)
+                .await?;
+        }
         self.append_package_lifecycle_event(&record, EVENT_PACKAGE_LOADED, None)
             .await?;
         Ok(record)
@@ -224,14 +249,9 @@ where
     }
 
     pub async fn unload_package(&self, package_id: &PackageId) -> anyhow::Result<PackageRecord> {
-        if let Some(stopping) = self
-            .packages
-            .set_state(package_id, PackageState::Stopping)
-            .await
-        {
-            self.append_package_lifecycle_event(&stopping, EVENT_PACKAGE_STOPPING, None)
-                .await?;
-        }
+        let stopping = self.packages.begin_unload(package_id).await?;
+        self.append_package_lifecycle_event(&stopping, EVENT_PACKAGE_STOPPING, None)
+            .await?;
         self.subprocesses.stop(package_id).await;
         if let Some(stopped) = self
             .packages
@@ -250,36 +270,80 @@ where
     }
 
     pub async fn restart_package(&self, package_id: &PackageId) -> anyhow::Result<PackageRecord> {
-        let record = self
-            .package_status(package_id)
-            .await
-            .ok_or_else(|| anyhow::anyhow!("package '{package_id}' is not loaded"))?;
-        if !matches!(record.manifest.entry.kind, PackageEntry::Subprocess { .. }) {
-            anyhow::bail!(
-                "package '{package_id}' entry kind '{}' cannot restart yet",
-                record.entry_kind
-            );
-        }
-        if let Some(stopping) = self
-            .packages
-            .set_state(package_id, PackageState::Stopping)
+        let record = self.packages.begin_restart(package_id).await?;
+        if let Err(error) = self
+            .append_package_lifecycle_event(&record, EVENT_PACKAGE_STOPPING, Some("restart"))
             .await
         {
-            self.append_package_lifecycle_event(&stopping, EVENT_PACKAGE_STOPPING, Some("restart"))
-                .await?;
+            self.subprocesses.stop(package_id).await;
+            self.packages
+                .set_state(package_id, PackageState::Degraded)
+                .await;
+            return Err(error);
         }
-        let bindings = self.mint_package_bindings(&record.manifest).await;
-        self.subprocesses
-            .restart(&record.manifest, (*self).clone(), bindings)
-            .await?;
-        let ready = self
+        self.subprocesses.stop(package_id).await;
+        let starting = self
             .packages
-            .set_state(package_id, PackageState::Ready)
+            .state_transition_candidate(package_id, PackageState::Stopping, PackageState::Starting)
             .await
-            .ok_or_else(|| anyhow::anyhow!("package '{package_id}' disappeared during restart"))?;
-        self.append_package_lifecycle_event(&ready, EVENT_PACKAGE_READY, Some("restart"))
-            .await?;
-        Ok(ready)
+            .ok_or_else(|| {
+                anyhow::anyhow!("package '{package_id}' changed before restart activation")
+            })?;
+        // Commit the lifecycle event while the registry is still Stopping. A
+        // failed append therefore exposes no Starting/Ready replacement.
+        if let Err(error) = self
+            .append_package_lifecycle_event(&starting, EVENT_PACKAGE_STARTING, Some("restart"))
+            .await
+        {
+            self.packages
+                .set_state(package_id, PackageState::Degraded)
+                .await;
+            return Err(error);
+        }
+        let starting = self
+            .packages
+            .commit_state_transition(package_id, PackageState::Stopping, PackageState::Starting)
+            .ok_or_else(|| {
+                anyhow::anyhow!("package '{package_id}' changed during restart activation")
+            })?;
+        let bindings = self.mint_package_bindings(&record.manifest).await;
+        let generation = match self
+            .subprocesses
+            .start_generation(&record.manifest, (*self).clone(), bindings)
+            .await
+        {
+            Ok(generation) => generation,
+            Err(error) => {
+                let degraded = self
+                    .packages
+                    .set_state(package_id, PackageState::Degraded)
+                    .await
+                    .unwrap_or(starting);
+                self.append_package_degraded_event(&degraded, &error.to_string())
+                    .await?;
+                return Err(error);
+            }
+        };
+        match self
+            .subprocesses
+            .complete_start(self, package_id, generation, Some("restart"))
+            .await
+        {
+            Ok(ready) => Ok(ready),
+            Err(error) => {
+                let degraded = self.packages.status(package_id).await.unwrap_or(starting);
+                if degraded.last_failure.is_none() {
+                    let degraded = self
+                        .packages
+                        .set_state(package_id, PackageState::Degraded)
+                        .await
+                        .unwrap_or(degraded);
+                    self.append_package_degraded_event(&degraded, &error.to_string())
+                        .await?;
+                }
+                Err(error)
+            }
+        }
     }
 
     pub async fn package_logs(&self, package_id: &PackageId) -> Vec<crate::SubprocessLogLine> {
@@ -377,50 +441,10 @@ where
         reason: &str,
     ) -> anyhow::Result<plurora_core::EventEnvelope> {
         let drained_logs = self.subprocesses.drain_logs(&record.id).await;
-        let raw_log_count = drained_logs.len();
-        let log_tail = tail_vec(
-            drained_logs
-                .into_iter()
-                .map(redact_log_line)
-                .collect::<Vec<_>>(),
-            FAILURE_LOG_TAIL_LIMIT,
-        );
-        let stderr_tail_redacted = tail_vec(
-            log_tail
-                .iter()
-                .filter(|log| log.stream == "stderr")
-                .map(|log| log.line.clone())
-                .collect::<Vec<_>>(),
-            FAILURE_STDERR_TAIL_LIMIT,
-        );
-        for log in &log_tail {
-            let _ = self
-                .append_package_log_event(&record.id, &log.stream, &log.line)
+        let (updated, log_tail) =
+            prepare_package_degraded_record(&self.packages, record.clone(), reason, drained_logs)
                 .await;
-        }
-        let failed_at = chrono::Utc::now();
-        let failure = PackageFailureSummary {
-            package_id: record.id.clone(),
-            reason: redact_line(reason),
-            exit_code: None,
-            signal: None,
-            failed_at,
-            stderr_tail_redacted,
-            log_tail_redacted: log_tail,
-            stderr_truncated: raw_log_count > FAILURE_LOG_TAIL_LIMIT,
-            redaction_state: RedactionState::Redacted,
-            state: record.state.clone(),
-        };
-        let updated = self
-            .packages
-            .set_last_failure(&record.id, failure.clone())
-            .await
-            .unwrap_or_else(|| {
-                let mut fallback = record.clone();
-                fallback.last_failure = Some(failure.clone());
-                fallback
-            });
-        self.append_package_lifecycle_event(&updated, EVENT_PACKAGE_DEGRADED, Some(reason))
+        append_prepared_package_degraded_event(self.store.as_ref(), &updated, reason, &log_tail)
             .await
     }
 
@@ -431,37 +455,7 @@ where
         reason: Option<&str>,
     ) -> anyhow::Result<plurora_core::EventEnvelope> {
         let session_id = format!("platform_package_{}", record.id.replace('/', "_"));
-        let mut payload = json!({
-            "package_id": record.id,
-            "version": record.version,
-            "state": record.state,
-            "entry_kind": record.entry_kind,
-            "package_envelope_digest": record.package_envelope.as_ref().map(|envelope| &envelope.artifact.digest),
-            "components": record.components.iter().map(|component| json!({
-                "component_id": component.component_id,
-                "component_digest": component.artifact.digest,
-                "behavior_digest": component.behavior.digest,
-                "trust_class": component.trust_class,
-                "claim_status": component.claim_status,
-                "enforced_boundaries": component.enforced_boundaries,
-            })).collect::<Vec<_>>(),
-            "contract_mode": match record.manifest.entry.contract {
-                ContractMode::V1 => "v1",
-                ContractMode::None => "none",
-            },
-            "capability_count": record.capability_count,
-            "hook_count": record.hook_count,
-            "extension_point_count": record.extension_point_count,
-        });
-        if let Some(reason) = reason {
-            payload["reason"] = json!(redact_line(reason));
-        }
-        if let Some(last_failure) = &record.last_failure {
-            payload["last_failure"] = serde_json::to_value(last_failure)?;
-            payload["stderr_tail_redacted"] = json!(last_failure.stderr_tail_redacted);
-            payload["log_tail_redacted"] = json!(last_failure.log_tail_redacted);
-            payload["redaction_state"] = json!(last_failure.redaction_state);
-        }
+        let payload = package_lifecycle_payload(record, reason)?;
         self.append_platform_event(&session_id, kind, payload).await
     }
 
@@ -484,6 +478,130 @@ where
         )
         .await
     }
+}
+
+pub(crate) async fn prepare_package_degraded_record(
+    packages: &crate::PackageRegistry,
+    record: PackageRecord,
+    reason: &str,
+    drained_logs: Vec<crate::SubprocessLogLine>,
+) -> (PackageRecord, Vec<crate::SubprocessLogLine>) {
+    let raw_log_count = drained_logs.len();
+    let log_tail = tail_vec(
+        drained_logs
+            .into_iter()
+            .map(redact_log_line)
+            .collect::<Vec<_>>(),
+        FAILURE_LOG_TAIL_LIMIT,
+    );
+    let stderr_tail_redacted = tail_vec(
+        log_tail
+            .iter()
+            .filter(|log| log.stream == "stderr")
+            .map(|log| log.line.clone())
+            .collect::<Vec<_>>(),
+        FAILURE_STDERR_TAIL_LIMIT,
+    );
+    let failure = PackageFailureSummary {
+        package_id: record.id.clone(),
+        reason: redact_line(reason),
+        exit_code: None,
+        signal: None,
+        failed_at: chrono::Utc::now(),
+        stderr_tail_redacted,
+        log_tail_redacted: log_tail.clone(),
+        stderr_truncated: raw_log_count > FAILURE_LOG_TAIL_LIMIT,
+        redaction_state: RedactionState::Redacted,
+        state: record.state.clone(),
+    };
+    let updated = packages
+        .set_last_failure(&record.id, failure.clone())
+        .await
+        .unwrap_or_else(|| {
+            let mut fallback = record;
+            fallback.last_failure = Some(failure);
+            fallback
+        });
+    (updated, log_tail)
+}
+
+pub(crate) async fn append_prepared_package_degraded_event(
+    store: &dyn EventStore,
+    record: &PackageRecord,
+    reason: &str,
+    log_tail: &[crate::SubprocessLogLine],
+) -> anyhow::Result<plurora_core::EventEnvelope> {
+    let session_id = format!("platform_package_{}", record.id.replace('/', "_"));
+    let event = store
+        .append_with_sequence(
+            session_id.clone(),
+            PLATFORM_RUNTIME_ID.to_string(),
+            EVENT_PACKAGE_DEGRADED.to_string(),
+            1,
+            package_lifecycle_payload(record, Some(reason))?,
+            json!({}),
+        )
+        .await?;
+
+    // The single degraded lifecycle event is the durable diagnostic boundary.
+    // Individual redacted log lines are best-effort detail after that boundary,
+    // so retrying a failed lifecycle append cannot duplicate them first.
+    for log in log_tail {
+        let _ = store
+            .append_with_sequence(
+                session_id.clone(),
+                PLATFORM_RUNTIME_ID.to_string(),
+                EVENT_PACKAGE_LOG.to_string(),
+                1,
+                json!({
+                    "package_id": record.id,
+                    "stream": log.stream,
+                    "line": log.line,
+                    "redaction_state": RedactionState::Redacted,
+                }),
+                json!({}),
+            )
+            .await;
+    }
+    Ok(event)
+}
+
+fn package_lifecycle_payload(
+    record: &PackageRecord,
+    reason: Option<&str>,
+) -> anyhow::Result<Value> {
+    let mut payload = json!({
+        "package_id": record.id,
+        "version": record.version,
+        "state": record.state,
+        "entry_kind": record.entry_kind,
+        "package_envelope_digest": record.package_envelope.as_ref().map(|envelope| &envelope.artifact.digest),
+        "components": record.components.iter().map(|component| json!({
+            "component_id": component.component_id,
+            "component_digest": component.artifact.digest,
+            "behavior_digest": component.behavior.digest,
+            "trust_class": component.trust_class,
+            "claim_status": component.claim_status,
+            "enforced_boundaries": component.enforced_boundaries,
+        })).collect::<Vec<_>>(),
+        "contract_mode": match record.manifest.entry.contract {
+            ContractMode::V1 => "v1",
+            ContractMode::None => "none",
+        },
+        "capability_count": record.capability_count,
+        "hook_count": record.hook_count,
+        "extension_point_count": record.extension_point_count,
+    });
+    if let Some(reason) = reason {
+        payload["reason"] = json!(redact_line(reason));
+    }
+    if let Some(last_failure) = &record.last_failure {
+        payload["last_failure"] = serde_json::to_value(last_failure)?;
+        payload["stderr_tail_redacted"] = json!(last_failure.stderr_tail_redacted);
+        payload["log_tail_redacted"] = json!(last_failure.log_tail_redacted);
+        payload["redaction_state"] = json!(last_failure.redaction_state);
+    }
+    Ok(payload)
 }
 
 fn redact_log_line(mut log: crate::SubprocessLogLine) -> crate::SubprocessLogLine {
@@ -707,6 +825,17 @@ for line in sys.stdin:
             .await?;
 
         assert_eq!(record.state, PackageState::Ready);
+        let claim = crate::package::PackageRunClaim::exact(&record, &record.components[0])?;
+        let run_id = plurora_work::RunId::new();
+        let lease = runtime
+            .packages
+            .acquire_run_lease(&run_id, std::slice::from_ref(&claim))
+            .await?;
+        assert!(runtime.restart_package(&record.id).await.is_err());
+        assert!(runtime.unload_package(&record.id).await.is_err());
+        drop(lease);
+        let restarted = runtime.restart_package(&record.id).await?;
+        assert_eq!(restarted.state, PackageState::Ready);
         runtime.unload_package(&"example/cwd".to_string()).await?;
         Ok(())
     }

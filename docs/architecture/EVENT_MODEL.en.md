@@ -26,11 +26,12 @@ The runtime assigns `id`, `sequence`, `timestamp`, and the effective writer iden
 
 ## Platform-owned event kinds
 
-The 58 platform-owned kinds are an explicit registry, not a magic string prefix. They use semantic owner namespaces such as:
+The 63 platform-owned kinds are an explicit registry, not a magic string prefix. They use semantic owner namespaces such as:
 
 ```text
 context/opened
 host/package.loading
+host/run.started
 capability/stream.started
 authority/grant.created
 object/put

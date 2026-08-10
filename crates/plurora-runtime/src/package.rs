@@ -1,4 +1,5 @@
-use std::collections::HashMap;
+use std::collections::{BTreeSet, HashMap};
+use std::sync::{Arc, Mutex, MutexGuard};
 
 use chrono::{DateTime, Utc};
 use plurora_core::{
@@ -6,9 +7,9 @@ use plurora_core::{
     ComponentTrustClass, PackageEntry, PackageEnvelopeDescriptor, PackageId, PackageManifest,
     RedactionState,
 };
+use plurora_work::RunId;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use tokio::sync::RwLock;
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
@@ -148,9 +149,102 @@ impl HostPolicy {
     }
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct PackageRunClaim {
+    package_id: PackageId,
+    package_envelope_digest: Option<String>,
+    component_id: String,
+    component_artifact: plurora_core::ArtifactDescriptor,
+    component_behavior: plurora_core::ArtifactDescriptor,
+    trust_class: ComponentTrustClass,
+    component_entry_kind: String,
+    entry: serde_json::Value,
+}
+
+impl PackageRunClaim {
+    pub(crate) fn exact(
+        package: &PackageRecord,
+        component: &ComponentDescriptor,
+    ) -> anyhow::Result<Self> {
+        anyhow::ensure!(
+            package
+                .components
+                .iter()
+                .any(|candidate| candidate == component),
+            "Run Package claim does not belong to the selected Package"
+        );
+        Ok(Self {
+            package_id: package.id.clone(),
+            package_envelope_digest: package
+                .package_envelope
+                .as_ref()
+                .map(|envelope| envelope.artifact.digest.clone()),
+            component_id: component.component_id.clone(),
+            component_artifact: component.artifact.clone(),
+            component_behavior: component.behavior.clone(),
+            trust_class: component.trust_class,
+            component_entry_kind: component.entry_kind.clone(),
+            entry: serde_json::to_value(&package.manifest.entry)?,
+        })
+    }
+
+    pub(crate) fn package_id(&self) -> &PackageId {
+        &self.package_id
+    }
+}
+
 #[derive(Default)]
+struct PackageRegistryState {
+    packages: HashMap<PackageId, PackageRecord>,
+    active_run_leases: HashMap<PackageId, BTreeSet<RunId>>,
+}
+
+#[derive(Default)]
+struct PackageRegistryInner {
+    state: Mutex<PackageRegistryState>,
+}
+
+/// An exact, reference-counted lease over every Package used by one active Run.
+///
+/// The lease is intentionally not clonable: one acquisition corresponds to one
+/// Run activation. Dropping it releases only that Run's references.
+pub(crate) struct PackageRunLease {
+    inner: Arc<PackageRegistryInner>,
+    run_id: RunId,
+    package_ids: Vec<PackageId>,
+}
+
+impl std::fmt::Debug for PackageRunLease {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("PackageRunLease")
+            .field("run_id", &self.run_id)
+            .field("package_ids", &self.package_ids)
+            .finish_non_exhaustive()
+    }
+}
+
+impl Drop for PackageRunLease {
+    fn drop(&mut self) {
+        let mut state = lock_registry(&self.inner);
+        for package_id in &self.package_ids {
+            let remove = state
+                .active_run_leases
+                .get_mut(package_id)
+                .is_some_and(|run_ids| {
+                    run_ids.remove(&self.run_id);
+                    run_ids.is_empty()
+                });
+            if remove {
+                state.active_run_leases.remove(package_id);
+            }
+        }
+    }
+}
+
+#[derive(Clone, Default)]
 pub struct PackageRegistry {
-    packages: RwLock<HashMap<PackageId, PackageRecord>>,
+    inner: Arc<PackageRegistryInner>,
 }
 
 impl PackageRegistry {
@@ -159,21 +253,41 @@ impl PackageRegistry {
         manifest: PackageManifest,
         policy: &HostPolicy,
     ) -> anyhow::Result<PackageRecord> {
+        self.insert(manifest, policy, PackageState::Ready)
+    }
+
+    pub(crate) async fn begin_load(
+        &self,
+        manifest: PackageManifest,
+        policy: &HostPolicy,
+    ) -> anyhow::Result<PackageRecord> {
+        self.insert(manifest, policy, PackageState::Loading)
+    }
+
+    fn insert(
+        &self,
+        manifest: PackageManifest,
+        policy: &HostPolicy,
+        state: PackageState,
+    ) -> anyhow::Result<PackageRecord> {
         manifest.validate_basic()?;
         policy.validate(&manifest)?;
 
-        let mut packages = self.packages.write().await;
-        if packages.contains_key(&manifest.id) {
+        let mut registry = lock_registry(&self.inner);
+        if registry.packages.contains_key(&manifest.id) {
             anyhow::bail!("package '{}' is already loaded", manifest.id);
         }
-        let record = PackageRecord::ready(manifest)?;
-        packages.insert(record.id.clone(), record.clone());
+        let mut record = PackageRecord::ready(manifest)?;
+        record.state = state;
+        registry.packages.insert(record.id.clone(), record.clone());
         Ok(record)
     }
 
     pub async fn unload(&self, package_id: &PackageId) -> anyhow::Result<PackageRecord> {
-        let mut packages = self.packages.write().await;
-        let mut record = packages
+        let mut registry = lock_registry(&self.inner);
+        ensure_package_not_in_use(&registry, package_id)?;
+        let mut record = registry
+            .packages
             .remove(package_id)
             .ok_or_else(|| anyhow::anyhow!("package '{package_id}' is not loaded"))?;
         record.state = PackageState::Unloaded;
@@ -182,22 +296,26 @@ impl PackageRegistry {
     }
 
     pub async fn list(&self) -> Vec<PackageRecord> {
-        let mut records: Vec<_> = self.packages.read().await.values().cloned().collect();
+        let mut records: Vec<_> = lock_registry(&self.inner)
+            .packages
+            .values()
+            .cloned()
+            .collect();
         records.sort_by(|a, b| a.id.cmp(&b.id));
         records
     }
 
     pub async fn status(&self, package_id: &PackageId) -> Option<PackageRecord> {
-        self.packages.read().await.get(package_id).cloned()
+        lock_registry(&self.inner).packages.get(package_id).cloned()
     }
 
-    pub async fn set_state(
+    pub(crate) async fn set_state(
         &self,
         package_id: &PackageId,
         state: PackageState,
     ) -> Option<PackageRecord> {
-        let mut packages = self.packages.write().await;
-        let record = packages.get_mut(package_id)?;
+        let mut registry = lock_registry(&self.inner);
+        let record = registry.packages.get_mut(package_id)?;
         record.state = state;
         record.updated_at = Utc::now();
         if matches!(record.state, PackageState::Ready) {
@@ -206,33 +324,241 @@ impl PackageRegistry {
         Some(record.clone())
     }
 
+    pub(crate) async fn finish_subprocess_start(
+        &self,
+        package_id: &PackageId,
+    ) -> Option<PackageRecord> {
+        self.commit_state_transition(package_id, PackageState::Starting, PackageState::Ready)
+    }
+
+    pub(crate) async fn state_transition_candidate(
+        &self,
+        package_id: &PackageId,
+        expected: PackageState,
+        next: PackageState,
+    ) -> Option<PackageRecord> {
+        let registry = lock_registry(&self.inner);
+        let mut candidate = registry.packages.get(package_id)?.clone();
+        if candidate.state != expected {
+            return None;
+        }
+        candidate.state = next;
+        candidate.updated_at = Utc::now();
+        if candidate.state == PackageState::Ready {
+            candidate.last_failure = None;
+        }
+        Some(candidate)
+    }
+
+    pub(crate) fn commit_state_transition(
+        &self,
+        package_id: &PackageId,
+        expected: PackageState,
+        next: PackageState,
+    ) -> Option<PackageRecord> {
+        let mut registry = lock_registry(&self.inner);
+        let record = registry.packages.get_mut(package_id)?;
+        if record.state != expected {
+            return None;
+        }
+        record.state = next;
+        record.updated_at = Utc::now();
+        if record.state == PackageState::Ready {
+            record.last_failure = None;
+        }
+        Some(record.clone())
+    }
+
+    pub(crate) async fn begin_unload(
+        &self,
+        package_id: &PackageId,
+    ) -> anyhow::Result<PackageRecord> {
+        self.begin_stopping(package_id, false)
+    }
+
+    pub(crate) async fn begin_restart(
+        &self,
+        package_id: &PackageId,
+    ) -> anyhow::Result<PackageRecord> {
+        self.begin_stopping(package_id, true)
+    }
+
+    fn begin_stopping(
+        &self,
+        package_id: &PackageId,
+        require_subprocess: bool,
+    ) -> anyhow::Result<PackageRecord> {
+        let mut registry = lock_registry(&self.inner);
+        ensure_package_not_in_use(&registry, package_id)?;
+        let record = registry
+            .packages
+            .get_mut(package_id)
+            .ok_or_else(|| anyhow::anyhow!("package '{package_id}' is not loaded"))?;
+        anyhow::ensure!(
+            !matches!(record.state, PackageState::Stopping | PackageState::Stopped),
+            "package '{package_id}' already has a lifecycle transition in progress"
+        );
+        if require_subprocess {
+            anyhow::ensure!(
+                matches!(record.manifest.entry.kind, PackageEntry::Subprocess { .. }),
+                "package '{package_id}' entry kind '{}' cannot restart yet",
+                record.entry_kind
+            );
+        }
+        record.state = PackageState::Stopping;
+        record.updated_at = Utc::now();
+        Ok(record.clone())
+    }
+
+    pub(crate) async fn acquire_run_lease(
+        &self,
+        run_id: &RunId,
+        claims: &[PackageRunClaim],
+    ) -> anyhow::Result<PackageRunLease> {
+        let mut registry = lock_registry(&self.inner);
+        let mut package_ids = BTreeSet::new();
+
+        // Validate the complete claim set before incrementing any reference so
+        // acquisition is all-or-nothing across a multi-Package Assembly.
+        for claim in claims {
+            let package = registry
+                .packages
+                .get(&claim.package_id)
+                .ok_or_else(|| anyhow::anyhow!("Run Package changed after preflight"))?;
+            anyhow::ensure!(
+                package.state == PackageState::Ready,
+                "Run Package is no longer Ready after preflight"
+            );
+            anyhow::ensure!(
+                package
+                    .package_envelope
+                    .as_ref()
+                    .map(|envelope| envelope.artifact.digest.as_str())
+                    == claim.package_envelope_digest.as_deref(),
+                "Run Package envelope changed after preflight"
+            );
+            anyhow::ensure!(
+                serde_json::to_value(&package.manifest.entry)? == claim.entry,
+                "Run Package entry changed after preflight"
+            );
+            let component = package
+                .components
+                .iter()
+                .find(|component| component.component_id == claim.component_id)
+                .ok_or_else(|| anyhow::anyhow!("Run component changed after preflight"))?;
+            anyhow::ensure!(
+                component.artifact == claim.component_artifact
+                    && component.behavior == claim.component_behavior
+                    && component.trust_class == claim.trust_class
+                    && component.entry_kind == claim.component_entry_kind
+                    && component.entry_kind == package.entry_kind,
+                "Run component identity changed after preflight"
+            );
+            package_ids.insert(claim.package_id.clone());
+        }
+
+        let package_ids = package_ids.into_iter().collect::<Vec<_>>();
+        anyhow::ensure!(
+            package_ids.iter().all(|package_id| {
+                !registry
+                    .active_run_leases
+                    .get(package_id)
+                    .is_some_and(|run_ids| run_ids.contains(run_id))
+            }),
+            "Run already holds a Package activation lease"
+        );
+        for package_id in &package_ids {
+            registry
+                .active_run_leases
+                .entry(package_id.clone())
+                .or_default()
+                .insert(run_id.clone());
+        }
+        drop(registry);
+        Ok(PackageRunLease {
+            inner: self.inner.clone(),
+            run_id: run_id.clone(),
+            package_ids,
+        })
+    }
+
+    #[cfg(test)]
+    pub(crate) async fn active_run_lease_count(&self, package_id: &PackageId) -> usize {
+        lock_registry(&self.inner)
+            .active_run_leases
+            .get(package_id)
+            .map(BTreeSet::len)
+            .unwrap_or(0)
+    }
+
+    pub(crate) async fn mark_activation_lost(
+        &self,
+        package_id: &PackageId,
+    ) -> Option<(PackageRecord, Vec<RunId>)> {
+        let mut registry = lock_registry(&self.inner);
+        let record = registry.packages.get_mut(package_id)?;
+        if !matches!(record.state, PackageState::Starting | PackageState::Ready) {
+            return None;
+        }
+        record.state = PackageState::Degraded;
+        record.updated_at = Utc::now();
+        let record = record.clone();
+        let run_ids = registry
+            .active_run_leases
+            .get(package_id)
+            .map(|run_ids| run_ids.iter().cloned().collect())
+            .unwrap_or_default();
+        Some((record, run_ids))
+    }
+
     pub async fn set_last_failure(
         &self,
         package_id: &PackageId,
         failure: PackageFailureSummary,
     ) -> Option<PackageRecord> {
-        let mut packages = self.packages.write().await;
-        let record = packages.get_mut(package_id)?;
+        let mut registry = lock_registry(&self.inner);
+        let record = registry.packages.get_mut(package_id)?;
         record.last_failure = Some(failure);
         record.updated_at = Utc::now();
         Some(record.clone())
     }
 
     pub async fn permissions(&self, package_id: &PackageId) -> Option<plurora_core::PermissionSet> {
-        self.packages
-            .read()
-            .await
+        lock_registry(&self.inner)
+            .packages
             .get(package_id)
             .map(|record| record.manifest.permissions.clone())
     }
 
     pub async fn manifest(&self, package_id: &PackageId) -> Option<PackageManifest> {
-        self.packages
-            .read()
-            .await
+        lock_registry(&self.inner)
+            .packages
             .get(package_id)
             .map(|record| record.manifest.clone())
     }
+}
+
+fn lock_registry(inner: &PackageRegistryInner) -> MutexGuard<'_, PackageRegistryState> {
+    inner
+        .state
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+}
+
+fn ensure_package_not_in_use(
+    registry: &PackageRegistryState,
+    package_id: &PackageId,
+) -> anyhow::Result<()> {
+    let active_runs = registry
+        .active_run_leases
+        .get(package_id)
+        .map(BTreeSet::len)
+        .unwrap_or(0);
+    anyhow::ensure!(
+        active_runs == 0,
+        "package '{package_id}' is in use by {active_runs} active Run(s)"
+    );
+    Ok(())
 }
 
 pub fn entry_kind(entry: &PackageEntry) -> &'static str {
@@ -288,6 +614,15 @@ mod tests {
         }
     }
 
+    fn subprocess_manifest(id: &str, command: &str) -> PackageManifest {
+        let mut manifest = manifest(id);
+        manifest.entry = EntryDescriptor::v1(PackageEntry::Subprocess {
+            command: vec![command.to_string()],
+            transport: plurora_core::SubprocessTransport::JsonRpcStdio,
+        });
+        manifest
+    }
+
     #[tokio::test]
     async fn loads_lists_and_unloads_package() -> anyhow::Result<()> {
         let registry = PackageRegistry::default();
@@ -311,6 +646,119 @@ mod tests {
         let registry = PackageRegistry::default();
         let result = registry.load(manifest("org/pkg"), &policy).await;
         assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn run_leases_reference_count_and_exclude_unload_and_restart() -> anyhow::Result<()> {
+        let registry = PackageRegistry::default();
+        let package_id = "org/run-shared".to_string();
+        let record = registry
+            .load(
+                subprocess_manifest(&package_id, "fixture-one"),
+                &HostPolicy::default(),
+            )
+            .await?;
+        let claim = PackageRunClaim::exact(&record, &record.components[0])?;
+        let run_a = RunId::new();
+        let run_b = RunId::new();
+        let lease_a = registry
+            .acquire_run_lease(&run_a, std::slice::from_ref(&claim))
+            .await?;
+        let lease_b = registry
+            .acquire_run_lease(&run_b, std::slice::from_ref(&claim))
+            .await?;
+        assert_eq!(registry.active_run_lease_count(&package_id).await, 2);
+
+        assert!(registry.begin_unload(&package_id).await.is_err());
+        assert!(registry.begin_restart(&package_id).await.is_err());
+        assert!(registry.unload(&package_id).await.is_err());
+
+        drop(lease_a);
+        assert_eq!(registry.active_run_lease_count(&package_id).await, 1);
+        assert!(registry.begin_unload(&package_id).await.is_err());
+
+        drop(lease_b);
+        assert_eq!(registry.active_run_lease_count(&package_id).await, 0);
+        let restarting = registry.begin_restart(&package_id).await?;
+        assert_eq!(restarting.state, PackageState::Stopping);
+        registry.set_state(&package_id, PackageState::Ready).await;
+        let unloaded = registry.unload(&package_id).await?;
+        assert_eq!(unloaded.state, PackageState::Unloaded);
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn stale_exact_claim_cannot_lease_a_reloaded_package() -> anyhow::Result<()> {
+        let registry = PackageRegistry::default();
+        let package_id = "org/run-race".to_string();
+        let original = registry
+            .load(
+                subprocess_manifest(&package_id, "fixture-one"),
+                &HostPolicy::default(),
+            )
+            .await?;
+        let claim = PackageRunClaim::exact(&original, &original.components[0])?;
+        registry.unload(&package_id).await?;
+        registry
+            .load(
+                subprocess_manifest(&package_id, "fixture-two"),
+                &HostPolicy::default(),
+            )
+            .await?;
+
+        let error = registry
+            .acquire_run_lease(&RunId::new(), std::slice::from_ref(&claim))
+            .await
+            .expect_err("a preflight claim must not bind a replacement Package");
+        assert!(error.to_string().contains("changed after preflight"));
+        assert_eq!(registry.active_run_lease_count(&package_id).await, 0);
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn activation_loss_snapshots_exact_runs_and_lease_drop_is_run_scoped(
+    ) -> anyhow::Result<()> {
+        let registry = PackageRegistry::default();
+        let package_a = registry
+            .load(manifest("org/package-a"), &HostPolicy::default())
+            .await?;
+        let package_b = registry
+            .load(manifest("org/package-b"), &HostPolicy::default())
+            .await?;
+        let claim_a = PackageRunClaim::exact(&package_a, &package_a.components[0])?;
+        let claim_b = PackageRunClaim::exact(&package_b, &package_b.components[0])?;
+        let run_a = RunId::new();
+        let run_b = RunId::new();
+        let unrelated = RunId::new();
+        let lease_a = registry
+            .acquire_run_lease(&run_a, std::slice::from_ref(&claim_a))
+            .await?;
+        let lease_b = registry
+            .acquire_run_lease(&run_b, std::slice::from_ref(&claim_a))
+            .await?;
+        let unrelated_lease = registry
+            .acquire_run_lease(&unrelated, std::slice::from_ref(&claim_b))
+            .await?;
+
+        let (degraded, affected) = registry
+            .mark_activation_lost(&package_a.id)
+            .await
+            .expect("Ready Package transitions once");
+        assert_eq!(degraded.state, PackageState::Degraded);
+        let mut expected = vec![run_a.clone(), run_b.clone()];
+        expected.sort();
+        assert_eq!(affected, expected);
+        assert!(registry.mark_activation_lost(&package_a.id).await.is_none());
+        assert_eq!(registry.active_run_lease_count(&package_b.id).await, 1);
+
+        drop(lease_a);
+        assert_eq!(registry.active_run_lease_count(&package_a.id).await, 1);
+        drop(lease_b);
+        assert_eq!(registry.active_run_lease_count(&package_a.id).await, 0);
+        assert_eq!(registry.active_run_lease_count(&package_b.id).await, 1);
+        drop(unrelated_lease);
+        assert_eq!(registry.active_run_lease_count(&package_b.id).await, 0);
+        Ok(())
     }
 
     #[test]

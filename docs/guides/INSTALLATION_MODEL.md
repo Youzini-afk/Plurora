@@ -13,7 +13,7 @@ Installation 是某台 Host 对一个不可变 WorkRevision 的本地采用记�
 | AssemblyLock | 可移植 artifact | 解析后的节点、绑定、协议 profile 与 content roots。 |
 | Workspace | Host-local | 创作或构建所需的可变源码目录；位置不进入 Work identity。 |
 | Installation | Host-local journal | 当前激活的 WorkRevision / AssemblyLock、来源、state bindings、secret policy 与状态。 |
-| Run | Host-local journal | 一次实际运行；Phase 4 才建立完整生命周期。 |
+| Run | Host Service Run journal | 一次实际运行；由 `host.run.*` 管理独立状态、节点实例、health 与 terminal record。 |
 
 Package 仍是可替换能力与组件的分发单元。Package manifest 可以归一化为单节点 Assembly，但 Package ID 不自动成为 Work ID，源码可见也不等于获得运行权威。
 
@@ -157,4 +157,4 @@ host/installation.removed
 
 ## 与 Run 的边界
 
-Installation `ready` 只表示本地采用记录与 artifact 闭包有效，不表示进程已经启动、端口已经分配或 endpoint 已暴露。Phase 4 会用独立 Run / Exposure journal 建立 prepare → launch → health → stop 的生命周期。在此之前，UI 返回结构化的 `run_unavailable_phase4`，不会把打开详情页伪装成运行。
+Installation `ready` 只表示本地采用记录与 artifact 闭包有效，不表示进程已经启动、端口已经分配或 endpoint 已暴露。Phase 4 的 `host.run.*` 使用独立 Run journal 建立 starting → running → degraded → stopping → stopped（或 failed / interrupted）生命周期；打开 Library 或 Installation 详情不会自动创建 Run。Run start 只激活已安装、已验证且唯一匹配 AssemblyLock 的本地实现；缺失、歧义、unsupported backend 或需要机器资源时返回结构化 gap 和 next step，不隐式 build/deploy。Run 的 context 与浏览器 tab 独立，关闭 tab 不会 stop；stop 只释放该 Run 的 activation，不卸载全局 Package。Exposure 与跨 Installation Binding 留在 Phase 5，managed Realization plan/apply 留在 Phase 6。详见 [`RUN_LIBRARY.md`](RUN_LIBRARY.md)。

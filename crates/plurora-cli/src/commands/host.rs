@@ -313,13 +313,20 @@ where
     S: EventStore,
 {
     let installations = plurora_service::InstallationRegistry::persistent(
-        installation_store,
+        installation_store.clone(),
         config.object_store.clone(),
         data_dir,
     )?;
     installations.install_owner_lease(owner_lease.clone())?;
+    let runs = plurora_service::RunRegistry::new(installation_store);
+    runs.install_owner_lease(owner_lease.clone())?;
     config.installation_control = installations.clone();
+    config.run_control = runs.clone();
     let runtime = Arc::new(Runtime::new(store, config));
+    runs.install_driver(Arc::new(plurora_runtime::AssemblyRuntimeDriver::new(
+        Arc::downgrade(&runtime),
+    )))?;
+    runs.hydrate().await.context("Run recovery failed")?;
     Ok((runtime, installations))
 }
 
@@ -1185,14 +1192,20 @@ pub(crate) async fn host_stdio() -> Result<()> {
         .hydrate()
         .await
         .context("failed to hydrate ephemeral Installation registry")?;
-    let runtime = Runtime::new(
+    let runs = plurora_service::RunRegistry::new(store.clone());
+    let runtime = Arc::new(Runtime::new(
         store,
         RuntimeConfig {
             object_store,
             installation_control: installations,
+            run_control: runs.clone(),
             ..RuntimeConfig::default()
         },
-    );
+    ));
+    runs.install_driver(Arc::new(plurora_runtime::AssemblyRuntimeDriver::new(
+        Arc::downgrade(&runtime),
+    )))?;
+    runs.hydrate().await?;
     let context = ProtocolContext::host_dev("host_stdio");
     let stdin = BufReader::new(tokio::io::stdin());
     let mut lines = stdin.lines();

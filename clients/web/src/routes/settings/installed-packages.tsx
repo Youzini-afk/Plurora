@@ -26,15 +26,14 @@ interface RowEntry {
   name: string;
   packageId: string;
   version: string;
-  kind: "PROJECT" | "PLURORA" | "THIRD-PARTY";
+  kind: "EXTERNAL" | "PLURORA" | "THIRD-PARTY";
   state: PackageRecord["state"];
   capabilityCount: number;
   hookCount: number;
   entryKind: string;
-  isInstallation: boolean;
 }
 
-const FILTER_TABS = ["all", "PROJECT", "PLURORA", "THIRD-PARTY"] as const;
+const FILTER_TABS = ["all", "EXTERNAL", "PLURORA", "THIRD-PARTY"] as const;
 
 type FilterId = (typeof FILTER_TABS)[number];
 
@@ -53,16 +52,10 @@ export function InstalledPackagesPanel() {
   const [search, setSearch] = useState("");
 
   const packages = useAsync(() => client.packages(), [client]);
-  const installations = useAsync(
-    () => client.listInstallations().catch(() => []),
-    [client],
-  );
-
   const rows = useMemo<RowEntry[]>(() => {
-    const installationIds = new Set((installations.data ?? []).map((p) => p.record.installation_id));
     return (packages.data ?? []).map((p) => {
-      const isInstallation = installationIds.has(p.id);
-      const kind: RowEntry["kind"] = isInstallation ? "PROJECT" : classifyPackageKind(p.id);
+      // Package ids are distribution identities, not Host Installation ids.
+      const kind: RowEntry["kind"] = classifyPackageKind(p.id);
       return {
         id: p.id,
         name: deriveName(p.id),
@@ -73,10 +66,9 @@ export function InstalledPackagesPanel() {
         capabilityCount: p.capability_count,
         hookCount: p.hook_count,
         entryKind: p.entry_kind,
-        isInstallation,
       };
     });
-  }, [packages.data, installations.data]);
+  }, [packages.data]);
 
   const filtered = useMemo(() => {
     return rows.filter((p) => {
@@ -90,7 +82,7 @@ export function InstalledPackagesPanel() {
   }, [rows, filter, search]);
 
   const counts = useMemo(() => {
-    const acc: Record<RowEntry["kind"], number> = { PROJECT: 0, PLURORA: 0, "THIRD-PARTY": 0 };
+    const acc: Record<RowEntry["kind"], number> = { EXTERNAL: 0, PLURORA: 0, "THIRD-PARTY": 0 };
     for (const p of rows) acc[p.kind] = (acc[p.kind] ?? 0) + 1;
     return acc;
   }, [rows]);
@@ -166,8 +158,8 @@ export function InstalledPackagesPanel() {
             const tabLabel =
               tab === "all"
                 ? t("packagesFilterAll")
-                : tab === "PROJECT"
-                  ? t("packagesFilterInstallations")
+                : tab === "EXTERNAL"
+                  ? "External"
                   : tab === "PLURORA"
                     ? t("packagesFilterPlurora")
                     : t("packagesFilterThirdParty");
@@ -197,7 +189,6 @@ export function InstalledPackagesPanel() {
             size="sm"
             onClick={() => {
               packages.refresh();
-              installations.refresh();
               toast.push({ variant: "info", title: t("packagesRefreshing"), duration: 2400 });
             }}
             disabled={packages.loading}
@@ -269,7 +260,7 @@ export function InstalledPackagesPanel() {
                   <Package
                     size={18}
                     className={
-                      entry.kind === "PROJECT"
+                      entry.kind === "EXTERNAL"
                         ? "text-aged-brass"
                         : entry.kind === "PLURORA"
                           ? "text-steel-secondary"
@@ -286,7 +277,7 @@ export function InstalledPackagesPanel() {
                   </div>
                   <span className="font-mono text-[12px] text-charcoal-ink">{entry.version}</span>
                   <StatusPill
-                    tone={entry.kind === "PROJECT" ? "accent" : "neutral"}
+                    tone={entry.kind === "EXTERNAL" ? "accent" : "neutral"}
                     label={entry.kind}
                     showDot={false}
                   />

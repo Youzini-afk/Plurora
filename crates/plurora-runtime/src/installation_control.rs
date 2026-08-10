@@ -1,5 +1,5 @@
 use std::any::Any;
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 use std::path::PathBuf;
 use std::sync::Arc;
 
@@ -10,10 +10,10 @@ use plurora_core::{
 };
 use plurora_work::{
     validate_artifact_descriptor, validate_descriptor_type, validate_portable_model,
-    AcquisitionRecord, AssemblyBinding, AssemblyNode, AssemblyPortExposure, BindingLock,
-    InstallationId, InstallationRecord, InstallationSecretPolicy, InstallationStatus, NodeLock,
-    StateBindingRecord, StateSlotDescriptor, StateSlotId, WorkEntrypoint, WorkId,
-    ASSEMBLY_LOCK_TYPE_URI, WORK_REVISION_TYPE_URI,
+    AcquisitionRecord, AssemblyBinding, AssemblyLock, AssemblyNode, AssemblyPortExposure,
+    AssemblyRevision, BindingLock, InstallationId, InstallationRecord, InstallationSecretPolicy,
+    InstallationStatus, NodeLock, StateBindingRecord, StateSlotDescriptor, StateSlotId,
+    WorkEntrypoint, WorkId, WorkRevision, ASSEMBLY_LOCK_TYPE_URI, WORK_REVISION_TYPE_URI,
 };
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -211,9 +211,42 @@ impl InstallationMutationAuthority {
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, PartialEq, Eq)]
 pub struct InstallationView {
     pub record: InstallationRecord,
+    pub work_summary: InstallationWorkSummary,
     pub revision: u64,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub rollback: Option<InstallationRollbackPointer>,
+}
+
+/// Host-projected discovery metadata from the exact, verified WorkRevision
+/// selected by an Installation. This is descriptive content, not authority.
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct InstallationWorkSummary {
+    pub work_id: WorkId,
+    pub title: String,
+    pub description: String,
+    pub content_roots: Vec<ArtifactDescriptor>,
+    pub entrypoints: Vec<WorkEntrypoint>,
+    pub rights: Option<ArtifactDescriptor>,
+    pub transparency: Option<ArtifactDescriptor>,
+    pub operational_intent: Option<ArtifactDescriptor>,
+    pub annotations: BTreeMap<String, serde_json::Value>,
+}
+
+impl InstallationWorkSummary {
+    pub fn from_work_revision(work: &WorkRevision) -> Self {
+        Self {
+            work_id: work.work_id.clone(),
+            title: work.title.clone(),
+            description: work.description.clone(),
+            content_roots: work.content_roots.clone(),
+            entrypoints: work.entrypoints.clone(),
+            rights: work.rights.clone(),
+            transparency: work.transparency.clone(),
+            operational_intent: work.operational_intent.clone(),
+            annotations: work.annotations.clone(),
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, PartialEq, Eq)]
@@ -235,6 +268,56 @@ pub struct InstallationSecretStoreGuard {
     revision: u64,
     path: PathBuf,
     _lease: Box<dyn Any + Send>,
+}
+
+pub struct RunInstallationGuard {
+    artifacts: RunInstallationArtifacts,
+    _lease: Box<dyn Any + Send>,
+}
+
+#[derive(Debug, Clone)]
+pub struct RunInstallationArtifacts {
+    pub installation: InstallationView,
+    pub work: WorkRevision,
+    pub assemblies: BTreeMap<String, AssemblyRevision>,
+    pub locks: BTreeMap<String, AssemblyLock>,
+}
+
+impl RunInstallationGuard {
+    pub fn verified(
+        installation_id: &InstallationId,
+        expected_revision: u64,
+        artifacts: RunInstallationArtifacts,
+        lease: Box<dyn Any + Send>,
+    ) -> anyhow::Result<Self> {
+        anyhow::ensure!(
+            artifacts.installation.record.installation_id == *installation_id
+                && artifacts.installation.revision == expected_revision
+                && artifacts.installation.record.status == InstallationStatus::Ready,
+            "Run Installation precondition is stale"
+        );
+        Ok(Self {
+            artifacts,
+            _lease: lease,
+        })
+    }
+
+    pub fn artifacts(&self) -> &RunInstallationArtifacts {
+        &self.artifacts
+    }
+}
+
+impl std::fmt::Debug for RunInstallationGuard {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("RunInstallationGuard")
+            .field(
+                "installation_id",
+                &self.artifacts.installation.record.installation_id,
+            )
+            .field("revision", &self.artifacts.installation.revision)
+            .finish_non_exhaustive()
+    }
 }
 
 impl InstallationSecretStoreGuard {
@@ -784,6 +867,27 @@ pub trait InstallationControl: Send + Sync + 'static {
         _installation_id: &InstallationId,
         _expected_revision: u64,
     ) -> anyhow::Result<InstallationSecretStoreGuard> {
+        anyhow::bail!("installation control unavailable")
+    }
+
+    /// Acquire the same lifecycle exclusion used by update/remove and return the
+    /// verified, complete Work/Assembly/Lock closure for one exact Ready revision.
+    async fn acquire_ready_for_run(
+        &self,
+        _installation_id: &InstallationId,
+        _expected_revision: u64,
+    ) -> anyhow::Result<RunInstallationGuard> {
+        anyhow::bail!("installation control unavailable")
+    }
+
+    /// Inspect the current Ready Installation revision and its verified Work,
+    /// Assembly, and Lock closure for effect-free Run discovery/preflight.
+    /// Implementations must return one revision-consistent immutable snapshot,
+    /// but must not retain the update/remove exclusion after this call returns.
+    async fn inspect_current_ready_for_run(
+        &self,
+        _installation_id: &InstallationId,
+    ) -> anyhow::Result<RunInstallationArtifacts> {
         anyhow::bail!("installation control unavailable")
     }
 }

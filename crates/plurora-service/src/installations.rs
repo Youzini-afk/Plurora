@@ -24,7 +24,7 @@ use plurora_runtime::{
     InstallationStateSlotDiff, InstallationStateSlotRequirement,
     InstallationStateSnapshot as StateSnapshot,
     InstallationStateSnapshotEntry as StateSnapshotEntry, InstallationUpdateRequest,
-    InstallationView, ObjectStore, StateDisposition,
+    InstallationView, InstallationWorkSummary, ObjectStore, StateDisposition,
     INSTALLATION_STATE_AUTHORITY_EVIDENCE_MEDIA_TYPE, INSTALLATION_STATE_AUTHORITY_EVIDENCE_SCHEMA,
     INSTALLATION_STATE_AUTHORITY_EVIDENCE_TYPE_URI, INSTALLATION_STATE_OPERATION,
     INSTALLATION_STATE_RECEIPT_MEDIA_TYPE, INSTALLATION_STATE_REPLACEMENT_DECISION_RECEIPT_SCHEMA,
@@ -244,6 +244,8 @@ struct VerifiedInstallationArtifacts {
     assembly: AssemblyRevision,
     lock: AssemblyLock,
     lock_bytes: Vec<u8>,
+    assemblies: BTreeMap<String, AssemblyRevision>,
+    locks: BTreeMap<String, AssemblyLock>,
 }
 
 #[cfg(test)]
@@ -1329,6 +1331,8 @@ impl InstallationRegistry {
             assembly,
             lock,
             lock_bytes,
+            assemblies,
+            locks,
         })
     }
 
@@ -1647,6 +1651,10 @@ impl InstallationRegistry {
         let verified = self
             .verify_work_and_lock(&view.record.work_revision, &view.record.assembly_lock)
             .await?;
+        ensure!(
+            view.work_summary == InstallationWorkSummary::from_work_revision(&verified.work),
+            "installation Work summary differs from its exact verified WorkRevision"
+        );
         let record_bytes = canonical_json_bytes(view).context("encode installation projection")?;
         self.ensure_owner_lease().await?;
         let record_replacement =
@@ -2121,6 +2129,7 @@ impl InstallationControl for InstallationRegistry {
                 .map_err(|_| anyhow!("installation record is invalid"))?;
             let view = InstallationView {
                 record,
+                work_summary: InstallationWorkSummary::from_work_revision(&verified.work),
                 revision: 1,
                 rollback: None,
             };
@@ -2283,6 +2292,9 @@ impl InstallationControl for InstallationRegistry {
             };
             let mut new_view = InstallationView {
                 record: candidate,
+                work_summary: InstallationWorkSummary::from_work_revision(
+                    &candidate_artifacts.work,
+                ),
                 revision: previous
                     .revision
                     .checked_add(1)
@@ -2676,6 +2688,95 @@ impl InstallationControl for InstallationRegistry {
             path,
             Box::new((lifecycle, installation)),
         )
+    }
+
+    async fn acquire_ready_for_run(
+        &self,
+        installation_id: &InstallationId,
+        expected_revision: u64,
+    ) -> anyhow::Result<plurora_runtime::RunInstallationGuard> {
+        self.acquire_ready_for_run_inner(installation_id, Some(expected_revision))
+            .await
+    }
+
+    async fn inspect_current_ready_for_run(
+        &self,
+        installation_id: &InstallationId,
+    ) -> anyhow::Result<plurora_runtime::RunInstallationArtifacts> {
+        self.ensure_owner_lease().await?;
+        let artifacts = self.verified_run_artifacts(installation_id, None).await?;
+        self.ensure_owner_lease().await?;
+        let current = self
+            .views
+            .read()
+            .map_err(lock_error)?
+            .get(installation_id)
+            .cloned()
+            .ok_or_else(|| anyhow!("installation_not_found"))?;
+        ensure!(
+            current.revision == artifacts.installation.revision
+                && current.record.status == InstallationStatus::Ready
+                && current.record.work_revision == artifacts.installation.record.work_revision
+                && current.record.assembly_lock == artifacts.installation.record.assembly_lock,
+            "installation_revision_conflict: retry Run status"
+        );
+        Ok(artifacts)
+    }
+}
+
+impl InstallationRegistry {
+    async fn acquire_ready_for_run_inner(
+        &self,
+        installation_id: &InstallationId,
+        expected_revision: Option<u64>,
+    ) -> anyhow::Result<plurora_runtime::RunInstallationGuard> {
+        self.ensure_owner_lease().await?;
+        let lifecycle = self.apply.clone().lock_owned().await;
+        self.sync_journal().await?;
+        let artifacts = self
+            .verified_run_artifacts(installation_id, expected_revision)
+            .await?;
+        let revision = artifacts.installation.revision;
+        plurora_runtime::RunInstallationGuard::verified(
+            installation_id,
+            revision,
+            artifacts,
+            Box::new(lifecycle),
+        )
+    }
+
+    async fn verified_run_artifacts(
+        &self,
+        installation_id: &InstallationId,
+        expected_revision: Option<u64>,
+    ) -> anyhow::Result<plurora_runtime::RunInstallationArtifacts> {
+        let view = self
+            .views
+            .read()
+            .map_err(lock_error)?
+            .get(installation_id)
+            .cloned()
+            .ok_or_else(|| anyhow!("installation_not_found"))?;
+        ensure!(
+            view.record.installation_id == *installation_id
+                && expected_revision.is_none_or(|expected| view.revision == expected)
+                && view.record.status == InstallationStatus::Ready,
+            "Run Installation precondition is stale"
+        );
+        let verified = self
+            .verify_work_and_lock(&view.record.work_revision, &view.record.assembly_lock)
+            .await?;
+        ensure!(
+            view.work_summary == InstallationWorkSummary::from_work_revision(&verified.work),
+            "installation Work summary differs from its exact verified WorkRevision"
+        );
+        self.ensure_owner_lease().await?;
+        Ok(plurora_runtime::RunInstallationArtifacts {
+            installation: view,
+            work: verified.work,
+            assemblies: verified.assemblies,
+            locks: verified.locks,
+        })
     }
 }
 
@@ -3092,6 +3193,7 @@ fn assembly_boundary_ports(
 
 fn validate_view(view: &InstallationView) -> anyhow::Result<()> {
     ensure!(view.revision > 0, "installation revision must be positive");
+    validate_installation_work_summary(&view.work_summary)?;
     view.record
         .validate()
         .map_err(|_| anyhow!("installation journal contains an invalid record"))?;
@@ -3112,6 +3214,20 @@ fn validate_view(view: &InstallationView) -> anyhow::Result<()> {
                 "rollback state descriptor type is invalid"
             );
         }
+    }
+    Ok(())
+}
+
+fn validate_installation_work_summary(summary: &InstallationWorkSummary) -> anyhow::Result<()> {
+    for descriptor in summary
+        .content_roots
+        .iter()
+        .chain(summary.rights.iter())
+        .chain(summary.transparency.iter())
+        .chain(summary.operational_intent.iter())
+    {
+        validate_artifact_descriptor(descriptor)
+            .map_err(|_| anyhow!("installation Work summary descriptor is invalid"))?;
     }
     Ok(())
 }
@@ -4663,6 +4779,16 @@ mod tests {
     async fn create_idempotency_replays_same_request_and_rejects_reuse() -> anyhow::Result<()> {
         let fixture = fixture().await?;
         let first = fixture.create(fixture.request.clone()).await?;
+        let work: WorkRevision = serde_json::from_slice(
+            &fixture
+                .objects
+                .get(&first.installation.record.work_revision.digest)
+                .await?,
+        )?;
+        assert_eq!(
+            first.installation.work_summary,
+            InstallationWorkSummary::from_work_revision(&work)
+        );
         let projection_root = fixture
             .registry
             .installation_dir(&first.installation.record.installation_id);
@@ -4684,6 +4810,48 @@ mod tests {
         assert!(!error
             .to_string()
             .contains(fixture._data.path().to_string_lossy().as_ref()));
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn hydrate_rejects_journal_without_required_work_summary() -> anyhow::Result<()> {
+        let fixture = fixture().await?;
+        fixture.create(fixture.request.clone()).await?;
+        let mut event = fixture
+            .store
+            .list_session(&JOURNAL_SESSION.to_string())
+            .await?
+            .into_iter()
+            .next()
+            .expect("created event");
+        event
+            .payload
+            .get_mut("view")
+            .and_then(serde_json::Value::as_object_mut)
+            .expect("created view")
+            .remove("work_summary");
+        event
+            .payload
+            .pointer_mut("/claim/result/installation")
+            .and_then(serde_json::Value::as_object_mut)
+            .expect("claimed installation")
+            .remove("work_summary");
+
+        let strict_store = Arc::new(InMemoryEventStore::default());
+        strict_store.append(event).await?;
+        let data = tempfile::tempdir()?;
+        let restarted =
+            InstallationRegistry::persistent(strict_store, fixture.objects.clone(), data.path())?;
+        assert!(restarted
+            .hydrate()
+            .await
+            .expect_err("missing Work summary must not hydrate")
+            .to_string()
+            .contains("payload is malformed"));
+        assert!(restarted
+            .list(InstallationListRequest::default())
+            .await?
+            .is_empty());
         Ok(())
     }
 
@@ -4889,6 +5057,20 @@ mod tests {
         assert_eq!(rollback.work_revision, created.record.work_revision);
         assert_eq!(rollback.assembly_lock, created.record.assembly_lock);
         assert!(rollback.state_snapshot.is_none());
+        let current_work: WorkRevision = serde_json::from_slice(
+            &fixture
+                .objects
+                .get(&updated.installation.record.work_revision.digest)
+                .await?,
+        )?;
+        assert_eq!(
+            updated.installation.work_summary,
+            InstallationWorkSummary::from_work_revision(&current_work)
+        );
+        assert_ne!(
+            updated.installation.work_summary, created.work_summary,
+            "the summary must advance with the exact WorkRevision"
+        );
         Ok(())
     }
 
@@ -5239,12 +5421,16 @@ mod tests {
                 assembly: current_assembly,
                 lock: current_lock,
                 lock_bytes: Vec::new(),
+                assemblies: BTreeMap::new(),
+                locks: BTreeMap::new(),
             },
             &VerifiedInstallationArtifacts {
                 work: candidate_work,
                 assembly: candidate_assembly,
                 lock: candidate_lock,
                 lock_bytes: Vec::new(),
+                assemblies: BTreeMap::new(),
+                locks: BTreeMap::new(),
             },
         )?;
 
@@ -7004,6 +7190,71 @@ mod tests {
             result.installation.record.display_name,
             "after guarded secret effect"
         );
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn ready_run_guard_pins_verified_closure_and_excludes_update() -> anyhow::Result<()> {
+        let fixture = fixture().await?;
+        let created = fixture.create(fixture.request.clone()).await?.installation;
+        assert!(fixture
+            .registry
+            .acquire_ready_for_run(&created.record.installation_id, created.revision + 1)
+            .await
+            .is_err());
+
+        let guard = fixture
+            .registry
+            .acquire_ready_for_run(&created.record.installation_id, created.revision)
+            .await?;
+        assert_eq!(guard.artifacts().installation, created);
+        assert_eq!(
+            guard.artifacts().work.artifact_descriptor()?,
+            created.record.work_revision
+        );
+        assert!(guard
+            .artifacts()
+            .locks
+            .contains_key(&created.record.assembly_lock.digest));
+        let inspected = tokio::time::timeout(
+            Duration::from_secs(1),
+            fixture
+                .registry
+                .inspect_current_ready_for_run(&created.record.installation_id),
+        )
+        .await
+        .map_err(|_| anyhow!("effect-free Run status waited on the active Run lease"))??;
+        assert_eq!(inspected.installation, created);
+
+        let mut request = update_request(
+            &created,
+            created.record.work_revision.clone(),
+            created.record.assembly_lock.clone(),
+            "run-guard-update",
+        );
+        request.display_name = Some("after guarded Run".to_string());
+        let runtime = fixture.runtime();
+        let update = tokio::spawn(async move {
+            runtime
+                .call_protocol(
+                    &ProtocolContext::host_dev("run-guard-update"),
+                    "host.installation.update",
+                    serde_json::to_value(request).expect("serialize update"),
+                )
+                .await
+        });
+        tokio::time::sleep(Duration::from_millis(20)).await;
+        assert!(
+            !update.is_finished(),
+            "Installation update must wait while the active Run owns its exact revision"
+        );
+        drop(guard);
+        let result: InstallationMutationResult = serde_json::from_value(
+            update
+                .await?
+                .map_err(|error| anyhow!("{}: {}", error.code, error.message))?,
+        )?;
+        assert_eq!(result.installation.record.display_name, "after guarded Run");
         Ok(())
     }
 

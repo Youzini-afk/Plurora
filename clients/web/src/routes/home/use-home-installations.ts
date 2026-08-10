@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { usePlurora } from "@/lib/plurora-client";
-import type { InstallationView } from "@/protocol/client";
+import type { InstallationView, RunView } from "@/protocol/client";
 
 export interface InstallationSummary {
   installationId: string;
@@ -9,9 +9,17 @@ export interface InstallationSummary {
   revision: number;
   sourceKind: string;
   updatedAt: string;
+  workTitle: string;
+  workDescription: string;
+  workId: string;
+  entrypoints: InstallationView["work_summary"]["entrypoints"];
+  activeRun: RunView | null;
+  runs: RunView[];
+  view: InstallationView;
 }
 
-function summarize(view: InstallationView): InstallationSummary {
+function summarize(view: InstallationView, runViews: RunView[]): InstallationSummary {
+  const activeRun = runViews.find((run) => ["starting", "running", "degraded", "stopping"].includes(run.record.status)) ?? null;
   return {
     installationId: view.record.installation_id,
     displayName: view.record.display_name,
@@ -19,6 +27,13 @@ function summarize(view: InstallationView): InstallationSummary {
     revision: view.revision,
     sourceKind: view.record.source.kind,
     updatedAt: view.record.updated_at,
+    workTitle: view.work_summary.title,
+    workDescription: view.work_summary.description,
+    workId: view.work_summary.work_id,
+    entrypoints: view.work_summary.entrypoints,
+    activeRun,
+    runs: runViews,
+    view,
   };
 }
 
@@ -31,7 +46,15 @@ export function useHomeInstallations() {
     setLoading(true);
     try {
       const views = await client.listInstallations();
-      setInstallations(views.map(summarize));
+      const runGroups = await Promise.all(views.map(async (view) => ({
+        installationId: view.record.installation_id,
+        runs: await client.listRuns({ installation_id: view.record.installation_id }),
+      })));
+      const runsByInstallation = new Map<string, RunView[]>();
+      for (const group of runGroups) {
+        runsByInstallation.set(group.installationId, group.runs);
+      }
+      setInstallations(views.map((view) => summarize(view, runsByInstallation.get(view.record.installation_id) ?? [])));
       setError(null);
     } catch {
       setError("Installation inventory is unavailable.");

@@ -45,6 +45,7 @@ const dotClassOverride: Record<StatusTone, string> = {
   stopped: "bg-steel-secondary",
   starting: "bg-muted-tone",
   failed: "bg-deep-rust",
+  interrupted: "bg-deep-rust",
   update: "bg-muted-tone",
   neutral: "bg-steel-secondary",
   accent: "bg-aged-brass",

@@ -86,6 +86,26 @@ pub(crate) fn event_schemas() -> Vec<(&'static str, Value)> {
             INSTALLATION_REMOVED,
             schema_value::<InstallationRemovedPayloadSchema>(),
         ),
+        (
+            EVENT_RUN_STARTING,
+            schema_value::<RunLifecyclePayloadSchema>(),
+        ),
+        (
+            EVENT_RUN_STARTED,
+            schema_value::<RunLifecyclePayloadSchema>(),
+        ),
+        (
+            EVENT_RUN_STOPPING,
+            schema_value::<RunLifecyclePayloadSchema>(),
+        ),
+        (
+            EVENT_RUN_STOPPED,
+            schema_value::<RunLifecyclePayloadSchema>(),
+        ),
+        (
+            EVENT_RUN_FAILED,
+            schema_value::<RunLifecyclePayloadSchema>(),
+        ),
         (EVENT_ASSET_PUT, schema_value::<AssetRecord>()),
         (
             EVENT_PROJECTION_UPDATED,

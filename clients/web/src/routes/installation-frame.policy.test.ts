@@ -1,4 +1,5 @@
-import { RUN_UNAVAILABLE_REASON } from "./installation-frame";
+import { INSTALLATION_FRAME_POLICY } from "./installation-frame";
 
-if (RUN_UNAVAILABLE_REASON.code !== "run_unavailable_phase4") throw new Error("Phase 3 must expose a structured Run-unavailable reason");
-if (RUN_UNAVAILABLE_REASON.phase !== 4) throw new Error("Run lifecycle belongs to Phase 4");
+if (INSTALLATION_FRAME_POLICY.stopRunOnUnmount) {
+  throw new Error("closing or navigating away from an Installation frame must not stop its Run");
+}

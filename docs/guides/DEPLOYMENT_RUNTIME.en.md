@@ -159,11 +159,11 @@ Project-scoped host APIs:
 
 Recover and rollback are explicit user actions. Ordinary revisions must be replay-safe, retain their local image, and still resolve referenced secrets. Verified revisions require a valid artifact closure, preview/approval evidence, and current project/target authority. Verified replay never reads the live workspace or refetches source. Failure preserves the prior active pointer and reports recovery required rather than silently claiming success. Direct prebuilt-image `/host/v1/deploy` remains a transient broker operation and does not create a durable revision yet.
 
-## `project.start` does not deploy
+## Run does not deploy implicitly
 
-Installation `ready` means only that the adoption record is valid. It does not start a process, allocate a port, or register a proxy. Phase 4 introduces independent Run / Exposure lifecycle; Phase 6 replaces this transitional deployment controller with Realization.
+Installation `ready` means only that the adoption record is valid. It does not start a process, allocate a port, or register a proxy. Phase 4 `host.run.start` activates only an installed, verified, uniquely matching local Run-bound implementation; missing components or machine-resource requirements return structured gaps instead of implicit build/deploy. Opening Library/Installation UI remains visibly separate from starting a Run.
 
-Deployment is a separate, explicit host-broker action. This keeps “open project UI” and “run an external service” visibly separate.
+Deployment remains a separate, explicit Host action. Managed Realization plan/apply belongs to Phase 6; this transitional deployment controller does not define the Run lifecycle.
 
 ## Red lines
 

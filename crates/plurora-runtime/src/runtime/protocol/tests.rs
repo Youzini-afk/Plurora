@@ -287,8 +287,8 @@ mod host_resource_authority_tests {
         InMemoryEventStore, InstallationAuthorityRefresh, InstallationAuthoritySubject,
         InstallationAuthorityValidator, InstallationControl, InstallationCreateRequest,
         InstallationListRequest, InstallationMutationResult, InstallationRemoveRequest,
-        InstallationUpdateRequest, InstallationView, OpenSessionRequest, ProtocolContext,
-        ProtocolResourceSelector, Runtime, RuntimeConfig,
+        InstallationUpdateRequest, InstallationView, InstallationWorkSummary, OpenSessionRequest,
+        ProtocolContext, ProtocolResourceSelector, Runtime, RuntimeConfig,
     };
     use async_trait::async_trait;
     use plurora_core::ArtifactDescriptor;
@@ -359,6 +359,7 @@ mod host_resource_authority_tests {
                 .with_timezone(&chrono::Utc);
             Ok(InstallationMutationResult {
                 installation: InstallationView {
+                    work_summary: work_summary(request.work_id.clone(), &request.display_name),
                     record: InstallationRecord {
                         schema_version: InstallationRecord::SCHEMA_VERSION,
                         installation_id: InstallationId::new(),
@@ -407,11 +408,29 @@ mod host_resource_authority_tests {
         }
     }
 
+    fn work_summary(work_id: WorkId, title: &str) -> InstallationWorkSummary {
+        InstallationWorkSummary {
+            work_id,
+            title: title.to_string(),
+            description: String::new(),
+            content_roots: Vec::new(),
+            entrypoints: Vec::new(),
+            rights: None,
+            transparency: None,
+            operational_intent: None,
+            annotations: Default::default(),
+        }
+    }
+
     fn installation(id: InstallationId, title: &str, byte: char) -> InstallationView {
         let now = chrono::DateTime::parse_from_rfc3339("2026-01-01T00:00:00Z")
             .unwrap()
             .with_timezone(&chrono::Utc);
         InstallationView {
+            work_summary: work_summary(
+                WorkId::parse(format!("tests/installation-{byte}")).expect("valid Work id"),
+                title,
+            ),
             record: InstallationRecord {
                 schema_version: InstallationRecord::SCHEMA_VERSION,
                 installation_id: id,
@@ -487,27 +506,28 @@ mod host_resource_authority_tests {
             .await
             .is_err());
 
+        let open_request = serde_json::to_value(OpenSessionRequest {
+            labels: vec![format!("installation:{}", installation_a)],
+            active_package_set: Vec::new(),
+            metadata: serde_json::json!({"installation_id": installation_a}),
+        })
+        .expect("serialize open-session request");
+        assert!(runtime
+            .call_protocol(&context, "context.open", open_request.clone(),)
+            .await
+            .is_err());
+
+        // Product Run authority is not substrate session administration.
         let opened = runtime
             .call_protocol(
-                &context,
+                &ProtocolContext::host_admin("test"),
                 "context.open",
-                serde_json::to_value(OpenSessionRequest {
-                    labels: vec![format!("installation:{}", installation_a)],
-                    active_package_set: Vec::new(),
-                    metadata: serde_json::json!({"installation_id": installation_a}),
-                })
-                .expect("serialize open-session request"),
+                open_request,
             )
             .await
-            .expect("open allowed installation context");
+            .expect("Host administrator opens substrate context");
         let session_id = opened["id"].as_str().expect("session id");
-        let session = runtime
-            .get_session(session_id)
-            .await
-            .expect("session exists");
-        assert_eq!(session.metadata["installation_id"], installation_a.as_str());
-
-        let forked = runtime
+        assert!(runtime
             .call_protocol(
                 &context,
                 "context.fork",
@@ -518,23 +538,15 @@ mod host_resource_authority_tests {
                 }),
             )
             .await
-            .expect("fork allowed Installation session");
-        let child_session_id = forked["child_session_id"]
-            .as_str()
-            .expect("child session id");
-        let child = runtime
-            .get_session(child_session_id)
-            .await
-            .expect("forked session exists");
-        assert_eq!(child.metadata["installation_id"], installation_a.as_str());
+            .is_err());
         runtime
             .call_protocol(
-                &context,
-                "context.get",
-                serde_json::json!({"session_id": child_session_id}),
+                &ProtocolContext::host_admin("test"),
+                "context.close",
+                serde_json::json!({"session_id": session_id}),
             )
             .await
-            .expect("forked session retains the Installation authority binding");
+            .expect("Host administrator closes substrate context");
     }
 
     #[tokio::test]

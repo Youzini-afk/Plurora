@@ -13,7 +13,7 @@ An Installation is one Host's local adoption record for an immutable WorkRevisio
 | AssemblyLock | portable artifact | Resolved nodes, bindings, protocol profiles, and content roots. |
 | Workspace | Host-local | Mutable source directory used for authoring or builds; its location is not Work identity. |
 | Installation | Host-local journal | Active WorkRevision / AssemblyLock, acquisition, state bindings, secret policy, and status. |
-| Run | Host-local journal | One execution occurrence; the complete lifecycle arrives in Phase 4. |
+| Run | Host Service Run journal | One execution occurrence; `host.run.*` owns independent status, node instances, health, and terminal records. |
 
 A Package remains a replaceable capability and component distribution unit. A Package manifest can normalize into a single-node Assembly, but its Package ID does not automatically become the Work ID, and source visibility grants no execution authority.
 
@@ -157,4 +157,4 @@ There are no compatibility aliases. Web Home and third-party clients use the sam
 
 ## Boundary with Run
 
-Installation `ready` means that the local adoption record and artifact closure are valid. It does not mean a process is running, a port is allocated, or an endpoint is exposed. Phase 4 adds a separate Run / Exposure journal with prepare → launch → health → stop. Until then, the UI returns the structured `run_unavailable_phase4` reason rather than pretending that opening a detail page starts execution.
+Installation `ready` means that the local adoption record and artifact closure are valid. It does not mean a process is running, a port is allocated, or an endpoint is exposed. Phase 4 `host.run.*` methods use a separate Run journal with starting → running → degraded → stopping → stopped (or failed / interrupted) states; opening Library or Installation detail never creates a Run. Run start activates only an installed, verified, uniquely matching local implementation from the AssemblyLock. Missing, ambiguous, unsupported-backend, or machine-resource requirements return structured gaps and next steps rather than implicit build/deploy. A Run context is independent from a browser tab, so closing a tab does not stop it; stop releases only that Run activation and does not unload global Packages. Exposure and cross-Installation Binding remain Phase 5, while managed Realization plan/apply remains Phase 6. See [`RUN_LIBRARY.en.md`](RUN_LIBRARY.en.md).

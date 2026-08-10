@@ -24,7 +24,7 @@ Host executor resolves secret at the last moment
 terminal EffectReceipt + redacted audit
 ```
 
-Phase 4 前，Web Installation detail 不会自动创建 Run。定向 conformance 与 Host protocol 测试可以在明确的 Installation context 中验证 secret/outbound 路径；真正的用户 Run/session/surface 链在下一 Phase 接入。
+Web Installation detail 不会自动创建 Run。真实调用必须在显式 `host.run.start` 成功后的 Run context 中进行；Run 只激活已安装、已验证且唯一匹配的本地实现。缺失、歧义、unsupported backend 或需要机器资源时，start 返回结构化 gap，不隐式 build/deploy。关闭 tab 不会停止 Run；显式 `host.run.stop` 只停止该 Run。
 
 ## 配置 secret
 
@@ -89,6 +89,6 @@ Adapter 构造请求 shape，但不能直接联网。实际网络 effect 只能�
 | installation entry absent | 本地值缺失且 fallback 关闭 | 写入 Installation store 或明确启用 fallback |
 | outbound denied | manifest/handle/policy 不允许 destination | 修正声明并重新审批 |
 | binding ambiguous | 多个 provider 同等兼容 | 在 Work/Assembly 中显式绑定 provider |
-| run unavailable | Installation 已采用但 Phase 4 Run 尚未创建 | 等待或使用 Phase 4 Run API |
+| run gap | Run start 缺少本地匹配实现、绑定或可满足 target | 展示 `reason_code` 与 `next_step`，修复 Installation/本地 Package 后重试 `host.run.start` |
 
 Secret resolver 细节见 [`SECRET_MANAGEMENT.md`](SECRET_MANAGEMENT.md)；Work 与 Installation 边界见 [`INSTALLATION_MODEL.md`](INSTALLATION_MODEL.md)。

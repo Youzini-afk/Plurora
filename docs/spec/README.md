@@ -4,8 +4,8 @@
 
 可执行 v1 契约和 hostile conformance 路线图。规范文件以代码 + 用例支撑——不是愿景文档。
 
-- [`PUBLIC_CONTRACT.md`](PUBLIC_CONTRACT.md) — v1 公开契约：80 个方法、58 个事件、capability handle、Path A / Path B、SDK 与 conformance
-- [`CONTRACT_LAYERING_MATRIX.md`](CONTRACT_LAYERING_MATRIX.md) — 80 个方法、58 个事件与顶层 schema 的 Candidate owner 矩阵
+- [`PUBLIC_CONTRACT.md`](PUBLIC_CONTRACT.md) — v1 公开契约：85 个方法、63 个事件、capability handle、Path A / Path B、SDK 与 conformance
+- [`CONTRACT_LAYERING_MATRIX.md`](CONTRACT_LAYERING_MATRIX.md) — 85 个方法、63 个事件与顶层 schema 的 Candidate owner 矩阵
 - [`CONTRACT_REGISTRY.md`](CONTRACT_REGISTRY.md) — 可执行的 exact-ID registry 与显式 contract/profile/version 协商
 - [`OBJECT_STORE.md`](OBJECT_STORE.md) — Experimental SHA-256 ObjectStore、ArtifactDescriptor、asset 转换与 verified read
 - [`EFFECT_RECEIPTS.md`](EFFECT_RECEIPTS.md) — Experimental EffectReceipt、terminal evidence、historical replay 与 branch re-execute
@@ -17,7 +17,7 @@
 - [`v1/EVENT_KIND_REGISTRY.md`](v1/EVENT_KIND_REGISTRY.md) — v1 事件类型 registry
 - [`v1/ERROR_CODES.md`](v1/ERROR_CODES.md) — v1 错误码
 - [`v1/VERSIONING.md`](v1/VERSIONING.md) — v1 additive-only 版本策略
-- [`v1/schemas/`](v1/schemas/) — 177 个 JSON Schema（80 methods + 58 events + 39 top-level），SDK 的单一可信源
+- [`v1/schemas/`](v1/schemas/) — 187 个 JSON Schema（85 methods + 63 events + 39 top-level），SDK 的单一可信源
 
 跑全套 conformance：
 

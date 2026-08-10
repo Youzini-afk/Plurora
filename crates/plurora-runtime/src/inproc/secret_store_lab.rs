@@ -290,7 +290,7 @@ mod tests {
     use plurora_core::ArtifactDescriptor;
     use plurora_work::{
         AcquisitionKind, AcquisitionRecord, InstallationRecord, InstallationSecretPolicy,
-        InstallationStatus,
+        InstallationStatus, WorkId,
     };
     use tokio::sync::Mutex;
 
@@ -298,8 +298,8 @@ mod tests {
     use crate::{
         InMemoryEventStore, InstallationControl, InstallationCreateRequest,
         InstallationListRequest, InstallationMutationResult, InstallationRemoveRequest,
-        InstallationSecretStoreGuard, InstallationUpdateRequest, InstallationView, Runtime,
-        RuntimeConfig,
+        InstallationSecretStoreGuard, InstallationUpdateRequest, InstallationView,
+        InstallationWorkSummary, Runtime, RuntimeConfig,
     };
 
     static ENV_LOCK: Mutex<()> = Mutex::const_new(());
@@ -443,6 +443,17 @@ mod tests {
         };
         let now = chrono::Utc::now();
         InstallationView {
+            work_summary: InstallationWorkSummary {
+                work_id: WorkId::parse("tests/secret-store-lab").expect("valid Work id"),
+                title: "Secret gate fixture".to_string(),
+                description: String::new(),
+                content_roots: Vec::new(),
+                entrypoints: Vec::new(),
+                rights: None,
+                transparency: None,
+                operational_intent: None,
+                annotations: BTreeMap::new(),
+            },
             record: InstallationRecord {
                 schema_version: InstallationRecord::SCHEMA_VERSION,
                 installation_id,

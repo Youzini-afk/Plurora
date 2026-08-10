@@ -14,5 +14,5 @@ export function countsForInstallations(items: InstallationSummary[]): Installati
 export function filterInstallations(items: InstallationSummary[], search: string): InstallationSummary[] {
   const query = search.trim().toLowerCase();
   if (!query) return items;
-  return items.filter((item) => `${item.displayName} ${item.installationId} ${item.sourceKind}`.toLowerCase().includes(query));
+  return items.filter((item) => `${item.workTitle} ${item.displayName} ${item.installationId} ${item.sourceKind}`.toLowerCase().includes(query));
 }

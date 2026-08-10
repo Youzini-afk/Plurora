@@ -233,11 +233,11 @@ pub(crate) async fn request(
     let status = response.status();
     let bytes = response.bytes().await?;
     if !status.is_success() {
-        anyhow::bail!(
-            "Host access request returned {}: {}",
-            status,
-            String::from_utf8_lossy(&bytes)
-        );
+        // Never echo an untrusted response body: it may contain local paths,
+        // credentials, or provider diagnostics. The Host's stable status is
+        // sufficient for the CLI error boundary.
+        let _ = bytes;
+        anyhow::bail!("Host access request returned {status}");
     }
     if status == StatusCode::NO_CONTENT || bytes.is_empty() {
         return Ok(Value::Null);

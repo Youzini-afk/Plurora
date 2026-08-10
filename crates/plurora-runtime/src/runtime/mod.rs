@@ -3,6 +3,7 @@ use std::fmt;
 use std::future::Future;
 use std::path::PathBuf;
 use std::sync::Arc;
+use std::time::Duration;
 
 use plurora_core::{
     ArtifactDescriptor, AssetRecord, EventEnvelope, PackageId, SessionId, SessionRecord,
@@ -19,8 +20,8 @@ use tokio::sync::{Mutex, RwLock};
 
 use crate::{
     EventStore, HostPolicy, InMemoryObjectStore, InprocPackageCatalog, InstallationControl,
-    InstallationScopeContext, ObjectStore, ProtocolContext, ProtocolPrincipal,
-    SecretResolverConfig, UnavailableInstallationControl,
+    InstallationScopeContext, ObjectStore, ProtocolContext, ProtocolPrincipal, RunControl,
+    SecretResolverConfig, UnavailableInstallationControl, UnavailableRunControl,
 };
 
 mod artifacts;
@@ -101,6 +102,9 @@ pub use self::outbound_websocket::{
     OutboundWebSocketFrame, OutboundWebSocketOpenRequest, OutboundWebSocketSession, SendStatus,
     WebSocketEvent, WebSocketExecutor, WebSocketFramePayload,
 };
+pub(crate) use self::packages::{
+    append_prepared_package_degraded_event, prepare_package_degraded_record,
+};
 pub use self::permissions::PermissionGrantRecord;
 pub use self::projections::ProjectionDefinition;
 pub use self::proposals::{ProposalApproval, ProposalOperation, ProposalRecord, ProposalStatus};
@@ -130,6 +134,11 @@ pub struct RuntimeConfig {
     pub object_store: Arc<dyn ObjectStore>,
     /// Host-owned Installation control plane. The default fails closed.
     pub installation_control: Arc<dyn InstallationControl>,
+    /// Host-owned durable Run control plane. The default fails closed.
+    pub run_control: Arc<dyn RunControl>,
+    /// Delay between durable retries after a Package activation-loss report
+    /// fails. Retries have no attempt limit and stop when the Runtime is gone.
+    pub package_activation_loss_retry_delay: Duration,
     /// Outbound executor configuration. Defaults to `DenyAll` (fail-closed).
     pub outbound_executor: OutboundExecutorConfig,
     /// Outbound execute host-level policy. Defaults disabled (fail-closed). (Y1)
@@ -179,6 +188,11 @@ impl fmt::Debug for RuntimeConfig {
             .field("secret_resolver", &"configured")
             .field("object_store", &"configured")
             .field("installation_control", &"configured")
+            .field("run_control", &"configured")
+            .field(
+                "package_activation_loss_retry_delay",
+                &self.package_activation_loss_retry_delay,
+            )
             .field("outbound_executor", &outbound_executor)
             .field("outbound_execute_policy", &self.outbound_execute_policy)
             .field("outbound_websocket_executor", &"configured")
@@ -203,6 +217,8 @@ impl Default for RuntimeConfig {
             secret_resolver: SecretResolverConfig::default(),
             object_store: Arc::new(InMemoryObjectStore::new()),
             installation_control: Arc::new(UnavailableInstallationControl),
+            run_control: Arc::new(UnavailableRunControl),
+            package_activation_loss_retry_delay: Duration::from_millis(250),
             outbound_executor: OutboundExecutorConfig::default(),
             outbound_execute_policy: OutboundExecutePolicyConfig::default(),
             outbound_websocket_executor: Arc::new(DenyAllWebSocketExecutor),
@@ -315,13 +331,20 @@ where
     S: EventStore,
 {
     pub fn new(store: Arc<S>, config: RuntimeConfig) -> Self {
+        let packages = Arc::new(crate::PackageRegistry::default());
+        let subprocesses = Arc::new(crate::SubprocessSupervisor::new(
+            store.clone(),
+            packages.clone(),
+            config.run_control.clone(),
+            config.package_activation_loss_retry_delay,
+        ));
         Self {
             store,
-            packages: Arc::new(crate::PackageRegistry::default()),
+            packages,
             capabilities: Arc::new(crate::CapabilityFabric::default()),
             handles: Arc::new(HandleTable::default()),
             extensions: Arc::new(crate::ExtensionRegistry::default()),
-            subprocesses: Arc::new(crate::SubprocessSupervisor::default()),
+            subprocesses,
             sessions: Arc::new(RwLock::new(HashMap::new())),
             assets: Arc::new(RwLock::new(HashMap::new())),
             projections: Arc::new(RwLock::new(HashMap::new())),
@@ -466,6 +489,12 @@ where
             .ok_or_else(|| anyhow::anyhow!("session '{}' not found", session_id))?;
         if session.status != SessionStatus::Open {
             anyhow::bail!("session '{}' is closed", session_id);
+        }
+        // Session/context administration is substrate control, not product Run
+        // authority. access_manage deliberately does not derive authority from
+        // an optional Installation metadata convention.
+        if action == "access_manage" {
+            return Ok(());
         }
         match session
             .metadata
@@ -1036,6 +1065,18 @@ mod runtime_config_tests {
         let now = chrono::Utc::now();
         let control = Arc::new(StatusInstallationControl {
             view: crate::InstallationView {
+                work_summary: crate::InstallationWorkSummary {
+                    work_id: plurora_work::WorkId::parse("tests/runtime-status")
+                        .expect("valid Work id"),
+                    title: "Runtime status fixture".to_string(),
+                    description: String::new(),
+                    content_roots: Vec::new(),
+                    entrypoints: Vec::new(),
+                    rights: None,
+                    transparency: None,
+                    operational_intent: None,
+                    annotations: BTreeMap::new(),
+                },
                 record: plurora_work::InstallationRecord {
                     schema_version: plurora_work::InstallationRecord::SCHEMA_VERSION,
                     installation_id: installation_id.clone(),

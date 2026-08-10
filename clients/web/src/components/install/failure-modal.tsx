@@ -6,6 +6,14 @@ import { useT } from "@/lib/locale";
 
 export interface FailureDetail {
   installationName: string;
+  installationId?: string;
+  runId?: string;
+  reasonCode?: string;
+  nextStep?: string;
+  installation_id?: string;
+  run_id?: string;
+  reason_code?: string;
+  next_step?: string;
   icon?: React.ReactNode;
   title?: string;
   summary?: string;
@@ -61,6 +69,14 @@ export function FailureModal({ open, onClose, onRestart, onUninstall, detail }: 
           <span className="ml-auto font-mono text-[11px] text-muted-tone">{detail.failedAt}</span>
         ) : null}
       </div>
+      {detail?.installationId || detail?.installation_id || detail?.runId || detail?.run_id || detail?.reasonCode || detail?.reason_code || detail?.nextStep || detail?.next_step ? (
+        <div className="mt-3 rounded-[12px] border border-whisper-border bg-warm-bone px-4 py-3 text-[11px]">
+          {detail.installationId || detail.installation_id ? <p><span className="text-steel-secondary">Installation</span> <span className="font-mono">{detail.installationId ?? detail.installation_id}</span></p> : null}
+          {detail.runId || detail.run_id ? <p className="mt-1"><span className="text-steel-secondary">Run</span> <span className="font-mono">{detail.runId ?? detail.run_id}</span></p> : null}
+          {detail.reasonCode || detail.reason_code ? <p className="mt-1"><span className="text-steel-secondary">Reason</span> <span className="font-mono text-deep-rust">{detail.reasonCode ?? detail.reason_code}</span></p> : null}
+          {detail.nextStep || detail.next_step ? <p className="mt-1 text-steel-secondary">Next step: <span className="text-charcoal-ink">{detail.nextStep ?? detail.next_step}</span></p> : null}
+        </div>
+      ) : null}
 
       {/* Diagnosis & impact */}
       <div className="mt-6 grid grid-cols-2 gap-6">

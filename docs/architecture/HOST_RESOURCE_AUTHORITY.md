@@ -109,7 +109,7 @@ HostOperationContext
 - `host.installation.create` 要求 `installation.manage` 和请求 `work_id` 对应的精确 Work；canonical CAS 中 `WorkRevision.work_id` 必须与请求一致。`update|remove` 要求精确 Installation。
 - Runtime 为 create、所有 update state action（包括 `preserve`）与 remove 铸造不可 wire 构造的 Host-only sidecar。服务在等待 apply lock 后及每个 durable/effect 边界前同步 HostAccess journal，并重新检查 grant active/expiry/delegation/action/精确资源；请求字段本身不授予权限。
 - Installation-local secret scope 来自 Host 验证的 Installation context。
-- Phase 4 的 Run start/stop 与 Run-bound session 要求 `run` 和精确 Installation / Run selector。
+- Run start 要求 `run` 与精确 Installation。RunId 由 Host 在 preflight 后生成；后续 get/stop 必须同时携带 I/R，registry 先证明 Run 是该精确 Installation 的 child，才从父 selector 派生本次 exact child authority。该规则不跨 Installation，也不是第一方私有 bypass；Host restart 会把 active Run 标为 `interrupted`。
 - package surface 只能拿到短期、方法 allowlist 的衰减 handle，不能获得 root/device credential。
 
 ## 审计

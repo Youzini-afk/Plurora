@@ -22,6 +22,7 @@ mod outbound_dispatch;
 mod packages;
 mod permissions;
 mod proposals;
+mod runs;
 mod sessions_events;
 mod surface;
 

@@ -1,6 +1,6 @@
 # Event Kind Registry (v1)
 
-This table lists the 58 event kinds emitted exclusively by the Plurora platform runtime. Ordinary Package writers use their own Package ID namespace and cannot impersonate a platform-owned kind.
+This table lists the 63 event kinds emitted exclusively by the Plurora platform runtime. Ordinary Package writers use their own Package ID namespace and cannot impersonate a platform-owned kind.
 
 | Event kind | Payload schema | Writer | Trigger | Status |
 |---|---|---|---|---|
@@ -19,6 +19,11 @@ This table lists the 58 event kinds emitted exclusively by the Plurora platform 
 | `host/installation.created` | [`./schemas/events/host__installation.created.schema.json`](./schemas/events/host__installation.created.schema.json) | `plurora/runtime` | Installation journal entry created and projected | implemented |
 | `host/installation.updated` | [`./schemas/events/host__installation.updated.schema.json`](./schemas/events/host__installation.updated.schema.json) | `plurora/runtime` | Installation active Work/Lock pointer or state updated | implemented |
 | `host/installation.removed` | [`./schemas/events/host__installation.removed.schema.json`](./schemas/events/host__installation.removed.schema.json) | `plurora/runtime` | Installation removed with an explicit state disposition | implemented |
+| `host/run.starting` | [`./schemas/events/host__run.starting.schema.json`](./schemas/events/host__run.starting.schema.json) | `plurora/runtime` | Run journal records starting before activation | implemented |
+| `host/run.started` | [`./schemas/events/host__run.started.schema.json`](./schemas/events/host__run.started.schema.json) | `plurora/runtime` | Run activation completes and enters running | implemented |
+| `host/run.stopping` | [`./schemas/events/host__run.stopping.schema.json`](./schemas/events/host__run.stopping.schema.json) | `plurora/runtime` | Run stop is authorized and enters stopping | implemented |
+| `host/run.stopped` | [`./schemas/events/host__run.stopped.schema.json`](./schemas/events/host__run.stopped.schema.json) | `plurora/runtime` | Run activation context stops and a terminal record commits | implemented |
+| `host/run.failed` | [`./schemas/events/host__run.failed.schema.json`](./schemas/events/host__run.failed.schema.json) | `plurora/runtime` | Run activation fails or Host restart marks an incomplete Run interrupted | implemented |
 | `object/put` | [`./schemas/events/object__put.schema.json`](./schemas/events/object__put.schema.json) | `plurora/runtime` | Opaque asset stored | implemented |
 | `projection/updated` | [`./schemas/events/projection__updated.schema.json`](./schemas/events/projection__updated.schema.json) | `plurora/runtime` | Projection state rebuilt/updated | implemented |
 | `change/proposal.created` | [`./schemas/events/change__proposal.created.schema.json`](./schemas/events/change__proposal.created.schema.json) | `plurora/runtime` | Proposal created | partial |

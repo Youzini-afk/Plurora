@@ -104,9 +104,9 @@ export default defineConfig({
       includeAssets: ['icons/plurora.svg', 'icons/plurora-maskable.svg'],
       manifest: {
         id: '/',
-        name: 'Plurora Project Workshop',
+        name: 'Plurora Library',
         short_name: 'Plurora',
-        description: 'A permissioned workshop for building, deploying, and operating projects.',
+        description: 'A permissioned Library for installing Works and controlling explicit Runs.',
         start_url: '/',
         scope: '/',
         display: 'standalone',
@@ -132,7 +132,7 @@ export default defineConfig({
         globPatterns: ['**/*.{js,css,html,svg,webmanifest,woff,woff2}'],
         globIgnores: ['**/*.map'],
         navigateFallback: '/index.html',
-        navigateFallbackAllowlist: [/^\/$/, /^\/project\/[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/],
+        navigateFallbackAllowlist: [/^\/$/, /^\/installation\/[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/],
         navigateFallbackDenylist: [
           /^\/rpc(?:\/|$)/,
           /^\/journal(?:\/|$)/,

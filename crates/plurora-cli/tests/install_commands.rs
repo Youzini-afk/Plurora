@@ -167,7 +167,7 @@ async fn installation_commands_cover_restart_cas_and_explicit_state_disposition(
     )
     .await
     .unwrap_err();
-    assert!(stale.to_string().contains("revision"));
+    assert!(stale.to_string().contains("runtime/error/conflict"));
     assert!(!stale
         .to_string()
         .contains(source_two.to_string_lossy().as_ref()));

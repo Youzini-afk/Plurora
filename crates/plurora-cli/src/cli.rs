@@ -192,6 +192,8 @@ pub(crate) enum Command {
     Audit(crate::commands::audit::AuditArgs),
     /// Manage host-owned Installations from portable Work sources.
     Installation(crate::commands::installation::InstallationArgs),
+    /// Inspect and control Host-owned Runs through the public Host API.
+    Run(crate::commands::run::RunArgs),
     /// Create, validate, pack, or inspect portable Work sources.
     Work(crate::commands::work::WorkArgs),
     /// Generate package skeletons.

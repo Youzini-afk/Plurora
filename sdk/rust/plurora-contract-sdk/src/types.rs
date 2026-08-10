@@ -9374,7 +9374,8 @@ pub struct HostInfo {
 ///    "type": "object",
 ///    "required": [
 ///      "record",
-///      "revision"
+///      "revision",
+///      "work_summary"
 ///    ],
 ///    "properties": {
 ///      "record": {
@@ -9394,6 +9395,9 @@ pub struct HostInfo {
 ///            "type": "null"
 ///          }
 ///        ]
+///      },
+///      "work_summary": {
+///        "$ref": "#/definitions/InstallationWorkSummary"
 ///      }
 ///    }
 ///  }
@@ -9433,7 +9437,8 @@ impl ::std::convert::From<::std::vec::Vec<HostInstallationListResultItem>>
 ///  "type": "object",
 ///  "required": [
 ///    "record",
-///    "revision"
+///    "revision",
+///    "work_summary"
 ///  ],
 ///  "properties": {
 ///    "record": {
@@ -9453,6 +9458,9 @@ impl ::std::convert::From<::std::vec::Vec<HostInstallationListResultItem>>
 ///          "type": "null"
 ///        }
 ///      ]
+///    },
+///    "work_summary": {
+///      "$ref": "#/definitions/InstallationWorkSummary"
 ///    }
 ///  }
 ///}
@@ -9465,6 +9473,7 @@ pub struct HostInstallationListResultItem {
     pub revision: u64,
     #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
     pub rollback: ::std::option::Option<InstallationRollbackPointer>,
+    pub work_summary: InstallationWorkSummary,
 }
 ///`HostOutboundAuditResult`
 ///
@@ -11100,6 +11109,106 @@ impl ::std::convert::From<::serde_json::Map<::std::string::String, ::serde_json:
     fn from(value: ::serde_json::Map<::std::string::String, ::serde_json::Value>) -> Self {
         Self(value)
     }
+}
+///`HostRunListResult`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "HostRunListResult",
+///  "type": "array",
+///  "items": {
+///    "type": "object",
+///    "required": [
+///      "entrypoint_id",
+///      "installation_revision",
+///      "record",
+///      "revision"
+///    ],
+///    "properties": {
+///      "entrypoint_id": {
+///        "type": "string"
+///      },
+///      "installation_revision": {
+///        "type": "integer",
+///        "format": "uint64",
+///        "minimum": 0.0
+///      },
+///      "record": {
+///        "$ref": "#/definitions/RunRecord"
+///      },
+///      "revision": {
+///        "type": "integer",
+///        "format": "uint64",
+///        "minimum": 0.0
+///      }
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+#[serde(transparent)]
+pub struct HostRunListResult(pub ::std::vec::Vec<HostRunListResultItem>);
+impl ::std::ops::Deref for HostRunListResult {
+    type Target = ::std::vec::Vec<HostRunListResultItem>;
+    fn deref(&self) -> &::std::vec::Vec<HostRunListResultItem> {
+        &self.0
+    }
+}
+impl ::std::convert::From<HostRunListResult> for ::std::vec::Vec<HostRunListResultItem> {
+    fn from(value: HostRunListResult) -> Self {
+        value.0
+    }
+}
+impl ::std::convert::From<::std::vec::Vec<HostRunListResultItem>> for HostRunListResult {
+    fn from(value: ::std::vec::Vec<HostRunListResultItem>) -> Self {
+        Self(value)
+    }
+}
+///`HostRunListResultItem`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "type": "object",
+///  "required": [
+///    "entrypoint_id",
+///    "installation_revision",
+///    "record",
+///    "revision"
+///  ],
+///  "properties": {
+///    "entrypoint_id": {
+///      "type": "string"
+///    },
+///    "installation_revision": {
+///      "type": "integer",
+///      "format": "uint64",
+///      "minimum": 0.0
+///    },
+///    "record": {
+///      "$ref": "#/definitions/RunRecord"
+///    },
+///    "revision": {
+///      "type": "integer",
+///      "format": "uint64",
+///      "minimum": 0.0
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct HostRunListResultItem {
+    pub entrypoint_id: ::std::string::String,
+    pub installation_revision: u64,
+    pub record: RunRecord,
+    pub revision: u64,
 }
 ///`HostTargetListResult`
 ///
@@ -14125,7 +14234,8 @@ pub struct InstallationUpdatedPayloadSchema {
 ///  "type": "object",
 ///  "required": [
 ///    "record",
-///    "revision"
+///    "revision",
+///    "work_summary"
 ///  ],
 ///  "properties": {
 ///    "record": {
@@ -14145,6 +14255,9 @@ pub struct InstallationUpdatedPayloadSchema {
 ///          "type": "null"
 ///        }
 ///      ]
+///    },
+///    "work_summary": {
+///      "$ref": "#/definitions/InstallationWorkSummary"
 ///    }
 ///  }
 ///}
@@ -14157,6 +14270,102 @@ pub struct InstallationView {
     pub revision: u64,
     #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
     pub rollback: ::std::option::Option<InstallationRollbackPointer>,
+    pub work_summary: InstallationWorkSummary,
+}
+///Host-projected discovery metadata from the exact, verified WorkRevision selected by an Installation. This is descriptive content, not authority.
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "InstallationWorkSummary",
+///  "description": "Host-projected discovery metadata from the exact, verified WorkRevision selected by an Installation. This is descriptive content, not authority.",
+///  "type": "object",
+///  "required": [
+///    "annotations",
+///    "content_roots",
+///    "description",
+///    "entrypoints",
+///    "title",
+///    "work_id"
+///  ],
+///  "properties": {
+///    "annotations": {
+///      "type": "object",
+///      "additionalProperties": true
+///    },
+///    "content_roots": {
+///      "type": "array",
+///      "items": {
+///        "$ref": "#/definitions/ArtifactDescriptor"
+///      }
+///    },
+///    "description": {
+///      "type": "string"
+///    },
+///    "entrypoints": {
+///      "type": "array",
+///      "items": {
+///        "$ref": "#/definitions/WorkEntrypoint"
+///      }
+///    },
+///    "operational_intent": {
+///      "anyOf": [
+///        {
+///          "$ref": "#/definitions/ArtifactDescriptor"
+///        },
+///        {
+///          "type": "null"
+///        }
+///      ]
+///    },
+///    "rights": {
+///      "anyOf": [
+///        {
+///          "$ref": "#/definitions/ArtifactDescriptor"
+///        },
+///        {
+///          "type": "null"
+///        }
+///      ]
+///    },
+///    "title": {
+///      "type": "string"
+///    },
+///    "transparency": {
+///      "anyOf": [
+///        {
+///          "$ref": "#/definitions/ArtifactDescriptor"
+///        },
+///        {
+///          "type": "null"
+///        }
+///      ]
+///    },
+///    "work_id": {
+///      "$ref": "#/definitions/WorkId"
+///    }
+///  },
+///  "additionalProperties": false
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+#[serde(deny_unknown_fields)]
+pub struct InstallationWorkSummary {
+    pub annotations: ::serde_json::Map<::std::string::String, ::serde_json::Value>,
+    pub content_roots: ::std::vec::Vec<ArtifactDescriptor>,
+    pub description: ::std::string::String,
+    pub entrypoints: ::std::vec::Vec<WorkEntrypoint>,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub operational_intent: ::std::option::Option<ArtifactDescriptor>,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub rights: ::std::option::Option<ArtifactDescriptor>,
+    pub title: ::std::string::String,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub transparency: ::std::option::Option<ArtifactDescriptor>,
+    pub work_id: WorkId,
 }
 ///`Intent`
 ///
@@ -23851,6 +24060,119 @@ pub struct RightsDeclaration {
     #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
     pub terms_uri: ::std::option::Option<::std::string::String>,
 }
+///`RunEntrypointPreflight`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "RunEntrypointPreflight",
+///  "type": "object",
+///  "required": [
+///    "entrypoint_id",
+///    "gaps"
+///  ],
+///  "properties": {
+///    "entrypoint_id": {
+///      "type": "string"
+///    },
+///    "gaps": {
+///      "type": "array",
+///      "items": {
+///        "$ref": "#/definitions/RunGap"
+///      }
+///    }
+///  },
+///  "additionalProperties": false
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+#[serde(deny_unknown_fields)]
+pub struct RunEntrypointPreflight {
+    pub entrypoint_id: ::std::string::String,
+    pub gaps: ::std::vec::Vec<RunGap>,
+}
+///`RunGap`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "RunGap",
+///  "type": "object",
+///  "required": [
+///    "next_step",
+///    "reason_code"
+///  ],
+///  "properties": {
+///    "next_step": {
+///      "type": "string"
+///    },
+///    "node_id": {
+///      "type": [
+///        "string",
+///        "null"
+///      ]
+///    },
+///    "port_id": {
+///      "type": [
+///        "string",
+///        "null"
+///      ]
+///    },
+///    "reason_code": {
+///      "type": "string"
+///    }
+///  },
+///  "additionalProperties": false
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+#[serde(deny_unknown_fields)]
+pub struct RunGap {
+    pub next_step: ::std::string::String,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub node_id: ::std::option::Option<::std::string::String>,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub port_id: ::std::option::Option<::std::string::String>,
+    pub reason_code: ::std::string::String,
+}
+///`RunGetRequest`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "RunGetRequest",
+///  "type": "object",
+///  "required": [
+///    "installation_id",
+///    "run_id"
+///  ],
+///  "properties": {
+///    "installation_id": {
+///      "$ref": "#/definitions/InstallationId"
+///    },
+///    "run_id": {
+///      "$ref": "#/definitions/RunId"
+///    }
+///  },
+///  "additionalProperties": false,
+///  "$schema": "https://json-schema.org/draft/2020-12/schema"
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+#[serde(deny_unknown_fields)]
+pub struct RunGetRequest {
+    pub installation_id: InstallationId,
+    pub run_id: RunId,
+}
 ///`RunHealth`
 ///
 /// <details><summary>JSON schema</summary>
@@ -23946,6 +24268,113 @@ impl ::std::fmt::Display for RunId {
         self.0.fmt(f)
     }
 }
+///`RunLifecyclePayloadSchema`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "RunLifecyclePayloadSchema",
+///  "type": "object",
+///  "required": [
+///    "run"
+///  ],
+///  "properties": {
+///    "run": {
+///      "$ref": "#/definitions/RunView"
+///    }
+///  },
+///  "$schema": "https://json-schema.org/draft/2020-12/schema"
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct RunLifecyclePayloadSchema {
+    pub run: RunView,
+}
+///`RunListRequest`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "RunListRequest",
+///  "type": "object",
+///  "properties": {
+///    "installation_id": {
+///      "anyOf": [
+///        {
+///          "$ref": "#/definitions/InstallationId"
+///        },
+///        {
+///          "type": "null"
+///        }
+///      ]
+///    },
+///    "status": {
+///      "anyOf": [
+///        {
+///          "$ref": "#/definitions/RunStatus"
+///        },
+///        {
+///          "type": "null"
+///        }
+///      ]
+///    }
+///  },
+///  "additionalProperties": false,
+///  "$schema": "https://json-schema.org/draft/2020-12/schema"
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+#[serde(deny_unknown_fields)]
+pub struct RunListRequest {
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub installation_id: ::std::option::Option<InstallationId>,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub status: ::std::option::Option<RunStatus>,
+}
+impl ::std::default::Default for RunListRequest {
+    fn default() -> Self {
+        Self {
+            installation_id: Default::default(),
+            status: Default::default(),
+        }
+    }
+}
+///`RunMutationResult`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "RunMutationResult",
+///  "type": "object",
+///  "required": [
+///    "idempotent",
+///    "run"
+///  ],
+///  "properties": {
+///    "idempotent": {
+///      "type": "boolean"
+///    },
+///    "run": {
+///      "$ref": "#/definitions/RunView"
+///    }
+///  },
+///  "$schema": "https://json-schema.org/draft/2020-12/schema"
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct RunMutationResult {
+    pub idempotent: bool,
+    pub run: RunView,
+}
 ///`RunRecord`
 ///
 /// <details><summary>JSON schema</summary>
@@ -24024,6 +24453,95 @@ pub struct RunRecord {
     pub status: RunStatus,
     #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
     pub stopped_at: ::std::option::Option<::chrono::DateTime<::chrono::offset::Utc>>,
+}
+///`RunStartRequest`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "RunStartRequest",
+///  "type": "object",
+///  "required": [
+///    "entrypoint_id",
+///    "expected_installation_revision",
+///    "idempotency_key",
+///    "installation_id"
+///  ],
+///  "properties": {
+///    "entrypoint_id": {
+///      "type": "string"
+///    },
+///    "expected_installation_revision": {
+///      "type": "integer",
+///      "format": "uint64",
+///      "minimum": 0.0
+///    },
+///    "idempotency_key": {
+///      "type": "string"
+///    },
+///    "installation_id": {
+///      "$ref": "#/definitions/InstallationId"
+///    }
+///  },
+///  "additionalProperties": false,
+///  "$schema": "https://json-schema.org/draft/2020-12/schema"
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+#[serde(deny_unknown_fields)]
+pub struct RunStartRequest {
+    pub entrypoint_id: ::std::string::String,
+    pub expected_installation_revision: u64,
+    pub idempotency_key: ::std::string::String,
+    pub installation_id: InstallationId,
+}
+///`RunStartResult`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "RunStartResult",
+///  "type": "object",
+///  "required": [
+///    "idempotent"
+///  ],
+///  "properties": {
+///    "gaps": {
+///      "type": "array",
+///      "items": {
+///        "$ref": "#/definitions/RunGap"
+///      }
+///    },
+///    "idempotent": {
+///      "type": "boolean"
+///    },
+///    "run": {
+///      "anyOf": [
+///        {
+///          "$ref": "#/definitions/RunView"
+///        },
+///        {
+///          "type": "null"
+///        }
+///      ]
+///    }
+///  },
+///  "$schema": "https://json-schema.org/draft/2020-12/schema"
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct RunStartResult {
+    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
+    pub gaps: ::std::vec::Vec<RunGap>,
+    pub idempotent: bool,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub run: ::std::option::Option<RunView>,
 }
 ///`RunStatus`
 ///
@@ -24123,6 +24641,192 @@ impl ::std::convert::TryFrom<::std::string::String> for RunStatus {
     ) -> ::std::result::Result<Self, self::error::ConversionError> {
         value.parse()
     }
+}
+///`RunStatusRequest`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "RunStatusRequest",
+///  "type": "object",
+///  "required": [
+///    "installation_id"
+///  ],
+///  "properties": {
+///    "entrypoint_id": {
+///      "type": [
+///        "string",
+///        "null"
+///      ]
+///    },
+///    "installation_id": {
+///      "$ref": "#/definitions/InstallationId"
+///    }
+///  },
+///  "additionalProperties": false,
+///  "$schema": "https://json-schema.org/draft/2020-12/schema"
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+#[serde(deny_unknown_fields)]
+pub struct RunStatusRequest {
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub entrypoint_id: ::std::option::Option<::std::string::String>,
+    pub installation_id: InstallationId,
+}
+///`RunStatusView`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "RunStatusView",
+///  "type": "object",
+///  "required": [
+///    "installation_id",
+///    "installation_revision",
+///    "work_revision"
+///  ],
+///  "properties": {
+///    "active_run": {
+///      "anyOf": [
+///        {
+///          "$ref": "#/definitions/RunView"
+///        },
+///        {
+///          "type": "null"
+///        }
+///      ]
+///    },
+///    "installation_id": {
+///      "$ref": "#/definitions/InstallationId"
+///    },
+///    "installation_revision": {
+///      "type": "integer",
+///      "format": "uint64",
+///      "minimum": 0.0
+///    },
+///    "preflight": {
+///      "anyOf": [
+///        {
+///          "$ref": "#/definitions/RunEntrypointPreflight"
+///        },
+///        {
+///          "type": "null"
+///        }
+///      ]
+///    },
+///    "work_revision": {
+///      "$ref": "#/definitions/ArtifactDescriptor"
+///    }
+///  },
+///  "additionalProperties": false,
+///  "$schema": "https://json-schema.org/draft/2020-12/schema"
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+#[serde(deny_unknown_fields)]
+pub struct RunStatusView {
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub active_run: ::std::option::Option<RunView>,
+    pub installation_id: InstallationId,
+    pub installation_revision: u64,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub preflight: ::std::option::Option<RunEntrypointPreflight>,
+    pub work_revision: ArtifactDescriptor,
+}
+///`RunStopRequest`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "RunStopRequest",
+///  "type": "object",
+///  "required": [
+///    "expected_revision",
+///    "idempotency_key",
+///    "installation_id",
+///    "run_id"
+///  ],
+///  "properties": {
+///    "expected_revision": {
+///      "type": "integer",
+///      "format": "uint64",
+///      "minimum": 0.0
+///    },
+///    "idempotency_key": {
+///      "type": "string"
+///    },
+///    "installation_id": {
+///      "$ref": "#/definitions/InstallationId"
+///    },
+///    "run_id": {
+///      "$ref": "#/definitions/RunId"
+///    }
+///  },
+///  "additionalProperties": false,
+///  "$schema": "https://json-schema.org/draft/2020-12/schema"
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+#[serde(deny_unknown_fields)]
+pub struct RunStopRequest {
+    pub expected_revision: u64,
+    pub idempotency_key: ::std::string::String,
+    pub installation_id: InstallationId,
+    pub run_id: RunId,
+}
+///`RunView`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "RunView",
+///  "type": "object",
+///  "required": [
+///    "entrypoint_id",
+///    "installation_revision",
+///    "record",
+///    "revision"
+///  ],
+///  "properties": {
+///    "entrypoint_id": {
+///      "type": "string"
+///    },
+///    "installation_revision": {
+///      "type": "integer",
+///      "format": "uint64",
+///      "minimum": 0.0
+///    },
+///    "record": {
+///      "$ref": "#/definitions/RunRecord"
+///    },
+///    "revision": {
+///      "type": "integer",
+///      "format": "uint64",
+///      "minimum": 0.0
+///    }
+///  },
+///  "$schema": "https://json-schema.org/draft/2020-12/schema"
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct RunView {
+    pub entrypoint_id: ::std::string::String,
+    pub installation_revision: u64,
+    pub record: RunRecord,
+    pub revision: u64,
 }
 ///`SandboxPolicy`
 ///

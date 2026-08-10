@@ -18,7 +18,7 @@ Plurora 让应用、工具、服务、世界、游戏、agent、创作环境和�
 └──────────────────────────────────────────────────────────┘
 
 Host Control Plane / Runtime Fabric 横跨各层，管理安装、执行、
-文件、secret、网络、target、部署、备份和诊断。
+文件、secret、网络、target、Realization、备份和诊断。
 ```
 
 ## 我们想建设什么
@@ -35,12 +35,12 @@ Plurora 长期追求五件事：
 
 ## 平台与官方产品
 
-Plurora 不只是内核，也不等于官方 Web/Desktop。当前官方发行版使用 Home、Settings、Project frame、Console 和可贡献 Surface，提供本地 managed Host、远程 Host、安装、运行、创作、部署、权限和数据管理等体验。
+Plurora 不只是内核，也不等于官方 Web/Desktop。当前官方发行版使用 Library、Settings、Installation frame、Console 和可贡献 Surface，提供本地 managed Host、远程 Host、安装、Run、创作、Realization、权限和数据管理等体验。
 
 这些是正在持续打磨的默认产品选择，而不是整个平台的永久本体：
 
 - 第三方可以替换客户端、Shell、组件、协议、模型和 Host；
-- Project 是当前官方 Host 的安装实例模型，不是所有产品必须采用的根对象；
+- Work、Installation 与 Run 分别表达逻辑作品、某台 Host 上的安装实例和一次运行；它们不属于宪法基底；
 - Home / Play / Forge / Assist 属于可选产品 Profile，不属于宪法基底；
 - 第一方组件和客户端只使用第三方也能使用的公开边界。
 
@@ -48,9 +48,9 @@ Plurora 不只是内核，也不等于官方 Web/Desktop。当前官方发行版
 
 ## 当前状态
 
-仓库处于 Foundation Alpha：公开 Contract V1、Rust Host/runtime、HTTP/RPC/SSE、Package 与 Component 生命周期、Web/PWA、Tauri Desktop、CLI、安装更新、项目管理、权限、对象与工件、模型接入、受控开发、target 与部署等基础已经形成较大可运行面。
+仓库处于 Foundation Alpha：公开 Contract V1、Rust Host/runtime、HTTP/RPC/SSE、Package 与 Component 生命周期、Web/PWA、Tauri Desktop、CLI、Work 打包、Installation 更新、Run 生命周期、权限、对象与工件、模型接入、受控开发、target 与 Realization 基础已经形成较大可运行面。
 
-当前 Contract V1 通过 80 个精确的 owner-based method ID 分别表达 Substrate、Host、Protocol 与 Shell 职责。实现仍会在该公开边界之后继续拆分，但不会创建第一方私有路径或并行 wire identity。
+当前 Contract V1 通过 85 个精确的 owner-based method ID 分别表达 Substrate、Host、Protocol 与 Shell 职责。实现仍会在该公开边界之后继续拆分，但不会创建第一方私有路径或并行 wire identity。
 
 具体已实现、partial 和 deferred 状态见 [`docs/ALPHA_STATUS.md`](docs/ALPHA_STATUS.md)。当前建设方向见 [`docs/roadmap/NEXT_STEPS.md`](docs/roadmap/NEXT_STEPS.md)。
 
@@ -102,17 +102,15 @@ cargo test --workspace
 cargo run -p plurora-cli -- conformance
 ```
 
-安装和管理 Package / Project：
+查看 Work / Installation 命令，并通过公开 Host 契约管理 Installation：
 
 ```bash
-plurora install github.com/user/plurora-package#v1.2.0
-plurora list-installed
-plurora project list
-plurora project start <project-id>
-plurora project stop <project-id>
-plurora uninstall <package-id-or-project-id>
-plurora update [<package-id>|--project-id <project-id>] [--check-only]
-plurora lockfile --check
+plurora work --help
+plurora installation list
+plurora installation info <installation-id>
+plurora installation create --help
+plurora installation update --help
+plurora installation remove --help
 ```
 
 通过公开协议运行空白游创示例：
@@ -136,6 +134,7 @@ cargo run -p plurora-cli -- play-create-demo
 | 看长期合同分层 | [`docs/architecture/CONSTITUTION_V2.md`](docs/architecture/CONSTITUTION_V2.md) → [`docs/spec/CONTRACT_LAYERING_MATRIX.md`](docs/spec/CONTRACT_LAYERING_MATRIX.md) |
 | 写第一个 Package / Component | [`docs/guides/PACKAGE_AUTHORING_WALKTHROUGH.md`](docs/guides/PACKAGE_AUTHORING_WALKTHROUGH.md) |
 | 打包 Work / 创建 Installation | [`docs/guides/PACKAGE_INSTALLATION.md`](docs/guides/PACKAGE_INSTALLATION.md) → [`docs/guides/INSTALLATION_MODEL.md`](docs/guides/INSTALLATION_MODEL.md) |
+| 使用 Library / 启动和停止 Run | [`docs/guides/RUN_LIBRARY.md`](docs/guides/RUN_LIBRARY.md) |
 | 管理 API key / secret | [`docs/guides/SECRET_MANAGEMENT.md`](docs/guides/SECRET_MANAGEMENT.md) |
 | 写 agent / 模型 / 体验组件 | [`docs/guides/AGENT_PACKAGE_AUTHORING.md`](docs/guides/AGENT_PACKAGE_AUTHORING.md)、[`docs/guides/MODEL_PROVIDER_INTEGRATION.md`](docs/guides/MODEL_PROVIDER_INTEGRATION.md)、[`docs/guides/EXPERIENCE_RUNTIME_AUTHORING.md`](docs/guides/EXPERIENCE_RUNTIME_AUTHORING.md) |
 | 挂载第三方 Web Surface | [`docs/guides/SURFACE_HOSTING.md`](docs/guides/SURFACE_HOSTING.md) |

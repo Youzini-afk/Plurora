@@ -12,6 +12,7 @@ use serde_json::Value;
 use uuid::Uuid;
 
 use crate::installation_control::InstallationAuthorityRefresh;
+use crate::run_control::RunAuthorityRefresh;
 use crate::{
     contract_layers, contract_methods, contract_profiles, contract_versions, protocol_descriptors,
     resolve_contract_method, ContractLayerInfo, ContractMaturity, ContractMethod,
@@ -48,6 +49,11 @@ pub enum PlatformMethod {
     InstallationCreate,
     InstallationUpdate,
     InstallationRemove,
+    RunList,
+    RunGet,
+    RunStart,
+    RunStop,
+    RunStatus,
     TargetList,
     TargetStatus,
     TargetRegister,
@@ -134,6 +140,11 @@ impl PlatformMethod {
             Self::InstallationCreate => "host.installation.create",
             Self::InstallationUpdate => "host.installation.update",
             Self::InstallationRemove => "host.installation.remove",
+            Self::RunList => "host.run.list",
+            Self::RunGet => "host.run.get",
+            Self::RunStart => "host.run.start",
+            Self::RunStop => "host.run.stop",
+            Self::RunStatus => "host.run.status",
             Self::TargetList => "host.target.list",
             Self::TargetStatus => "host.target.status",
             Self::TargetRegister => "host.target.register",
@@ -220,6 +231,9 @@ impl PlatformMethod {
             Self::InstallationCreate => MethodStatus::Implemented,
             Self::InstallationUpdate => MethodStatus::Implemented,
             Self::InstallationRemove => MethodStatus::Implemented,
+            Self::RunList | Self::RunGet | Self::RunStart | Self::RunStop | Self::RunStatus => {
+                MethodStatus::Implemented
+            }
             Self::TargetList
             | Self::TargetStatus
             | Self::TargetRegister
@@ -317,6 +331,11 @@ impl PlatformMethod {
             Self::InstallationCreate,
             Self::InstallationUpdate,
             Self::InstallationRemove,
+            Self::RunList,
+            Self::RunGet,
+            Self::RunStart,
+            Self::RunStop,
+            Self::RunStatus,
             Self::TargetList,
             Self::TargetStatus,
             Self::TargetRegister,
@@ -412,6 +431,11 @@ impl PlatformMethod {
             | Self::InstallationCreate
             | Self::InstallationUpdate
             | Self::InstallationRemove
+            | Self::RunList
+            | Self::RunGet
+            | Self::RunStart
+            | Self::RunStop
+            | Self::RunStatus
             | Self::TargetList
             | Self::TargetStatus
             | Self::TargetRegister
@@ -614,6 +638,11 @@ pub struct ProtocolAuthorityContext {
     #[serde(skip)]
     #[schemars(skip)]
     authority_refresh: Option<InstallationAuthorityRefresh>,
+    /// Trusted service callback used to refresh an exact parent Installation
+    /// grant before each Run journal or activation effect boundary.
+    #[serde(skip)]
+    #[schemars(skip)]
+    run_authority_refresh: Option<RunAuthorityRefresh>,
 }
 
 /// Request-specific Host operation facts established by a trusted transport
@@ -694,6 +723,7 @@ impl ProtocolContext {
                 delegation_chain,
                 verified_expires_at_ms: None,
                 authority_refresh: None,
+                run_authority_refresh: None,
             }),
             host_operation: None,
             session_id: None,
@@ -754,6 +784,19 @@ impl ProtocolContext {
         self.authority
             .as_ref()
             .and_then(|authority| authority.authority_refresh.clone())
+    }
+
+    pub fn with_run_authority_refresh(mut self, refresh: RunAuthorityRefresh) -> Self {
+        if let Some(authority) = self.authority.as_mut() {
+            authority.run_authority_refresh = Some(refresh);
+        }
+        self
+    }
+
+    pub(crate) fn run_authority_refresh(&self) -> Option<RunAuthorityRefresh> {
+        self.authority
+            .as_ref()
+            .and_then(|authority| authority.run_authority_refresh.clone())
     }
 
     pub(crate) fn verified_authority_expiry_ms(&self) -> Option<i64> {
@@ -893,6 +936,12 @@ impl ProtocolError {
             || message.contains("authority_denied")
         {
             "runtime/error/permission_denied"
+        } else if message.contains("revision_conflict")
+            || message.contains("idempotency_conflict")
+            || message.contains("active_run_exists")
+            || message.contains("changed concurrently")
+        {
+            "runtime/error/conflict"
         } else if message.contains("ambiguous") {
             "runtime/error/ambiguous_route"
         } else if message.contains("schema")
@@ -1050,6 +1099,31 @@ pub const PLATFORM_METHODS: &[ProtocolMethod] = &[
     },
     ProtocolMethod {
         id: "host.installation.remove",
+        streaming: false,
+        status: MethodStatus::Implemented,
+    },
+    ProtocolMethod {
+        id: "host.run.list",
+        streaming: false,
+        status: MethodStatus::Implemented,
+    },
+    ProtocolMethod {
+        id: "host.run.get",
+        streaming: false,
+        status: MethodStatus::Implemented,
+    },
+    ProtocolMethod {
+        id: "host.run.start",
+        streaming: false,
+        status: MethodStatus::Implemented,
+    },
+    ProtocolMethod {
+        id: "host.run.stop",
+        streaming: false,
+        status: MethodStatus::Implemented,
+    },
+    ProtocolMethod {
+        id: "host.run.status",
         streaming: false,
         status: MethodStatus::Implemented,
     },
@@ -1402,20 +1476,40 @@ mod tests {
     }
 
     #[test]
-    fn installation_methods_replace_project_methods_without_changing_registry_size() {
+    fn installation_and_run_methods_have_unique_public_identities() {
         let ids = method_ids();
-        assert_eq!(ids.len(), 80);
+        assert_eq!(ids.len(), 85);
         for expected in [
             "host.installation.list",
             "host.installation.get",
             "host.installation.create",
             "host.installation.update",
             "host.installation.remove",
+            "host.run.list",
+            "host.run.get",
+            "host.run.start",
+            "host.run.stop",
+            "host.run.status",
         ] {
             assert!(ids.contains(&expected), "missing {expected}");
         }
         let retired_owner = ["host", "project"].join(".");
         assert!(ids.iter().all(|id| !id.starts_with(&retired_owner)));
+    }
+
+    #[test]
+    fn revision_and_idempotency_failures_are_public_conflicts() {
+        for message in [
+            "revision_conflict: installation revision is stale",
+            "run_revision_conflict",
+            "idempotency_conflict: key was reused",
+            "active_run_exists: Installation already has an active Run",
+        ] {
+            assert_eq!(
+                ProtocolError::from_anyhow(anyhow::anyhow!(message)).code,
+                "runtime/error/conflict"
+            );
+        }
     }
 
     #[test]
