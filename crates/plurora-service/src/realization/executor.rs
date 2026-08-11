@@ -6,9 +6,10 @@ use anyhow::anyhow;
 use async_trait::async_trait;
 use chrono::{TimeZone, Utc};
 use plurora_runtime::{
-    EventStore, PortLeaseRequest, PortProtocol, ProxyProtocol, ProxyRouteRegisterRequest,
-    ProxyRouteUpstream, RealizationAuthoritySubject, RealizationBackendSelection,
-    RealizationEffectKind, RealizationEffectReceipt, RealizationMutationAuthority, Runtime,
+    EventStore, PortLeaseRequest, PortLeaseResponse, PortProtocol, ProtocolContext, ProxyProtocol,
+    ProxyRouteRegisterRequest, ProxyRouteRegisterResponse, ProxyRouteUpstream,
+    RealizationAuthoritySubject, RealizationBackendSelection, RealizationEffectKind,
+    RealizationEffectReceipt, RealizationMutationAuthority, Runtime,
 };
 use plurora_work::{RealizationPlan, RealizationRevision, RealizationStatus, RealizedResource};
 use serde_json::{json, Value};
@@ -46,6 +47,104 @@ where
         target_workloads_projected,
         runtime,
     })
+}
+
+async fn lease_realization_port<S>(
+    runtime: &Runtime<S>,
+    target_id: &str,
+    port_name: &str,
+) -> anyhow::Result<PortLeaseResponse>
+where
+    S: EventStore,
+{
+    Ok(serde_json::from_value(
+        runtime
+            .call_protocol(
+                &ProtocolContext::host_dev("host_realization_route_prepare"),
+                "host.port.lease",
+                serde_json::to_value(PortLeaseRequest {
+                    target_id: target_id.to_string(),
+                    port_name: port_name.to_string(),
+                    protocol: PortProtocol::Tcp,
+                    requested_port: None,
+                })?,
+            )
+            .await
+            .map_err(crate::protocol_error_to_anyhow)?,
+    )?)
+}
+
+async fn register_realization_route<S>(
+    runtime: &Runtime<S>,
+    route_id: &str,
+    port_lease_id: &str,
+    port_name: &str,
+    access: plurora_runtime::ProxyRouteAccess,
+) -> anyhow::Result<ProxyRouteRegisterResponse>
+where
+    S: EventStore,
+{
+    Ok(serde_json::from_value(
+        runtime
+            .call_protocol(
+                &ProtocolContext::host_dev("host_realization_route_prepare"),
+                "host.proxy.register",
+                serde_json::to_value(ProxyRouteRegisterRequest {
+                    route_id: Some(route_id.to_string()),
+                    upstream: ProxyRouteUpstream {
+                        port_lease_id: port_lease_id.to_string(),
+                        port_name: port_name.to_string(),
+                    },
+                    protocol: ProxyProtocol::Http,
+                    access,
+                })?,
+            )
+            .await
+            .map_err(crate::protocol_error_to_anyhow)?,
+    )?)
+}
+
+async fn cleanup_realization_route<S>(
+    runtime: &Runtime<S>,
+    reference: &TargetDeploymentRef,
+) -> anyhow::Result<()>
+where
+    S: EventStore,
+{
+    let context = ProtocolContext::host_dev("host_realization_route_cleanup");
+    if runtime
+        .config()
+        .proxy_route_registry
+        .status(&reference.route_id)
+        .await
+        .is_some_and(|route| route.status != plurora_runtime::ProxyRouteStatusKind::Removed)
+    {
+        runtime
+            .call_protocol(
+                &context,
+                "host.proxy.unregister",
+                json!({"route_id": reference.route_id}),
+            )
+            .await
+            .map_err(crate::protocol_error_to_anyhow)?;
+    }
+    if runtime
+        .config()
+        .port_lease_registry
+        .status(&reference.port_lease_id)
+        .await
+        .is_some_and(|lease| lease.status != plurora_runtime::PortLeaseStatusKind::Released)
+    {
+        runtime
+            .call_protocol(
+                &context,
+                "host.port.release",
+                json!({"lease_id": reference.port_lease_id}),
+            )
+            .await
+            .map_err(crate::protocol_error_to_anyhow)?;
+    }
+    Ok(())
 }
 
 pub struct ServiceRealizationExecutor<S>
@@ -146,64 +245,54 @@ where
         subject: &RealizationAuthoritySubject,
     ) -> anyhow::Result<TargetDeploymentRef> {
         authority.refresh_current_for(subject).await?;
-        let lease = state
-            .runtime
-            .config()
-            .port_lease_registry
-            .lease(PortLeaseRequest {
-                target_id: target_id.to_string(),
-                port_name: port_name.to_string(),
-                protocol: PortProtocol::Tcp,
-                requested_port: None,
-            })
-            .await
-            .lease;
+        let lease = lease_realization_port(state.runtime.as_ref(), target_id, port_name).await?;
+        let provisional = TargetDeploymentRef {
+            deployment_id: route_id.to_string(),
+            route_id: route_id.to_string(),
+            port_lease_id: lease.lease.id.clone(),
+        };
         if authority.refresh_current_for(subject).await.is_err() {
-            state
-                .runtime
-                .config()
-                .port_lease_registry
-                .release(&lease.id)
-                .await;
+            if self.cleanup_route(state, &provisional).await.is_err() {
+                return Err(plurora_runtime::managed_target_deployment_outcome_unknown(
+                    "Realization authority changed while durable route cleanup was incomplete",
+                ));
+            }
             return Err(anyhow!(
                 "authority_denied: Realization authority changed before route registration"
             ));
         }
-        let route = state
-            .runtime
-            .config()
-            .proxy_route_registry
-            .register(ProxyRouteRegisterRequest {
-                route_id: Some(route_id.to_string()),
-                upstream: ProxyRouteUpstream {
-                    port_lease_id: lease.id.clone(),
-                    port_name: port_name.to_string(),
-                },
-                protocol: ProxyProtocol::Http,
-                access: route_access,
-            })
-            .await
-            .route;
+        let route = match register_realization_route(
+            state.runtime.as_ref(),
+            route_id,
+            &lease.lease.id,
+            port_name,
+            route_access,
+        )
+        .await
+        {
+            Ok(route) => route,
+            Err(error) => {
+                if self.cleanup_route(state, &provisional).await.is_err() {
+                    return Err(plurora_runtime::managed_target_deployment_outcome_unknown(
+                        "Proxy registration failed while durable route cleanup was incomplete",
+                    ));
+                }
+                return Err(error);
+            }
+        };
         Ok(TargetDeploymentRef {
             deployment_id: route_id.to_string(),
-            route_id: route.id,
-            port_lease_id: lease.id,
+            route_id: route.route.id,
+            port_lease_id: lease.lease.id,
         })
     }
 
-    async fn cleanup_route(&self, state: &AppState<S>, reference: &TargetDeploymentRef) {
-        state
-            .runtime
-            .config()
-            .proxy_route_registry
-            .unregister(&reference.route_id)
-            .await;
-        state
-            .runtime
-            .config()
-            .port_lease_registry
-            .release(&reference.port_lease_id)
-            .await;
+    async fn cleanup_route(
+        &self,
+        state: &AppState<S>,
+        reference: &TargetDeploymentRef,
+    ) -> anyhow::Result<()> {
+        cleanup_realization_route(state.runtime.as_ref(), reference).await
     }
 
     async fn image_for_backend(
@@ -302,7 +391,7 @@ where
                 subject,
             )
             .await;
-        self.cleanup_route(state, reference).await;
+        self.cleanup_route(state, reference).await?;
         let operation = stopped?;
         effect_receipt(
             realization,
@@ -574,7 +663,7 @@ where
                     subject,
                 )
                 .await?;
-            self.cleanup_route(&state, &reference).await;
+            self.cleanup_route(&state, &reference).await?;
             receipts.push(effect_receipt(
                 realization,
                 target_id,
@@ -772,6 +861,86 @@ fn realization_build_id(realization_id: &plurora_work::RealizationId, workload_i
 #[cfg(test)]
 mod tests {
     use super::*;
+    use plurora_runtime::{InMemoryEventStore, RuntimeConfig};
+
+    #[tokio::test]
+    async fn realization_route_lifecycle_round_trips_through_runtime_journal() -> anyhow::Result<()>
+    {
+        let store = Arc::new(InMemoryEventStore::default());
+        let runtime = Runtime::new(store.clone(), RuntimeConfig::default());
+        let lease = lease_realization_port(&runtime, "local", "http").await?;
+        let route = register_realization_route(
+            &runtime,
+            "realization-restart-route",
+            &lease.lease.id,
+            "http",
+            plurora_runtime::ProxyRouteAccess::HostAuthenticated,
+        )
+        .await?;
+        let reference = TargetDeploymentRef {
+            deployment_id: "realization-restart-route".to_string(),
+            route_id: route.route.id.clone(),
+            port_lease_id: lease.lease.id.clone(),
+        };
+
+        let restarted = Runtime::new(store.clone(), RuntimeConfig::default());
+        restarted.hydrate_deployment_from_events().await?;
+        assert!(restarted
+            .config()
+            .port_lease_registry
+            .status(&reference.port_lease_id)
+            .await
+            .is_some_and(|lease| {
+                lease.status == plurora_runtime::PortLeaseStatusKind::Reserved
+                    && lease.target_id == "local"
+                    && lease.port_name == "http"
+            }));
+        assert!(restarted
+            .config()
+            .proxy_route_registry
+            .status(&reference.route_id)
+            .await
+            .is_some_and(|route| {
+                route.status == plurora_runtime::ProxyRouteStatusKind::Stale
+                    && !route.ready
+                    && route.upstream.port_lease_id == reference.port_lease_id
+            }));
+
+        cleanup_realization_route(&restarted, &reference).await?;
+        let stopped = Runtime::new(store.clone(), RuntimeConfig::default());
+        stopped.hydrate_deployment_from_events().await?;
+        assert!(stopped
+            .config()
+            .port_lease_registry
+            .status(&reference.port_lease_id)
+            .await
+            .is_some_and(|lease| {
+                lease.status == plurora_runtime::PortLeaseStatusKind::Released
+            }));
+        assert!(stopped
+            .config()
+            .proxy_route_registry
+            .status(&reference.route_id)
+            .await
+            .is_some_and(|route| {
+                route.status == plurora_runtime::ProxyRouteStatusKind::Removed && !route.ready
+            }));
+
+        let events = store.list_all().await?;
+        for kind in [
+            plurora_core::EVENT_PORT_LEASED,
+            plurora_core::EVENT_PROXY_REGISTERED,
+            plurora_core::EVENT_PROXY_UNREGISTERED,
+            plurora_core::EVENT_PORT_RELEASED,
+        ] {
+            assert_eq!(
+                events.iter().filter(|event| event.kind == kind).count(),
+                1,
+                "{kind} must be durable exactly once"
+            );
+        }
+        Ok(())
+    }
 
     #[test]
     fn active_resource_projection_is_public_record_safe() -> anyhow::Result<()> {
