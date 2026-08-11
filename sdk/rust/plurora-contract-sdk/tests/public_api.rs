@@ -198,6 +198,7 @@ fn generated_object_get_preserves_asset_wire_and_accepts_state_audit_shape() {
     .is_err());
 
     let state_request = serde_json::json!({
+        "installation_id": "00000000-0000-4000-8000-000000000007",
         "installation_state_artifact": {
             "artifact_type_uri": "urn:plurora:installation-state-reset-receipt:v1",
             "media_type": "application/vnd.plurora.installation-state-receipt+json",
