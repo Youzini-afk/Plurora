@@ -496,8 +496,8 @@ where
                 .status(&reference.port_lease_id)
                 .await
                 .ok_or_else(|| anyhow!("recovery_required: active port lease disappeared"));
-            let (route, lease) = match (route, lease) {
-                (Ok(route), Ok(lease)) => (route, lease),
+            let lease = match (route, lease) {
+                (Ok(_route), Ok(lease)) => lease,
                 _ => {
                     let cleanup = self
                         .cleanup_failed_launch(
@@ -530,21 +530,14 @@ where
                     ));
                 }
             };
-            resources.push(RealizedResource {
-                resource_id: workload_id.to_string(),
-                resource_type: "managed_workload".to_string(),
-                target_id: target_id.to_string(),
-                backend_id: operation.operation_id.clone(),
-                properties: BTreeMap::from([
-                    ("deployment_id".to_string(), json!(reference.deployment_id)),
-                    ("route_id".to_string(), json!(reference.route_id)),
-                    ("port_lease_id".to_string(), json!(reference.port_lease_id)),
-                    ("host_port".to_string(), json!(lease.port)),
-                    ("public_url".to_string(), json!(route.public_url)),
-                    ("image".to_string(), json!(image)),
-                ]),
-                receipt_ref: None,
-            });
+            resources.push(active_resource(
+                workload_id,
+                target_id,
+                &operation.operation_id,
+                &reference,
+                &image,
+                lease.port,
+            ));
         }
         Ok(RealizationExecution {
             resources,
@@ -693,6 +686,22 @@ fn provisional_resource(
     }
 }
 
+fn active_resource(
+    workload_id: &str,
+    target_id: &str,
+    operation_id: &str,
+    reference: &TargetDeploymentRef,
+    image: &str,
+    host_port: u16,
+) -> RealizedResource {
+    let mut resource = provisional_resource(workload_id, target_id, reference, image);
+    resource.backend_id = operation_id.to_string();
+    resource
+        .properties
+        .insert("host_port".to_string(), json!(host_port));
+    resource
+}
+
 fn ensure_operation_succeeded(operation: &TargetOperationRecord) -> anyhow::Result<()> {
     match operation.status {
         TargetOperationStatusKind::Succeeded => Ok(()),
@@ -758,4 +767,31 @@ fn resource_ref(resource: &RealizedResource) -> anyhow::Result<TargetDeploymentR
 fn realization_build_id(realization_id: &plurora_work::RealizationId, workload_id: &str) -> String {
     let digest = Sha256::digest(format!("{realization_id}:{workload_id}").as_bytes());
     format!("realization-{digest:x}")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn active_resource_projection_is_public_record_safe() -> anyhow::Result<()> {
+        let resource = active_resource(
+            "web",
+            "local",
+            "operation-1",
+            &TargetDeploymentRef {
+                deployment_id: "deployment-1".to_string(),
+                route_id: "acceptance-route".to_string(),
+                port_lease_id: "lease-1".to_string(),
+            },
+            &format!("registry.example/nginx@sha256:{}", "a".repeat(64)),
+            32_768,
+        );
+
+        plurora_work::validate_portable_model(&resource)?;
+        assert_eq!(resource.properties["route_id"], json!("acceptance-route"));
+        assert_eq!(resource.properties["host_port"], json!(32_768));
+        assert!(!resource.properties.contains_key("public_url"));
+        Ok(())
+    }
 }
