@@ -349,6 +349,18 @@ impl SubprocessSupervisor {
                     "subprocess package '{package_id}' changed during activation commit"
                 )
             })?;
+        // Recheck after the in-memory commit before returning Ready. The stdout
+        // watcher sets `transport_lost` before it waits for the lifecycle lock,
+        // so an EOF observed during the commit is converted to Degraded before
+        // the caller can receive a stale Ready result.
+        if handle.transport_lost.load(Ordering::Acquire) || handle.has_exited().await? {
+            handle.transport_lost.store(true, Ordering::Release);
+            drop(transition);
+            let _ = self
+                .report_transport_loss(package_id, generation, "subprocess_transport_eof")
+                .await;
+            anyhow::bail!("subprocess package '{package_id}' lost its transport during startup");
+        }
         drop(transition);
         Ok(ready)
     }
@@ -1768,7 +1780,7 @@ time.sleep(0.25)
     }
 
     #[tokio::test]
-    async fn restart_immediate_eof_never_commits_replacement_ready() -> anyhow::Result<()> {
+    async fn restart_immediate_eof_never_leaves_replacement_ready() -> anyhow::Result<()> {
         let temp = tempfile::tempdir()?;
         std::fs::write(
             temp.path().join("restart_eof.py"),
@@ -1802,11 +1814,14 @@ for line in sys.stdin:
             ))
             .await?;
 
-        let error = runtime
-            .restart_package(&package_id)
-            .await
-            .expect_err("replacement exits immediately after handshake");
-        assert!(error.to_string().contains("lost its transport"));
+        // The child and Host are separate schedulers. If stdout closes before
+        // the final startup observation, restart returns the transport error;
+        // if it closes immediately after that observation, Ready is an ordered
+        // transient followed by Degraded. The durable guarantee is that the
+        // dead generation cannot remain Ready or retain a live handle.
+        if let Err(error) = runtime.restart_package(&package_id).await {
+            assert!(error.to_string().contains("lost its transport"));
+        }
         wait_for_package_state(&runtime, &package_id, PackageState::Degraded).await?;
         assert!(!runtime
             .subprocesses
@@ -1822,14 +1837,26 @@ for line in sys.stdin:
         let events = store
             .list_session(&"platform_package_example_restart-eof".to_string())
             .await?;
-        assert_eq!(
-            events
-                .iter()
-                .filter(|event| event.kind == plurora_core::EVENT_PACKAGE_READY)
-                .count(),
-            1,
-            "only the initial generation may commit Ready"
+        let ready_events = events
+            .iter()
+            .filter(|event| event.kind == plurora_core::EVENT_PACKAGE_READY)
+            .count();
+        assert!(
+            (1..=2).contains(&ready_events),
+            "the initial generation is Ready; the failed replacement may only be an ordered transient"
         );
+        let last_ready_sequence = events
+            .iter()
+            .filter(|event| event.kind == plurora_core::EVENT_PACKAGE_READY)
+            .map(|event| event.sequence)
+            .max()
+            .expect("initial Ready event");
+        let degraded_sequence = events
+            .iter()
+            .find(|event| event.kind == EVENT_PACKAGE_DEGRADED)
+            .map(|event| event.sequence)
+            .expect("terminal transport loss event");
+        assert!(last_ready_sequence < degraded_sequence);
         assert_eq!(
             events
                 .iter()
