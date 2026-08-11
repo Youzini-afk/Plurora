@@ -4,6 +4,7 @@ export * from "./host-access";
 export * from "./pairing-credential";
 export * from "./platform-adapter";
 export * from "./installation-target-context";
+export * from "./foreign-work";
 export * from "./library-affordance";
 export * from "./powerbox";
 export * from "./realization";

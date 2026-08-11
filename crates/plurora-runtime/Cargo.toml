@@ -34,6 +34,7 @@ schemars.workspace = true
 same-file.workspace = true
 sequoia-openpgp = { version = "1.21", default-features = false, features = ["compression", "crypto-rust", "allow-experimental-crypto", "allow-variable-time-crypto"] }
 tokio-tungstenite = { version = "0.24", features = ["rustls-tls-native-roots"] }
+tempfile = "3"
 
 [features]
 default = []
@@ -46,6 +47,3 @@ optional = true
 [dependencies.deadpool-postgres]
 workspace = true
 optional = true
-
-[dev-dependencies]
-tempfile = "3"

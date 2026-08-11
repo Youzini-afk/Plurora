@@ -12,6 +12,10 @@ import { PowerboxWorkbench } from "@/components/powerbox/powerbox-workbench";
 import { activeHostCredentialScope } from "@/client-core/host-endpoint";
 import { createPowerboxContext, isBindingGapForPowerbox, type PowerboxConsumerContext } from "@/client-core/powerbox";
 import { RealizationWorkbench } from "@/components/realization/realization-workbench";
+import { RightsTransparencyPanel } from "@/components/foreign-work/rights-transparency-panel";
+import { ForeignWorkWorkbench } from "@/components/foreign-work/foreign-work-workbench";
+import { StateBackupPanel } from "@/components/foreign-work/state-backup-panel";
+import { isForeignWork } from "@/client-core/foreign-work";
 
 /** Navigation and tab close are observational. They never stop a Run. */
 export const INSTALLATION_FRAME_POLICY = { stopRunOnUnmount: false } as const;
@@ -210,6 +214,16 @@ export function InstallationFrame({ installationId, chrome = "shell" }: { instal
             />
           ) : null}
           {view.work_summary.operational_intent ? <RealizationWorkbench client={client} identity={identity} installation={view} /> : null}
+          <RightsTransparencyPanel summary={view.work_summary} sourceKind={view.record.source.kind} />
+          {isForeignWork(view.work_summary) ? (
+            <ForeignWorkWorkbench
+              client={client}
+              installation={view}
+              canManage={runAuthority.can_manage_installation === true}
+              onChanged={load}
+            />
+          ) : null}
+          <StateBackupPanel client={client} installation={view} authority={runAuthority} onChanged={load} />
           <section className="rounded-[16px] border border-whisper-border bg-pure-surface p-5">
             <div className="flex items-center justify-between gap-3">
               <div><h2 className="font-display text-lg font-bold">Entrypoints</h2><p className="mt-1 text-xs text-steel-secondary">Preflight runs only when you choose an entrypoint.</p></div>

@@ -30,6 +30,10 @@ use crate::FOREIGN_CAPSULE_TYPE_URI;
 pub const SOURCE_REPOSITORY_CANDIDATE_TYPE_URI: &str = "urn:plurora:source-repository-candidate:v1";
 pub const SOURCE_REPOSITORY_CANDIDATE_SCHEMA: &str = "plurora.source-repository-candidate.v1";
 pub const CAPABILITY_PROTOCOL_ID: &str = "plurora.capability";
+pub const FOREIGN_DEDICATED_SERVER_ANNOTATION: &str = "plurora.foreign/dedicated_server";
+pub const FOREIGN_LAUNCH_KIND_ANNOTATION: &str = "plurora.foreign/launch_kind";
+pub const FOREIGN_DEDICATED_SERVER_INTENT_URI: &str = "plurora.shell.default/dedicated-server";
+pub const FOREIGN_PLAY_INTENT_URI: &str = "plurora.shell.default/play";
 
 const CLAIM_STATUS_ANNOTATION: &str = "plurora.projection/claim_status";
 const CAPABILITY_ID_ANNOTATION: &str = "plurora.projection/capability_id";
@@ -827,11 +831,18 @@ pub fn normalize_foreign_capsule(
         .iter()
         .map(|requirement| WorkEntrypoint {
             id: requirement.launch_id.clone(),
-            intent_uri: "plurora.shell.default/play".to_string(),
+            intent_uri: if foreign_launch_is_dedicated_server(requirement) {
+                FOREIGN_DEDICATED_SERVER_INTENT_URI.to_string()
+            } else {
+                FOREIGN_PLAY_INTENT_URI.to_string()
+            },
             target: WorkEntrypointTarget::ForeignLaunch {
                 launch_id: requirement.launch_id.clone(),
             },
-            annotations: BTreeMap::new(),
+            annotations: BTreeMap::from([(
+                FOREIGN_LAUNCH_KIND_ANNOTATION.to_string(),
+                Value::String(foreign_launch_kind_name(requirement.kind).to_string()),
+            )]),
         })
         .collect();
     let work = WorkRevision {
@@ -863,6 +874,25 @@ pub fn normalize_foreign_capsule(
     };
     normalized.validate()?;
     Ok(normalized)
+}
+
+pub fn foreign_launch_is_dedicated_server(requirement: &ForeignLaunchRequirement) -> bool {
+    requirement
+        .annotations
+        .get(FOREIGN_DEDICATED_SERVER_ANNOTATION)
+        .and_then(Value::as_bool)
+        .unwrap_or(false)
+}
+
+pub fn foreign_launch_kind_name(kind: ForeignLaunchKind) -> &'static str {
+    match kind {
+        ForeignLaunchKind::ExternalUri => "external_uri",
+        ForeignLaunchKind::LocalExecutable => "local_executable",
+        ForeignLaunchKind::ManagedArtifact => "managed_artifact",
+        ForeignLaunchKind::OciImage => "oci_image",
+        ForeignLaunchKind::RemoteService => "remote_service",
+        ForeignLaunchKind::EntitlementAdapter => "entitlement_adapter",
+    }
 }
 
 pub fn normalize_content_only(
@@ -1322,6 +1352,10 @@ mod tests {
             foreign.work.entrypoints[0].target,
             WorkEntrypointTarget::ForeignLaunch { .. }
         ));
+        assert_eq!(
+            foreign.work.entrypoints[0].annotations[FOREIGN_LAUNCH_KIND_ANNOTATION],
+            Value::String("local_executable".to_string())
+        );
 
         let content = descriptor("urn:example:content:v1", 'c');
         let content_only = normalize_content_only(

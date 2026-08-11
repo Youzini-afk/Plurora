@@ -56,6 +56,24 @@ pub enum RightDisposition {
     Unspecified,
 }
 
+/// Stable operation names used when a Host evaluates a publisher/source rights
+/// declaration. A declaration is evidence for conservative product policy; it
+/// is never converted into capability authority.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, JsonSchema, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum RightsOperation {
+    Install,
+    Execute,
+    Backup,
+    ExportState,
+    CopyAcrossHosts,
+    RedistributeArtifacts,
+    Modify,
+    Derive,
+    Modding,
+    DedicatedServer,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, PartialEq, Eq)]
 pub struct RightsDeclaration {
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -99,6 +117,21 @@ impl RightsDeclaration {
         }
         validate_unique_artifacts(&self.evidence_refs)?;
         validate_portable_model(self)
+    }
+
+    pub fn disposition(&self, operation: RightsOperation) -> RightDisposition {
+        match operation {
+            RightsOperation::Install => self.install,
+            RightsOperation::Execute => self.execute,
+            RightsOperation::Backup => self.backup,
+            RightsOperation::ExportState => self.export_state,
+            RightsOperation::CopyAcrossHosts => self.copy_across_hosts,
+            RightsOperation::RedistributeArtifacts => self.redistribute_artifacts,
+            RightsOperation::Modify => self.modify,
+            RightsOperation::Derive => self.derive,
+            RightsOperation::Modding => self.modding,
+            RightsOperation::DedicatedServer => self.dedicated_server,
+        }
     }
 }
 
@@ -203,4 +236,57 @@ fn validate_unique_artifacts(references: &[ArtifactDescriptor]) -> ModelResult<(
         }
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn declaration() -> RightsDeclaration {
+        RightsDeclaration {
+            license_expression: None,
+            terms_uri: None,
+            install: RightDisposition::Allowed,
+            execute: RightDisposition::Denied,
+            backup: RightDisposition::RequiresEntitlement,
+            export_state: RightDisposition::Unspecified,
+            copy_across_hosts: RightDisposition::Denied,
+            redistribute_artifacts: RightDisposition::Unspecified,
+            modify: RightDisposition::Allowed,
+            derive: RightDisposition::Denied,
+            modding: RightDisposition::Allowed,
+            dedicated_server: RightDisposition::RequiresEntitlement,
+            entitlement_requirements: Vec::new(),
+            evidence_refs: Vec::new(),
+        }
+    }
+
+    #[test]
+    fn every_rights_operation_selects_its_exact_declared_disposition() {
+        let value = declaration();
+        let cases = [
+            (RightsOperation::Install, RightDisposition::Allowed),
+            (RightsOperation::Execute, RightDisposition::Denied),
+            (
+                RightsOperation::Backup,
+                RightDisposition::RequiresEntitlement,
+            ),
+            (RightsOperation::ExportState, RightDisposition::Unspecified),
+            (RightsOperation::CopyAcrossHosts, RightDisposition::Denied),
+            (
+                RightsOperation::RedistributeArtifacts,
+                RightDisposition::Unspecified,
+            ),
+            (RightsOperation::Modify, RightDisposition::Allowed),
+            (RightsOperation::Derive, RightDisposition::Denied),
+            (RightsOperation::Modding, RightDisposition::Allowed),
+            (
+                RightsOperation::DedicatedServer,
+                RightDisposition::RequiresEntitlement,
+            ),
+        ];
+        for (operation, expected) in cases {
+            assert_eq!(value.disposition(operation), expected);
+        }
+    }
 }

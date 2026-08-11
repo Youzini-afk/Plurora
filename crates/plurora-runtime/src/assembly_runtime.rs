@@ -2,14 +2,16 @@ use std::collections::BTreeSet;
 use std::sync::{Arc, Weak};
 
 use crate::{
+    activate_foreign_launch,
     package::{PackageRunClaim, PackageRunLease},
+    resolve_foreign_launch_binding, rights_policy_outcome, ActiveForeignLaunch,
     BindingComponentDisclosure, BindingEndpointPin, BindingInstallationDisclosure,
     BindingSelectionRecord, BindingWorkDisclosure, CapabilityPin, ComponentActivationIdentity,
-    ComponentPin, EventStore, InstallationRevisionPin, OpenSessionRequest, PackageRecord,
-    PackageState, PowerboxEndpointInspection, ResolvedPortPin, RunActivation,
-    RunBindingPreparationRequest, RunGap, RunInstallationArtifacts, RunInstallationGuard,
-    RunLifecycleDriver, RunPreparation, RunRevisionPin, RunStartRequest, RunStatusInspection,
-    RunStatusRequest, Runtime,
+    ComponentPin, EventStore, ForeignLaunchBinding, InstallationRevisionPin, OpenSessionRequest,
+    PackageRecord, PackageState, PowerboxEndpointInspection, ResolvedPortPin, RightsPolicyOutcome,
+    RunActivation, RunBindingPreparationRequest, RunGap, RunInstallationArtifacts,
+    RunInstallationGuard, RunLifecycleDriver, RunPreparation, RunRevisionPin, RunStartRequest,
+    RunStatusInspection, RunStatusRequest, Runtime,
 };
 use async_trait::async_trait;
 use plurora_core::{
@@ -19,7 +21,8 @@ use plurora_core::{
 use plurora_work::{
     canonical_digest, AssemblyLock, AssemblyNodeSource, AssemblyRevision, AvailabilityPolicy,
     BindingPhase, NodeInstanceRecord, NodeInstanceStatus, NodeLock, PortDescriptor, PortDirection,
-    PortEndpoint, PortId, PortRole, RunId, WorkEntrypointTarget, ASSEMBLY_LOCK_TYPE_URI,
+    PortEndpoint, PortId, PortRole, RightsDeclaration, RightsOperation, RunId,
+    WorkEntrypointTarget, ASSEMBLY_LOCK_TYPE_URI, FOREIGN_DEDICATED_SERVER_INTENT_URI,
     INTERACTION_CAPABILITY_STREAM, INTERACTION_CAPABILITY_UNARY,
 };
 
@@ -348,6 +351,7 @@ struct PreparedAssemblyRun {
     nodes: Vec<Vec<plurora_work::NodeId>>,
     component_activations: Vec<PreparedComponentActivation>,
     selected_bindings: Vec<BindingSelectionRecord>,
+    foreign: Option<PreparedForeignLaunch>,
 }
 
 struct AssemblyPreflight {
@@ -358,6 +362,7 @@ struct AssemblyPreflight {
     component_activations: Vec<PreparedComponentActivation>,
     gaps: Vec<RunGap>,
     selected_bindings: Vec<BindingSelectionRecord>,
+    foreign: Option<PreparedForeignLaunch>,
 }
 
 struct ActiveAssemblyRun {
@@ -365,6 +370,13 @@ struct ActiveAssemblyRun {
     session_id: String,
     _installation: RunInstallationGuard,
     _packages: PackageRunLease,
+    foreign: Option<ActiveForeignLaunch>,
+}
+
+#[derive(Debug, Clone)]
+struct PreparedForeignLaunch {
+    binding: ForeignLaunchBinding,
+    rights: Option<RightsDeclaration>,
 }
 
 #[derive(Debug, Clone)]
@@ -446,6 +458,7 @@ where
                 nodes: preflight.nodes,
                 component_activations: preflight.component_activations,
                 selected_bindings: preflight.selected_bindings,
+                foreign: preflight.foreign,
             }),
         ))
     }
@@ -482,6 +495,23 @@ where
                 }),
             })
             .await?;
+        let foreign = match prepared.foreign.as_ref() {
+            Some(prepared_foreign) => match activate_foreign_launch(
+                runtime.as_ref(),
+                &session.id,
+                &prepared_foreign.binding,
+                prepared_foreign.rights.as_ref(),
+            )
+            .await
+            {
+                Ok(active) => Some(active),
+                Err(error) => {
+                    let _ = runtime.close_session(session.id.clone()).await;
+                    return Err(error);
+                }
+            },
+            None => None,
+        };
         let mut active_bindings = Vec::new();
         for component in &prepared.component_activations {
             runtime
@@ -585,15 +615,19 @@ where
                 session_id: session.id,
                 _installation: prepared.installation,
                 _packages: package_lease,
+                foreign,
             }),
         ))
     }
 
     async fn stop(&self, run_id: &RunId, activation: &mut RunActivation) -> anyhow::Result<()> {
         let runtime = self.runtime()?;
-        let active = activation.get::<ActiveAssemblyRun>()?;
+        let active = activation.get_mut::<ActiveAssemblyRun>()?;
         let installation_id = active.installation_id.clone();
         let session_id = active.session_id.clone();
+        if let Some(foreign) = active.foreign.as_mut() {
+            foreign.stop().await?;
+        }
         runtime
             .run_binding_broker()
             .stop_run(&installation_id, run_id, &session_id, "run_stopped")
@@ -637,6 +671,7 @@ where
             nodes: Vec::new(),
             component_activations: Vec::new(),
             selected_bindings: Vec::new(),
+            foreign: None,
             gaps: vec![RunGap::new(
                 "target_unsatisfied",
                 "select an entrypoint declared by this fixed WorkRevision",
@@ -645,17 +680,107 @@ where
     };
 
     let mut gaps = Vec::new();
+    let rights = crate::load_rights_declaration(runtime.object_store().as_ref(), &artifacts.work)
+        .await
+        .map_err(|_| anyhow::anyhow!("declared Rights artifact is unavailable or invalid"))?;
+    let execute_outcome = rights_policy_outcome(rights.as_ref(), RightsOperation::Execute);
+    if matches!(
+        execute_outcome,
+        RightsPolicyOutcome::Denied | RightsPolicyOutcome::Unspecified
+    ) {
+        gaps.push(RunGap::new(
+            if execute_outcome == RightsPolicyOutcome::Denied {
+                "rights_denied"
+            } else {
+                "rights_unspecified"
+            },
+            "review the Work Rights declaration before executing this entrypoint",
+        ));
+    }
     if artifacts.work.operational_intent.is_some() {
         gaps.push(RunGap::new(
             "target_unsatisfied",
             "plan and apply the required Realization before starting this Run",
         ));
     }
+    let mut foreign = None;
     match &entrypoint.target {
-        WorkEntrypointTarget::ForeignLaunch { .. } => gaps.push(RunGap::new(
-            "unsupported_backend",
-            "use an Assembly or Surface entrypoint supported by the Host runtime",
-        )),
+        WorkEntrypointTarget::ForeignLaunch { launch_id } => {
+            let capsule =
+                crate::load_foreign_capsule(runtime.object_store().as_ref(), &artifacts.work)
+                    .await
+                    .map_err(|_| {
+                        anyhow::anyhow!("ForeignCapsule artifact is unavailable or invalid")
+                    })?;
+            let requirement = capsule.as_ref().and_then(|capsule| {
+                capsule
+                    .launch_requirements
+                    .iter()
+                    .find(|requirement| &requirement.launch_id == launch_id)
+            });
+            let Some(requirement) = requirement else {
+                gaps.push(RunGap::new(
+                    "artifact_missing",
+                    "restore the exact ForeignCapsule launch requirement referenced by this entrypoint",
+                ));
+                return finish_preflight(entrypoint.id.clone(), gaps, foreign);
+            };
+            if entrypoint.intent_uri == FOREIGN_DEDICATED_SERVER_INTENT_URI {
+                let outcome =
+                    rights_policy_outcome(rights.as_ref(), RightsOperation::DedicatedServer);
+                if outcome != RightsPolicyOutcome::Allowed {
+                    gaps.push(RunGap::new(
+                        if outcome == RightsPolicyOutcome::RequiresEntitlement {
+                            "entitlement_required"
+                        } else if outcome == RightsPolicyOutcome::Denied {
+                            "rights_denied"
+                        } else {
+                            "rights_unspecified"
+                        },
+                        "review the dedicated-server Right before launching this entrypoint",
+                    ));
+                }
+            }
+            match resolve_foreign_launch_binding(
+                runtime,
+                &artifacts.installation.record.installation_id,
+                &artifacts.installation.record.secret_policy,
+                requirement,
+            )
+            .await
+            {
+                Ok(binding) => {
+                    if execute_outcome == RightsPolicyOutcome::RequiresEntitlement
+                        && binding.entitlement.is_none()
+                        && !matches!(
+                            binding.target,
+                            crate::ForeignLaunchTarget::EntitlementAdapter { .. }
+                        )
+                    {
+                        gaps.push(RunGap::new(
+                            "entitlement_required",
+                            "bind an ordinary entitlement adapter before executing this entrypoint",
+                        ));
+                    }
+                    foreign = Some(PreparedForeignLaunch { binding, rights });
+                }
+                Err(error) => {
+                    let message = error.to_string();
+                    let reason = if message.contains("binding_invalid") {
+                        "binding_incompatible"
+                    } else {
+                        "binding_unavailable"
+                    };
+                    gaps.push(RunGap::new(
+                        reason,
+                        format!(
+                            "store the Installation-local binding at {}",
+                            crate::foreign_launch_secret_ref(launch_id)
+                        ),
+                    ));
+                }
+            }
+        }
         WorkEntrypointTarget::AssemblyPort { port_id } => {
             let root = artifacts
                 .assemblies
@@ -818,6 +943,32 @@ where
         component_activations,
         gaps,
         selected_bindings,
+        foreign,
+    })
+}
+
+fn finish_preflight(
+    entrypoint_id: String,
+    mut gaps: Vec<RunGap>,
+    foreign: Option<PreparedForeignLaunch>,
+) -> anyhow::Result<AssemblyPreflight> {
+    gaps.sort_by(|left, right| {
+        (&left.reason_code, &left.node_id, &left.port_id).cmp(&(
+            &right.reason_code,
+            &right.node_id,
+            &right.port_id,
+        ))
+    });
+    gaps.dedup();
+    Ok(AssemblyPreflight {
+        entrypoint_id,
+        package_claims: Vec::new(),
+        package_ids: Vec::new(),
+        nodes: Vec::new(),
+        component_activations: Vec::new(),
+        gaps,
+        selected_bindings: Vec::new(),
+        foreign,
     })
 }
 
@@ -1140,19 +1291,31 @@ mod tests {
         SandboxPolicy,
     };
     use plurora_work::{
-        AcquisitionKind, AcquisitionRecord, AssemblyId, AssemblyNode, AssemblyPortExposure,
-        EffectClass, InstallationId, InstallationRecord, InstallationSecretPolicy,
-        InstallationStatus, InteractionModelId, NodeId, PortContract, PortDescriptor,
-        PortDirection, PortId, PortMultiplicity, TransportRequirements, WorkEntrypoint, WorkId,
-        WorkRevision, ASSEMBLY_REVISION_TYPE_URI, OPERATIONAL_INTENT_TYPE_URI,
-        WORK_REVISION_TYPE_URI,
+        AcquisitionKind, AcquisitionRecord, ArtifactModel, AssemblyId, AssemblyNode,
+        AssemblyPortExposure, ClaimStatus, EffectClass, ForeignCapsuleDescriptor,
+        ForeignLaunchKind, ForeignLaunchRequirement, InstallationId, InstallationRecord,
+        InstallationSecretPolicy, InstallationStatus, InteractionModelId, NodeId, PortContract,
+        PortDescriptor, PortDirection, PortId, PortMultiplicity, RightDisposition,
+        RightsDeclaration, SourceVisibility, StatePortability, TransparencyDeclaration,
+        TransportRequirements, WorkEntrypoint, WorkId, WorkRevision, ASSEMBLY_REVISION_TYPE_URI,
+        OPERATIONAL_INTENT_TYPE_URI, WORK_REVISION_TYPE_URI,
     };
 
     use super::*;
     use crate::{
-        InMemoryEventStore, InstallationControl, InstallationView, InstallationWorkSummary,
-        RuntimeConfig,
+        HostSecretResolver, InMemoryEventStore, InMemoryObjectStore, InstallationControl,
+        InstallationView, InstallationWorkSummary, ObjectStore, RuntimeConfig,
+        SecretResolverConfig, FOREIGN_LAUNCH_BINDING_SCHEMA,
     };
+
+    struct StaticSecretResolver(String);
+
+    #[async_trait]
+    impl HostSecretResolver for StaticSecretResolver {
+        async fn resolve(&self, _ref_id: &str) -> anyhow::Result<String> {
+            Ok(self.0.clone())
+        }
+    }
 
     #[derive(Clone)]
     struct StaticInstallationControl {
@@ -1643,6 +1806,146 @@ mod tests {
         artifacts
     }
 
+    fn rights(execute: RightDisposition, dedicated_server: RightDisposition) -> RightsDeclaration {
+        RightsDeclaration {
+            license_expression: Some("LicenseRef-foreign-test".to_string()),
+            terms_uri: None,
+            install: RightDisposition::Allowed,
+            execute,
+            backup: RightDisposition::Allowed,
+            export_state: RightDisposition::Denied,
+            copy_across_hosts: RightDisposition::Denied,
+            redistribute_artifacts: RightDisposition::Denied,
+            modify: RightDisposition::Denied,
+            derive: RightDisposition::Denied,
+            modding: RightDisposition::Denied,
+            dedicated_server,
+            entitlement_requirements: Vec::new(),
+            evidence_refs: Vec::new(),
+        }
+    }
+
+    fn transparency() -> TransparencyDeclaration {
+        TransparencyDeclaration {
+            source_visibility: SourceVisibility::Closed,
+            source_refs: Vec::new(),
+            reproducible_build_claim: ClaimStatus::Unknown,
+            sbom_refs: Vec::new(),
+            provenance_refs: Vec::new(),
+            signature_refs: Vec::new(),
+            telemetry_disclosures: vec!["network access may be vendor-defined".to_string()],
+            state_portability: StatePortability::OpaqueExportable,
+            evidence_refs: Vec::new(),
+        }
+    }
+
+    async fn put_model<T: ArtifactModel>(
+        store: &Arc<InMemoryObjectStore>,
+        model: &T,
+    ) -> anyhow::Result<ArtifactDescriptor> {
+        let descriptor = model.artifact_descriptor()?;
+        let bytes = model.canonical_bytes()?;
+        store.put(bytes.into()).await?;
+        Ok(descriptor)
+    }
+
+    async fn foreign_driver(
+        execute: RightDisposition,
+        dedicated_server: RightDisposition,
+        dedicated: bool,
+        entitlement: Option<crate::ForeignEntitlementAdapter>,
+    ) -> anyhow::Result<(
+        Arc<Runtime<InMemoryEventStore>>,
+        AssemblyRuntimeDriver<InMemoryEventStore>,
+        RunStartRequest,
+    )> {
+        let objects = Arc::new(InMemoryObjectStore::new());
+        let rights = rights(execute, dedicated_server);
+        let rights_descriptor = put_model(&objects, &rights).await?;
+        let transparency = transparency();
+        let transparency_descriptor = put_model(&objects, &transparency).await?;
+        let requirement = ForeignLaunchRequirement {
+            launch_id: "foreign".to_string(),
+            kind: ForeignLaunchKind::RemoteService,
+            required_protocols: Vec::new(),
+            annotations: dedicated
+                .then(|| {
+                    BTreeMap::from([(
+                        plurora_work::FOREIGN_DEDICATED_SERVER_ANNOTATION.to_string(),
+                        serde_json::Value::Bool(true),
+                    )])
+                })
+                .unwrap_or_default(),
+        };
+        let capsule = ForeignCapsuleDescriptor {
+            capsule_id: "tests/run-preflight".to_string(),
+            launch_requirements: vec![requirement],
+            protocol_ports: Vec::new(),
+            state_slots: Vec::new(),
+            rights: rights_descriptor.clone(),
+            transparency: transparency_descriptor.clone(),
+            annotations: BTreeMap::new(),
+        };
+        let capsule_descriptor = put_model(&objects, &capsule).await?;
+        let mut artifacts = preflight_artifacts(
+            WorkEntrypointTarget::ForeignLaunch {
+                launch_id: "foreign".to_string(),
+            },
+            false,
+            false,
+        );
+        artifacts.work.content_roots = vec![capsule_descriptor];
+        artifacts.work.rights = Some(rights_descriptor);
+        artifacts.work.transparency = Some(transparency_descriptor);
+        artifacts.work.entrypoints[0].intent_uri = if dedicated {
+            FOREIGN_DEDICATED_SERVER_INTENT_URI.to_string()
+        } else {
+            plurora_work::FOREIGN_PLAY_INTENT_URI.to_string()
+        };
+        let binding = crate::ForeignLaunchBinding {
+            schema: FOREIGN_LAUNCH_BINDING_SCHEMA.to_string(),
+            launch_id: "foreign".to_string(),
+            target: crate::ForeignLaunchTarget::RemoteService {
+                endpoint: "https://service.example.invalid/session".to_string(),
+            },
+            entitlement,
+        };
+        let binding_json = serde_json::to_string(&binding)?;
+        artifacts
+            .installation
+            .record
+            .secret_policy
+            .allowed_secret_refs = vec![crate::foreign_launch_secret_ref("foreign")];
+        artifacts.installation.work_summary =
+            InstallationWorkSummary::from_work_revision(&artifacts.work);
+        let installation_id = artifacts.installation.record.installation_id.clone();
+        let revision = artifacts.installation.revision;
+        let store = Arc::new(InMemoryEventStore::default());
+        let runtime = Arc::new(Runtime::new(
+            store,
+            RuntimeConfig {
+                object_store: objects,
+                installation_control: Arc::new(StaticInstallationControl { artifacts }),
+                secret_resolver: SecretResolverConfig::with_resolver(Arc::new(
+                    StaticSecretResolver(binding_json),
+                )),
+                ..RuntimeConfig::default()
+            },
+        ));
+        let driver = AssemblyRuntimeDriver::new(Arc::downgrade(&runtime));
+        Ok((
+            runtime,
+            driver,
+            RunStartRequest {
+                installation_id,
+                expected_installation_revision: revision,
+                entrypoint_id: "default".to_string(),
+                idempotency_key: "foreign-start".to_string(),
+                authority: None,
+            },
+        ))
+    }
+
     async fn runnable_driver(
         package_id: &str,
     ) -> anyhow::Result<(
@@ -1769,7 +2072,7 @@ mod tests {
                 },
                 false,
                 false,
-                Some("unsupported_backend"),
+                Some("artifact_missing"),
             ),
         ];
 
@@ -1783,6 +2086,82 @@ mod tests {
         }
 
         assert!(store.list_all().await?.is_empty());
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn foreign_remote_service_preflight_and_lifecycle_use_exact_local_binding(
+    ) -> anyhow::Result<()> {
+        let (runtime, driver, request) = foreign_driver(
+            RightDisposition::Allowed,
+            RightDisposition::Denied,
+            false,
+            None,
+        )
+        .await?;
+        let inspection = driver
+            .inspect_status(&RunStatusRequest {
+                installation_id: request.installation_id.clone(),
+                entrypoint_id: Some(request.entrypoint_id.clone()),
+            })
+            .await?;
+        assert!(inspection.preflight.unwrap().gaps.is_empty());
+        let run_id = RunId::new();
+        let preparation = driver.prepare_start(&request).await?;
+        assert!(preparation.gaps.is_empty());
+        let mut activation = driver.activate(&run_id, preparation).await?;
+        let session_id = activation.context_id.clone().expect("foreign Run session");
+        assert_eq!(
+            runtime.get_session(&session_id).await.unwrap().status,
+            SessionStatus::Open
+        );
+        driver.stop(&run_id, &mut activation).await?;
+        assert_eq!(
+            runtime.get_session(&session_id).await.unwrap().status,
+            SessionStatus::Closed
+        );
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn foreign_rights_and_entitlement_gaps_are_stable_and_effect_free() -> anyhow::Result<()>
+    {
+        let cases = [
+            (
+                RightDisposition::Denied,
+                RightDisposition::Allowed,
+                false,
+                "rights_denied",
+            ),
+            (
+                RightDisposition::Unspecified,
+                RightDisposition::Allowed,
+                false,
+                "rights_unspecified",
+            ),
+            (
+                RightDisposition::RequiresEntitlement,
+                RightDisposition::Allowed,
+                false,
+                "entitlement_required",
+            ),
+            (
+                RightDisposition::Allowed,
+                RightDisposition::Denied,
+                true,
+                "rights_denied",
+            ),
+        ];
+        for (execute, dedicated, dedicated_entrypoint, expected) in cases {
+            let (runtime, driver, request) =
+                foreign_driver(execute, dedicated, dedicated_entrypoint, None).await?;
+            let preparation = driver.prepare_start(&request).await?;
+            assert!(preparation
+                .gaps
+                .iter()
+                .any(|gap| gap.reason_code == expected));
+            assert!(runtime.sessions.read().await.is_empty());
+        }
         Ok(())
     }
 

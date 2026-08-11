@@ -4405,6 +4405,16 @@ components:
         - kind
         type: object
       - additionalProperties: false
+        description: Capture the current opaque state as a content-addressed snapshot without replacing or clearing it. The snapshot descriptor is returned in `InstallationMutationResult.receipts` and can later be supplied to `Replace`.
+        properties:
+          kind:
+            enum:
+            - backup
+            type: string
+        required:
+        - kind
+        type: object
+      - additionalProperties: false
         properties:
           kind:
             enum:
@@ -4427,16 +4437,19 @@ components:
         type: object
     InstallationStateArtifactGetParams:
       additionalProperties: false
-      description: Audit-only selector for a journal-issued Installation state artifact.
+      description: Exact selector for a journal-issued Installation state artifact. Snapshot content is additionally gated by the current Work's export-state Right.
       properties:
+        installation_id:
+          $ref: '#/components/schemas/InstallationId'
         installation_state_artifact:
           $ref: '#/components/schemas/ArtifactDescriptor'
       required:
+      - installation_id
       - installation_state_artifact
       type: object
     InstallationStateArtifactGetResponse:
       additionalProperties: false
-      description: Audit-only result for a journal-issued Installation state artifact.
+      description: Result for a journal-issued Installation state artifact.
       properties:
         content:
           type: string
@@ -4741,12 +4754,22 @@ components:
           anyOf:
           - $ref: '#/components/schemas/ArtifactDescriptor'
           - type: 'null'
+        rights_declaration:
+          anyOf:
+          - $ref: '#/components/schemas/RightsDeclaration'
+          - type: 'null'
+          description: Parsed declaration from the exact `rights` descriptor. Descriptive only; the Host still evaluates policy from verified artifact bytes at effect time.
         title:
           type: string
         transparency:
           anyOf:
           - $ref: '#/components/schemas/ArtifactDescriptor'
           - type: 'null'
+        transparency_declaration:
+          anyOf:
+          - $ref: '#/components/schemas/TransparencyDeclaration'
+          - type: 'null'
+          description: Parsed declaration from the exact `transparency` descriptor. This keeps Library disclosure on the public Installation API without exposing a raw ObjectStore read primitive.
         work_id:
           $ref: '#/components/schemas/WorkId'
       required:

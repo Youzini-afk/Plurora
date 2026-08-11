@@ -1105,6 +1105,8 @@ mod runtime_config_tests {
                     entrypoints: Vec::new(),
                     rights: None,
                     transparency: None,
+                    rights_declaration: None,
+                    transparency_declaration: None,
                     operational_intent: None,
                     annotations: BTreeMap::new(),
                 },

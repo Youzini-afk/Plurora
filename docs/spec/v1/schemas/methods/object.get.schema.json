@@ -144,22 +144,30 @@
       },
       "type": "array"
     },
+    "InstallationId": {
+      "format": "uuid",
+      "type": "string"
+    },
     "InstallationStateArtifactGetParams": {
       "additionalProperties": false,
-      "description": "Audit-only selector for a journal-issued Installation state artifact.",
+      "description": "Exact selector for a journal-issued Installation state artifact. Snapshot content is additionally gated by the current Work's export-state Right.",
       "properties": {
+        "installation_id": {
+          "$ref": "#/$defs/InstallationId"
+        },
         "installation_state_artifact": {
           "$ref": "#/$defs/ArtifactDescriptor"
         }
       },
       "required": [
+        "installation_id",
         "installation_state_artifact"
       ],
       "type": "object"
     },
     "InstallationStateArtifactGetResponse": {
       "additionalProperties": false,
-      "description": "Audit-only result for a journal-issued Installation state artifact.",
+      "description": "Result for a journal-issued Installation state artifact.",
       "properties": {
         "content": {
           "type": "string"

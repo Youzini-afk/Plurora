@@ -8,10 +8,10 @@
 
 ## 概要
 
-- **Conformance：** 具名 CLI conformance 外加 crate / service 单元测试持续通过；214 个 v1 schema（99 methods + 76 events + 39 top-level）通过校验；Phase 6 Realization 新增 5 个具名 conformance case。
+- **Conformance：** 475 个具名 CLI conformance 外加 crate / service 单元测试持续通过；214 个 v1 schema（99 methods + 76 events + 39 top-level）通过校验；Phase 7 新增 5 个 Foreign Work 具名 case，`phase7` tag 合计覆盖 8 个 case。
 - **章程纪律：** 内核对内容无意见；第一方 Package 没有特权；公开协议是唯一入口；入口形态平等；能力句柄、bindings 注入、Path A / Path B、conformance kit 与生成 SDK 已落地；可信路径阻断 raw secret，全部走 manifest 声明的 `secret_ref`；权限授权可重新水化；网络声明带审计与脱敏；通用流式与取消生命周期；外发执行有边界，默认全拒；公开 HTTPS 出站走同样的 host policy / 审计 / 脱敏边界；一元、SSE/NDJSON/raw 流和 WebSocket 三个原语都有完成审计事件。
 - **代码健康：** CLI、运行时各域行为、协议分发、in-process 处理器、事件存储——都已按域拆分，不再继续往单文件里堆。
-- **人测底座：** Work source 可安全 pack 为内容寻址 WorkRevision、AssemblyRevision 与 AssemblyLock；Install Lab 产出 Installation candidate，`host.installation.*` 以 durable journal、幂等键和 revision CAS 创建、更新与移除 Installation；Workspace 与 Installation 分离，linked-local source 永不删除。RunRegistry、`host.run.*` 与 Run lifecycle events 已以独立 durable journal 落地；Library 通过显式 Run action 展示启动、状态和停止，打开详情不会隐式运行。Phase 5 ExposureRegistry、Powerbox candidate disclosure、lease/revoke、runtime handle injection 与失效闭环已落地。Phase 6 进一步实现 OperationalIntent/TargetInventory pure planner、`host.realization.*`、Docker/Agent executor、approval、receipt、effect checkpoint、restart recovery、stop/rollback/reconcile 以及 Web/CLI Realization 操作面；Surface bridge 继续使用 allowlist、stream ownership、诊断脱敏、secret 输入清理与 CSP/CORS。
+- **人测底座：** Work source 可安全 pack 为内容寻址 WorkRevision、AssemblyRevision 与 AssemblyLock；Install Lab 产出 Installation candidate，`host.installation.*` 以 durable journal、幂等键和 revision CAS 创建、更新与移除 Installation；Workspace 与 Installation 分离，linked-local source 永不删除。RunRegistry、`host.run.*` 与 Run lifecycle events 已以独立 durable journal 落地；Library 通过显式 Run action 展示启动、状态和停止，打开详情不会隐式运行。Phase 5 ExposureRegistry、Powerbox candidate disclosure、lease/revoke、runtime handle injection 与失效闭环已落地。Phase 6 实现 OperationalIntent/TargetInventory pure planner、`host.realization.*`、Docker/Agent executor、approval、receipt、effect checkpoint、restart recovery、stop/rollback/reconcile 以及 Web/CLI Realization 操作面。Phase 7 实现 ForeignCapsule 六类本机 launch binding、Rights/Transparency disclosure、普通 entitlement adapter、opaque state backup/export 分权与 dedicated-server/cross-Host Rights gate；Surface bridge 继续使用 allowlist、stream ownership、诊断脱敏、secret 输入清理与 CSP/CORS。
 
 当前已经形成较大的可运行面，但平台和官方产品都不等于“完成”。后续建设同时关注开放性、多样性、先进执行与协议能力、长期数据演化，以及普通用户和创作者的完整体验。
 
@@ -101,6 +101,9 @@
 | Exposure lifecycle | implemented |
 | Binding lifecycle / Powerbox | implemented |
 | Pure planner / TargetInventory / `host.realization.*` / Docker-Agent executor | implemented |
+| ForeignCapsule portable normalization + Installation-local launch binding | implemented |
+| Rights / Transparency disclosure and effect-time policy gates | implemented |
+| opaque state backup / explicit export / restore input | implemented |
 
 Work pack 与 Installation create 分离：pack 只产生不可变 artifact；create/update/remove 才修改 Host journal。Workspace 位置是 Host-local 绑定，不进入便携 Work identity。
 
@@ -218,7 +221,7 @@ Forge profile (`profiles/forge-alpha.yaml`) 会自动加载这些包以及示例
   - Host Access —— 当前 root / device 身份、action scope、Work / Workspace / Installation / Run / Target / Exposure / Binding / Realization 资源选择器、委托链、HTTPS pairing link、pending 邀请、设备期限与级联 grant 撤销；默认邀请只选择 `observe`。
   - About —— 平台身份、license、links、致谢。
 - **Installation 流程：** UI 通过 `host.installation.create|update|remove` 使用真实 public DTO；update 带 expected revision 与显式 state action，remove 必须选择 keep/delete。
-- **Installation Frame：** `/installation/<id>` 展示 Installation detail、Library affordance、当前 Run 状态与 OperationalIntent 驱动的 Realization workbench。Run 与 Realization 都要求显式操作；plan 先展示 action/precondition/risk，逐项确认后才 apply，打开或关闭页面不自动 start/stop/apply。
+- **Installation Frame：** `/installation/<id>` 展示 Installation detail、Library affordance、当前 Run 状态、Rights/Transparency 三栏 disclosure、Foreign launch binding、opaque state backup/export 与 OperationalIntent 驱动的 Realization workbench。Run、backup、export 与 Realization 都要求显式操作；plan 先展示 action/precondition/risk，逐项确认后才 apply，打开或关闭页面不自动 start/stop/backup/export/apply。
 - **Failure Modal：** Deep Rust accent stripe、诊断 / 影响双列、redacted stderr 日志面板（含 Copy log）、Restart / Stop-and-uninstall / Close 三选项；数据来自 `host.package.list/status/logs`，不复制 raw log。
 - **Toast 系统：** 5 个 variant（info/success/warning/error/progress），右下队列，`prefers-reduced-motion` 自动收敛。
 - **响应式与暗色模式：** 显式 `data-theme` 切换（system/light/dark）；`@custom-variant dark` 把 Tailwind `dark:` 绑定到属性；modal overlay 用单独的 `--color-overlay` token 不随主题翻转；`prefers-reduced-motion` 收敛动效；`:focus-visible` 键盘导航 ring。
@@ -245,7 +248,7 @@ Forge profile (`profiles/forge-alpha.yaml`) 会自动加载这些包以及示例
 
 ## 代码组织
 
-- `crates/plurora-cli/src/main.rs` 是薄入口。CLI 类型在 `cli.rs`，命令在 `commands/`，包模板在 `templates/`。conformance runner 与 case registry 已拆分：`conformance/runner.rs` 负责 `--list`、`--case`、`--tag`、`--fail-fast`、`--slowest`，`conformance/registry/` 按域注册 453 个 `ConformanceCase { id, tags, run }`。
+- `crates/plurora-cli/src/main.rs` 是薄入口。CLI 类型在 `cli.rs`，命令在 `commands/`，包模板在 `templates/`。conformance runner 与 case registry 已拆分：`conformance/runner.rs` 负责 `--list`、`--case`、`--tag`、`--fail-fast`、`--slowest`，`conformance/registry/` 按域注册 475 个 `ConformanceCase { id, tags, run }`。
 - `crates/plurora-cli/src/schema_export/` 负责 v1 schema 导出；`src/bin/export-schemas.rs` 只是薄入口。生成文件仍只来自 exporter，不手改 SDK 或 schema。
 - `crates/plurora-runtime/src/runtime/` 按 session、events、packages、capabilities、hooks、permissions、assets、branches、projections、proposals 分模块；`runtime/protocol_dispatch.rs` 只保留 public router，具体 public protocol 处理器在 `runtime/protocol/` 下按 domain 拆分。`runtime/mod.rs` 保持公开 `Runtime<S>` API。
 - 协议方法的元数据与分发共享 `PlatformMethod` 这一份事实来源，并有注册表 / 分发的一致性单测。
@@ -256,7 +259,7 @@ Forge profile (`profiles/forge-alpha.yaml`) 会自动加载这些包以及示例
 
 ## Conformance
 
-`cargo run -p plurora-cli -- conformance` 跑 453 个具名 CLI 用例。支持：
+`cargo run -p plurora-cli -- conformance` 跑 475 个具名 CLI 用例。支持：
 
 - `--list` 列出 id 与 tag；
 - `--case <pattern>` 子串过滤；

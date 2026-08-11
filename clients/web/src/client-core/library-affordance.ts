@@ -10,12 +10,13 @@ import type {
 } from "@/protocol/generated-types";
 import type { HostAccessIdentity } from "./host-access";
 
-export type LibraryAction = "open" | "content" | "play" | "run" | "stop" | "restart";
+export type LibraryAction = "open" | "content" | "play" | "run" | "stop" | "restart" | "backup";
 
 export interface LibraryAuthorityInfo {
   can_observe?: boolean;
   can_run?: boolean;
   can_stop?: boolean;
+  can_manage_installation?: boolean;
   reason_code?: string;
   next_step?: string;
 }
@@ -54,7 +55,7 @@ export function libraryAuthorityForInstallation(
   installationId: string,
 ): LibraryAuthorityInfo {
   if (identity?.kind === "root") {
-    return { can_observe: true, can_run: true, can_stop: true };
+    return { can_observe: true, can_run: true, can_stop: true, can_manage_installation: true };
   }
   const scopes = new Set(identity?.scopes ?? []);
   const hasInstallation = Boolean(identity?.resources?.some(
@@ -66,6 +67,7 @@ export function libraryAuthorityForInstallation(
     can_observe: canObserve,
     can_run: canRun,
     can_stop: canRun,
+    can_manage_installation: scopes.has("installation.manage") && hasInstallation,
     ...(!canRun ? {
       reason_code: "authority_denied",
       next_step: "Request Run scope for this exact Installation.",
@@ -114,11 +116,14 @@ export function resolveLibraryAffordances(input: LibraryAffordanceInput): Librar
   affordances.push({ action: "content", available: summaryAvailable && Boolean(input.work_summary?.content_roots.length), ...missingSummary });
 
   const activeStatus = run?.record.status;
+  const executeRight = input.work_summary?.rights_declaration?.execute;
   const canPlay = status === "ready"
     && Boolean(input.entrypoint)
     && authority.can_run !== false
     && preflightKnown
-    && gaps.length === 0;
+    && gaps.length === 0
+    && executeRight !== "denied"
+    && executeRight !== "unspecified";
   affordances.push({
     action: "play",
     available: canPlay,
@@ -152,6 +157,31 @@ export function resolveLibraryAffordances(input: LibraryAffordanceInput): Librar
     } : { risk: "Creates a new Run attempt; it never deploys a missing managed Realization." }),
   });
 
+  const backupRight = input.work_summary?.rights_declaration?.backup;
+  const canBackup = status === "ready"
+    && authority.can_manage_installation === true
+    && backupRight === "allowed";
+  affordances.push({
+    action: "backup",
+    available: canBackup,
+    ...(!canBackup ? {
+      reason_code: status !== "ready"
+        ? "installation_not_ready"
+        : authority.can_manage_installation !== true
+          ? "authority_denied"
+          : backupRight === "denied"
+            ? "rights_denied"
+            : backupRight === "requires_entitlement"
+              ? "entitlement_required"
+              : "rights_unspecified",
+      next_step: status !== "ready"
+        ? "Wait for the Installation to become ready before backing up state."
+        : authority.can_manage_installation !== true
+          ? "Request installation.manage for this exact Installation."
+          : "Review the declared backup Right before capturing opaque state.",
+    } : { risk: "Captures immutable opaque state without modifying the Installation state tree." }),
+  });
+
   return affordances;
 }
 
@@ -165,6 +195,13 @@ function playBlock(input: LibraryAffordanceInput, gaps: Array<RunGap | BindingGa
   }
   if (!input.entrypoint) {
     return { reason_code: "entrypoint_unavailable", next_step: "Choose an entrypoint exposed by this Work." };
+  }
+  const executeRight = input.work_summary?.rights_declaration?.execute;
+  if (executeRight === "denied" || executeRight === "unspecified") {
+    return {
+      reason_code: executeRight === "denied" ? "rights_denied" : "rights_unspecified",
+      next_step: "Review the Work execute Right before starting this entrypoint.",
+    };
   }
   if (input.authority?.can_run === false) {
     return {

@@ -12,6 +12,7 @@ Capability-package authoring guides grouped by domain. Each one targets a class 
 - [`RUN_LIBRARY.md`](RUN_LIBRARY.en.md) — Run journal, `host.run.*` lifecycle, structured gaps, and official Library affordances
 - [`POWERBOX_BINDING.md`](POWERBOX_BINDING.en.md) — Exposures, Powerbox candidate disclosure, cross-Installation Bindings, and runtime pins
 - [`REALIZATION.md`](REALIZATION.en.md) — pure planning, TargetInventory, `host.realization.*`, effect checkpoints, Docker/Agent backends, rollback, and reconcile
+- [`FOREIGN_WORK_RIGHTS.md`](FOREIGN_WORK_RIGHTS.en.md) — ForeignCapsules, local launch bindings, Rights/Transparency, opaque-state backup, and entitlement boundaries
 - [`DEPLOYMENT_RUNTIME.md`](DEPLOYMENT_RUNTIME.en.md) — low-level target / exec / port / proxy adapters and reverse proxy used by the Realization executor
 - [`HOST_OPERATIONS.md`](HOST_OPERATIONS.en.md) — Host liveness/readiness, offline SQLite backup and atomic restore, and release verification
 - [`SECRET_MANAGEMENT.md`](SECRET_MANAGEMENT.en.md) — `secret_ref:env:` / `secret_ref:store:`, local encrypted secret store, and API key management

@@ -394,6 +394,14 @@ impl RunActivation {
             .downcast_ref::<T>()
             .ok_or_else(|| anyhow::anyhow!("Run activation state type is invalid"))
     }
+
+    pub(crate) fn get_mut<T: Any + Send>(&mut self) -> anyhow::Result<&mut T> {
+        self.opaque
+            .as_mut()
+            .ok_or_else(|| anyhow::anyhow!("Run activation state was already released"))?
+            .downcast_mut::<T>()
+            .ok_or_else(|| anyhow::anyhow!("Run activation state type is invalid"))
+    }
 }
 
 #[async_trait]

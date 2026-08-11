@@ -9,6 +9,7 @@ mod first_party_foundation;
 mod first_party_labs;
 mod first_party_play_creation;
 mod fixtures;
+mod foreign_work;
 mod generated;
 mod git_tools;
 mod hooks;

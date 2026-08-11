@@ -47,10 +47,12 @@ pub use operational::{
     TARGET_INVENTORY_TYPE_URI,
 };
 pub use package::{
-    normalize_content_only, normalize_foreign_capsule, normalize_package_manifest,
-    project_capability_ports, project_package_manifest, CanonicalArtifactObject,
-    ForeignCapsuleDescriptor, ForeignLaunchKind, ForeignLaunchRequirement, NormalizedWork,
-    NormalizedWorkKind, PackageProjection, SourceRepositoryCandidate, CAPABILITY_PROTOCOL_ID,
+    foreign_launch_kind_name, normalize_content_only, normalize_foreign_capsule,
+    normalize_package_manifest, project_capability_ports, project_package_manifest,
+    CanonicalArtifactObject, ForeignCapsuleDescriptor, ForeignLaunchKind, ForeignLaunchRequirement,
+    NormalizedWork, NormalizedWorkKind, PackageProjection, SourceRepositoryCandidate,
+    CAPABILITY_PROTOCOL_ID, FOREIGN_DEDICATED_SERVER_ANNOTATION,
+    FOREIGN_DEDICATED_SERVER_INTENT_URI, FOREIGN_LAUNCH_KIND_ANNOTATION, FOREIGN_PLAY_INTENT_URI,
     SOURCE_REPOSITORY_CANDIDATE_SCHEMA, SOURCE_REPOSITORY_CANDIDATE_TYPE_URI,
 };
 pub use port::{
@@ -75,8 +77,9 @@ pub use resolver::{
     MAX_RESOLVER_DIAGNOSTICS,
 };
 pub use rights::{
-    ClaimStatus, ProtocolRequirement, RightDisposition, RightsDeclaration, SourceVisibility,
-    TransparencyDeclaration, RIGHTS_DECLARATION_TYPE_URI, TRANSPARENCY_DECLARATION_TYPE_URI,
+    ClaimStatus, ProtocolRequirement, RightDisposition, RightsDeclaration, RightsOperation,
+    SourceVisibility, TransparencyDeclaration, RIGHTS_DECLARATION_TYPE_URI,
+    TRANSPARENCY_DECLARATION_TYPE_URI,
 };
 pub use source::{
     parse_assembly_source, parse_work_source, AssemblyBindingSourceDescriptor,

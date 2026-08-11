@@ -1,6 +1,6 @@
 use serde_json::{json, Value};
 
-use super::{AssetPutRequest, ObjectPutScope, Runtime};
+use super::{AssetPutRequest, ObjectGetRequest, ObjectPutScope, Runtime};
 use crate::{
     negotiate_contract, resolve_contract_method, ContractSelection, EventStore, PlatformMethod,
     ProtocolContext, ProtocolPrincipal,
@@ -424,7 +424,7 @@ where
                 ensure_object_put_access(context, &request)?;
                 Ok(serde_json::to_value(self.put_object(request).await?)?)
             }
-            PlatformMethod::AssetGet => self.dispatch_asset_get(&params).await,
+            PlatformMethod::AssetGet => self.dispatch_asset_get(context, &params).await,
             PlatformMethod::AssetList => Ok(serde_json::to_value(self.list_assets().await)?),
 
             // Projection domain
@@ -496,7 +496,6 @@ fn ensure_global_host_catalog_access(
             | PlatformMethod::ExtensionPointList
             | PlatformMethod::ExtensionPointDescribe
             | PlatformMethod::HookList
-            | PlatformMethod::AssetGet
             | PlatformMethod::AssetList
             | PlatformMethod::ProjectionRegister
             | PlatformMethod::ProjectionRebuild
@@ -553,6 +552,27 @@ fn ensure_object_put_access(
                     installation_id.as_str()
                 ),
             "object.put permission denied: exact artifact Work or Installation authority does not match"
+        ),
+    }
+    Ok(())
+}
+
+pub(in crate::runtime) fn ensure_object_get_access(
+    context: &ProtocolContext,
+    request: &ObjectGetRequest,
+) -> anyhow::Result<()> {
+    anyhow::ensure!(
+        context.allows_host_action("observe"),
+        "object.get permission denied: authenticated authority lacks observe"
+    );
+    match request {
+        ObjectGetRequest::Asset(_) => anyhow::ensure!(
+            context.allows_all_host_resources("host", "installation"),
+            "object.get permission denied: ordinary Assets require all-installation authority"
+        ),
+        ObjectGetRequest::InstallationStateArtifact(request) => anyhow::ensure!(
+            context.allows_host_resource("host", "installation", request.installation_id.as_str()),
+            "object.get permission denied: state artifact requires exact Installation authority"
         ),
     }
     Ok(())

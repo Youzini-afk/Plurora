@@ -8,10 +8,10 @@ For platform goals and principles, see [`CHARTER.md`](CHARTER.en.md) and [`archi
 
 ## Summary
 
-- **Conformance:** named CLI conformance plus crate and service unit tests continue to pass; 214 v1 schemas validate (99 methods + 76 events + 39 top-level); Phase 6 adds five named Realization conformance cases.
+- **Conformance:** 475 named CLI conformance cases plus crate and service unit tests continue to pass; 214 v1 schemas validate (99 methods + 76 events + 39 top-level). Phase 7 adds five named Foreign Work cases, with eight cases total under the `phase7` tag.
 - **Charter discipline:** content-free kernel; no privilege for first-party Packages; public protocol only; equal entry forms; capability handles, binding injection, Path A / Path B, the conformance kit, and generated SDKs are implemented; trusted paths block raw secrets and use manifest-declared `secret_ref` everywhere; permission grants rehydrate; network permissions are audited and redacted; generic streaming and cancel lifecycle; outbound execution has a boundary, deny-all by default; public HTTPS outbound uses the same host-policy / audit / redaction boundary; unary outbound, SSE/NDJSON/raw streams, and WebSocket all emit completion audit events.
 - **Code health:** the CLI, runtime domain behavior, protocol dispatch, in-process handlers, and the event store are all split by domain. We're not stacking more onto single files.
-- **Human-testing substrate:** Work sources safely pack into content-addressed WorkRevision, AssemblyRevision, and AssemblyLock artifacts. Install Lab produces an Installation candidate, while `host.installation.*` creates, updates, and removes Installations through a durable journal, idempotency claims, and revision CAS. Workspaces and Installations are separate, and linked-local sources are never deleted. RunRegistry, `host.run.*`, and Run lifecycle events use an independent durable journal; Library actions explicitly start, inspect, and stop Runs, while opening detail never starts one. Phase 5 implements ExposureRegistry, Powerbox candidate disclosure, lease/revoke, runtime-handle injection, and invalidation. Phase 6 adds the OperationalIntent/TargetInventory pure planner, `host.realization.*`, Docker/Agent execution, approval, receipts, effect checkpoints, restart recovery, stop/rollback/reconcile, and Web/CLI Realization controls. The Surface bridge retains allowlists, stream ownership, redacted diagnostics, secret-input cleanup, and CSP/CORS.
+- **Human-testing substrate:** Work sources safely pack into content-addressed WorkRevision, AssemblyRevision, and AssemblyLock artifacts. Install Lab produces an Installation candidate, while `host.installation.*` creates, updates, and removes Installations through a durable journal, idempotency claims, and revision CAS. Workspaces and Installations are separate, and linked-local sources are never deleted. RunRegistry, `host.run.*`, and Run lifecycle events use an independent durable journal; Library actions explicitly start, inspect, and stop Runs, while opening detail never starts one. Phase 5 implements ExposureRegistry, Powerbox candidate disclosure, lease/revoke, runtime-handle injection, and invalidation. Phase 6 implements the OperationalIntent/TargetInventory pure planner, `host.realization.*`, Docker/Agent execution, approval, receipts, effect checkpoints, restart recovery, stop/rollback/reconcile, and Web/CLI Realization controls. Phase 7 implements all six ForeignCapsule local-launch binding forms, Rights/Transparency disclosure, ordinary entitlement adapters, separate opaque-state backup/export rights, and dedicated-server/cross-Host Rights gates. The Surface bridge retains allowlists, stream ownership, redacted diagnostics, secret-input cleanup, and CSP/CORS.
 
 The repository now has a substantial operational surface, but neither the platform nor the official product is “finished.” Further construction addresses openness, plurality, advanced execution and protocol capability, long-term data evolution, and complete experiences for users and creators.
 
@@ -101,6 +101,9 @@ The repository now has a substantial operational surface, but neither the platfo
 | Exposure lifecycle | implemented |
 | Binding lifecycle / Powerbox | implemented |
 | Pure planner / TargetInventory / `host.realization.*` / Docker-Agent executor | implemented |
+| ForeignCapsule portable normalization + Installation-local launch binding | implemented |
+| Rights / Transparency disclosure and effect-time policy gates | implemented |
+| opaque-state backup / explicit export / restore input | implemented |
 
 Work packing and Installation creation are separate: pack produces immutable artifacts only; create/update/remove mutate the Host journal. Workspace locations are Host-local bindings and never enter portable Work identity.
 
@@ -218,7 +221,7 @@ The platform user-facing chrome — Home, Settings, Installation flow, Installat
   - Host Access — current root/device identity, action scopes, Work / Workspace / Installation / Run / Target / Exposure / Binding / Realization resource selectors, delegation chains, HTTPS pairing links, pending invitations, device expiry, and cascading grant revocation; new invitations select only `observe` by default.
   - About — platform identity, license, links, gratitude.
 - **Installation flow:** the UI uses the real public `host.installation.create|update|remove` DTOs. Update carries an expected revision plus explicit state action; remove requires keep/delete.
-- **Installation Frame:** `/installation/<id>` displays Installation detail, Library affordances, current Run status, and an OperationalIntent-driven Realization workbench. Run and Realization remain explicit: planning shows actions/preconditions/risks first, every risk must be acknowledged before apply, and opening or closing the page never starts/stops/applies anything.
+- **Installation Frame:** `/installation/<id>` displays Installation detail, Library affordances, current Run status, three-column Rights/Transparency disclosure, Foreign launch binding, opaque-state backup/export, and an OperationalIntent-driven Realization workbench. Run, backup, export, and Realization remain explicit: planning shows actions/preconditions/risks first, every risk must be acknowledged before apply, and opening or closing the page never starts/stops/backs up/exports/applies anything.
 - **Failure Modal:** Deep Rust accent stripe, two-column diagnosis / impact, redacted stderr panel (with Copy log), and Restart / Stop-and-uninstall / Close actions. Data comes from `host.package.list/status/logs`; raw logs are not copied into the UI.
 - **Toast system:** five variants (info/success/warning/error/progress), bottom-right queue; honors `prefers-reduced-motion`.
 - **Responsive and dark mode:** explicit `data-theme` switch (system/light/dark); `@custom-variant dark` binds Tailwind's `dark:` to that attribute; the modal overlay uses a dedicated `--color-overlay` token that does not flip with theme; `prefers-reduced-motion` collapses motion; `:focus-visible` paints a keyboard navigation ring.
@@ -245,7 +248,7 @@ The platform user-facing chrome — Home, Settings, Installation flow, Installat
 
 ## Code organization
 
-- `crates/plurora-cli/src/main.rs` is a thin entry. CLI types live in `cli.rs`, commands under `commands/`, and package templates under `templates/`. The conformance runner and case registry are split: `conformance/runner.rs` owns `--list`, `--case`, `--tag`, `--fail-fast`, and `--slowest`; `conformance/registry/` registers the 453 `ConformanceCase { id, tags, run }` entries by domain.
+- `crates/plurora-cli/src/main.rs` is a thin entry. CLI types live in `cli.rs`, commands under `commands/`, and package templates under `templates/`. The conformance runner and case registry are split: `conformance/runner.rs` owns `--list`, `--case`, `--tag`, `--fail-fast`, and `--slowest`; `conformance/registry/` registers the 475 `ConformanceCase { id, tags, run }` entries by domain.
 - `crates/plurora-cli/src/schema_export/` owns v1 schema export; `src/bin/export-schemas.rs` is a thin entry. Generated files still come from the exporter only — SDKs and schemas are not hand-edited.
 - `crates/plurora-runtime/src/runtime/` splits runtime behavior into session, events, packages, capabilities, hooks, permissions, assets, branches, projections, and proposals. `runtime/protocol_dispatch.rs` is now the public router facade; concrete public-protocol handlers live under `runtime/protocol/` by domain. `runtime/mod.rs` keeps the public `Runtime<S>` API.
 - Protocol metadata and dispatch share a single source of truth (`PlatformMethod`), with a registry / dispatch consistency unit test.
@@ -256,7 +259,7 @@ These splits don't change behavior — they keep the codebase reviewable as more
 
 ## Conformance
 
-`cargo run -p plurora-cli -- conformance` runs 453 named CLI cases. Flags:
+`cargo run -p plurora-cli -- conformance` runs 475 named CLI cases. Flags:
 
 - `--list` — list ids and tags.
 - `--case <pattern>` — substring filter.

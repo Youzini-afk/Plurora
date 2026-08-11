@@ -26,8 +26,12 @@ import type {
   InstallationRollbackPointer as GeneratedInstallationRollbackPointer,
   InstallationSecretPolicy as GeneratedInstallationSecretPolicy,
   InstallationStateAction as GeneratedInstallationStateAction,
+  InstallationStateArtifactGetResponse as GeneratedInstallationStateArtifactGetResponse,
   InstallationUpdateRequest as GeneratedInstallationUpdateRequest,
   InstallationView as GeneratedInstallationView,
+  InstallationWorkSummary as GeneratedInstallationWorkSummary,
+  RightsDeclaration as GeneratedRightsDeclaration,
+  TransparencyDeclaration as GeneratedTransparencyDeclaration,
   StateAction as GeneratedStateAction,
   StateBindingRecord as GeneratedStateBindingRecord,
   WorkId as GeneratedWorkId,
@@ -70,8 +74,12 @@ import type {
   InstallationRollbackPointer,
   InstallationSecretPolicy,
   InstallationStateAction,
+  InstallationStateArtifactGetResponse,
   InstallationUpdateRequest,
   InstallationView,
+  InstallationWorkSummary,
+  RightsDeclaration,
+  TransparencyDeclaration,
   StateAction,
   StateBindingRecord,
   WorkId,
@@ -118,8 +126,12 @@ type WebToGenerated = [
   Assert<Extends<InstallationRollbackPointer, GeneratedInstallationRollbackPointer>>,
   Assert<Extends<InstallationSecretPolicy, GeneratedInstallationSecretPolicy>>,
   Assert<Extends<InstallationStateAction, GeneratedInstallationStateAction>>,
+  Assert<Extends<InstallationStateArtifactGetResponse, GeneratedInstallationStateArtifactGetResponse>>,
   Assert<Extends<InstallationUpdateRequest, GeneratedInstallationUpdateRequest>>,
   Assert<Extends<InstallationView, GeneratedInstallationView>>,
+  Assert<Extends<InstallationWorkSummary, GeneratedInstallationWorkSummary>>,
+  Assert<Extends<RightsDeclaration, GeneratedRightsDeclaration>>,
+  Assert<Extends<TransparencyDeclaration, GeneratedTransparencyDeclaration>>,
   Assert<Extends<StateAction, GeneratedStateAction>>,
   Assert<Extends<StateBindingRecord, GeneratedStateBindingRecord>>,
   Assert<Extends<WorkId, GeneratedWorkId>>,
@@ -163,8 +175,12 @@ type GeneratedToWeb = [
   Assert<Extends<GeneratedInstallationRollbackPointer, InstallationRollbackPointer>>,
   Assert<Extends<GeneratedInstallationSecretPolicy, InstallationSecretPolicy>>,
   Assert<Extends<GeneratedInstallationStateAction, InstallationStateAction>>,
+  Assert<Extends<GeneratedInstallationStateArtifactGetResponse, InstallationStateArtifactGetResponse>>,
   Assert<Extends<GeneratedInstallationUpdateRequest, InstallationUpdateRequest>>,
   Assert<Extends<GeneratedInstallationView, InstallationView>>,
+  Assert<Extends<GeneratedInstallationWorkSummary, InstallationWorkSummary>>,
+  Assert<Extends<GeneratedRightsDeclaration, RightsDeclaration>>,
+  Assert<Extends<GeneratedTransparencyDeclaration, TransparencyDeclaration>>,
   Assert<Extends<GeneratedStateAction, StateAction>>,
   Assert<Extends<GeneratedStateBindingRecord, StateBindingRecord>>,
   Assert<Extends<GeneratedWorkId, WorkId>>,
@@ -190,3 +206,6 @@ export type PublicBindingCandidateHasNoAuthorityHandle = AssertFalse<HasAuthorit
 export type PublicBindingViewHasNoAuthorityHandle = AssertFalse<HasAuthorityHandle<BindingView>>;
 export type PublicBindingRecordHasNoAuthorityHandle = AssertFalse<HasAuthorityHandle<BindingView["record"]>>;
 export type PublicActiveBindingRecordHasNoAuthorityHandle = AssertFalse<HasAuthorityHandle<ActiveBindingRecord>>;
+export type BackupIsGeneratedInstallationStateAction = Assert<
+  Extends<{ kind: "backup" }, InstallationStateAction>
+>;

@@ -15,11 +15,13 @@ use super::{ArtifactCommitRequest, Runtime, StoredAsset, GENERIC_BLOB_ARTIFACT_T
 use crate::{
     redaction, sha256_digest, EventStore, InstallationStateAuthorityEvidence,
     InstallationStateDecision, InstallationStateDecisionAction, InstallationStateDecisionReceipt,
-    INSTALLATION_STATE_AUTHORITY_EVIDENCE_MEDIA_TYPE, INSTALLATION_STATE_AUTHORITY_EVIDENCE_SCHEMA,
-    INSTALLATION_STATE_AUTHORITY_EVIDENCE_TYPE_URI, INSTALLATION_STATE_OPERATION,
-    INSTALLATION_STATE_RECEIPT_MEDIA_TYPE, INSTALLATION_STATE_REPLACEMENT_DECISION_RECEIPT_SCHEMA,
+    InstallationStateSnapshot, RightsPolicyError, INSTALLATION_STATE_AUTHORITY_EVIDENCE_MEDIA_TYPE,
+    INSTALLATION_STATE_AUTHORITY_EVIDENCE_SCHEMA, INSTALLATION_STATE_AUTHORITY_EVIDENCE_TYPE_URI,
+    INSTALLATION_STATE_OPERATION, INSTALLATION_STATE_RECEIPT_MEDIA_TYPE,
+    INSTALLATION_STATE_REPLACEMENT_DECISION_RECEIPT_SCHEMA,
     INSTALLATION_STATE_REPLACEMENT_DECISION_RECEIPT_TYPE_URI,
     INSTALLATION_STATE_RESET_RECEIPT_SCHEMA, INSTALLATION_STATE_RESET_RECEIPT_TYPE_URI,
+    INSTALLATION_STATE_SNAPSHOT_MEDIA_TYPE, INSTALLATION_STATE_SNAPSHOT_TYPE_URI,
 };
 
 // ---------------------------------------------------------------------------
@@ -155,10 +157,12 @@ pub struct AssetGetParams {
     pub asset_id: String,
 }
 
-/// Audit-only selector for a journal-issued Installation state artifact.
+/// Exact selector for a journal-issued Installation state artifact. Snapshot
+/// content is additionally gated by the current Work's export-state Right.
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct InstallationStateArtifactGetParams {
+    pub installation_id: InstallationId,
     pub installation_state_artifact: ArtifactDescriptor,
 }
 
@@ -200,7 +204,7 @@ pub struct AssetGetResponse {
     pub content: String,
 }
 
-/// Audit-only result for a journal-issued Installation state artifact.
+/// Result for a journal-issued Installation state artifact.
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct InstallationStateArtifactGetResponse {
@@ -406,9 +410,10 @@ where
                 .await
                 .map(ObjectGetResponse::Asset),
             ObjectGetRequest::InstallationStateArtifact(InstallationStateArtifactGetParams {
+                installation_id,
                 installation_state_artifact,
             }) => self
-                .get_installation_state_artifact(&installation_state_artifact)
+                .get_installation_state_artifact(&installation_id, &installation_state_artifact)
                 .await
                 .map(ObjectGetResponse::InstallationStateArtifact),
         }
@@ -416,6 +421,7 @@ where
 
     async fn get_installation_state_artifact(
         &self,
+        installation_id: &InstallationId,
         descriptor: &ArtifactDescriptor,
     ) -> anyhow::Result<InstallationStateArtifactGetResponse> {
         validate_state_artifact_descriptor(descriptor)?;
@@ -436,16 +442,20 @@ where
             canonical.as_slice() == bytes.as_ref(),
             "state artifact is not canonical JSON"
         );
-        let installation_id = validate_state_artifact_payload(descriptor, &value)?;
-        self.config
+        validate_state_artifact_payload(installation_id, descriptor, &value)?;
+        if let Err(error) = self
+            .config
             .installation_control
-            .validate_issued_state_artifact(&installation_id, descriptor)
+            .validate_issued_state_artifact(installation_id, descriptor)
             .await
-            .map_err(|_| {
-                anyhow::anyhow!(
-                    "state artifact is not issued by the authoritative Installation journal"
-                )
-            })?;
+        {
+            if error.downcast_ref::<RightsPolicyError>().is_some() {
+                return Err(error);
+            }
+            return Err(anyhow::anyhow!(
+                "state artifact is not issued by the authoritative Installation journal"
+            ));
+        }
         Ok(InstallationStateArtifactGetResponse {
             descriptor: descriptor.clone(),
             content: text,
@@ -568,6 +578,7 @@ where
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum StateArtifactKind {
+    Snapshot,
     DecisionReceipt,
     AuthorityEvidence,
 }
@@ -582,6 +593,7 @@ fn validate_state_artifact_descriptor(
         "state artifact descriptor media type is not application/json"
     );
     match descriptor.artifact_type_uri.as_str() {
+        INSTALLATION_STATE_SNAPSHOT_TYPE_URI => Ok(StateArtifactKind::Snapshot),
         INSTALLATION_STATE_RESET_RECEIPT_TYPE_URI
         | INSTALLATION_STATE_REPLACEMENT_DECISION_RECEIPT_TYPE_URI => {
             Ok(StateArtifactKind::DecisionReceipt)
@@ -595,10 +607,24 @@ fn validate_state_artifact_descriptor(
 }
 
 fn validate_state_artifact_payload(
+    expected_installation_id: &InstallationId,
     descriptor: &ArtifactDescriptor,
     value: &Value,
-) -> anyhow::Result<InstallationId> {
+) -> anyhow::Result<()> {
     let installation_id = match validate_state_artifact_descriptor(descriptor)? {
+        StateArtifactKind::Snapshot => {
+            let snapshot: InstallationStateSnapshot = serde_json::from_value(value.clone())
+                .map_err(|_| anyhow::anyhow!("state snapshot payload is invalid"))?;
+            snapshot
+                .validate()
+                .map_err(|_| anyhow::anyhow!("state snapshot payload is invalid"))?;
+            anyhow::ensure!(
+                descriptor.media_type == INSTALLATION_STATE_SNAPSHOT_MEDIA_TYPE
+                    && descriptor.references.is_empty(),
+                "state snapshot descriptor does not match its payload"
+            );
+            None
+        }
         StateArtifactKind::AuthorityEvidence => {
             let evidence: InstallationStateAuthorityEvidence =
                 serde_json::from_value(value.clone())
@@ -615,7 +641,7 @@ fn validate_state_artifact_payload(
                 descriptor.references.is_empty(),
                 "authority evidence descriptor references do not match its payload"
             );
-            evidence.installation_id
+            Some(evidence.installation_id)
         }
         StateArtifactKind::DecisionReceipt => {
             let receipt: InstallationStateDecisionReceipt =
@@ -699,10 +725,16 @@ fn validate_state_artifact_payload(
                     "replace state decision receipt has no replacement snapshot"
                 ),
             }
-            receipt.installation_id
+            Some(receipt.installation_id)
         }
     };
-    Ok(installation_id)
+    if let Some(installation_id) = installation_id {
+        anyhow::ensure!(
+            &installation_id == expected_installation_id,
+            "state artifact Installation does not match its exact selector"
+        );
+    }
+    Ok(())
 }
 
 fn decode_content(content: &str, encoding: AssetContentEncoding) -> anyhow::Result<Vec<u8>> {
@@ -774,7 +806,10 @@ mod tests {
     use std::sync::Arc;
 
     use super::*;
-    use crate::{InMemoryEventStore, InMemoryObjectStore, ObjectStore, RuntimeConfig};
+    use crate::{
+        InMemoryEventStore, InMemoryObjectStore, ObjectStore, ProtocolContext,
+        ProtocolResourceSelector, RuntimeConfig,
+    };
     use plurora_work::InstallationId;
 
     fn descriptor(bytes: &[u8]) -> ArtifactDescriptor {
@@ -962,6 +997,55 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn state_artifact_selector_requires_exact_installation_authority() {
+        let runtime = Runtime::new(
+            Arc::new(InMemoryEventStore::default()),
+            RuntimeConfig::default(),
+        );
+        let installation_id = InstallationId::new();
+        let descriptor = InstallationStateSnapshot::empty()
+            .artifact_descriptor()
+            .unwrap();
+        let exact = ProtocolContext::host_device(
+            "state-reader",
+            vec!["observe".to_string()],
+            vec![ProtocolResourceSelector {
+                owner: "host".to_string(),
+                kind: "installation".to_string(),
+                id: Some(installation_id.to_string()),
+            }],
+            Vec::new(),
+            "test",
+        );
+        let params = json!({
+            "installation_id": installation_id,
+            "installation_state_artifact": descriptor,
+        });
+        let exact_error = runtime
+            .call_protocol(&exact, "object.get", params.clone())
+            .await
+            .expect_err("missing issued snapshot must fail after authority");
+        assert!(!exact_error.message.contains("permission denied"));
+
+        let wrong = ProtocolContext::host_device(
+            "state-reader-wrong-installation",
+            vec!["observe".to_string()],
+            vec![ProtocolResourceSelector {
+                owner: "host".to_string(),
+                kind: "installation".to_string(),
+                id: Some(InstallationId::new().to_string()),
+            }],
+            Vec::new(),
+            "test",
+        );
+        let denied = runtime
+            .call_protocol(&wrong, "object.get", params)
+            .await
+            .expect_err("different Installation authority must fail first");
+        assert!(denied.message.contains("exact Installation authority"));
+    }
+
+    #[tokio::test]
     async fn object_get_rejects_structurally_valid_state_artifacts_not_issued_by_host() {
         let objects = Arc::new(InMemoryObjectStore::default());
         let runtime = Runtime::new(
@@ -987,7 +1071,7 @@ mod tests {
         objects.put(evidence_bytes.into()).await.unwrap();
         let receipt_payload = InstallationStateDecisionReceipt {
             schema: INSTALLATION_STATE_RESET_RECEIPT_SCHEMA.to_string(),
-            installation_id,
+            installation_id: installation_id.clone(),
             expected_revision: 7,
             candidate_work_digest: format!("sha256:{}", "a".repeat(64)),
             candidate_lock_digest: format!("sha256:{}", "b".repeat(64)),
@@ -1008,6 +1092,7 @@ mod tests {
             let error = runtime
                 .get_object(ObjectGetRequest::InstallationStateArtifact(
                     InstallationStateArtifactGetParams {
+                        installation_id: installation_id.clone(),
                         installation_state_artifact: descriptor,
                     },
                 ))
@@ -1029,10 +1114,11 @@ mod tests {
                 ..RuntimeConfig::default()
             },
         );
+        let installation_id = InstallationId::new();
         let evidence_payload = InstallationStateAuthorityEvidence {
             schema: INSTALLATION_STATE_AUTHORITY_EVIDENCE_SCHEMA.to_string(),
             action: "installation.manage".to_string(),
-            installation_id: InstallationId::new(),
+            installation_id: installation_id.clone(),
             grant_id: None,
             expires_at_ms: None,
         };
@@ -1048,6 +1134,7 @@ mod tests {
         assert!(runtime
             .get_object(ObjectGetRequest::InstallationStateArtifact(
                 InstallationStateArtifactGetParams {
+                    installation_id: installation_id.clone(),
                     installation_state_artifact: snapshot_descriptor,
                 },
             ))
@@ -1058,6 +1145,7 @@ mod tests {
         assert!(runtime
             .get_object(ObjectGetRequest::InstallationStateArtifact(
                 InstallationStateArtifactGetParams {
+                    installation_id: installation_id.clone(),
                     installation_state_artifact: generic_descriptor,
                 },
             ))
@@ -1068,6 +1156,7 @@ mod tests {
         assert!(runtime
             .get_object(ObjectGetRequest::InstallationStateArtifact(
                 InstallationStateArtifactGetParams {
+                    installation_id: installation_id.clone(),
                     installation_state_artifact: wrong_size,
                 },
             ))
@@ -1078,6 +1167,7 @@ mod tests {
         assert!(runtime
             .get_object(ObjectGetRequest::InstallationStateArtifact(
                 InstallationStateArtifactGetParams {
+                    installation_id,
                     installation_state_artifact: wrong_digest,
                 },
             ))

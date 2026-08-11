@@ -1572,6 +1572,8 @@ export interface InstallationSecretPolicy {
 }
 
 export type InstallationStateAction = {
+  "kind": "backup";
+} | {
   "kind": "preserve";
 } | {
   "kind": "replace";
@@ -1581,14 +1583,15 @@ export type InstallationStateAction = {
 };
 
 /**
- * Audit-only selector for a journal-issued Installation state artifact.
+ * Exact selector for a journal-issued Installation state artifact. Snapshot content is additionally gated by the current Work's export-state Right.
  */
 export interface InstallationStateArtifactGetParams {
+  "installation_id": InstallationId;
   "installation_state_artifact": ArtifactDescriptor;
 }
 
 /**
- * Audit-only result for a journal-issued Installation state artifact.
+ * Result for a journal-issued Installation state artifact.
  */
 export interface InstallationStateArtifactGetResponse {
   "content": string;
@@ -1696,8 +1699,16 @@ export interface InstallationWorkSummary {
   "entrypoints": Array<WorkEntrypoint>;
   "operational_intent"?: ArtifactDescriptor | null;
   "rights"?: ArtifactDescriptor | null;
+  /**
+   * Parsed declaration from the exact `rights` descriptor. Descriptive only; the Host still evaluates policy from verified artifact bytes at effect time.
+   */
+  "rights_declaration"?: RightsDeclaration | null;
   "title": string;
   "transparency"?: ArtifactDescriptor | null;
+  /**
+   * Parsed declaration from the exact `transparency` descriptor. This keeps Library disclosure on the public Installation API without exposing a raw ObjectStore read primitive.
+   */
+  "transparency_declaration"?: TransparencyDeclaration | null;
   "work_id": WorkId;
 }
 

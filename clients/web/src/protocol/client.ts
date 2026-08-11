@@ -18,6 +18,7 @@ import type {
   InstallationCreateRequest,
   InstallationMutationResult,
   InstallationRemoveRequest,
+  InstallationStateArtifactGetResponse,
   InstallationStatus,
   InstallationUpdateRequest,
   InstallationView,
@@ -469,6 +470,7 @@ export type {
   BindingView,
   BindingWorkDisclosure,
   CapabilityPin,
+  ClaimStatus,
   ComponentPin,
   ComponentBoundaryClaims,
   ComponentClaimStatus,
@@ -512,6 +514,8 @@ export type {
   InstallationRollbackPointer,
   InstallationSecretPolicy,
   InstallationStateAction,
+  InstallationStateArtifactGetParams,
+  InstallationStateArtifactGetResponse,
   InstallationStateAuthorityEvidence,
   InstallationStateDecision,
   InstallationStateDecisionAction,
@@ -530,6 +534,8 @@ export type {
   PortRole,
   ResolvedPortPin,
   ResourceSelector,
+  RightDisposition,
+  RightsDeclaration,
   RealizationApplyRequest,
   RealizationApproval,
   RealizationBackendSelection,
@@ -571,8 +577,11 @@ export type {
   StateBindingKind,
   StateBindingRecord,
   StateDisposition,
+  StatePortability,
   StateSlotId,
+  SourceVisibility,
   TransportRequirements,
+  TransparencyDeclaration,
   WorkId,
   WorkEntrypoint,
   WorkEntrypointTarget,
@@ -861,6 +870,16 @@ export class PluroraProtocolClient {
 
   updateInstallation(input: InstallationUpdateRequest): Promise<InstallationMutationResult> {
     return this.invoke<InstallationMutationResult>("host.installation.update", input);
+  }
+
+  getInstallationStateArtifact(
+    installationId: string,
+    descriptor: ArtifactDescriptor,
+  ): Promise<InstallationStateArtifactGetResponse> {
+    return this.invoke<InstallationStateArtifactGetResponse>("object.get", {
+      installation_id: installationId,
+      installation_state_artifact: descriptor,
+    });
   }
 
   removeInstallation(input: InstallationRemoveRequest): Promise<InstallationMutationResult> {

@@ -13,11 +13,12 @@ use plurora_runtime::{
     Runtime, RuntimeConfig,
 };
 use plurora_work::{
-    AcquisitionKind, AcquisitionRecord, AssemblyLock, InstallationId, InstallationRecord,
-    InstallationSecretPolicy, InstallationStatus, NodeId, NodeLock, OperationalIntent,
-    ReplicaPolicy, ResourceRequirements, RestartPolicy, WorkId, WorkRevision, WorkloadImports,
-    WorkloadIntent, ASSEMBLY_LOCK_TYPE_URI, ASSEMBLY_REVISION_TYPE_URI,
-    OPERATIONAL_INTENT_TYPE_URI, WORK_REVISION_TYPE_URI,
+    AcquisitionKind, AcquisitionRecord, ArtifactModel, AssemblyLock, InstallationId,
+    InstallationRecord, InstallationSecretPolicy, InstallationStatus, NodeId, NodeLock,
+    OperationalIntent, ReplicaPolicy, ResourceRequirements, RestartPolicy, RightDisposition,
+    RightsDeclaration, WorkId, WorkRevision, WorkloadImports, WorkloadIntent,
+    ASSEMBLY_LOCK_TYPE_URI, ASSEMBLY_REVISION_TYPE_URI, OPERATIONAL_INTENT_TYPE_URI,
+    WORK_REVISION_TYPE_URI,
 };
 
 use super::*;
@@ -317,6 +318,42 @@ async fn fixture() -> anyhow::Result<Fixture> {
     })
 }
 
+fn rights(
+    copy_across_hosts: RightDisposition,
+    dedicated_server: RightDisposition,
+) -> RightsDeclaration {
+    RightsDeclaration {
+        license_expression: Some("LicenseRef-realization-test".to_string()),
+        terms_uri: None,
+        install: RightDisposition::Allowed,
+        execute: RightDisposition::Allowed,
+        backup: RightDisposition::Allowed,
+        export_state: RightDisposition::Denied,
+        copy_across_hosts,
+        redistribute_artifacts: RightDisposition::Denied,
+        modify: RightDisposition::Denied,
+        derive: RightDisposition::Denied,
+        modding: RightDisposition::Denied,
+        dedicated_server,
+        entitlement_requirements: Vec::new(),
+        evidence_refs: Vec::new(),
+    }
+}
+
+async fn install_rights(fixture: &Fixture, declaration: &RightsDeclaration) -> anyhow::Result<()> {
+    let descriptor = declaration.artifact_descriptor()?;
+    fixture
+        .runtime
+        .object_store()
+        .put(declaration.canonical_bytes()?.into())
+        .await?;
+    let mut artifacts = fixture.installations.artifacts.write().await;
+    artifacts.work.rights = Some(descriptor);
+    artifacts.installation.work_summary =
+        InstallationWorkSummary::from_work_revision(&artifacts.work);
+    Ok(())
+}
+
 #[tokio::test]
 async fn plan_is_effect_free_idempotent_and_publicly_relayed() -> anyhow::Result<()> {
     let fixture = fixture().await?;
@@ -364,6 +401,110 @@ async fn plan_is_effect_free_idempotent_and_publicly_relayed() -> anyhow::Result
             .len(),
         1
     );
+    Ok(())
+}
+
+#[tokio::test]
+async fn remote_copy_requires_explicit_rights_without_persisting_a_plan() -> anyhow::Result<()> {
+    let fixture = fixture().await?;
+    let mut target = fixture
+        .runtime
+        .config()
+        .target_registry
+        .status("local")
+        .await
+        .expect("local target");
+    target.reachability = ExecutionTargetReachability::Direct;
+    target.last_seen_at_ms = Some(Utc::now().timestamp_millis());
+    target.heartbeat_expires_at_ms = Some(Utc::now().timestamp_millis() + 60_000);
+    fixture
+        .runtime
+        .config()
+        .target_registry
+        .replace_control_plane_projection(target)
+        .await;
+
+    for (disposition, expected, key) in [
+        (RightDisposition::Denied, "rights_denied", "copy-denied"),
+        (
+            RightDisposition::Unspecified,
+            "rights_unspecified",
+            "copy-unspecified",
+        ),
+    ] {
+        install_rights(&fixture, &rights(disposition, RightDisposition::Allowed)).await?;
+        let result: RealizationPlanResult = serde_json::from_value(
+            fixture
+                .runtime
+                .call_protocol(
+                    &ProtocolContext::host_dev("rights-test"),
+                    "host.realization.plan",
+                    serde_json::to_value(plan_request(&fixture.installation_id, key))?,
+                )
+                .await
+                .map_err(protocol_error)?,
+        )?;
+        assert!(result.realization.is_none());
+        assert_eq!(result.gaps[0].reason_code, expected);
+    }
+    assert!(fixture.control.list_all().await?.is_empty());
+    assert_eq!(fixture.driver.applies.load(Ordering::SeqCst), 0);
+    Ok(())
+}
+
+#[tokio::test]
+async fn dedicated_server_intent_requires_the_declared_right() -> anyhow::Result<()> {
+    let fixture = fixture().await?;
+    install_rights(
+        &fixture,
+        &rights(RightDisposition::Allowed, RightDisposition::Denied),
+    )
+    .await?;
+    let current_ref = fixture
+        .installations
+        .artifacts
+        .read()
+        .await
+        .work
+        .operational_intent
+        .clone()
+        .expect("intent ref");
+    let bytes = fixture
+        .runtime
+        .object_store()
+        .get(&current_ref.digest)
+        .await?;
+    let mut intent: OperationalIntent = serde_json::from_slice(&bytes)?;
+    intent.annotations.insert(
+        "plurora.intent/dedicated_server".to_string(),
+        serde_json::Value::Bool(true),
+    );
+    let descriptor = intent.artifact_descriptor()?;
+    fixture
+        .runtime
+        .object_store()
+        .put(intent.canonical_bytes()?.into())
+        .await?;
+    {
+        let mut artifacts = fixture.installations.artifacts.write().await;
+        artifacts.work.operational_intent = Some(descriptor);
+        artifacts.installation.work_summary =
+            InstallationWorkSummary::from_work_revision(&artifacts.work);
+    }
+    let result: RealizationPlanResult = serde_json::from_value(
+        fixture
+            .runtime
+            .call_protocol(
+                &ProtocolContext::host_dev("rights-test"),
+                "host.realization.plan",
+                serde_json::to_value(plan_request(&fixture.installation_id, "dedicated-rights"))?,
+            )
+            .await
+            .map_err(protocol_error)?,
+    )?;
+    assert!(result.realization.is_none());
+    assert_eq!(result.gaps[0].reason_code, "rights_denied");
+    assert!(fixture.control.list_all().await?.is_empty());
     Ok(())
 }
 

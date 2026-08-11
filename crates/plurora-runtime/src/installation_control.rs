@@ -12,8 +12,9 @@ use plurora_work::{
     validate_artifact_descriptor, validate_descriptor_type, validate_portable_model,
     AcquisitionRecord, AssemblyBinding, AssemblyLock, AssemblyNode, AssemblyPortExposure,
     AssemblyRevision, BindingLock, InstallationId, InstallationRecord, InstallationSecretPolicy,
-    InstallationStatus, NodeLock, StateBindingRecord, StateSlotDescriptor, StateSlotId,
-    WorkEntrypoint, WorkId, WorkRevision, ASSEMBLY_LOCK_TYPE_URI, WORK_REVISION_TYPE_URI,
+    InstallationStatus, NodeLock, RightsDeclaration, StateBindingRecord, StateSlotDescriptor,
+    StateSlotId, TransparencyDeclaration, WorkEntrypoint, WorkId, WorkRevision,
+    ASSEMBLY_LOCK_TYPE_URI, WORK_REVISION_TYPE_URI,
 };
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -229,6 +230,15 @@ pub struct InstallationWorkSummary {
     pub entrypoints: Vec<WorkEntrypoint>,
     pub rights: Option<ArtifactDescriptor>,
     pub transparency: Option<ArtifactDescriptor>,
+    /// Parsed declaration from the exact `rights` descriptor. Descriptive only;
+    /// the Host still evaluates policy from verified artifact bytes at effect time.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub rights_declaration: Option<RightsDeclaration>,
+    /// Parsed declaration from the exact `transparency` descriptor. This keeps
+    /// Library disclosure on the public Installation API without exposing a raw
+    /// ObjectStore read primitive.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub transparency_declaration: Option<TransparencyDeclaration>,
     pub operational_intent: Option<ArtifactDescriptor>,
     pub annotations: BTreeMap<String, serde_json::Value>,
 }
@@ -243,9 +253,21 @@ impl InstallationWorkSummary {
             entrypoints: work.entrypoints.clone(),
             rights: work.rights.clone(),
             transparency: work.transparency.clone(),
+            rights_declaration: None,
+            transparency_declaration: None,
             operational_intent: work.operational_intent.clone(),
             annotations: work.annotations.clone(),
         }
+    }
+
+    pub fn with_verified_declarations(
+        mut self,
+        rights: Option<RightsDeclaration>,
+        transparency: Option<TransparencyDeclaration>,
+    ) -> Self {
+        self.rights_declaration = rights;
+        self.transparency_declaration = transparency;
+        self
     }
 }
 
@@ -468,6 +490,11 @@ impl InstallationUpdateRequest {
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
 pub enum InstallationStateAction {
     Preserve,
+    /// Capture the current opaque state as a content-addressed snapshot without
+    /// replacing or clearing it. The snapshot descriptor is returned in
+    /// `InstallationMutationResult.receipts` and can later be supplied to
+    /// `Replace`.
+    Backup,
     Replace {
         replacement_snapshot: ArtifactDescriptor,
     },
@@ -775,7 +802,9 @@ fn validate_secret_policy(secret_policy: &InstallationSecretPolicy) -> anyhow::R
 
 fn validate_state_action(state_action: &InstallationStateAction) -> anyhow::Result<()> {
     match state_action {
-        InstallationStateAction::Preserve | InstallationStateAction::Reset => {}
+        InstallationStateAction::Preserve
+        | InstallationStateAction::Backup
+        | InstallationStateAction::Reset => {}
         InstallationStateAction::Replace {
             replacement_snapshot,
         } => {
@@ -841,8 +870,9 @@ pub trait InstallationControl: Send + Sync + 'static {
     ) -> anyhow::Result<InstallationMutationResult>;
 
     /// Confirm that an exact state receipt/evidence descriptor was issued by the
-    /// authoritative journal for this Installation. Structure and CAS presence
-    /// alone are insufficient. The default fails closed.
+    /// authoritative journal for this Installation and may be exported under the
+    /// current Work Rights declaration. Structure and CAS presence alone are
+    /// insufficient. The default fails closed.
     async fn validate_issued_state_artifact(
         &self,
         _installation_id: &InstallationId,
@@ -983,6 +1013,8 @@ mod tests {
     fn state_action_has_an_explicit_tag() {
         let value = serde_json::to_value(InstallationStateAction::Preserve).unwrap();
         assert_eq!(value, serde_json::json!({"kind": "preserve"}));
+        let backup = serde_json::to_value(InstallationStateAction::Backup).unwrap();
+        assert_eq!(backup, serde_json::json!({"kind": "backup"}));
     }
 
     #[test]

@@ -284,18 +284,19 @@ mod host_resource_authority_tests {
     use std::sync::Arc;
 
     use crate::{
-        InMemoryEventStore, InstallationAuthorityRefresh, InstallationAuthoritySubject,
-        InstallationAuthorityValidator, InstallationControl, InstallationCreateRequest,
-        InstallationListRequest, InstallationMutationResult, InstallationRemoveRequest,
-        InstallationUpdateRequest, InstallationView, InstallationWorkSummary, OpenSessionRequest,
-        ProtocolContext, ProtocolResourceSelector, Runtime, RuntimeConfig,
+        InMemoryEventStore, InMemoryObjectStore, InstallationAuthorityRefresh,
+        InstallationAuthoritySubject, InstallationAuthorityValidator, InstallationControl,
+        InstallationCreateRequest, InstallationListRequest, InstallationMutationResult,
+        InstallationRemoveRequest, InstallationUpdateRequest, InstallationView,
+        InstallationWorkSummary, ObjectStore, OpenSessionRequest, ProtocolContext,
+        ProtocolResourceSelector, Runtime, RuntimeConfig,
     };
     use async_trait::async_trait;
     use plurora_core::ArtifactDescriptor;
     use plurora_work::{
-        AcquisitionKind, AcquisitionRecord, InstallationId, InstallationRecord,
-        InstallationSecretPolicy, InstallationStatus, WorkId, ASSEMBLY_LOCK_TYPE_URI,
-        WORK_REVISION_TYPE_URI,
+        AcquisitionKind, AcquisitionRecord, ArtifactModel, InstallationId, InstallationRecord,
+        InstallationSecretPolicy, InstallationStatus, RightDisposition, RightsDeclaration, WorkId,
+        WorkRevision, ASSEMBLY_LOCK_TYPE_URI, ASSEMBLY_REVISION_TYPE_URI, WORK_REVISION_TYPE_URI,
     };
 
     #[derive(Clone)]
@@ -417,6 +418,8 @@ mod host_resource_authority_tests {
             entrypoints: Vec::new(),
             rights: None,
             transparency: None,
+            rights_declaration: None,
+            transparency_declaration: None,
             operational_intent: None,
             annotations: Default::default(),
         }
@@ -554,15 +557,34 @@ mod host_resource_authority_tests {
         let control = Arc::new(FakeInstallationControl {
             installations: Vec::new(),
         });
+        let object_store = Arc::new(InMemoryObjectStore::new());
+        let work_id = WorkId::parse("tests/installation-create").unwrap();
+        let work_model = WorkRevision {
+            schema: WorkRevision::SCHEMA.to_string(),
+            work_id: work_id.clone(),
+            title: "Example".to_string(),
+            description: String::new(),
+            assembly: artifact(ASSEMBLY_REVISION_TYPE_URI, 'e'),
+            content_roots: Vec::new(),
+            entrypoints: Vec::new(),
+            rights: None,
+            transparency: None,
+            operational_intent: None,
+            annotations: Default::default(),
+        };
+        let work = work_model.artifact_descriptor().unwrap();
+        object_store
+            .put(work_model.canonical_bytes().unwrap().into())
+            .await
+            .unwrap();
         let runtime = Runtime::new(
             Arc::new(InMemoryEventStore::default()),
             RuntimeConfig {
                 installation_control: control,
+                object_store,
                 ..RuntimeConfig::default()
             },
         );
-        let work = artifact(WORK_REVISION_TYPE_URI, 'c');
-        let work_id = WorkId::parse("tests/installation-create").unwrap();
         let params = serde_json::json!({
             "work_id": work_id,
             "work_revision": work,
@@ -681,6 +703,78 @@ mod host_resource_authority_tests {
                 .expect_err("a different exact installation must be denied");
             assert!(error.message.contains("exact installation"));
         }
+    }
+
+    #[tokio::test]
+    async fn installation_backup_denied_by_rights_never_reaches_state_control() {
+        let objects = Arc::new(InMemoryObjectStore::new());
+        let rights = RightsDeclaration {
+            license_expression: Some("LicenseRef-no-backup".to_string()),
+            terms_uri: None,
+            install: RightDisposition::Allowed,
+            execute: RightDisposition::Allowed,
+            backup: RightDisposition::Denied,
+            export_state: RightDisposition::Denied,
+            copy_across_hosts: RightDisposition::Denied,
+            redistribute_artifacts: RightDisposition::Denied,
+            modify: RightDisposition::Denied,
+            derive: RightDisposition::Denied,
+            modding: RightDisposition::Denied,
+            dedicated_server: RightDisposition::Denied,
+            entitlement_requirements: Vec::new(),
+            evidence_refs: Vec::new(),
+        };
+        let rights_ref = rights.artifact_descriptor().unwrap();
+        objects
+            .put(rights.canonical_bytes().unwrap().into())
+            .await
+            .unwrap();
+        let work = WorkRevision {
+            schema: WorkRevision::SCHEMA.to_string(),
+            work_id: WorkId::parse("tests/no-backup").unwrap(),
+            title: "No backup".to_string(),
+            description: String::new(),
+            assembly: artifact(ASSEMBLY_REVISION_TYPE_URI, 'f'),
+            content_roots: Vec::new(),
+            entrypoints: Vec::new(),
+            rights: Some(rights_ref),
+            transparency: None,
+            operational_intent: None,
+            annotations: Default::default(),
+        };
+        let work_ref = work.artifact_descriptor().unwrap();
+        objects
+            .put(work.canonical_bytes().unwrap().into())
+            .await
+            .unwrap();
+        let installation_id = InstallationId::new();
+        let runtime = Runtime::new(
+            Arc::new(InMemoryEventStore::default()),
+            RuntimeConfig {
+                object_store: objects,
+                installation_control: Arc::new(FakeInstallationControl {
+                    installations: vec![installation(installation_id.clone(), "No backup", 'f')],
+                }),
+                ..RuntimeConfig::default()
+            },
+        );
+        let error = runtime
+            .call_protocol(
+                &ProtocolContext::host_dev("rights-test"),
+                "host.installation.update",
+                serde_json::json!({
+                    "installation_id": installation_id,
+                    "expected_revision": 1,
+                    "work_revision": work_ref,
+                    "assembly_lock": artifact(ASSEMBLY_LOCK_TYPE_URI, 'f'),
+                    "state_action": {"kind": "backup"},
+                    "idempotency_key": "backup-denied"
+                }),
+            )
+            .await
+            .expect_err("Denied backup Rights must fail before state control");
+        assert_eq!(error.code, "runtime/error/rights_denied");
+        assert!(!error.message.contains("No backup"));
     }
 
     #[tokio::test]

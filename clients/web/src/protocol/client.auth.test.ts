@@ -32,6 +32,8 @@ globalThis.fetch = async (input, init) => {
       return Response.json({ result: { installation: { record: installationRecord(), revision: 1 }, idempotent: false, receipts: [] } });
     case "host.installation.update":
       return Response.json({ result: { installation: { record: installationRecord(), revision: 2 }, idempotent: false, receipts: [] } });
+    case "object.get":
+      return Response.json({ result: { descriptor: body.params?.installation_state_artifact, content: "7b7d", content_encoding: "hex" } });
     case "host.binding.candidates":
       if (body.params?.import_port === "error-port") {
         return Response.json({ error: { code: "binding_unavailable", message: "raw /private/path token=secret stderr", details: { reason_code: "binding_unavailable", next_step: "Retry candidate discovery.", installation_id: "installation-1", port_id: "error-port", stderr: "raw" } } });
@@ -69,6 +71,8 @@ await client.updateInstallation({
     replacement_snapshot: { artifact_type_uri: "urn:plurora:installation-state-snapshot:v1", media_type: "application/json", digest: "sha256:" + "c".repeat(64), size_bytes: 42 },
   },
 });
+const stateSnapshot = { artifact_type_uri: "urn:plurora:installation-state-snapshot:v1", media_type: "application/json", digest: "sha256:" + "c".repeat(64), size_bytes: 42 };
+await client.getInstallationStateArtifact("installation-1", stateSnapshot);
 
 await client.listExposures({ installation_id: "installation-provider", run_id: "run-provider", status: "active" });
 await client.createExposure({
@@ -138,7 +142,7 @@ await client.rollbackRealization({ installation_id: "installation-1", target_id:
 await client.reconcileRealization({ installation_id: "installation-1", target_id: "local", realization_id: realizationId, expected_revision: 4, idempotency_key: "realization-reconcile-1" });
 
 const expectedMethods = [
-  "host.installation.list", "host.installation.get", "host.installation.create", "host.installation.update",
+  "host.installation.list", "host.installation.get", "host.installation.create", "host.installation.update", "object.get",
   "host.exposure.list", "host.exposure.create", "host.exposure.revoke",
   "host.binding.list", "host.binding.candidates", "host.binding.select", "host.binding.revoke",
   "host.realization.list", "host.realization.get", "host.realization.plan", "host.realization.apply", "host.realization.stop", "host.realization.rollback", "host.realization.reconcile",
@@ -151,6 +155,10 @@ const updateRequest = requests.find((request) => request.method === "host.instal
 const stateAction = updateRequest?.params.state_action as InstallationStateAction | undefined;
 if (stateAction?.kind !== "replace" || !stateAction.replacement_snapshot) throw new Error("state update must carry the replacement snapshot descriptor");
 if (Object.keys(stateAction ?? {}).sort().join(",") !== "kind,replacement_snapshot") throw new Error("state update must contain only the public action fields");
+const stateArtifactRequest = requests.find((request) => request.method === "object.get")?.params;
+if (JSON.stringify(stateArtifactRequest) !== JSON.stringify({ installation_id: "installation-1", installation_state_artifact: stateSnapshot })) {
+  throw new Error("state artifact download must use the exact journal-issued descriptor selector");
+}
 
 const expectedBodies: Record<string, Record<string, unknown>> = {
   "host.exposure.list": { installation_id: "installation-provider", run_id: "run-provider", status: "active" },

@@ -14,10 +14,11 @@ use plurora_core::{
     EVENT_REALIZATION_ROLLED_BACK, EVENT_REALIZATION_STOPPED, PLATFORM_RUNTIME_ID,
 };
 use plurora_runtime::{
-    is_managed_target_deployment_outcome_unknown, EventStore, ExecutionTarget,
-    ExecutionTargetRegistry, ExecutionTargetStatusKind, InstallationControl, ObjectStore,
-    RealizationApplyRequest, RealizationAuthoritySubject, RealizationBackendSelection,
-    RealizationControl, RealizationEffectReceipt, RealizationGetRequest, RealizationListRequest,
+    is_managed_target_deployment_outcome_unknown, load_rights_declaration, rights_policy_outcome,
+    EventStore, ExecutionTarget, ExecutionTargetReachability, ExecutionTargetRegistry,
+    ExecutionTargetStatusKind, InstallationControl, ObjectStore, RealizationApplyRequest,
+    RealizationAuthoritySubject, RealizationBackendSelection, RealizationControl,
+    RealizationEffectReceipt, RealizationGetRequest, RealizationListRequest,
     RealizationMutationAuthority, RealizationMutationResult, RealizationPlanRequest,
     RealizationPlanResult, RealizationReconcileRequest, RealizationRollbackRequest,
     RealizationStopRequest, RunInstallationArtifacts,
@@ -26,7 +27,7 @@ use plurora_work::{
     canonical_json_bytes, compile_realization_plan, ArtifactModel, HealthStatus, OperationalIntent,
     PlannedWorkloadInput, RealizationHealth, RealizationId, RealizationPlan,
     RealizationPlanningGap, RealizationRevision, RealizationStatus, RealizedResource,
-    REALIZATION_PLAN_TYPE_URI,
+    RightsOperation, REALIZATION_PLAN_TYPE_URI,
 };
 use serde::Serialize;
 use serde_json::json;
@@ -621,12 +622,46 @@ impl RealizationRegistry {
             .await
             .ok_or_else(|| anyhow!("target_unsatisfied: selected Target is unknown"))?;
         ensure_target_available(&target)?;
+        if target.reachability != ExecutionTargetReachability::LocalHost {
+            let rights =
+                load_rights_declaration(self.object_store.as_ref(), &artifacts.work).await?;
+            let outcome = rights_policy_outcome(rights.as_ref(), RightsOperation::CopyAcrossHosts);
+            if outcome != plurora_runtime::RightsPolicyOutcome::Allowed {
+                return Ok(Err(vec![RealizationPlanningGap {
+                    reason_code: rights_gap_reason(outcome).to_string(),
+                    next_step: "review copy_across_hosts Rights before planning artifact transfer to another Host"
+                        .to_string(),
+                    workload_id: None,
+                    target_id: Some(request.target_id.clone()),
+                }]));
+            }
+        }
         let intent_ref = artifacts
             .work
             .operational_intent
             .clone()
             .ok_or_else(|| anyhow!("target_unsatisfied: Work has no OperationalIntent"))?;
         let intent = self.load_model::<OperationalIntent>(&intent_ref).await?;
+        if intent
+            .annotations
+            .get("plurora.intent/dedicated_server")
+            .and_then(serde_json::Value::as_bool)
+            == Some(true)
+        {
+            let rights =
+                load_rights_declaration(self.object_store.as_ref(), &artifacts.work).await?;
+            let outcome = rights_policy_outcome(rights.as_ref(), RightsOperation::DedicatedServer);
+            if outcome != plurora_runtime::RightsPolicyOutcome::Allowed {
+                return Ok(Err(vec![RealizationPlanningGap {
+                    reason_code: rights_gap_reason(outcome).to_string(),
+                    next_step:
+                        "review the dedicated_server Right before planning this server workload"
+                            .to_string(),
+                    workload_id: None,
+                    target_id: Some(request.target_id.clone()),
+                }]));
+            }
+        }
         if intent.workloads.len() != 1 || request.backends.len() != 1 {
             return Ok(Err(vec![RealizationPlanningGap {
                 reason_code: "unsupported_backend".to_string(),
@@ -2109,6 +2144,15 @@ fn hash_bytes(value: &[u8]) -> String {
 
 fn lock_error<T>(error: std::sync::PoisonError<T>) -> anyhow::Error {
     anyhow!("Realization registry lock poisoned: {error}")
+}
+
+fn rights_gap_reason(outcome: plurora_runtime::RightsPolicyOutcome) -> &'static str {
+    match outcome {
+        plurora_runtime::RightsPolicyOutcome::RequiresEntitlement => "entitlement_required",
+        plurora_runtime::RightsPolicyOutcome::Unspecified => "rights_unspecified",
+        plurora_runtime::RightsPolicyOutcome::Denied => "rights_denied",
+        plurora_runtime::RightsPolicyOutcome::Allowed => "rights_allowed",
+    }
 }
 
 #[cfg(test)]

@@ -15159,6 +15159,22 @@ impl ::std::default::Default for InstallationSecretPolicy {
 ///      "additionalProperties": false
 ///    },
 ///    {
+///      "description": "Capture the current opaque state as a content-addressed snapshot without replacing or clearing it. The snapshot descriptor is returned in `InstallationMutationResult.receipts` and can later be supplied to `Replace`.",
+///      "type": "object",
+///      "required": [
+///        "kind"
+///      ],
+///      "properties": {
+///        "kind": {
+///          "type": "string",
+///          "enum": [
+///            "backup"
+///          ]
+///        }
+///      },
+///      "additionalProperties": false
+///    },
+///    {
 ///      "type": "object",
 ///      "required": [
 ///        "kind",
@@ -15202,6 +15218,8 @@ impl ::std::default::Default for InstallationSecretPolicy {
 pub enum InstallationStateAction {
     #[serde(rename = "preserve")]
     Preserve,
+    #[serde(rename = "backup")]
+    Backup,
     #[serde(rename = "replace")]
     Replace(ArtifactDescriptor),
     #[serde(rename = "reset")]
@@ -15212,19 +15230,23 @@ impl ::std::convert::From<ArtifactDescriptor> for InstallationStateAction {
         Self::Replace(value)
     }
 }
-///Audit-only selector for a journal-issued Installation state artifact.
+///Exact selector for a journal-issued Installation state artifact. Snapshot content is additionally gated by the current Work's export-state Right.
 ///
 /// <details><summary>JSON schema</summary>
 ///
 /// ```json
 ///{
 ///  "title": "InstallationStateArtifactGetParams",
-///  "description": "Audit-only selector for a journal-issued Installation state artifact.",
+///  "description": "Exact selector for a journal-issued Installation state artifact. Snapshot content is additionally gated by the current Work's export-state Right.",
 ///  "type": "object",
 ///  "required": [
+///    "installation_id",
 ///    "installation_state_artifact"
 ///  ],
 ///  "properties": {
+///    "installation_id": {
+///      "$ref": "#/definitions/InstallationId"
+///    },
 ///    "installation_state_artifact": {
 ///      "$ref": "#/definitions/ArtifactDescriptor"
 ///    }
@@ -15237,16 +15259,17 @@ impl ::std::convert::From<ArtifactDescriptor> for InstallationStateAction {
 #[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
 #[serde(deny_unknown_fields)]
 pub struct InstallationStateArtifactGetParams {
+    pub installation_id: InstallationId,
     pub installation_state_artifact: ArtifactDescriptor,
 }
-///Audit-only result for a journal-issued Installation state artifact.
+///Result for a journal-issued Installation state artifact.
 ///
 /// <details><summary>JSON schema</summary>
 ///
 /// ```json
 ///{
 ///  "title": "InstallationStateArtifactGetResponse",
-///  "description": "Audit-only result for a journal-issued Installation state artifact.",
+///  "description": "Result for a journal-issued Installation state artifact.",
 ///  "type": "object",
 ///  "required": [
 ///    "content",
@@ -16186,6 +16209,17 @@ pub struct InstallationView {
 ///        }
 ///      ]
 ///    },
+///    "rights_declaration": {
+///      "description": "Parsed declaration from the exact `rights` descriptor. Descriptive only; the Host still evaluates policy from verified artifact bytes at effect time.",
+///      "anyOf": [
+///        {
+///          "$ref": "#/definitions/RightsDeclaration"
+///        },
+///        {
+///          "type": "null"
+///        }
+///      ]
+///    },
 ///    "title": {
 ///      "type": "string"
 ///    },
@@ -16193,6 +16227,17 @@ pub struct InstallationView {
 ///      "anyOf": [
 ///        {
 ///          "$ref": "#/definitions/ArtifactDescriptor"
+///        },
+///        {
+///          "type": "null"
+///        }
+///      ]
+///    },
+///    "transparency_declaration": {
+///      "description": "Parsed declaration from the exact `transparency` descriptor. This keeps Library disclosure on the public Installation API without exposing a raw ObjectStore read primitive.",
+///      "anyOf": [
+///        {
+///          "$ref": "#/definitions/TransparencyDeclaration"
 ///        },
 ///        {
 ///          "type": "null"
@@ -16219,9 +16264,15 @@ pub struct InstallationWorkSummary {
     pub operational_intent: ::std::option::Option<ArtifactDescriptor>,
     #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
     pub rights: ::std::option::Option<ArtifactDescriptor>,
+    ///Parsed declaration from the exact `rights` descriptor. Descriptive only; the Host still evaluates policy from verified artifact bytes at effect time.
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub rights_declaration: ::std::option::Option<RightsDeclaration>,
     pub title: ::std::string::String,
     #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
     pub transparency: ::std::option::Option<ArtifactDescriptor>,
+    ///Parsed declaration from the exact `transparency` descriptor. This keeps Library disclosure on the public Installation API without exposing a raw ObjectStore read primitive.
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub transparency_declaration: ::std::option::Option<TransparencyDeclaration>,
     pub work_id: WorkId,
 }
 ///`Intent`

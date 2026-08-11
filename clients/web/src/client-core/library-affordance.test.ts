@@ -93,3 +93,38 @@ const wrongInstallation = libraryAuthorityForInstallation({
 if (wrongInstallation.can_run || wrongInstallation.reason_code !== "authority_denied") {
   throw new Error("a different Installation grant must not expose Run affordances");
 }
+
+const rightsDeclaration = {
+  install: "allowed",
+  execute: "allowed",
+  backup: "allowed",
+  export_state: "denied",
+  copy_across_hosts: "denied",
+  redistribute_artifacts: "denied",
+  modify: "denied",
+  derive: "denied",
+  modding: "denied",
+  dedicated_server: "denied",
+} as const;
+const deniedRights = affordanceForAction({
+  ...ready,
+  work_summary: {
+    ...workSummary,
+    rights_declaration: { ...rightsDeclaration, execute: "denied" },
+  },
+}, "play");
+if (deniedRights.available || deniedRights.reason_code !== "rights_denied") {
+  throw new Error("Denied execute Rights must block Play before a mutation");
+}
+
+const backup = affordanceForAction({
+  ...ready,
+  work_summary: {
+    ...workSummary,
+    rights_declaration: rightsDeclaration,
+  },
+  authority: { ...ready.authority, can_manage_installation: true },
+}, "backup");
+if (!backup.available) {
+  throw new Error("explicit Allowed backup Rights and exact authority should expose Backup");
+}

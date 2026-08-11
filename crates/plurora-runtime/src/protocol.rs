@@ -1053,6 +1053,12 @@ fn is_runtime_outcome_unknown(error: &anyhow::Error) -> bool {
         .any(|cause| cause.downcast_ref::<RuntimeOutcomeUnknown>().is_some())
 }
 
+fn rights_policy_error(error: &anyhow::Error) -> Option<&crate::RightsPolicyError> {
+    error
+        .chain()
+        .find_map(|cause| cause.downcast_ref::<crate::RightsPolicyError>())
+}
+
 impl ProtocolError {
     pub fn new(code: impl Into<String>, message: impl Into<String>, details: Value) -> Self {
         Self {
@@ -1070,6 +1076,12 @@ impl ProtocolError {
         let message = error.to_string();
         let code = if is_runtime_outcome_unknown(&error) {
             "runtime/error/outcome_unknown"
+        } else if rights_policy_error(&error).is_some_and(|policy| {
+            policy.outcome() == crate::RightsPolicyOutcome::RequiresEntitlement
+        }) {
+            "runtime/error/entitlement_required"
+        } else if rights_policy_error(&error).is_some() {
+            "runtime/error/rights_denied"
         } else if message.contains("not allowed")
             || message.contains("permission")
             || message.contains("authority_denied")

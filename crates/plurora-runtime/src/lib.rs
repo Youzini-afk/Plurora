@@ -4,6 +4,7 @@ pub mod binding_runtime;
 pub mod capability;
 pub mod contract;
 pub mod event_store;
+pub mod foreign_work;
 pub mod inproc;
 pub mod installation_control;
 pub mod installation_secret;
@@ -60,6 +61,13 @@ pub use contract::{
 #[cfg(feature = "postgres")]
 pub use event_store::PostgresEventStore;
 pub use event_store::{EventStore, InMemoryEventStore, SqliteEventStore};
+pub use foreign_work::{
+    activate_foreign_launch, foreign_launch_secret_name, foreign_launch_secret_ref,
+    load_foreign_capsule, load_rights_declaration, load_transparency_declaration,
+    load_work_revision, require_declared_right, resolve_foreign_launch_binding,
+    rights_policy_outcome, ActiveForeignLaunch, ForeignEntitlementAdapter, ForeignLaunchBinding,
+    ForeignLaunchTarget, RightsPolicyError, RightsPolicyOutcome, FOREIGN_LAUNCH_BINDING_SCHEMA,
+};
 pub use inproc::{
     compute_external_git_workspace_tree_hash, compute_external_workspace_tree_hash,
     invoke_capability_from_inproc, invoke_capability_from_inproc_port,

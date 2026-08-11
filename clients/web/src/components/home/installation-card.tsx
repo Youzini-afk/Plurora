@@ -20,6 +20,9 @@ export interface InstallationCardData {
   workId?: string;
   entrypoints?: WorkEntrypoint[];
   activeRun?: RunView | null;
+  sourceVisibility?: string;
+  executeRight?: string;
+  statePortability?: string;
 }
 
 export function InstallationCard({
@@ -62,6 +65,9 @@ export function InstallationCard({
         <div className="flex justify-between"><dt>Revision</dt><dd className="font-mono">{data.revision}</dd></div>
         <div className="flex justify-between"><dt>Source</dt><dd>{data.sourceKind ?? "—"}</dd></div>
         <div className="flex justify-between"><dt>Run</dt><dd>{data.activeRun?.record.status ?? "stopped"}</dd></div>
+        <div className="flex justify-between"><dt>Source visibility</dt><dd>{data.sourceVisibility ?? "unknown"}</dd></div>
+        <div className="flex justify-between"><dt>Execute right</dt><dd>{data.executeRight ?? "unspecified"}</dd></div>
+        <div className="flex justify-between"><dt>State</dt><dd>{data.statePortability ?? "unknown"}</dd></div>
         {data.updatedAt ? <div className="flex justify-between"><dt>Updated</dt><dd>{new Date(data.updatedAt).toLocaleString()}</dd></div> : null}
       </dl>
       {data.entrypoints?.length ? (

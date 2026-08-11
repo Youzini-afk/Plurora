@@ -24,10 +24,11 @@ use plurora_runtime::{
     InstallationStateSlotDiff, InstallationStateSlotRequirement,
     InstallationStateSnapshot as StateSnapshot,
     InstallationStateSnapshotEntry as StateSnapshotEntry, InstallationUpdateRequest,
-    InstallationView, InstallationWorkSummary, ObjectStore, StateDisposition,
-    INSTALLATION_STATE_AUTHORITY_EVIDENCE_MEDIA_TYPE, INSTALLATION_STATE_AUTHORITY_EVIDENCE_SCHEMA,
-    INSTALLATION_STATE_AUTHORITY_EVIDENCE_TYPE_URI, INSTALLATION_STATE_OPERATION,
-    INSTALLATION_STATE_RECEIPT_MEDIA_TYPE, INSTALLATION_STATE_REPLACEMENT_DECISION_RECEIPT_SCHEMA,
+    InstallationView, InstallationWorkSummary, ObjectStore, RightsPolicyError, RightsPolicyOutcome,
+    StateDisposition, INSTALLATION_STATE_AUTHORITY_EVIDENCE_MEDIA_TYPE,
+    INSTALLATION_STATE_AUTHORITY_EVIDENCE_SCHEMA, INSTALLATION_STATE_AUTHORITY_EVIDENCE_TYPE_URI,
+    INSTALLATION_STATE_OPERATION, INSTALLATION_STATE_RECEIPT_MEDIA_TYPE,
+    INSTALLATION_STATE_REPLACEMENT_DECISION_RECEIPT_SCHEMA,
     INSTALLATION_STATE_REPLACEMENT_DECISION_RECEIPT_TYPE_URI,
     INSTALLATION_STATE_RESET_RECEIPT_SCHEMA, INSTALLATION_STATE_RESET_RECEIPT_TYPE_URI,
     INSTALLATION_STATE_SNAPSHOT_MEDIA_TYPE, INSTALLATION_STATE_SNAPSHOT_SCHEMA,
@@ -37,8 +38,8 @@ use plurora_work::{
     validate_artifact_descriptor, validate_assembly_closure, validate_state_replacement,
     ArtifactModel, AssemblyLock, AssemblyNodeSource, AssemblyRevision, InstallationId,
     InstallationRecord, InstallationStatus, OperationalIntent, PortDescriptor, PortEndpoint,
-    PortId, RightsDeclaration, StateSlotDescriptor, TransparencyDeclaration, WorkRevision,
-    ASSEMBLY_LOCK_TYPE_URI, ASSEMBLY_REVISION_TYPE_URI, MAX_ASSEMBLY_DEPTH,
+    PortId, RightsDeclaration, RightsOperation, StateSlotDescriptor, TransparencyDeclaration,
+    WorkRevision, ASSEMBLY_LOCK_TYPE_URI, ASSEMBLY_REVISION_TYPE_URI, MAX_ASSEMBLY_DEPTH,
     OPERATIONAL_INTENT_TYPE_URI, RIGHTS_DECLARATION_TYPE_URI, TRANSPARENCY_DECLARATION_TYPE_URI,
     WORK_REVISION_TYPE_URI,
 };
@@ -248,6 +249,8 @@ struct ComponentExpectation {
 
 struct VerifiedInstallationArtifacts {
     work: WorkRevision,
+    rights: Option<RightsDeclaration>,
+    transparency: Option<TransparencyDeclaration>,
     assembly: AssemblyRevision,
     lock: AssemblyLock,
     lock_bytes: Vec<u8>,
@@ -584,16 +587,35 @@ impl InstallationRegistry {
                         );
                         validate_state_receipt_descriptors(&pending.receipts)?;
                     }
-                    None => {
-                        ensure!(
-                            rollback.state_snapshot.is_none(),
-                            "direct update unexpectedly carries a state snapshot"
-                        );
-                        ensure!(
+                    None => match rollback.state_snapshot.as_ref() {
+                        Some(snapshot) => {
+                            ensure!(
+                                payload.claim.result.receipts.as_slice()
+                                    == std::slice::from_ref(snapshot)
+                                    && payload
+                                        .claim
+                                        .result
+                                        .diff
+                                        .as_ref()
+                                        .is_some_and(diff_is_empty)
+                                    && payload.view.record.work_revision
+                                        == old.record.work_revision
+                                    && payload.view.record.assembly_lock
+                                        == old.record.assembly_lock,
+                                "direct state backup does not match its immutable snapshot"
+                            );
+                            ensure!(
+                                snapshot.artifact_type_uri == INSTALLATION_STATE_SNAPSHOT_TYPE_URI
+                                    && snapshot.media_type
+                                        == INSTALLATION_STATE_SNAPSHOT_MEDIA_TYPE,
+                                "direct state backup snapshot type is invalid"
+                            );
+                        }
+                        None => ensure!(
                             payload.claim.result.receipts.is_empty(),
                             "direct update unexpectedly carries state receipts"
-                        );
-                    }
+                        ),
+                    },
                 }
                 self.resolve_pending(&id, payload.operation_id.as_deref(), PendingKind::Update)?;
                 self.install_claim(payload.claim)?;
@@ -1139,6 +1161,25 @@ impl InstallationRegistry {
         let (work, _) = self
             .verified_artifact_model::<WorkRevision>(work_descriptor, "work revision")
             .await?;
+        let rights = match work.rights.as_ref() {
+            Some(descriptor) => Some(
+                self.verified_artifact_model::<RightsDeclaration>(descriptor, "rights declaration")
+                    .await?
+                    .0,
+            ),
+            None => None,
+        };
+        let transparency = match work.transparency.as_ref() {
+            Some(descriptor) => Some(
+                self.verified_artifact_model::<TransparencyDeclaration>(
+                    descriptor,
+                    "transparency declaration",
+                )
+                .await?
+                .0,
+            ),
+            None => None,
+        };
         let (lock, lock_bytes) = self
             .verified_artifact_model::<AssemblyLock>(lock_descriptor, "assembly lock")
             .await?;
@@ -1393,6 +1434,8 @@ impl InstallationRegistry {
             .ok_or_else(|| anyhow!("root AssemblyRevision is missing after closure validation"))?;
         Ok(VerifiedInstallationArtifacts {
             work,
+            rights,
+            transparency,
             assembly,
             lock,
             lock_bytes,
@@ -1462,7 +1505,9 @@ impl InstallationRegistry {
     ) -> anyhow::Result<Vec<ArtifactDescriptor>> {
         let (receipt_type, receipt_schema, action, replacement_snapshot_digest) =
             match &request.state_action {
-                InstallationStateAction::Preserve => return Ok(Vec::new()),
+                InstallationStateAction::Preserve | InstallationStateAction::Backup => {
+                    return Ok(Vec::new())
+                }
                 InstallationStateAction::Replace {
                     replacement_snapshot,
                 } => (
@@ -1717,7 +1762,7 @@ impl InstallationRegistry {
             .verify_work_and_lock(&view.record.work_revision, &view.record.assembly_lock)
             .await?;
         ensure!(
-            view.work_summary == InstallationWorkSummary::from_work_revision(&verified.work),
+            view.work_summary == verified_work_summary(&verified),
             "installation Work summary differs from its exact verified WorkRevision"
         );
         let record_bytes = canonical_json_bytes(view).context("encode installation projection")?;
@@ -2111,6 +2156,11 @@ impl InstallationRegistry {
     }
 }
 
+fn verified_work_summary(verified: &VerifiedInstallationArtifacts) -> InstallationWorkSummary {
+    InstallationWorkSummary::from_work_revision(&verified.work)
+        .with_verified_declarations(verified.rights.clone(), verified.transparency.clone())
+}
+
 #[async_trait]
 impl InstallationControl for InstallationRegistry {
     async fn list(
@@ -2197,7 +2247,7 @@ impl InstallationControl for InstallationRegistry {
             .map_err(|_| anyhow!("installation record is invalid"))?;
         let view = InstallationView {
             record,
-            work_summary: InstallationWorkSummary::from_work_revision(&verified.work),
+            work_summary: verified_work_summary(&verified),
             revision: 1,
             rollback: None,
         };
@@ -2335,7 +2385,7 @@ impl InstallationControl for InstallationRegistry {
             .await?;
         self.refresh_update_authority(&request).await?;
         let replacement = match &request.state_action {
-            InstallationStateAction::Preserve => None,
+            InstallationStateAction::Preserve | InstallationStateAction::Backup => None,
             InstallationStateAction::Replace {
                 replacement_snapshot,
             } => Some(self.load_snapshot(replacement_snapshot).await?),
@@ -2359,6 +2409,12 @@ impl InstallationControl for InstallationRegistry {
             &current_artifacts,
             &candidate_artifacts,
         )?;
+        if matches!(request.state_action, InstallationStateAction::Backup) {
+            ensure!(
+                diff_is_empty(&diff),
+                "state_backup_requires_unchanged_installation"
+            );
+        }
         if diff_is_empty(&diff)
             && matches!(&request.state_action, InstallationStateAction::Preserve)
         {
@@ -2388,9 +2444,13 @@ impl InstallationControl for InstallationRegistry {
         )?;
         self.refresh_update_authority(&request).await?;
 
-        let state_change = !matches!(request.state_action, InstallationStateAction::Preserve);
+        let state_change = matches!(
+            request.state_action,
+            InstallationStateAction::Replace { .. } | InstallationStateAction::Reset
+        );
+        let state_backup = matches!(request.state_action, InstallationStateAction::Backup);
         let operation_id = state_change.then(|| uuid::Uuid::new_v4().to_string());
-        let state_snapshot = if state_change {
+        let state_snapshot = if state_change || state_backup {
             self.refresh_update_authority(&request).await?;
             let snapshot = self.snapshot_state(&request.installation_id).await?;
             self.refresh_update_authority(&request).await?;
@@ -2398,7 +2458,11 @@ impl InstallationControl for InstallationRegistry {
         } else {
             None
         };
-        let receipts = if state_change {
+        let receipts = if state_backup {
+            vec![state_snapshot
+                .clone()
+                .expect("backup action has a state snapshot")]
+        } else if state_change {
             self.issue_state_decision_receipts(&request).await?
         } else {
             Vec::new()
@@ -2411,7 +2475,7 @@ impl InstallationControl for InstallationRegistry {
         };
         let mut new_view = InstallationView {
             record: candidate,
-            work_summary: InstallationWorkSummary::from_work_revision(&candidate_artifacts.work),
+            work_summary: verified_work_summary(&candidate_artifacts),
             revision: previous
                 .revision
                 .checked_add(1)
@@ -2897,34 +2961,64 @@ impl InstallationControl for InstallationRegistry {
         validate_artifact_descriptor(descriptor)
             .map_err(|_| anyhow!("state artifact descriptor is invalid"))?;
         self.ensure_owner_lease().await?;
-        let _apply = self.apply.lock().await;
-        self.sync_journal_locked().await?;
-        let terminal = self
-            .idempotency
-            .read()
-            .map_err(lock_error)?
-            .values()
-            .any(|claim| {
-                &claim.result.installation.record.installation_id == installation_id
-                    && claim
-                        .result
-                        .receipts
-                        .iter()
-                        .any(|issued| issued == descriptor)
-            });
-        let pending = self
-            .pending
-            .read()
-            .map_err(lock_error)?
-            .values()
-            .any(|pending| {
-                &pending.previous.record.installation_id == installation_id
-                    && pending.receipts.iter().any(|issued| issued == descriptor)
-            });
-        ensure!(
-            terminal || pending,
-            "state artifact was not issued by the authoritative Installation journal"
-        );
+        // Pin this exact Installation while checking the current Work Rights,
+        // but retain the global journal mutex only for sync and projection reads.
+        // Artifact verification can perform ObjectStore I/O and must not stall
+        // unrelated Installation lifecycles.
+        let _lifecycle = self.lifecycle_lock(installation_id)?.read_owned().await;
+        let current = {
+            let _apply = self.apply.lock().await;
+            self.sync_journal_locked().await?;
+            let terminal = self
+                .idempotency
+                .read()
+                .map_err(lock_error)?
+                .values()
+                .any(|claim| {
+                    &claim.result.installation.record.installation_id == installation_id
+                        && claim
+                            .result
+                            .receipts
+                            .iter()
+                            .any(|issued| issued == descriptor)
+                });
+            let pending = self
+                .pending
+                .read()
+                .map_err(lock_error)?
+                .values()
+                .any(|pending| {
+                    &pending.previous.record.installation_id == installation_id
+                        && pending.receipts.iter().any(|issued| issued == descriptor)
+                });
+            ensure!(
+                terminal || pending,
+                "state artifact was not issued by the authoritative Installation journal"
+            );
+            (descriptor.artifact_type_uri == INSTALLATION_STATE_SNAPSHOT_TYPE_URI)
+                .then(|| {
+                    self.views
+                        .read()
+                        .map_err(lock_error)?
+                        .get(installation_id)
+                        .cloned()
+                        .ok_or_else(|| anyhow!("Installation is unavailable"))
+                })
+                .transpose()?
+        };
+        if let Some(view) = current {
+            let verified = self
+                .verify_work_and_lock(&view.record.work_revision, &view.record.assembly_lock)
+                .await?;
+            let outcome = plurora_runtime::rights_policy_outcome(
+                verified.rights.as_ref(),
+                RightsOperation::ExportState,
+            );
+            if outcome != RightsPolicyOutcome::Allowed {
+                return Err(RightsPolicyError::new(RightsOperation::ExportState, outcome).into());
+            }
+        }
+        self.ensure_owner_lease().await?;
         Ok(())
     }
 
@@ -3100,7 +3194,7 @@ impl InstallationRegistry {
             .verify_work_and_lock(&view.record.work_revision, &view.record.assembly_lock)
             .await?;
         ensure!(
-            view.work_summary == InstallationWorkSummary::from_work_revision(&verified.work),
+            view.work_summary == verified_work_summary(&verified),
             "installation Work summary differs from its exact verified WorkRevision"
         );
         self.ensure_owner_lease().await?;
@@ -3376,6 +3470,7 @@ fn validate_update_state_action(
             bail!("state_reset_required")
         }
         InstallationStateAction::Preserve
+        | InstallationStateAction::Backup
         | InstallationStateAction::Replace { .. }
         | InstallationStateAction::Reset => Ok(()),
     }
@@ -3575,8 +3670,18 @@ fn validate_claim(claim: &IdempotencyClaim) -> anyhow::Result<()> {
         "mutation fingerprint is invalid"
     );
     validate_view(&claim.result.installation)?;
-    if !claim.result.receipts.is_empty() {
-        validate_state_receipt_descriptors(&claim.result.receipts)?;
+    match claim.result.receipts.as_slice() {
+        [] => {}
+        [snapshot] if snapshot.artifact_type_uri == INSTALLATION_STATE_SNAPSHOT_TYPE_URI => {
+            validate_artifact_descriptor(snapshot)
+                .map_err(|_| anyhow!("state backup snapshot descriptor is invalid"))?;
+            ensure!(
+                snapshot.media_type == INSTALLATION_STATE_SNAPSHOT_MEDIA_TYPE
+                    && snapshot.references.is_empty(),
+                "state backup snapshot descriptor is invalid"
+            );
+        }
+        receipts => validate_state_receipt_descriptors(receipts)?,
     }
     Ok(())
 }
@@ -4989,6 +5094,39 @@ mod tests {
         })
     }
 
+    async fn set_fixture_state_rights(
+        fixture: &mut Fixture,
+        backup: plurora_work::RightDisposition,
+        export_state: plurora_work::RightDisposition,
+    ) -> anyhow::Result<()> {
+        let mut work: WorkRevision = serde_json::from_slice(
+            &fixture
+                .objects
+                .get(&fixture.request.work_revision.digest)
+                .await?,
+        )?;
+        let denied = plurora_work::RightDisposition::Denied;
+        let rights = RightsDeclaration {
+            license_expression: None,
+            terms_uri: None,
+            install: plurora_work::RightDisposition::Allowed,
+            execute: plurora_work::RightDisposition::Allowed,
+            backup,
+            export_state,
+            copy_across_hosts: denied,
+            redistribute_artifacts: denied,
+            modify: denied,
+            derive: denied,
+            modding: denied,
+            dedicated_server: denied,
+            entitlement_requirements: Vec::new(),
+            evidence_refs: Vec::new(),
+        };
+        work.rights = Some(put_model(&fixture.objects, &rights).await?);
+        fixture.request.work_revision = put_model(&fixture.objects, &work).await?;
+        Ok(())
+    }
+
     async fn put_json<T: Serialize>(
         objects: &InMemoryObjectStore,
         artifact_type_uri: &str,
@@ -5767,6 +5905,8 @@ mod tests {
             &new_record,
             &VerifiedInstallationArtifacts {
                 work: current_work,
+                rights: None,
+                transparency: None,
                 assembly: current_assembly,
                 lock: current_lock,
                 lock_bytes: Vec::new(),
@@ -5775,6 +5915,8 @@ mod tests {
             },
             &VerifiedInstallationArtifacts {
                 work: candidate_work,
+                rights: None,
+                transparency: None,
                 assembly: candidate_assembly,
                 lock: candidate_lock,
                 lock_bytes: Vec::new(),
@@ -6120,9 +6262,11 @@ mod tests {
         assert_eq!(result.receipts.len(), 2);
         assert!(fs::read_dir(&state)?.next().is_none());
         for descriptor in &result.receipts {
-            let request: plurora_runtime::ObjectGetRequest = serde_json::from_value(
-                serde_json::json!({"installation_state_artifact": descriptor}),
-            )?;
+            let request: plurora_runtime::ObjectGetRequest =
+                serde_json::from_value(serde_json::json!({
+                    "installation_id": created.record.installation_id,
+                    "installation_state_artifact": descriptor,
+                }))?;
             let fetched = runtime.get_object(request).await?;
             let fetched_wire = serde_json::to_value(&fetched)?;
             assert!(fetched_wire
@@ -6145,6 +6289,7 @@ mod tests {
             .get_object(
                 plurora_runtime::ObjectGetRequest::InstallationStateArtifact(
                     plurora_runtime::InstallationStateArtifactGetParams {
+                        installation_id: created.record.installation_id.clone(),
                         installation_state_artifact: tampered,
                     },
                 )
@@ -6303,6 +6448,7 @@ mod tests {
                 .get_object(
                     plurora_runtime::ObjectGetRequest::InstallationStateArtifact(
                         plurora_runtime::InstallationStateArtifactGetParams {
+                            installation_id: created.record.installation_id.clone(),
                             installation_state_artifact: descriptor.clone(),
                         },
                     ),
@@ -6338,6 +6484,7 @@ mod tests {
                 .get_object(
                     plurora_runtime::ObjectGetRequest::InstallationStateArtifact(
                         plurora_runtime::InstallationStateArtifactGetParams {
+                            installation_id: created.record.installation_id.clone(),
                             installation_state_artifact: descriptor.clone(),
                         },
                     ),
@@ -6525,41 +6672,44 @@ mod tests {
         Ok(())
     }
 
+    async fn create_remove_authority_fixture(
+        fixture: &Fixture,
+        name: &str,
+    ) -> anyhow::Result<InstallationView> {
+        let mut request = fixture.request.clone();
+        request.display_name = name.to_string();
+        request.idempotency_key = format!("remove-race-create-{name}");
+        Ok(fixture.create(request).await?.installation)
+    }
+
+    fn remove_authority_context(
+        installation_id: &InstallationId,
+        expires_at_ms: i64,
+        active: Arc<AtomicBool>,
+    ) -> ProtocolContext {
+        ProtocolContext::host_device(
+            "grant-remove-race",
+            vec!["installation.manage".to_string()],
+            vec![ProtocolResourceSelector {
+                owner: "host".to_string(),
+                kind: "installation".to_string(),
+                id: Some(installation_id.to_string()),
+            }],
+            Vec::new(),
+            "remove-authority-race",
+        )
+        .with_verified_authority_expiry(Some(expires_at_ms))
+        .with_installation_authority_refresh(InstallationAuthorityRefresh::new(Arc::new(
+            ToggleAuthorityValidator {
+                active,
+                grant_id: "grant-remove-race".to_string(),
+            },
+        )))
+    }
+
     #[tokio::test]
     async fn remove_refreshes_device_authority_after_waiting_for_apply_lock() -> anyhow::Result<()>
     {
-        async fn create_named(fixture: &Fixture, name: &str) -> anyhow::Result<InstallationView> {
-            let mut request = fixture.request.clone();
-            request.display_name = name.to_string();
-            request.idempotency_key = format!("remove-race-create-{name}");
-            Ok(fixture.create(request).await?.installation)
-        }
-
-        fn context(
-            installation_id: &InstallationId,
-            expires_at_ms: i64,
-            active: Arc<AtomicBool>,
-        ) -> ProtocolContext {
-            ProtocolContext::host_device(
-                "grant-remove-race",
-                vec!["installation.manage".to_string()],
-                vec![ProtocolResourceSelector {
-                    owner: "host".to_string(),
-                    kind: "installation".to_string(),
-                    id: Some(installation_id.to_string()),
-                }],
-                Vec::new(),
-                "remove-authority-race",
-            )
-            .with_verified_authority_expiry(Some(expires_at_ms))
-            .with_installation_authority_refresh(InstallationAuthorityRefresh::new(Arc::new(
-                ToggleAuthorityValidator {
-                    active,
-                    grant_id: "grant-remove-race".to_string(),
-                },
-            )))
-        }
-
         let fixture = fixture().await?;
         let runtime = Arc::new(Runtime::new(
             fixture.store.clone(),
@@ -6570,11 +6720,11 @@ mod tests {
             },
         ));
 
-        let delete = create_named(&fixture, "delete-revoked").await?;
+        let delete = create_remove_authority_fixture(&fixture, "delete-revoked").await?;
         let delete_state = fixture.registry.state_dir(&delete.record.installation_id);
         fs::write(delete_state.join("save.bin"), b"must-survive-revocation")?;
         let delete_active = Arc::new(AtomicBool::new(true));
-        let delete_context = context(
+        let delete_context = remove_authority_context(
             &delete.record.installation_id,
             Utc::now().timestamp_millis() + 60_000,
             delete_active.clone(),
@@ -6613,11 +6763,19 @@ mod tests {
             Some(delete)
         );
 
-        let keep = create_named(&fixture, "keep-expired").await?;
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn remove_rejects_authority_expired_while_waiting_for_apply_lock() -> anyhow::Result<()> {
+        let fixture = fixture().await?;
+        let runtime = Arc::new(fixture.runtime());
+
+        let keep = create_remove_authority_fixture(&fixture, "keep-expired").await?;
         let keep_state = fixture.registry.state_dir(&keep.record.installation_id);
         fs::write(keep_state.join("save.bin"), b"must-survive-expiry")?;
         let keep_active = Arc::new(AtomicBool::new(true));
-        let keep_context = context(
+        let keep_context = remove_authority_context(
             &keep.record.installation_id,
             Utc::now().timestamp_millis() + 200,
             keep_active,
@@ -6656,7 +6814,16 @@ mod tests {
             Some(keep)
         );
 
-        let terminal = create_named(&fixture, "terminal-boundary-revoked").await?;
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn remove_refreshes_device_authority_at_terminal_append_boundary() -> anyhow::Result<()> {
+        let fixture = fixture().await?;
+        let runtime = Arc::new(fixture.runtime());
+
+        let terminal =
+            create_remove_authority_fixture(&fixture, "terminal-boundary-revoked").await?;
         let terminal_state = fixture.registry.state_dir(&terminal.record.installation_id);
         fs::write(terminal_state.join("save.bin"), b"terminal-boundary-state")?;
         let terminal_projection = fixture
@@ -6740,7 +6907,16 @@ mod tests {
         );
         assert_eq!(fs::read(terminal_projection)?, terminal_projection_before);
 
-        let legal = create_named(&fixture, "legal-replay").await?;
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn removed_installation_replay_is_effect_free_and_authority_refreshed(
+    ) -> anyhow::Result<()> {
+        let fixture = fixture().await?;
+        let runtime = Arc::new(fixture.runtime());
+
+        let legal = create_remove_authority_fixture(&fixture, "legal-replay").await?;
         let legal_state = fixture.registry.state_dir(&legal.record.installation_id);
         fs::write(legal_state.join("save.bin"), b"replay-must-not-touch-state")?;
         let legal_params = serde_json::to_value(InstallationRemoveRequest {
@@ -6750,7 +6926,7 @@ mod tests {
             idempotency_key: "remove-race-legal".to_string(),
             authority: None,
         })?;
-        let legal_context = context(
+        let legal_context = remove_authority_context(
             &legal.record.installation_id,
             Utc::now().timestamp_millis() + 60_000,
             Arc::new(AtomicBool::new(true)),
@@ -8600,6 +8776,110 @@ mod tests {
                 },
             ]
         );
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn opaque_state_backup_is_non_destructive_idempotent_and_restorable() -> anyhow::Result<()>
+    {
+        let mut fixture = fixture().await?;
+        let allowed = plurora_work::RightDisposition::Allowed;
+        set_fixture_state_rights(&mut fixture, allowed, allowed).await?;
+        let created = fixture.create(fixture.request.clone()).await?.installation;
+        let state = fixture.registry.state_dir(&created.record.installation_id);
+        fs::create_dir(state.join("opaque"))?;
+        fs::write(state.join("opaque/save.bin"), [0_u8, 1, 255, 7])?;
+
+        let mut request = update_request(
+            &created,
+            created.record.work_revision.clone(),
+            created.record.assembly_lock.clone(),
+            "opaque-backup",
+        );
+        request.state_action = InstallationStateAction::Backup;
+        let backup = fixture.update(request.clone()).await?;
+        assert_eq!(fs::read(state.join("opaque/save.bin"))?, [0, 1, 255, 7]);
+        assert_eq!(backup.receipts.len(), 1);
+        assert_eq!(
+            backup
+                .installation
+                .rollback
+                .as_ref()
+                .and_then(|pointer| pointer.state_snapshot.as_ref()),
+            backup.receipts.first()
+        );
+        let replay = fixture.update(request).await?;
+        assert!(replay.idempotent);
+        assert_eq!(replay.receipts, backup.receipts);
+        let exported = fixture
+            .runtime()
+            .get_object(
+                plurora_runtime::ObjectGetRequest::InstallationStateArtifact(
+                    plurora_runtime::InstallationStateArtifactGetParams {
+                        installation_id: created.record.installation_id.clone(),
+                        installation_state_artifact: backup.receipts[0].clone(),
+                    },
+                ),
+            )
+            .await?;
+        assert!(matches!(
+            exported,
+            plurora_runtime::ObjectGetResponse::InstallationStateArtifact(_)
+        ));
+
+        fs::write(state.join("opaque/save.bin"), b"changed")?;
+        let mut restore = update_request(
+            &backup.installation,
+            backup.installation.record.work_revision.clone(),
+            backup.installation.record.assembly_lock.clone(),
+            "opaque-restore",
+        );
+        restore.state_action = InstallationStateAction::Replace {
+            replacement_snapshot: backup.receipts[0].clone(),
+        };
+        fixture.update(restore).await?;
+        assert_eq!(fs::read(state.join("opaque/save.bin"))?, [0, 1, 255, 7]);
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn state_export_requires_current_explicit_rights_after_backup() -> anyhow::Result<()> {
+        let mut fixture = fixture().await?;
+        set_fixture_state_rights(
+            &mut fixture,
+            plurora_work::RightDisposition::Allowed,
+            plurora_work::RightDisposition::Denied,
+        )
+        .await?;
+        let created = fixture.create(fixture.request.clone()).await?.installation;
+        let state = fixture.registry.state_dir(&created.record.installation_id);
+        fs::write(state.join("opaque.bin"), [1_u8, 2, 3])?;
+        let mut request = update_request(
+            &created,
+            created.record.work_revision.clone(),
+            created.record.assembly_lock.clone(),
+            "export-denied-backup",
+        );
+        request.state_action = InstallationStateAction::Backup;
+        let backup = fixture.update(request).await?;
+        let error = fixture
+            .runtime()
+            .call_protocol(
+                &ProtocolContext::host_dev("state-export-rights"),
+                "object.get",
+                serde_json::json!({
+                    "installation_id": created.record.installation_id,
+                    "installation_state_artifact": backup.receipts[0],
+                }),
+            )
+            .await
+            .expect_err("Denied export-state Rights must block snapshot content");
+        assert_eq!(
+            error.code, "runtime/error/rights_denied",
+            "unexpected protocol error: {}",
+            error.message
+        );
+        assert!(!error.message.contains("opaque.bin"));
         Ok(())
     }
 

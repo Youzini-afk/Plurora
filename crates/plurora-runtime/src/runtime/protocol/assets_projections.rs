@@ -6,9 +6,14 @@ where
 {
     // --- Asset ---
 
-    pub(crate) async fn dispatch_asset_get(&self, params: &Value) -> anyhow::Result<Value> {
+    pub(crate) async fn dispatch_asset_get(
+        &self,
+        context: &ProtocolContext,
+        params: &Value,
+    ) -> anyhow::Result<Value> {
         let request: crate::runtime::ObjectGetRequest = serde_json::from_value(params.clone())
             .map_err(|error| anyhow::anyhow!("object.get request is invalid: {error}"))?;
+        crate::runtime::protocol_dispatch::ensure_object_get_access(context, &request)?;
         Ok(serde_json::to_value(self.get_object(request).await?)?)
     }
 

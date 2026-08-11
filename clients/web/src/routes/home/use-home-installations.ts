@@ -14,6 +14,9 @@ export interface InstallationSummary {
   workId: string;
   entrypoints: InstallationView["work_summary"]["entrypoints"];
   activeRun: RunView | null;
+  sourceVisibility: string;
+  executeRight: string;
+  statePortability: string;
   runs: RunView[];
   view: InstallationView;
 }
@@ -32,6 +35,9 @@ function summarize(view: InstallationView, runViews: RunView[]): InstallationSum
     workId: view.work_summary.work_id,
     entrypoints: view.work_summary.entrypoints,
     activeRun,
+    sourceVisibility: view.work_summary.transparency_declaration?.source_visibility ?? "unknown",
+    executeRight: view.work_summary.rights_declaration?.execute ?? "unspecified",
+    statePortability: view.work_summary.transparency_declaration?.state_portability ?? "unknown",
     runs: runViews,
     view,
   };

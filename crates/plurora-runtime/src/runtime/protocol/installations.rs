@@ -4,11 +4,38 @@ use crate::{
     InstallationMutationAuthority, InstallationRemoveRequest, InstallationUpdateRequest,
 };
 use plurora_work::InstallationId;
+use plurora_work::{RightDisposition, RightsOperation};
 
 impl<S> Runtime<S>
 where
     S: EventStore,
 {
+    async fn installation_rights(
+        &self,
+        work_revision: &plurora_core::ArtifactDescriptor,
+    ) -> anyhow::Result<Option<plurora_work::RightsDeclaration>> {
+        let work =
+            crate::load_work_revision(self.config.object_store.as_ref(), work_revision).await?;
+        crate::load_rights_declaration(self.config.object_store.as_ref(), &work).await
+    }
+
+    async fn ensure_install_allowed(
+        &self,
+        work_revision: &plurora_core::ArtifactDescriptor,
+    ) -> anyhow::Result<()> {
+        let rights = self.installation_rights(work_revision).await?;
+        if rights.as_ref().is_some_and(|value| {
+            value.disposition(RightsOperation::Install) == RightDisposition::Denied
+        }) {
+            return Err(crate::RightsPolicyError::new(
+                RightsOperation::Install,
+                crate::RightsPolicyOutcome::Denied,
+            )
+            .into());
+        }
+        Ok(())
+    }
+
     fn ensure_installation_action(
         context: &ProtocolContext,
         action: &str,
@@ -90,6 +117,7 @@ where
             context.allows_host_resource("host", "work", request.work_id.as_str()),
             "host.installation.create permission denied: authenticated authority lacks the exact Work"
         );
+        self.ensure_install_allowed(&request.work_revision).await?;
         request.authority = Some(InstallationMutationAuthority::verified_for_work(
             request.work_id.clone(),
             context.host_device_grant_id().map(str::to_owned),
@@ -114,6 +142,11 @@ where
             &request.installation_id,
             "host.installation.update",
         )?;
+        self.ensure_install_allowed(&request.work_revision).await?;
+        if matches!(request.state_action, crate::InstallationStateAction::Backup) {
+            let rights = self.installation_rights(&request.work_revision).await?;
+            crate::require_declared_right(rights.as_ref(), RightsOperation::Backup)?;
+        }
         request.authority = Some(InstallationMutationAuthority::verified_for_installation(
             request.installation_id.clone(),
             context.host_device_grant_id().map(str::to_owned),

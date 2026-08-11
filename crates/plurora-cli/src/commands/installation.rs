@@ -5,10 +5,12 @@ use anyhow::{anyhow, ensure, Context, Result};
 use clap::{Args, Subcommand, ValueEnum};
 use plurora_core::ArtifactDescriptor;
 use plurora_runtime::{
-    exact_artifact_upload, AssetPutRequest, InstallationCreateRequest, InstallationGetRequest,
-    InstallationListRequest, InstallationMutationResult, InstallationRemoveRequest,
-    InstallationStateAction, InstallationStateSnapshot, InstallationUpdateRequest,
-    InstallationView, ObjectPutResponse, ObjectPutScope, StateDisposition,
+    exact_artifact_upload, foreign_launch_secret_name, foreign_launch_secret_ref, AssetPutRequest,
+    CapabilityInvocationRequest, CapabilityInvocationResult, ForeignLaunchBinding,
+    InstallationCreateRequest, InstallationGetRequest, InstallationListRequest,
+    InstallationMutationResult, InstallationRemoveRequest, InstallationStateAction,
+    InstallationStateSnapshot, InstallationUpdateRequest, InstallationView, ObjectPutResponse,
+    ObjectPutScope, StateDisposition,
 };
 use plurora_work::{
     AcquisitionKind, AcquisitionRecord, InstallationId, InstallationSecretPolicy,
@@ -62,6 +64,10 @@ pub enum InstallationCommand {
     Update(InstallationUpdateArgs),
     /// Remove an Installation with an explicit state disposition.
     Remove(InstallationRemoveArgs),
+    /// Capture the current opaque state without modifying it.
+    Backup(InstallationBackupArgs),
+    /// Store one Installation-local ForeignCapsule launch binding.
+    BindForeign(InstallationBindForeignArgs),
 }
 
 #[derive(Clone, Copy, Debug, ValueEnum)]
@@ -175,6 +181,33 @@ pub struct InstallationRemoveArgs {
     pub format: OutputFormat,
 }
 
+#[derive(Args, Debug)]
+pub struct InstallationBackupArgs {
+    pub installation_id: String,
+    #[arg(long)]
+    pub expected_revision: u64,
+    #[arg(long)]
+    pub idempotency_key: String,
+    #[arg(long, value_enum, default_value = "human")]
+    pub format: OutputFormat,
+}
+
+#[derive(Args, Debug)]
+pub struct InstallationBindForeignArgs {
+    pub installation_id: String,
+    pub launch_id: String,
+    /// JSON matching plurora.foreign-launch-binding.v1. Local coordinates are
+    /// sent only to the Installation secret store and are never printed.
+    #[arg(long)]
+    pub binding: PathBuf,
+    #[arg(long)]
+    pub expected_revision: u64,
+    #[arg(long)]
+    pub idempotency_key: String,
+    #[arg(long, value_enum, default_value = "human")]
+    pub format: OutputFormat,
+}
+
 pub(crate) struct HostInstallationClient {
     pub(crate) endpoint: String,
     pub(crate) access_token: String,
@@ -206,6 +239,8 @@ async fn run_with_client(
             run_update(client, &object_root, args).await
         }
         InstallationCommand::Remove(args) => run_remove(client, args).await,
+        InstallationCommand::Backup(args) => run_backup(client, args).await,
+        InstallationCommand::BindForeign(args) => run_bind_foreign(client, args).await,
     }
 }
 
@@ -344,6 +379,128 @@ async fn run_remove(client: &HostInstallationClient, args: InstallationRemoveArg
     let result: InstallationMutationResult =
         call_host_protocol(client, "host.installation.remove", request).await?;
     print_mutation("removed", &result, 0, args.format)
+}
+
+async fn current_installation(
+    client: &HostInstallationClient,
+    installation_id: InstallationId,
+) -> Result<InstallationView> {
+    call_host_protocol(
+        client,
+        "host.installation.get",
+        InstallationGetRequest { installation_id },
+    )
+    .await
+}
+
+async fn run_backup(client: &HostInstallationClient, args: InstallationBackupArgs) -> Result<()> {
+    ensure_non_empty_key(&args.idempotency_key)?;
+    let installation_id = parse_installation_id(args.installation_id)?;
+    let current = current_installation(client, installation_id.clone()).await?;
+    ensure!(
+        current.revision == args.expected_revision,
+        "--expected-revision is stale"
+    );
+    let result: InstallationMutationResult = call_host_protocol(
+        client,
+        "host.installation.update",
+        InstallationUpdateRequest {
+            installation_id,
+            expected_revision: args.expected_revision,
+            work_revision: current.record.work_revision.clone(),
+            assembly_lock: current.record.assembly_lock.clone(),
+            display_name: None,
+            source: None,
+            state_bindings: None,
+            secret_policy: None,
+            state_action: InstallationStateAction::Backup,
+            idempotency_key: args.idempotency_key,
+            authority: None,
+        },
+    )
+    .await?;
+    match args.format {
+        OutputFormat::Json => print_json(&result),
+        OutputFormat::Human => {
+            print_mutation("backed up", &result, 0, OutputFormat::Human)?;
+            if let Some(snapshot) = result.receipts.first() {
+                println!("State snapshot: {}", snapshot.digest);
+            }
+            Ok(())
+        }
+    }
+}
+
+async fn run_bind_foreign(
+    client: &HostInstallationClient,
+    args: InstallationBindForeignArgs,
+) -> Result<()> {
+    ensure_non_empty_key(&args.idempotency_key)?;
+    let bytes =
+        fs::read(&args.binding).map_err(|_| anyhow!("read foreign launch binding failed"))?;
+    let binding: ForeignLaunchBinding = serde_json::from_slice(&bytes)
+        .map_err(|_| anyhow!("foreign launch binding JSON is malformed"))?;
+    binding
+        .validate()
+        .map_err(|_| anyhow!("foreign launch binding is invalid"))?;
+    ensure!(
+        binding.launch_id == args.launch_id,
+        "binding launch_id differs from the requested launch"
+    );
+    let installation_id = parse_installation_id(args.installation_id)?;
+    let current = current_installation(client, installation_id.clone()).await?;
+    ensure!(
+        current.revision == args.expected_revision,
+        "--expected-revision is stale"
+    );
+    let reference = foreign_launch_secret_ref(&args.launch_id);
+    let mut policy = current.record.secret_policy.clone();
+    if !policy
+        .allowed_secret_refs
+        .iter()
+        .any(|candidate| candidate == &reference)
+    {
+        policy.allowed_secret_refs.push(reference);
+        policy.allowed_secret_refs.sort();
+    }
+    let result: InstallationMutationResult = call_host_protocol(
+        client,
+        "host.installation.update",
+        InstallationUpdateRequest {
+            installation_id: installation_id.clone(),
+            expected_revision: args.expected_revision,
+            work_revision: current.record.work_revision.clone(),
+            assembly_lock: current.record.assembly_lock.clone(),
+            display_name: None,
+            source: None,
+            state_bindings: None,
+            secret_policy: Some(policy),
+            state_action: InstallationStateAction::Preserve,
+            idempotency_key: args.idempotency_key,
+            authority: None,
+        },
+    )
+    .await?;
+
+    let _: CapabilityInvocationResult = call_host_protocol(
+        client,
+        "capability.invoke",
+        CapabilityInvocationRequest {
+            handle: None,
+            capability_id: Some("plurora/secret-store-lab/put_installation_secret".to_string()),
+            caller_package_id: None,
+            provider_package_id: Some("plurora/secret-store-lab".to_string()),
+            version: None,
+            session_id: None,
+            input: json!({
+                "installation_id": installation_id,
+                "name": foreign_launch_secret_name(&args.launch_id),
+                "value": serde_json::to_string(&binding)?,
+            }),
+        },
+    )
+    .await?;
+    print_mutation("bound", &result, 0, args.format)
 }
 
 fn state_action(
@@ -709,6 +866,45 @@ mod tests {
             "remove-1"
         ])
         .is_err());
+        assert!(matches!(
+            Cli::try_parse_from([
+                "plurora",
+                "installation",
+                "backup",
+                "18f0776d-d719-4483-ab95-90a2483819d4",
+                "--expected-revision",
+                "1",
+                "--idempotency-key",
+                "backup-1"
+            ])
+            .unwrap()
+            .command,
+            Command::Installation(InstallationArgs {
+                command: InstallationCommand::Backup(_),
+                ..
+            })
+        ));
+        assert!(matches!(
+            Cli::try_parse_from([
+                "plurora",
+                "installation",
+                "bind-foreign",
+                "18f0776d-d719-4483-ab95-90a2483819d4",
+                "play",
+                "--binding",
+                "binding.json",
+                "--expected-revision",
+                "1",
+                "--idempotency-key",
+                "bind-1"
+            ])
+            .unwrap()
+            .command,
+            Command::Installation(InstallationArgs {
+                command: InstallationCommand::BindForeign(_),
+                ..
+            })
+        ));
     }
 
     #[test]
@@ -918,6 +1114,171 @@ mod tests {
                 "host.installation.remove".to_string()
             ]
         );
+        server.abort();
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn backup_and_foreign_binding_use_only_public_exact_host_calls() -> Result<()> {
+        let installation_id = "18f0776d-d719-4483-ab95-90a2483819d4";
+        let descriptor = |artifact_type_uri: &str, byte: char| {
+            json!({
+                "artifact_type_uri": artifact_type_uri,
+                "media_type": "application/json",
+                "digest": format!("sha256:{}", byte.to_string().repeat(64)),
+                "size_bytes": 1,
+                "references": [],
+                "annotations": {}
+            })
+        };
+        let view = json!({
+            "record": {
+                "schema_version": 1,
+                "installation_id": installation_id,
+                "work_revision": descriptor(plurora_work::WORK_REVISION_TYPE_URI, 'a'),
+                "assembly_lock": descriptor(plurora_work::ASSEMBLY_LOCK_TYPE_URI, 'b'),
+                "display_name": "Foreign Work",
+                "source": {"kind": "work_bundle", "provenance_refs": []},
+                "state_bindings": [],
+                "secret_policy": {"allowed_secret_refs": [], "allow_platform_fallback": false},
+                "created_at": "2026-08-10T00:00:00Z",
+                "updated_at": "2026-08-10T00:00:00Z",
+                "status": "ready"
+            },
+            "work_summary": {
+                "work_id": "tests/foreign-work",
+                "title": "Foreign Work",
+                "description": "",
+                "content_roots": [],
+                "entrypoints": [],
+                "rights": null,
+                "transparency": null,
+                "operational_intent": null,
+                "annotations": {}
+            },
+            "revision": 1
+        });
+        let requests = Arc::new(Mutex::new(Vec::<Value>::new()));
+        let server_requests = requests.clone();
+        let app = Router::new().route(
+            "/rpc",
+            post(move |Json(request): Json<Value>| {
+                let requests = server_requests.clone();
+                let view = view.clone();
+                async move {
+                    requests.lock().await.push(request.clone());
+                    let method = request["method"].as_str().unwrap_or_default();
+                    let result = match method {
+                        "host.installation.get" => view.clone(),
+                        "host.installation.update" => {
+                            let backup = request["params"]["state_action"]["kind"] == "backup";
+                            json!({
+                                "installation": view,
+                                "diff": null,
+                                "receipts": if backup {
+                                    vec![json!({
+                                        "artifact_type_uri": plurora_runtime::INSTALLATION_STATE_SNAPSHOT_TYPE_URI,
+                                        "media_type": plurora_runtime::INSTALLATION_STATE_SNAPSHOT_MEDIA_TYPE,
+                                        "digest": format!("sha256:{}", "c".repeat(64)),
+                                        "size_bytes": 1,
+                                        "references": [],
+                                        "annotations": {}
+                                    })]
+                                } else {
+                                    Vec::new()
+                                },
+                                "idempotent": false
+                            })
+                        }
+                        "capability.invoke" => json!({
+                            "capability_id": "plurora/secret-store-lab/put_installation_secret",
+                            "provider_package_id": "plurora/secret-store-lab",
+                            "output": {"stored": true},
+                            "duration_ms": 0,
+                            "correlation_id": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"
+                        }),
+                        _ => panic!("unexpected method {method}"),
+                    };
+                    Json(json!({"id": request["id"], "result": result}))
+                }
+            }),
+        );
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await?;
+        let address = listener.local_addr()?;
+        let server = tokio::spawn(async move { axum::serve(listener, app).await });
+        let client = HostInstallationClient {
+            endpoint: format!("http://{address}"),
+            access_token: String::new(),
+        };
+        run_backup(
+            &client,
+            InstallationBackupArgs {
+                installation_id: installation_id.to_string(),
+                expected_revision: 1,
+                idempotency_key: "backup-wire".to_string(),
+                format: OutputFormat::Json,
+            },
+        )
+        .await?;
+
+        let temporary = tempfile::tempdir()?;
+        let binding_path = temporary.path().join("private-coordinate.json");
+        let marker = "credential-and-coordinate-must-not-enter-installation-update";
+        fs::write(
+            &binding_path,
+            serde_json::to_vec(&json!({
+                "schema": plurora_runtime::FOREIGN_LAUNCH_BINDING_SCHEMA,
+                "launch_id": "play",
+                "target": {
+                    "kind": "remote_service",
+                    "endpoint": format!("https://service.invalid/{marker}")
+                }
+            }))?,
+        )?;
+        run_bind_foreign(
+            &client,
+            InstallationBindForeignArgs {
+                installation_id: installation_id.to_string(),
+                launch_id: "play".to_string(),
+                binding: binding_path,
+                expected_revision: 1,
+                idempotency_key: "bind-wire".to_string(),
+                format: OutputFormat::Json,
+            },
+        )
+        .await?;
+
+        let requests = requests.lock().await.clone();
+        let methods = requests
+            .iter()
+            .map(|request| request["method"].as_str().unwrap().to_string())
+            .collect::<Vec<_>>();
+        assert_eq!(
+            methods,
+            [
+                "host.installation.get",
+                "host.installation.update",
+                "host.installation.get",
+                "host.installation.update",
+                "capability.invoke"
+            ]
+        );
+        assert_eq!(requests[1]["params"]["state_action"]["kind"], "backup");
+        assert_eq!(requests[3]["params"]["state_action"]["kind"], "preserve");
+        assert_eq!(
+            requests[3]["params"]["secret_policy"]["allowed_secret_refs"],
+            json!([foreign_launch_secret_ref("play")])
+        );
+        assert!(!serde_json::to_string(&requests[3])?.contains(marker));
+        assert_eq!(requests[4]["method"], "capability.invoke");
+        assert_eq!(
+            requests[4]["params"]["provider_package_id"],
+            "plurora/secret-store-lab"
+        );
+        assert!(requests[4]["params"]["input"]["value"]
+            .as_str()
+            .is_some_and(|value| value.contains(marker)));
+        assert!(methods.iter().all(|method| !method.contains("drm")));
         server.abort();
         Ok(())
     }

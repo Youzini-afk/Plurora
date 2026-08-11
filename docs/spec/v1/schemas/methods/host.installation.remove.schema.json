@@ -279,6 +279,15 @@
       ],
       "type": "string"
     },
+    "ClaimStatus": {
+      "enum": [
+        "claimed",
+        "verified",
+        "refuted",
+        "unknown"
+      ],
+      "type": "string"
+    },
     "ComponentTrustClass": {
       "enum": [
         "sandboxed_component",
@@ -1388,6 +1397,17 @@
             }
           ]
         },
+        "rights_declaration": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RightsDeclaration"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Parsed declaration from the exact `rights` descriptor. Descriptive only; the Host still evaluates policy from verified artifact bytes at effect time."
+        },
         "title": {
           "type": "string"
         },
@@ -1400,6 +1420,17 @@
               "type": "null"
             }
           ]
+        },
+        "transparency_declaration": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/TransparencyDeclaration"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Parsed declaration from the exact `transparency` descriptor. This keeps Library disclosure on the public Installation API without exposing a raw ObjectStore read primitive."
         },
         "work_id": {
           "$ref": "#/$defs/WorkId"
@@ -1670,6 +1701,27 @@
       ],
       "type": "object"
     },
+    "ProtocolRequirement": {
+      "properties": {
+        "profiles": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "protocol_id": {
+          "type": "string"
+        },
+        "version": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "protocol_id",
+        "version"
+      ],
+      "type": "object"
+    },
     "Result": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "properties": {
@@ -1703,6 +1755,86 @@
       "title": "InstallationMutationResult",
       "type": "object"
     },
+    "RightDisposition": {
+      "enum": [
+        "allowed",
+        "denied",
+        "requires_entitlement",
+        "unspecified"
+      ],
+      "type": "string"
+    },
+    "RightsDeclaration": {
+      "properties": {
+        "backup": {
+          "$ref": "#/$defs/RightDisposition"
+        },
+        "copy_across_hosts": {
+          "$ref": "#/$defs/RightDisposition"
+        },
+        "dedicated_server": {
+          "$ref": "#/$defs/RightDisposition"
+        },
+        "derive": {
+          "$ref": "#/$defs/RightDisposition"
+        },
+        "entitlement_requirements": {
+          "items": {
+            "$ref": "#/$defs/ProtocolRequirement"
+          },
+          "type": "array"
+        },
+        "evidence_refs": {
+          "items": {
+            "$ref": "#/$defs/ArtifactDescriptor"
+          },
+          "type": "array"
+        },
+        "execute": {
+          "$ref": "#/$defs/RightDisposition"
+        },
+        "export_state": {
+          "$ref": "#/$defs/RightDisposition"
+        },
+        "install": {
+          "$ref": "#/$defs/RightDisposition"
+        },
+        "license_expression": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "modding": {
+          "$ref": "#/$defs/RightDisposition"
+        },
+        "modify": {
+          "$ref": "#/$defs/RightDisposition"
+        },
+        "redistribute_artifacts": {
+          "$ref": "#/$defs/RightDisposition"
+        },
+        "terms_uri": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "backup",
+        "copy_across_hosts",
+        "dedicated_server",
+        "derive",
+        "execute",
+        "export_state",
+        "install",
+        "modding",
+        "modify",
+        "redistribute_artifacts"
+      ],
+      "type": "object"
+    },
     "SelectedTransport": {
       "properties": {
         "class_id": {
@@ -1717,6 +1849,15 @@
         "class_id"
       ],
       "type": "object"
+    },
+    "SourceVisibility": {
+      "enum": [
+        "open",
+        "source_available",
+        "closed",
+        "unknown"
+      ],
+      "type": "string"
     },
     "StateBindingKind": {
       "enum": [
@@ -1834,6 +1975,61 @@
     "StateSlotId": {
       "pattern": "^(?!.*\\.\\.)[A-Za-z0-9._-]+$",
       "type": "string"
+    },
+    "TransparencyDeclaration": {
+      "properties": {
+        "evidence_refs": {
+          "items": {
+            "$ref": "#/$defs/ArtifactDescriptor"
+          },
+          "type": "array"
+        },
+        "provenance_refs": {
+          "items": {
+            "$ref": "#/$defs/ArtifactDescriptor"
+          },
+          "type": "array"
+        },
+        "reproducible_build_claim": {
+          "$ref": "#/$defs/ClaimStatus"
+        },
+        "sbom_refs": {
+          "items": {
+            "$ref": "#/$defs/ArtifactDescriptor"
+          },
+          "type": "array"
+        },
+        "signature_refs": {
+          "items": {
+            "$ref": "#/$defs/ArtifactDescriptor"
+          },
+          "type": "array"
+        },
+        "source_refs": {
+          "items": {
+            "$ref": "#/$defs/ArtifactDescriptor"
+          },
+          "type": "array"
+        },
+        "source_visibility": {
+          "$ref": "#/$defs/SourceVisibility"
+        },
+        "state_portability": {
+          "$ref": "#/$defs/StatePortability"
+        },
+        "telemetry_disclosures": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "reproducible_build_claim",
+        "source_visibility",
+        "state_portability"
+      ],
+      "type": "object"
     },
     "TransportPolicy": {
       "properties": {
