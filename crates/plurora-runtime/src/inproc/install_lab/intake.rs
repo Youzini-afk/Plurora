@@ -602,7 +602,14 @@ mod tests {
         runtime.load_package(install_manifest).await?;
         runtime.load_package(integrity_manifest).await?;
 
-        crate::inproc::with_runtime_invoker(runtime, None, future).await
+        crate::inproc::with_runtime_invoker(
+            runtime,
+            None,
+            super::super::PACKAGE_ID.to_string(),
+            Default::default(),
+            future,
+        )
+        .await
     }
 
     fn digest() -> String {
