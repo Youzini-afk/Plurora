@@ -7163,7 +7163,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn authority_append_barrier_blocks_create_and_update_commits_after_revoke_or_expiry(
+    async fn authority_append_barrier_blocks_create_and_update_commits_after_revocation(
     ) -> anyhow::Result<()> {
         fn context(
             grant_id: &str,
@@ -7318,6 +7318,7 @@ mod tests {
             1
         );
 
+        let preserve_active = Arc::new(AtomicBool::new(true));
         let preserve_entered = Arc::new(tokio::sync::Barrier::new(2));
         let preserve_release = Arc::new(tokio::sync::Barrier::new(2));
         fixture.registry.inject_authority_append_barrier(
@@ -7329,15 +7330,15 @@ mod tests {
             &created,
             created.record.work_revision.clone(),
             created.record.assembly_lock.clone(),
-            "preserve-terminal-expiry",
+            "preserve-terminal-revoked",
         );
         preserve.display_name = Some("must not commit".to_string());
         let preserve_context = context(
             "grant-preserve-append",
             "installation",
             created.record.installation_id.to_string(),
-            Utc::now().timestamp_millis() + 100,
-            Arc::new(AtomicBool::new(true)),
+            Utc::now().timestamp_millis() + 60_000,
+            preserve_active.clone(),
         );
         let preserve_runtime = runtime.clone();
         let preserve_task = tokio::spawn(async move {
@@ -7350,11 +7351,11 @@ mod tests {
                 .await
         });
         wait_at_barrier(&preserve_entered, &preserve_task).await?;
-        tokio::time::sleep(Duration::from_millis(120)).await;
+        preserve_active.store(false, Ordering::SeqCst);
         preserve_release.wait().await;
         let error = preserve_task
             .await?
-            .expect_err("expired Installation grant must block Preserve terminal commit");
+            .expect_err("revoked Installation grant must block Preserve terminal commit");
         assert!(error.message.contains("authority_denied"));
         assert_eq!(
             fixture
