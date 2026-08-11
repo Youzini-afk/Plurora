@@ -56,7 +56,7 @@ async fn method_identity_owner_status_and_typed_dtos() -> anyhow::Result<()> {
     anyhow::ensure!(actual == expected);
 
     let exported = method_schemas();
-    anyhow::ensure!(exported.len() == 92);
+    anyhow::ensure!(exported.len() == PlatformMethod::all().len());
     for method in METHODS {
         anyhow::ensure!(method.status() == MethodStatus::Implemented);
         anyhow::ensure!(method.is_dispatched() && !method.streaming());
@@ -194,7 +194,7 @@ async fn every_method_enforces_its_public_action_before_controller_effects() -> 
 
 async fn event_identity_and_public_payload_schema() -> anyhow::Result<()> {
     let exported = event_schemas();
-    anyhow::ensure!(exported.len() == 69);
+    anyhow::ensure!(exported.len() == PLATFORM_EVENT_KINDS.len());
     for kind in EVENTS {
         anyhow::ensure!(PLATFORM_EVENT_KINDS.contains(&kind));
         let (_, payload) = exported
