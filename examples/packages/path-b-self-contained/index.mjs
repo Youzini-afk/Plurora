@@ -14,7 +14,6 @@ process.stdin.on("data", (chunk) => {
     const request = JSON.parse(line);
     if (request.method === "package.handshake") {
       process.stdout.write(JSON.stringify({ jsonrpc: "2.0", id: request.id, result: { ready: true } }) + "\n");
-      setTimeout(() => process.exit(0), 25);
     } else {
       process.stdout.write(JSON.stringify({ jsonrpc: "2.0", id: request.id, result: {} }) + "\n");
     }
