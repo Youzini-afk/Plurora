@@ -304,14 +304,32 @@ impl Harness {
         action: &str,
         installation_id: &InstallationId,
     ) -> ProtocolContext {
+        self.device_with_run(grant, action, installation_id, None)
+    }
+
+    fn device_with_run(
+        &self,
+        grant: &str,
+        action: &str,
+        installation_id: &InstallationId,
+        run_id: Option<&RunId>,
+    ) -> ProtocolContext {
+        let mut resources = vec![ProtocolResourceSelector {
+            owner: "host".to_string(),
+            kind: "installation".to_string(),
+            id: Some(installation_id.to_string()),
+        }];
+        if let Some(run_id) = run_id {
+            resources.push(ProtocolResourceSelector {
+                owner: "host".to_string(),
+                kind: "run".to_string(),
+                id: Some(run_id.to_string()),
+            });
+        }
         ProtocolContext::host_device(
             grant,
             vec![action.to_string()],
-            vec![ProtocolResourceSelector {
-                owner: "host".to_string(),
-                kind: "installation".to_string(),
-                id: Some(installation_id.to_string()),
-            }],
+            resources,
             Vec::new(),
             "run-conformance-device",
         )
@@ -647,7 +665,7 @@ pub(crate) async fn restart_marks_incomplete_run_interrupted() -> anyhow::Result
     Ok(())
 }
 
-pub(crate) async fn exact_installation_parent_authority() -> anyhow::Result<()> {
+pub(crate) async fn exact_installation_and_run_authority() -> anyhow::Result<()> {
     let harness = Harness::new().await?;
     let first = harness.create("run-authority-first").await?;
     let second = harness.create("run-authority-second").await?;
@@ -687,10 +705,26 @@ pub(crate) async fn exact_installation_parent_authority() -> anyhow::Result<()> 
         .await?,
     )?;
     anyhow::ensure!(listed.len() == 1 && listed[0].record.run_id == run.record.run_id);
+    let parent_only = run_call(
+        &harness.runtime,
+        &observed,
+        "host.run.get",
+        json!({"installation_id": first_id.clone(), "run_id": run.record.run_id.clone()}),
+    )
+    .await
+    .expect_err("Run get requires exact Installation and Run authority");
+    anyhow::ensure!(parent_only.to_string().contains("permission_denied"));
+
+    let observed_run = harness.device_with_run(
+        "grant-first-observe-run",
+        "observe",
+        &first_id,
+        Some(&run.record.run_id),
+    );
     let got: RunView = serde_json::from_value(
         run_call(
             &harness.runtime,
-            &observed,
+            &observed_run,
             "host.run.get",
             json!({"installation_id": first_id.clone(), "run_id": run.record.run_id.clone()}),
         )
@@ -698,7 +732,12 @@ pub(crate) async fn exact_installation_parent_authority() -> anyhow::Result<()> 
     )?;
     anyhow::ensure!(got == run);
 
-    let other_installation = harness.device("grant-second", "observe", &second_id);
+    let other_installation = harness.device_with_run(
+        "grant-second",
+        "observe",
+        &second_id,
+        Some(&run.record.run_id),
+    );
     let denied = run_call(
         &harness.runtime,
         &other_installation,
@@ -709,17 +748,45 @@ pub(crate) async fn exact_installation_parent_authority() -> anyhow::Result<()> 
     .expect_err("another Installation cannot read this Run");
     anyhow::ensure!(denied.to_string().contains("Run not found"));
 
+    let missing_run_id = RunId::new();
+    let missing_run_context = harness.device_with_run(
+        "grant-first-missing-run",
+        "observe",
+        &first_id,
+        Some(&missing_run_id),
+    );
     let missing_run = run_call(
         &harness.runtime,
-        &observed,
+        &missing_run_context,
         "host.run.get",
-        json!({"installation_id": first_id.clone(), "run_id": RunId::new()}),
+        json!({"installation_id": first_id.clone(), "run_id": missing_run_id}),
     )
     .await
     .expect_err("a sibling/unknown Run is never guessed or adopted");
     anyhow::ensure!(missing_run.to_string().contains("Run not found"));
 
-    let stop_context = harness.device("grant-first-stop", "run", &first_id);
+    let parent_stop = harness.device("grant-first-stop-parent", "run", &first_id);
+    let denied_stop = run_call(
+        &harness.runtime,
+        &parent_stop,
+        "host.run.stop",
+        json!({
+            "installation_id": first_id.clone(),
+            "run_id": run.record.run_id.clone(),
+            "expected_revision": run.revision,
+            "idempotency_key": "authority-stop-parent",
+        }),
+    )
+    .await
+    .expect_err("Run stop requires exact Installation and Run authority");
+    anyhow::ensure!(denied_stop.to_string().contains("permission_denied"));
+
+    let stop_context = harness.device_with_run(
+        "grant-first-stop",
+        "run",
+        &first_id,
+        Some(&run.record.run_id),
+    );
     let stopped: RunMutationResult = serde_json::from_value(
         run_call(
             &harness.runtime,
@@ -836,9 +903,9 @@ pub(crate) fn run_cases() -> Vec<super::runner::ConformanceCase> {
             restart_marks_incomplete_run_interrupted
         ),
         case!(
-            "run.exact_installation_parent_authority",
+            "run.exact_installation_and_run_authority",
             ["protocol", "run", "permission", "authority", "installation"],
-            exact_installation_parent_authority
+            exact_installation_and_run_authority
         ),
         case!(
             "run.stale_installation_revision_rejected",

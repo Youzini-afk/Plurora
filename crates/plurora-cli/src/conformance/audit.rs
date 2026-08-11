@@ -11,12 +11,22 @@ pub(crate) async fn package_audit_report() -> anyhow::Result<()> {
     let (_store, runtime) = runtime();
     runtime.load_package(audit_provider_package()).await?;
     runtime.load_package(audit_caller_package()).await?;
+    let caller_id = "example/audit-caller".to_string();
+    let capability_id = "example/audit-provider/a";
+    let handle = runtime
+        .handles()
+        .list_for(&caller_id)
+        .await
+        .into_iter()
+        .find(|handle| !handle.revoked && handle.cap_type == capability_id)
+        .map(|handle| handle.id)
+        .ok_or_else(|| anyhow::anyhow!("audit caller is missing its manifest-granted handle"))?;
 
     runtime
         .invoke_capability(CapabilityInvocationRequest {
-            handle: None,
-            capability_id: Some("example/audit-provider/a".to_string()),
-            caller_package_id: Some("example/audit-caller".to_string()),
+            handle: Some(handle),
+            capability_id: None,
+            caller_package_id: Some(caller_id),
             provider_package_id: Some("example/audit-provider".to_string()),
             version: None,
             session_id: None,
