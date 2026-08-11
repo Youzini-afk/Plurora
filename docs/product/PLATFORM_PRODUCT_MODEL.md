@@ -84,6 +84,14 @@
 
 第三方发行版可以没有 Home、没有 Project，或采用完全不同的根对象和导航。它只要遵守采用的公开合同与权限边界即可。
 
+## Phase 5 Powerbox UX
+
+Home/Library 负责 Work 与 Installation 的发现，Installation frame 提供 Powerbox chooser。Chooser 必须先显示 binding phase，再显示 exact Exposure、audience、expiry，以及 consumer/provider 两端 PortContract（protocol、interface、version、profiles、interaction、effects、transport、multiplicity）。Provider Work/Installation source、Component trust/claim/boundaries/evidence、artifact/behavior digest 与 stale 状态分栏展示。
+
+第一方与第三方 provider 使用相同披露规则，候选按稳定顺序展示，不按 publisher 选择。0 个或多个候选都要求用户或显式 policy 选择；preference 只能作为排序 hint。UI 不猜 unknown，不隐式 deploy/rebind，也不显示 runtime handle、credential 或 private intent。可见候选最多 256，超限显示结构化诊断而不是静默截断。
+
+PWA/mobile 与 Desktop 复用同一 Host API；Host/Installation cache 隔离，关闭 tab、iframe 或 PWA 连接不会停止 Run，也不会撤销 Exposure/Binding。Surface 只有公开 allowlist bridge，没有 Powerbox private bridge 或第一方旁路。
+
 ## Project 的产品边界
 
 Project 是当前官方 Host 与发行版用于组织可安装、可运行实例的实用模型。它适合应用、工作区和一部分体验，但不是 Plurora 上所有数据与交互的永久根对象。
@@ -139,4 +147,4 @@ Project 是当前官方 Host 与发行版用于组织可安装、可运行实例
 - 更换组件、客户端或 Host 时是否保留工作；
 - 新功能是否保持公开边界和第三方空间。
 
-具体当前状态见 [`../ALPHA_STATUS.md`](../ALPHA_STATUS.md)，建设方向见 [`../roadmap/NEXT_STEPS.md`](../roadmap/NEXT_STEPS.md)。
+具体当前状态见 [`../ALPHA_STATUS.md`](../ALPHA_STATUS.md)：Exposure、Binding 与 Powerbox 为 Phase 5 implemented，Managed Realization/部署编译仍是 Phase 6 planned；建设方向见 [`../roadmap/NEXT_STEPS.md`](../roadmap/NEXT_STEPS.md)。

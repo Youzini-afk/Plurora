@@ -1,6 +1,6 @@
 # 事件类型注册表（v1）
 
-本表列出 63 个只能由 Plurora 平台运行时发出的事件 kind。普通 Package writer 使用自己的 Package ID 命名空间，不能冒充平台拥有的事件。
+本表列出 69 个只能由 Plurora 平台运行时发出的事件 kind。普通 Package writer 使用自己的 Package ID 命名空间，不能冒充平台拥有的事件。
 
 | 事件类型 | Payload schema | Writer | 触发 | 状态 |
 |---|---|---|---|---|
@@ -19,6 +19,12 @@
 | `host/installation.created` | [`./schemas/events/host__installation.created.schema.json`](./schemas/events/host__installation.created.schema.json) | `plurora/runtime` | Installation journal 已创建并投影 | implemented |
 | `host/installation.updated` | [`./schemas/events/host__installation.updated.schema.json`](./schemas/events/host__installation.updated.schema.json) | `plurora/runtime` | Installation active Work/Lock 或状态已更新 | implemented |
 | `host/installation.removed` | [`./schemas/events/host__installation.removed.schema.json`](./schemas/events/host__installation.removed.schema.json) | `plurora/runtime` | Installation 已移除并记录显式 state disposition | implemented |
+| `host/exposure.created` | [`./schemas/events/host__exposure.created.schema.json`](./schemas/events/host__exposure.created.schema.json) | `plurora/runtime` | provider Installation 的 exact export Port 已 Exposure | implemented |
+| `host/exposure.revoked` | [`./schemas/events/host__exposure.revoked.schema.json`](./schemas/events/host__exposure.revoked.schema.json) | `plurora/runtime` | Exposure 被 owner 或 authority 撤销 | implemented |
+| `host/exposure.expired` | [`./schemas/events/host__exposure.expired.schema.json`](./schemas/events/host__exposure.expired.schema.json) | `plurora/runtime` | Exposure lease 到期 | implemented |
+| `host/binding.selected` | [`./schemas/events/host__binding.selected.schema.json`](./schemas/events/host__binding.selected.schema.json) | `plurora/runtime` | consumer import Port 选择了 exact Exposure candidate | implemented |
+| `host/binding.revoked` | [`./schemas/events/host__binding.revoked.schema.json`](./schemas/events/host__binding.revoked.schema.json) | `plurora/runtime` | Binding 被 consumer/provider authority 撤销 | implemented |
+| `host/binding.expired` | [`./schemas/events/host__binding.expired.schema.json`](./schemas/events/host__binding.expired.schema.json) | `plurora/runtime` | Binding lease 或 Exposure 到期 | implemented |
 | `host/run.starting` | [`./schemas/events/host__run.starting.schema.json`](./schemas/events/host__run.starting.schema.json) | `plurora/runtime` | Run journal 已记录 starting，准备开始激活 | implemented |
 | `host/run.started` | [`./schemas/events/host__run.started.schema.json`](./schemas/events/host__run.started.schema.json) | `plurora/runtime` | Run 激活完成并进入 running | implemented |
 | `host/run.stopping` | [`./schemas/events/host__run.stopping.schema.json`](./schemas/events/host__run.stopping.schema.json) | `plurora/runtime` | Run 停止已获准并进入 stopping | implemented |

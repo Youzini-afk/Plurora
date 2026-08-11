@@ -33,6 +33,7 @@ struct MethodSpec {
     params_schema: Value,
     result_schema: Value,
     openapi_aliases: BTreeMap<String, String>,
+    contract: Value,
 }
 
 #[derive(Clone)]
@@ -160,6 +161,10 @@ fn collect_methods(
             .ok_or_else(|| anyhow!("method schema {} has no method const", path.display()))?
             .to_string();
         let schema_id = id.clone();
+        let contract = schema
+            .get("x-plurora-contract")
+            .ok_or_else(|| anyhow!("method schema {schema_id} has no x-plurora-contract"))?
+            .clone();
         let defs = schema.get("$defs").or_else(|| schema.get("definitions"));
         let params_schema = defs
             .and_then(|d| d.get("Params"))
@@ -195,6 +200,7 @@ fn collect_methods(
             params_schema,
             result_schema,
             openapi_aliases,
+            contract,
         });
     }
     methods.sort_by(|a, b| a.schema_id.cmp(&b.schema_id));
@@ -1005,6 +1011,11 @@ fn write_openapi(methods: &[MethodSpec], registry: &TypeRegistry) -> Result<()> 
         let operation_id = method.function_ts.clone();
         let mut request_schema = json_rpc_request_schema(&method.id, &method.params_schema);
         let mut response_schema = json_rpc_response_schema(&method.result_schema);
+        let implementation_status = method
+            .contract
+            .get("implementation_status")
+            .cloned()
+            .ok_or_else(|| anyhow!("method {} contract has no implementation_status", method.id))?;
         rewrite_local_definition_refs(&mut request_schema, &method.openapi_aliases, registry)?;
         rewrite_local_definition_refs(&mut response_schema, &method.openapi_aliases, registry)?;
         strip_definition_blocks(&mut request_schema);
@@ -1017,6 +1028,8 @@ fn write_openapi(methods: &[MethodSpec], registry: &TypeRegistry) -> Result<()> 
                 "post": {
                     "operationId": operation_id,
                     "summary": format!("Invoke {}", method.id),
+                    "x-plurora-contract": method.contract,
+                    "x-plurora-implementation-status": implementation_status,
                     "requestBody": {
                         "required": true,
                         "content": {

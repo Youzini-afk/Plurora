@@ -1,6 +1,6 @@
 # Event Kind Registry (v1)
 
-This table lists the 63 event kinds emitted exclusively by the Plurora platform runtime. Ordinary Package writers use their own Package ID namespace and cannot impersonate a platform-owned kind.
+This table lists the 69 event kinds emitted exclusively by the Plurora platform runtime. Ordinary Package writers use their own Package ID namespace and cannot impersonate a platform-owned kind.
 
 | Event kind | Payload schema | Writer | Trigger | Status |
 |---|---|---|---|---|
@@ -19,6 +19,12 @@ This table lists the 63 event kinds emitted exclusively by the Plurora platform 
 | `host/installation.created` | [`./schemas/events/host__installation.created.schema.json`](./schemas/events/host__installation.created.schema.json) | `plurora/runtime` | Installation journal entry created and projected | implemented |
 | `host/installation.updated` | [`./schemas/events/host__installation.updated.schema.json`](./schemas/events/host__installation.updated.schema.json) | `plurora/runtime` | Installation active Work/Lock pointer or state updated | implemented |
 | `host/installation.removed` | [`./schemas/events/host__installation.removed.schema.json`](./schemas/events/host__installation.removed.schema.json) | `plurora/runtime` | Installation removed with an explicit state disposition | implemented |
+| `host/exposure.created` | [`./schemas/events/host__exposure.created.schema.json`](./schemas/events/host__exposure.created.schema.json) | `plurora/runtime` | Exact export Port is exposed by a provider Installation | implemented |
+| `host/exposure.revoked` | [`./schemas/events/host__exposure.revoked.schema.json`](./schemas/events/host__exposure.revoked.schema.json) | `plurora/runtime` | Exposure revoked by its owner or authority | implemented |
+| `host/exposure.expired` | [`./schemas/events/host__exposure.expired.schema.json`](./schemas/events/host__exposure.expired.schema.json) | `plurora/runtime` | Exposure lease expired | implemented |
+| `host/binding.selected` | [`./schemas/events/host__binding.selected.schema.json`](./schemas/events/host__binding.selected.schema.json) | `plurora/runtime` | Consumer import Port selected an exact Exposure candidate | implemented |
+| `host/binding.revoked` | [`./schemas/events/host__binding.revoked.schema.json`](./schemas/events/host__binding.revoked.schema.json) | `plurora/runtime` | Binding revoked by consumer/provider authority | implemented |
+| `host/binding.expired` | [`./schemas/events/host__binding.expired.schema.json`](./schemas/events/host__binding.expired.schema.json) | `plurora/runtime` | Binding lease or Exposure expired | implemented |
 | `host/run.starting` | [`./schemas/events/host__run.starting.schema.json`](./schemas/events/host__run.starting.schema.json) | `plurora/runtime` | Run journal records starting before activation | implemented |
 | `host/run.started` | [`./schemas/events/host__run.started.schema.json`](./schemas/events/host__run.started.schema.json) | `plurora/runtime` | Run activation completes and enters running | implemented |
 | `host/run.stopping` | [`./schemas/events/host__run.stopping.schema.json`](./schemas/events/host__run.stopping.schema.json) | `plurora/runtime` | Run stop is authorized and enters stopping | implemented |

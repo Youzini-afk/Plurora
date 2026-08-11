@@ -1,0 +1,551 @@
+{
+  "$defs": {
+    "ArtifactDescriptor": {
+      "properties": {
+        "annotations": {
+          "additionalProperties": true,
+          "default": {},
+          "type": "object"
+        },
+        "artifact_type_uri": {
+          "type": "string"
+        },
+        "digest": {
+          "type": "string"
+        },
+        "media_type": {
+          "type": "string"
+        },
+        "references": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "size_bytes": {
+          "format": "uint64",
+          "minimum": 0.0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "artifact_type_uri",
+        "digest",
+        "media_type",
+        "size_bytes"
+      ],
+      "type": "object"
+    },
+    "AvailabilityPolicy": {
+      "enum": [
+        "required",
+        "degraded_without",
+        "optional"
+      ],
+      "type": "string"
+    },
+    "BindingDecisionStatus": {
+      "enum": [
+        "selected",
+        "revoked",
+        "expired"
+      ],
+      "type": "string"
+    },
+    "BindingEffectiveStatus": {
+      "oneOf": [
+        {
+          "properties": {
+            "kind": {
+              "enum": [
+                "detached"
+              ],
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "properties": {
+            "kind": {
+              "enum": [
+                "active"
+              ],
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "properties": {
+            "kind": {
+              "enum": [
+                "broken"
+              ],
+              "type": "string"
+            },
+            "reason_code": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "reason_code"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "BindingEndpointPin": {
+      "additionalProperties": false,
+      "properties": {
+        "component": {
+          "$ref": "#/$defs/ComponentPin"
+        },
+        "installation": {
+          "$ref": "#/$defs/InstallationRevisionPin"
+        },
+        "port": {
+          "$ref": "#/$defs/ResolvedPortPin"
+        },
+        "run": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RunRevisionPin"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "component",
+        "installation",
+        "port"
+      ],
+      "type": "object"
+    },
+    "BindingId": {
+      "format": "uuid",
+      "type": "string"
+    },
+    "BindingPhase": {
+      "enum": [
+        "authoring",
+        "installation",
+        "launch",
+        "runtime"
+      ],
+      "type": "string"
+    },
+    "BindingSelectionRecord": {
+      "additionalProperties": false,
+      "properties": {
+        "availability": {
+          "$ref": "#/$defs/AvailabilityPolicy"
+        },
+        "binding_id": {
+          "$ref": "#/$defs/BindingId"
+        },
+        "candidate_digest": {
+          "type": "string"
+        },
+        "capability": {
+          "$ref": "#/$defs/CapabilityPin"
+        },
+        "consumer": {
+          "$ref": "#/$defs/BindingEndpointPin"
+        },
+        "effective_expires_at": {
+          "format": "date-time",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "exposure_id": {
+          "$ref": "#/$defs/ExposureId"
+        },
+        "exposure_revision": {
+          "format": "uint64",
+          "minimum": 0.0,
+          "type": "integer"
+        },
+        "phase": {
+          "$ref": "#/$defs/BindingPhase"
+        },
+        "provider": {
+          "$ref": "#/$defs/BindingEndpointPin"
+        },
+        "status": {
+          "$ref": "#/$defs/BindingDecisionStatus"
+        },
+        "transport": {
+          "$ref": "#/$defs/SelectedTransport"
+        }
+      },
+      "required": [
+        "availability",
+        "binding_id",
+        "candidate_digest",
+        "capability",
+        "consumer",
+        "exposure_id",
+        "exposure_revision",
+        "phase",
+        "provider",
+        "status",
+        "transport"
+      ],
+      "type": "object"
+    },
+    "BindingView": {
+      "properties": {
+        "effective_status": {
+          "$ref": "#/$defs/BindingEffectiveStatus"
+        },
+        "record": {
+          "$ref": "#/$defs/BindingSelectionRecord"
+        },
+        "revision": {
+          "format": "uint64",
+          "minimum": 0.0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "effective_status",
+        "record",
+        "revision"
+      ],
+      "type": "object"
+    },
+    "CapabilityPin": {
+      "additionalProperties": false,
+      "properties": {
+        "capability_id": {
+          "type": "string"
+        },
+        "capability_version": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "capability_id",
+        "capability_version"
+      ],
+      "type": "object"
+    },
+    "ComponentPin": {
+      "additionalProperties": false,
+      "properties": {
+        "behavior_digest": {
+          "type": "string"
+        },
+        "component_artifact": {
+          "$ref": "#/$defs/ArtifactDescriptor"
+        },
+        "component_id": {
+          "type": "string"
+        },
+        "node_path": {
+          "items": {
+            "$ref": "#/$defs/NodeId"
+          },
+          "type": "array"
+        },
+        "package_id": {
+          "type": "string"
+        },
+        "trust_class": {
+          "$ref": "#/$defs/ComponentTrustClass"
+        }
+      },
+      "required": [
+        "behavior_digest",
+        "component_artifact",
+        "component_id",
+        "node_path",
+        "package_id",
+        "trust_class"
+      ],
+      "type": "object"
+    },
+    "ComponentTrustClass": {
+      "enum": [
+        "sandboxed_component",
+        "isolated_process",
+        "remote_boundary",
+        "trusted_native",
+        "static_resource",
+        "foreign_capsule"
+      ],
+      "type": "string"
+    },
+    "Errors": {
+      "items": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "details": true,
+          "message": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "details",
+          "message"
+        ],
+        "title": "ErrorShape",
+        "type": "object"
+      },
+      "type": "array"
+    },
+    "ExposureId": {
+      "format": "uuid",
+      "type": "string"
+    },
+    "InstallationId": {
+      "format": "uuid",
+      "type": "string"
+    },
+    "InstallationRevisionPin": {
+      "additionalProperties": false,
+      "properties": {
+        "assembly_lock": {
+          "$ref": "#/$defs/ArtifactDescriptor"
+        },
+        "installation_id": {
+          "$ref": "#/$defs/InstallationId"
+        },
+        "installation_revision": {
+          "format": "uint64",
+          "minimum": 0.0,
+          "type": "integer"
+        },
+        "work_revision": {
+          "$ref": "#/$defs/ArtifactDescriptor"
+        }
+      },
+      "required": [
+        "assembly_lock",
+        "installation_id",
+        "installation_revision",
+        "work_revision"
+      ],
+      "type": "object"
+    },
+    "NodeId": {
+      "pattern": "^(?!.*\\.\\.)[A-Za-z0-9._-]+$",
+      "type": "string"
+    },
+    "Params": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {
+        "binding_id": {
+          "$ref": "#/$defs/BindingId"
+        },
+        "consumer_installation_id": {
+          "$ref": "#/$defs/InstallationId"
+        },
+        "consumer_run": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RunRevisionPin"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "expected_binding_revision": {
+          "format": "uint64",
+          "minimum": 0.0,
+          "type": "integer"
+        },
+        "expected_consumer_installation_revision": {
+          "format": "uint64",
+          "minimum": 0.0,
+          "type": "integer"
+        },
+        "exposure_id": {
+          "$ref": "#/$defs/ExposureId"
+        },
+        "idempotency_key": {
+          "type": "string"
+        },
+        "import_port": {
+          "$ref": "#/$defs/PortId"
+        }
+      },
+      "required": [
+        "binding_id",
+        "consumer_installation_id",
+        "expected_binding_revision",
+        "expected_consumer_installation_revision",
+        "exposure_id",
+        "idempotency_key",
+        "import_port"
+      ],
+      "title": "BindingRevokeRequest",
+      "type": "object"
+    },
+    "PortEndpoint": {
+      "properties": {
+        "node_id": {
+          "$ref": "#/$defs/NodeId"
+        },
+        "port_id": {
+          "$ref": "#/$defs/PortId"
+        }
+      },
+      "required": [
+        "node_id",
+        "port_id"
+      ],
+      "type": "object"
+    },
+    "PortId": {
+      "pattern": "^(?!.*\\.\\.)[A-Za-z0-9._-]+$",
+      "type": "string"
+    },
+    "ResolvedPortPin": {
+      "additionalProperties": false,
+      "properties": {
+        "canonical_contract_digest": {
+          "type": "string"
+        },
+        "leaf_port": {
+          "$ref": "#/$defs/PortEndpoint"
+        },
+        "node_path": {
+          "items": {
+            "$ref": "#/$defs/NodeId"
+          },
+          "type": "array"
+        },
+        "root_port": {
+          "$ref": "#/$defs/PortId"
+        }
+      },
+      "required": [
+        "canonical_contract_digest",
+        "leaf_port",
+        "node_path",
+        "root_port"
+      ],
+      "type": "object"
+    },
+    "Result": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "properties": {
+        "affected_binding_ids": {
+          "items": {
+            "$ref": "#/$defs/BindingId"
+          },
+          "type": "array"
+        },
+        "binding": {
+          "$ref": "#/$defs/BindingView"
+        },
+        "idempotent": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "binding",
+        "idempotent"
+      ],
+      "title": "BindingMutationResult",
+      "type": "object"
+    },
+    "RunId": {
+      "format": "uuid",
+      "type": "string"
+    },
+    "RunRevisionPin": {
+      "additionalProperties": false,
+      "description": "Exact Run identity established by the Host. The three fields are one optional unit: Launch-time selection can omit the entire value, while a Runtime selection must carry all of it.",
+      "properties": {
+        "context_id": {
+          "type": "string"
+        },
+        "run_id": {
+          "$ref": "#/$defs/RunId"
+        },
+        "run_revision": {
+          "format": "uint64",
+          "minimum": 0.0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "context_id",
+        "run_id",
+        "run_revision"
+      ],
+      "type": "object"
+    },
+    "SelectedTransport": {
+      "properties": {
+        "class_id": {
+          "type": "string"
+        },
+        "properties": {
+          "additionalProperties": true,
+          "type": "object"
+        }
+      },
+      "required": [
+        "class_id"
+      ],
+      "type": "object"
+    }
+  },
+  "$id": "urn:plurora:schema:method:host.binding.revoke:v1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Plurora public platform method host.binding.revoke.",
+  "properties": {
+    "errors": {
+      "$ref": "#/$defs/Errors"
+    },
+    "method": {
+      "const": "host.binding.revoke"
+    },
+    "params": {
+      "$ref": "#/$defs/Params"
+    },
+    "result": {
+      "$ref": "#/$defs/Result"
+    }
+  },
+  "required": [
+    "method",
+    "params"
+  ],
+  "title": "host.binding.revoke",
+  "type": "object",
+  "x-plurora-contract": {
+    "id": "host.binding.revoke",
+    "implementation_status": "implemented",
+    "introduced_in": "plurora.contract.default/v1@0.1.0",
+    "maturity": "candidate",
+    "owner_layer": "host",
+    "request_schema": "urn:plurora:schema:method:host.binding.revoke:v1#/$defs/Params",
+    "response_schema": "urn:plurora:schema:method:host.binding.revoke:v1#/$defs/Result",
+    "streaming": false
+  }
+}

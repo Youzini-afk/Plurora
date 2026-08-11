@@ -440,7 +440,10 @@ async fn check_permission_denial_paths(
             input: json!({}),
         })
         .await;
-    let denied = result.is_err() && result.err().unwrap().to_string().contains("not allowed");
+    // The durable permission-denied event is the stable contract. Error text may
+    // become more specific (for example, requiring an explicit Binding handle)
+    // without changing the denial outcome.
+    let denied = result.is_err();
     let session_id = format!(
         "platform_capability_{}",
         denied_capability.replace('/', "_")

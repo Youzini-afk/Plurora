@@ -65,6 +65,19 @@ cargo run -p plurora-cli -- conformance --slowest 3
 | bundle rejection | `surface.resolve_unknown_fails` | unknown surface bundle fails closed | implemented |
 | bundle authority | `surface.resolve_admin_principal_required` | resolve_bundle 限 HostAdmin/HostDev | implemented |
 
+### Phase 5 Powerbox conformance cases
+
+以下六个具名用例覆盖 Exposure/Binding 的公开方法、事件、authority、候选披露与 runtime pin；实现状态以代码 registry 与 schema exporter 为准：
+
+| Case id | 覆盖 | 状态 |
+|---|---|---|
+| `powerbox.public_method_identity_owner_typed_dto` | 7 个 Host method 的 exact ID、owner、implemented status 与 typed request/result | implemented |
+| `powerbox.public_method_actions_no_effect_on_denial` | action 在 controller effect 前拒绝，且 exact resources 不越权 | implemented |
+| `powerbox.public_event_identity_payload` | 6 个 Exposure/Binding event 的 registry identity 与 payload schema | implemented |
+| `powerbox.public_wire_no_private_authority` | public wire 不暴露 handle、credential、grant basis 或 host path | implemented |
+| `powerbox.candidates_effect_free_no_auto_select` | candidates effect-free、disclosure 完整、0/多候选不自动选择 | implemented |
+| `powerbox.launch_runtime_exact_run_pin` | Launch 与 Runtime 的 exact Run/context/node path pin 区分 | implemented |
+
 Surface/static bundle 与 bridge 还覆盖以下稳定断言：
 
 | 断言 | 覆盖 | 状态 |

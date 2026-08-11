@@ -126,6 +126,7 @@ src/
 │       └── about.tsx
 ├── client-core/
 │   ├── host-access.ts          # typed Host access REST boundary
+│   ├── powerbox.ts             # Exposure/Binding candidate and selection client
 │   └── pairing-credential.ts   # immediate URL scrubbing + memory-only one-time token
 ├── protocol/
 │   └── client.ts               # PluroraProtocolClient — typed RPC + SSE wrappers
@@ -194,7 +195,8 @@ mode for legibility on bark backgrounds.
 | Settings — Storage | storage-area summary + event store kind |
 | Settings — Host Access | `/host/v1/access*` identity, pairing, grant, and revoke APIs |
 | Installation tab | `host.installation.get` + `host.run.get/status`; Run controls use explicit `host.run.*` |
-| Managed deployment | `platform.port.*` + `platform.proxy.*` (transitional surface; Realization remains later) |
+| Powerbox | `host.exposure.*` + `host.binding.*` (Phase 5 public chooser) |
+| Transitional deployment | `platform.port.*` + `platform.proxy.*` (Realization remains Phase 6 planned) |
 | Install Modal | `host.installation.create` with a typed Installation DTO |
 | Failure Modal | `host.package.list/status/logs` redacted failure summaries |
 
@@ -215,8 +217,26 @@ must still cross proposal, permission, and audit boundaries.
 
 Run lifecycle uses only explicit `host.run.start|stop|status` calls. Starting a
 Run never invokes the transitional deployment broker, creates a managed
-Realization, or publishes a route. Managed Realization and Exposure remain
-separate later-phase surfaces.
+Realization, or publishes a route. Phase 5 Exposure/Binding uses the public
+Powerbox chooser and exact Installation/Port/Run selectors; managed Realization
+plan/apply remains the Phase 6 boundary.
+
+### Powerbox chooser
+
+The Installation frame calls `host.binding.candidates` as an effect-free query,
+showing the explicit phase, exact Exposure/audience/expiry, both PortContracts,
+provider Work/Installation source, Component trust/claims/boundaries/evidence,
+and candidate digest/stale state. Zero or multiple candidates require an
+explicit user or policy choice; preferences are ordering hints only. The shell
+never displays runtime handles, credentials, or private intent, and it never
+implicitly deploys or rebinds. Candidate visibility is bounded at 256 with a
+structured overflow diagnostic.
+
+`host.exposure.create|revoke` and `host.binding.select|revoke` use typed public
+DTOs and exact resource selectors. Host journal is durable authority; the Web
+shell receives filtered projections. Closing a tab, iframe, or PWA connection
+does not stop the Run or revoke its Exposure/Binding. Host/Installation caches
+are isolated for remote PWA use.
 
 The Host exposes authenticated routes through `/p/<route_id>/...`. When a route
 is explicitly public and `PLURORA_APP_BASE_DOMAIN` / `--app-base-domain` is
@@ -296,7 +316,7 @@ Production hosting still needs a static fileserver route (deferred).
 
 ## What this shell is not
 
-- It is not a Studio. There are no privileged tools that bypass public protocol.
+- It is not a Studio. There are no privileged tools, private Powerbox bridges, or routes that bypass public protocol.
 - It is not a chat UI. Package-contributed surfaces own conversational behavior.
 - It is not a marketplace. Settings → Installed Packages shows local
   inventory only; the web install flow accepts public HTTPS Git URLs, never a

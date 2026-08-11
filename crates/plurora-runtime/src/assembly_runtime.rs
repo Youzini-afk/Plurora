@@ -1,22 +1,26 @@
 use std::collections::BTreeSet;
 use std::sync::{Arc, Weak};
 
-use async_trait::async_trait;
-use plurora_core::{
-    ComponentTrustClass, ContractMode, PackageEntry, PackageId, SessionStatus, SubprocessTransport,
-    COMPONENT_DESCRIPTOR_TYPE_URI,
-};
-use plurora_work::{
-    AssemblyLock, AssemblyNodeSource, AssemblyRevision, AvailabilityPolicy, BindingPhase,
-    NodeInstanceRecord, NodeInstanceStatus, NodeLock, PortRole, RunId, WorkEntrypointTarget,
-    ASSEMBLY_LOCK_TYPE_URI,
-};
-
 use crate::{
     package::{PackageRunClaim, PackageRunLease},
-    EventStore, OpenSessionRequest, PackageRecord, PackageState, RunActivation, RunGap,
-    RunInstallationArtifacts, RunInstallationGuard, RunLifecycleDriver, RunPreparation,
-    RunStartRequest, RunStatusInspection, RunStatusRequest, Runtime,
+    BindingComponentDisclosure, BindingEndpointPin, BindingInstallationDisclosure,
+    BindingSelectionRecord, BindingWorkDisclosure, CapabilityPin, ComponentActivationIdentity,
+    ComponentPin, EventStore, InstallationRevisionPin, OpenSessionRequest, PackageRecord,
+    PackageState, PowerboxEndpointInspection, ResolvedPortPin, RunActivation,
+    RunBindingPreparationRequest, RunGap, RunInstallationArtifacts, RunInstallationGuard,
+    RunLifecycleDriver, RunPreparation, RunRevisionPin, RunStartRequest, RunStatusInspection,
+    RunStatusRequest, Runtime,
+};
+use async_trait::async_trait;
+use plurora_core::{
+    ComponentDescriptor, ComponentTrustClass, ContractMode, PackageEntry, PackageId, SessionStatus,
+    SubprocessTransport, COMPONENT_DESCRIPTOR_TYPE_URI,
+};
+use plurora_work::{
+    canonical_digest, AssemblyLock, AssemblyNodeSource, AssemblyRevision, AvailabilityPolicy,
+    BindingPhase, NodeInstanceRecord, NodeInstanceStatus, NodeLock, PortDescriptor, PortDirection,
+    PortEndpoint, PortId, PortRole, RunId, WorkEntrypointTarget, ASSEMBLY_LOCK_TYPE_URI,
+    INTERACTION_CAPABILITY_STREAM, INTERACTION_CAPABILITY_UNARY,
 };
 
 pub struct AssemblyRuntimeDriver<S>
@@ -41,30 +45,340 @@ where
     }
 }
 
+impl<S> Runtime<S>
+where
+    S: EventStore,
+{
+    /// Resolve a root Assembly Port using the same verified closure and exact
+    /// loaded-component rules as Run preflight. The Host Powerbox uses this
+    /// immediately before candidate construction and every effect validation.
+    pub async fn inspect_powerbox_endpoint(
+        &self,
+        artifacts: &RunInstallationArtifacts,
+        run: Option<RunRevisionPin>,
+        root_port: &PortId,
+        direction: PortDirection,
+    ) -> anyhow::Result<PowerboxEndpointInspection> {
+        let root_lock = artifacts
+            .locks
+            .get(&artifacts.installation.record.assembly_lock.digest)
+            .ok_or_else(|| anyhow::anyhow!("verified root AssemblyLock is unavailable"))?;
+        let root_assembly = artifacts
+            .assemblies
+            .get(&root_lock.assembly.digest)
+            .ok_or_else(|| anyhow::anyhow!("verified root AssemblyRevision is unavailable"))?;
+        let packages = self.packages().list().await;
+        let resolved = resolve_powerbox_leaf(
+            root_assembly,
+            root_lock,
+            &artifacts.assemblies,
+            &artifacts.locks,
+            &packages,
+            &[],
+            root_port,
+            direction,
+        )?;
+        let installation = InstallationRevisionPin {
+            installation_id: artifacts.installation.record.installation_id.clone(),
+            installation_revision: artifacts.installation.revision,
+            work_revision: artifacts.installation.record.work_revision.clone(),
+            assembly_lock: artifacts.installation.record.assembly_lock.clone(),
+        };
+        let endpoint = BindingEndpointPin {
+            installation,
+            run,
+            port: ResolvedPortPin {
+                root_port: root_port.clone(),
+                node_path: resolved.node_path.clone(),
+                leaf_port: PortEndpoint {
+                    node_id: resolved
+                        .node_path
+                        .last()
+                        .expect("resolved Powerbox leaf has a node")
+                        .clone(),
+                    port_id: resolved.descriptor.port_id.clone(),
+                },
+                canonical_contract_digest: canonical_digest(&resolved.descriptor.contract)?,
+            },
+            component: ComponentPin {
+                package_id: resolved.component.claim.package_id().clone(),
+                component_id: resolved.component.claim.component_id().to_string(),
+                node_path: resolved.node_path,
+                component_artifact: resolved.component.claim.component_artifact().clone(),
+                behavior_digest: resolved.component.claim.behavior_digest().to_string(),
+                trust_class: resolved.component.claim.trust_class(),
+            },
+        };
+        let (phase, availability) = match &resolved.descriptor.role {
+            PortRole::Import {
+                latest_binding_phase,
+                availability,
+                ..
+            } => (*latest_binding_phase, *availability),
+            PortRole::Export { .. } => (BindingPhase::Runtime, AvailabilityPolicy::Required),
+        };
+        let capability = if direction == PortDirection::Export {
+            let capability_id = resolved
+                .descriptor
+                .annotations
+                .get("plurora.projection/capability_id")
+                .and_then(serde_json::Value::as_str)
+                .unwrap_or(resolved.descriptor.contract.interface_id.as_str());
+            anyhow::ensure!(
+                !capability_id.trim().is_empty(),
+                "resolved export Port has no exact capability identity"
+            );
+            let matches = self
+                .capabilities()
+                .describe(&capability_id.to_string())
+                .await
+                .into_iter()
+                .filter(|provider| {
+                    provider.provider_package_id == endpoint.component.package_id
+                        && provider.provider_component_id == endpoint.component.component_id
+                        && provider.provider_component_digest
+                            == endpoint.component.component_artifact.digest
+                        && provider.provider_behavior_digest == endpoint.component.behavior_digest
+                        && provider.provider_trust_class == endpoint.component.trust_class
+                        && provider.descriptor.version == resolved.descriptor.contract.version
+                })
+                .collect::<Vec<_>>();
+            let [provider] = matches.as_slice() else {
+                anyhow::bail!(
+                    "resolved export Port does not have one exact current Runtime capability provider"
+                );
+            };
+            Some(CapabilityPin {
+                capability_id: provider.descriptor.id.clone(),
+                capability_version: provider.descriptor.version.clone(),
+            })
+        } else {
+            None
+        };
+        let work = BindingWorkDisclosure {
+            work_id: artifacts.work.work_id.clone(),
+            title: artifacts.work.title.clone(),
+        };
+        let installation = BindingInstallationDisclosure {
+            installation_id: artifacts.installation.record.installation_id.clone(),
+            installation_revision: artifacts.installation.revision,
+            display_name: artifacts.installation.record.display_name.clone(),
+            source: artifacts.installation.record.source.clone(),
+        };
+        Ok(PowerboxEndpointInspection {
+            endpoint,
+            descriptor: resolved.descriptor,
+            work,
+            installation,
+            component: resolved.component.disclosure,
+            phase,
+            availability,
+            capability,
+        })
+    }
+
+    /// Attach a Runtime-phase durable selection to the exact already-running
+    /// consumer component. The private capability handle remains exclusively in
+    /// `RunBindingBroker`; callers receive only the handle-free binding record.
+    pub async fn attach_runtime_binding(
+        &self,
+        selection: BindingSelectionRecord,
+    ) -> Result<crate::AttachedRunBinding, crate::BindingAttachError> {
+        if selection.phase != BindingPhase::Runtime {
+            return Err(crate::BindingAttachError::definitive(
+                "binding_phase_drift",
+                anyhow::anyhow!("only Runtime-phase selections attach after Run activation"),
+            ));
+        }
+        let run = selection.consumer.run.clone().ok_or_else(|| {
+            crate::BindingAttachError::definitive(
+                "consumer_activation_drift",
+                anyhow::anyhow!("Runtime-phase Binding is missing its exact consumer Run"),
+            )
+        })?;
+        let activation = self
+            .run_binding_broker()
+            .component_activation_identity(
+                selection.consumer.installation.installation_id.clone(),
+                run.run_id,
+                run.run_revision,
+                run.context_id,
+                selection.consumer.component.package_id.clone(),
+                selection.consumer.component.component_id.clone(),
+                selection.consumer.component.node_path.clone(),
+                selection.consumer.port.root_port.clone(),
+            )
+            .await
+            .map_err(|error| {
+                crate::BindingAttachError::definitive("consumer_activation_drift", error)
+            })?;
+        self.attach_selected_binding(selection, activation).await
+    }
+
+    async fn attach_selected_binding(
+        &self,
+        selection: BindingSelectionRecord,
+        activation: ComponentActivationIdentity,
+    ) -> Result<crate::AttachedRunBinding, crate::BindingAttachError> {
+        let providers = self
+            .capabilities()
+            .describe(&selection.capability.capability_id)
+            .await
+            .into_iter()
+            .filter(|provider| {
+                provider.provider_package_id == selection.provider.component.package_id
+                    && provider.provider_component_id == selection.provider.component.component_id
+                    && provider.provider_component_digest
+                        == selection.provider.component.component_artifact.digest
+                    && provider.provider_behavior_digest
+                        == selection.provider.component.behavior_digest
+                    && provider.provider_trust_class == selection.provider.component.trust_class
+                    && provider.descriptor.version == selection.capability.capability_version
+            })
+            .collect::<Vec<_>>();
+        let [provider] = providers.as_slice() else {
+            return Err(crate::BindingAttachError::definitive(
+                "provider_pin_drift",
+                anyhow::anyhow!(
+                    "selected Binding provider no longer has one exact registered capability"
+                ),
+            ));
+        };
+        self.run_binding_broker()
+            .attach(selection, activation, provider.clone())
+            .await
+    }
+}
+
+struct ResolvedPowerboxLeaf {
+    node_path: Vec<plurora_work::NodeId>,
+    descriptor: PortDescriptor,
+    component: SelectedComponent,
+}
+
+#[allow(clippy::too_many_arguments)]
+fn resolve_powerbox_leaf(
+    assembly: &AssemblyRevision,
+    lock: &AssemblyLock,
+    assemblies: &std::collections::BTreeMap<String, AssemblyRevision>,
+    locks: &std::collections::BTreeMap<String, AssemblyLock>,
+    packages: &[PackageRecord],
+    path_prefix: &[plurora_work::NodeId],
+    root_port: &PortId,
+    direction: PortDirection,
+) -> anyhow::Result<ResolvedPowerboxLeaf> {
+    let exposure = assembly
+        .exposed_ports
+        .iter()
+        .find(|exposure| exposure.port_id == *root_port && exposure.direction == direction)
+        .ok_or_else(|| {
+            anyhow::anyhow!("root Assembly Port is unavailable or has the wrong direction")
+        })?;
+    let node = assembly
+        .nodes
+        .iter()
+        .find(|node| node.node_id == exposure.target.node_id)
+        .ok_or_else(|| anyhow::anyhow!("root Assembly Port targets an unknown node"))?;
+    let node_lock = lock
+        .nodes
+        .iter()
+        .find(|candidate| candidate.node_id == node.node_id)
+        .ok_or_else(|| anyhow::anyhow!("verified AssemblyLock is missing the Port target node"))?;
+    let mut node_path = path_prefix.to_vec();
+    node_path.push(node.node_id.clone());
+    match (&node.source, node_lock.artifact.artifact_type_uri.as_str()) {
+        (AssemblyNodeSource::Component { component }, COMPONENT_DESCRIPTOR_TYPE_URI) => {
+            anyhow::ensure!(
+                component == &node_lock.artifact,
+                "AssemblyLock component pin differs from the AssemblyRevision"
+            );
+            let descriptor = node
+                .ports
+                .iter()
+                .find(|port| port.port_id == exposure.target.port_id)
+                .cloned()
+                .ok_or_else(|| anyhow::anyhow!("root Assembly Port leaf is unavailable"))?;
+            let role_matches = matches!(
+                (&descriptor.role, direction),
+                (PortRole::Import { .. }, PortDirection::Import)
+                    | (PortRole::Export { .. }, PortDirection::Export)
+            );
+            anyhow::ensure!(
+                role_matches,
+                "root Assembly Port leaf role disagrees with direction"
+            );
+            let component = exact_loaded_component(node_lock, packages)
+                .map_err(|gap| anyhow::anyhow!("{}: {}", gap.reason_code, gap.next_step))?;
+            Ok(ResolvedPowerboxLeaf {
+                node_path,
+                descriptor,
+                component,
+            })
+        }
+        (AssemblyNodeSource::Assembly { assembly: nested }, ASSEMBLY_LOCK_TYPE_URI) => {
+            let nested_lock = locks
+                .get(&node_lock.artifact.digest)
+                .ok_or_else(|| anyhow::anyhow!("verified nested AssemblyLock is unavailable"))?;
+            anyhow::ensure!(
+                &nested_lock.assembly == nested,
+                "nested AssemblyLock does not pin the declared AssemblyRevision"
+            );
+            let nested_assembly = assemblies.get(&nested.digest).ok_or_else(|| {
+                anyhow::anyhow!("verified nested AssemblyRevision is unavailable")
+            })?;
+            resolve_powerbox_leaf(
+                nested_assembly,
+                nested_lock,
+                assemblies,
+                locks,
+                packages,
+                &node_path,
+                &exposure.target.port_id,
+                direction,
+            )
+        }
+        _ => anyhow::bail!("verified Assembly and AssemblyLock node kinds disagree"),
+    }
+}
+
 struct PreparedAssemblyRun {
     installation: RunInstallationGuard,
     package_claims: Vec<PackageRunClaim>,
     package_ids: Vec<PackageId>,
-    nodes: Vec<plurora_work::NodeId>,
+    nodes: Vec<Vec<plurora_work::NodeId>>,
+    component_activations: Vec<PreparedComponentActivation>,
+    selected_bindings: Vec<BindingSelectionRecord>,
 }
 
 struct AssemblyPreflight {
     entrypoint_id: String,
     package_claims: Vec<PackageRunClaim>,
     package_ids: Vec<PackageId>,
-    nodes: Vec<plurora_work::NodeId>,
+    nodes: Vec<Vec<plurora_work::NodeId>>,
+    component_activations: Vec<PreparedComponentActivation>,
     gaps: Vec<RunGap>,
+    selected_bindings: Vec<BindingSelectionRecord>,
 }
 
 struct ActiveAssemblyRun {
+    installation_id: plurora_work::InstallationId,
+    session_id: String,
     _installation: RunInstallationGuard,
     _packages: PackageRunLease,
+}
+
+#[derive(Debug, Clone)]
+struct PreparedComponentActivation {
+    package_id: PackageId,
+    component_id: String,
+    node_path: Vec<plurora_work::NodeId>,
 }
 
 #[derive(Debug, Clone)]
 struct SelectedComponent {
     claim: PackageRunClaim,
     activates_node: bool,
+    disclosure: BindingComponentDisclosure,
 }
 
 #[async_trait]
@@ -130,6 +444,8 @@ where
                 package_claims: preflight.package_claims,
                 package_ids: preflight.package_ids,
                 nodes: preflight.nodes,
+                component_activations: preflight.component_activations,
+                selected_bindings: preflight.selected_bindings,
             }),
         ))
     }
@@ -166,12 +482,96 @@ where
                 }),
             })
             .await?;
+        let mut active_bindings = Vec::new();
+        for component in &prepared.component_activations {
+            runtime
+                .run_binding_broker()
+                .register_component_activation(
+                    installation_id.clone(),
+                    run_id.clone(),
+                    session.id.clone(),
+                    component.package_id.clone(),
+                    component.component_id.clone(),
+                    component.node_path.clone(),
+                )
+                .await?;
+        }
+        for selection in prepared.selected_bindings {
+            let claim = prepared
+                .package_claims
+                .iter()
+                .find(|claim| {
+                    claim.package_id() == &selection.consumer.component.package_id
+                        && claim.component_id() == selection.consumer.component.component_id
+                        && claim.component_artifact()
+                            == &selection.consumer.component.component_artifact
+                        && claim.behavior_digest()
+                            == selection.consumer.component.behavior_digest
+                        && claim.trust_class() == selection.consumer.component.trust_class
+                })
+                .ok_or_else(|| {
+                    anyhow::anyhow!(
+                        "selected Binding consumer does not match the verified Assembly/Lock Package claim"
+                    )
+                })?;
+            let activation = runtime
+                .run_binding_broker()
+                .component_activation_identity(
+                    installation_id.clone(),
+                    run_id.clone(),
+                    1,
+                    session.id.clone(),
+                    claim.package_id().clone(),
+                    claim.component_id().to_string(),
+                    selection.consumer.component.node_path.clone(),
+                    selection.consumer.port.root_port.clone(),
+                )
+                .await?;
+            let attached = runtime
+                .attach_selected_binding(selection.clone(), activation)
+                .await;
+            match attached {
+                Ok(attached) => active_bindings.push(attached.binding),
+                Err(error) => {
+                    let terminal_error = if error.is_definitive_drift() {
+                        runtime
+                            .config()
+                            .powerbox_control
+                            .binding_drifted(&selection.binding_id, error.reason_code())
+                            .await
+                            .err()
+                    } else {
+                        None
+                    };
+                    let _ = runtime
+                        .run_binding_broker()
+                        .stop_run(
+                            &installation_id,
+                            run_id,
+                            &session.id,
+                            "binding_attachment_failed",
+                        )
+                        .await;
+                    let _ = runtime.close_session(session.id.clone()).await;
+                    if let Some(terminal_error) = terminal_error {
+                        return Err(anyhow::anyhow!(
+                            "binding drift was detected during Run activation but its durable close obligation could not complete: {terminal_error}"
+                        ));
+                    }
+                    return Err(error.into());
+                }
+            }
+        }
         let node_instances = prepared
             .nodes
             .into_iter()
-            .map(|node_id| NodeInstanceRecord {
+            .map(|node_path| NodeInstanceRecord {
                 instance_id: plurora_core::new_id("rni"),
-                node_id,
+                node_id: node_path
+                    .last()
+                    .expect("prepared Assembly node has a full NodePath")
+                    .clone(),
+                node_path,
                 status: NodeInstanceStatus::Running,
                 realization_id: None,
             })
@@ -179,16 +579,25 @@ where
         Ok(RunActivation::new(
             Some(session.id.clone()),
             node_instances,
-            Vec::new(),
+            active_bindings,
             Box::new(ActiveAssemblyRun {
+                installation_id,
+                session_id: session.id,
                 _installation: prepared.installation,
                 _packages: package_lease,
             }),
         ))
     }
 
-    async fn stop(&self, _run_id: &RunId, activation: &mut RunActivation) -> anyhow::Result<()> {
+    async fn stop(&self, run_id: &RunId, activation: &mut RunActivation) -> anyhow::Result<()> {
         let runtime = self.runtime()?;
+        let active = activation.get::<ActiveAssemblyRun>()?;
+        let installation_id = active.installation_id.clone();
+        let session_id = active.session_id.clone();
+        runtime
+            .run_binding_broker()
+            .stop_run(&installation_id, run_id, &session_id, "run_stopped")
+            .await?;
         let context_id = activation
             .context_id
             .as_deref()
@@ -226,6 +635,8 @@ where
             package_claims: Vec::new(),
             package_ids: Vec::new(),
             nodes: Vec::new(),
+            component_activations: Vec::new(),
+            selected_bindings: Vec::new(),
             gaps: vec![RunGap::new(
                 "target_unsatisfied",
                 "select an entrypoint declared by this fixed WorkRevision",
@@ -250,21 +661,7 @@ where
                 .assemblies
                 .get(&artifacts.work.assembly.digest)
                 .ok_or_else(|| anyhow::anyhow!("verified root AssemblyRevision is unavailable"))?;
-            let exposure = root
-                .exposed_ports
-                .iter()
-                .find(|exposure| &exposure.port_id == port_id);
-            if exposure.is_none_or(|exposure| {
-                root.nodes
-                    .iter()
-                    .find(|node| node.node_id == exposure.target.node_id)
-                    .is_none_or(|node| {
-                        !node
-                            .ports
-                            .iter()
-                            .any(|port| port.port_id == exposure.target.port_id)
-                    })
-            }) {
+            if !assembly_port_resolves(root, port_id, &artifacts.assemblies) {
                 gaps.push(
                     RunGap::new(
                         "target_unsatisfied",
@@ -287,15 +684,99 @@ where
         .get(&root_lock.assembly.digest)
         .ok_or_else(|| anyhow::anyhow!("verified root AssemblyRevision is unavailable"))?;
     let mut selected = Vec::new();
+    let mut required_imports = Vec::new();
+    let root_imports = root_assembly
+        .exposed_ports
+        .iter()
+        .filter(|exposure| exposure.direction == plurora_work::PortDirection::Import)
+        .map(|exposure| (exposure.port_id.clone(), Some(exposure.port_id.clone())))
+        .collect::<std::collections::BTreeMap<_, _>>();
     collect_locked_nodes(
         root_assembly,
         root_lock,
         &artifacts.assemblies,
         &artifacts.locks,
         &packages,
+        &[],
+        &root_imports,
         &mut selected,
+        &mut required_imports,
         &mut gaps,
     )?;
+
+    let mut selected_bindings = Vec::new();
+    if !required_imports.is_empty() {
+        match runtime
+            .config()
+            .powerbox_control
+            .prepare_run_bindings(RunBindingPreparationRequest {
+                consumer_installation_id: artifacts.installation.record.installation_id.clone(),
+                consumer_installation_revision: artifacts.installation.revision,
+                consumer_run: None,
+                required_imports: required_imports.clone(),
+            })
+            .await
+        {
+            Ok(prepared) => {
+                for gap in prepared.gaps {
+                    let mut run_gap = RunGap::new(gap.reason_code, gap.next_step);
+                    if let Some(node_id) = gap.node_id {
+                        run_gap = run_gap.for_node(node_id);
+                    }
+                    if let Some(port_id) = gap.port_id {
+                        run_gap = run_gap.for_port(port_id);
+                    }
+                    gaps.push(run_gap);
+                }
+                for required in &required_imports {
+                    let matching = prepared
+                        .selected
+                        .iter()
+                        .filter(|binding| {
+                            binding.consumer.installation.installation_id
+                                == artifacts.installation.record.installation_id
+                                && binding.consumer.installation.installation_revision
+                                    == artifacts.installation.revision
+                                && binding.consumer.port == *required
+                        })
+                        .collect::<Vec<_>>();
+                    match matching.as_slice() {
+                        [binding] if binding.validate_selected().is_ok() => {
+                            selected_bindings.push((*binding).clone())
+                        }
+                        [] => gaps.push(
+                            RunGap::new(
+                                "binding_unavailable",
+                                "select one explicit Exposure provider for this required import",
+                            )
+                            .for_node(&required.leaf_port.node_id)
+                            .for_port(&required.root_port),
+                        ),
+                        _ => gaps.push(
+                            RunGap::new(
+                                "binding_ambiguous",
+                                "leave exactly one selected Binding for this required import",
+                            )
+                            .for_node(&required.leaf_port.node_id)
+                            .for_port(&required.root_port),
+                        ),
+                    }
+                }
+            }
+            Err(_) => {
+                for required in &required_imports {
+                    gaps.push(
+                        RunGap::new(
+                            "binding_unavailable",
+                            "Powerbox control is unavailable or no explicit Binding is selected",
+                        )
+                        .for_node(&required.leaf_port.node_id)
+                        .for_port(&required.root_port),
+                    );
+                }
+            }
+        }
+    }
 
     gaps.sort_by(|left, right| {
         (&left.reason_code, &left.node_id, &left.port_id).cmp(&(
@@ -316,6 +797,15 @@ where
         .filter(|(_, component)| component.activates_node)
         .map(|(node_id, _)| node_id.clone())
         .collect();
+    let component_activations = selected
+        .iter()
+        .filter(|(_, component)| component.activates_node)
+        .map(|(node_path, component)| PreparedComponentActivation {
+            package_id: component.claim.package_id().clone(),
+            component_id: component.claim.component_id().to_string(),
+            node_path: node_path.clone(),
+        })
+        .collect();
     let package_claims = selected
         .into_iter()
         .map(|(_, component)| component.claim)
@@ -325,8 +815,42 @@ where
         package_claims,
         package_ids,
         nodes,
+        component_activations,
         gaps,
+        selected_bindings,
     })
+}
+
+fn assembly_port_resolves(
+    assembly: &AssemblyRevision,
+    port_id: &plurora_work::PortId,
+    assemblies: &std::collections::BTreeMap<String, AssemblyRevision>,
+) -> bool {
+    let Some(exposure) = assembly
+        .exposed_ports
+        .iter()
+        .find(|exposure| &exposure.port_id == port_id)
+    else {
+        return false;
+    };
+    let Some(node) = assembly
+        .nodes
+        .iter()
+        .find(|node| node.node_id == exposure.target.node_id)
+    else {
+        return false;
+    };
+    match &node.source {
+        AssemblyNodeSource::Component { .. } => node
+            .ports
+            .iter()
+            .any(|port| port.port_id == exposure.target.port_id),
+        AssemblyNodeSource::Assembly { assembly: nested } => {
+            assemblies.get(&nested.digest).is_some_and(|nested| {
+                assembly_port_resolves(nested, &exposure.target.port_id, assemblies)
+            })
+        }
+    }
 }
 
 fn collect_locked_nodes(
@@ -335,7 +859,13 @@ fn collect_locked_nodes(
     assemblies: &std::collections::BTreeMap<String, AssemblyRevision>,
     locks: &std::collections::BTreeMap<String, AssemblyLock>,
     packages: &[PackageRecord],
-    selected: &mut Vec<(plurora_work::NodeId, SelectedComponent)>,
+    path_prefix: &[plurora_work::NodeId],
+    available_imports: &std::collections::BTreeMap<
+        plurora_work::PortId,
+        Option<plurora_work::PortId>,
+    >,
+    selected: &mut Vec<(Vec<plurora_work::NodeId>, SelectedComponent)>,
+    required_imports: &mut Vec<ResolvedPortPin>,
     gaps: &mut Vec<RunGap>,
 ) -> anyhow::Result<()> {
     let locked_ids = lock
@@ -349,12 +879,13 @@ fn collect_locked_nodes(
     );
 
     for node in &assembly.nodes {
+        let mut node_path = path_prefix.to_vec();
+        node_path.push(node.node_id.clone());
         let node_lock = lock
             .nodes
             .iter()
             .find(|candidate| candidate.node_id == node.node_id)
             .ok_or_else(|| anyhow::anyhow!("verified AssemblyLock is missing a node"))?;
-        validate_required_bindings(node, lock, gaps);
         match (&node.source, node_lock.artifact.artifact_type_uri.as_str()) {
             (AssemblyNodeSource::Assembly { assembly: nested }, ASSEMBLY_LOCK_TYPE_URI) => {
                 let nested_lock = locks.get(&node_lock.artifact.digest).ok_or_else(|| {
@@ -367,13 +898,44 @@ fn collect_locked_nodes(
                 let nested_assembly = assemblies.get(&nested.digest).ok_or_else(|| {
                     anyhow::anyhow!("verified nested AssemblyRevision is unavailable")
                 })?;
+                let mut nested_imports = std::collections::BTreeMap::new();
+                for exposure in nested_assembly
+                    .exposed_ports
+                    .iter()
+                    .filter(|exposure| exposure.direction == plurora_work::PortDirection::Import)
+                {
+                    let fixed = lock.bindings.iter().any(|binding| {
+                        binding.consumer.node_id == node.node_id
+                            && binding.consumer.port_id == exposure.port_id
+                            && matches!(
+                                binding.phase,
+                                BindingPhase::Authoring | BindingPhase::Installation
+                            )
+                    });
+                    if fixed {
+                        nested_imports.insert(exposure.port_id.clone(), None);
+                        continue;
+                    }
+                    if let Some(parent_exposure) = assembly.exposed_ports.iter().find(|parent| {
+                        parent.direction == plurora_work::PortDirection::Import
+                            && parent.target.node_id == node.node_id
+                            && parent.target.port_id == exposure.port_id
+                    }) {
+                        if let Some(root_port) = available_imports.get(&parent_exposure.port_id) {
+                            nested_imports.insert(exposure.port_id.clone(), root_port.clone());
+                        }
+                    }
+                }
                 collect_locked_nodes(
                     nested_assembly,
                     nested_lock,
                     assemblies,
                     locks,
                     packages,
+                    &node_path,
+                    &nested_imports,
                     selected,
+                    required_imports,
                     gaps,
                 )?;
             }
@@ -382,8 +944,17 @@ fn collect_locked_nodes(
                     component == &node_lock.artifact,
                     "AssemblyLock component pin differs from the AssemblyRevision"
                 );
+                validate_required_bindings(
+                    assembly,
+                    node,
+                    &node_path,
+                    available_imports,
+                    lock,
+                    required_imports,
+                    gaps,
+                )?;
                 match exact_loaded_component(node_lock, packages) {
-                    Ok(component) => selected.push((node.node_id.clone(), component)),
+                    Ok(component) => selected.push((node_path, component)),
                     Err(gap) => gaps.push(gap.for_node(&node.node_id)),
                 }
             }
@@ -394,10 +965,17 @@ fn collect_locked_nodes(
 }
 
 fn validate_required_bindings(
+    assembly: &AssemblyRevision,
     node: &plurora_work::AssemblyNode,
+    node_path: &[plurora_work::NodeId],
+    available_imports: &std::collections::BTreeMap<
+        plurora_work::PortId,
+        Option<plurora_work::PortId>,
+    >,
     lock: &AssemblyLock,
+    required_imports: &mut Vec<ResolvedPortPin>,
     gaps: &mut Vec<RunGap>,
-) {
+) -> anyhow::Result<()> {
     for port in &node.ports {
         let PortRole::Import {
             latest_binding_phase,
@@ -407,10 +985,7 @@ fn validate_required_bindings(
         else {
             continue;
         };
-        if !matches!(
-            latest_binding_phase,
-            BindingPhase::Launch | BindingPhase::Runtime
-        ) {
+        if *latest_binding_phase != BindingPhase::Launch {
             continue;
         }
         let fixed = lock.bindings.iter().any(|binding| {
@@ -422,16 +997,53 @@ fn validate_required_bindings(
                 )
         });
         if !fixed {
-            gaps.push(
-                RunGap::new(
-                    "binding_unavailable",
-                    "create an explicit Exposure/Binding in Phase 5 before starting the Run",
-                )
-                .for_node(&node.node_id)
-                .for_port(&port.port_id),
-            );
+            let exposed = assembly.exposed_ports.iter().find(|exposure| {
+                exposure.direction == plurora_work::PortDirection::Import
+                    && exposure.target.node_id == node.node_id
+                    && exposure.target.port_id == port.port_id
+            });
+            let Some(root_port) =
+                exposed.and_then(|exposure| available_imports.get(&exposure.port_id))
+            else {
+                gaps.push(
+                    RunGap::new(
+                        "target_unsatisfied",
+                        "expose this deferred import through the root Assembly Port",
+                    )
+                    .for_node(&node.node_id)
+                    .for_port(&port.port_id),
+                );
+                continue;
+            };
+            let Some(root_port) = root_port else {
+                continue;
+            };
+            if !matches!(
+                port.interaction.0.as_str(),
+                INTERACTION_CAPABILITY_UNARY | INTERACTION_CAPABILITY_STREAM
+            ) {
+                gaps.push(
+                    RunGap::new(
+                        "unsupported_interaction",
+                        "select or install an adapter for this required interaction model",
+                    )
+                    .for_node(&node.node_id)
+                    .for_port(&port.port_id),
+                );
+                continue;
+            }
+            required_imports.push(ResolvedPortPin {
+                root_port: root_port.clone(),
+                node_path: node_path.to_vec(),
+                leaf_port: PortEndpoint {
+                    node_id: node.node_id.clone(),
+                    port_id: port.port_id.clone(),
+                },
+                canonical_contract_digest: canonical_digest(&port.contract)?,
+            });
         }
     }
+    Ok(())
 }
 
 fn exact_loaded_component(
@@ -475,36 +1087,12 @@ fn exact_loaded_component(
         ));
     }
     match &package.manifest.entry.kind {
-        PackageEntry::RustInproc { .. } => Ok(SelectedComponent {
-            claim: PackageRunClaim::exact(package, component).map_err(|_| {
-                RunGap::new(
-                    "artifact_digest_mismatch",
-                    "reload the exact Package selected by the AssemblyLock",
-                )
-            })?,
-            activates_node: true,
-        }),
+        PackageEntry::RustInproc { .. } => selected_component(package, component, true),
         PackageEntry::Subprocess {
             transport: SubprocessTransport::JsonRpcStdio,
             ..
-        } => Ok(SelectedComponent {
-            claim: PackageRunClaim::exact(package, component).map_err(|_| {
-                RunGap::new(
-                    "artifact_digest_mismatch",
-                    "reload the exact Package selected by the AssemblyLock",
-                )
-            })?,
-            activates_node: true,
-        }),
-        PackageEntry::SurfaceBundle { .. } => Ok(SelectedComponent {
-            claim: PackageRunClaim::exact(package, component).map_err(|_| {
-                RunGap::new(
-                    "artifact_digest_mismatch",
-                    "reload the exact Package selected by the AssemblyLock",
-                )
-            })?,
-            activates_node: false,
-        }),
+        } => selected_component(package, component, true),
+        PackageEntry::SurfaceBundle { .. } => selected_component(package, component, false),
         PackageEntry::Subprocess { .. }
         | PackageEntry::Wasm { .. }
         | PackageEntry::Remote { .. } => Err(RunGap::new(
@@ -512,6 +1100,34 @@ fn exact_loaded_component(
             "load the locked component with rust_inproc or json_rpc_stdio support",
         )),
     }
+}
+
+fn selected_component(
+    package: &PackageRecord,
+    component: &ComponentDescriptor,
+    activates_node: bool,
+) -> Result<SelectedComponent, RunGap> {
+    Ok(SelectedComponent {
+        claim: PackageRunClaim::exact(package, component).map_err(|_| {
+            RunGap::new(
+                "artifact_digest_mismatch",
+                "reload the exact Package selected by the AssemblyLock",
+            )
+        })?,
+        activates_node,
+        disclosure: BindingComponentDisclosure {
+            package_id: package.id.clone(),
+            component_id: component.component_id.clone(),
+            version: component.version.clone(),
+            entry_kind: component.entry_kind.clone(),
+            trust_class: component.trust_class,
+            claim_status: component.claim_status,
+            enforced_boundaries: component.enforced_boundaries.clone(),
+            component_artifact: component.artifact.clone(),
+            behavior: component.behavior.clone(),
+            protocol_implementations: component.protocol_implementations.clone(),
+        },
+    })
 }
 
 #[cfg(test)]
@@ -524,9 +1140,11 @@ mod tests {
         SandboxPolicy,
     };
     use plurora_work::{
-        AcquisitionKind, AcquisitionRecord, AssemblyId, AssemblyNode, InstallationId,
-        InstallationRecord, InstallationSecretPolicy, InstallationStatus, NodeId, WorkEntrypoint,
-        WorkId, WorkRevision, ASSEMBLY_REVISION_TYPE_URI, OPERATIONAL_INTENT_TYPE_URI,
+        AcquisitionKind, AcquisitionRecord, AssemblyId, AssemblyNode, AssemblyPortExposure,
+        EffectClass, InstallationId, InstallationRecord, InstallationSecretPolicy,
+        InstallationStatus, InteractionModelId, NodeId, PortContract, PortDescriptor,
+        PortDirection, PortId, PortMultiplicity, TransportRequirements, WorkEntrypoint, WorkId,
+        WorkRevision, ASSEMBLY_REVISION_TYPE_URI, OPERATIONAL_INTENT_TYPE_URI,
         WORK_REVISION_TYPE_URI,
     };
 
@@ -656,6 +1274,240 @@ mod tests {
             references: Vec::new(),
             annotations: BTreeMap::new(),
         }
+    }
+
+    fn deferred_import(port: &str, phase: BindingPhase) -> PortDescriptor {
+        PortDescriptor {
+            port_id: PortId::parse(port).unwrap(),
+            contract: PortContract {
+                protocol_id: "plurora.capability".to_string(),
+                interface_id: "tests/nested".to_string(),
+                version: "1.0.0".to_string(),
+                profiles: Vec::new(),
+            },
+            interaction: InteractionModelId(INTERACTION_CAPABILITY_UNARY.to_string()),
+            role: PortRole::Import {
+                multiplicity: PortMultiplicity {
+                    min: 1,
+                    max: Some(1),
+                },
+                latest_binding_phase: phase,
+                availability: AvailabilityPolicy::Required,
+                accepted_effects: vec![EffectClass::ExternalEffecting],
+            },
+            transport: TransportRequirements::default(),
+            annotations: BTreeMap::new(),
+        }
+    }
+
+    #[test]
+    fn nested_deferred_imports_keep_root_ports_and_complete_node_paths() -> anyhow::Result<()> {
+        let package = rust_record("tests/nested-package");
+        let component = package.components[0].clone();
+        let leaf_revision = artifact(ASSEMBLY_REVISION_TYPE_URI, 'l');
+        let middle_revision = artifact(ASSEMBLY_REVISION_TYPE_URI, 'm');
+        let root_revision = artifact(ASSEMBLY_REVISION_TYPE_URI, 'r');
+        let leaf_lock_descriptor = artifact(ASSEMBLY_LOCK_TYPE_URI, 'x');
+        let middle_lock_descriptor = artifact(ASSEMBLY_LOCK_TYPE_URI, 'y');
+        let root_lock_descriptor = artifact(ASSEMBLY_LOCK_TYPE_URI, 'z');
+
+        let leaf_node = NodeId::parse("leaf").unwrap();
+        let same_node = NodeId::parse("same").unwrap();
+        let leaf_port = PortId::parse("leaf-input").unwrap();
+        let middle_port = PortId::parse("middle-input").unwrap();
+        let leaf = AssemblyRevision {
+            schema: AssemblyRevision::SCHEMA.to_string(),
+            assembly_id: AssemblyId::parse("tests/nested-leaf").unwrap(),
+            nodes: vec![AssemblyNode {
+                node_id: leaf_node.clone(),
+                source: AssemblyNodeSource::Component {
+                    component: component.artifact.clone(),
+                },
+                ports: vec![deferred_import(leaf_port.as_str(), BindingPhase::Launch)],
+                configuration: None,
+                annotations: BTreeMap::new(),
+            }],
+            bindings: Vec::new(),
+            exposed_ports: vec![AssemblyPortExposure {
+                port_id: leaf_port.clone(),
+                direction: PortDirection::Import,
+                target: PortEndpoint {
+                    node_id: leaf_node.clone(),
+                    port_id: leaf_port.clone(),
+                },
+                annotations: BTreeMap::new(),
+            }],
+            state_slots: Vec::new(),
+            annotations: BTreeMap::new(),
+        };
+        let middle = AssemblyRevision {
+            schema: AssemblyRevision::SCHEMA.to_string(),
+            assembly_id: AssemblyId::parse("tests/nested-middle").unwrap(),
+            nodes: vec![AssemblyNode {
+                node_id: same_node.clone(),
+                source: AssemblyNodeSource::Assembly {
+                    assembly: leaf_revision.clone(),
+                },
+                ports: Vec::new(),
+                configuration: None,
+                annotations: BTreeMap::new(),
+            }],
+            bindings: Vec::new(),
+            exposed_ports: vec![AssemblyPortExposure {
+                port_id: middle_port.clone(),
+                direction: PortDirection::Import,
+                target: PortEndpoint {
+                    node_id: same_node.clone(),
+                    port_id: leaf_port.clone(),
+                },
+                annotations: BTreeMap::new(),
+            }],
+            state_slots: Vec::new(),
+            annotations: BTreeMap::new(),
+        };
+        let branches = ["branch-a", "branch-b"]
+            .into_iter()
+            .map(NodeId::parse)
+            .collect::<Result<Vec<_>, _>>()?;
+        let root_ports = ["root-a", "root-b"]
+            .into_iter()
+            .map(PortId::parse)
+            .collect::<Result<Vec<_>, _>>()?;
+        let root = AssemblyRevision {
+            schema: AssemblyRevision::SCHEMA.to_string(),
+            assembly_id: AssemblyId::parse("tests/nested-root").unwrap(),
+            nodes: branches
+                .iter()
+                .cloned()
+                .map(|node_id| AssemblyNode {
+                    node_id,
+                    source: AssemblyNodeSource::Assembly {
+                        assembly: middle_revision.clone(),
+                    },
+                    ports: Vec::new(),
+                    configuration: None,
+                    annotations: BTreeMap::new(),
+                })
+                .collect(),
+            bindings: Vec::new(),
+            exposed_ports: branches
+                .iter()
+                .zip(&root_ports)
+                .map(|(node_id, root_port)| AssemblyPortExposure {
+                    port_id: root_port.clone(),
+                    direction: PortDirection::Import,
+                    target: PortEndpoint {
+                        node_id: node_id.clone(),
+                        port_id: middle_port.clone(),
+                    },
+                    annotations: BTreeMap::new(),
+                })
+                .collect(),
+            state_slots: Vec::new(),
+            annotations: BTreeMap::new(),
+        };
+        let leaf_lock = AssemblyLock {
+            schema: AssemblyLock::SCHEMA.to_string(),
+            assembly: leaf_revision.clone(),
+            nodes: vec![NodeLock {
+                node_id: leaf_node.clone(),
+                artifact: component.artifact.clone(),
+                behavior_digest: Some(component.behavior.digest.clone()),
+                trust_class: Some(component.trust_class),
+            }],
+            bindings: Vec::new(),
+            protocol_profiles: Vec::new(),
+            content_roots: Vec::new(),
+        };
+        let middle_lock = AssemblyLock {
+            schema: AssemblyLock::SCHEMA.to_string(),
+            assembly: middle_revision.clone(),
+            nodes: vec![NodeLock {
+                node_id: same_node.clone(),
+                artifact: leaf_lock_descriptor.clone(),
+                behavior_digest: None,
+                trust_class: None,
+            }],
+            bindings: Vec::new(),
+            protocol_profiles: Vec::new(),
+            content_roots: Vec::new(),
+        };
+        let root_lock = AssemblyLock {
+            schema: AssemblyLock::SCHEMA.to_string(),
+            assembly: root_revision,
+            nodes: branches
+                .iter()
+                .cloned()
+                .map(|node_id| NodeLock {
+                    node_id,
+                    artifact: middle_lock_descriptor.clone(),
+                    behavior_digest: None,
+                    trust_class: None,
+                })
+                .collect(),
+            bindings: Vec::new(),
+            protocol_profiles: Vec::new(),
+            content_roots: Vec::new(),
+        };
+        let mut runtime_leaf = leaf.clone();
+        runtime_leaf.nodes[0].ports[0] = deferred_import(leaf_port.as_str(), BindingPhase::Runtime);
+        let mut runtime_required = Vec::new();
+        let mut runtime_gaps = Vec::new();
+        validate_required_bindings(
+            &runtime_leaf,
+            &runtime_leaf.nodes[0],
+            &[branches[0].clone(), same_node.clone(), leaf_node.clone()],
+            &BTreeMap::from([(leaf_port.clone(), Some(root_ports[0].clone()))]),
+            &leaf_lock,
+            &mut runtime_required,
+            &mut runtime_gaps,
+        )?;
+        assert!(runtime_required.is_empty());
+        assert!(runtime_gaps.is_empty());
+        let assemblies = BTreeMap::from([
+            (leaf_revision.digest.clone(), leaf),
+            (middle_revision.digest.clone(), middle),
+        ]);
+        let locks = BTreeMap::from([
+            (leaf_lock_descriptor.digest.clone(), leaf_lock),
+            (middle_lock_descriptor.digest.clone(), middle_lock),
+            (root_lock_descriptor.digest, root_lock.clone()),
+        ]);
+        let available = root_ports
+            .iter()
+            .cloned()
+            .map(|port| (port.clone(), Some(port)))
+            .collect();
+        let mut selected = Vec::new();
+        let mut required = Vec::new();
+        let mut gaps = Vec::new();
+        collect_locked_nodes(
+            &root,
+            &root_lock,
+            &assemblies,
+            &locks,
+            &[package],
+            &[],
+            &available,
+            &mut selected,
+            &mut required,
+            &mut gaps,
+        )?;
+        assert!(gaps.is_empty(), "{gaps:?}");
+        assert_eq!(required.len(), 2);
+        required.sort_by(|left, right| left.root_port.cmp(&right.root_port));
+        assert_eq!(required[0].root_port, root_ports[0]);
+        assert_eq!(
+            required[0].node_path,
+            vec![branches[0].clone(), same_node.clone(), leaf_node.clone()]
+        );
+        assert_eq!(required[1].root_port, root_ports[1]);
+        assert_eq!(
+            required[1].node_path,
+            vec![branches[1].clone(), same_node, leaf_node]
+        );
+        assert_ne!(required[0].node_path, required[1].node_path);
+        Ok(())
     }
 
     fn preflight_artifacts(
@@ -826,7 +1678,20 @@ mod tests {
     fn exact_match_rejects_absence_ambiguity_behavior_and_trust_drift() {
         let record = rust_record("tests/exact-component");
         let lock = lock_for(&record);
-        exact_loaded_component(&lock, std::slice::from_ref(&record)).unwrap();
+        let selected = exact_loaded_component(&lock, std::slice::from_ref(&record)).unwrap();
+        assert_eq!(selected.disclosure.package_id, record.id);
+        assert_eq!(
+            selected.disclosure.component_artifact,
+            selected.claim.component_artifact().clone()
+        );
+        assert_eq!(
+            selected.disclosure.behavior.digest,
+            selected.claim.behavior_digest()
+        );
+        assert_eq!(
+            selected.disclosure.trust_class,
+            selected.claim.trust_class()
+        );
 
         let absent = exact_loaded_component(&lock, &[]).unwrap_err();
         assert_eq!(absent.reason_code, "artifact_missing");

@@ -2,13 +2,13 @@
 
 > [English](./TARGET_AGENT_PROTOCOL.en.md) · [中文](./TARGET_AGENT_PROTOCOL.md)
 
-Status: **Candidate implementation contract**. A Target Agent is a remote execution adapter for the Host Control Plane. It is not a remote package, general SSH shell, second Host, or application identity provider. Identity, typed operations, artifacts, Docker deployment, and the authenticated reverse tunnel form one controlled boundary; automatic placement and target-edge ingress are outside the current contract.
+Status: **Phase 5 transitional Candidate contract**. A Target Agent is a remote execution adapter for the Host Control Plane. It is not a remote package, general SSH shell, second Host, or application identity provider. Identity, typed operations, artifacts, the Host-local Docker operation broker, and the authenticated reverse tunnel form one controlled boundary. Phase 5 Powerbox Exposure/Binding is implemented; managed Realization plan/apply and deployment compilation remain planned for Phase 6. Automatic placement and target-edge ingress are outside the current contract.
 
 ## Three remote boundaries
 
 | Boundary | Subject | Purpose | Trust |
 |---|---|---|---|
-| Remote Host client | Human device, Web/PWA, CLI | Control one Host | root or project-scoped device grant |
+| Remote Host client | Human device, Web/PWA, CLI | Control one Host | root or Installation-scoped device grant |
 | Remote Target Agent | Managed execution node | Execute deployment/verifier operations and report truth | target identity + operation authority |
 | Remote package entry | Capability-provider service | Serve package invoke/stream | workload identity + attenuated capability |
 
@@ -22,7 +22,7 @@ They never share bearer credentials, lifecycle, or implicit authority.
 - **Artifact service:** authorized, digest-verified content transport.
 - **Ingress/tunnel adapter:** connects Host routes to agent loopback without treating arbitrary remote IPs as local leases.
 
-An Agent does not own the project catalog, grant registry, user sessions, package marketplace, or final deployment intent.
+An Agent does not own Work/Installation records, the grant registry, user sessions, the package marketplace, or final Host operation intent.
 
 ## Target lifecycle
 
@@ -68,8 +68,8 @@ The typed-worker control plane exposes these routes without adding a general com
 
 | Caller | Route | Authority and purpose |
 |---|---|---|
-| Host client | `POST/GET /host/v1/targets/{target_id}/operations` | `deploy`/`observe` plus target and project selectors; create or list typed operations |
-| Host client | `GET /host/v1/targets/{target_id}/operations/{operation_id}` | Read a project-scoped durable operation and receipt |
+| Host client | `POST/GET /host/v1/targets/{target_id}/operations` | transitional-operation `deploy`/`observe` plus target and Installation selectors; create or list typed operations |
+| Host client | `GET /host/v1/targets/{target_id}/operations/{operation_id}` | Read an Installation-scoped durable operation and receipt |
 | Agent | `GET /target-agent/v1/operations/next` | Return pending work only to the live target with matching epochs |
 | Agent | `POST /target-agent/v1/operations/{operation_id}/progress` | Persist accepted/running; the first random `execution_id` owns execution |
 | Agent | `POST /target-agent/v1/operations/{operation_id}/receipt` | Accept a terminal receipt only when authority, execution owner, and request digest match |
@@ -79,11 +79,11 @@ The Host `host_control_target_operations` journal and Agent SQLite ledger both u
 
 Revoke fails closed for new work and new accepted/running transitions. The linearization boundary is the Host's durable acknowledgement of `Running`: a revoke/offline/stale epoch observed before it prevents execution; after it, the current idempotent step may finish or replay its receipt but cannot acquire new work. Revoke does not pretend to atomically roll back a target-local effect: `deployment.drain` performs a bounded graceful stop and retains the container, while `deployment.stop` removes it and force-removes only when explicitly requested.
 
-Operation authority binds target, operation, step, project, effect, artifacts, lease/policy epochs, expiry, nonce, and request digest. Remote Agent authority is MACed with the epoch-scoped, domain-separated enrollment credential digest, and the Agent independently recomputes that MAC from the credential it received once. A local-driver journal record uses a stable domain-separated key confined to the Host and does not treat that key as a network identity. The native client disables redirects, requires HTTPS for a remote Host, never persists the credential in config or ledger, and reads it only from `PLURORA_TARGET_AGENT_CREDENTIAL`; loopback HTTP is confined to the same machine.
+Operation authority binds target, operation, step, Installation, effect, artifacts, lease/policy epochs, expiry, nonce, and request digest. Remote Agent authority is MACed with the epoch-scoped, domain-separated enrollment credential digest, and the Agent independently recomputes that MAC from the credential it received once. A local-driver journal record uses a stable domain-separated key confined to the Host and does not treat that key as a network identity. The native client disables redirects, requires HTTPS for a remote Host, never persists the credential in config or ledger, and reads it only from `PLURORA_TARGET_AGENT_CREDENTIAL`; loopback HTTP is confined to the same machine.
 
-Driver routing selects local or Agent execution from `ExecutionTargetReachability`; no caller-provided network address can act as a fallback. Local and Agent deployment operations share one typed Docker driver: non-privileged bridge networking, `127.0.0.1` binding only, no command/env/mount inputs, and idempotent lookup through target/project/deployment/route/lease/operation ownership labels. The `apply` receipt returns Docker's actual loopback port. The Host projects a successful receipt back into the target-owned lease and promotes route readiness only when route, lease, project, and target all match; restart recovery never uses Host-local Docker observation to discard remote leases. An effect that was issued but cannot be confirmed becomes `outcome_unknown` rather than a false failure; Host startup durably resolves interrupted local Accepted/Running records the same way.
+Driver routing selects local or Agent execution from `ExecutionTargetReachability`; no caller-provided network address can act as a fallback. Local and Agent transitional Host operations share one typed Docker driver: non-privileged bridge networking, `127.0.0.1` binding only, no command/env/mount inputs, and idempotent lookup through target/Installation/operation/route/lease ownership labels. The `apply` receipt returns Docker's actual loopback port. The Host projects a successful receipt back into the target-owned lease and promotes route readiness only when route, lease, Installation, and target all match; restart recovery never uses Host-local Docker observation to discard remote leases. An effect that was issued but cannot be confirmed becomes `outcome_unknown` rather than a false failure; Host startup durably resolves interrupted local Accepted/Running records the same way.
 
-The Candidate authenticated reverse-tunnel/private-preview baseline is also implemented. An Agent with `reverse_tunnel` reachability and the Deployment capability initiates `GET /target-agent/v1/tunnel` with its existing `PluroraTarget` identity. The Host accepts one live tunnel per target only when identity, lease epoch, and policy epoch match. Every `Open` binds the target, route, port lease, port name, Docker-observed port, and both epochs; bounded binary streams are multiplexed only by Host-generated opaque stream IDs. Before connecting, the Agent revalidates every managed-container ownership label, Running state, and exact `127.0.0.1` port mapping, so the tunnel cannot dial an arbitrary Agent loopback port. Disconnect or revoke immediately makes that target's routes unready; reconnect restores them only from durable receipt projection. Public versus Host-authenticated access remains Host route policy, and arbitrary network upstreams remain forbidden.
+The Candidate authenticated reverse-tunnel/transitional preview baseline is also implemented. An Agent with `reverse_tunnel` reachability and the Host transitional-operation capability initiates `GET /target-agent/v1/tunnel` with its existing `PluroraTarget` identity. The Host accepts one live tunnel per target only when identity, lease epoch, and policy epoch match. Every `Open` binds the target, route, port lease, port name, Docker-observed port, and both epochs; bounded binary streams are multiplexed only by Host-generated opaque stream IDs. Before connecting, the Agent revalidates every managed-container ownership label, Running state, and exact `127.0.0.1` port mapping, so the tunnel cannot dial an arbitrary Agent loopback port. Disconnect or revoke immediately makes that target's routes unready; reconnect restores them only from durable receipt projection. Public versus Host-authenticated access remains Host route policy, and arbitrary network upstreams remain forbidden. Managed Realization remains outside this Candidate boundary.
 
 ## Transport session
 
@@ -116,7 +116,7 @@ There is no `shell(command: string)`. Process execution, when needed, constrains
 OperationAuthority
   audience_target_id
   operation_id / step_id
-  project_resource_ref
+  installation_resource_ref
   allowed_effect
   artifact_digests[] / secret_envelope_refs[]
   lease_epoch
@@ -173,8 +173,8 @@ An internally bounded one-use loopback bridge credential lets the existing HTTP/
 
 1. Identity and observation: durable registry, enrollment, heartbeat, negotiation, observe.
 2. Typed verifier worker: artifact transfer, declarative verifier, receipts/logs.
-3. Private deployment preview: deployment/port/tunnel operations and Host-authenticated route.
-4. Public deployment through an already-public Host, followed later by target-edge design.
+3. Transitional Host operation preview: operation/port/tunnel primitives and Host-authenticated route.
+4. Public route exposure through an already-public Host, followed later by target-edge design.
 
 Current placement is explicit. There is no automatic scheduler, multi-Host leader election, or secret federation.
 
@@ -184,5 +184,5 @@ Current placement is explicit. There is no automatic scheduler, multi-Host leade
 - duplicate, out-of-order, expired, and stale-epoch requests are deterministic;
 - crashes/disconnects at every step do not duplicate workloads;
 - revoke, drain, reconnect, corruption, and version mismatch have coverage;
-- no general shell, device credential, or cross-project artifact/secret access exists;
+- no general shell, device credential, or cross-Installation artifact/secret access exists;
 - remote routing does not rely on arbitrary network upstreams.

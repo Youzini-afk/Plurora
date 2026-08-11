@@ -15,6 +15,7 @@ use crate::{
 
 mod assets_projections;
 mod audit;
+mod bindings;
 mod capabilities;
 mod installations;
 mod local_exec;

@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { Writable } from "node:stream";
 
-import { pluroraClient, __handlePlatformInboundForTest } from "../index.js";
+import { pluroraClient, __createInvocationClientForTest, __handlePlatformInboundForTest } from "../index.js";
 
 function captureStdout() {
   const writes: string[] = [];
@@ -28,6 +28,7 @@ test("pluroraClient.sendRequest unary roundtrip", async () => {
     const frame = JSON.parse(capture.writes[0]);
     assert.equal(frame.id, "kreq-1");
     assert.equal(frame.method, "host.outbound.execute");
+    assert.deepEqual(frame.params.invocation_context, { kind: "background" });
     __handlePlatformInboundForTest({ jsonrpc: "2.0", id: frame.id, result: { status: "ok" } });
     assert.deepEqual(await promise, { status: "ok" });
   } finally {
@@ -40,11 +41,40 @@ test("pluroraClient.sendRequest unary error response", async () => {
   try {
     const promise = pluroraClient.sendRequest("host.outbound.execute", {});
     const frame = JSON.parse(capture.writes[0]);
-    __handlePlatformInboundForTest({ jsonrpc: "2.0", id: frame.id, error: { message: "denied" } });
-    await assert.rejects(promise, /denied/);
+    __handlePlatformInboundForTest({ jsonrpc: "2.0", id: frame.id, error: { code: "runtime/error/denied", message: "denied token-do-not-echo" } });
+    await assert.rejects(promise, (error: Error) => error.message === "Host platform request failed (runtime/error/denied)" && !error.message.includes("token-do-not-echo"));
   } finally {
     capture.restore();
   }
+});
+
+test("invocation clients return the current Host token and isolate multiple Port bindings", async () => {
+  const capture = captureStdout();
+  try {
+    const client = __createInvocationClientForTest("host-token-secret", {
+      "input-a": "handle-a",
+      "input-b": "handle-b",
+    });
+    const first = client.invokeBinding("input-a", { n: 1 });
+    const second = client.invokeBinding("input-b", { n: 2 });
+    const firstFrame = JSON.parse(capture.writes[0]);
+    const secondFrame = JSON.parse(capture.writes[1]);
+    assert.equal(firstFrame.params.invocation_context_id, "host-token-secret");
+    assert.equal(firstFrame.params.consumer_port, "input-a");
+    assert.equal(firstFrame.params.handle, "handle-a");
+    assert.equal(secondFrame.params.consumer_port, "input-b");
+    assert.equal(secondFrame.params.handle, "handle-b");
+    __handlePlatformInboundForTest({ id: firstFrame.id, result: { output: "a" } });
+    __handlePlatformInboundForTest({ id: secondFrame.id, result: { output: "b" } });
+    assert.equal(await first, "a");
+    assert.equal(await second, "b");
+  } finally {
+    capture.restore();
+  }
+});
+
+test("background work is explicit and cannot consume a Run Binding", async () => {
+  await assert.rejects(pluroraClient.invokeBinding("input-a", {}), /current Host activation context/);
 });
 
 test("pluroraClient.streamRequest emits chunks via callback", () => {

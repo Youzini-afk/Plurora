@@ -16,7 +16,7 @@ use plurora_core::{
     EVENT_STREAM_TIMEOUT,
 };
 use serde_json::{json, Value};
-use tokio::sync::RwLock;
+use tokio::sync::{Mutex, RwLock};
 
 use super::effects::EffectReceiptRequest;
 use super::Runtime;
@@ -33,6 +33,8 @@ use crate::{sha256_digest, EventStore, DEFAULT_CONTRACT_PROFILE};
 #[derive(Debug, Default)]
 pub struct StreamRegistry {
     invocations: RwLock<HashMap<InvocationId, StreamInvocationRecord>>,
+    binding_permits: RwLock<HashMap<InvocationId, crate::BindingInvocationPermit>>,
+    binding_lifecycle: Mutex<()>,
 }
 
 impl StreamRegistry {
@@ -67,6 +69,33 @@ impl StreamRegistry {
             .await
             .insert(invocation_id, record.clone());
         record
+    }
+
+    /// Register a Binding stream while holding the same lifecycle mutex used
+    /// by generation close. The permit remains live until a terminal state or
+    /// close removes it, so revoke cannot return while provider work survives.
+    pub(crate) async fn start_binding_invocation(
+        &self,
+        capability_id: CapabilityId,
+        provider_package_id: PackageId,
+        session_id: SessionId,
+        metadata: Value,
+        permit: crate::BindingInvocationPermit,
+    ) -> anyhow::Result<StreamInvocationRecord> {
+        let _lifecycle = self.binding_lifecycle.lock().await;
+        permit.ensure_stream_admission()?;
+        let record = self
+            .start_invocation(capability_id, provider_package_id, session_id, metadata)
+            .await;
+        self.binding_permits
+            .write()
+            .await
+            .insert(record.invocation_id.clone(), permit);
+        Ok(record)
+    }
+
+    pub(crate) async fn release_binding_permit(&self, invocation_id: &InvocationId) {
+        self.binding_permits.write().await.remove(invocation_id);
     }
 
     /// Get a streaming invocation record by id.
@@ -345,6 +374,33 @@ impl StreamRegistry {
     pub async fn list_invocations(&self) -> Vec<StreamInvocationRecord> {
         self.invocations.read().await.values().cloned().collect()
     }
+
+    /// Cancel streams attached to one exact Run Binding generation. Generation
+    /// matching prevents a late cleanup from cancelling a later re-attachment.
+    pub async fn cancel_binding_generation(&self, binding_id: &str, generation: u64) -> usize {
+        let _lifecycle = self.binding_lifecycle.lock().await;
+        let now = Utc::now();
+        let mut cancelled = 0;
+        for record in self.invocations.write().await.values_mut() {
+            if record.state == StreamInvocationState::Active
+                && record.metadata.get("binding_id").and_then(Value::as_str) == Some(binding_id)
+                && record
+                    .metadata
+                    .get("binding_generation")
+                    .and_then(Value::as_u64)
+                    == Some(generation)
+            {
+                record.frame_count = record.frame_count.saturating_add(1);
+                record.state = StreamInvocationState::Cancelled;
+                record.ended_at = Some(now);
+                cancelled += 1;
+            }
+        }
+        self.binding_permits.write().await.retain(|_, permit| {
+            permit.binding_id.as_str() != binding_id || permit.generation != generation
+        });
+        cancelled
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -382,6 +438,19 @@ where
             )
             .await?;
 
+        self.stream_capability_start_prepared(session_id, &provider, metadata, None)
+            .await
+    }
+
+    pub(crate) async fn stream_capability_start_prepared(
+        &self,
+        session_id: &SessionId,
+        provider: &crate::RegisteredCapability,
+        metadata: Value,
+        binding_permit: Option<crate::BindingInvocationPermit>,
+    ) -> anyhow::Result<(StreamFrameEnvelope, StreamInvocationRecord)> {
+        let capability_id = &provider.descriptor.id;
+
         if !provider.descriptor.streaming {
             anyhow::bail!(
                 "capability '{}' is not a streaming capability (descriptor streaming=false)",
@@ -389,15 +458,26 @@ where
             );
         }
 
-        let record = self
-            .streams
-            .start_invocation(
-                capability_id.clone(),
-                provider.provider_package_id.clone(),
-                session_id.clone(),
-                metadata,
-            )
-            .await;
+        let record = if let Some(permit) = binding_permit {
+            self.streams
+                .start_binding_invocation(
+                    capability_id.clone(),
+                    provider.provider_package_id.clone(),
+                    session_id.clone(),
+                    metadata,
+                    permit,
+                )
+                .await?
+        } else {
+            self.streams
+                .start_invocation(
+                    capability_id.clone(),
+                    provider.provider_package_id.clone(),
+                    session_id.clone(),
+                    metadata,
+                )
+                .await
+        };
 
         // Emit capability/stream.started event
         let event_payload = json!({
@@ -407,8 +487,16 @@ where
             "provider_package_id": provider.provider_package_id,
             "session_id": session_id,
         });
-        self.append_platform_event(session_id, EVENT_STREAM_STARTED, event_payload)
-            .await?;
+        if let Err(error) = self
+            .append_platform_event(session_id, EVENT_STREAM_STARTED, event_payload)
+            .await
+        {
+            let _ = self.streams.cancel_invocation(&record.invocation_id).await;
+            self.streams
+                .release_binding_permit(&record.invocation_id)
+                .await;
+            return Err(error);
+        }
 
         // Build the start frame
         let frame = StreamFrameEnvelope {
@@ -513,6 +601,8 @@ where
             self.streams
                 .rollback_terminal(invocation_id, StreamInvocationState::Ended)
                 .await;
+        } else {
+            self.streams.release_binding_permit(invocation_id).await;
         }
         result
     }
@@ -557,6 +647,8 @@ where
             self.streams
                 .rollback_terminal(invocation_id, StreamInvocationState::Error)
                 .await;
+        } else {
+            self.streams.release_binding_permit(invocation_id).await;
         }
         result
     }
@@ -595,6 +687,8 @@ where
             self.streams
                 .rollback_terminal(invocation_id, StreamInvocationState::Cancelled)
                 .await;
+        } else {
+            self.streams.release_binding_permit(invocation_id).await;
         }
         result
     }
@@ -633,6 +727,8 @@ where
             self.streams
                 .rollback_terminal(invocation_id, StreamInvocationState::Timeout)
                 .await;
+        } else {
+            self.streams.release_binding_permit(invocation_id).await;
         }
         result
     }

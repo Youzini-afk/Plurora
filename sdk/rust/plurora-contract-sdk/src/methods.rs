@@ -196,6 +196,42 @@ impl PluroraClient {
             .await?;
         Ok(serde_json::from_value(raw)?)
     }
+    pub async fn host_binding_candidates(
+        &self,
+        params: BindingCandidatesRequest,
+    ) -> Result<BindingCandidatesResult> {
+        let raw = self
+            .invoke("host.binding.candidates", serde_json::to_value(params)?)
+            .await?;
+        Ok(serde_json::from_value(raw)?)
+    }
+    pub async fn host_binding_list(
+        &self,
+        params: BindingListRequest,
+    ) -> Result<HostBindingListResult> {
+        let raw = self
+            .invoke("host.binding.list", serde_json::to_value(params)?)
+            .await?;
+        Ok(serde_json::from_value(raw)?)
+    }
+    pub async fn host_binding_revoke(
+        &self,
+        params: BindingRevokeRequest,
+    ) -> Result<BindingMutationResult> {
+        let raw = self
+            .invoke("host.binding.revoke", serde_json::to_value(params)?)
+            .await?;
+        Ok(serde_json::from_value(raw)?)
+    }
+    pub async fn host_binding_select(
+        &self,
+        params: BindingSelectRequest,
+    ) -> Result<BindingMutationResult> {
+        let raw = self
+            .invoke("host.binding.select", serde_json::to_value(params)?)
+            .await?;
+        Ok(serde_json::from_value(raw)?)
+    }
     pub async fn host_diagnostics(&self, params: EmptyParams) -> Result<HostDiagnosticsResult> {
         let raw = self
             .invoke("host.diagnostics", serde_json::to_value(params)?)
@@ -238,6 +274,33 @@ impl PluroraClient {
     ) -> Result<LocalExecStopResponse> {
         let raw = self
             .invoke("host.exec.stop", serde_json::to_value(params)?)
+            .await?;
+        Ok(serde_json::from_value(raw)?)
+    }
+    pub async fn host_exposure_create(
+        &self,
+        params: ExposureCreateRequest,
+    ) -> Result<ExposureMutationResult> {
+        let raw = self
+            .invoke("host.exposure.create", serde_json::to_value(params)?)
+            .await?;
+        Ok(serde_json::from_value(raw)?)
+    }
+    pub async fn host_exposure_list(
+        &self,
+        params: ExposureListRequest,
+    ) -> Result<HostExposureListResult> {
+        let raw = self
+            .invoke("host.exposure.list", serde_json::to_value(params)?)
+            .await?;
+        Ok(serde_json::from_value(raw)?)
+    }
+    pub async fn host_exposure_revoke(
+        &self,
+        params: ExposureRevokeRequest,
+    ) -> Result<ExposureMutationResult> {
+        let raw = self
+            .invoke("host.exposure.revoke", serde_json::to_value(params)?)
             .await?;
         Ok(serde_json::from_value(raw)?)
     }

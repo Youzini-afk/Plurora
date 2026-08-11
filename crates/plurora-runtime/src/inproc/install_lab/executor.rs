@@ -5,7 +5,7 @@ use bytes::Bytes;
 use plurora_work::InstallationSecretPolicy;
 use serde_json::{json, Value};
 
-use crate::inproc::invoke_capability_from_inproc;
+use crate::inproc::invoke_manifest_granted_capability_from_inproc;
 use crate::{CapabilityInvocationRequest, FilesystemObjectStore, ObjectStore};
 
 use super::candidate::{build_foreign_candidate, build_package_candidate, BuiltCandidate};
@@ -151,17 +151,19 @@ pub(super) async fn invoke_package_capability(
     capability_id: &str,
     input: Value,
 ) -> Result<Value> {
-    Ok(invoke_capability_from_inproc(CapabilityInvocationRequest {
-        handle: None,
-        capability_id: Some(capability_id.to_string()),
-        caller_package_id: Some(PACKAGE_ID.to_string()),
-        provider_package_id: Some(provider.to_string()),
-        version: None,
-        session_id: None,
-        input,
-    })
-    .await?
-    .output)
+    Ok(
+        invoke_manifest_granted_capability_from_inproc(CapabilityInvocationRequest {
+            handle: None,
+            capability_id: Some(capability_id.to_string()),
+            caller_package_id: Some(PACKAGE_ID.to_string()),
+            provider_package_id: Some(provider.to_string()),
+            version: None,
+            session_id: None,
+            input,
+        })
+        .await?
+        .output,
+    )
 }
 
 pub(super) async fn compute_manifest_hash(path: &Path) -> Result<String> {

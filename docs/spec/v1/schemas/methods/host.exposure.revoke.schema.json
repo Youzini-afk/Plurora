@@ -1,0 +1,238 @@
+{
+  "$defs": {
+    "BindingId": {
+      "format": "uuid",
+      "type": "string"
+    },
+    "Errors": {
+      "items": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "details": true,
+          "message": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "details",
+          "message"
+        ],
+        "title": "ErrorShape",
+        "type": "object"
+      },
+      "type": "array"
+    },
+    "ExposureId": {
+      "format": "uuid",
+      "type": "string"
+    },
+    "ExposureRecord": {
+      "properties": {
+        "audience": {
+          "items": {
+            "$ref": "#/$defs/ResourceSelector"
+          },
+          "type": "array"
+        },
+        "expires_at": {
+          "format": "date-time",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "export_port": {
+          "$ref": "#/$defs/PortId"
+        },
+        "exposure_id": {
+          "$ref": "#/$defs/ExposureId"
+        },
+        "installation_id": {
+          "$ref": "#/$defs/InstallationId"
+        },
+        "run_id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RunId"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "status": {
+          "$ref": "#/$defs/ExposureStatus"
+        }
+      },
+      "required": [
+        "audience",
+        "export_port",
+        "exposure_id",
+        "installation_id",
+        "status"
+      ],
+      "type": "object"
+    },
+    "ExposureStatus": {
+      "enum": [
+        "active",
+        "expired",
+        "revoked"
+      ],
+      "type": "string"
+    },
+    "ExposureView": {
+      "properties": {
+        "record": {
+          "$ref": "#/$defs/ExposureRecord"
+        },
+        "revision": {
+          "format": "uint64",
+          "minimum": 0.0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "record",
+        "revision"
+      ],
+      "type": "object"
+    },
+    "InstallationId": {
+      "format": "uuid",
+      "type": "string"
+    },
+    "Params": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {
+        "expected_exposure_revision": {
+          "format": "uint64",
+          "minimum": 0.0,
+          "type": "integer"
+        },
+        "expected_installation_revision": {
+          "format": "uint64",
+          "minimum": 0.0,
+          "type": "integer"
+        },
+        "expected_run_revision": {
+          "format": "uint64",
+          "minimum": 0.0,
+          "type": "integer"
+        },
+        "export_port": {
+          "$ref": "#/$defs/PortId"
+        },
+        "exposure_id": {
+          "$ref": "#/$defs/ExposureId"
+        },
+        "idempotency_key": {
+          "type": "string"
+        },
+        "installation_id": {
+          "$ref": "#/$defs/InstallationId"
+        },
+        "run_id": {
+          "$ref": "#/$defs/RunId"
+        }
+      },
+      "required": [
+        "expected_exposure_revision",
+        "expected_installation_revision",
+        "expected_run_revision",
+        "export_port",
+        "exposure_id",
+        "idempotency_key",
+        "installation_id",
+        "run_id"
+      ],
+      "title": "ExposureRevokeRequest",
+      "type": "object"
+    },
+    "PortId": {
+      "pattern": "^(?!.*\\.\\.)[A-Za-z0-9._-]+$",
+      "type": "string"
+    },
+    "ResourceSelector": {
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "kind": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "kind"
+      ],
+      "type": "object"
+    },
+    "Result": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "properties": {
+        "affected_binding_ids": {
+          "items": {
+            "$ref": "#/$defs/BindingId"
+          },
+          "type": "array"
+        },
+        "exposure": {
+          "$ref": "#/$defs/ExposureView"
+        },
+        "idempotent": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "exposure",
+        "idempotent"
+      ],
+      "title": "ExposureMutationResult",
+      "type": "object"
+    },
+    "RunId": {
+      "format": "uuid",
+      "type": "string"
+    }
+  },
+  "$id": "urn:plurora:schema:method:host.exposure.revoke:v1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Plurora public platform method host.exposure.revoke.",
+  "properties": {
+    "errors": {
+      "$ref": "#/$defs/Errors"
+    },
+    "method": {
+      "const": "host.exposure.revoke"
+    },
+    "params": {
+      "$ref": "#/$defs/Params"
+    },
+    "result": {
+      "$ref": "#/$defs/Result"
+    }
+  },
+  "required": [
+    "method",
+    "params"
+  ],
+  "title": "host.exposure.revoke",
+  "type": "object",
+  "x-plurora-contract": {
+    "id": "host.exposure.revoke",
+    "implementation_status": "implemented",
+    "introduced_in": "plurora.contract.default/v1@0.1.0",
+    "maturity": "candidate",
+    "owner_layer": "host",
+    "request_schema": "urn:plurora:schema:method:host.exposure.revoke:v1#/$defs/Params",
+    "response_schema": "urn:plurora:schema:method:host.exposure.revoke:v1#/$defs/Result",
+    "streaming": false
+  }
+}

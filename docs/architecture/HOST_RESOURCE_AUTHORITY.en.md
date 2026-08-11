@@ -33,6 +33,16 @@ access_manage
 
 `deploy` temporarily supports the target/deployment execution surface that Realization has not yet replaced. It is absent from default device grants and is removed in Phase 6.
 
+Phase 5 Exposure/Binding methods use these actions:
+
+| Action | Methods | Exact resources |
+|---|---|---|
+| `observe` | `host.exposure.list`, `host.binding.list`, `host.binding.candidates` | visible provider/consumer Installations, Runs, Exposures, Bindings, and Ports |
+| `exposure.manage` | `host.exposure.create`, `host.exposure.revoke` | provider Installation + Run + export Port; revoke also requires the exact Exposure |
+| `binding.manage` | `host.binding.select`, `host.binding.revoke` | consumer Installation + import Port + Exposure; revoke also requires the exact Binding; Runtime may carry an exact Run pin |
+
+The composite Port resource ID is `<installation-id>/<port-id>`. It is a stable resource-selector composition, not a filesystem path, credential, or handle.
+
 ## Resource selectors
 
 Resource kinds are:
@@ -55,7 +65,7 @@ Wire shape:
 {"kind":"installation","id":null}
 ```
 
-`id: null` is an explicit wildcard. Omitting `id` rejects rather than granting global visibility. A child grant's actions, resources, expiry, and delegation depth must all be subsets of its parent authority.
+`id: null` is an explicit wildcard. Omitting `id` rejects rather than granting global visibility. A child grant's actions, resources, expiry, and delegation depth must all be subsets of its parent authority. Exposure audiences must also list exact selectors; the candidate relay returns only caller-visible providers whose audience matches.
 
 ## Call contexts
 
@@ -89,7 +99,7 @@ HostOperationContext
   policy_decision_ref
 ```
 
-Runtime code consumes only this verified context or an attenuated handle minted from it.
+Runtime code consumes only this verified context or an attenuated handle minted from it. The Host journal stores durable authority; the public relay sends filtered typed projections only. Private intent, hashed-only grant basis, and handles never cross the wire or enter UI/events.
 
 ## Fixed authorization order
 
@@ -111,6 +121,7 @@ Unknown resources, ownership conflicts, missing selectors, expired grants, and r
 - Installation-local secret scope comes from a Host-verified Installation context.
 - Run start requires `run` plus an exact Installation. The Host generates RunId after preflight. Later get/stop calls carry both I/R, and the registry must prove that the Run is a child of that exact Installation before deriving authority for that child request. The rule never crosses Installations and is not a first-party private bypass. Host restart marks active Runs `interrupted`.
 - Package surfaces receive only short-lived, method-allowlisted attenuated handles, never root/device credentials.
+- Binding runtime injects a least-authority handle only into the selected Component. Provider stop, Exposure revoke/expiry, owner revoke, or version drift is rechecked at every effect barrier and invalidates the Binding.
 
 ## Audit linkage
 

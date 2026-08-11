@@ -15,8 +15,8 @@ mod write;
 pub(crate) const SCHEMA: &str = "https://json-schema.org/draft/2020-12/schema";
 
 use defs::schema_value;
-use events::{event_schema, event_schemas};
-use methods::method_schemas;
+pub(crate) use events::{event_schema, event_schemas};
+pub(crate) use methods::{method_schema, method_schemas};
 use write::{filename, write_json, write_method};
 
 pub fn export_all() -> anyhow::Result<()> {

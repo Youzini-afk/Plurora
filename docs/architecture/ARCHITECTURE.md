@@ -86,7 +86,7 @@ Host 管理现实环境中的资源和操作：
 - package / component 获取、安装、更新与卸载；
 - 本地进程、WASM、远程服务和 target 生命周期；
 - 文件、workspace、secret、网络、端口与代理；
-- Project 等发行版采用的安装实例；
+- Work 的 Host-local Installation、Run、Exposure、Binding 与 Realization 记录；
 - 部署、运行健康、日志、备份、恢复和诊断；
 - 设备身份、资源 selector 与 Host 管理策略。
 
@@ -150,7 +150,7 @@ Host 为各层提供受权的现实资源，但不创造反向语义依赖。
 Contract V1 是当前可运行、可生成 SDK、由 conformance 守护的公开合同。它同时承载了多层职责：
 
 - `context.*`、`journal.*`、`capability.*`、`authority.*`、`object.*` 与 `identity.*` 属于 Substrate；
-- `host.*` 拥有 Project、target、exec、port、proxy、outbound adapter、Package operation 与 diagnostics；
+- `host.*` 拥有 Installation、Run、Exposure、Binding、target、exec、port、proxy、outbound adapter、Package operation 与 diagnostics；
 - `protocol.*`、`change.*` 与 `projection.*` 属于可演化 Protocol；
 - `shell.*` contribution discovery 与 surface interpretation 属于 Shell Profile。
 
@@ -161,6 +161,8 @@ Contract V1 是当前可运行、可生成 SDK、由 conformance 守护的公开
 ### Web / PWA
 
 `clients/web` 是 React 19 + Tailwind v4 + Vite 的官方平台 Shell，并可作为 PWA 安装。它通过 HTTP `POST /rpc`、SSE 与 `/host/v1/*` 使用公开平台和 Host 边界，不读取 SQLite，也不导入 runtime 私有状态。
+
+Phase 5 的 Powerbox chooser 通过 `host.exposure.*` 与 `host.binding.*` 显示 exact provider/consumer Port、audience、lease、trust 与 evidence；它只使用 Host public relay，不持有 private intent 或 runtime handle。Surface bridge 仍是显式 allowlist，没有 Powerbox private bridge。
 
 ### SurfaceHost
 

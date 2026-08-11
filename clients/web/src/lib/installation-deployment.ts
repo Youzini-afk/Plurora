@@ -53,7 +53,7 @@ export interface BuildDeployParseResult {
 
 // Explicit web deploy metadata lives at installation.metadata.deployment.docker.
 // This intentionally accepts only one prebuilt Docker HTTP image and host-owned
-// port/proxy metadata; env, volumes, mounts, and secrets are not part of Phase 5.
+// port/proxy metadata; env, volumes, mounts, and secrets are outside this explicit action.
 export function parseDockerDeploymentDescriptor(
   installationId: string,
   metadata: unknown,

@@ -33,6 +33,16 @@ access_manage
 
 `deploy` 暂时只服务于尚未由 Realization 替换的旧 target/deployment 执行面，不进入默认设备 grant，并将在 Phase 6 删除。
 
+Phase 5 的 Exposure/Binding 方法已经使用这些 action：
+
+| Action | Methods | Exact resources |
+|---|---|---|
+| `observe` | `host.exposure.list`, `host.binding.list`, `host.binding.candidates` | 可见的 provider/consumer Installation、Run、Exposure、Binding 与 Port |
+| `exposure.manage` | `host.exposure.create`, `host.exposure.revoke` | provider Installation + Run + export Port；revoke 另含 exact Exposure |
+| `binding.manage` | `host.binding.select`, `host.binding.revoke` | consumer Installation + import Port + Exposure；revoke 另含 exact Binding；Runtime 可带 exact Run pin |
+
+Port 的复合资源 ID 使用 `<installation-id>/<port-id>`。它只是 resource selector 的稳定拼接形式，不是 filesystem path、credential 或 handle。
+
 ## Resource selector
 
 资源种类是：
@@ -55,7 +65,7 @@ Selector 线路形状：
 {"kind":"installation","id":null}
 ```
 
-`id: null` 是显式 wildcard；省略 `id` 会拒绝，不能因字段缺失获得全局可见性。子 grant 的 actions、resources、期限和 delegation depth 必须都是父权威的子集。
+`id: null` 是显式 wildcard；省略 `id` 会拒绝，不能因字段缺失获得全局可见性。子 grant 的 actions、resources、期限和 delegation depth 必须都是父权威的子集。Exposure audience 也必须显式列出 exact selector；candidate relay 只返回 caller 可见且 audience 匹配的 provider。
 
 ## 调用上下文
 
@@ -89,7 +99,7 @@ HostOperationContext
   policy_decision_ref
 ```
 
-运行时只消费这份验证后的上下文，或由它铸造的衰减 handle。
+运行时只消费这份验证后的上下文，或由它铸造的衰减 handle。Host journal 保存 durable authority；公开 relay 只发送过滤后的 typed projection，private intent、grant basis（仅哈希）与 handle 不出现在 wire、UI 或事件中。
 
 ## 固定授权顺序
 
@@ -111,6 +121,7 @@ HostOperationContext
 - Installation-local secret scope 来自 Host 验证的 Installation context。
 - Run start 要求 `run` 与精确 Installation。RunId 由 Host 在 preflight 后生成；后续 get/stop 必须同时携带 I/R，registry 先证明 Run 是该精确 Installation 的 child，才从父 selector 派生本次 exact child authority。该规则不跨 Installation，也不是第一方私有 bypass；Host restart 会把 active Run 标为 `interrupted`。
 - package surface 只能拿到短期、方法 allowlist 的衰减 handle，不能获得 root/device credential。
+- Binding runtime 只向选中的 Component 注入最小 handle；provider stop、Exposure revoke/expiry、owner revoke 或版本漂移会在每个 effect barrier 重新校验并使 Binding 失效。
 
 ## 审计
 

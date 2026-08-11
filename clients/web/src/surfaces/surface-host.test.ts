@@ -112,6 +112,18 @@ await rejectsWithCode(
   "rpc_denied",
 );
 
+for (const method of [
+  "host.exposure.list",
+  "host.exposure.create",
+  "host.exposure.revoke",
+  "host.binding.list",
+  "host.binding.candidates",
+  "host.binding.select",
+  "host.binding.revoke",
+]) {
+  await rejectsWithCode(callSurfaceBridgeForTest(bridge, { id: `denied-${method}`, method, params: {} }), "rpc_denied");
+}
+
 await callSurfaceBridgeForTest(bridge, {
   id: "2",
   method: "capability.invoke",

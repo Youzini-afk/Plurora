@@ -13,7 +13,6 @@ export interface AcquisitionRecord {
 }
 
 export interface ActiveBindingRecord {
-  "authority_handle_id": string;
   "binding_id": BindingId;
   "consumer_installation_id": InstallationId;
   "consumer_port": PortId;
@@ -175,7 +174,108 @@ export type AvailabilityPolicy = "required" | "degraded_without" | "optional";
 
 export type BackupPolicy = "required" | "allowed" | "forbidden";
 
+export interface BindingCandidate {
+  "availability": AvailabilityPolicy;
+  /**
+   * Digest of every canonical field below, including verified descriptive disclosure. Selection uses this digest, never an order-sensitive digest of the whole candidate set. Sorting ignores descriptive and publisher fields, but any disclosure drift still makes a prior decision stale.
+   */
+  "candidate_digest": string;
+  "capability": CapabilityPin;
+  "consumer": BindingEndpointPin;
+  "consumer_port": PortDescriptor;
+  "effective_expires_at"?: null | string;
+  "exposure": ExposureView;
+  "phase": BindingPhase;
+  "provider": BindingEndpointPin;
+  "provider_component": BindingComponentDisclosure;
+  "provider_installation": BindingInstallationDisclosure;
+  "provider_port": PortDescriptor;
+  "provider_work": BindingWorkDisclosure;
+  "transport": SelectedTransport;
+}
+
+export interface BindingCandidatesRequest {
+  "consumer_installation_id": InstallationId;
+  "consumer_run"?: RunRevisionPin | null;
+  "expected_consumer_installation_revision": number;
+  "import_port": PortId;
+  "phase": BindingPhase;
+  /**
+   * An ordering hint only. It never selects a candidate or grants authority.
+   */
+  "preferences"?: Array<ResourceSelector>;
+}
+
+export interface BindingCandidatesResult {
+  "candidates": Array<BindingCandidate>;
+  "gaps"?: Array<BindingGap>;
+}
+
+/**
+ * Host-verified Component identity and evidence. This is deliberately narrower than ComponentDescriptor so annotations, surfaces, and content roots cannot become an accidental disclosure channel.
+ */
+export interface BindingComponentDisclosure {
+  "behavior": ArtifactDescriptor;
+  "claim_status": ComponentClaimStatus;
+  "component_artifact": ArtifactDescriptor;
+  "component_id": string;
+  "enforced_boundaries": ComponentBoundaryClaims;
+  "entry_kind": string;
+  "package_id": string;
+  "protocol_implementations"?: Array<PackagedProtocolDescriptor>;
+  "trust_class": ComponentTrustClass;
+  "version": string;
+}
+
+export type BindingDecisionStatus = "selected" | "revoked" | "expired";
+
+export type BindingEffectiveStatus = {
+  "kind": "active";
+} | {
+  "kind": "broken";
+  "reason_code": string;
+} | {
+  "kind": "detached";
+};
+
+export interface BindingEndpointPin {
+  "component": ComponentPin;
+  "installation": InstallationRevisionPin;
+  "port": ResolvedPortPin;
+  "run"?: RunRevisionPin | null;
+}
+
+export interface BindingGap {
+  "installation_id"?: InstallationId | null;
+  "interaction_model"?: null | string;
+  "next_step": string;
+  "node_id"?: NodeId | null;
+  "port_id"?: PortId | null;
+  "reason_code": string;
+  "run_id"?: RunId | null;
+}
+
 export type BindingId = string;
+
+/**
+ * Verified, public Installation origin shown before a Binding decision. It intentionally excludes state bindings, secret policy, and host-local paths.
+ */
+export interface BindingInstallationDisclosure {
+  "display_name": string;
+  "installation_id": InstallationId;
+  "installation_revision": number;
+  "source": AcquisitionRecord;
+}
+
+export interface BindingLifecyclePayloadSchema {
+  "binding": BindingView;
+}
+
+export interface BindingListRequest {
+  "consumer_installation_id"?: InstallationId | null;
+  "run_id"?: RunId | null;
+  "status"?: BindingDecisionStatus | null;
+}
 
 export interface BindingLock {
   "binding_id": string;
@@ -186,7 +286,67 @@ export interface BindingLock {
   "transport": SelectedTransport;
 }
 
+export interface BindingMutationResult {
+  "affected_binding_ids"?: Array<BindingId>;
+  "binding": BindingView;
+  "idempotent": boolean;
+}
+
 export type BindingPhase = "authoring" | "installation" | "launch" | "runtime";
+
+export interface BindingRevokeRequest {
+  "binding_id": BindingId;
+  "consumer_installation_id": InstallationId;
+  "consumer_run"?: RunRevisionPin | null;
+  "expected_binding_revision": number;
+  "expected_consumer_installation_revision": number;
+  "exposure_id": ExposureId;
+  "idempotency_key": string;
+  "import_port": PortId;
+}
+
+export interface BindingSelectRequest {
+  "candidate_digest": string;
+  "consumer_installation_id": InstallationId;
+  "consumer_run"?: RunRevisionPin | null;
+  "expected_consumer_installation_revision": number;
+  "expected_exposure_revision": number;
+  "expected_provider_installation_revision": number;
+  "exposure_id": ExposureId;
+  "idempotency_key": string;
+  "import_port": PortId;
+  "phase": BindingPhase;
+  "provider_installation_id": InstallationId;
+}
+
+export interface BindingSelectionRecord {
+  "availability": AvailabilityPolicy;
+  "binding_id": BindingId;
+  "candidate_digest": string;
+  "capability": CapabilityPin;
+  "consumer": BindingEndpointPin;
+  "effective_expires_at"?: null | string;
+  "exposure_id": ExposureId;
+  "exposure_revision": number;
+  "phase": BindingPhase;
+  "provider": BindingEndpointPin;
+  "status": BindingDecisionStatus;
+  "transport": SelectedTransport;
+}
+
+export interface BindingView {
+  "effective_status": BindingEffectiveStatus;
+  "record": BindingSelectionRecord;
+  "revision": number;
+}
+
+/**
+ * Verified, public Work identity shown before a Binding decision. Descriptive text is disclosure, never preference or execution authority.
+ */
+export interface BindingWorkDisclosure {
+  "title": string;
+  "work_id": WorkId;
+}
 
 export interface BranchRecord {
   "child_session_id": string;
@@ -320,6 +480,11 @@ export interface CapabilityPermissions {
   "invoke"?: Array<string>;
 }
 
+export interface CapabilityPin {
+  "capability_id": string;
+  "capability_version": string;
+}
+
 export interface CapabilityRequirement {
   "id": string;
   "version": string;
@@ -434,6 +599,15 @@ export interface ComponentDescriptor {
   "surfaces"?: Array<PackagedSurfaceDescriptor>;
   "trust_class": ComponentTrustClass;
   "version": string;
+}
+
+export interface ComponentPin {
+  "behavior_digest": string;
+  "component_artifact": ArtifactDescriptor;
+  "component_id": string;
+  "node_path": Array<NodeId>;
+  "package_id": string;
+  "trust_class": ComponentTrustClass;
 }
 
 export type ComponentTrustClass = "sandboxed_component" | "isolated_process" | "remote_boundary" | "trusted_native" | "static_resource" | "foreign_capsule";
@@ -740,7 +914,34 @@ export type ExecutionTargetStatusKind = "enrolling" | "available" | "degraded" |
  */
 export type ExecutorKind = "deny_all" | "fake" | "real";
 
+export interface ExposureCreateRequest {
+  "audience": Array<ResourceSelector>;
+  "expected_installation_revision": number;
+  "expected_run_revision": number;
+  "expires_at"?: null | string;
+  "export_port": PortId;
+  "idempotency_key": string;
+  "installation_id": InstallationId;
+  "run_id": RunId;
+}
+
 export type ExposureId = string;
+
+export interface ExposureLifecyclePayloadSchema {
+  "exposure": ExposureView;
+}
+
+export interface ExposureListRequest {
+  "installation_id"?: InstallationId | null;
+  "run_id"?: RunId | null;
+  "status"?: ExposureStatus | null;
+}
+
+export interface ExposureMutationResult {
+  "affected_binding_ids"?: Array<BindingId>;
+  "exposure": ExposureView;
+  "idempotent": boolean;
+}
 
 export interface ExposureRecord {
   "audience": Array<ResourceSelector>;
@@ -752,7 +953,23 @@ export interface ExposureRecord {
   "status": ExposureStatus;
 }
 
+export interface ExposureRevokeRequest {
+  "expected_exposure_revision": number;
+  "expected_installation_revision": number;
+  "expected_run_revision": number;
+  "export_port": PortId;
+  "exposure_id": ExposureId;
+  "idempotency_key": string;
+  "installation_id": InstallationId;
+  "run_id": RunId;
+}
+
 export type ExposureStatus = "active" | "expired" | "revoked";
+
+export interface ExposureView {
+  "record": ExposureRecord;
+  "revision": number;
+}
 
 export interface ExtensionPointDescriptor {
   "id": string;
@@ -810,6 +1027,12 @@ export interface HookSubscription {
 
 export type HookTiming = "sync" | "async";
 
+export type HostBindingListResult = Array<{
+  "effective_status": BindingEffectiveStatus;
+  "record": BindingSelectionRecord;
+  "revision": number;
+}>;
+
 export type HostDiagnosticsResult = Record<string, unknown>;
 
 export interface HostExecCompletedPayload {
@@ -859,6 +1082,11 @@ export interface HostExecStoppedPayload {
   "size_bytes": number;
 };
 }
+
+export type HostExposureListResult = Array<{
+  "record": ExposureRecord;
+  "revision": number;
+}>;
 
 export interface HostInfo {
   "contract_methods"?: Array<ContractMethod> | null;
@@ -1308,6 +1536,13 @@ export interface InstallationRemovedPayloadSchema {
   "view": InstallationView;
 }
 
+export interface InstallationRevisionPin {
+  "assembly_lock": ArtifactDescriptor;
+  "installation_id": InstallationId;
+  "installation_revision": number;
+  "work_revision": ArtifactDescriptor;
+}
+
 export interface InstallationRollbackPointer {
   "assembly_lock": ArtifactDescriptor;
   "revision": number;
@@ -1607,6 +1842,7 @@ export type NodeId = string;
 export interface NodeInstanceRecord {
   "instance_id": string;
   "node_id": NodeId;
+  "node_path": Array<NodeId>;
   "realization_id"?: RealizationId | null;
   "status": NodeInstanceStatus;
 }
@@ -2704,6 +2940,13 @@ export interface ReplicaPolicy {
   "min": number;
 }
 
+export interface ResolvedPortPin {
+  "canonical_contract_digest": string;
+  "leaf_port": PortEndpoint;
+  "node_path": Array<NodeId>;
+  "root_port": PortId;
+}
+
 export interface ResourceCapacity {
   "cpu_millis"?: number;
   "gpu_count"?: number;
@@ -2796,6 +3039,15 @@ export interface RunRecord {
   "started_at": string;
   "status": RunStatus;
   "stopped_at"?: null | string;
+}
+
+/**
+ * Exact Run identity established by the Host. The three fields are one optional unit: Launch-time selection can omit the entire value, while a Runtime selection must carry all of it.
+ */
+export interface RunRevisionPin {
+  "context_id": string;
+  "run_id": RunId;
+  "run_revision": number;
 }
 
 export interface RunStartRequest {

@@ -21,7 +21,7 @@ v1 契约支持两种参与方式：
 
 路径 A 适合需要平台 authority、network、secret、audit 与 SDK 的 Package。路径 B 适合只需要托管、不需要平台 authority 的自包含应用与工具。
 
-## 公开方法矩阵（85）
+## 公开方法矩阵（92）
 
 完整请求/响应 schema 位于 `docs/spec/v1/schemas/methods/`。方法名是稳定公开 API；v1 只允许 additive 变更。
 
@@ -157,6 +157,18 @@ Git 安装不是 transport primitive；它属于普通第一方 capability Packa
 | `host.installation.update` | implemented | `installation.manage` + exact Installation authority；所有 state action（含 Preserve）都在 durable/effect boundary 刷新 current grant；要求期望 revision 并以 CAS 原子切换 active Work/Lock；Reset/Replace 由 Host 在真实 state effect 前签发并持久化 authority evidence 与 decision receipt，失败保留旧 pointer。 |
 | `host.installation.remove` | implemented | `installation.manage` + exact Installation authority；要求显式 `keep` 或 `delete` state decision并在 durable/effect boundary 刷新 current grant；只删除 Host-owned state，linked-local source 永不删除。 |
 
+### `host.exposure.*` 与 `host.binding.*`（7）
+
+| 方法 | 状态 | Owner / action / exact resource / typed request → result |
+|---|---:|---|
+| `host.exposure.list` | implemented | Host；`observe`；可选 provider Installation/Run/Port selector；`ExposureListRequest → ExposureView[]`。 |
+| `host.exposure.create` | implemented | Host；`exposure.manage`；provider Installation + Run + export Port；`ExposureCreateRequest → ExposureMutationResult`，包含 Exposure、revision、幂等标记。 |
+| `host.exposure.revoke` | implemented | Host；`exposure.manage`；provider Installation + Run + export Port + Exposure；`ExposureRevokeRequest → ExposureMutationResult`，并报告受影响 Binding。 |
+| `host.binding.list` | implemented | Host；`observe`；可选 consumer Installation/Run/status selector；`BindingListRequest → BindingView[]`。 |
+| `host.binding.candidates` | implemented | Host；`observe`；exact consumer Installation + import Port（可选 launch/runtime Run pin）；`BindingCandidatesRequest → BindingCandidatesResult`，只读、含候选与 gaps。 |
+| `host.binding.select` | implemented | Host；`binding.manage`；consumer Installation + import Port + Exposure + provider Installation（可选 exact runtime Run）；`BindingSelectRequest → BindingMutationResult`。 |
+| `host.binding.revoke` | implemented | Host；`binding.manage`；consumer Installation + import Port + Exposure + Binding（可选 exact runtime Run）；`BindingRevokeRequest → BindingMutationResult`。 |
+
 ### `host.run.*`（5）
 
 | 方法 | 状态 | 契约 |
@@ -193,7 +205,7 @@ Git 安装不是 transport primitive；它属于普通第一方 capability Packa
 | `protocol.extension.describe` | planned | 描述单个 extension point。 |
 | `protocol.hook.list` | partial | 列出 hook subscriptions。 |
 
-## 事件类型矩阵（63）
+## 事件类型矩阵（69）
 
 完整 registry 见 [`v1/EVENT_KIND_REGISTRY.md`](v1/EVENT_KIND_REGISTRY.md)。事件 payload schema 位于 `docs/spec/v1/schemas/events/`。事件分组如下：
 
@@ -202,6 +214,8 @@ Git 安装不是 transport primitive；它属于普通第一方 capability Packa
 | Context | 3 | `context/opened`、`context/closed`、`context/forked` |
 | Package lifecycle | 9 | `host/package.loading`、`.starting`、`.ready`、`.loaded`、`.stopping`、`.stopped`、`.unloaded`、`.degraded`、`.log` |
 | Installation lifecycle | 3 | `host/installation.created`、`.updated`、`.removed` |
+| Exposure lifecycle | 3 | `host/exposure.created`、`.revoked`、`.expired` |
+| Binding lifecycle | 3 | `host/binding.selected`、`.revoked`、`.expired` |
 | Run lifecycle | 5 | `host/run.starting`、`.started`、`.stopping`、`.stopped`、`.failed` |
 | Capability lifecycle | 3 | `capability/invoked`、`capability/completed`、`capability/failed` |
 | Stream lifecycle | 7 | `capability/stream.started`、`.chunk`、`.progress`、`.ended`、`.error`、`.cancelled`、`.timeout` |
@@ -293,13 +307,13 @@ v1 仅允许 additive 变更：新增可选字段、新增方法、新增事件�
 
 ## Schema 与错误码
 
-- 方法 schema：`docs/spec/v1/schemas/methods/`（85）。
-- 事件 schema：`docs/spec/v1/schemas/events/`（63）。
-- 顶层 schema：`docs/spec/v1/schemas/*.schema.json`（39），包含 additive Protocol Commons、component/package-envelope、World Bundle、便携 Work / Assembly 契约、Host-local Installation / Run / Exposure / Realization wire record，以及 Installation state snapshot、decision receipt 与 authority evidence。
+- 方法 schema：`docs/spec/v1/schemas/methods/`（92）。
+- 事件 schema：`docs/spec/v1/schemas/events/`（69）。
+- 顶层 schema：`docs/spec/v1/schemas/*.schema.json`（39），包含 additive Protocol Commons、component/package-envelope、World Bundle、便携 Work / Assembly 契约、Host-local Installation / Run / Exposure / Binding / Realization wire record，以及 Installation state snapshot、decision receipt 与 authority evidence。
 - 错误码：[`v1/ERROR_CODES.md`](v1/ERROR_CODES.md)。
 - 事件 registry：[`v1/EVENT_KIND_REGISTRY.md`](v1/EVENT_KIND_REGISTRY.md)。
 
-187 个 schema 必须通过 `cargo run -p plurora-cli --bin validate-schemas`。
+200 个 schema 必须通过 `cargo run -p plurora-cli --bin validate-schemas`。
 
 ## 内容无关不变量
 
@@ -473,8 +487,8 @@ Surface contribution 是 Package 声明的 UI/UX 入口 descriptor。Runtime 保
 
 一个 v1 实现至少需要证明：
 
-1. 85 个方法 schema 可导出。
-2. 63 个事件 schema 可验证。
+1. 92 个方法 schema 可导出。
+2. 69 个事件 schema 可验证。
 3. 39 个顶层 schema 可验证。
 4. 方法 registry 与 dispatcher 一致。
 5. capability handle mint/attenuate/revoke/list 行为可测试。
@@ -506,7 +520,7 @@ Host operator 应能通过公开方法或 CLI 看见：
 | `capability.*` | 5 |
 | `change.*` | 6 |
 | `context.*` | 6 |
-| `host.*` | 45 |
+| `host.*` | 52 |
 | `identity.*` | 1 |
 | `journal.*` | 3 |
 | `object.*` | 3 |

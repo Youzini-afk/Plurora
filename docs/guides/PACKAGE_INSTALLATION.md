@@ -27,9 +27,13 @@ plurora installation update <installation-id> \
 # 移除时必须明确 state 处理
 plurora installation remove <installation-id> \
   --state keep --idempotency-key remove-my-work
+
+# Phase 5 Powerbox
+plurora exposure list|create|revoke
+plurora binding candidates|list|select|revoke
 ```
 
-Installation `ready` 仍不代表已经启动；CLI 和 Web 必须通过显式 `host.run.start` 创建 Run。打开详情不会启动，缺少可用本地实现时 start 返回结构化 gap；`host.run.stop` 只停止该 Run，不卸载全局 Package。
+Installation `ready` 仍不代表已经启动；CLI 和 Web 必须通过显式 `host.run.start` 创建 Run。打开详情不会启动，缺少可用本地实现时 start 返回结构化 gap；`host.run.stop` 只停止该 Run，不卸载全局 Package。Exposure/Binding CLI 只操作 Phase 5 的 Host journal 记录，不会隐式 deploy、rebind 或共享 state/secret。
 
 ## 可接受来源
 

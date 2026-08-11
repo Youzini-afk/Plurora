@@ -4,7 +4,7 @@ use std::fs;
 use std::fs::OpenOptions;
 use std::io::{Read, Write};
 use std::path::{Component, Path, PathBuf};
-use std::sync::{Arc, Mutex, RwLock};
+use std::sync::{Arc, Mutex, RwLock, Weak};
 
 use anyhow::{anyhow, bail, ensure, Context};
 use async_trait::async_trait;
@@ -73,6 +73,13 @@ pub struct InstallationRegistry {
     idempotency: RwLock<BTreeMap<String, IdempotencyClaim>>,
     pending: RwLock<BTreeMap<InstallationId, PendingMutation>>,
     next_sequence: Mutex<EventSequence>,
+    /// Per-Installation lifecycle locks. The table is weak so unknown IDs,
+    /// failed creates, and removed Installations do not become permanent keys.
+    /// A live guard owns the lock strongly, which keeps one exact lock unique
+    /// for the ID until every reader/writer has left that lifecycle.
+    lifecycles: Mutex<BTreeMap<InstallationId, Weak<tokio::sync::RwLock<()>>>>,
+    /// Serializes synchronization and CAS application for the one Installation
+    /// journal. It is never retained as a Run or secret-effect lifecycle lease.
     apply: Arc<tokio::sync::Mutex<()>>,
     owner_lease: RwLock<Option<DevelopmentHostLease>>,
     #[cfg(test)]
@@ -353,6 +360,7 @@ impl InstallationRegistry {
             idempotency: RwLock::new(BTreeMap::new()),
             pending: RwLock::new(BTreeMap::new()),
             next_sequence: Mutex::new(0),
+            lifecycles: Mutex::new(BTreeMap::new()),
             apply: Arc::new(tokio::sync::Mutex::new(())),
             owner_lease: RwLock::new(None),
             #[cfg(test)]
@@ -384,10 +392,12 @@ impl InstallationRegistry {
     /// An incomplete state-changing operation is rolled back before this returns.
     pub async fn hydrate(&self) -> anyhow::Result<usize> {
         self.ensure_owner_lease().await?;
-        let _apply = self.apply.lock().await;
-        self.reset_memory()?;
         let outcome = async {
-            self.sync_journal().await?;
+            {
+                let _apply = self.apply.lock().await;
+                self.reset_memory()?;
+                self.sync_journal_locked().await?;
+            }
             self.recover_pending().await?;
             let views = self.views_snapshot()?;
             for view in views.values() {
@@ -400,6 +410,7 @@ impl InstallationRegistry {
         if outcome.is_err() {
             // A partially replayed control plane must never remain observable after a
             // malformed journal, blocked rollback, or projection-integrity failure.
+            let _apply = self.apply.lock().await;
             let _ = self.reset_memory();
         }
         outcome
@@ -417,7 +428,24 @@ impl InstallationRegistry {
         Ok(self.views.read().map_err(lock_error)?.clone())
     }
 
-    async fn sync_journal(&self) -> anyhow::Result<()> {
+    fn lifecycle_lock(
+        &self,
+        installation_id: &InstallationId,
+    ) -> anyhow::Result<Arc<tokio::sync::RwLock<()>>> {
+        let mut lifecycles = self.lifecycles.lock().map_err(lock_error)?;
+        lifecycles.retain(|_, lifecycle| lifecycle.strong_count() != 0);
+        if let Some(lifecycle) = lifecycles.get(installation_id).and_then(Weak::upgrade) {
+            return Ok(lifecycle);
+        }
+        let lifecycle = Arc::new(tokio::sync::RwLock::new(()));
+        lifecycles.insert(installation_id.clone(), Arc::downgrade(&lifecycle));
+        Ok(lifecycle)
+    }
+
+    /// Synchronize the in-memory authority while the caller owns `apply`.
+    /// No artifact validation or filesystem effect belongs in this critical
+    /// section; it serializes only journal sequence/CAS application.
+    async fn sync_journal_locked(&self) -> anyhow::Result<()> {
         loop {
             let next = *self.next_sequence.lock().map_err(lock_error)?;
             let after = next.checked_sub(1);
@@ -826,7 +854,11 @@ impl InstallationRegistry {
         Ok(Some(result))
     }
 
-    async fn append_payload<T: Serialize>(&self, kind: &str, payload: &T) -> anyhow::Result<bool> {
+    async fn append_payload_locked<T: Serialize>(
+        &self,
+        kind: &str,
+        payload: &T,
+    ) -> anyhow::Result<bool> {
         let sequence = *self.next_sequence.lock().map_err(lock_error)?;
         let payload =
             serde_json::to_value(payload).context("encode installation journal payload")?;
@@ -854,7 +886,7 @@ impl InstallationRegistry {
     /// Append a mutation payload only while the exact resource grant is still
     /// current. Owner lease validation deliberately happens first so authority
     /// refresh is the final asynchronous boundary before the journal effect.
-    async fn append_payload_with_installation_authority<T: Serialize>(
+    async fn append_payload_with_installation_authority_locked<T: Serialize>(
         &self,
         kind: &str,
         payload: &T,
@@ -865,8 +897,6 @@ impl InstallationRegistry {
         let payload =
             serde_json::to_value(payload).context("encode installation journal payload")?;
         self.ensure_owner_lease().await?;
-        #[cfg(test)]
-        self.wait_authority_append_barrier(kind).await?;
         authority
             .refresh_current_for_installation(installation_id)
             .await?;
@@ -893,7 +923,7 @@ impl InstallationRegistry {
     /// Create is authorized against the exact Work rather than a not-yet-existing
     /// Installation. Keep the Host owner check before the grant refresh so the
     /// refresh is the final asynchronous boundary before the journal append.
-    async fn append_payload_with_work_authority<T: Serialize>(
+    async fn append_payload_with_work_authority_locked<T: Serialize>(
         &self,
         kind: &str,
         payload: &T,
@@ -904,8 +934,6 @@ impl InstallationRegistry {
         let payload =
             serde_json::to_value(payload).context("encode installation journal payload")?;
         self.ensure_owner_lease().await?;
-        #[cfg(test)]
-        self.wait_authority_append_barrier(kind).await?;
         authority.refresh_current_for_work(work_id).await?;
         let appended = self
             .store
@@ -927,6 +955,25 @@ impl InstallationRegistry {
         Ok(true)
     }
 
+    /// Test barriers sit immediately before, rather than inside, the short
+    /// journal critical section. Production still refreshes authority after
+    /// acquiring `apply`, so a grant cannot expire while waiting for its turn.
+    async fn before_authority_append(&self, kind: &str) -> anyhow::Result<()> {
+        #[cfg(test)]
+        self.wait_authority_append_barrier(kind).await?;
+        #[cfg(not(test))]
+        let _ = kind;
+        Ok(())
+    }
+
+    /// Test/recovery helper for an unauthenticated internal event. Normal
+    /// mutation paths use event-specific preconditions under the same lock.
+    async fn append_payload<T: Serialize>(&self, kind: &str, payload: &T) -> anyhow::Result<bool> {
+        let _apply = self.apply.lock().await;
+        self.sync_journal_locked().await?;
+        self.append_payload_locked(kind, payload).await
+    }
+
     async fn recover_pending(&self) -> anyhow::Result<()> {
         loop {
             let pending = self
@@ -940,6 +987,19 @@ impl InstallationRegistry {
                 return Ok(());
             };
             let id = pending.previous.record.installation_id.clone();
+            let _lifecycle = self.lifecycle_lock(&id)?.write_owned().await;
+            {
+                let _apply = self.apply.lock().await;
+                self.sync_journal_locked().await?;
+                let current = self.pending.read().map_err(lock_error)?.get(&id).cloned();
+                let Some(current) = current else {
+                    continue;
+                };
+                ensure!(
+                    current == pending,
+                    "pending recovery changed before lifecycle exclusion"
+                );
+            }
             if let Err(_error) = self.restore_state(&id, &pending.state_snapshot).await {
                 let blocked = BlockedPayload {
                     installation_id: id,
@@ -965,7 +1025,8 @@ impl InstallationRegistry {
 
     async fn append_pending_blocked(&self, payload: &BlockedPayload) -> anyhow::Result<()> {
         for _ in 0..CAS_ATTEMPTS {
-            self.sync_journal().await?;
+            let _apply = self.apply.lock().await;
+            self.sync_journal_locked().await?;
             let pending = self
                 .pending
                 .read()
@@ -996,7 +1057,10 @@ impl InstallationRegistry {
                 ),
                 "pending recovery no longer owns the current installation state"
             );
-            if self.append_payload(RECOVERY_BLOCKED, payload).await? {
+            if self
+                .append_payload_locked(RECOVERY_BLOCKED, payload)
+                .await?
+            {
                 return Ok(());
             }
         }
@@ -1014,7 +1078,8 @@ impl InstallationRegistry {
             _ => bail!("invalid rollback event kind"),
         };
         for _ in 0..CAS_ATTEMPTS {
-            self.sync_journal().await?;
+            let _apply = self.apply.lock().await;
+            self.sync_journal_locked().await?;
             let pending = self
                 .pending
                 .read()
@@ -1051,7 +1116,7 @@ impl InstallationRegistry {
                 current.record.status != InstallationStatus::Blocked,
                 "installation recovery is blocked"
             );
-            if self.append_payload(kind, payload).await? {
+            if self.append_payload_locked(kind, payload).await? {
                 return Ok(());
             }
         }
@@ -1994,8 +2059,10 @@ impl InstallationRegistry {
         claim: IdempotencyClaim,
         authority: &InstallationMutationAuthority,
     ) -> anyhow::Result<()> {
+        self.before_authority_append(IDEMPOTENT_NOOP).await?;
         for _ in 0..CAS_ATTEMPTS {
-            self.sync_journal().await?;
+            let _apply = self.apply.lock().await;
+            self.sync_journal_locked().await?;
             if let Some(existing) = self
                 .idempotency
                 .read()
@@ -2027,7 +2094,7 @@ impl InstallationRegistry {
                 "installation has a pending mutation"
             );
             if self
-                .append_payload_with_installation_authority(
+                .append_payload_with_installation_authority_locked(
                     IDEMPOTENT_NOOP,
                     &NoopPayload {
                         claim: claim.clone(),
@@ -2088,11 +2155,13 @@ impl InstallationControl for InstallationRegistry {
         self.ensure_owner_lease().await?;
         let key_hash = hash_bytes(request.idempotency_key.as_bytes());
         let fingerprint = mutation_fingerprint("create", &request)?;
-        let _apply = self.apply.lock().await;
-        self.sync_journal().await?;
-        self.refresh_create_authority(&request).await?;
-        if let Some(result) = self.claimed_result(&key_hash, &fingerprint)? {
-            return Ok(result);
+        {
+            let _apply = self.apply.lock().await;
+            self.sync_journal_locked().await?;
+            self.refresh_create_authority(&request).await?;
+            if let Some(result) = self.claimed_result(&key_hash, &fingerprint)? {
+                return Ok(result);
+            }
         }
         self.refresh_create_authority(&request).await?;
         let verified = self
@@ -2104,74 +2173,115 @@ impl InstallationControl for InstallationRegistry {
         );
         self.refresh_create_authority(&request).await?;
 
-        for _ in 0..CAS_ATTEMPTS {
-            self.sync_journal().await?;
-            self.refresh_create_authority(&request).await?;
-            if let Some(result) = self.claimed_result(&key_hash, &fingerprint)? {
-                return Ok(result);
-            }
-            let now = Utc::now();
-            let record = InstallationRecord {
-                schema_version: InstallationRecord::SCHEMA_VERSION,
-                installation_id: InstallationId::new(),
-                work_revision: request.work_revision.clone(),
-                assembly_lock: request.assembly_lock.clone(),
-                display_name: request.display_name.clone(),
-                source: request.source.clone(),
-                state_bindings: request.state_bindings.clone(),
-                secret_policy: request.secret_policy.clone(),
-                created_at: now,
-                updated_at: now,
-                status: InstallationStatus::Ready,
-            };
-            record
-                .validate()
-                .map_err(|_| anyhow!("installation record is invalid"))?;
-            let view = InstallationView {
-                record,
-                work_summary: InstallationWorkSummary::from_work_revision(&verified.work),
-                revision: 1,
-                rollback: None,
-            };
-            let result = InstallationMutationResult {
-                installation: view.clone(),
-                diff: None,
-                receipts: Vec::new(),
-                idempotent: false,
-            };
-            let claim = IdempotencyClaim {
-                key_hash: key_hash.clone(),
-                fingerprint: fingerprint.clone(),
-                result: result.clone(),
-            };
-            let projection = self.prepare_projection(&result.installation).await?;
-            let authority = request
-                .authority
-                .as_ref()
-                .ok_or_else(|| anyhow!("authority_denied: trusted Work authority is required"))?;
-            let appended = self
-                .append_payload_with_work_authority(
-                    INSTALLATION_CREATED,
-                    &CreatedPayload { view, claim },
-                    &request.work_id,
-                    authority,
-                )
-                .await;
-            let appended = match appended {
-                Ok(appended) => appended,
-                Err(error) => {
-                    self.discard_uncommitted_create_projection(projection)?;
-                    return Err(error);
+        // Allocate one candidate identity only after request authority and the
+        // complete immutable closure have validated. CAS retries keep this same
+        // identity; a competing idempotency winner discards its uncommitted tree.
+        let installation_id = InstallationId::new();
+        let _lifecycle = self.lifecycle_lock(&installation_id)?.write_owned().await;
+        let now = Utc::now();
+        let record = InstallationRecord {
+            schema_version: InstallationRecord::SCHEMA_VERSION,
+            installation_id: installation_id.clone(),
+            work_revision: request.work_revision.clone(),
+            assembly_lock: request.assembly_lock.clone(),
+            display_name: request.display_name.clone(),
+            source: request.source.clone(),
+            state_bindings: request.state_bindings.clone(),
+            secret_policy: request.secret_policy.clone(),
+            created_at: now,
+            updated_at: now,
+            status: InstallationStatus::Ready,
+        };
+        record
+            .validate()
+            .map_err(|_| anyhow!("installation record is invalid"))?;
+        let view = InstallationView {
+            record,
+            work_summary: InstallationWorkSummary::from_work_revision(&verified.work),
+            revision: 1,
+            rollback: None,
+        };
+        let result = InstallationMutationResult {
+            installation: view.clone(),
+            diff: None,
+            receipts: Vec::new(),
+            idempotent: false,
+        };
+        let claim = IdempotencyClaim {
+            key_hash: key_hash.clone(),
+            fingerprint: fingerprint.clone(),
+            result: result.clone(),
+        };
+        self.refresh_create_authority(&request).await?;
+        let projection = self.prepare_projection(&result.installation).await?;
+        self.refresh_create_authority(&request).await?;
+        let authority = request
+            .authority
+            .as_ref()
+            .ok_or_else(|| anyhow!("authority_denied: trusted Work authority is required"))?;
+        if let Err(error) = self.before_authority_append(INSTALLATION_CREATED).await {
+            self.discard_uncommitted_create_projection(projection)?;
+            return Err(error);
+        }
+
+        enum CreateCommit {
+            Appended,
+            Existing(InstallationMutationResult),
+            Contended,
+        }
+        let commit = async {
+            for _ in 0..CAS_ATTEMPTS {
+                let _apply = self.apply.lock().await;
+                self.sync_journal_locked().await?;
+                self.refresh_create_authority(&request).await?;
+                if let Some(result) = self.claimed_result(&key_hash, &fingerprint)? {
+                    return Ok::<CreateCommit, anyhow::Error>(CreateCommit::Existing(result));
                 }
-            };
-            if appended {
+                ensure!(
+                    !self
+                        .views
+                        .read()
+                        .map_err(lock_error)?
+                        .contains_key(&installation_id),
+                    "installation identity already exists"
+                );
+                if self
+                    .append_payload_with_work_authority_locked(
+                        INSTALLATION_CREATED,
+                        &CreatedPayload {
+                            view: view.clone(),
+                            claim: claim.clone(),
+                        },
+                        &request.work_id,
+                        authority,
+                    )
+                    .await?
+                {
+                    return Ok(CreateCommit::Appended);
+                }
+            }
+            Ok(CreateCommit::Contended)
+        }
+        .await;
+        match commit {
+            Ok(CreateCommit::Appended) => {
                 self.publish_committed_projection(&result.installation, projection)
                     .await;
-                return Ok(result);
+                Ok(result)
             }
-            self.discard_uncommitted_create_projection(projection)?;
+            Ok(CreateCommit::Existing(existing)) => {
+                self.discard_uncommitted_create_projection(projection)?;
+                Ok(existing)
+            }
+            Ok(CreateCommit::Contended) => {
+                self.discard_uncommitted_create_projection(projection)?;
+                bail!("installation create contention did not converge")
+            }
+            Err(error) => {
+                self.discard_uncommitted_create_projection(projection)?;
+                Err(error)
+            }
         }
-        bail!("installation create contention did not converge")
     }
 
     async fn update(
@@ -2182,27 +2292,13 @@ impl InstallationControl for InstallationRegistry {
         self.ensure_owner_lease().await?;
         let key_hash = hash_bytes(request.idempotency_key.as_bytes());
         let fingerprint = mutation_fingerprint("update", &request)?;
-        let _apply = self.apply.lock().await;
-        self.sync_journal().await?;
-        self.refresh_update_authority(&request).await?;
-        if let Some(result) = self.claimed_result(&key_hash, &fingerprint)? {
-            return Ok(result);
-        }
-        self.refresh_update_authority(&request).await?;
-        let candidate_artifacts = self
-            .verify_work_and_lock(&request.work_revision, &request.assembly_lock)
-            .await?;
-        self.refresh_update_authority(&request).await?;
-        let replacement = match &request.state_action {
-            InstallationStateAction::Preserve => None,
-            InstallationStateAction::Replace {
-                replacement_snapshot,
-            } => Some(self.load_snapshot(replacement_snapshot).await?),
-            InstallationStateAction::Reset => Some(StateSnapshot::empty()),
-        };
-
-        for _ in 0..CAS_ATTEMPTS {
-            self.sync_journal().await?;
+        let _lifecycle = self
+            .lifecycle_lock(&request.installation_id)?
+            .write_owned()
+            .await;
+        let previous = {
+            let _apply = self.apply.lock().await;
+            self.sync_journal_locked().await?;
             self.refresh_update_authority(&request).await?;
             if let Some(result) = self.claimed_result(&key_hash, &fingerprint)? {
                 return Ok(result);
@@ -2222,115 +2318,163 @@ impl InstallationControl for InstallationRegistry {
                 previous.revision == request.expected_revision,
                 "revision_conflict: installation revision is stale"
             );
-            self.refresh_update_authority(&request).await?;
-            let current_artifacts = self
-                .verify_work_and_lock(
-                    &previous.record.work_revision,
-                    &previous.record.assembly_lock,
-                )
-                .await?;
-            self.refresh_update_authority(&request).await?;
-            let candidate = update_candidate(&previous.record, &request);
-            candidate
-                .validate()
-                .map_err(|_| anyhow!("installation update is invalid"))?;
-            let diff = installation_diff(
-                &previous.record,
-                &candidate,
-                &current_artifacts,
-                &candidate_artifacts,
-            )?;
-            if diff_is_empty(&diff)
-                && matches!(&request.state_action, InstallationStateAction::Preserve)
-            {
-                let result = InstallationMutationResult {
-                    installation: previous,
-                    diff: Some(diff),
-                    receipts: Vec::new(),
-                    idempotent: true,
-                };
-                let claim = IdempotencyClaim {
-                    key_hash: key_hash.clone(),
-                    fingerprint: fingerprint.clone(),
-                    result: result.clone(),
-                };
-                self.refresh_update_authority(&request).await?;
-                let authority = request.authority.as_ref().ok_or_else(|| {
-                    anyhow!("authority_denied: trusted Installation authority is required")
-                })?;
-                self.persist_noop_claim(claim, authority).await?;
-                return Ok(result);
-            }
+            ensure!(
+                !self
+                    .pending
+                    .read()
+                    .map_err(lock_error)?
+                    .contains_key(&request.installation_id),
+                "installation has a pending mutation"
+            );
+            previous
+        };
 
-            validate_update_state_action(
-                &request.state_action,
-                &diff.state_slots,
-                self.state_has_entries(&request.installation_id)?,
-            )?;
-            self.refresh_update_authority(&request).await?;
-
-            let state_change = !matches!(request.state_action, InstallationStateAction::Preserve);
-            let operation_id = state_change.then(|| uuid::Uuid::new_v4().to_string());
-            let state_snapshot = if state_change {
-                self.refresh_update_authority(&request).await?;
-                let snapshot = self.snapshot_state(&request.installation_id).await?;
-                self.refresh_update_authority(&request).await?;
-                Some(snapshot)
-            } else {
-                None
-            };
-            let receipts = if state_change {
-                self.issue_state_decision_receipts(&request).await?
-            } else {
-                Vec::new()
-            };
-            let rollback = InstallationRollbackPointer {
-                revision: previous.revision,
-                work_revision: previous.record.work_revision.clone(),
-                assembly_lock: previous.record.assembly_lock.clone(),
-                state_snapshot: state_snapshot.clone(),
-            };
-            let mut new_view = InstallationView {
-                record: candidate,
-                work_summary: InstallationWorkSummary::from_work_revision(
-                    &candidate_artifacts.work,
-                ),
-                revision: previous
-                    .revision
-                    .checked_add(1)
-                    .ok_or_else(|| anyhow!("installation revision overflow"))?,
-                rollback: Some(rollback),
-            };
-            new_view.record.status = InstallationStatus::Ready;
-
+        self.refresh_update_authority(&request).await?;
+        let candidate_artifacts = self
+            .verify_work_and_lock(&request.work_revision, &request.assembly_lock)
+            .await?;
+        self.refresh_update_authority(&request).await?;
+        let replacement = match &request.state_action {
+            InstallationStateAction::Preserve => None,
+            InstallationStateAction::Replace {
+                replacement_snapshot,
+            } => Some(self.load_snapshot(replacement_snapshot).await?),
+            InstallationStateAction::Reset => Some(StateSnapshot::empty()),
+        };
+        self.refresh_update_authority(&request).await?;
+        let current_artifacts = self
+            .verify_work_and_lock(
+                &previous.record.work_revision,
+                &previous.record.assembly_lock,
+            )
+            .await?;
+        self.refresh_update_authority(&request).await?;
+        let candidate = update_candidate(&previous.record, &request);
+        candidate
+            .validate()
+            .map_err(|_| anyhow!("installation update is invalid"))?;
+        let diff = installation_diff(
+            &previous.record,
+            &candidate,
+            &current_artifacts,
+            &candidate_artifacts,
+        )?;
+        if diff_is_empty(&diff)
+            && matches!(&request.state_action, InstallationStateAction::Preserve)
+        {
             let result = InstallationMutationResult {
-                installation: new_view.clone(),
-                diff: Some(diff.clone()),
-                receipts: receipts.clone(),
-                idempotent: false,
+                installation: previous,
+                diff: Some(diff),
+                receipts: Vec::new(),
+                idempotent: true,
             };
             let claim = IdempotencyClaim {
-                key_hash: key_hash.clone(),
-                fingerprint: fingerprint.clone(),
+                key_hash,
+                fingerprint,
                 result: result.clone(),
             };
             self.refresh_update_authority(&request).await?;
-            let projection = self.prepare_projection(&result.installation).await?;
-            self.refresh_update_authority(&request).await?;
+            let authority = request.authority.as_ref().ok_or_else(|| {
+                anyhow!("authority_denied: trusted Installation authority is required")
+            })?;
+            self.persist_noop_claim(claim, authority).await?;
+            return Ok(result);
+        }
 
-            if let Some(operation_id) = operation_id {
-                let pending = PendingMutation {
-                    operation_id: operation_id.clone(),
-                    kind: PendingKind::Update,
-                    previous: previous.clone(),
-                    state_snapshot: state_snapshot.expect("state-changing update has snapshot"),
-                    receipts,
-                };
-                let authority = request.authority.as_ref().ok_or_else(|| {
-                    anyhow!("authority_denied: trusted Installation authority is required")
-                })?;
-                if !self
-                    .append_payload_with_installation_authority(
+        validate_update_state_action(
+            &request.state_action,
+            &diff.state_slots,
+            self.state_has_entries(&request.installation_id)?,
+        )?;
+        self.refresh_update_authority(&request).await?;
+
+        let state_change = !matches!(request.state_action, InstallationStateAction::Preserve);
+        let operation_id = state_change.then(|| uuid::Uuid::new_v4().to_string());
+        let state_snapshot = if state_change {
+            self.refresh_update_authority(&request).await?;
+            let snapshot = self.snapshot_state(&request.installation_id).await?;
+            self.refresh_update_authority(&request).await?;
+            Some(snapshot)
+        } else {
+            None
+        };
+        let receipts = if state_change {
+            self.issue_state_decision_receipts(&request).await?
+        } else {
+            Vec::new()
+        };
+        let rollback = InstallationRollbackPointer {
+            revision: previous.revision,
+            work_revision: previous.record.work_revision.clone(),
+            assembly_lock: previous.record.assembly_lock.clone(),
+            state_snapshot: state_snapshot.clone(),
+        };
+        let mut new_view = InstallationView {
+            record: candidate,
+            work_summary: InstallationWorkSummary::from_work_revision(&candidate_artifacts.work),
+            revision: previous
+                .revision
+                .checked_add(1)
+                .ok_or_else(|| anyhow!("installation revision overflow"))?,
+            rollback: Some(rollback),
+        };
+        new_view.record.status = InstallationStatus::Ready;
+
+        let result = InstallationMutationResult {
+            installation: new_view.clone(),
+            diff: Some(diff),
+            receipts: receipts.clone(),
+            idempotent: false,
+        };
+        let claim = IdempotencyClaim {
+            key_hash: key_hash.clone(),
+            fingerprint: fingerprint.clone(),
+            result: result.clone(),
+        };
+        self.refresh_update_authority(&request).await?;
+        let projection = self.prepare_projection(&result.installation).await?;
+        self.refresh_update_authority(&request).await?;
+        let authority = request.authority.as_ref().ok_or_else(|| {
+            anyhow!("authority_denied: trusted Installation authority is required")
+        })?;
+
+        if let Some(operation_id) = operation_id {
+            let pending = PendingMutation {
+                operation_id: operation_id.clone(),
+                kind: PendingKind::Update,
+                previous: previous.clone(),
+                state_snapshot: state_snapshot.expect("state-changing update has snapshot"),
+                receipts,
+            };
+            self.before_authority_append(UPDATE_STARTED).await?;
+            let mut started = false;
+            for _ in 0..CAS_ATTEMPTS {
+                let _apply = self.apply.lock().await;
+                self.sync_journal_locked().await?;
+                if let Some(existing) = self.claimed_result(&key_hash, &fingerprint)? {
+                    return Ok(existing);
+                }
+                let current = self
+                    .views
+                    .read()
+                    .map_err(lock_error)?
+                    .get(&request.installation_id)
+                    .cloned()
+                    .ok_or_else(|| anyhow!("installation_not_found"))?;
+                ensure!(
+                    current == previous,
+                    "revision_conflict: installation changed before update start"
+                );
+                ensure!(
+                    !self
+                        .pending
+                        .read()
+                        .map_err(lock_error)?
+                        .contains_key(&request.installation_id),
+                    "installation has a pending mutation"
+                );
+                if self
+                    .append_payload_with_installation_authority_locked(
                         UPDATE_STARTED,
                         &StartedPayload {
                             pending: pending.clone(),
@@ -2340,67 +2484,123 @@ impl InstallationControl for InstallationRegistry {
                     )
                     .await?
                 {
-                    continue;
+                    started = true;
+                    break;
                 }
-                let replacement = replacement
-                    .as_ref()
-                    .expect("state-changing update has a validated replacement snapshot");
-                self.ensure_owner_lease().await?;
-                if let Err(error) = self.refresh_update_authority(&request).await {
-                    self.rollback_started_without_state_effect(&pending, "authority_expired")
-                        .await?;
-                    return Err(error);
-                }
-                if let Err(error) = self.replace_state_effect(&request.installation_id, replacement)
-                {
-                    self.rollback_started(&pending, "state_replace_failed")
-                        .await?;
-                    return Err(error);
-                }
-                let payload = UpdatedPayload {
-                    operation_id: Some(operation_id),
-                    previous_revision: previous.revision,
-                    view: new_view,
-                    claim,
-                };
-                let terminal = self
-                    .append_payload_with_installation_authority(
-                        INSTALLATION_UPDATED,
-                        &payload,
-                        &request.installation_id,
-                        authority,
-                    )
-                    .await;
-                let terminal_appended = match terminal {
-                    Ok(appended) => appended,
-                    Err(error) => {
-                        self.rollback_started(&pending, "authority_expired_after_state_effect")
-                            .await?;
-                        return Err(error);
-                    }
-                };
-                if !terminal_appended {
-                    self.sync_journal().await?;
-                    self.rollback_started(&pending, "terminal_append_conflict")
-                        .await?;
-                    continue;
-                }
-                self.publish_committed_projection(&result.installation, projection)
-                    .await;
-                return Ok(result);
+            }
+            if !started {
+                bail!("installation update start contention did not converge");
             }
 
+            let replacement = replacement
+                .as_ref()
+                .expect("state-changing update has a validated replacement snapshot");
+            self.ensure_owner_lease().await?;
+            if let Err(error) = self.refresh_update_authority(&request).await {
+                self.rollback_started_without_state_effect(&pending, "authority_expired")
+                    .await?;
+                return Err(error);
+            }
+            if let Err(error) = self.replace_state_effect(&request.installation_id, replacement) {
+                self.rollback_started(&pending, "state_replace_failed")
+                    .await?;
+                return Err(error);
+            }
             let payload = UpdatedPayload {
-                operation_id: None,
+                operation_id: Some(operation_id),
                 previous_revision: previous.revision,
                 view: new_view,
                 claim,
             };
-            let authority = request.authority.as_ref().ok_or_else(|| {
-                anyhow!("authority_denied: trusted Installation authority is required")
-            })?;
+            self.before_authority_append(INSTALLATION_UPDATED).await?;
+            let terminal = async {
+                for _ in 0..CAS_ATTEMPTS {
+                    let _apply = self.apply.lock().await;
+                    self.sync_journal_locked().await?;
+                    let journal_pending = self
+                        .pending
+                        .read()
+                        .map_err(lock_error)?
+                        .get(&request.installation_id)
+                        .cloned();
+                    ensure!(
+                        journal_pending.as_ref() == Some(&pending),
+                        "terminal update no longer owns its pending operation"
+                    );
+                    let mut transitional = previous.clone();
+                    transitional.record.status = InstallationStatus::Updating;
+                    ensure!(
+                        self.views
+                            .read()
+                            .map_err(lock_error)?
+                            .get(&request.installation_id)
+                            == Some(&transitional),
+                        "terminal update base changed after state effect"
+                    );
+                    if self
+                        .append_payload_with_installation_authority_locked(
+                            INSTALLATION_UPDATED,
+                            &payload,
+                            &request.installation_id,
+                            authority,
+                        )
+                        .await?
+                    {
+                        return Ok::<bool, anyhow::Error>(true);
+                    }
+                }
+                Ok(false)
+            }
+            .await;
+            match terminal {
+                Ok(true) => {}
+                Ok(false) => {
+                    self.rollback_started(&pending, "terminal_append_conflict")
+                        .await?;
+                    bail!("installation update terminal contention did not converge");
+                }
+                Err(error) => {
+                    self.rollback_started(&pending, "terminal_append_failed_after_state_effect")
+                        .await?;
+                    return Err(error);
+                }
+            }
+            self.publish_committed_projection(&result.installation, projection)
+                .await;
+            return Ok(result);
+        }
+
+        let payload = UpdatedPayload {
+            operation_id: None,
+            previous_revision: previous.revision,
+            view: new_view,
+            claim,
+        };
+        self.before_authority_append(INSTALLATION_UPDATED).await?;
+        for _ in 0..CAS_ATTEMPTS {
+            let _apply = self.apply.lock().await;
+            self.sync_journal_locked().await?;
+            if let Some(existing) = self.claimed_result(&key_hash, &fingerprint)? {
+                return Ok(existing);
+            }
+            ensure!(
+                self.views
+                    .read()
+                    .map_err(lock_error)?
+                    .get(&request.installation_id)
+                    == Some(&previous),
+                "revision_conflict: installation changed before update commit"
+            );
+            ensure!(
+                !self
+                    .pending
+                    .read()
+                    .map_err(lock_error)?
+                    .contains_key(&request.installation_id),
+                "installation has a pending mutation"
+            );
             if self
-                .append_payload_with_installation_authority(
+                .append_payload_with_installation_authority_locked(
                     INSTALLATION_UPDATED,
                     &payload,
                     &request.installation_id,
@@ -2408,6 +2608,7 @@ impl InstallationControl for InstallationRegistry {
                 )
                 .await?
             {
+                drop(_apply);
                 self.publish_committed_projection(&result.installation, projection)
                     .await;
                 return Ok(result);
@@ -2424,10 +2625,13 @@ impl InstallationControl for InstallationRegistry {
         self.ensure_owner_lease().await?;
         let key_hash = hash_bytes(request.idempotency_key.as_bytes());
         let fingerprint = mutation_fingerprint("remove", &request)?;
-        let _apply = self.apply.lock().await;
-
-        for _ in 0..CAS_ATTEMPTS {
-            self.sync_journal().await?;
+        let _lifecycle = self
+            .lifecycle_lock(&request.installation_id)?
+            .write_owned()
+            .await;
+        let previous = {
+            let _apply = self.apply.lock().await;
+            self.sync_journal_locked().await?;
             self.refresh_remove_authority(&request).await?;
             if let Some(result) = self.claimed_result(&key_hash, &fingerprint)? {
                 return Ok(result);
@@ -2439,67 +2643,104 @@ impl InstallationControl for InstallationRegistry {
                 .get(&request.installation_id)
                 .cloned()
                 .ok_or_else(|| anyhow!("installation_not_found"))?;
-            if previous.record.status == InstallationStatus::Removed {
-                let result = InstallationMutationResult {
-                    installation: previous,
-                    diff: None,
-                    receipts: Vec::new(),
-                    idempotent: true,
-                };
-                let authority = request.authority.as_ref().ok_or_else(|| {
-                    anyhow!("authority_denied: trusted Installation authority is required")
-                })?;
-                self.persist_noop_claim(
-                    IdempotencyClaim {
-                        key_hash: key_hash.clone(),
-                        fingerprint: fingerprint.clone(),
-                        result: result.clone(),
-                    },
-                    authority,
-                )
-                .await?;
-                return Ok(result);
-            }
-            ensure!(
-                previous.record.status == InstallationStatus::Ready,
-                "installation is not ready for removal"
-            );
-            ensure!(
-                previous.revision == request.expected_revision,
-                "revision_conflict: installation revision is stale"
-            );
-            let mut removed = previous.clone();
-            removed.revision = removed
-                .revision
-                .checked_add(1)
-                .ok_or_else(|| anyhow!("installation revision overflow"))?;
-            removed.record.status = InstallationStatus::Removed;
-            removed.record.updated_at = Utc::now();
+            previous
+        };
+
+        if previous.record.status == InstallationStatus::Removed {
             let result = InstallationMutationResult {
-                installation: removed.clone(),
+                installation: previous,
                 diff: None,
                 receipts: Vec::new(),
-                idempotent: false,
+                idempotent: true,
             };
-            let claim = IdempotencyClaim {
-                key_hash: key_hash.clone(),
-                fingerprint: fingerprint.clone(),
-                result: result.clone(),
-            };
-            let projection = self.prepare_projection(&result.installation).await?;
+            let authority = request.authority.as_ref().ok_or_else(|| {
+                anyhow!("authority_denied: trusted Installation authority is required")
+            })?;
+            self.persist_noop_claim(
+                IdempotencyClaim {
+                    key_hash,
+                    fingerprint,
+                    result: result.clone(),
+                },
+                authority,
+            )
+            .await?;
+            return Ok(result);
+        }
+        ensure!(
+            previous.record.status == InstallationStatus::Ready,
+            "installation is not ready for removal"
+        );
+        ensure!(
+            previous.revision == request.expected_revision,
+            "revision_conflict: installation revision is stale"
+        );
+        ensure!(
+            !self
+                .pending
+                .read()
+                .map_err(lock_error)?
+                .contains_key(&request.installation_id),
+            "installation has a pending mutation"
+        );
 
-            if request.state_disposition == StateDisposition::Keep {
-                let payload = RemovedPayload {
-                    operation_id: None,
-                    previous_revision: previous.revision,
-                    view: removed,
-                    claim,
-                };
-                let authority = request.authority.as_ref().ok_or_else(|| {
-                    anyhow!("authority_denied: trusted Installation authority is required")
-                })?;
+        let mut removed = previous.clone();
+        removed.revision = removed
+            .revision
+            .checked_add(1)
+            .ok_or_else(|| anyhow!("installation revision overflow"))?;
+        removed.record.status = InstallationStatus::Removed;
+        removed.record.updated_at = Utc::now();
+        let result = InstallationMutationResult {
+            installation: removed.clone(),
+            diff: None,
+            receipts: Vec::new(),
+            idempotent: false,
+        };
+        let claim = IdempotencyClaim {
+            key_hash: key_hash.clone(),
+            fingerprint: fingerprint.clone(),
+            result: result.clone(),
+        };
+        self.refresh_remove_authority(&request).await?;
+        let projection = self.prepare_projection(&result.installation).await?;
+        self.refresh_remove_authority(&request).await?;
+        let authority = request.authority.as_ref().ok_or_else(|| {
+            anyhow!("authority_denied: trusted Installation authority is required")
+        })?;
+
+        if request.state_disposition == StateDisposition::Keep {
+            let payload = RemovedPayload {
+                operation_id: None,
+                previous_revision: previous.revision,
+                view: removed,
+                claim,
+            };
+            self.before_authority_append(INSTALLATION_REMOVED).await?;
+            for _ in 0..CAS_ATTEMPTS {
+                let _apply = self.apply.lock().await;
+                self.sync_journal_locked().await?;
+                if let Some(existing) = self.claimed_result(&key_hash, &fingerprint)? {
+                    return Ok(existing);
+                }
+                ensure!(
+                    self.views
+                        .read()
+                        .map_err(lock_error)?
+                        .get(&request.installation_id)
+                        == Some(&previous),
+                    "revision_conflict: installation changed before remove commit"
+                );
+                ensure!(
+                    !self
+                        .pending
+                        .read()
+                        .map_err(lock_error)?
+                        .contains_key(&request.installation_id),
+                    "installation has a pending mutation"
+                );
                 if self
-                    .append_payload_with_installation_authority(
+                    .append_payload_with_installation_authority_locked(
                         INSTALLATION_REMOVED,
                         &payload,
                         &request.installation_id,
@@ -2507,27 +2748,50 @@ impl InstallationControl for InstallationRegistry {
                     )
                     .await?
                 {
+                    drop(_apply);
                     self.publish_committed_projection(&result.installation, projection)
                         .await;
                     return Ok(result);
                 }
-                continue;
             }
+            bail!("installation remove contention did not converge");
+        }
 
-            self.refresh_remove_authority(&request).await?;
-            let state_snapshot = self.snapshot_state(&request.installation_id).await?;
-            let pending = PendingMutation {
-                operation_id: uuid::Uuid::new_v4().to_string(),
-                kind: PendingKind::Remove,
-                previous: previous.clone(),
-                state_snapshot,
-                receipts: Vec::new(),
-            };
-            let authority = request.authority.as_ref().ok_or_else(|| {
-                anyhow!("authority_denied: trusted Installation authority is required")
-            })?;
-            if !self
-                .append_payload_with_installation_authority(
+        self.refresh_remove_authority(&request).await?;
+        let state_snapshot = self.snapshot_state(&request.installation_id).await?;
+        let pending = PendingMutation {
+            operation_id: uuid::Uuid::new_v4().to_string(),
+            kind: PendingKind::Remove,
+            previous: previous.clone(),
+            state_snapshot,
+            receipts: Vec::new(),
+        };
+        self.before_authority_append(REMOVE_STARTED).await?;
+        let mut started = false;
+        for _ in 0..CAS_ATTEMPTS {
+            let _apply = self.apply.lock().await;
+            self.sync_journal_locked().await?;
+            if let Some(existing) = self.claimed_result(&key_hash, &fingerprint)? {
+                return Ok(existing);
+            }
+            ensure!(
+                self.views
+                    .read()
+                    .map_err(lock_error)?
+                    .get(&request.installation_id)
+                    == Some(&previous),
+                "revision_conflict: installation changed before remove start"
+            );
+            ensure!(
+                !self
+                    .pending
+                    .read()
+                    .map_err(lock_error)?
+                    .contains_key(&request.installation_id),
+                "installation has a pending mutation"
+            );
+            if self
+                .append_payload_with_installation_authority_locked(
                     REMOVE_STARTED,
                     &StartedPayload {
                         pending: pending.clone(),
@@ -2537,59 +2801,92 @@ impl InstallationControl for InstallationRegistry {
                 )
                 .await?
             {
-                continue;
+                started = true;
+                break;
             }
-            let empty = StateSnapshot::empty();
-            self.ensure_owner_lease().await?;
-            if let Err(error) = authority
-                .refresh_current_for_installation(&request.installation_id)
-                .await
-            {
-                self.rollback_started_without_state_effect(&pending, "authority_expired")
-                    .await?;
-                return Err(error);
-            }
-            if let Err(error) = self.replace_state_effect(&request.installation_id, &empty) {
-                self.rollback_started(&pending, "state_delete_failed")
-                    .await?;
-                return Err(error);
-            }
-            let payload = RemovedPayload {
-                operation_id: Some(pending.operation_id.clone()),
-                previous_revision: previous.revision,
-                view: removed,
-                claim,
-            };
-            let terminal_append = self
-                .append_payload_with_installation_authority(
-                    INSTALLATION_REMOVED,
-                    &payload,
-                    &request.installation_id,
-                    authority,
-                )
-                .await;
-            let terminal_appended = match terminal_append {
-                Ok(appended) => appended,
-                Err(error) => {
-                    self.rollback_started(
-                        &pending,
-                        "terminal_append_or_authority_failed_after_state_effect",
+        }
+        if !started {
+            bail!("installation remove start contention did not converge");
+        }
+
+        let empty = StateSnapshot::empty();
+        self.ensure_owner_lease().await?;
+        if let Err(error) = authority
+            .refresh_current_for_installation(&request.installation_id)
+            .await
+        {
+            self.rollback_started_without_state_effect(&pending, "authority_expired")
+                .await?;
+            return Err(error);
+        }
+        if let Err(error) = self.replace_state_effect(&request.installation_id, &empty) {
+            self.rollback_started(&pending, "state_delete_failed")
+                .await?;
+            return Err(error);
+        }
+        let payload = RemovedPayload {
+            operation_id: Some(pending.operation_id.clone()),
+            previous_revision: previous.revision,
+            view: removed,
+            claim,
+        };
+        self.before_authority_append(INSTALLATION_REMOVED).await?;
+        let terminal = async {
+            for _ in 0..CAS_ATTEMPTS {
+                let _apply = self.apply.lock().await;
+                self.sync_journal_locked().await?;
+                ensure!(
+                    self.pending
+                        .read()
+                        .map_err(lock_error)?
+                        .get(&request.installation_id)
+                        == Some(&pending),
+                    "terminal remove no longer owns its pending operation"
+                );
+                let mut transitional = previous.clone();
+                transitional.record.status = InstallationStatus::Removing;
+                ensure!(
+                    self.views
+                        .read()
+                        .map_err(lock_error)?
+                        .get(&request.installation_id)
+                        == Some(&transitional),
+                    "terminal remove base changed after state effect"
+                );
+                if self
+                    .append_payload_with_installation_authority_locked(
+                        INSTALLATION_REMOVED,
+                        &payload,
+                        &request.installation_id,
+                        authority,
                     )
-                    .await?;
-                    return Err(error);
+                    .await?
+                {
+                    return Ok::<bool, anyhow::Error>(true);
                 }
-            };
-            if !terminal_appended {
-                self.sync_journal().await?;
+            }
+            Ok(false)
+        }
+        .await;
+        match terminal {
+            Ok(true) => {}
+            Ok(false) => {
                 self.rollback_started(&pending, "terminal_append_conflict")
                     .await?;
-                continue;
+                bail!("installation remove terminal contention did not converge");
             }
-            self.publish_committed_projection(&result.installation, projection)
-                .await;
-            return Ok(result);
+            Err(error) => {
+                self.rollback_started(
+                    &pending,
+                    "terminal_append_or_authority_failed_after_state_effect",
+                )
+                .await?;
+                return Err(error);
+            }
         }
-        bail!("installation remove contention did not converge")
+        self.publish_committed_projection(&result.installation, projection)
+            .await;
+        Ok(result)
     }
 
     async fn validate_issued_state_artifact(
@@ -2601,7 +2898,7 @@ impl InstallationControl for InstallationRegistry {
             .map_err(|_| anyhow!("state artifact descriptor is invalid"))?;
         self.ensure_owner_lease().await?;
         let _apply = self.apply.lock().await;
-        self.sync_journal().await?;
+        self.sync_journal_locked().await?;
         let terminal = self
             .idempotency
             .read()
@@ -2663,24 +2960,36 @@ impl InstallationControl for InstallationRegistry {
         expected_revision: u64,
     ) -> anyhow::Result<plurora_runtime::InstallationSecretStoreGuard> {
         self.ensure_owner_lease().await?;
-        let lifecycle = self.apply.clone().lock_owned().await;
-        self.sync_journal().await?;
-        self.ensure_owner_lease().await?;
-        let view = self
-            .views
-            .read()
-            .map_err(lock_error)?
-            .get(installation_id)
-            .cloned()
-            .ok_or_else(|| anyhow!("installation_not_found"))?;
-        ensure!(
-            view.record.installation_id == *installation_id
-                && view.revision == expected_revision
-                && view.record.status == InstallationStatus::Ready,
-            "installation secret store precondition is stale"
-        );
+        let lifecycle = self.lifecycle_lock(installation_id)?.read_owned().await;
+        let view = {
+            let _apply = self.apply.lock().await;
+            self.sync_journal_locked().await?;
+            self.ensure_owner_lease().await?;
+            let view = self
+                .views
+                .read()
+                .map_err(lock_error)?
+                .get(installation_id)
+                .cloned()
+                .ok_or_else(|| anyhow!("installation_not_found"))?;
+            ensure!(
+                view.record.installation_id == *installation_id
+                    && view.revision == expected_revision
+                    && view.record.status == InstallationStatus::Ready,
+                "installation secret store precondition is stale"
+            );
+            view
+        };
         let installation = self.prepare_installation_tree(installation_id)?;
         let path = installation.effect_path().join("secrets.dat");
+        {
+            let _apply = self.apply.lock().await;
+            self.sync_journal_locked().await?;
+            ensure!(
+                self.views.read().map_err(lock_error)?.get(installation_id) == Some(&view),
+                "installation secret store precondition changed while resolving its path"
+            );
+        }
         plurora_runtime::InstallationSecretStoreGuard::verified(
             installation_id,
             expected_revision,
@@ -2731,12 +3040,36 @@ impl InstallationRegistry {
         expected_revision: Option<u64>,
     ) -> anyhow::Result<plurora_runtime::RunInstallationGuard> {
         self.ensure_owner_lease().await?;
-        let lifecycle = self.apply.clone().lock_owned().await;
-        self.sync_journal().await?;
+        let lifecycle = self.lifecycle_lock(installation_id)?.read_owned().await;
+        {
+            let _apply = self.apply.lock().await;
+            self.sync_journal_locked().await?;
+            let view = self
+                .views
+                .read()
+                .map_err(lock_error)?
+                .get(installation_id)
+                .cloned()
+                .ok_or_else(|| anyhow!("installation_not_found"))?;
+            ensure!(
+                expected_revision.is_none_or(|expected| view.revision == expected)
+                    && view.record.status == InstallationStatus::Ready,
+                "Run Installation precondition is stale"
+            );
+        }
         let artifacts = self
             .verified_run_artifacts(installation_id, expected_revision)
             .await?;
         let revision = artifacts.installation.revision;
+        {
+            let _apply = self.apply.lock().await;
+            self.sync_journal_locked().await?;
+            ensure!(
+                self.views.read().map_err(lock_error)?.get(installation_id)
+                    == Some(&artifacts.installation),
+                "Run Installation precondition changed while verifying its closure"
+            );
+        }
         plurora_runtime::RunInstallationGuard::verified(
             installation_id,
             revision,
@@ -4699,6 +5032,22 @@ mod tests {
             references: Vec::new(),
             annotations: BTreeMap::new(),
         })
+    }
+
+    async fn wait_for_lifecycle_writer(
+        lifecycle: &Arc<tokio::sync::RwLock<()>>,
+    ) -> anyhow::Result<()> {
+        tokio::time::timeout(Duration::from_secs(5), async {
+            loop {
+                if lifecycle.try_read().is_err() {
+                    return;
+                }
+                tokio::task::yield_now().await;
+            }
+        })
+        .await
+        .map_err(|_| anyhow!("lifecycle writer did not queue behind its active reader"))?;
+        Ok(())
     }
 
     fn missing_descriptor(artifact_type_uri: &str, marker: char) -> ArtifactDescriptor {
@@ -7135,6 +7484,399 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn concurrent_lifecycle_lookup_returns_one_stable_lock_per_installation(
+    ) -> anyhow::Result<()> {
+        let fixture = fixture().await?;
+        let installation_id = InstallationId::new();
+        let start = Arc::new(tokio::sync::Barrier::new(3));
+
+        let left_registry = fixture.registry.clone();
+        let left_id = installation_id.clone();
+        let left_start = start.clone();
+        let left = tokio::spawn(async move {
+            left_start.wait().await;
+            left_registry.lifecycle_lock(&left_id)
+        });
+        let right_registry = fixture.registry.clone();
+        let right_id = installation_id.clone();
+        let right_start = start.clone();
+        let right = tokio::spawn(async move {
+            right_start.wait().await;
+            right_registry.lifecycle_lock(&right_id)
+        });
+
+        start.wait().await;
+        let left = left.await??;
+        let right = right.await??;
+        assert!(Arc::ptr_eq(&left, &right));
+        let lifecycles = fixture.registry.lifecycles.lock().map_err(lock_error)?;
+        assert_eq!(lifecycles.len(), 1);
+        let stored = lifecycles
+            .get(&installation_id)
+            .and_then(Weak::upgrade)
+            .expect("concurrent lookup installed a live lifecycle lock");
+        assert!(Arc::ptr_eq(&stored, &left,));
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn terminal_append_wait_on_one_installation_does_not_block_another() -> anyhow::Result<()>
+    {
+        let fixture = fixture().await?;
+        let first = fixture.create(fixture.request.clone()).await?.installation;
+        let mut second_create = fixture.request.clone();
+        second_create.display_name = "Second".to_string();
+        second_create.idempotency_key = "create-second-terminal-isolation".to_string();
+        let second = fixture.create(second_create).await?.installation;
+
+        let entered = Arc::new(tokio::sync::Barrier::new(2));
+        let release = Arc::new(tokio::sync::Barrier::new(2));
+        fixture.registry.inject_authority_append_barrier(
+            INSTALLATION_UPDATED,
+            entered.clone(),
+            release.clone(),
+        )?;
+        let mut first_request = update_request(
+            &first,
+            first.record.work_revision.clone(),
+            first.record.assembly_lock.clone(),
+            "first-terminal-isolation",
+        );
+        first_request.display_name = Some("First committed later".to_string());
+        let first_runtime = fixture.runtime();
+        let first_task = tokio::spawn(async move {
+            first_runtime
+                .call_protocol(
+                    &ProtocolContext::host_dev("first-terminal-isolation"),
+                    "host.installation.update",
+                    serde_json::to_value(first_request).expect("serialize first update"),
+                )
+                .await
+        });
+        tokio::time::timeout(Duration::from_secs(5), entered.wait())
+            .await
+            .map_err(|_| anyhow!("first update did not reach its terminal append boundary"))?;
+        ensure!(
+            !first_task.is_finished(),
+            "first update passed the injected terminal append boundary"
+        );
+
+        let second_run = tokio::time::timeout(
+            Duration::from_secs(5),
+            fixture
+                .registry
+                .acquire_ready_for_run(&second.record.installation_id, second.revision),
+        )
+        .await
+        .map_err(|_| {
+            anyhow!("another Installation Run waited on the terminal append boundary")
+        })??;
+        drop(second_run);
+
+        let mut second_request = update_request(
+            &second,
+            second.record.work_revision.clone(),
+            second.record.assembly_lock.clone(),
+            "second-during-first-terminal",
+        );
+        second_request.display_name = Some("Second committed first".to_string());
+        let second_value = tokio::time::timeout(
+            Duration::from_secs(5),
+            fixture.runtime().call_protocol(
+                &ProtocolContext::host_dev("second-during-first-terminal"),
+                "host.installation.update",
+                serde_json::to_value(second_request)?,
+            ),
+        )
+        .await
+        .map_err(|_| anyhow!("another Installation update waited on the terminal append boundary"))?
+        .map_err(|error| anyhow!("{}: {}", error.code, error.message))?;
+        let second_updated: InstallationMutationResult = serde_json::from_value(second_value)?;
+        assert_eq!(
+            second_updated.installation.record.display_name,
+            "Second committed first"
+        );
+        ensure!(
+            !first_task.is_finished(),
+            "first update left its terminal append barrier while another ID progressed"
+        );
+
+        release.wait().await;
+        let first_value = first_task
+            .await?
+            .map_err(|error| anyhow!("{}: {}", error.code, error.message))?;
+        let first_updated: InstallationMutationResult = serde_json::from_value(first_value)?;
+        assert_eq!(
+            first_updated.installation.record.display_name,
+            "First committed later"
+        );
+        let journal = fixture
+            .store
+            .list_session(&JOURNAL_SESSION.to_string())
+            .await?;
+        let terminal_ids = journal
+            .iter()
+            .filter(|event| event.kind == INSTALLATION_UPDATED)
+            .map(|event| {
+                event
+                    .payload
+                    .pointer("/view/record/installation_id")
+                    .and_then(serde_json::Value::as_str)
+                    .map(str::to_owned)
+                    .ok_or_else(|| anyhow!("updated event has no Installation ID"))
+            })
+            .collect::<anyhow::Result<Vec<_>>>()?;
+        assert_eq!(
+            terminal_ids,
+            [
+                second.record.installation_id.to_string(),
+                first.record.installation_id.to_string(),
+            ]
+        );
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn same_installation_update_and_remove_queue_behind_run_and_secret_guards(
+    ) -> anyhow::Result<()> {
+        let fixture = fixture().await?;
+        let created = fixture.create(fixture.request.clone()).await?.installation;
+        let lifecycle = fixture
+            .registry
+            .lifecycle_lock(&created.record.installation_id)?;
+        let run = fixture
+            .registry
+            .acquire_ready_for_run(&created.record.installation_id, created.revision)
+            .await?;
+        let mut update = update_request(
+            &created,
+            created.record.work_revision.clone(),
+            created.record.assembly_lock.clone(),
+            "update-queued-behind-run",
+        );
+        update.display_name = Some("Updated after Run".to_string());
+        let runtime = fixture.runtime();
+        let update_task = tokio::spawn(async move {
+            runtime
+                .call_protocol(
+                    &ProtocolContext::host_dev("update-queued-behind-run"),
+                    "host.installation.update",
+                    serde_json::to_value(update).expect("serialize update"),
+                )
+                .await
+        });
+        wait_for_lifecycle_writer(&lifecycle).await?;
+        ensure!(
+            !update_task.is_finished(),
+            "same-ID update was not queued behind the Run guard"
+        );
+        drop(run);
+        let updated: InstallationMutationResult = serde_json::from_value(
+            update_task
+                .await?
+                .map_err(|error| anyhow!("{}: {}", error.code, error.message))?,
+        )?;
+
+        let lifecycle = fixture
+            .registry
+            .lifecycle_lock(&updated.installation.record.installation_id)?;
+        let secret = fixture
+            .registry
+            .acquire_ready_secret_store(
+                &updated.installation.record.installation_id,
+                updated.installation.revision,
+            )
+            .await?;
+        let runtime = fixture.runtime();
+        let remove_id = updated.installation.record.installation_id.clone();
+        let remove_task = tokio::spawn(async move {
+            runtime
+                .call_protocol(
+                    &ProtocolContext::host_dev("remove-queued-behind-secret"),
+                    "host.installation.remove",
+                    serde_json::to_value(InstallationRemoveRequest {
+                        installation_id: remove_id,
+                        expected_revision: updated.installation.revision,
+                        state_disposition: StateDisposition::Keep,
+                        idempotency_key: "remove-queued-behind-secret".to_string(),
+                        authority: None,
+                    })
+                    .expect("serialize remove"),
+                )
+                .await
+        });
+        wait_for_lifecycle_writer(&lifecycle).await?;
+        ensure!(
+            !remove_task.is_finished(),
+            "same-ID remove was not queued behind the secret guard"
+        );
+        drop(secret);
+        let removed: InstallationMutationResult = serde_json::from_value(
+            remove_task
+                .await?
+                .map_err(|error| anyhow!("{}: {}", error.code, error.message))?,
+        )?;
+        assert_eq!(
+            removed.installation.record.status,
+            InstallationStatus::Removed
+        );
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn lifecycle_weak_table_reclaims_unknown_failed_and_released_ids() -> anyhow::Result<()> {
+        let fixture = fixture().await?;
+        let mut invalid = fixture.request.clone();
+        invalid.work_revision = missing_descriptor(WORK_REVISION_TYPE_URI, 'f');
+        invalid.idempotency_key = "failed-create-has-no-lifecycle-id".to_string();
+        assert!(fixture.create(invalid).await.is_err());
+        assert!(fixture
+            .registry
+            .lifecycles
+            .lock()
+            .map_err(lock_error)?
+            .is_empty());
+
+        let first_unknown = InstallationId::new();
+        assert!(fixture
+            .registry
+            .acquire_ready_for_run(&first_unknown, 1)
+            .await
+            .is_err());
+        let first_weak = fixture
+            .registry
+            .lifecycles
+            .lock()
+            .map_err(lock_error)?
+            .get(&first_unknown)
+            .cloned()
+            .expect("unknown lookup installed a weak lifecycle entry");
+        assert!(first_weak.upgrade().is_none());
+
+        let second_unknown = InstallationId::new();
+        assert!(fixture
+            .registry
+            .acquire_ready_secret_store(&second_unknown, 1)
+            .await
+            .is_err());
+        let lifecycles = fixture.registry.lifecycles.lock().map_err(lock_error)?;
+        assert!(!lifecycles.contains_key(&first_unknown));
+        assert!(lifecycles
+            .get(&second_unknown)
+            .is_some_and(|lifecycle| lifecycle.upgrade().is_none()));
+        drop(lifecycles);
+
+        let active_id = InstallationId::new();
+        let active = fixture.registry.lifecycle_lock(&active_id)?;
+        let active_again = fixture.registry.lifecycle_lock(&active_id)?;
+        assert!(Arc::ptr_eq(&active, &active_again));
+        let old = Arc::downgrade(&active);
+        drop(active);
+        drop(active_again);
+        let replacement = fixture.registry.lifecycle_lock(&active_id)?;
+        assert!(old.upgrade().is_none());
+        assert!(fixture
+            .registry
+            .lifecycles
+            .lock()
+            .map_err(lock_error)?
+            .get(&active_id)
+            .and_then(Weak::upgrade)
+            .is_some_and(|stored| Arc::ptr_eq(&stored, &replacement)));
+        drop(replacement);
+
+        let created = fixture.create(fixture.request.clone()).await?.installation;
+        let removed_id = created.record.installation_id.clone();
+        fixture
+            .runtime()
+            .call_protocol(
+                &ProtocolContext::host_dev("weak-table-remove"),
+                "host.installation.remove",
+                serde_json::to_value(InstallationRemoveRequest {
+                    installation_id: removed_id.clone(),
+                    expected_revision: created.revision,
+                    state_disposition: StateDisposition::Keep,
+                    idempotency_key: "weak-table-remove".to_string(),
+                    authority: None,
+                })?,
+            )
+            .await
+            .map_err(|error| anyhow!("{}: {}", error.code, error.message))?;
+        assert!(fixture
+            .registry
+            .lifecycles
+            .lock()
+            .map_err(lock_error)?
+            .get(&removed_id)
+            .is_some_and(|lifecycle| lifecycle.upgrade().is_none()));
+        drop(fixture.registry.lifecycle_lock(&InstallationId::new())?);
+        assert!(!fixture
+            .registry
+            .lifecycles
+            .lock()
+            .map_err(lock_error)?
+            .contains_key(&removed_id));
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn run_and_secret_guards_share_one_installation_read_lease() -> anyhow::Result<()> {
+        let fixture = fixture().await?;
+        let created = fixture.create(fixture.request.clone()).await?.installation;
+        let lifecycle = fixture
+            .registry
+            .lifecycle_lock(&created.record.installation_id)?;
+        let run = fixture
+            .registry
+            .acquire_ready_for_run(&created.record.installation_id, created.revision)
+            .await?;
+        let secret = tokio::time::timeout(
+            Duration::from_secs(1),
+            fixture
+                .registry
+                .acquire_ready_secret_store(&created.record.installation_id, created.revision),
+        )
+        .await
+        .map_err(|_| anyhow!("Run and secret readers did not share the lifecycle lease"))??;
+
+        let mut request = update_request(
+            &created,
+            created.record.work_revision.clone(),
+            created.record.assembly_lock.clone(),
+            "shared-reader-update",
+        );
+        request.display_name = Some("after shared readers".to_string());
+        let runtime = fixture.runtime();
+        let update = tokio::spawn(async move {
+            runtime
+                .call_protocol(
+                    &ProtocolContext::host_dev("shared-reader-update"),
+                    "host.installation.update",
+                    serde_json::to_value(request).expect("serialize update"),
+                )
+                .await
+        });
+        wait_for_lifecycle_writer(&lifecycle).await?;
+        assert!(!update.is_finished());
+        drop(run);
+        assert!(
+            lifecycle.try_write().is_err(),
+            "dropping only one shared reader released the exclusive lifecycle"
+        );
+        drop(secret);
+        let updated: InstallationMutationResult = serde_json::from_value(
+            update
+                .await?
+                .map_err(|error| anyhow!("{}: {}", error.code, error.message))?,
+        )?;
+        assert_eq!(
+            updated.installation.record.display_name,
+            "after shared readers"
+        );
+        Ok(())
+    }
+
+    #[tokio::test]
     async fn ready_secret_store_guard_checks_before_filesystem_and_excludes_update(
     ) -> anyhow::Result<()> {
         let fixture = fixture().await?;
@@ -7533,7 +8275,7 @@ mod tests {
             store.clone(),
             RuntimeConfig {
                 object_store: objects.clone(),
-                installation_control: first,
+                installation_control: first.clone(),
                 ..RuntimeConfig::default()
             },
         );
@@ -7541,7 +8283,7 @@ mod tests {
             store.clone(),
             RuntimeConfig {
                 object_store: objects,
-                installation_control: second,
+                installation_control: second.clone(),
                 ..RuntimeConfig::default()
             },
         );
@@ -7572,6 +8314,15 @@ mod tests {
                 .len(),
             1
         );
+        for registry in [&first, &second] {
+            let cleanup_id = InstallationId::new();
+            drop(registry.lifecycle_lock(&cleanup_id)?);
+            let lifecycles = registry.lifecycles.lock().map_err(lock_error)?;
+            assert_eq!(lifecycles.len(), 1);
+            assert!(lifecycles
+                .get(&cleanup_id)
+                .is_some_and(|lifecycle| lifecycle.upgrade().is_none()));
+        }
         Ok(())
     }
 
@@ -7752,7 +8503,10 @@ mod tests {
             fixture.objects.clone(),
             second_data.path(),
         )?;
-        second.sync_journal().await?;
+        {
+            let _apply = second.apply.lock().await;
+            second.sync_journal_locked().await?;
+        }
         let mut updated_view = created.clone();
         updated_view.revision += 1;
         updated_view.record.display_name = "Terminal winner".to_string();

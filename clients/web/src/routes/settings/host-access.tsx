@@ -47,6 +47,14 @@ export function HostAccessPanel() {
   const [installationIds, setInstallationIds] = useState("");
   const [allTargets, setAllTargets] = useState(true);
   const [targetIds, setTargetIds] = useState("");
+  const [allRuns, setAllRuns] = useState(true);
+  const [runIds, setRunIds] = useState("");
+  const [allPorts, setAllPorts] = useState(true);
+  const [portIds, setPortIds] = useState("");
+  const [allExposures, setAllExposures] = useState(true);
+  const [exposureIds, setExposureIds] = useState("");
+  const [allBindings, setAllBindings] = useState(true);
+  const [bindingIds, setBindingIds] = useState("");
   const [linkBase, setLinkBase] = useState(() =>
     typeof window === "undefined" ? "" : window.location.origin,
   );
@@ -80,14 +88,34 @@ export function HostAccessPanel() {
       setInstallationIds("");
       setAllTargets(true);
       setTargetIds("");
+      setAllRuns(true);
+      setRunIds("");
+      setAllPorts(true);
+      setPortIds("");
+      setAllExposures(true);
+      setExposureIds("");
+      setAllBindings(true);
+      setBindingIds("");
       return;
     }
     const installationResources = identity.resources.filter((resource) => resource.kind === "installation");
     const targetResources = identity.resources.filter((resource) => resource.kind === "target");
+    const runResources = identity.resources.filter((resource) => resource.kind === "run");
+    const portResources = identity.resources.filter((resource) => resource.kind === "port");
+    const exposureResources = identity.resources.filter((resource) => resource.kind === "exposure");
+    const bindingResources = identity.resources.filter((resource) => resource.kind === "binding");
     setAllInstallations(installationResources.some((resource) => !resource.id));
     setInstallationIds(installationResources.flatMap((resource) => resource.id ? [resource.id] : []).join(", "));
     setAllTargets(targetResources.some((resource) => !resource.id));
     setTargetIds(targetResources.flatMap((resource) => resource.id ? [resource.id] : []).join(", "));
+    setAllRuns(runResources.some((resource) => !resource.id));
+    setRunIds(runResources.flatMap((resource) => resource.id ? [resource.id] : []).join(", "));
+    setAllPorts(portResources.some((resource) => !resource.id));
+    setPortIds(portResources.flatMap((resource) => resource.id ? [resource.id] : []).join(", "));
+    setAllExposures(exposureResources.some((resource) => !resource.id));
+    setExposureIds(exposureResources.flatMap((resource) => resource.id ? [resource.id] : []).join(", "));
+    setAllBindings(bindingResources.some((resource) => !resource.id));
+    setBindingIds(bindingResources.flatMap((resource) => resource.id ? [resource.id] : []).join(", "));
   }, [identity]);
 
   const refresh = useCallback(async () => {
@@ -143,6 +171,18 @@ export function HostAccessPanel() {
         ...(allTargets
           ? [{ kind: "target" as const, id: null }]
           : parseResourceIds(targetIds).map((id) => ({ kind: "target" as const, id }))),
+        ...(allRuns
+          ? [{ kind: "run" as const, id: null }]
+          : parseResourceIds(runIds).map((id) => ({ kind: "run" as const, id }))),
+        ...(allPorts
+          ? [{ kind: "port" as const, id: null }]
+          : parseResourceIds(portIds).map((id) => ({ kind: "port" as const, id }))),
+        ...(allExposures
+          ? [{ kind: "exposure" as const, id: null }]
+          : parseResourceIds(exposureIds).map((id) => ({ kind: "exposure" as const, id }))),
+        ...(allBindings
+          ? [{ kind: "binding" as const, id: null }]
+          : parseResourceIds(bindingIds).map((id) => ({ kind: "binding" as const, id }))),
       ];
       const result = await createHostPairing(
         {
@@ -352,6 +392,46 @@ export function HostAccessPanel() {
                   />
                 </div>
               </Field>
+              <ResourceSelectorField
+                label={t("accessRunResources")}
+                helper={t("accessRunResourcesBody")}
+                allLabel={t("accessAllRuns")}
+                placeholder={t("accessRunIdsPlaceholder")}
+                all={allRuns}
+                ids={runIds}
+                onAllChange={setAllRuns}
+                onIdsChange={setRunIds}
+              />
+              <ResourceSelectorField
+                label={t("accessPortResources")}
+                helper={t("accessPortResourcesBody")}
+                allLabel={t("accessAllPorts")}
+                placeholder={t("accessPortIdsPlaceholder")}
+                all={allPorts}
+                ids={portIds}
+                onAllChange={setAllPorts}
+                onIdsChange={setPortIds}
+              />
+              <ResourceSelectorField
+                label={t("accessExposureResources")}
+                helper={t("accessExposureResourcesBody")}
+                allLabel={t("accessAllExposures")}
+                placeholder={t("accessExposureIdsPlaceholder")}
+                all={allExposures}
+                ids={exposureIds}
+                onAllChange={setAllExposures}
+                onIdsChange={setExposureIds}
+              />
+              <ResourceSelectorField
+                label={t("accessBindingResources")}
+                helper={t("accessBindingResourcesBody")}
+                allLabel={t("accessAllBindings")}
+                placeholder={t("accessBindingIdsPlaceholder")}
+                all={allBindings}
+                ids={bindingIds}
+                onAllChange={setAllBindings}
+                onIdsChange={setBindingIds}
+              />
             </CardSection>
             <CardSection divided className="flex justify-end">
               <Button
@@ -536,12 +616,45 @@ function parseResourceIds(value: string): string[] {
   return [...new Set(value.split(",").map((item) => item.trim()).filter(Boolean))];
 }
 
+function ResourceSelectorField({
+  label,
+  helper,
+  allLabel,
+  placeholder,
+  all,
+  ids,
+  onAllChange,
+  onIdsChange,
+}: {
+  label: string;
+  helper: string;
+  allLabel: string;
+  placeholder: string;
+  all: boolean;
+  ids: string;
+  onAllChange: (checked: boolean) => void;
+  onIdsChange: (value: string) => void;
+}) {
+  return (
+    <Field label={label} helper={helper}>
+      <div className="space-y-3">
+        <Checkbox checked={all} onCheckedChange={onAllChange} label={allLabel} />
+        <Input value={ids} disabled={all} placeholder={placeholder} onChange={(event) => onIdsChange(event.target.value)} />
+      </div>
+    </Field>
+  );
+}
+
 function resourceLabel(
   kind: HostAccessResourceKind,
   id: string | null | undefined,
   t: ReturnType<typeof useT>,
 ): string {
   if (kind === "installation") return id ? t("accessInstallationResource", id) : t("accessAllInstallations");
+  if (kind === "run") return id ? t("accessRunResource", id) : t("accessAllRuns");
+  if (kind === "port") return id ? t("accessPortResource", id) : t("accessAllPorts");
+  if (kind === "exposure") return id ? t("accessExposureResource", id) : t("accessAllExposures");
+  if (kind === "binding") return id ? t("accessBindingResource", id) : t("accessAllBindings");
   if (kind !== "target") return id ? `${kind} · ${id}` : `${kind} · all`;
   return id ? t("accessTargetResource", id) : t("accessAllTargets");
 }
@@ -568,8 +681,8 @@ function scopeLabel(scope: HostAccessScope, t: ReturnType<typeof useT>): string 
     observe: "accessScopeObserve",
     "installation.manage": "accessScopeInstallationOperate",
     run: "accessScopeInstallationOperate",
-    "binding.manage": "accessScopeManage",
-    "exposure.manage": "accessScopeManage",
+    "binding.manage": "accessScopeBindingManage",
+    "exposure.manage": "accessScopeExposureManage",
     "realization.plan": "accessScopeDeploy",
     "realization.apply": "accessScopeDeploy",
     deploy: "accessScopeDeploy",
@@ -585,8 +698,8 @@ function scopeDescription(scope: HostAccessScope, t: ReturnType<typeof useT>): s
     observe: "accessScopeObserveBody",
     "installation.manage": "accessScopeInstallationOperateBody",
     run: "accessScopeInstallationOperateBody",
-    "binding.manage": "accessScopeManageBody",
-    "exposure.manage": "accessScopeManageBody",
+    "binding.manage": "accessScopeBindingManageBody",
+    "exposure.manage": "accessScopeExposureManageBody",
     "realization.plan": "accessScopeDeployBody",
     "realization.apply": "accessScopeDeployBody",
     deploy: "accessScopeDeployBody",

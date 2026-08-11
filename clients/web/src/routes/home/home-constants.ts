@@ -1,4 +1,5 @@
 import type { FilterChip } from "@/components/home/utility-strip";
+import { HOST_INSTALLATION_LIFECYCLE_SESSION } from "@/protocol/client";
 
 export const FILTER_OPTIONS: FilterChip[] = [
   { id: "all", label: "All", count: 0 },
@@ -13,4 +14,4 @@ export const TONE_TO_DISK_CLASS: Record<string, string> = {
   failed: "bg-deep-rust",
 };
 
-export const TIMELINE_SESSION = "host_installation_lifecycle";
+export const TIMELINE_SESSION = HOST_INSTALLATION_LIFECYCLE_SESSION;

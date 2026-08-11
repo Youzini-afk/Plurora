@@ -24,6 +24,7 @@ mod memory_lab;
 mod network;
 mod permissions;
 mod playable_creation_board;
+mod powerbox;
 mod project_intake_lab;
 mod proposals;
 mod protocol;

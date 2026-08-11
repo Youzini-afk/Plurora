@@ -20,7 +20,7 @@ HTTP RPC, Host stdio, in-process calls, and subprocess reverse stdio share this 
 
 ## Registry shape
 
-Registry version `0.1.0` publishes 85 `ContractMethod` records. Each record contains:
+Registry version `0.1.0` publishes 92 `ContractMethod` records. Each record contains:
 
 - `id` — the only public wire ID;
 - `owner_layer` — `substrate`, `host`, `protocol`, or `shell`;

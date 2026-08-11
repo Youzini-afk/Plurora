@@ -46,6 +46,15 @@ if (blocked.available || blocked.reason_code !== "binding_unavailable" || blocke
   throw new Error("preflight gaps must remain structured and block Play");
 }
 
+const unknownBindingGap = affordanceForAction({
+  ...ready,
+  preflight_gaps: [],
+  binding_gaps: [{ reason_code: "future_binding_gap", next_step: "Use a future adapter" }],
+}, "play");
+if (unknownBindingGap.available || unknownBindingGap.reason_code !== "future_binding_gap") {
+  throw new Error("unknown Binding gaps must fail closed without being collapsed");
+}
+
 const active: LibraryAffordanceInput = {
   ...ready,
   active_run: {

@@ -2,7 +2,9 @@
 
 > [English](./DEPLOYMENT_RUNTIME.en.md) · [中文](./DEPLOYMENT_RUNTIME.md)
 
-Plurora can now host self-hosted AI / agent projects. Deployment is not a Docker concept in the kernel. It is a small set of generic runtime primitives that ordinary packages and Host target drivers compose into Docker, native process, or enrolled remote-Agent targets.
+**Phase 5 boundary:** this page documents the transitional Host-local target/exec/port/proxy broker retained for current runtime operations. It does not reintroduce a public Project, old Composition, or Deployment identity; `DeploymentRevision` and related records are Host-local operation projections only. Phase 5 Powerbox Exposure/Binding is implemented. Managed Realization plan/apply and `RealizationRevision` remain planned for Phase 6, so this page must not be read as an implemented managed-deployment contract.
+
+Plurora exposes generic Host runtime primitives that ordinary capability packages and target drivers can compose into Docker, native-process, or enrolled remote-Agent operations. Deployment remains an explicit transitional Host action rather than a kernel concept.
 
 ## Boundary
 
@@ -24,7 +26,7 @@ Docker, git, installation, secret storage, workspaces, and adapters are not kern
 - `plurora-service` reverse proxy: `/p/<route_id>/...` remains available inside Host authentication. A route gets an additional unauthenticated `<slug>.apps.example.com/` virtual host only when it explicitly selects `public` and `PLURORA_APP_BASE_DOMAIN=apps.example.com` or `--app-base-domain apps.example.com` is configured, allowing a community app to own `/`. Both entry modes can only point at active loopback port leases. Redirects are disabled, dangerous response headers are stripped or rewritten, response bodies are bounded, and HTTP + WebSocket are supported.
 - `plurora/docker-runtime-lab`: an ordinary first-party capability package using `bollard` to manage Docker containers. It fails closed when Docker is unavailable; real Docker smoke requires opt-in.
 - Target drivers: built-in `local` and enrolled Agents use the same durable operation, artifact-transfer, declarative-verifier, deployment apply/stop, and receipt model. Agent upstreams remain loopback-only and return to the Host proxy through an authenticated tunnel bound to target/route/lease/epochs.
-- Web project console: shows target / exec / port / proxy diagnostics plus host-plane active revision, recovery state, revision history, and recent jobs. If a project declares deployment metadata, the user explicitly chooses Host-authenticated or public route exposure before Deploy / Stop or Build & Deploy, recover, or rollback. The Development area can also move a verified ChangeSet through private preview, separate deployment approval, activation, and interrupted-operation reconciliation. Host-authenticated is the default.
+- Web Installation frame (transitional panel): shows target / exec / port / proxy diagnostics plus Host-local active revision, recovery state, revision history, and recent jobs. If an Installation carries the transitional deployment descriptor, the user explicitly chooses Host-authenticated or public route exposure before Deploy / Stop or Build & Deploy, recover, or rollback. The Development area can also move a verified ChangeSet through private preview, separate deployment approval, activation, and interrupted-operation reconciliation. Host-authenticated is the default.
 - Persistence and replay: exec / port / proxy registry mutations are written to the event log and replayed to rebuild registries on host restart.
 - Restart reconciliation: after a restart, replayed records are first downgraded (exec → unknown, port → reserved, proxy → stale with `ready=false`), then reconciled against the real world.
 - Readiness gating: proxy routes register with `ready=false`; the reverse proxy returns 503 for routes that are not yet ready, and only forwards once ready.
@@ -33,7 +35,7 @@ Docker, git, installation, secret storage, workspaces, and adapters are not kern
 
 ## Docker deployment descriptor
 
-Until Phase 6 Realization replacement is complete, explicit deployment requests may still submit minimal Docker metadata. These fields are Host-local operation data and never enter WorkRevision:
+Until the Phase 6 Realization replacement is complete, explicit transitional deployment requests may still submit minimal Docker metadata. These fields are Host-local operation data and never enter WorkRevision. The illustrative `project.metadata.deployment` envelope below is an internal broker payload shape, not a public Project identity or compatibility alias:
 
 ```yaml
 project:
@@ -53,7 +55,7 @@ The current web broker accepts only these fields. Missing `route_access` and old
 
 ## Build & Deploy descriptor
 
-If a project has no prebuilt image, it can declare source build metadata under `project.metadata.deployment.build_deploy`:
+If an Installation has no prebuilt image, its transitional broker payload can declare source build metadata under `project.metadata.deployment.build_deploy` (the `project` key is only the current Host-local envelope described above):
 
 ```yaml
 project:
@@ -91,7 +93,7 @@ Volumes may point to arbitrary host paths, but every mount needs explicit approv
 
 ## Explicit Deploy flow
 
-The Deploy button in the project console never runs automatically. After user confirmation, the request is sent to the host-plane `POST /host/v1/deploy`, where the host broker drives the whole chain server-side (the browser is a thin client and no longer orchestrates):
+The Deploy button in the Installation frame never runs automatically. After user confirmation, the request is sent to the host-plane `POST /host/v1/deploy`, where the Host broker drives the whole chain server-side (the browser is a thin client and no longer orchestrates):
 
 1. The host re-validates the request (client fields are not trusted).
 2. `host.port.lease`: lease a loopback port.
@@ -130,7 +132,7 @@ Boundary rules:
 Build & Deploy uses `POST /host/v1/build-deploy`. By default it returns immediately with `job_id`, a status URL, and an SSE events URL. Long-running work stays in the host broker:
 
 1. Validate source URL, strategy, runtime env, runtime mounts, and user approvals.
-2. Clone into the project workspace through `git-tools-lab`. The project and workspace ancestors must be real directories under the canonical data root; selected-tree materialization fails closed above 100,000 files, 100,000 directories, or 1 GiB. Unsupported tree modes such as submodule entries, absolute/root-escaping symlinks, and symlink entries on platforms that cannot preserve them fail explicitly. The current transport still performs a temporary bare fetch, so these tree limits do not yet constitute a repository-download budget.
+2. Clone into the Installation workspace through `git-tools-lab`. The Installation and workspace ancestors must be real directories under the canonical data root; selected-tree materialization fails closed above 100,000 files, 100,000 directories, or 1 GiB. Unsupported tree modes such as submodule entries, absolute/root-escaping symlinks, and symlink entries on platforms that cannot preserve them fail explicitly. The current transport still performs a temporary bare fetch, so these tree limits do not yet constitute a repository-download budget.
 3. If strategy is `nixpacks`, generate Dockerfile / context first.
 4. Call `plurora/docker-runtime-lab/build_image` and label the image with `installation_id`, `workspace_id`, `build_id`, `source_commit`, `strategy`, and `build_descriptor_hash`.
 5. If the Installation already has an active revision, handle its container, route, and lease only after the new image has built. The old revision remains the durable active pointer until the replacement commits, so replacement failure becomes an explicit recovery-required state.
@@ -139,7 +141,7 @@ Build & Deploy uses `POST /host/v1/build-deploy`. By default it returns immediat
 
 Job intent, the latest state snapshot, immutable deployment revisions, and the active pointer are written to the current profile's `EventStore`. SQLite / Postgres profiles therefore restore the control plane across host restarts; the in-memory profile remains development-only. An incomplete job is deterministically marked Failed after restart, and the host never automatically replays clone / build / deploy side effects. The full live log remains a bounded in-memory ring; the journal retains only redacted state and the last event.
 
-Every successful Build & Deploy creates a `DeploymentRevision` containing source ref, build artifact identity, `route_access`, route configuration, and a redacted receipt. It never stores raw secrets or host mount paths. A revision is automatically recoverable only when every runtime env value came from a `secret_ref` and no host mount was used. Plain env values and mounts become explicit blockers that require a manual rebuild. Recover and rollback preserve the revision's route-exposure choice. Journal events remain immutable; the live control-plane projection and API retain the most recent 64 revisions per project so restart memory and response size remain bounded.
+Every successful transitional Build & Deploy creates a Host-local `DeploymentRevision` projection containing source ref, build artifact identity, `route_access`, route configuration, and a redacted receipt. It never stores raw secrets or host mount paths. A revision is automatically recoverable only when every runtime env value came from a `secret_ref` and no host mount was used. Plain env values and mounts become explicit blockers that require a manual rebuild. Recover and rollback preserve the revision's route-exposure choice. Journal events remain immutable; the live control-plane projection and API retain the most recent 64 revisions per Installation so restart memory and response size remain bounded. This is not the Phase 6 `RealizationRevision` contract.
 
 ## Verified ChangeSet preview and activation
 
@@ -150,14 +152,14 @@ This path accepts only a committed `managed_external` ChangeSet, a `docker_build
 3. `POST .../deployment/activate` revalidates all evidence and readiness, points the requested private or explicitly public route at that same candidate, commits an immutable `VerifiedActivate` revision, and only then drains the previous revision.
 4. A Host crash or uncertain effect during preview/activation moves the transaction to `recovery_required`. `POST .../deployment/reconcile` only adopts a provenance-identical durable activation or cleans the exact candidate/route/lease; ambiguous state remains blocked.
 
-Project-scoped host APIs:
+Installation-scoped Host APIs for the transitional broker:
 
 - `GET /host/v1/installations/<installation_id>/deployments`: active revision, runtime readiness, recovery requirement, jobs, and revision history.
 - `POST /host/v1/installations/<installation_id>/deployments/recover`: explicitly recover the active revision. An ordinary `GitClone` revision reuses its retained local image without cloning/building; a `VerifiedArtifact` revision revalidates evidence and rebuilds from durable build context on its recorded target.
 - `POST /host/v1/installations/<installation_id>/deployments/rollback`: activate a historical revision as a new immutable rollback revision. Ordinary revisions reuse retained images; verified revisions rebuild from their durable context on the recorded target. Rollback remains available after explicit stop removes the active pointer, and historical records are never mutated.
 - `POST /host/v1/deploy/stop`: clean up resources for a route and append a deactivation event when it belongs to the active durable revision.
 
-Recover and rollback are explicit user actions. Ordinary revisions must be replay-safe, retain their local image, and still resolve referenced secrets. Verified revisions require a valid artifact closure, preview/approval evidence, and current project/target authority. Verified replay never reads the live workspace or refetches source. Failure preserves the prior active pointer and reports recovery required rather than silently claiming success. Direct prebuilt-image `/host/v1/deploy` remains a transient broker operation and does not create a durable revision yet.
+Recover and rollback are explicit user actions. Ordinary revisions must be replay-safe, retain their local image, and still resolve referenced secrets. Verified revisions require a valid artifact closure, preview/approval evidence, and current Installation/target authority. Verified replay never reads the live workspace or refetches source. Failure preserves the prior active pointer and reports recovery required rather than silently claiming success. Direct prebuilt-image `/host/v1/deploy` remains a transient broker operation and does not create a Phase 6 Realization revision.
 
 ## Run does not deploy implicitly
 
@@ -180,6 +182,6 @@ Deployment remains a separate, explicit Host action. Managed Realization plan/ap
 
 - Native execution remains trusted/dev-oriented. It is not a full OS sandbox.
 - **Auto-restart** is not implemented and remains a separate future phase. The host-plane now has durable revisions and explicit recovery, but health supervision still only monitors, flips readiness, and audits; it never replays deployment side effects without user authorization.
-- The Remote Target Agent, Project Console, and verified development-to-deployment wiring now form a Candidate loop, with GitHub CI covering faults, Host restart, recovery, and rollback. Target-edge ingress and application identity still need separate designs; this is not an arbitrary network proxy.
+- The Remote Target Agent and Installation-frame wiring remain a transitional Candidate loop, with GitHub CI covering faults, Host restart, recovery, and rollback. Target-edge ingress and application identity still need separate designs; this is not an arbitrary network proxy. Managed Realization remains the planned Phase 6 boundary.
 - Docker descriptors still lack pull progress and long-term log archival.
 - External-project ChangeSets can now add a controlled Dockerfile. Richer guided deployment-descriptor/adapter authoring remains follow-up work, and deployment must retain explicit approval and activation.

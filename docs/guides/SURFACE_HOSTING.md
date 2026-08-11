@@ -178,7 +178,7 @@ Surface 只能订阅自己通过 `capability.stream` 创建的 stream。宿主�
 
 ## Installation / Run 边界
 
-`/installation/<installation-id>` 展示 Installation projection 与 Library affordance；只有显式 `host.run.start` 成功后才绑定该 Run 的 context，再由 Shell 决定是否挂载 surface。Run journal 独立持有 lifecycle；关闭 iframe、tab 或 PWA 连接不会获得停止 Run 的权威，停止仍由宿主页通过 exact Installation + Run selector 调用 `host.run.stop`。Run start 不隐式 build/deploy，缺少本地匹配实现时显示结构化 gap；Exposure 与跨 Installation Binding 仍属 Phase 5。
+`/installation/<installation-id>` 展示 Installation projection 与 Library affordance；只有显式 `host.run.start` 成功后才绑定该 Run 的 context，再由 Shell 决定是否挂载 surface。Run journal 独立持有 lifecycle；关闭 iframe、tab 或 PWA 连接不会获得停止 Run 的权威，停止仍由宿主页通过 exact Installation + Run selector 调用 `host.run.stop`。Run start 不隐式 build/deploy，缺少本地匹配实现时显示结构化 gap。Phase 5 Powerbox chooser 通过公开 `host.binding.candidates|select|revoke` 与 `host.exposure.*` 工作；Surface 没有 private Powerbox bridge、runtime handle 或 provider priority，关闭连接也不会 revoke Exposure/Binding。
 
 Iframe 内存不是持久状态。可恢复状态应由 Package capability、事件、asset 或 projection 持有，并通过公开协议重新获取。`initialProps` 只适合 session、descriptor 和只读启动信息。
 

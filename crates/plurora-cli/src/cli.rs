@@ -194,6 +194,10 @@ pub(crate) enum Command {
     Installation(crate::commands::installation::InstallationArgs),
     /// Inspect and control Host-owned Runs through the public Host API.
     Run(crate::commands::run::RunArgs),
+    /// Publish, list, and revoke Host-owned capability Exposures.
+    Exposure(crate::commands::powerbox::ExposureArgs),
+    /// Discover, select, list, and revoke explicit Host-owned Bindings.
+    Binding(crate::commands::powerbox::BindingArgs),
     /// Create, validate, pack, or inspect portable Work sources.
     Work(crate::commands::work::WorkArgs),
     /// Generate package skeletons.

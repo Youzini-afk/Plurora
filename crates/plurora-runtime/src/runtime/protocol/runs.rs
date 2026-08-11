@@ -35,12 +35,12 @@ where
     ) -> anyhow::Result<()> {
         anyhow::ensure!(
             context.allows_host_resource("host", "run", run_id.as_str())
-                || context.allows_host_resource(
+                && context.allows_host_resource(
                     "host",
                     "installation",
                     installation_id.as_str(),
                 ),
-            "{method} permission denied: authenticated authority lacks the exact Run or its exact parent Installation"
+            "{method} permission denied: authenticated authority lacks the exact Installation and Run"
         );
         Ok(())
     }

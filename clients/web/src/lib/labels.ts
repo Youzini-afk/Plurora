@@ -559,6 +559,72 @@ export interface LocaleDictionary {
   installationFramePublicUrl: string;
   installationFrameIframeUrl: string;
 
+  powerboxTitle: string;
+  powerboxDescription: string;
+  powerboxLoading: string;
+  powerboxRetry: string;
+  powerboxClose: string;
+  powerboxConsumer: string;
+  powerboxConsumerRun: string;
+  powerboxImportPort: string;
+  powerboxPhase: string;
+  powerboxPreferenceHint: string;
+  powerboxChooseProvider: string;
+  powerboxProviderInstallation: string;
+  powerboxProviderWork: string;
+  powerboxProviderRun: string;
+  powerboxProviderPort: string;
+  powerboxOrigin: string;
+  powerboxDeclaration: string;
+  powerboxClaim: string;
+  powerboxBoundaries: string;
+  powerboxEvidence: string;
+  powerboxTrust: string;
+  powerboxProtocol: string;
+  powerboxInterface: string;
+  powerboxVersion: string;
+  powerboxProfile: string;
+  powerboxInteraction: string;
+  powerboxTransport: string;
+  powerboxAudience: string;
+  powerboxScope: string;
+  powerboxExpiry: string;
+  powerboxDuration: string;
+  powerboxDataRisk: string;
+  powerboxEffectRisk: string;
+  powerboxNotDeclared: string;
+  powerboxUnbounded: string;
+  powerboxExpired: string;
+  powerboxRiskConfirm: string;
+  powerboxDurationConfirm: string;
+  powerboxSelect: string;
+  powerboxSelecting: string;
+  powerboxSelected: string;
+  powerboxAuthorityDenied: string;
+  powerboxNextStep: string;
+  powerboxEmptyAbsent: string;
+  powerboxEmptyForbidden: string;
+  powerboxEmptyUnsupported: string;
+  powerboxEmptyUnavailable: string;
+  powerboxEmptyStale: string;
+  powerboxBindingsTitle: string;
+  powerboxBindingsEmpty: string;
+  powerboxRevoke: string;
+  powerboxRevoking: string;
+  powerboxExposuresTitle: string;
+  powerboxExposuresDescription: string;
+  powerboxExportPort: string;
+  powerboxAudienceKind: string;
+  powerboxAudienceId: string;
+  powerboxExpiresAt: string;
+  powerboxExposureConfirm: string;
+  powerboxCreateExposure: string;
+  powerboxCreatingExposure: string;
+  powerboxExposuresEmpty: string;
+  powerboxTypedPortNotice: string;
+  powerboxStartRunFirst: string;
+  powerboxRuntimeContextNext: string;
+
   settingsTitle: string;
   settingsHelper: string;
   settingsApiConnections: string;
@@ -597,6 +663,26 @@ export interface LocaleDictionary {
   accessTargetIdsPlaceholder: string;
   accessInstallationResource: (id: string) => string;
   accessTargetResource: (id: string) => string;
+  accessRunResources: string;
+  accessRunResourcesBody: string;
+  accessAllRuns: string;
+  accessRunIdsPlaceholder: string;
+  accessRunResource: (id: string) => string;
+  accessPortResources: string;
+  accessPortResourcesBody: string;
+  accessAllPorts: string;
+  accessPortIdsPlaceholder: string;
+  accessPortResource: (id: string) => string;
+  accessExposureResources: string;
+  accessExposureResourcesBody: string;
+  accessAllExposures: string;
+  accessExposureIdsPlaceholder: string;
+  accessExposureResource: (id: string) => string;
+  accessBindingResources: string;
+  accessBindingResourcesBody: string;
+  accessAllBindings: string;
+  accessBindingIdsPlaceholder: string;
+  accessBindingResource: (id: string) => string;
   accessCreateValidation: string;
   accessCreating: string;
   accessCreateButton: string;
@@ -626,6 +712,10 @@ export interface LocaleDictionary {
   accessScopeObserveBody: string;
   accessScopeInstallationOperate: string;
   accessScopeInstallationOperateBody: string;
+  accessScopeBindingManage: string;
+  accessScopeBindingManageBody: string;
+  accessScopeExposureManage: string;
+  accessScopeExposureManageBody: string;
   accessScopeDeploy: string;
   accessScopeDeployBody: string;
   accessScopeDevelopPropose: string;
@@ -1400,6 +1490,72 @@ export const labels = {
     installationFramePublicUrl: "Public URL",
     installationFrameIframeUrl: "Iframe URL",
 
+    powerboxTitle: "Connect a provider",
+    powerboxDescription: "The Host calculated visible, compatible Exposures for this exact Installation, import Port, and binding phase. Nothing is selected automatically.",
+    powerboxLoading: "Recomputing provider candidates…",
+    powerboxRetry: "Recompute candidates",
+    powerboxClose: "Close chooser",
+    powerboxConsumer: "Consumer Installation",
+    powerboxConsumerRun: "Consumer Run",
+    powerboxImportPort: "Root import Port",
+    powerboxPhase: "Binding phase",
+    powerboxPreferenceHint: "Saved preference — UI hint only",
+    powerboxChooseProvider: "Choose this provider",
+    powerboxProviderInstallation: "Provider Installation",
+    powerboxProviderWork: "Provider Work",
+    powerboxProviderRun: "Provider Run",
+    powerboxProviderPort: "Provider Port",
+    powerboxOrigin: "Origin / provenance",
+    powerboxDeclaration: "Declaration",
+    powerboxClaim: "Claim status",
+    powerboxBoundaries: "Enforced boundaries",
+    powerboxEvidence: "Verified evidence",
+    powerboxTrust: "Runtime trust",
+    powerboxProtocol: "Protocol",
+    powerboxInterface: "Interface",
+    powerboxVersion: "Version",
+    powerboxProfile: "Profile",
+    powerboxInteraction: "Interaction",
+    powerboxTransport: "Transport",
+    powerboxAudience: "Audience",
+    powerboxScope: "Resource scope",
+    powerboxExpiry: "Lease expiry",
+    powerboxDuration: "Remaining duration",
+    powerboxDataRisk: "Data risk",
+    powerboxEffectRisk: "Effect risk",
+    powerboxNotDeclared: "Not declared",
+    powerboxUnbounded: "No fixed expiry",
+    powerboxExpired: "Expired",
+    powerboxRiskConfirm: "I reviewed the provider, trust boundary, data risk, and effect risk.",
+    powerboxDurationConfirm: "I reviewed the Exposure audience and lease expiry.",
+    powerboxSelect: "Select and continue",
+    powerboxSelecting: "Selecting…",
+    powerboxSelected: "Binding selected. Rechecking Run status before continuing.",
+    powerboxAuthorityDenied: "This Host identity lacks exact Powerbox authority.",
+    powerboxNextStep: "Next step",
+    powerboxEmptyAbsent: "No provider Exposure exists for this import Port.",
+    powerboxEmptyForbidden: "Compatible providers may exist, but this identity cannot observe them.",
+    powerboxEmptyUnsupported: "The Host does not support the required protocol, interaction, or transport.",
+    powerboxEmptyUnavailable: "Compatible providers exist but are not currently available.",
+    powerboxEmptyStale: "Candidate evidence is stale or expired. Recompute before choosing.",
+    powerboxBindingsTitle: "Active bindings",
+    powerboxBindingsEmpty: "No selected bindings are active for this Installation.",
+    powerboxRevoke: "Revoke binding",
+    powerboxRevoking: "Revoking…",
+    powerboxExposuresTitle: "Verified export Exposures",
+    powerboxExposuresDescription: "Expose only a verified export Port from the active Run, with an exact audience and lease.",
+    powerboxExportPort: "Root export Port ID",
+    powerboxAudienceKind: "Audience resource kind",
+    powerboxAudienceId: "Audience resource ID",
+    powerboxExpiresAt: "Expires at",
+    powerboxExposureConfirm: "I confirm this exact export Port, audience, Run, and lease.",
+    powerboxCreateExposure: "Create Exposure",
+    powerboxCreatingExposure: "Creating…",
+    powerboxExposuresEmpty: "No Exposures are recorded for this Installation.",
+    powerboxTypedPortNotice: "The current public Installation view does not enumerate export Port details. Enter a verified root Port ID explicitly; the Host remains authoritative and rejects invalid input.",
+    powerboxStartRunFirst: "Start a Run before creating a Run-scoped Exposure.",
+    powerboxRuntimeContextNext: "Refresh the active Run and enter an exact Runtime import Port.",
+
     settingsTitle: "Settings",
     settingsHelper: "Settings live on this machine. No SaaS sync.",
     settingsApiConnections: "API Connections",
@@ -1441,6 +1597,26 @@ export const labels = {
     accessTargetIdsPlaceholder: "local, preview-server",
     accessInstallationResource: (id) => `Installation · ${id}`,
     accessTargetResource: (id) => `Target · ${id}`,
+    accessRunResources: "Run selectors",
+    accessRunResourcesBody: "Grant all Runs or enter exact Run IDs used by Runtime Bindings and Exposures.",
+    accessAllRuns: "All Runs",
+    accessRunIdsPlaceholder: "run-a, run-b",
+    accessRunResource: (id) => `Run · ${id}`,
+    accessPortResources: "Powerbox Ports",
+    accessPortResourcesBody: "Grant all Port selectors or enter exact InstallationID/root-PortID selectors separated by commas.",
+    accessAllPorts: "All Ports",
+    accessPortIdsPlaceholder: "installation-id/save-import, installation-id/lobby-export",
+    accessPortResource: (id) => `Port · ${id}`,
+    accessExposureResources: "Exposure selectors",
+    accessExposureResourcesBody: "Grant all Exposures or enter exact Exposure IDs separated by commas.",
+    accessAllExposures: "All Exposures",
+    accessExposureIdsPlaceholder: "exposure-a, exposure-b",
+    accessExposureResource: (id) => `Exposure · ${id}`,
+    accessBindingResources: "Binding selectors",
+    accessBindingResourcesBody: "Grant all Bindings or enter exact Binding IDs separated by commas.",
+    accessAllBindings: "All Bindings",
+    accessBindingIdsPlaceholder: "binding-a, binding-b",
+    accessBindingResource: (id) => `Binding · ${id}`,
     accessCreateValidation: "Enter a device name, 1–365 days, and a valid HTTPS Host address.",
     accessCreating: "Creating…",
     accessCreateButton: "Create pairing link",
@@ -1471,6 +1647,10 @@ export const labels = {
     accessScopeObserveBody: "Read Host, installation, deployment, and diagnostic state.",
     accessScopeInstallationOperate: "Operate installations",
     accessScopeInstallationOperateBody: "Start, stop, open, and fork installation sessions.",
+    accessScopeBindingManage: "Manage Bindings",
+    accessScopeBindingManageBody: "Explicitly select or revoke providers for exact consumer Installation, Port, Exposure, and Binding selectors.",
+    accessScopeExposureManage: "Manage Exposures",
+    accessScopeExposureManageBody: "Create or revoke an exact provider Installation, Run, export Port, audience, and Exposure.",
     accessScopeDeploy: "Deploy",
     accessScopeDeployBody: "Build, deploy, recover, and manage runtime routes.",
     accessScopeDevelopPropose: "Propose changes",
@@ -2247,6 +2427,72 @@ export const labels = {
     installationFramePublicUrl: "公共 URL",
     installationFrameIframeUrl: "Iframe URL",
 
+    powerboxTitle: "连接提供方",
+    powerboxDescription: "Host 已针对这个准确的 Installation、根导入 Port 和绑定阶段计算当前可见且兼容的 Exposure；界面不会自动选择。",
+    powerboxLoading: "正在重新计算提供方候选…",
+    powerboxRetry: "重新计算候选",
+    powerboxClose: "关闭选择器",
+    powerboxConsumer: "消费方 Installation",
+    powerboxConsumerRun: "消费方 Run",
+    powerboxImportPort: "根导入 Port",
+    powerboxPhase: "绑定阶段",
+    powerboxPreferenceHint: "已保存偏好——仅作界面提示",
+    powerboxChooseProvider: "选择此提供方",
+    powerboxProviderInstallation: "提供方 Installation",
+    powerboxProviderWork: "提供方 Work",
+    powerboxProviderRun: "提供方 Run",
+    powerboxProviderPort: "提供方 Port",
+    powerboxOrigin: "来源 / provenance",
+    powerboxDeclaration: "声明",
+    powerboxClaim: "声明状态",
+    powerboxBoundaries: "实际强制边界",
+    powerboxEvidence: "已验证证据",
+    powerboxTrust: "运行时信任边界",
+    powerboxProtocol: "协议",
+    powerboxInterface: "接口",
+    powerboxVersion: "版本",
+    powerboxProfile: "Profile",
+    powerboxInteraction: "交互模型",
+    powerboxTransport: "传输",
+    powerboxAudience: "受众",
+    powerboxScope: "资源作用域",
+    powerboxExpiry: "租约到期",
+    powerboxDuration: "剩余时长",
+    powerboxDataRisk: "数据风险",
+    powerboxEffectRisk: "效果风险",
+    powerboxNotDeclared: "未声明",
+    powerboxUnbounded: "没有固定到期时间",
+    powerboxExpired: "已过期",
+    powerboxRiskConfirm: "我已检查提供方、信任边界、数据风险和效果风险。",
+    powerboxDurationConfirm: "我已检查 Exposure 的受众和租约到期时间。",
+    powerboxSelect: "选择并继续",
+    powerboxSelecting: "正在选择…",
+    powerboxSelected: "Binding 已选择。继续前正在重新检查 Run 状态。",
+    powerboxAuthorityDenied: "当前 Host 身份缺少准确的 Powerbox 权限。",
+    powerboxNextStep: "下一步",
+    powerboxEmptyAbsent: "这个导入 Port 尚无提供方 Exposure。",
+    powerboxEmptyForbidden: "可能存在兼容提供方，但当前身份无权查看。",
+    powerboxEmptyUnsupported: "Host 不支持所需协议、交互模型或传输。",
+    powerboxEmptyUnavailable: "存在兼容提供方，但当前不可用。",
+    powerboxEmptyStale: "候选证据已陈旧或过期；选择前必须重新计算。",
+    powerboxBindingsTitle: "活动 Binding",
+    powerboxBindingsEmpty: "这个 Installation 当前没有活动的已选 Binding。",
+    powerboxRevoke: "撤销 Binding",
+    powerboxRevoking: "正在撤销…",
+    powerboxExposuresTitle: "已验证导出 Exposure",
+    powerboxExposuresDescription: "只暴露活动 Run 中已验证的导出 Port，并明确指定受众和租约。",
+    powerboxExportPort: "根导出 Port ID",
+    powerboxAudienceKind: "受众资源类型",
+    powerboxAudienceId: "受众资源 ID",
+    powerboxExpiresAt: "到期时间",
+    powerboxExposureConfirm: "我确认这个准确的导出 Port、受众、Run 和租约。",
+    powerboxCreateExposure: "创建 Exposure",
+    powerboxCreatingExposure: "正在创建…",
+    powerboxExposuresEmpty: "这个 Installation 尚无 Exposure 记录。",
+    powerboxTypedPortNotice: "当前公开 Installation 视图不枚举导出 Port 详情。请显式输入已验证的根 Port ID；Host 仍是权威，并会拒绝无效输入。",
+    powerboxStartRunFirst: "创建 Run 作用域的 Exposure 前，请先启动一个 Run。",
+    powerboxRuntimeContextNext: "请刷新活动 Run，并输入准确的 Runtime 导入 Port。",
+
     settingsTitle: "设置",
     settingsHelper: "设置保存在本机。无 SaaS 同步。",
     settingsApiConnections: "API 连接",
@@ -2287,6 +2533,26 @@ export const labels = {
     accessTargetIdsPlaceholder: "local, preview-server",
     accessInstallationResource: (id) => `项目 · ${id}`,
     accessTargetResource: (id) => `Target · ${id}`,
+    accessRunResources: "Run 范围",
+    accessRunResourcesBody: "可授权全部 Run，或输入 Runtime Binding 与 Exposure 使用的准确 Run ID。",
+    accessAllRuns: "全部 Run",
+    accessRunIdsPlaceholder: "run-a, run-b",
+    accessRunResource: (id) => `Run · ${id}`,
+    accessPortResources: "Powerbox Port 范围",
+    accessPortResourcesBody: "可授权全部 Port，或输入以英文逗号分隔的准确 InstallationID/root-PortID selector。",
+    accessAllPorts: "全部 Port",
+    accessPortIdsPlaceholder: "installation-id/save-import, installation-id/lobby-export",
+    accessPortResource: (id) => `Port · ${id}`,
+    accessExposureResources: "Exposure 范围",
+    accessExposureResourcesBody: "可授权全部 Exposure，或输入以英文逗号分隔的准确 Exposure ID。",
+    accessAllExposures: "全部 Exposure",
+    accessExposureIdsPlaceholder: "exposure-a, exposure-b",
+    accessExposureResource: (id) => `Exposure · ${id}`,
+    accessBindingResources: "Binding 范围",
+    accessBindingResourcesBody: "可授权全部 Binding，或输入以英文逗号分隔的准确 Binding ID。",
+    accessAllBindings: "全部 Binding",
+    accessBindingIdsPlaceholder: "binding-a, binding-b",
+    accessBindingResource: (id) => `Binding · ${id}`,
     accessCreateValidation: "请填写设备名称、1–365 天有效期和有效的 Host HTTPS 地址。",
     accessCreating: "正在创建…",
     accessCreateButton: "创建配对链接",
@@ -2316,6 +2582,10 @@ export const labels = {
     accessScopeObserveBody: "读取 Host、项目、部署和诊断状态。",
     accessScopeInstallationOperate: "操作项目",
     accessScopeInstallationOperateBody: "启动、停止、打开和分叉项目会话。",
+    accessScopeBindingManage: "管理 Binding",
+    accessScopeBindingManageBody: "针对准确的消费方 Installation、Port、Exposure 和 Binding 显式选择或撤销提供方。",
+    accessScopeExposureManage: "管理 Exposure",
+    accessScopeExposureManageBody: "针对准确的提供方 Installation、Run、导出 Port、受众和 Exposure 创建或撤销暴露。",
     accessScopeDeploy: "部署",
     accessScopeDeployBody: "构建、部署、恢复并管理运行时路由。",
     accessScopeDevelopPropose: "提出变更",

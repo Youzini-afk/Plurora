@@ -1,0 +1,133 @@
+{
+  "$defs": {
+    "ExposureId": {
+      "format": "uuid",
+      "type": "string"
+    },
+    "ExposureRecord": {
+      "properties": {
+        "audience": {
+          "items": {
+            "$ref": "#/$defs/ResourceSelector"
+          },
+          "type": "array"
+        },
+        "expires_at": {
+          "format": "date-time",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "export_port": {
+          "$ref": "#/$defs/PortId"
+        },
+        "exposure_id": {
+          "$ref": "#/$defs/ExposureId"
+        },
+        "installation_id": {
+          "$ref": "#/$defs/InstallationId"
+        },
+        "run_id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RunId"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "status": {
+          "$ref": "#/$defs/ExposureStatus"
+        }
+      },
+      "required": [
+        "audience",
+        "export_port",
+        "exposure_id",
+        "installation_id",
+        "status"
+      ],
+      "type": "object"
+    },
+    "ExposureStatus": {
+      "enum": [
+        "active",
+        "expired",
+        "revoked"
+      ],
+      "type": "string"
+    },
+    "ExposureView": {
+      "properties": {
+        "record": {
+          "$ref": "#/$defs/ExposureRecord"
+        },
+        "revision": {
+          "format": "uint64",
+          "minimum": 0.0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "record",
+        "revision"
+      ],
+      "type": "object"
+    },
+    "InstallationId": {
+      "format": "uuid",
+      "type": "string"
+    },
+    "Payload": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "properties": {
+        "exposure": {
+          "$ref": "#/$defs/ExposureView"
+        }
+      },
+      "required": [
+        "exposure"
+      ],
+      "title": "ExposureLifecyclePayloadSchema",
+      "type": "object"
+    },
+    "PortId": {
+      "pattern": "^(?!.*\\.\\.)[A-Za-z0-9._-]+$",
+      "type": "string"
+    },
+    "ResourceSelector": {
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "kind": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "kind"
+      ],
+      "type": "object"
+    },
+    "RunId": {
+      "format": "uuid",
+      "type": "string"
+    }
+  },
+  "$id": "urn:plurora:schema:event:host/exposure.revoked:v1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "Payload schema for event kind host/exposure.revoked.",
+  "properties": {
+    "kind": {
+      "const": "host/exposure.revoked"
+    },
+    "payload": {
+      "$ref": "#/$defs/Payload"
+    }
+  },
+  "title": "host/exposure.revoked",
+  "type": "object"
+}

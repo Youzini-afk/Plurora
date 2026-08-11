@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
 use plurora_core::{CapHandle, CapHandleId, HandleProvenance, PackageId};
@@ -9,6 +9,7 @@ use tokio::sync::RwLock;
 pub struct HandleTable {
     handles: Arc<RwLock<HashMap<CapHandleId, CapHandle>>>,
     by_holder: Arc<RwLock<HashMap<PackageId, Vec<CapHandleId>>>>,
+    private: Arc<RwLock<HashSet<CapHandleId>>>,
 }
 
 impl HandleTable {
@@ -26,16 +27,82 @@ impl HandleTable {
     }
 
     pub async fn lookup(&self, id: CapHandleId) -> Option<CapHandle> {
+        if self.private.read().await.contains(&id) {
+            return None;
+        }
+        self.handles.read().await.get(&id).cloned()
+    }
+
+    /// Mint a broker-private handle. Private handles are deliberately absent
+    /// from the generic handle API: they cannot be listed, looked up,
+    /// attenuated, or revoked through `authority.handle.*`.
+    pub(crate) async fn mint_private(&self, handle: CapHandle) -> CapHandleId {
+        let id = handle.id;
+        self.private.write().await.insert(id);
+        self.mint(handle).await
+    }
+
+    pub(crate) async fn lookup_private(&self, id: CapHandleId) -> Option<CapHandle> {
+        if !self.private.read().await.contains(&id) {
+            return None;
+        }
         self.handles.read().await.get(&id).cloned()
     }
 
     pub async fn revoke(&self, id: CapHandleId) -> anyhow::Result<()> {
+        anyhow::ensure!(
+            !self.private.read().await.contains(&id),
+            "capability handle not found"
+        );
+        self.revoke_stored(id).await
+    }
+
+    pub(crate) async fn revoke_private(&self, id: CapHandleId) -> anyhow::Result<()> {
+        anyhow::ensure!(
+            self.private.read().await.contains(&id),
+            "capability handle not found"
+        );
+        self.revoke_stored(id).await
+    }
+
+    async fn revoke_stored(&self, id: CapHandleId) -> anyhow::Result<()> {
         let mut handles = self.handles.write().await;
         let handle = handles
             .get_mut(&id)
             .ok_or_else(|| anyhow::anyhow!("capability handle not found"))?;
         handle.revoked = true;
         Ok(())
+    }
+
+    pub async fn remove(&self, id: CapHandleId) -> Option<CapHandle> {
+        if self.private.read().await.contains(&id) {
+            return None;
+        }
+        self.remove_stored(id).await
+    }
+
+    pub(crate) async fn remove_private(&self, id: CapHandleId) -> Option<CapHandle> {
+        if !self.private.read().await.contains(&id) {
+            return None;
+        }
+        let removed = self.remove_stored(id).await;
+        self.private.write().await.remove(&id);
+        removed
+    }
+
+    async fn remove_stored(&self, id: CapHandleId) -> Option<CapHandle> {
+        let removed = self.handles.write().await.remove(&id);
+        if let Some(handle) = removed.as_ref() {
+            if let Some(ids) = self
+                .by_holder
+                .write()
+                .await
+                .get_mut(&handle.scope.holder_package_id)
+            {
+                ids.retain(|candidate| *candidate != id);
+            }
+        }
+        removed
     }
 
     pub async fn attenuate(
@@ -73,12 +140,30 @@ impl HandleTable {
             .cloned()
             .unwrap_or_default();
         let handles = self.handles.read().await;
+        let private = self.private.read().await;
         ids.into_iter()
+            .filter(|id| !private.contains(id))
             .filter_map(|id| handles.get(&id).cloned())
             .collect()
     }
 
     pub async fn record_invocation(&self, id: CapHandleId) -> anyhow::Result<()> {
+        anyhow::ensure!(
+            !self.private.read().await.contains(&id),
+            "capability handle not found"
+        );
+        self.record_stored_invocation(id).await
+    }
+
+    pub(crate) async fn record_private_invocation(&self, id: CapHandleId) -> anyhow::Result<()> {
+        anyhow::ensure!(
+            self.private.read().await.contains(&id),
+            "capability handle not found"
+        );
+        self.record_stored_invocation(id).await
+    }
+
+    async fn record_stored_invocation(&self, id: CapHandleId) -> anyhow::Result<()> {
         let mut handles = self.handles.write().await;
         let handle = handles
             .get_mut(&id)

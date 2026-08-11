@@ -2,13 +2,13 @@
 
 > [English](./DURABLE_DEPLOYMENT_CONTROLLER.en.md) · [中文](./DURABLE_DEPLOYMENT_CONTROLLER.md)
 
-状态：**Candidate 实现**。现有 Host facade 已承载持久 deployment operation/receipt、`local` 与 enrolled Agent 的 target truth、artifact replay 和 Verified Artifact 部署。下面的抽象记录是控制器语义模型；独立的 canonical `host.deployment.*` API 与自动自愈 restart 尚未启用，不能把候选名称当作已暴露合同。
+状态：**Phase 5 Host-local Candidate 实现**。本页记录当前 Host 运行时仍保留的 transitional target/exec/port/proxy broker。它不是公开的 Project、old Composition 或 Deployment 身份；`DeploymentRevision` 等记录只表示 Host-local operation projection。Phase 5 Powerbox Exposure/Binding 已实现，Phase 6 Realization 的 plan/apply 与 `RealizationRevision` 仍 planned。独立的 canonical `host.deployment.*` API 与自动自愈 restart 尚未启用，不能把候选名称当作已暴露合同。
 
 当前实现：
 
 - 单一连续 deployment journal 使用 sequence CAS，revision 激活同时按预期 parent revision fencing；
 - 构建输出在部署前解析为内容寻址的 Docker image ID；
-- build-deploy、recover、rollback 和有项目归属的 direct deploy 统一采用 candidate-first readiness、按 lease 守卫的 route promotion，以及日志提交后再排空旧实例；
+- build-deploy、recover、rollback 和按 Installation 归属的 direct operation 统一采用 candidate-first readiness、按 lease 守卫的 route promotion，以及日志提交后再排空旧实例；
 - 长部署 authority 在不持久化凭据的前提下进入日志，并在每个新副作用前与唯一 Host 控制面 lease 一起重新校验；
 - `local` 与 Agent 使用同一类型化 artifact transfer、declarative verifier、deployment apply/stop、operation ledger 与 receipt 合同；远端端口只绑定 loopback，流量只经认证 tunnel 返回 Host；
 - Verified ChangeSet 使用不可变 build-context artifact 创建 private preview，独立审批后提交 `VerifiedActivate` revision；recover/rollback 在记录的 target 上从 durable context 重建，不读取 workspace 或重新抓取源码；
@@ -53,7 +53,7 @@ ArtifactDescriptor
 
 ```text
 DeploymentIntent
-  project_ref
+  installation_ref
   target_ref
   generation
   artifact_ref
@@ -78,7 +78,7 @@ Revision 是 intent 的已解析快照，包含精确 artifact、route、lease�
 ```text
 DeploymentOperation
   id
-  project_ref / target_ref / generation
+  installation_ref / target_ref / generation
   kind: apply | recover | rollback | stop | reconcile
   phase
   status
@@ -89,7 +89,7 @@ DeploymentOperation
   correlation / causation
 ```
 
-一个 project × target 同时只有一个可改变 active generation 的 operation。数据库 compare-and-append 或 CAS 获取 lease；旧 epoch 的 worker 和 target 请求必须被拒绝。
+一个 Installation × target 同时只有一个可改变 active generation 的 operation。数据库 compare-and-append 或 CAS 获取 lease；旧 epoch 的 worker 和 target 请求必须被拒绝。
 
 ### ObservedDeployment
 
@@ -209,18 +209,18 @@ RestartPolicy
 
 ## 公共合同
 
-当前公开合同仍是 `/host/v1/build-deploy`、项目级 deployment recover/rollback、target operation，以及 ChangeSet deployment preview/approve/activate/reconcile 路由。它们都属于 Host owner；不存在 kernel 部署编排方法。以下名称只是未来可能收敛 facade 时的 canonical Host 候选，不是当前 endpoint：
+当前公开合同包括 Phase 5 Host Powerbox 方法/事件，以及 transitional `/host/v1/build-deploy`、Installation 级 recover/rollback、target operation 和 ChangeSet deployment preview/approve/activate/reconcile 路由。它们都属于 Host owner；不存在 kernel 部署编排方法。以下名称只是未来 Realization 可能收敛 facade 时的 canonical Host 候选，不是当前 endpoint：
 
 - `host.deployment.intent.get/apply/stop`；
 - `host.deployment.operation.get/list/cancel/reconcile`；
 - `host.deployment.revision.list/activate`；
 - `host.deployment.observe` 和 operation event stream。
 
-现有 build-deploy/recover/rollback 与 verified ChangeSet 路由作为 facade 映射到该模型；`platform.port/proxy/exec` 保持 adapter，不承担长期 orchestration。
+现有 build-deploy/recover/rollback 与 verified ChangeSet 路由作为 Host-local facade 映射到该模型；`platform.port/proxy/exec` 保持 adapter，不承担长期 orchestration。Managed Realization 属于 Phase 6 计划，并非已实现的 managed deployment 合同。
 
 ## 当前边界
 
-当前 Candidate 已通过现有 facade 提供 durable journal/lease/receipt、local/Agent truth、candidate-first 激活、启动 reconcile、显式 recover/rollback 和客户端接线。它不宣称上面的候选 `host.deployment.*` 名称已成为公开 API。
+当前 Candidate 已通过现有 facade 提供 durable journal/lease/receipt、local/Agent truth、candidate-first 激活、启动 reconcile、显式 recover/rollback 和客户端接线。它不宣称上面的候选 `host.deployment.*` 名称已成为公开 API，也不宣称 managed Realization 已完成。
 
 健康监督目前只更新 readiness、保留诊断并触发显式 reconcile；它不会自动重新部署。自动 restart 只有在部署意图、retry budget、backoff、fencing、审计和 `CrashLoopBackoff` 状态都形成可恢复合同时才可启用。
 

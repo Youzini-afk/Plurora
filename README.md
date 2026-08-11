@@ -35,7 +35,7 @@ Plurora 长期追求五件事：
 
 ## 平台与官方产品
 
-Plurora 不只是内核，也不等于官方 Web/Desktop。当前官方发行版使用 Library、Settings、Installation frame、Console 和可贡献 Surface，提供本地 managed Host、远程 Host、安装、Run、创作、Realization、权限和数据管理等体验。
+Plurora 不只是内核，也不等于官方 Web/Desktop。当前官方发行版使用 Library、Settings、Installation frame、Console 和可贡献 Surface，提供本地 managed Host、远程 Host、安装、Run、Phase 5 Powerbox、权限和数据管理等体验；Managed Realization/部署编译仍是 Phase 6 planned。
 
 这些是正在持续打磨的默认产品选择，而不是整个平台的永久本体：
 
@@ -50,7 +50,7 @@ Plurora 不只是内核，也不等于官方 Web/Desktop。当前官方发行版
 
 仓库处于 Foundation Alpha：公开 Contract V1、Rust Host/runtime、HTTP/RPC/SSE、Package 与 Component 生命周期、Web/PWA、Tauri Desktop、CLI、Work 打包、Installation 更新、Run 生命周期、权限、对象与工件、模型接入、受控开发、target 与 Realization 基础已经形成较大可运行面。
 
-当前 Contract V1 通过 85 个精确的 owner-based method ID 分别表达 Substrate、Host、Protocol 与 Shell 职责。实现仍会在该公开边界之后继续拆分，但不会创建第一方私有路径或并行 wire identity。
+当前 Contract V1 通过 92 个精确的 owner-based method ID、69 个平台事件和 39 个顶层 schema（共 200 个 schema）分别表达 Substrate、Host、Protocol 与 Shell 职责。Phase 5 的 Exposure/Binding/Powerbox 已实现；实现仍会在该公开边界之后继续拆分，但不会创建第一方私有路径或并行 wire identity。
 
 具体已实现、partial 和 deferred 状态见 [`docs/ALPHA_STATUS.md`](docs/ALPHA_STATUS.md)。当前建设方向见 [`docs/roadmap/NEXT_STEPS.md`](docs/roadmap/NEXT_STEPS.md)。
 
@@ -135,6 +135,7 @@ cargo run -p plurora-cli -- play-create-demo
 | 写第一个 Package / Component | [`docs/guides/PACKAGE_AUTHORING_WALKTHROUGH.md`](docs/guides/PACKAGE_AUTHORING_WALKTHROUGH.md) |
 | 打包 Work / 创建 Installation | [`docs/guides/PACKAGE_INSTALLATION.md`](docs/guides/PACKAGE_INSTALLATION.md) → [`docs/guides/INSTALLATION_MODEL.md`](docs/guides/INSTALLATION_MODEL.md) |
 | 使用 Library / 启动和停止 Run | [`docs/guides/RUN_LIBRARY.md`](docs/guides/RUN_LIBRARY.md) |
+| 使用 Powerbox / 连接跨 Installation Port | [`docs/guides/POWERBOX_BINDING.md`](docs/guides/POWERBOX_BINDING.md) |
 | 管理 API key / secret | [`docs/guides/SECRET_MANAGEMENT.md`](docs/guides/SECRET_MANAGEMENT.md) |
 | 写 agent / 模型 / 体验组件 | [`docs/guides/AGENT_PACKAGE_AUTHORING.md`](docs/guides/AGENT_PACKAGE_AUTHORING.md)、[`docs/guides/MODEL_PROVIDER_INTEGRATION.md`](docs/guides/MODEL_PROVIDER_INTEGRATION.md)、[`docs/guides/EXPERIENCE_RUNTIME_AUTHORING.md`](docs/guides/EXPERIENCE_RUNTIME_AUTHORING.md) |
 | 挂载第三方 Web Surface | [`docs/guides/SURFACE_HOSTING.md`](docs/guides/SURFACE_HOSTING.md) |

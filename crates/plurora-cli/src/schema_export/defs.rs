@@ -92,6 +92,14 @@ pub(crate) struct RunLifecyclePayloadSchema {
     run: RunView,
 }
 #[derive(JsonSchema)]
+pub(crate) struct ExposureLifecyclePayloadSchema {
+    exposure: ExposureView,
+}
+#[derive(JsonSchema)]
+pub(crate) struct BindingLifecyclePayloadSchema {
+    binding: BindingView,
+}
+#[derive(JsonSchema)]
 pub(crate) struct ProjectionIdParams {
     projection_id: String,
 }

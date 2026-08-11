@@ -27,7 +27,12 @@ export interface JsonRpcRequest {
 
 export interface CapabilityInvokeParams {
   capability_id: string;
+  session_id: string;
   input?: JsonValue;
+  /** Opaque, single-activation token minted and validated by the Host. */
+  invocation_context_id: string;
+  /** Run Binding handles keyed by the importing component's Port id. */
+  bindings: Record<string, CapHandleId>;
 }
 
 export interface HandshakeParams {
@@ -42,7 +47,11 @@ export interface HandshakeParams {
 export type CapabilityHandler = (params: CapabilityInvokeParams) => JsonValue | Promise<JsonValue>;
 export type CapabilityHandlerWithContext = (
   params: CapabilityInvokeParams,
-  context: { pluroraClient: PluroraClient },
+  context: {
+    pluroraClient: PluroraClient;
+    sessionId: string;
+    bindings: Readonly<Record<string, CapHandleId>>;
+  },
 ) => JsonValue | Promise<JsonValue>;
 export type HandshakeHandler = (params: HandshakeParams) => JsonValue | Promise<JsonValue>;
 
@@ -123,6 +132,7 @@ interface PendingPluroraStream {
 
 interface PendingPluroraWebSocketOpen {
   callbacks: PluroraWebSocketCallbacks;
+  client: PluroraClient;
   resolve: (handle: PluroraWebSocketHandle) => void;
   reject: (error: unknown) => void;
 }
@@ -134,7 +144,12 @@ interface ActivePluroraWebSocket {
   subprotocol?: string;
   closed: boolean;
   closeWaiters: Set<(error: Error) => void>;
+  client: PluroraClient;
 }
+
+type ReverseRequestContext =
+  | { kind: "background" }
+  | { kind: "invocation"; invocationContextId: string; bindings: Record<string, CapHandleId> };
 
 let nextPluroraRequestId = 1;
 const pendingPluroraRequests = new Map<string, PendingPluroraRequest>();
@@ -148,17 +163,26 @@ function respond(id: JsonRpcRequest["id"], payload: Record<string, JsonValue>) {
   process.stdout.write(JSON.stringify({ jsonrpc: "2.0", id, ...payload }) + "\n");
 }
 
-function sendPlatformFrame(method: string, params: unknown): string {
+function contextParams(params: unknown, context: ReverseRequestContext): Record<string, unknown> {
+  const value: Record<string, unknown> = asRecord(params) ? { ...asRecord(params) } : { input: params };
+  if (context.kind === "invocation") {
+    value.invocation_context_id = context.invocationContextId;
+  } else {
+    value.invocation_context = { kind: "background" };
+  }
+  return value;
+}
+
+function sendPlatformFrame(method: string, params: unknown, context: ReverseRequestContext): string {
   const id = `kreq-${nextPluroraRequestId++}`;
-  process.stdout.write(JSON.stringify({ jsonrpc: "2.0", id, method, params }) + "\n");
+  process.stdout.write(JSON.stringify({ jsonrpc: "2.0", id, method, params: contextParams(params, context) }) + "\n");
   return id;
 }
 
 function rejectPlatformError(error: unknown): Error {
-  if (error && typeof error === "object" && "message" in error) {
-    return new Error(String((error as { message: unknown }).message));
-  }
-  return new Error(String(error));
+  const code = asRecord(error)?.code;
+  const safeCode = typeof code === "string" && /^[a-z0-9_./-]+$/i.test(code) ? code : "unknown";
+  return new Error(`Host platform request failed (${safeCode})`);
 }
 
 function asRecord(value: unknown): Record<string, unknown> | undefined {
@@ -255,7 +279,7 @@ function createWebSocketHandle(session: ActivePluroraWebSocket): PluroraWebSocke
       });
       try {
         const result = await Promise.race([
-          pluroraClient.sendRequest<{ status?: unknown }>("host.outbound.websocket.send", {
+          session.client.sendRequest<{ status?: unknown }>("host.outbound.websocket.send", {
             connection_id: session.connectionId,
             ...encodeWebSocketFrame(frame),
           }),
@@ -274,7 +298,7 @@ function createWebSocketHandle(session: ActivePluroraWebSocket): PluroraWebSocke
     async close(code?: number, reason?: string): Promise<void> {
       if (session.closed) return;
       markWebSocketClosed(session, new Error(`WebSocket connection ${session.connectionId} is closed`));
-      await pluroraClient.sendRequest("host.outbound.websocket.close", {
+      await session.client.sendRequest("host.outbound.websocket.close", {
         connection_id: session.connectionId,
         code,
         reason,
@@ -345,29 +369,32 @@ function resolveWebSocketOpen(requestId: string, pending: PendingPluroraWebSocke
     subprotocol,
     closed: false,
     closeWaiters: new Set(),
+    client: pending.client,
   };
   pluroraWebSocketsByRequestId.set(requestId, session);
   pluroraWebSocketsByConnectionId.set(connectionId, session);
   pending.resolve(createWebSocketHandle(session));
 }
 
-function getBindingHandle(name: string): CapHandleId {
-  const handle = pluroraClient.bindings[name];
+function getBindingHandle(bindings: Record<string, CapHandleId>, name: string): CapHandleId {
+  const handle = bindings[name];
   if (!handle) throw new Error(`unknown capability binding: ${name}`);
   return handle;
 }
 
-export const pluroraClient: PluroraClient = {
-  bindings: {},
+function createPluroraClient(context: ReverseRequestContext): PluroraClient {
+  const bindings = context.kind === "invocation" ? { ...context.bindings } : {};
+  return {
+  bindings,
   sendRequest<T = unknown>(method: string, params: unknown): Promise<T> {
-    const id = sendPlatformFrame(method, params);
+    const id = sendPlatformFrame(method, params, context);
     return new Promise<T>((resolve, reject) => {
       pendingPluroraRequests.set(id, { resolve: resolve as (value: unknown) => void, reject });
     });
   },
 
   streamRequest(method: string, params: unknown, callbacks: PluroraStreamCallbacks): PluroraStreamHandle {
-    const id = sendPlatformFrame(method, params);
+    const id = sendPlatformFrame(method, params, context);
     const pending: PendingPluroraStream = { callbacks };
     pendingPluroraStreams.set(id, pending);
     let cancelled = false;
@@ -381,34 +408,46 @@ export const pluroraClient: PluroraClient = {
         cancelled = true;
         const streamId = pending.streamId;
         if (!streamId) return;
-        sendPlatformFrame("capability.cancel", { stream_id: streamId, invocation_id: streamId, session_id: `subprocess_reverse_${streamId}` });
+        sendPlatformFrame("capability.cancel", { stream_id: streamId, invocation_id: streamId, session_id: `subprocess_reverse_${streamId}` }, context);
       },
     };
   },
 
   async invokeBinding<T = unknown>(name: string, input: unknown): Promise<T> {
+    if (context.kind !== "invocation") throw new Error("Run Binding invocation requires a current Host activation context");
     const result = await this.sendRequest<{ output?: T } & Record<string, unknown>>("capability.invoke", {
-      handle: getBindingHandle(name),
+      handle: getBindingHandle(bindings, name),
+      consumer_port: name,
       input,
     });
     return (result && typeof result === "object" && "output" in result) ? (result.output as T) : (result as T);
   },
 
   invokeBindingStream(name: string, input: unknown, callbacks: PluroraStreamCallbacks): PluroraStreamHandle {
+    if (context.kind !== "invocation") throw new Error("Run Binding stream requires a current Host activation context");
     return this.streamRequest("capability.stream", {
-      handle: getBindingHandle(name),
+      handle: getBindingHandle(bindings, name),
+      consumer_port: name,
       input,
       session_id: `subprocess_binding_${name}`,
     }, callbacks);
   },
 
   openWebSocket(params: PluroraWebSocketOpenParams, callbacks: PluroraWebSocketCallbacks): Promise<PluroraWebSocketHandle> {
-    const id = sendPlatformFrame("host.outbound.websocket.open", params);
+    const id = sendPlatformFrame("host.outbound.websocket.open", params, context);
     return new Promise<PluroraWebSocketHandle>((resolve, reject) => {
-      pendingPluroraWebSocketOpens.set(id, { callbacks, resolve, reject });
+      pendingPluroraWebSocketOpens.set(id, { callbacks, client: this, resolve, reject });
     });
   },
-};
+  };
+}
+
+/** Client for ordinary package background work. Run Bindings require the per-invocation client. */
+export const pluroraClient: PluroraClient = createPluroraClient({ kind: "background" });
+export const __createInvocationClientForTest = (
+  invocationContextId: string,
+  bindings: Record<string, CapHandleId>,
+): PluroraClient => createPluroraClient({ kind: "invocation", invocationContextId, bindings });
 
 function handlePlatformInbound(frame: JsonRpcRequest): boolean {
   if (typeof frame.id !== "string" || !frame.id.startsWith("kreq-")) {
@@ -511,19 +550,32 @@ export function serveSubprocessPackage(options: SubprocessPackageOptions) {
     try {
       if (request.method === "package.handshake") {
         const params = (request.params ?? {}) as HandshakeParams;
-        pluroraClient.bindings = { ...(params.bindings ?? {}) };
         const result = options.onHandshake
           ? await options.onHandshake(params)
           : { ready: true, package_protocol_version: "0.1.0" };
         respond(request.id, { result: result as JsonValue });
       } else if (request.method === "capability.invoke") {
-        const output = await options.onInvoke((request.params ?? {}) as unknown as CapabilityInvokeParams, { pluroraClient });
+        const params = (request.params ?? {}) as unknown as CapabilityInvokeParams;
+        if (!params.invocation_context_id || !params.session_id || !params.bindings || typeof params.bindings !== "object") {
+          respond(request.id, { error: { code: "invalid_invocation_context", message: "Host invocation context is incomplete" } as JsonValue });
+          return;
+        }
+        const invocationClient = createPluroraClient({
+          kind: "invocation",
+          invocationContextId: params.invocation_context_id,
+          bindings: params.bindings,
+        });
+        const output = await options.onInvoke(params, {
+          pluroraClient: invocationClient,
+          sessionId: params.session_id,
+          bindings: Object.freeze({ ...params.bindings }),
+        });
         respond(request.id, { result: { output } as JsonValue });
       } else {
         respond(request.id, { error: { code: "unknown_method", message: request.method ?? "<missing>" } as JsonValue });
       }
     } catch (error) {
-      respond(request.id, { error: { code: "package_error", message: String(error) } as JsonValue });
+      respond(request.id, { error: { code: "package_error", message: "package request failed" } as JsonValue });
     }
   });
 }

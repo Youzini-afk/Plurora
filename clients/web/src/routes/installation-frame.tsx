@@ -7,9 +7,26 @@ import { useRoute } from "@/lib/router";
 import { ProtocolRpcError, type InstallationView, type RunView, type WorkEntrypoint } from "@/protocol/client";
 import { libraryAuthorityForInstallation } from "@/client-core/library-affordance";
 import { useAuth } from "@/lib/auth-gate";
+import { PowerboxChooser } from "@/components/powerbox/powerbox-chooser";
+import { PowerboxWorkbench } from "@/components/powerbox/powerbox-workbench";
+import { activeHostCredentialScope } from "@/client-core/host-endpoint";
+import { createPowerboxContext, isBindingGapForPowerbox, type PowerboxConsumerContext } from "@/client-core/powerbox";
 
 /** Navigation and tab close are observational. They never stop a Run. */
 export const INSTALLATION_FRAME_POLICY = { stopRunOnUnmount: false } as const;
+
+interface FailureDetail {
+  reasonCode: string;
+  nextStep: string;
+  installationId?: string;
+  runId?: string;
+  portId?: string;
+}
+
+interface LaunchChooserState {
+  entrypoint: WorkEntrypoint;
+  context: PowerboxConsumerContext;
+}
 
 export function InstallationFrame({ installationId, chrome = "shell" }: { installationId: string; chrome?: "none" | "shell" }) {
   const client = usePlurora();
@@ -17,7 +34,8 @@ export function InstallationFrame({ installationId, chrome = "shell" }: { instal
   const [, navigate] = useRoute();
   const [view, setView] = useState<InstallationView | null>(null);
   const [runs, setRuns] = useState<RunView[]>([]);
-  const [error, setError] = useState<{ reasonCode: string; nextStep: string } | null>(null);
+  const [error, setError] = useState<FailureDetail | null>(null);
+  const [launchChooser, setLaunchChooser] = useState<LaunchChooserState | null>(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState<"play" | "stop" | "restart" | null>(null);
   const mutationKeys = useRef(new Map<string, string>());
@@ -33,7 +51,7 @@ export function InstallationFrame({ installationId, chrome = "shell" }: { instal
       setRuns(nextRuns);
       setError(null);
     } catch (cause) {
-      setError(structuredError(cause));
+      setError(structuredError(cause, installationId));
     } finally {
       setLoading(false);
     }
@@ -59,15 +77,31 @@ export function InstallationFrame({ installationId, chrome = "shell" }: { instal
       setError({
         reasonCode: runAuthority.reason_code ?? "authority_denied",
         nextStep: runAuthority.next_step ?? "Request Run authority for this Installation.",
+        installationId,
       });
       return;
     }
     setBusy(restart ? "restart" : "play");
     try {
       const status = await client.statusRun({ installation_id: installationId, entrypoint_id: entrypoint.id });
-      const gap = status.preflight?.gaps[0];
+      const statusGaps = status.preflight?.gaps ?? [];
+      const gap = statusGaps.find(isBindingGapForPowerbox) ?? statusGaps[0];
       if (gap) {
-        setError({ reasonCode: gap.reason_code, nextStep: gap.next_step });
+        if (isBindingGapForPowerbox(gap) && gap.port_id) {
+          setLaunchChooser({
+            entrypoint,
+            context: createPowerboxContext({
+              hostScope: activeHostCredentialScope(),
+              installationId,
+              installationRevision: status.installation_revision,
+              importPort: gap.port_id,
+              phase: "launch",
+            }),
+          });
+          setError(null);
+        } else {
+          setError({ reasonCode: gap.reason_code, nextStep: gap.next_step, installationId, portId: gap.port_id ?? undefined });
+        }
         return;
       }
       if (status.active_run && ["starting", "running", "degraded", "stopping"].includes(status.active_run.record.status)) {
@@ -84,15 +118,30 @@ export function InstallationFrame({ installationId, chrome = "shell" }: { instal
         expected_installation_revision: status.installation_revision,
         idempotency_key: idempotencyKey,
       });
-      const startGap = result.gaps?.[0];
+      const startGaps = result.gaps ?? [];
+      const startGap = startGaps.find(isBindingGapForPowerbox) ?? startGaps[0];
       mutationKeys.current.delete(keyName);
       if (startGap) {
-        setError({ reasonCode: startGap.reason_code, nextStep: startGap.next_step });
+        if (isBindingGapForPowerbox(startGap) && startGap.port_id) {
+          setLaunchChooser({
+            entrypoint,
+            context: createPowerboxContext({
+              hostScope: activeHostCredentialScope(),
+              installationId,
+              installationRevision: status.installation_revision,
+              importPort: startGap.port_id,
+              phase: "launch",
+            }),
+          });
+          setError(null);
+        } else {
+          setError({ reasonCode: startGap.reason_code, nextStep: startGap.next_step, installationId, portId: startGap.port_id ?? undefined });
+        }
         return;
       }
       await load();
     } catch (cause) {
-      setError(structuredError(cause));
+      setError(structuredError(cause, installationId));
     } finally {
       setBusy(null);
     }
@@ -104,6 +153,8 @@ export function InstallationFrame({ installationId, chrome = "shell" }: { instal
       setError({
         reasonCode: runAuthority.reason_code ?? "authority_denied",
         nextStep: runAuthority.next_step ?? "Request Run authority for this Installation.",
+        installationId,
+        runId: activeRun.record.run_id,
       });
       return;
     }
@@ -121,7 +172,7 @@ export function InstallationFrame({ installationId, chrome = "shell" }: { instal
       mutationKeys.current.delete(keyName);
       await load();
     } catch (cause) {
-      setError(structuredError(cause));
+      setError(structuredError(cause, installationId));
     } finally {
       setBusy(null);
     }
@@ -144,6 +195,19 @@ export function InstallationFrame({ installationId, chrome = "shell" }: { instal
             <StatusPill tone={installationStateTone(view.record.status)} label={view.record.status.replaceAll("_", " ").toUpperCase()} />
           </header>
           {error ? <ErrorNotice error={error} /> : null}
+          {launchChooser ? (
+            <PowerboxChooser
+              client={client}
+              identity={identity}
+              context={launchChooser.context}
+              onClose={() => setLaunchChooser(null)}
+              onSelected={async () => {
+                const entrypoint = launchChooser.entrypoint;
+                setLaunchChooser(null);
+                await play(entrypoint);
+              }}
+            />
+          ) : null}
           <section className="rounded-[16px] border border-whisper-border bg-pure-surface p-5">
             <div className="flex items-center justify-between gap-3">
               <div><h2 className="font-display text-lg font-bold">Entrypoints</h2><p className="mt-1 text-xs text-steel-secondary">Preflight runs only when you choose an entrypoint.</p></div>
@@ -159,6 +223,7 @@ export function InstallationFrame({ installationId, chrome = "shell" }: { instal
             {!runAuthority.can_run ? <p className="mt-3 text-xs text-deep-rust"><span className="font-mono">authority_denied</span> · {runAuthority.next_step}</p> : null}
             {view.work_summary.entrypoints.length === 0 ? <p className="mt-3 text-sm text-muted-tone">This Work has no executable entrypoint.</p> : null}
           </section>
+          <PowerboxWorkbench client={client} identity={identity} installation={view} runs={runs} onChanged={load} />
           <section className="grid gap-4 sm:grid-cols-2">
             <Info label="Installation" value={view.record.installation_id} />
             <Info label="Work" value={view.work_summary.work_id} />
@@ -184,23 +249,28 @@ export function InstallationFrame({ installationId, chrome = "shell" }: { instal
   return chrome === "none" ? <div className="flex min-h-[100dvh] flex-col bg-warm-bone text-charcoal-ink">{content}</div> : content;
 }
 
-function ErrorNotice({ error }: { error: { reasonCode: string; nextStep: string } }) {
-  return <p className="rounded-[12px] border border-deep-rust/30 bg-deep-rust-surface px-4 py-3 text-sm text-deep-rust"><span className="font-mono">{error.reasonCode}</span><span className="mx-2">·</span>{error.nextStep}</p>;
+function ErrorNotice({ error }: { error: FailureDetail }) {
+  return (
+    <div className="rounded-[12px] border border-deep-rust/30 bg-deep-rust-surface px-4 py-3 text-sm text-deep-rust">
+      <p><span className="font-mono">{error.reasonCode}</span><span className="mx-2">·</span>{error.nextStep}</p>
+      <p className="mt-2 break-all font-mono text-[11px]">
+        installation_id={error.installationId ?? "—"} · run_id={error.runId ?? "—"} · port_id={error.portId ?? "—"}
+      </p>
+    </div>
+  );
 }
 
-function structuredError(cause: unknown): { reasonCode: string; nextStep: string } {
+function structuredError(cause: unknown, fallbackInstallationId?: string): FailureDetail {
   if (cause instanceof ProtocolRpcError) {
-    const details = cause.details;
-    if (details && typeof details === "object" && !Array.isArray(details)) {
-      const record = details as Record<string, unknown>;
-      return {
-        reasonCode: typeof record.reason_code === "string" ? record.reason_code : cause.code,
-        nextStep: typeof record.next_step === "string" ? record.next_step : "Inspect the structured Host diagnostic before retrying.",
-      };
-    }
-    return { reasonCode: cause.code, nextStep: "Inspect the structured Host diagnostic before retrying." };
+    return {
+      reasonCode: cause.reasonCode,
+      nextStep: cause.nextStep ?? "Inspect the structured Host diagnostic before retrying.",
+      installationId: cause.details.installation_id ?? fallbackInstallationId,
+      runId: cause.details.run_id,
+      portId: cause.details.port_id,
+    };
   }
-  return { reasonCode: "outcome_unknown", nextStep: "Refresh the Installation and inspect Run history before retrying." };
+  return { reasonCode: "outcome_unknown", nextStep: "Refresh the Installation and inspect Run history before retrying.", installationId: fallbackInstallationId };
 }
 
 function Info({ label, value }: { label: string; value: string }) {

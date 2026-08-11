@@ -106,6 +106,30 @@ pub(crate) fn event_schemas() -> Vec<(&'static str, Value)> {
             EVENT_RUN_FAILED,
             schema_value::<RunLifecyclePayloadSchema>(),
         ),
+        (
+            EVENT_EXPOSURE_CREATED,
+            schema_value::<ExposureLifecyclePayloadSchema>(),
+        ),
+        (
+            EVENT_EXPOSURE_REVOKED,
+            schema_value::<ExposureLifecyclePayloadSchema>(),
+        ),
+        (
+            EVENT_EXPOSURE_EXPIRED,
+            schema_value::<ExposureLifecyclePayloadSchema>(),
+        ),
+        (
+            EVENT_BINDING_SELECTED,
+            schema_value::<BindingLifecyclePayloadSchema>(),
+        ),
+        (
+            EVENT_BINDING_REVOKED,
+            schema_value::<BindingLifecyclePayloadSchema>(),
+        ),
+        (
+            EVENT_BINDING_EXPIRED,
+            schema_value::<BindingLifecyclePayloadSchema>(),
+        ),
         (EVENT_ASSET_PUT, schema_value::<AssetRecord>()),
         (
             EVENT_PROJECTION_UPDATED,

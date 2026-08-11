@@ -1,4 +1,6 @@
 pub mod assembly_runtime;
+pub mod binding_control;
+pub mod binding_runtime;
 pub mod capability;
 pub mod contract;
 pub mod event_store;
@@ -22,6 +24,26 @@ pub mod target_deployment;
 pub mod tavern;
 
 pub use assembly_runtime::AssemblyRuntimeDriver;
+pub use binding_control::{
+    powerbox_grant_reference, sort_provider_candidates, validate_binding_idempotency_key,
+    BindingAttachmentNotice, BindingCandidate, BindingCandidatesRequest, BindingCandidatesResult,
+    BindingCleanupNotice, BindingComponentDisclosure, BindingCurrentValidationRequest,
+    BindingDecisionStatus, BindingEffectiveStatus, BindingEndpointPin, BindingGap,
+    BindingInstallationDisclosure, BindingListRequest, BindingMutationResult, BindingRevokeRequest,
+    BindingSelectRequest, BindingSelectionRecord, BindingView, BindingWorkDisclosure,
+    CapabilityPin, ComponentPin, ExposureCreateRequest, ExposureListRequest,
+    ExposureMutationResult, ExposureRevokeRequest, ExposureView, InstallationRevisionPin,
+    PowerboxAuthorityBasis, PowerboxAuthorityRefresh, PowerboxAuthoritySubject,
+    PowerboxAuthorityValidator, PowerboxControl, PowerboxEndpointInspection,
+    PowerboxInvalidationResult, PowerboxMutationAuthority, PowerboxQueryContext, ResolvedPortPin,
+    RunBindingPreparation, RunBindingPreparationRequest, RunRevisionPin,
+    UnavailablePowerboxControl,
+};
+pub(crate) use binding_runtime::InvocationBindingContext;
+pub use binding_runtime::{
+    AttachedRunBinding, BindingAttachError, BindingAttachFailureKind, BindingInvocationPermit,
+    ComponentActivationIdentity, RunBindingBroker,
+};
 pub use capability::{
     CapabilityFabric, CapabilityInvocationRequest, CapabilityInvocationResult,
     ExtensionDispatchResult, ExtensionRegistry, RegisteredCapability, RegisteredHook,
@@ -39,8 +61,10 @@ pub use event_store::PostgresEventStore;
 pub use event_store::{EventStore, InMemoryEventStore, SqliteEventStore};
 pub use inproc::{
     compute_external_git_workspace_tree_hash, compute_external_workspace_tree_hash,
-    prepare_docker_build_context, ComponentEnv, DockerDeploymentReconcileSource, InprocInvocation,
-    InprocPackage, InprocPackageCatalog, PreparedDockerBuildContext, WorkspaceTreeHash,
+    invoke_capability_from_inproc, invoke_capability_from_inproc_port,
+    invoke_manifest_granted_capability_from_inproc, prepare_docker_build_context, ComponentEnv,
+    DockerDeploymentReconcileSource, InprocInvocation, InprocPackage, InprocPackageCatalog,
+    PreparedDockerBuildContext, WorkspaceTreeHash,
 };
 pub use installation_control::{
     validate_idempotency_key, InstallationAuthorityRefresh, InstallationAuthoritySubject,
@@ -79,10 +103,10 @@ pub use plurora_core::{
     ProtocolSchemaKind, ProtocolSchemaReference, ProtocolSelection, PROTOCOL_DESCRIPTOR_TYPE_URI,
 };
 pub use protocol::{
-    host_info, method_ids, HostInfo, MethodStatus, PlatformMethod, ProtocolAuthorityContext,
-    ProtocolContext, ProtocolError, ProtocolHostOperationContext, ProtocolMethod,
-    ProtocolPrincipal, ProtocolRequest, ProtocolResourceSelector, ProtocolResponse,
-    PLATFORM_METHODS, PLATFORM_PROTOCOL_VERSION,
+    host_info, method_ids, runtime_outcome_unknown, HostInfo, MethodStatus, PlatformMethod,
+    ProtocolAuthorityContext, ProtocolContext, ProtocolError, ProtocolHostOperationContext,
+    ProtocolMethod, ProtocolPrincipal, ProtocolRequest, ProtocolResourceSelector, ProtocolResponse,
+    RuntimeOutcomeUnknown, PLATFORM_METHODS, PLATFORM_PROTOCOL_VERSION,
 };
 pub use protocol_commons::{
     negotiate_protocols, protocol_descriptor, protocol_descriptors, validate_protocol_registry,

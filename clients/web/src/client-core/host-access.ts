@@ -16,7 +16,7 @@ export type HostAccessScope =
 
 export type HostAccessIdentityKind = "root" | "device";
 
-export type HostAccessResourceKind = "work" | "workspace" | "installation" | "run" | "target" | "exposure" | "binding" | "realization";
+export type HostAccessResourceKind = "work" | "workspace" | "installation" | "run" | "target" | "port" | "exposure" | "binding" | "realization";
 
 export interface HostAccessResourceSelector {
   kind: HostAccessResourceKind;

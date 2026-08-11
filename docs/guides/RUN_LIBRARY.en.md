@@ -23,6 +23,15 @@ starting → running ↔ degraded → stopping → stopped
     └────→ failed / interrupted
 ```
 
+Powerbox manages dynamic Exposure and Binding state in the durable journal:
+
+```text
+Exposure: active → closing → revoked / expired
+Binding:  selected / active → closing → terminal
+```
+
+Close precedes the terminal commit. Host restart, owner takeover, retry, and `outcome_unknown` never rewrite terminal history; recovery creates a new record.
+
 The `starting` event commits before activation. A successful activation commits `running`. An explicit stop passes through `stopping` and then commits `stopped`. Activation failure records `failed`. When the Host definitively observes permanent loss of a JSON-RPC stdio Package transport protected by Run leases, every affected active Run durably converges to `failed` with health reason `package_activation_lost`; duplicate or late notifications from an old process cannot create another terminal event. On Host restart, any still-active Run is appended as `interrupted` with health reason `host_restart`; the Host neither replays effects nor assumes that the process remains available. Terminal history is not rewritten; recovery creates a new Run.
 
 A Run `context_id`, when present, belongs only to that Run execution context. Closing a browser tab, Surface iframe, or PWA connection does not stop the Run. A caller with authority must invoke `host.run.stop` explicitly. Stop releases only that Run's activation/context; it does not globally unload a Package or affect Runs owned by another Installation.
@@ -55,7 +64,7 @@ When activation is unsafe, the result keeps `run: null` and returns structured `
 
 Gaps are diagnostics and next steps, not implicit authority. Run start does not build source, create a public route, execute managed deployment, or call the future Phase 6 `host.realization.apply`. A missing managed Realization remains a gap.
 
-## Library behavior
+## Powerbox and Library
 
 The official Library reads visible Work, Installation, Run, Rights, and current Host authority to derive affordances such as `Open`, `Install`, `Play/Run`, `Stop`, `Inspect`, `Update`, and `Remove`. Affordance `reason_code`, risk, and `next_step` explain the state to the UI; the actual request is still governed by Host action scopes and exact selectors.
 
@@ -64,11 +73,14 @@ The official Library reads visible Work, Installation, Run, Rights, and current 
 - `Stop` invokes `host.run.stop`; it does not unload shared Packages, delete the Installation, or delete user state.
 - An `interrupted` Run after restart is shown as requiring a new explicit start, never as a fabricated successful recovery.
 - If the stop effect happened but its terminal journal commit cannot be confirmed, replay converges to `interrupted` + `outcome_unknown` rather than guessing that Stopping succeeded.
-- Exposure, cross-Installation Binding, and Powerbox are Phase 5. Managed Realization plan/apply is Phase 6 and is intentionally outside this guide.
+- The Powerbox chooser uses `host.exposure.*` / `host.binding.*` to disclose the explicit phase, exact Exposure/audience/expiry, both PortContracts, provider source/trust/claims/boundaries/evidence, and candidate digest/stale state. Zero or multiple candidates require an explicit choice; preferences are ordering hints only.
+- Runtime injects the selected Port's least-authority handle. Multiple Ports on one Component may share activation, while a different Component or node path is isolated. Provider stop, revoke, expiry, or version drift cancels the Binding; state and secrets never cross Installations.
+- Exposure and cross-Installation Binding are implemented in Phase 5. Managed Realization plan/apply and `host.realization.*` remain Phase 6 planned and are not claimed as complete here.
 
 ## Related contracts
 
-- [`../spec/PUBLIC_CONTRACT.md`](../spec/PUBLIC_CONTRACT.en.md) — 85 methods, 63 events, and authority rules.
-- [`../spec/v1/EVENT_KIND_REGISTRY.md`](../spec/v1/EVENT_KIND_REGISTRY.en.md) — the five `host/run.*` lifecycle events.
+- [`../spec/PUBLIC_CONTRACT.md`](../spec/PUBLIC_CONTRACT.en.md) — 92 methods, 69 events, and authority rules.
+- [`../spec/v1/EVENT_KIND_REGISTRY.md`](../spec/v1/EVENT_KIND_REGISTRY.en.md) — Run, Exposure, and Binding lifecycle events.
 - [`INSTALLATION_MODEL.md`](INSTALLATION_MODEL.en.md) — Installation journal, state, and Work boundaries.
 - [`../architecture/HOST_RESOURCE_AUTHORITY.md`](../architecture/HOST_RESOURCE_AUTHORITY.en.md) — exact selectors and the `run` action.
+- [`POWERBOX_BINDING.md`](POWERBOX_BINDING.en.md) — candidate disclosure, runtime pins, revoke, and expiry rules.

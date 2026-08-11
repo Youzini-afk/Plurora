@@ -5,14 +5,15 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 use plurora_core::{CapHandleId, CapabilityId, PackageId};
+use plurora_work::PortId;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 use crate::runtime::HandleTable;
 use crate::{
-    CapabilityInvocationRequest, CapabilityInvocationResult, EventStore, InstallationControl,
-    Runtime,
+    CapabilityInvocationRequest, CapabilityInvocationResult, ComponentActivationIdentity,
+    EventStore, InstallationControl, InvocationBindingContext, Runtime,
 };
 
 mod agentic_forge_lab;
@@ -87,6 +88,17 @@ pub trait InprocCapabilityInvoker: Send + Sync {
         request: CapabilityInvocationRequest,
     ) -> Pin<Box<dyn Future<Output = anyhow::Result<CapabilityInvocationResult>> + Send>>;
 
+    fn invoke_capability_at_port(
+        &self,
+        consumer_port: &PortId,
+        request: CapabilityInvocationRequest,
+    ) -> Pin<Box<dyn Future<Output = anyhow::Result<CapabilityInvocationResult>> + Send>>;
+
+    fn invoke_manifest_granted_capability(
+        &self,
+        request: CapabilityInvocationRequest,
+    ) -> Pin<Box<dyn Future<Output = anyhow::Result<CapabilityInvocationResult>> + Send>>;
+
     fn installation_control(&self) -> Arc<dyn InstallationControl>;
 }
 
@@ -96,6 +108,8 @@ where
 {
     runtime: Runtime<S>,
     session_id: Option<String>,
+    package_id: PackageId,
+    run_bindings: HashMap<PortId, InvocationBindingContext>,
 }
 
 impl<S> InprocCapabilityInvoker for RuntimeInprocInvoker<S>
@@ -107,10 +121,72 @@ where
         mut request: CapabilityInvocationRequest,
     ) -> Pin<Box<dyn Future<Output = anyhow::Result<CapabilityInvocationResult>> + Send>> {
         let runtime = self.runtime.clone();
+        request.caller_package_id = Some(self.package_id.clone());
         if request.session_id.is_none() {
             request.session_id = self.session_id.clone();
         }
         Box::pin(async move { runtime.invoke_capability(request).await })
+    }
+
+    fn invoke_capability_at_port(
+        &self,
+        consumer_port: &PortId,
+        mut request: CapabilityInvocationRequest,
+    ) -> Pin<Box<dyn Future<Output = anyhow::Result<CapabilityInvocationResult>> + Send>> {
+        let Some(binding) = self.run_bindings.get(consumer_port).cloned() else {
+            return Box::pin(async {
+                anyhow::bail!("no selected Run binding for the requested consumer Port")
+            });
+        };
+        let runtime = self.runtime.clone();
+        request.caller_package_id = Some(self.package_id.clone());
+        request.session_id = Some(binding.activation.session_id.clone());
+        request.handle = Some(binding.handle_id);
+        Box::pin(async move {
+            ACTIVE_COMPONENT_ACTIVATION
+                .scope(binding.activation, runtime.invoke_capability(request))
+                .await
+        })
+    }
+
+    fn invoke_manifest_granted_capability(
+        &self,
+        mut request: CapabilityInvocationRequest,
+    ) -> Pin<Box<dyn Future<Output = anyhow::Result<CapabilityInvocationResult>> + Send>> {
+        let runtime = self.runtime.clone();
+        let package_id = self.package_id.clone();
+        if request.session_id.is_none() {
+            request.session_id = self.session_id.clone();
+        }
+        Box::pin(async move {
+            let capability_id = request.capability_id.as_ref().ok_or_else(|| {
+                anyhow::anyhow!("manifest-granted invocation requires exact capability_id")
+            })?;
+            let matching = runtime
+                .handles()
+                .list_for(&package_id)
+                .await
+                .into_iter()
+                .filter(|handle| {
+                    !handle.revoked
+                        && (handle.cap_type == "*"
+                            || handle.cap_type == *capability_id
+                            || handle
+                                .cap_type
+                                .strip_suffix('*')
+                                .is_some_and(|prefix| capability_id.starts_with(prefix)))
+                })
+                .collect::<Vec<_>>();
+            let [handle] = matching.as_slice() else {
+                anyhow::bail!(
+                    "exactly one manifest-granted capability handle is required for '{}'",
+                    capability_id
+                );
+            };
+            request.handle = Some(handle.id);
+            request.caller_package_id = Some(package_id);
+            runtime.invoke_capability(request).await
+        })
     }
 
     fn installation_control(&self) -> Arc<dyn InstallationControl> {
@@ -120,11 +196,14 @@ where
 
 tokio::task_local! {
     static INPROC_INVOKER: Arc<dyn InprocCapabilityInvoker>;
+    static ACTIVE_COMPONENT_ACTIVATION: ComponentActivationIdentity;
 }
 
 pub(crate) async fn with_runtime_invoker<S, F, T>(
     runtime: Runtime<S>,
     session_id: Option<String>,
+    package_id: PackageId,
+    run_bindings: HashMap<PortId, InvocationBindingContext>,
     future: F,
 ) -> T
 where
@@ -136,19 +215,56 @@ where
             Arc::new(RuntimeInprocInvoker {
                 runtime,
                 session_id,
+                package_id,
+                run_bindings,
             }),
             future,
         )
         .await
 }
 
-pub(crate) async fn invoke_capability_from_inproc(
+pub async fn invoke_capability_from_inproc(
     request: CapabilityInvocationRequest,
 ) -> anyhow::Result<CapabilityInvocationResult> {
     let invoker = INPROC_INVOKER
         .try_with(Clone::clone)
         .map_err(|_| anyhow::anyhow!("inproc runtime invocation context is unavailable"))?;
     invoker.invoke_capability(request).await
+}
+
+pub async fn invoke_capability_from_inproc_port(
+    consumer_port: &PortId,
+    request: CapabilityInvocationRequest,
+) -> anyhow::Result<CapabilityInvocationResult> {
+    let invoker = INPROC_INVOKER
+        .try_with(Clone::clone)
+        .map_err(|_| anyhow::anyhow!("inproc runtime invocation context is unavailable"))?;
+    invoker
+        .invoke_capability_at_port(consumer_port, request)
+        .await
+}
+
+pub async fn invoke_manifest_granted_capability_from_inproc(
+    request: CapabilityInvocationRequest,
+) -> anyhow::Result<CapabilityInvocationResult> {
+    let invoker = INPROC_INVOKER
+        .try_with(Clone::clone)
+        .map_err(|_| anyhow::anyhow!("inproc runtime invocation context is unavailable"))?;
+    invoker.invoke_manifest_granted_capability(request).await
+}
+
+pub(crate) fn current_component_activation() -> Option<ComponentActivationIdentity> {
+    ACTIVE_COMPONENT_ACTIVATION.try_with(Clone::clone).ok()
+}
+
+pub(crate) async fn with_component_activation<F, T>(
+    activation: ComponentActivationIdentity,
+    future: F,
+) -> T
+where
+    F: Future<Output = T>,
+{
+    ACTIVE_COMPONENT_ACTIVATION.scope(activation, future).await
 }
 
 pub(crate) fn installation_control_from_inproc() -> anyhow::Result<Arc<dyn InstallationControl>> {

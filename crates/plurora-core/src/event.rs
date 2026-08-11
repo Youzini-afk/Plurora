@@ -31,6 +31,12 @@ pub const EVENT_RUN_STARTED: &str = "host/run.started";
 pub const EVENT_RUN_STOPPING: &str = "host/run.stopping";
 pub const EVENT_RUN_STOPPED: &str = "host/run.stopped";
 pub const EVENT_RUN_FAILED: &str = "host/run.failed";
+pub const EVENT_EXPOSURE_CREATED: &str = "host/exposure.created";
+pub const EVENT_EXPOSURE_REVOKED: &str = "host/exposure.revoked";
+pub const EVENT_EXPOSURE_EXPIRED: &str = "host/exposure.expired";
+pub const EVENT_BINDING_SELECTED: &str = "host/binding.selected";
+pub const EVENT_BINDING_REVOKED: &str = "host/binding.revoked";
+pub const EVENT_BINDING_EXPIRED: &str = "host/binding.expired";
 pub const EVENT_ASSET_PUT: &str = "object/put";
 pub const EVENT_PROJECTION_UPDATED: &str = "projection/updated";
 pub const EVENT_PROPOSAL_CREATED: &str = "change/proposal.created";
@@ -100,6 +106,12 @@ pub const PLATFORM_EVENT_KINDS: &[&str] = &[
     EVENT_RUN_STOPPING,
     EVENT_RUN_STOPPED,
     EVENT_RUN_FAILED,
+    EVENT_EXPOSURE_CREATED,
+    EVENT_EXPOSURE_REVOKED,
+    EVENT_EXPOSURE_EXPIRED,
+    EVENT_BINDING_SELECTED,
+    EVENT_BINDING_REVOKED,
+    EVENT_BINDING_EXPIRED,
     EVENT_ASSET_PUT,
     EVENT_PROJECTION_UPDATED,
     EVENT_PROPOSAL_CREATED,

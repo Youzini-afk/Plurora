@@ -139,6 +139,7 @@ pub enum HostAccessResourceKind {
     Workspace,
     Installation,
     Run,
+    Port,
     Target,
     Exposure,
     Binding,
@@ -152,6 +153,7 @@ impl HostAccessResourceKind {
             Self::Workspace => "workspace",
             Self::Installation => "installation",
             Self::Run => "run",
+            Self::Port => "port",
             Self::Target => "target",
             Self::Exposure => "exposure",
             Self::Binding => "binding",
@@ -232,7 +234,19 @@ fn root_host_access_resources() -> BTreeSet<HostAccessResourceSelector> {
             id: None,
         },
         HostAccessResourceSelector {
+            kind: HostAccessResourceKind::Port,
+            id: None,
+        },
+        HostAccessResourceSelector {
             kind: HostAccessResourceKind::Target,
+            id: None,
+        },
+        HostAccessResourceSelector {
+            kind: HostAccessResourceKind::Exposure,
+            id: None,
+        },
+        HostAccessResourceSelector {
+            kind: HostAccessResourceKind::Binding,
             id: None,
         },
         HostAccessResourceSelector {
@@ -946,6 +960,18 @@ impl HostAccessRegistry {
         )
     }
 
+    pub(crate) fn resolve_powerbox_grant_reference(&self, reference: &str) -> Option<String> {
+        let state = self.state.lock().expect("Host access state lock poisoned");
+        if state.grants.contains_key(reference) {
+            return Some(reference.to_string());
+        }
+        state
+            .grants
+            .keys()
+            .find(|grant_id| plurora_runtime::powerbox_grant_reference(grant_id) == reference)
+            .cloned()
+    }
+
     fn overview(&self, identity: &HostAccessIdentity) -> HostAccessOverview {
         let now_ms = Utc::now().timestamp_millis();
         let state = self.state.lock().expect("Host access state lock poisoned");
@@ -1321,6 +1347,9 @@ where
     )
     .await
     .map_err(access_conflict_error)?;
+    reconcile_powerbox_after_access_change(&state)
+        .await
+        .map_err(access_internal_error)?;
     let mut headers = HeaderMap::new();
     if identity.grant_id.as_deref() == Some(grant_id.as_str()) {
         headers.insert(header::SET_COOKIE, expired_remote_cookie());
@@ -1345,6 +1374,9 @@ where
     )
     .await
     .map_err(access_conflict_error)?;
+    reconcile_powerbox_after_access_change(&state)
+        .await
+        .map_err(access_internal_error)?;
     let mut headers = HeaderMap::new();
     if identity
         .grant_id
@@ -1360,6 +1392,26 @@ where
             grants: grants.into_iter().map(|grant| grant.view(now_ms)).collect(),
         }),
     ))
+}
+
+async fn reconcile_powerbox_after_access_change<S>(state: &AppState<S>) -> anyhow::Result<()>
+where
+    S: EventStore,
+{
+    let invalidated = state
+        .runtime
+        .config()
+        .powerbox_control
+        .reconcile_authority()
+        .await?;
+    for binding_id in invalidated.affected_binding_ids {
+        state
+            .runtime
+            .run_binding_broker()
+            .close_binding(&binding_id, "binding_authority_revoked")
+            .await;
+    }
+    Ok(())
 }
 
 async fn logout() -> impl IntoResponse {
@@ -2119,6 +2171,7 @@ mod tests {
             (HostAccessResourceKind::Workspace, "workspace"),
             (HostAccessResourceKind::Installation, "installation"),
             (HostAccessResourceKind::Run, "run"),
+            (HostAccessResourceKind::Port, "port"),
             (HostAccessResourceKind::Target, "target"),
             (HostAccessResourceKind::Exposure, "exposure"),
             (HostAccessResourceKind::Binding, "binding"),

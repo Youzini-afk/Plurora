@@ -20,8 +20,9 @@ use tokio::sync::{Mutex, RwLock};
 
 use crate::{
     EventStore, HostPolicy, InMemoryObjectStore, InprocPackageCatalog, InstallationControl,
-    InstallationScopeContext, ObjectStore, ProtocolContext, ProtocolPrincipal, RunControl,
-    SecretResolverConfig, UnavailableInstallationControl, UnavailableRunControl,
+    InstallationScopeContext, ObjectStore, PowerboxControl, ProtocolContext, ProtocolPrincipal,
+    RunControl, SecretResolverConfig, UnavailableInstallationControl, UnavailablePowerboxControl,
+    UnavailableRunControl,
 };
 
 mod artifacts;
@@ -136,6 +137,8 @@ pub struct RuntimeConfig {
     pub installation_control: Arc<dyn InstallationControl>,
     /// Host-owned durable Run control plane. The default fails closed.
     pub run_control: Arc<dyn RunControl>,
+    /// Host-owned durable Exposure/Binding control plane. The default fails closed.
+    pub powerbox_control: Arc<dyn PowerboxControl>,
     /// Delay between durable retries after a Package activation-loss report
     /// fails. Retries have no attempt limit and stop when the Runtime is gone.
     pub package_activation_loss_retry_delay: Duration,
@@ -189,6 +192,7 @@ impl fmt::Debug for RuntimeConfig {
             .field("object_store", &"configured")
             .field("installation_control", &"configured")
             .field("run_control", &"configured")
+            .field("powerbox_control", &"configured")
             .field(
                 "package_activation_loss_retry_delay",
                 &self.package_activation_loss_retry_delay,
@@ -218,6 +222,7 @@ impl Default for RuntimeConfig {
             object_store: Arc::new(InMemoryObjectStore::new()),
             installation_control: Arc::new(UnavailableInstallationControl),
             run_control: Arc::new(UnavailableRunControl),
+            powerbox_control: Arc::new(UnavailablePowerboxControl),
             package_activation_loss_retry_delay: Duration::from_millis(250),
             outbound_executor: OutboundExecutorConfig::default(),
             outbound_execute_policy: OutboundExecutePolicyConfig::default(),
@@ -297,6 +302,7 @@ where
     pub(crate) grants: Arc<RwLock<HashMap<String, PermissionGrantRecord>>>,
     pub(crate) proposals: Arc<RwLock<HashMap<String, ProposalRecord>>>,
     pub(crate) streams: Arc<StreamRegistry>,
+    pub(crate) run_bindings: Arc<crate::RunBindingBroker>,
     pub(crate) world_bundle_import_lock: Arc<Mutex<()>>,
     pub(crate) config: RuntimeConfig,
 }
@@ -320,6 +326,7 @@ where
             grants: self.grants.clone(),
             proposals: self.proposals.clone(),
             streams: self.streams.clone(),
+            run_bindings: self.run_bindings.clone(),
             world_bundle_import_lock: self.world_bundle_import_lock.clone(),
             config: self.config.clone(),
         }
@@ -332,6 +339,21 @@ where
 {
     pub fn new(store: Arc<S>, config: RuntimeConfig) -> Self {
         let packages = Arc::new(crate::PackageRegistry::default());
+        let capabilities = Arc::new(crate::CapabilityFabric::default());
+        let handles = Arc::new(HandleTable::default());
+        let streams = Arc::new(StreamRegistry::default());
+        let run_bindings = Arc::new(crate::RunBindingBroker::new(
+            config.powerbox_control.clone(),
+            handles.clone(),
+            capabilities.clone(),
+            streams.clone(),
+            config.package_activation_loss_retry_delay,
+        ));
+        run_bindings.spawn_cleanup_supervisor();
+        config
+            .powerbox_control
+            .install_runtime_broker(Arc::downgrade(&run_bindings))
+            .expect("install the Runtime Binding close barrier");
         let subprocesses = Arc::new(crate::SubprocessSupervisor::new(
             store.clone(),
             packages.clone(),
@@ -341,8 +363,8 @@ where
         Self {
             store,
             packages,
-            capabilities: Arc::new(crate::CapabilityFabric::default()),
-            handles: Arc::new(HandleTable::default()),
+            capabilities,
+            handles,
             extensions: Arc::new(crate::ExtensionRegistry::default()),
             subprocesses,
             sessions: Arc::new(RwLock::new(HashMap::new())),
@@ -351,7 +373,8 @@ where
             branches: Arc::new(RwLock::new(HashMap::new())),
             grants: Arc::new(RwLock::new(HashMap::new())),
             proposals: Arc::new(RwLock::new(HashMap::new())),
-            streams: Arc::new(StreamRegistry::default()),
+            streams,
+            run_bindings,
             world_bundle_import_lock: Arc::new(Mutex::new(())),
             config,
         }
@@ -539,6 +562,10 @@ where
             secret_policy: view.record.secret_policy,
             installation_control: self.config.installation_control.clone(),
         })
+    }
+
+    pub fn run_binding_broker(&self) -> Arc<crate::RunBindingBroker> {
+        self.run_bindings.clone()
     }
 
     async fn with_active_installation_scope<F, T>(

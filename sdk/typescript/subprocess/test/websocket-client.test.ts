@@ -57,7 +57,7 @@ test("openWebSocket sends correct host.outbound.websocket.open frame", async () 
     const promise = pluroraClient.openWebSocket(openParams, { onFrame: () => undefined });
     const frame = capture.frame(0);
     assert.equal(frame.method, "host.outbound.websocket.open");
-    assert.deepEqual(frame.params, openParams);
+    assert.deepEqual(frame.params, { ...openParams, invocation_context: { kind: "background" } });
     __handlePlatformInboundForTest({ jsonrpc: "2.0", id: frame.id, result: { connection_id: "conn-open", status: "ok" } });
     await promise;
   } finally {
@@ -84,8 +84,8 @@ test("openWebSocket rejects when runtime returns error response", async () => {
   try {
     const promise = pluroraClient.openWebSocket(openParams, { onFrame: () => undefined });
     const frame = capture.frame(0);
-    __handlePlatformInboundForTest({ jsonrpc: "2.0", id: frame.id, error: { message: "websocket denied" } });
-    await assert.rejects(promise, /websocket denied/);
+    __handlePlatformInboundForTest({ jsonrpc: "2.0", id: frame.id, error: { code: "runtime/error/websocket_denied", message: "websocket denied" } });
+    await assert.rejects(promise, /runtime\/error\/websocket_denied/);
   } finally {
     capture.restore();
   }
@@ -208,7 +208,7 @@ test("handle.close writes host.outbound.websocket.close frame", async () => {
     const closePromise = handle.close(1000, "done");
     const frame = capture.frame(1);
     assert.equal(frame.method, "host.outbound.websocket.close");
-    assert.deepEqual(frame.params, { connection_id: "conn-close-send", code: 1000, reason: "done" });
+    assert.deepEqual(frame.params, { connection_id: "conn-close-send", code: 1000, reason: "done", invocation_context: { kind: "background" } });
     __handlePlatformInboundForTest({ jsonrpc: "2.0", id: frame.id, result: { status: "ok" } });
     await closePromise;
   } finally {

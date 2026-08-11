@@ -65,6 +65,19 @@ These cases cover surface resolution and the Run entry boundary. Phase 4 now pro
 | bundle rejection | `surface.resolve_unknown_fails` | unknown surface bundle fails closed | implemented |
 | bundle authority | `surface.resolve_admin_principal_required` | resolve_bundle restricted to HostAdmin/HostDev | implemented |
 
+### Phase 5 Powerbox conformance cases
+
+These six named cases cover the public Exposure/Binding methods and events, authority, candidate disclosure, and runtime pins. Implementation status is sourced from the code registry and schema exporter:
+
+| Case id | Coverage | Status |
+|---|---|---|
+| `powerbox.public_method_identity_owner_typed_dto` | exact IDs, Host owner, implemented status, and typed request/results for seven methods | implemented |
+| `powerbox.public_method_actions_no_effect_on_denial` | action denial before controller effects with exact resources | implemented |
+| `powerbox.public_event_identity_payload` | registry identity and payload schemas for six Exposure/Binding events | implemented |
+| `powerbox.public_wire_no_private_authority` | public wire omits handles, credentials, grant basis, and host paths | implemented |
+| `powerbox.candidates_effect_free_no_auto_select` | effect-free candidates, complete disclosure, and no auto-selection for zero/multiple candidates | implemented |
+| `powerbox.launch_runtime_exact_run_pin` | distinct exact Run/context/node-path pins for Launch and Runtime | implemented |
+
 Surface/static bundle and bridge coverage also includes these stable assertions:
 
 | Assertion | Coverage | Status |

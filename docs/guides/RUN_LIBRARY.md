@@ -2,7 +2,7 @@
 
 > [English](./RUN_LIBRARY.en.md) · [中文](./RUN_LIBRARY.md)
 
-本指南描述 Phase 4 已落地的 Run 生命周期和官方 Library 入口。Run 是 Host 上一次实际执行的 durable 事实；Installation 是采用记录，Work/Assembly 是便携定义。打开 Library 条目或 Installation 详情不会隐式创建 Run、构建源码或部署机器资源。
+本指南描述 Phase 4 Run 生命周期、Phase 5 Powerbox 与官方 Library 入口。Run 是 Host 上一次实际执行的 durable 事实；Installation 是采用记录，Work/Assembly 是便携定义。打开 Library 条目或 Installation 详情不会隐式创建 Run、构建源码或部署机器资源。
 
 ## 对象与所有权
 
@@ -12,6 +12,8 @@
 | Installation | Host Service journal | 拥有 active Work/Lock、用户选择、state bindings 与 secret policy。 |
 | InstallationWorkSummary | exact WorkRevision 的 Host 校验投影 | 向 Library 公开 WorkId、标题、完整 entrypoints 与 Rights / Transparency / OperationalIntent 引用；不是第二份 authority。 |
 | Run | Host Service 的 Run journal | 拥有一次启动、激活上下文、节点实例、health 与 terminal 状态。 |
+| Exposure | Host journal | provider Installation/Run 的 exact export Port、audience、lease 与撤销状态。 |
+| Binding | Host journal | consumer import Port 到 Exposure 的选择、candidate digest、runtime pin 与 terminal 状态。 |
 | Library | 官方 Shell / client | 从 Work、Installation、Run、Rights 与当前 authority 计算可执行 affordance；不替代 Host 授权。 |
 
 MVP 的默认策略是一个 Installation 最多有一个 active Run。RunId 由 Host 在通过 preflight 后生成，不能由客户端预先指定。Run journal 是 durable authority；内存中的激活句柄只是运行时投影，Host 重启时不会据此猜测成功。
@@ -22,6 +24,15 @@ MVP 的默认策略是一个 Installation 最多有一个 active Run。RunId 由
 starting → running ↔ degraded → stopping → stopped
     └────→ failed / interrupted
 ```
+
+Exposure 与 Binding 的动态状态由 Powerbox durable journal 管理：
+
+```text
+Exposure: active → closing → revoked / expired
+Binding:  selected / active → closing → terminal
+```
+
+close 先于 terminal commit；Host restart、owner takeover、retry 与 `outcome_unknown` 不会重写历史终态，恢复通过新记录完成。
 
 `starting` 事件先提交，再执行激活；成功后提交 `running`。显式 stop 经过 `stopping`，完成后提交 `stopped`。激活失败写入 `failed`。当 Host 明确观测到受 Run 租约约束的 JSON-RPC stdio Package transport 永久失联时，每个受影响的 active Run 都会 durable 收敛为 `failed`，health reason 为 `package_activation_lost`；重复或迟到的旧进程通知不会产生第二个终态。Host 重启会把仍处于 active 的 Run 追加为 `interrupted`，health reason 为 `host_restart`，不会自动重放或假定进程仍然可用。终态历史不回写，恢复要通过新的 Run。
 
@@ -55,7 +66,7 @@ Start/stop 的相同幂等键与相同 fingerprint 会重放 durable 结果；fi
 
 这些 gap 是诊断与下一步，不是隐式授权。Run start 不 build 源码、不创建 public route、不执行 managed deployment，也不调用未来 Phase 6 的 `host.realization.apply`。缺少 managed Realization 时必须停在 gap。
 
-## Library 行为
+## Powerbox 与 Library
 
 官方 Library 读取可见的 Work、Installation、Run、Rights 和当前 Host authority，计算 `Open`、`Install`、`Play/Run`、`Stop`、`Inspect`、`Update`、`Remove` 等 affordance。Affordance 的 `reason_code`、风险和 `next_step` 只帮助界面解释状态；真正请求仍由 Host 的 exact selector 和 action scope 决定。
 
@@ -64,11 +75,14 @@ Start/stop 的相同幂等键与相同 fingerprint 会重放 durable 结果；fi
 - `Stop` 调用 `host.run.stop`，不会卸载共享 Package，也不会删除 Installation 或用户 state。
 - 重启后的 `interrupted` Run 显示需要重新启动的新 Run，而不是伪造恢复成功。
 - stop effect 已发生但 terminal journal commit 无法确认时，重放收敛为 `interrupted` + `outcome_unknown`，不会把 Stopping 猜成成功。
-- Exposure、跨 Installation Binding 与 Powerbox 属于 Phase 5；Managed Realization 的 plan/apply 属于 Phase 6，不在本指南扩展。
+- Powerbox chooser 通过 `host.exposure.*` / `host.binding.*` 显示 explicit phase、exact Exposure/audience/expiry、两端 PortContract、provider source/trust/claims/boundaries/evidence、candidate digest/stale 状态；0 或多个候选都要求明确选择，preference 只是排序 hint。
+- Runtime 只注入选中 Port 的最小 handle；同一 Component 多 Port 可共享 activation，不同 Component 或 node path 隔离。provider stop、revoke、expiry 或 version drift 会取消 Binding；不跨 Installation 共享 state/secret。
+- Exposure 与跨 Installation Binding 已在 Phase 5 实现；Managed Realization 的 plan/apply 与 `host.realization.*` 仍是 Phase 6 planned，不在本指南宣称已完成。
 
 ## 相关契约
 
-- [`../spec/PUBLIC_CONTRACT.md`](../spec/PUBLIC_CONTRACT.md) — 85 methods、63 events 与 authority 约定。
-- [`../spec/v1/EVENT_KIND_REGISTRY.md`](../spec/v1/EVENT_KIND_REGISTRY.md) — `host/run.*` 五个 lifecycle events。
+- [`../spec/PUBLIC_CONTRACT.md`](../spec/PUBLIC_CONTRACT.md) — 92 methods、69 events 与 authority 约定。
+- [`../spec/v1/EVENT_KIND_REGISTRY.md`](../spec/v1/EVENT_KIND_REGISTRY.md) — Run、Exposure、Binding lifecycle events。
 - [`INSTALLATION_MODEL.md`](INSTALLATION_MODEL.md) — Installation journal、state 与 Work 边界。
 - [`../architecture/HOST_RESOURCE_AUTHORITY.md`](../architecture/HOST_RESOURCE_AUTHORITY.md) — exact resource selector 与 `run` action。
+- [`POWERBOX_BINDING.md`](POWERBOX_BINDING.md) — candidate disclosure、runtime pin 与 revoke/expiry 规则。

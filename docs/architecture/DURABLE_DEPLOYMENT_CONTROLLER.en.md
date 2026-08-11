@@ -2,13 +2,13 @@
 
 > [English](./DURABLE_DEPLOYMENT_CONTROLLER.en.md) · [中文](./DURABLE_DEPLOYMENT_CONTROLLER.md)
 
-Status: **Candidate implementation**. Existing Host facades carry durable deployment operations and receipts, target truth across `local` and enrolled Agents, artifact replay, and Verified Artifact deployment. The abstract records below are the controller's semantic model. A standalone canonical `host.deployment.*` API and automatic self-healing restart are not enabled; candidate names must not be read as exposed contracts.
+Status: **Phase 5 Host-local candidate implementation**. This page records the transitional target/exec/port/proxy broker that remains in the current Host runtime. It is not a public Project, old Composition, or Deployment identity; `DeploymentRevision` and related records are Host-local operation projections only. Phase 5 Powerbox Exposure/Binding is implemented, while Phase 6 Realization plan/apply and `RealizationRevision` remain planned. A standalone canonical `host.deployment.*` API and automatic self-healing restart are not enabled; candidate names must not be read as exposed contracts.
 
 Current implementation:
 
 - one contiguous deployment journal now uses sequence CAS, while revision activation also fences on the expected parent revision;
 - build output is resolved to a content-addressable Docker image ID before deployment;
-- build-deploy, recover, rollback, and project-owned direct deploy use candidate-first readiness, lease-guarded route promotion, and post-commit draining of the previous instance;
+- build-deploy, recover, rollback, and Installation-scoped direct operations use candidate-first readiness, lease-guarded route promotion, and post-commit draining of the previous instance;
 - deployment authority is persisted without credentials and revalidated, together with the single Host control-plane lease, before each new long-running effect;
 - `local` and Agent use the same typed artifact-transfer, declarative-verifier, deployment apply/stop, operation-ledger, and receipt contracts. Remote ports stay loopback-only and traffic returns to the Host only through an authenticated tunnel;
 - Verified ChangeSets create private previews from immutable build-context artifacts and commit `VerifiedActivate` revisions only after separate approval. Recover/rollback rebuild from durable context on the recorded target without reading a workspace or refetching source;
@@ -49,7 +49,7 @@ A convenience build-deploy API may remain, but it first persists a terminal Buil
 
 ```text
 DeploymentIntent
-  project_ref
+  installation_ref
   target_ref
   generation
   artifact_ref
@@ -74,7 +74,7 @@ A revision is a resolved intent snapshot with exact artifact, route, lease, poli
 ```text
 DeploymentOperation
   id
-  project_ref / target_ref / generation
+  installation_ref / target_ref / generation
   kind: apply | recover | rollback | stop | reconcile
   phase / status
   idempotency_key
@@ -84,7 +84,7 @@ DeploymentOperation
   correlation / causation
 ```
 
-Only one operation per project × target may change the active generation. Workers acquire a CAS/compare-and-append lease; stale epochs are rejected by controller and target.
+Only one operation per Installation × target may change the active generation. Workers acquire a CAS/compare-and-append lease; stale epochs are rejected by controller and target.
 
 ### ObservedDeployment
 
@@ -192,11 +192,11 @@ Health supervision only updates observation and audit. The controller creates a 
 
 ## Public contract
 
-The current public contract is the `/host/v1/build-deploy` route, project-scoped deployment recover/rollback, target operations, and ChangeSet deployment preview/approve/activate/reconcile. All are Host-owned; there is no kernel deployment-orchestration method. `host.deployment.intent.*`, `host.deployment.operation.*`, `host.deployment.revision.*`, observation, and operation streams are possible future canonical names if the facades converge, not current endpoints. Existing build-deploy/recover/rollback and verified-ChangeSet routes map to this semantic model. `platform.port/proxy/exec` remain adapters rather than orchestration ontology.
+The current public contract includes the Phase 5 Host Powerbox methods/events plus the transitional `/host/v1/build-deploy`, Installation-scoped recover/rollback, target operations, and ChangeSet preview/approve/activate/reconcile routes. All are Host-owned; there is no kernel deployment-orchestration method. `host.deployment.intent.*`, `host.deployment.operation.*`, `host.deployment.revision.*`, observation, and operation streams are possible future Realization names, not current endpoints. Existing build-deploy/recover/rollback and verified-ChangeSet routes map to this Host-local semantic model. `platform.port/proxy/exec` remain adapters rather than orchestration ontology. Managed Realization is a Phase 6 plan, not an implemented managed-deployment contract.
 
 ## Current boundary
 
-The current Candidate provides durable journal/lease/receipt behavior, local/Agent truth, candidate-first activation, startup reconciliation, explicit recover/rollback, and client wiring through existing facades. It does not claim that the candidate `host.deployment.*` names are public APIs.
+The current Candidate provides durable journal/lease/receipt behavior, local/Agent truth, candidate-first activation, startup reconciliation, explicit recover/rollback, and client wiring through existing facades. It does not claim that the candidate `host.deployment.*` names are public APIs or that managed Realization is complete.
 
 Health supervision currently updates readiness, preserves diagnostics, and supports explicit reconciliation; it does not redeploy automatically. Automatic restart may be enabled only when deployment intent, retry budgets, backoff, fencing, audit, and a recoverable `CrashLoopBackoff` state form one durable contract.
 

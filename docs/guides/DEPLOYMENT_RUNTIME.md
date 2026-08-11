@@ -2,7 +2,9 @@
 
 > [English](./DEPLOYMENT_RUNTIME.en.md) · [中文](./DEPLOYMENT_RUNTIME.md)
 
-Plurora 现在可以作为自托管 AI / agent 项目的部署宿主。这里的“部署”不是内核里的 Docker 概念，而是一组通用运行原语，再由普通能力包与 Host target driver 组合成 Docker、本地进程或已注册的远程 Agent 目标。
+**Phase 5 边界：**本页记录当前运行时仍保留的 transitional Host-local target/exec/port/proxy broker。它不重新引入公开的 Project、old Composition 或 Deployment 身份；`DeploymentRevision` 等记录只表示 Host-local operation projection。Phase 5 Powerbox Exposure/Binding 已实现。Managed Realization 的 plan/apply 与 `RealizationRevision` 仍是 Phase 6 planned，因此本页不能被理解为 managed deployment 已实现。
+
+Plurora 提供通用 Host 运行原语，由普通 capability Package 与 target driver 组合成 Docker、本地进程或已注册远程 Agent 操作。Deployment 仍是显式的 transitional Host 行为，而不是内核概念。
 
 ## 边界
 
@@ -24,7 +26,7 @@ Docker、git、安装、secret store、workspace、adapter 都不是内核概念
 - `plurora-service` 反代：`/p/<route_id>/...` 继续保留并位于 Host 认证内；如果 route 显式选择 `public`，且设置 `PLURORA_APP_BASE_DOMAIN=apps.example.com` 或 `--app-base-domain apps.example.com`，才会额外启用 `<slug>.apps.example.com/` 免 Host 认证虚拟主机，让社区应用拥有根路径 `/`。两种入口都只指向 active loopback port lease；禁 redirect；剥离或重写危险 header；限制响应体；支持 HTTP 与 WebSocket。
 - `plurora/docker-runtime-lab`：普通第一方 capability Package，使用 `bollard` 管理 Docker 容器。默认无 Docker 时 fail-closed；真实 Docker smoke 需要显式 opt-in。
 - Target driver：内置 `local` 与 enrolled Agent 使用相同的 durable operation、artifact transfer、declarative verifier、deployment apply/stop 和 receipt 模型；Agent 上游仍只绑定 loopback，并经 target/route/lease/epoch 约束的认证 tunnel 回到 Host proxy。
-- Web 项目控制台：显示 target / exec / port / proxy 诊断，以及 host-plane 的活动修订、恢复状态、修订历史和最近任务。若项目声明部署描述符，用户可显式选择 Host 认证或公开 route，再点击 Deploy / Stop、启动 Build & Deploy、恢复或回滚；Development 区还可把已验证 ChangeSet 送入 private preview、独立部署审批、activation 和中断对账。默认保持 Host 认证。
+- Web Installation frame（transitional panel）：显示 target / exec / port / proxy 诊断，以及 Host-local 活动修订、恢复状态、修订历史和最近任务。若 Installation 携带 transitional deployment descriptor，用户可显式选择 Host 认证或公开 route，再点击 Deploy / Stop、启动 Build & Deploy、恢复或回滚；Development 区还可把已验证 ChangeSet 送入 private preview、独立部署审批、activation 和中断对账。默认保持 Host 认证。
 - 持久化与回放：exec / port / proxy 注册表的变更都写进事件日志，host 重启时回放重建。
 - 重启对账：host 重启后，回放出来的记录先降级（exec → unknown、port → reserved、proxy → stale 且 `ready=false`），再与真实世界对账。
 - readiness gating：proxy route 注册时 `ready=false`，反代对未就绪的 route 返回 503；只有就绪后才放行。
@@ -33,7 +35,7 @@ Docker、git、安装、secret store、workspace、adapter 都不是内核概念
 
 ## Docker 部署描述符
 
-Phase 6 Realization 替换完成前，显式 deployment 请求仍可提交最小 Docker 信息；这些字段属于 Host-local operation，不写入 WorkRevision：
+Phase 6 Realization 替换完成前，显式 transitional deployment 请求仍可提交最小 Docker 信息；这些字段属于 Host-local operation，不写入 WorkRevision。下面的 `project.metadata.deployment` envelope 只是当前 broker 的内部 payload shape，不是公开 Project 身份或兼容 alias：
 
 ```yaml
 project:
@@ -53,7 +55,7 @@ project:
 
 ## Build & Deploy 描述符
 
-如果项目没有预构建镜像，可以在 `project.metadata.deployment.build_deploy` 声明从源码构建：
+如果 Installation 没有预构建镜像，可以在 transitional broker payload 的 `project.metadata.deployment.build_deploy` 声明从源码构建（这里的 `project` key 仅是上面说明的 Host-local envelope）：
 
 ```yaml
 project:
@@ -91,7 +93,7 @@ volume 可以指向任意宿主路径，但必须逐条批准。默认建议只�
 
 ## 显式 Deploy 流程
 
-项目控制台里的 Deploy 按钮不会自动触发。用户确认后，请求发到 host-plane 的 `POST /host/v1/deploy`，由 host broker 在服务端串起整条链路（浏览器只是瘦客户端，不再亲自编排）：
+Installation frame 里的 Deploy 按钮不会自动触发。用户确认后，请求发到 host-plane 的 `POST /host/v1/deploy`，由 Host broker 在服务端串起整条链路（浏览器只是瘦客户端，不再亲自编排）：
 
 1. host 侧重新校验请求（不信任客户端字段）。
 2. `host.port.lease`：向 host 租 loopback 端口。
@@ -130,7 +132,7 @@ PLURORA_APP_BASE_DOMAIN=apps.example.com plurora host serve
 Build & Deploy 使用 `POST /host/v1/build-deploy`。默认立即返回 `job_id`、status URL 和 SSE events URL，长耗时工作留在 host broker 后台执行：
 
 1. 校验源码 URL、策略、runtime env、runtime mounts 和用户批准。
-2. 通过 `git-tools-lab` 克隆到项目工作区；project/workspace 祖先必须是 canonical data root 下的真实目录，选定 tree 的 materialization 超过 100,000 个文件、100,000 个目录或 1 GiB 时 fail-closed。submodule entry、绝对/逃逸根目录的 symlink，以及无法保留 symlink 的平台上的 symlink entry 都会明确失败。当前 transport 仍会执行临时 bare fetch，因此这些 tree 上限尚不能视为 repository download budget。
+2. 通过 `git-tools-lab` 克隆到 Installation 工作区；Installation/workspace 祖先必须是 canonical data root 下的真实目录，选定 tree 的 materialization 超过 100,000 个文件、100,000 个目录或 1 GiB 时 fail-closed。submodule entry、绝对/逃逸根目录的 symlink，以及无法保留 symlink 的平台上的 symlink entry 都会明确失败。当前 transport 仍会执行临时 bare fetch，因此这些 tree 上限尚不能视为 repository download budget。
 3. 若策略为 `nixpacks`，先生成 Dockerfile / context。
 4. 调用 `plurora/docker-runtime-lab/build_image` 构建镜像，打上 `installation_id`、`workspace_id`、`build_id`、`source_commit`、`strategy`、`build_descriptor_hash` 等 label。
 5. 如果 Installation 已有活动修订，构建完成后再处理旧容器、route 和 lease；旧修订在新修订提交前仍是 durable active pointer，因而替换失败会明确进入“需要恢复”状态。
@@ -139,7 +141,7 @@ Build & Deploy 使用 `POST /host/v1/build-deploy`。默认立即返回 `job_id`
 
 job intent、最新状态快照、不可变部署修订和 active pointer 都写入当前 profile 的 `EventStore`。SQLite / Postgres profile 因此可以跨 host 重启恢复控制面；内存 profile 仍只适合临时开发。未完成 job 在重启后会被确定性标记为 Failed，host 不会自动重放 clone / build / deploy 副作用。完整实时日志仍是有界内存环，journal 只保留脱敏状态与最后事件。
 
-每个成功的 Build & Deploy 会产生一个 `DeploymentRevision`：包含源码 ref、构建产物身份、`route_access`、route 配置和脱敏回执，但不保存原始 secret 或宿主挂载路径。只有全部 runtime env 来自 `secret_ref` 且没有 host mount 的修订可自动恢复；明文 env 或 mount 会记录 blocker，并要求手动重新构建。recover / rollback 保留修订的 route 暴露选择。journal event 始终不可变；为限制重启内存和响应体，实时控制面投影及 API 每个项目保留最近 64 个修订。
+每个成功的 transitional Build & Deploy 会产生一个 Host-local `DeploymentRevision` projection：包含源码 ref、构建产物身份、`route_access`、route 配置和脱敏回执，但不保存原始 secret 或宿主挂载路径。只有全部 runtime env 来自 `secret_ref` 且没有 host mount 的修订可自动恢复；明文 env 或 mount 会记录 blocker，并要求手动重新构建。recover / rollback 保留修订的 route 暴露选择。journal event 始终不可变；为限制重启内存和响应体，实时控制面投影及 API 每个 Installation 保留最近 64 个修订。这不是 Phase 6 `RealizationRevision` 合同。
 
 ## Verified ChangeSet preview 与 activation
 
@@ -150,14 +152,14 @@ job intent、最新状态快照、不可变部署修订和 active pointer 都写
 3. `POST .../deployment/activate` 再次验证全部证据和 readiness，把用户请求的私有或显式公开 route 指向同一 candidate，提交不可变 `VerifiedActivate` revision 后才 drain 上一修订。
 4. Host 在 preview/activation 期间崩溃或 effect 结果不确定时，事务进入 `recovery_required`。`POST .../deployment/reconcile` 只采用 provenance 完全匹配的 durable activation，或清理精确 candidate/route/lease；歧义状态继续阻断。
 
-项目级 host API：
+transitional broker 的 Installation 级 Host API：
 
 - `GET /host/v1/installations/<installation_id>/deployments`：活动修订、runtime readiness、恢复需求、任务和修订历史。
 - `POST /host/v1/installations/<installation_id>/deployments/recover`：显式恢复活动修订。普通 `GitClone` 修订复用保留的本地镜像，不重新 clone/build；`VerifiedArtifact` 修订重新校验证据并在记录的 target 上从 durable build context 重建。
 - `POST /host/v1/installations/<installation_id>/deployments/rollback`：把历史修订激活为新的不可变 rollback revision；普通修订复用保留镜像，verified 修订从其 durable context 在记录的 target 上重建。显式 stop 清除 active pointer 后仍可回滚，旧记录不会被修改。
 - `POST /host/v1/deploy/stop`：清理 route 对应的 host 资源；如果它属于活动 durable 修订，同时追加 deactivation 事件。
 
-recover / rollback 都是显式用户动作。普通修订要求 replay-safe、本地镜像仍存在且 secret 仍可解析；verified 修订要求 artifact closure、preview/approval evidence 与当前 project/target authority 仍有效。verified replay 永不读取 live workspace 或重新抓取源码。任何失败都会保留原 active pointer 并显示 recovery required，不会静默声称已经恢复。直接的预构建镜像 `/host/v1/deploy` 目前仍是临时 broker 操作，不会创建 durable revision。
+recover / rollback 都是显式用户动作。普通修订要求 replay-safe、本地镜像仍存在且 secret 仍可解析；verified 修订要求 artifact closure、preview/approval evidence 与当前 Installation/target authority 仍有效。verified replay 永不读取 live workspace 或重新抓取源码。任何失败都会保留原 active pointer 并显示 recovery required，不会静默声称已经恢复。直接的预构建镜像 `/host/v1/deploy` 目前仍是临时 broker 操作，不会创建 Phase 6 Realization revision。
 
 ## Run 不自动部署
 
@@ -180,6 +182,6 @@ Installation `ready` 只表示采用记录有效；它不启动进程、不分�
 
 - 原生执行仍只适合 trusted / dev 场景，不是完整 OS 沙箱。
 - **自动重启**还没做，且是单独的后续阶段。host-plane 已有 durable revision 和显式 recovery，但健康监督仍只做监测 + 翻 readiness + 审计；它不会未经用户授权自动重放部署副作用。
-- Remote Target Agent、Project Console 与 verified dev-to-deploy 接线已完成 Candidate 闭环，并由 GitHub CI 覆盖故障、Host 重启、recover 与 rollback。target-edge ingress 和应用身份仍需单独设计；该能力不等于任意网络代理。
+- Remote Target Agent 与 Installation frame 接线仍是 transitional Candidate 闭环，并由 GitHub CI 覆盖故障、Host 重启、recover 与 rollback。target-edge ingress 和应用身份仍需单独设计；该能力不等于任意网络代理。Managed Realization 仍是 Phase 6 planned 边界。
 - Docker 描述符还没有 pull 进度和长期日志归档。
 - 外部项目 ChangeSet 现在可以受控添加 Dockerfile；更丰富的部署描述符/adapter 引导式创作仍是后续，而且部署必须保持显式审批与激活。

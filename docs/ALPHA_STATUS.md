@@ -8,10 +8,10 @@
 
 ## 概要
 
-- **Conformance：** 具名 CLI conformance 外加 crate / service 单元测试持续通过；187 个 v1 schema（85 methods + 63 events + 39 top-level）通过校验。
+- **Conformance：** 具名 CLI conformance 外加 crate / service 单元测试持续通过；200 个 v1 schema（92 methods + 69 events + 39 top-level）通过校验；Phase 5 Powerbox 另有 6 个具名 conformance case。
 - **章程纪律：** 内核对内容无意见；第一方 Package 没有特权；公开协议是唯一入口；入口形态平等；能力句柄、bindings 注入、Path A / Path B、conformance kit 与生成 SDK 已落地；可信路径阻断 raw secret，全部走 manifest 声明的 `secret_ref`；权限授权可重新水化；网络声明带审计与脱敏；通用流式与取消生命周期；外发执行有边界，默认全拒；公开 HTTPS 出站走同样的 host policy / 审计 / 脱敏边界；一元、SSE/NDJSON/raw 流和 WebSocket 三个原语都有完成审计事件。
 - **代码健康：** CLI、运行时各域行为、协议分发、in-process 处理器、事件存储——都已按域拆分，不再继续往单文件里堆。
-- **人测底座：** Work source 可安全 pack 为内容寻址 WorkRevision、AssemblyRevision 与 AssemblyLock；Install Lab 产出 Installation candidate，`host.installation.*` 以 durable journal、幂等键和 revision CAS 创建、更新与移除 Installation；Workspace 与 Installation 分离，linked-local source 永不删除。RunRegistry、`host.run.*` 与 Run lifecycle events 已以独立 durable journal 落地；Library 通过显式 Run action 展示启动、状态和停止，打开详情不会隐式运行，Exposure 仍留在 Phase 5。Surface bridge 继续使用 allowlist、stream ownership、诊断脱敏、secret 输入清理与 CSP/CORS；managed Realization 仍由后续 Phase 6 负责。
+- **人测底座：** Work source 可安全 pack 为内容寻址 WorkRevision、AssemblyRevision 与 AssemblyLock；Install Lab 产出 Installation candidate，`host.installation.*` 以 durable journal、幂等键和 revision CAS 创建、更新与移除 Installation；Workspace 与 Installation 分离，linked-local source 永不删除。RunRegistry、`host.run.*` 与 Run lifecycle events 已以独立 durable journal 落地；Library 通过显式 Run action 展示启动、状态和停止，打开详情不会隐式运行。Phase 5 ExposureRegistry、Powerbox candidate disclosure、lease/revoke、runtime handle injection 与 provider stop/revoke/expiry/version-drift invalidation 已落地；Surface bridge 继续使用 allowlist、stream ownership、诊断脱敏、secret 输入清理与 CSP/CORS；managed Realization 仍由后续 Phase 6 负责。
 
 当前已经形成较大的可运行面，但平台和官方产品都不等于“完成”。后续建设同时关注开放性、多样性、先进执行与协议能力、长期数据演化，以及普通用户和创作者的完整体验。
 
@@ -30,7 +30,7 @@
 - Contract V1 身份 union 继续保持 `host_admin`、`host_dev`、`package`、`human`、`assistant`、`anonymous`。配对设备在远程 RPC 边界使用 fail-closed 的 `anonymous` V1 sentinel，并通过 Host 建立的 authority envelope 保留 grant、delegation 与资源约束；旧 runtime 忽略新 envelope 时只会拒绝而不会扩大权限。脱敏 Host 控制面审计仍以逻辑 `host_device` 记录设备；human 与 assistant 身份支持作用域授权。
 - 审计事件：`authority/grant.created|revoked`、`authority/denied`、`host/package.*` 生命周期与 `change/proposal.*` 生命周期；Contract V1 之外另有脱敏的 `host/control/v1/authority.decision` Host 控制面授权判定日志。
 - 持久授权：grant / revoke 事件可在 SQLite-backed 运行时中重新水化。
-- Contract V1 是公开平台规范：85 个协议方法、63 个事件类型、187 个 JSON Schema。`host.run.*`、Run lifecycle events、`authority.handle.*`、`host.package.audit`、能力句柄、bindings 注入、Path B、conformance kit 与 SDK 生成均为 implemented。
+- Contract V1 是公开平台规范：92 个协议方法、69 个事件类型、200 个 JSON Schema。`host.run.*`、Run lifecycle events、`host.exposure.*`、`host.binding.*`、Exposure/Binding lifecycle events、`authority.handle.*`、`host.package.audit`、能力句柄、bindings 注入、Path B、conformance kit 与 SDK 生成均为 implemented。
 
 ## 安全执行
 
@@ -49,7 +49,7 @@
 
 - 规范的请求 / 响应信封，自带 host 绑定的身份上下文。调用方不能自己声称是某个能力包或 admin。
 - 同一份 dispatcher 同时承载 HTTP `POST /rpc` 和 host JSON-RPC stdio (`plurora host-stdio`)。
-- Contract Registry `0.1.0` 发布 85 个精确 owner-based method ID、两个显式 contract profile、逐层版本要求与 fail-closed Protocol Commons negotiation。HTTP RPC、Host stdio、in-process 调用与 subprocess reverse stdio 使用同一个精确 resolver；生成 SDK 对每个 wire ID 只暴露一个 method identity，Web client 也只发送这些 ID。
+- Contract Registry `0.1.0` 发布 92 个精确 owner-based method ID、两个显式 contract profile、逐层版本要求与 fail-closed Protocol Commons negotiation。HTTP RPC、Host stdio、in-process 调用与 subprocess reverse stdio 使用同一个精确 resolver；生成 SDK 对每个 wire ID 只暴露一个 method identity，Web client 也只发送这些 ID。
 - 通过 SSE 订阅事件，支持 `after_sequence` 回放和实时追尾。
 - 基于 profile 的 `plurora host serve` 自动加载能力包，对外暴露 `/rpc` 与 SSE。
 - Host 控制平面在 Contract V1 之外保持独立：root token 是根凭据；持久化设备 grant 同时按 action scope 与 Work / Workspace / Installation / Run / Target / Exposure / Binding / Realization 资源选择器衰减，支持有界委托、祖先撤销级联、过期、单项撤销和原子的管理员批量撤销。HTTP 与 RPC 在进入运行时前保留同一设备身份和 authority；每次设备协议调用都会写入脱敏的 allow/deny 判定日志。移动 PWA 与 `plurora host access` CLI 通过同一 Host API 管理授权，pairing 仍只经 HTTPS 一次性交换为 Secure/HttpOnly Cookie。详见 [`architecture/HOST_REMOTE_ACCESS.md`](architecture/HOST_REMOTE_ACCESS.md)。
@@ -98,8 +98,9 @@
 | `secret_ref:installation:NAME` + 可选平台 fallback | implemented |
 | Web Home Installation cards / detail | implemented |
 | Run lifecycle（`host.run.*` 与 5 个 Run events） | implemented |
-| Exposure lifecycle | Phase 5 |
-| Planner / Realization | Phase 5–6 |
+| Exposure lifecycle | implemented |
+| Binding lifecycle / Powerbox | implemented |
+| Planner / Realization | Phase 6 planned |
 
 Work pack 与 Installation create 分离：pack 只产生不可变 artifact；create/update/remove 才修改 Host journal。Workspace 位置是 Host-local 绑定，不进入便携 Work identity。
 
@@ -114,7 +115,7 @@ Work pack 与 Installation create 分离：pack 只产生不可变 artifact；cr
 | grant/root-bound 五分钟 `/surface-assets/<lease>/...` sandbox 句柄 | implemented |
 | Installation-scoped secret 与 authority context | implemented |
 | Installation → Run 启动与停止 | implemented |
-| Exposure lifecycle | Phase 5 |
+| Exposure lifecycle / Binding lifecycle | implemented |
 | Surface 通过 `initialProps` 接收 `session_id` | implemented |
 | TavernProvider.sendMessage 调用 engine `model.live_call` | implemented |
 | API Connections 抽屉支持 platform / Installation 范围切换 | implemented |
@@ -196,7 +197,7 @@ Forge profile (`profiles/forge-alpha.yaml`) 会自动加载这些包以及示例
 ## Contract v1 与 SDK 生成
 
 - `docs/spec/PUBLIC_CONTRACT.md` 是公开平台规范。
-- `docs/spec/v1/schemas/` 是 SDK 与 conformance 的单一可信源：85 methods、63 events、39 top-level，共 187 个 schema。
+- `docs/spec/v1/schemas/` 是 SDK 与 conformance 的单一可信源：92 methods、69 events、39 top-level，共 200 个 schema；Phase 5 生成链校验 hash 为 `9c3923c6ffd365a3b7a0a5e64a177a9d89708e70e215e454bfd9b1a5098d6e94`。
 - `sdk/typescript/contract-sdk/` 与 `sdk/rust/plurora-contract-sdk/` 由 schema 生成；TypeScript 包可通过 npm、工作空间路径或自行 codegen 使用。
 - `plurora conformance package --contract v1 --path <package>` 提供第三方包 8 项验收检查。
 

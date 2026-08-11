@@ -1,5 +1,23 @@
 import type {
   AcquisitionRecord as GeneratedAcquisitionRecord,
+  ActiveBindingRecord as GeneratedActiveBindingRecord,
+  BindingCandidate as GeneratedBindingCandidate,
+  BindingCandidatesRequest as GeneratedBindingCandidatesRequest,
+  BindingCandidatesResult as GeneratedBindingCandidatesResult,
+  BindingListRequest as GeneratedBindingListRequest,
+  BindingLifecyclePayloadSchema as GeneratedBindingLifecyclePayloadSchema,
+  BindingMutationResult as GeneratedBindingMutationResult,
+  BindingRevokeRequest as GeneratedBindingRevokeRequest,
+  BindingSelectRequest as GeneratedBindingSelectRequest,
+  BindingView as GeneratedBindingView,
+  ExposureCreateRequest as GeneratedExposureCreateRequest,
+  ExposureListRequest as GeneratedExposureListRequest,
+  ExposureLifecyclePayloadSchema as GeneratedExposureLifecyclePayloadSchema,
+  ExposureMutationResult as GeneratedExposureMutationResult,
+  ExposureRevokeRequest as GeneratedExposureRevokeRequest,
+  ExposureView as GeneratedExposureView,
+  HostBindingListResult as GeneratedHostBindingListResult,
+  HostExposureListResult as GeneratedHostExposureListResult,
   InstallationCreateRequest as GeneratedInstallationCreateRequest,
   InstallationDiff as GeneratedInstallationDiff,
   InstallationMutationResult as GeneratedInstallationMutationResult,
@@ -26,6 +44,24 @@ import type {
 } from "../../../../sdk/typescript/contract-sdk/src/types";
 import type {
   AcquisitionRecord,
+  ActiveBindingRecord,
+  BindingCandidate,
+  BindingCandidatesRequest,
+  BindingCandidatesResult,
+  BindingListRequest,
+  BindingLifecyclePayloadSchema,
+  BindingMutationResult,
+  BindingRevokeRequest,
+  BindingSelectRequest,
+  BindingView,
+  ExposureCreateRequest,
+  ExposureListRequest,
+  ExposureLifecyclePayloadSchema,
+  ExposureMutationResult,
+  ExposureRevokeRequest,
+  ExposureView,
+  HostBindingListResult,
+  HostExposureListResult,
   InstallationCreateRequest,
   InstallationDiff,
   InstallationMutationResult,
@@ -56,6 +92,24 @@ type Extends<From, To> = [From] extends [To] ? true : false;
 
 type WebToGenerated = [
   Assert<Extends<AcquisitionRecord, GeneratedAcquisitionRecord>>,
+  Assert<Extends<ActiveBindingRecord, GeneratedActiveBindingRecord>>,
+  Assert<Extends<BindingCandidate, GeneratedBindingCandidate>>,
+  Assert<Extends<BindingCandidatesRequest, GeneratedBindingCandidatesRequest>>,
+  Assert<Extends<BindingCandidatesResult, GeneratedBindingCandidatesResult>>,
+  Assert<Extends<BindingListRequest, GeneratedBindingListRequest>>,
+  Assert<Extends<BindingLifecyclePayloadSchema, GeneratedBindingLifecyclePayloadSchema>>,
+  Assert<Extends<BindingMutationResult, GeneratedBindingMutationResult>>,
+  Assert<Extends<BindingRevokeRequest, GeneratedBindingRevokeRequest>>,
+  Assert<Extends<BindingSelectRequest, GeneratedBindingSelectRequest>>,
+  Assert<Extends<BindingView, GeneratedBindingView>>,
+  Assert<Extends<ExposureCreateRequest, GeneratedExposureCreateRequest>>,
+  Assert<Extends<ExposureListRequest, GeneratedExposureListRequest>>,
+  Assert<Extends<ExposureLifecyclePayloadSchema, GeneratedExposureLifecyclePayloadSchema>>,
+  Assert<Extends<ExposureMutationResult, GeneratedExposureMutationResult>>,
+  Assert<Extends<ExposureRevokeRequest, GeneratedExposureRevokeRequest>>,
+  Assert<Extends<ExposureView, GeneratedExposureView>>,
+  Assert<Extends<HostBindingListResult, GeneratedHostBindingListResult>>,
+  Assert<Extends<HostExposureListResult, GeneratedHostExposureListResult>>,
   Assert<Extends<InstallationCreateRequest, GeneratedInstallationCreateRequest>>,
   Assert<Extends<InstallationDiff, GeneratedInstallationDiff>>,
   Assert<Extends<InstallationMutationResult, GeneratedInstallationMutationResult>>,
@@ -83,6 +137,24 @@ type WebToGenerated = [
 
 type GeneratedToWeb = [
   Assert<Extends<GeneratedAcquisitionRecord, AcquisitionRecord>>,
+  Assert<Extends<GeneratedActiveBindingRecord, ActiveBindingRecord>>,
+  Assert<Extends<GeneratedBindingCandidate, BindingCandidate>>,
+  Assert<Extends<GeneratedBindingCandidatesRequest, BindingCandidatesRequest>>,
+  Assert<Extends<GeneratedBindingCandidatesResult, BindingCandidatesResult>>,
+  Assert<Extends<GeneratedBindingListRequest, BindingListRequest>>,
+  Assert<Extends<GeneratedBindingLifecyclePayloadSchema, BindingLifecyclePayloadSchema>>,
+  Assert<Extends<GeneratedBindingMutationResult, BindingMutationResult>>,
+  Assert<Extends<GeneratedBindingRevokeRequest, BindingRevokeRequest>>,
+  Assert<Extends<GeneratedBindingSelectRequest, BindingSelectRequest>>,
+  Assert<Extends<GeneratedBindingView, BindingView>>,
+  Assert<Extends<GeneratedExposureCreateRequest, ExposureCreateRequest>>,
+  Assert<Extends<GeneratedExposureListRequest, ExposureListRequest>>,
+  Assert<Extends<GeneratedExposureLifecyclePayloadSchema, ExposureLifecyclePayloadSchema>>,
+  Assert<Extends<GeneratedExposureMutationResult, ExposureMutationResult>>,
+  Assert<Extends<GeneratedExposureRevokeRequest, ExposureRevokeRequest>>,
+  Assert<Extends<GeneratedExposureView, ExposureView>>,
+  Assert<Extends<GeneratedHostBindingListResult, HostBindingListResult>>,
+  Assert<Extends<GeneratedHostExposureListResult, HostExposureListResult>>,
   Assert<Extends<GeneratedInstallationCreateRequest, InstallationCreateRequest>>,
   Assert<Extends<GeneratedInstallationDiff, InstallationDiff>>,
   Assert<Extends<GeneratedInstallationMutationResult, InstallationMutationResult>>,
@@ -111,3 +183,10 @@ type GeneratedToWeb = [
 // Keep these aliases evaluated by the compiler even though this test has no runtime assertions.
 export type InstallationDtoWebToGenerated = WebToGenerated;
 export type InstallationDtoGeneratedToWeb = GeneratedToWeb;
+
+type HasAuthorityHandle<T> = "authority_handle_id" extends keyof T ? true : false;
+type AssertFalse<T extends false> = T;
+export type PublicBindingCandidateHasNoAuthorityHandle = AssertFalse<HasAuthorityHandle<BindingCandidate>>;
+export type PublicBindingViewHasNoAuthorityHandle = AssertFalse<HasAuthorityHandle<BindingView>>;
+export type PublicBindingRecordHasNoAuthorityHandle = AssertFalse<HasAuthorityHandle<BindingView["record"]>>;
+export type PublicActiveBindingRecordHasNoAuthorityHandle = AssertFalse<HasAuthorityHandle<ActiveBindingRecord>>;

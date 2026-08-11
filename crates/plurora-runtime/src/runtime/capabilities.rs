@@ -2,9 +2,8 @@ use std::time::Instant;
 
 use plurora_core::{
     ArtifactDescriptor, CapHandle, CapHandleId, CapabilityId, EffectReplayMode, EffectScope,
-    EffectTerminalStatus, HandleLease, HandleProvenance, HandleScope, PackageEntry,
-    PrincipalIdentity, EVENT_CAPABILITY_COMPLETED, EVENT_CAPABILITY_FAILED,
-    EVENT_CAPABILITY_INVOKED, PLATFORM_RUNTIME_ID,
+    EffectTerminalStatus, PackageEntry, PrincipalIdentity, SessionStatus,
+    EVENT_CAPABILITY_COMPLETED, EVENT_CAPABILITY_FAILED, EVENT_CAPABILITY_INVOKED,
 };
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -36,6 +35,14 @@ struct CapabilityReceiptSource {
     version: Option<String>,
     session_id: Option<String>,
     input: Value,
+}
+
+#[derive(Debug)]
+pub(crate) struct PreparedCapabilityInvocation {
+    pub(crate) provider: RegisteredCapability,
+    pub(crate) active_handle: Option<CapHandleId>,
+    pub(crate) record_non_binding_invocation: bool,
+    pub(crate) binding_permit: Option<crate::BindingInvocationPermit>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
@@ -88,19 +95,19 @@ where
         let started = Instant::now();
         let started_at = chrono::Utc::now();
         let receipt_source = CapabilityReceiptSource::capture(&request);
+        let telemetry_handle = match request.handle {
+            Some(handle) if !self.run_bindings.is_binding_handle(handle).await => Some(handle),
+            _ => None,
+        };
 
         let prepared = self.prepare_capability_invocation(&request).await;
-        let (capability_id, version, active_handle) = match prepared {
+        let prepared = match prepared {
             Ok(prepared) => prepared,
             Err(error) => {
-                let capability_id = request.capability_id.clone().unwrap_or_else(|| {
-                    format!(
-                        "handle:{}",
-                        request
-                            .handle
-                            .map_or_else(|| "unknown".to_string(), |handle| handle.0.to_string())
-                    )
-                });
+                let capability_id = request
+                    .capability_id
+                    .clone()
+                    .unwrap_or_else(|| "unresolved_capability".to_string());
                 let duration_ms = elapsed_ms(started);
                 let status = classify_capability_error(&error);
                 let receipt = self
@@ -109,7 +116,7 @@ where
                         effect_context,
                         &capability_id,
                         request.provider_package_id.as_deref(),
-                        request.handle,
+                        telemetry_handle,
                         status,
                         started_at,
                         duration_ms,
@@ -122,7 +129,7 @@ where
                 self.emit_capability_failed(
                     correlation_id,
                     &capability_id,
-                    request.handle,
+                    telemetry_handle,
                     duration_ms,
                     "prepare_failed",
                     &error.to_string(),
@@ -132,7 +139,7 @@ where
                 return Err(error);
             }
         };
-
+        let capability_id = prepared.provider.descriptor.id.clone();
         self.append_platform_event(
             &capability_event_session_id(&capability_id),
             EVENT_CAPABILITY_INVOKED,
@@ -140,21 +147,14 @@ where
                 "correlation_id": correlation_id,
                 "capability_id": capability_id,
                 "caller_package_id": request.caller_package_id,
-                "handle_id": active_handle,
+                "handle_id": telemetry_handle,
                 "started_at": started_at,
             }),
         )
         .await?;
 
         let invoke_result = self
-            .invoke_capability_prepared(
-                request,
-                capability_id.clone(),
-                version,
-                active_handle,
-                correlation_id,
-                started,
-            )
+            .invoke_capability_prepared(request, prepared, correlation_id, started)
             .await;
 
         match invoke_result {
@@ -165,7 +165,7 @@ where
                         effect_context.clone(),
                         &capability_id,
                         Some(&result.provider_package_id),
-                        Some(active_handle),
+                        telemetry_handle,
                         EffectTerminalStatus::Succeeded,
                         started_at,
                         result.duration_ms,
@@ -204,7 +204,7 @@ where
                         effect_context,
                         &capability_id,
                         None,
-                        Some(active_handle),
+                        telemetry_handle,
                         classify_capability_error(&error),
                         started_at,
                         duration_ms,
@@ -217,7 +217,7 @@ where
                 self.emit_capability_failed(
                     correlation_id,
                     &capability_id,
-                    Some(active_handle),
+                    telemetry_handle,
                     duration_ms,
                     "invoke_failed",
                     &error.to_string(),
@@ -306,18 +306,16 @@ where
         self.record_effect_receipt(request).await
     }
 
-    async fn prepare_capability_invocation(
+    pub(crate) async fn prepare_capability_invocation(
         &self,
         request: &CapabilityInvocationRequest,
-    ) -> anyhow::Result<(CapabilityId, Option<String>, CapHandleId)> {
+    ) -> anyhow::Result<PreparedCapabilityInvocation> {
         if let Some(caller) = &request.caller_package_id {
             if self.is_contract_none_package(caller).await {
-                let capability_id = request.capability_id.clone().unwrap_or_else(|| {
-                    request.handle.map_or_else(
-                        || "unknown".to_string(),
-                        |handle| format!("handle:{}", handle.0),
-                    )
-                });
+                let capability_id = request
+                    .capability_id
+                    .clone()
+                    .unwrap_or_else(|| "unresolved_capability".to_string());
                 self.audit_permission_denied(
                     &capability_event_session_id(&capability_id),
                     caller,
@@ -330,6 +328,24 @@ where
             }
         }
         if let Some(handle_id) = request.handle {
+            if self.run_bindings.is_binding_handle(handle_id).await {
+                let activation = crate::inproc::current_component_activation().ok_or_else(|| {
+                    anyhow::anyhow!(
+                        "binding authority requires a current Host-issued component invocation context"
+                    )
+                })?;
+                let permit = self
+                    .run_bindings
+                    .validate_permit(handle_id, &activation)
+                    .await?;
+                ensure_request_matches_provider(request, &permit.provider)?;
+                return Ok(PreparedCapabilityInvocation {
+                    provider: permit.provider.clone(),
+                    active_handle: Some(handle_id),
+                    record_non_binding_invocation: false,
+                    binding_permit: Some(permit),
+                });
+            }
             let handle = self
                 .handles
                 .lookup(handle_id)
@@ -341,12 +357,44 @@ where
                 }
             }
             validate_handle_lease(&handle)?;
-            let version = if handle.cap_version == "1" {
-                None
+            if let Some(request_session) = request.session_id.as_ref() {
+                anyhow::ensure!(
+                    handle
+                        .scope
+                        .session_id
+                        .as_ref()
+                        .is_none_or(|session| session == request_session),
+                    "capability handle is scoped to a different session"
+                );
             } else {
-                Some(handle.cap_version.clone())
+                anyhow::ensure!(
+                    handle.scope.session_id.is_none(),
+                    "session-scoped capability handle requires its exact session"
+                );
+            }
+            let capability_id = requested_capability_for_handle(request, &handle)?;
+            let version = if handle.cap_version == "1" {
+                request.version.as_deref()
+            } else {
+                Some(handle.cap_version.as_str())
             };
-            return Ok((handle.cap_type, version, handle_id));
+            let provider = self
+                .capabilities
+                .resolve(
+                    &capability_id,
+                    request.provider_package_id.as_ref(),
+                    version,
+                )
+                .await?;
+            ensure_request_matches_provider(request, &provider)?;
+            self.ensure_run_session_provider_allowed(request, &provider)
+                .await?;
+            return Ok(PreparedCapabilityInvocation {
+                provider,
+                active_handle: Some(handle_id),
+                record_non_binding_invocation: true,
+                binding_permit: None,
+            });
         }
 
         let capability_id = request
@@ -354,35 +402,16 @@ where
             .clone()
             .ok_or_else(|| anyhow::anyhow!("capability invoke requires handle or capability_id"))?;
         if let Some(caller) = &request.caller_package_id {
-            let allowed = self
-                .packages
-                .permissions(caller)
-                .await
-                .map(|permissions| {
-                    permissions.capabilities.invoke.iter().any(|pattern| {
-                        pattern == "*"
-                            || pattern == &capability_id
-                            || capability_id.starts_with(pattern.trim_end_matches('*'))
-                    })
-                })
-                .unwrap_or(false);
-            if !allowed {
-                self.audit_permission_denied(
-                    &capability_event_session_id(&capability_id),
-                    caller,
-                    "capabilities.invoke",
-                )
-                .await?;
-                anyhow::bail!(
-                    "package '{caller}' is not allowed to invoke '{}'",
-                    capability_id
-                );
-            }
+            self.audit_permission_denied(
+                &capability_event_session_id(&capability_id),
+                caller,
+                "capabilities.invoke",
+            )
+            .await?;
+            anyhow::bail!(
+                "package '{caller}' capability invocation requires an explicit capability handle"
+            );
         }
-        let holder = request
-            .caller_package_id
-            .clone()
-            .unwrap_or_else(|| PLATFORM_RUNTIME_ID.to_string());
         let provider = self
             .capabilities
             .resolve(
@@ -391,43 +420,51 @@ where
                 request.version.as_deref(),
             )
             .await?;
-        let handle_id = self
-            .handles
-            .mint(CapHandle {
-                id: CapHandleId::new(),
-                cap_type: capability_id.clone(),
-                cap_version: provider.descriptor.version,
-                scope: HandleScope {
-                    holder_package_id: holder,
-                    session_id: request.session_id.clone(),
-                },
-                constraints: json!({}),
-                lease: HandleLease {
-                    expires_at: None,
-                    max_invocations: Some(1),
-                    invocations_used: 0,
-                },
-                provenance: HandleProvenance {
-                    granted_at: chrono::Utc::now(),
-                    granted_by_package_id: PLATFORM_RUNTIME_ID.to_string(),
-                    via_method: "auto_mint".to_string(),
-                },
-                parent: None,
-                revoked: false,
-            })
-            .await;
-        Ok((capability_id, request.version.clone(), handle_id))
+        Ok(PreparedCapabilityInvocation {
+            provider,
+            active_handle: None,
+            record_non_binding_invocation: false,
+            binding_permit: None,
+        })
+    }
+
+    async fn ensure_run_session_provider_allowed(
+        &self,
+        request: &CapabilityInvocationRequest,
+        provider: &RegisteredCapability,
+    ) -> anyhow::Result<()> {
+        let Some(session_id) = request.session_id.as_ref() else {
+            return Ok(());
+        };
+        let sessions = self.sessions.read().await;
+        let session = sessions
+            .get(session_id)
+            .ok_or_else(|| anyhow::anyhow!("session '{}' not found", session_id))?;
+        anyhow::ensure!(session.status == SessionStatus::Open, "session is closed");
+        if session
+            .metadata
+            .get("run_id")
+            .and_then(Value::as_str)
+            .is_some()
+        {
+            anyhow::ensure!(
+                session
+                    .active_package_set
+                    .contains(&provider.provider_package_id),
+                "non-binding capability handle cannot invoke a provider outside the Run session active package set"
+            );
+        }
+        Ok(())
     }
 
     async fn invoke_capability_prepared(
         &self,
         mut request: CapabilityInvocationRequest,
-        capability_id: CapabilityId,
-        version: Option<String>,
-        active_handle: CapHandleId,
+        prepared: PreparedCapabilityInvocation,
         correlation_id: Uuid,
         started: Instant,
     ) -> anyhow::Result<CapabilityInvocationResult> {
+        let capability_id = prepared.provider.descriptor.id.clone();
         let mut before_payload = serde_json::Map::with_capacity(3);
         before_payload.insert(
             "capability_id".to_string(),
@@ -454,14 +491,12 @@ where
             .map(Value::take)
             .ok_or_else(|| anyhow::anyhow!("before-invoke hook payload lost capability input"))?;
 
-        let provider = self
-            .capabilities
-            .resolve(
-                &capability_id,
-                request.provider_package_id.as_ref(),
-                version.as_deref(),
-            )
-            .await?;
+        let PreparedCapabilityInvocation {
+            provider,
+            active_handle,
+            record_non_binding_invocation,
+            binding_permit: _binding_permit,
+        } = prepared;
         validate_json_schema_subset(&provider.descriptor.input_schema, &request.input)?;
         let output = self
             .execute_registered_capability(
@@ -471,7 +506,13 @@ where
                 request.input,
             )
             .await?;
-        self.handles.record_invocation(active_handle).await?;
+        if record_non_binding_invocation {
+            self.handles
+                .record_invocation(
+                    active_handle.expect("non-binding prepared invocation has a handle"),
+                )
+                .await?;
+        }
         let result = CapabilityInvocationResult {
             capability_id: provider.descriptor.id,
             provider_package_id: provider.provider_package_id,
@@ -551,9 +592,23 @@ where
                         session_id: session_id.clone(),
                         input,
                     };
+                    let run_bindings = match session_id.as_ref() {
+                        Some(session_id) => {
+                            self.run_bindings
+                                .invocation_bindings_for_component(
+                                    session_id,
+                                    &provider.provider_package_id,
+                                    &provider.provider_component_id,
+                                )
+                                .await?
+                        }
+                        None => Default::default(),
+                    };
                     crate::inproc::with_runtime_invoker(
                         self.clone(),
                         session_id.clone(),
+                        provider.provider_package_id.clone(),
+                        run_bindings,
                         package.invoke(invocation),
                     )
                     .await?
@@ -563,6 +618,7 @@ where
                     .invoke(
                         self.clone(),
                         &provider.provider_package_id,
+                        &provider.provider_component_id,
                         capability_id,
                         session_id,
                         input,
@@ -704,15 +760,16 @@ where
                     request.caller_package_id = None;
                     let correlation_id = context.effective_correlation_id();
                     let started_at = chrono::Utc::now();
-                    let capability_id = request.capability_id.clone().unwrap_or_else(|| {
-                        format!(
-                            "handle:{}",
-                            request.handle.map_or_else(
-                                || "unknown".to_string(),
-                                |handle| handle.0.to_string()
-                            )
-                        )
-                    });
+                    let capability_id = request
+                        .capability_id
+                        .clone()
+                        .unwrap_or_else(|| "unresolved_capability".to_string());
+                    let telemetry_handle = match request.handle {
+                        Some(handle) if !self.run_bindings.is_binding_handle(handle).await => {
+                            Some(handle)
+                        }
+                        _ => None,
+                    };
                     let source = CapabilityReceiptSource::capture(&request);
                     let error = "principal is not allowed to invoke capabilities";
                     let receipt = self
@@ -721,7 +778,7 @@ where
                             effect_context(),
                             &capability_id,
                             request.provider_package_id.as_deref(),
-                            request.handle,
+                            telemetry_handle,
                             EffectTerminalStatus::Denied,
                             started_at,
                             1,
@@ -734,7 +791,7 @@ where
                     self.emit_capability_failed(
                         correlation_id,
                         &capability_id,
-                        request.handle,
+                        telemetry_handle,
                         1,
                         "authorization_denied",
                         error,
@@ -891,6 +948,61 @@ where
             .await?;
         Ok(CapabilityReexecutionResult { branch, invocation })
     }
+}
+
+fn requested_capability_for_handle(
+    request: &CapabilityInvocationRequest,
+    handle: &CapHandle,
+) -> anyhow::Result<CapabilityId> {
+    let capability_id = match request.capability_id.as_ref() {
+        Some(capability_id) => capability_id.clone(),
+        None if !handle.cap_type.contains('*') => handle.cap_type.clone(),
+        None => anyhow::bail!(
+            "capability invocation using a pattern handle requires an exact capability_id"
+        ),
+    };
+    let pattern = handle.cap_type.as_str();
+    anyhow::ensure!(
+        pattern == "*"
+            || pattern == capability_id
+            || pattern
+                .strip_suffix('*')
+                .is_some_and(|prefix| capability_id.starts_with(prefix)),
+        "capability handle does not grant the requested capability"
+    );
+    Ok(capability_id)
+}
+
+fn ensure_request_matches_provider(
+    request: &CapabilityInvocationRequest,
+    provider: &RegisteredCapability,
+) -> anyhow::Result<()> {
+    anyhow::ensure!(
+        request
+            .capability_id
+            .as_ref()
+            .is_none_or(|capability| capability == &provider.descriptor.id),
+        "prepared provider does not match requested capability"
+    );
+    anyhow::ensure!(
+        request
+            .provider_package_id
+            .as_ref()
+            .is_none_or(|package| package == &provider.provider_package_id),
+        "prepared provider does not match requested provider package"
+    );
+    anyhow::ensure!(
+        request.version.as_deref().is_none_or(|requirement| {
+            requirement == "*"
+                || requirement == provider.descriptor.version
+                || requirement
+                    .strip_prefix('^')
+                    .and_then(|value| value.split('.').next())
+                    == provider.descriptor.version.split('.').next()
+        }),
+        "prepared provider does not match requested capability version"
+    );
+    Ok(())
 }
 
 fn safe_capability_error_message(error_kind: &str) -> &'static str {
@@ -1188,6 +1300,67 @@ mod tests {
             .await;
 
         assert!(denied.is_err());
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn non_binding_run_handle_cannot_escape_active_package_set() -> anyhow::Result<()> {
+        let runtime = Runtime::new(
+            Arc::new(InMemoryEventStore::default()),
+            RuntimeConfig::default(),
+        );
+        let descriptor = plurora_core::CapabilityDescriptor {
+            id: "example/outside/read".to_string(),
+            version: "1.0.0".to_string(),
+            input_schema: Value::Null,
+            output_schema: Value::Null,
+            streaming: false,
+            side_effects: Vec::new(),
+            description: None,
+        };
+        runtime
+            .capabilities()
+            .register_package(&"example/outside".to_string(), &[descriptor.clone()])
+            .await;
+        let session = runtime
+            .open_session(crate::runtime::OpenSessionRequest {
+                labels: Vec::new(),
+                active_package_set: vec!["example/caller".to_string()],
+                metadata: json!({"kind": "run", "run_id": "run-test"}),
+            })
+            .await?;
+        let handle = plurora_core::CapHandle {
+            id: CapHandleId::new(),
+            cap_type: descriptor.id.clone(),
+            cap_version: descriptor.version.clone(),
+            scope: plurora_core::HandleScope {
+                holder_package_id: "example/caller".to_string(),
+                session_id: None,
+            },
+            constraints: json!({}),
+            lease: plurora_core::HandleLease::default(),
+            provenance: plurora_core::HandleProvenance {
+                granted_at: chrono::Utc::now(),
+                granted_by_package_id: plurora_core::PLATFORM_RUNTIME_ID.to_string(),
+                via_method: "package_load".to_string(),
+            },
+            parent: None,
+            revoked: false,
+        };
+        let handle_id = runtime.handles().mint(handle).await;
+        let error = runtime
+            .invoke_capability(CapabilityInvocationRequest {
+                handle: Some(handle_id),
+                capability_id: Some(descriptor.id),
+                caller_package_id: Some("example/caller".to_string()),
+                provider_package_id: Some("example/outside".to_string()),
+                version: Some("1.0.0".to_string()),
+                session_id: Some(session.id),
+                input: json!({}),
+            })
+            .await
+            .unwrap_err();
+        assert!(error.to_string().contains("active package set"));
         Ok(())
     }
 

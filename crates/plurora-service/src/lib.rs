@@ -33,7 +33,8 @@ use plurora_runtime::{
 use plurora_runtime::{
     AppendEventRequest, EventStore, InMemoryEventStore, InstallationAuthorityRefresh,
     InstallationAuthoritySubject, InstallationAuthorityValidator, InstallationControl,
-    OpenSessionRequest, RunAuthorityRefresh, RunAuthorityValidator, Runtime, RuntimeConfig,
+    OpenSessionRequest, PowerboxAuthorityRefresh, PowerboxAuthoritySubject,
+    PowerboxAuthorityValidator, RunAuthorityRefresh, RunAuthorityValidator, Runtime, RuntimeConfig,
 };
 use plurora_runtime::{
     PortBindScope, PortLeaseStatusKind, ProxyProtocol, ProxyRouteAccess, ProxyRouteStatusKind,
@@ -52,6 +53,7 @@ use tower_http::cors::{Any, CorsLayer};
 mod development;
 mod host_access;
 mod installations;
+mod powerbox;
 mod runs;
 mod target_agent;
 
@@ -70,6 +72,7 @@ pub use host_access::{
     HostAccessResourceSelector, HostAccessScope,
 };
 pub use installations::InstallationRegistry;
+pub use powerbox::{PowerboxEndpointInspector, PowerboxRegistry, RuntimePowerboxInspector};
 pub use runs::RunRegistry;
 pub use target_agent::{
     decode_target_tunnel_data, encode_target_tunnel_data, hydrate_target_agent_control_plane,
@@ -276,10 +279,17 @@ where
             ),
             "Host access grant is no longer current for Run authority on the exact parent Installation"
         );
-        // The RunRegistry validates the exact Installation/Run relationship
-        // under its mutation lock. This refresh proves that the parent grant
-        // remains current; the trusted sidecar separately pins the child RunId.
-        let _ = run_id;
+        if let Some(run_id) = run_id {
+            anyhow::ensure!(
+                self.host_access.grant_allows_current(
+                    grant_id,
+                    HostAccessScope::Run,
+                    HostAccessResourceKind::Run,
+                    run_id.as_str(),
+                ),
+                "Host access grant is no longer current for the exact Run"
+            );
+        }
         Ok(())
     }
 }
@@ -292,6 +302,160 @@ where
         store: state.runtime.store(),
         host_access: state.host_access.clone(),
     }))
+}
+
+struct CurrentPowerboxAuthority<S>
+where
+    S: EventStore,
+{
+    store: Arc<S>,
+    host_access: Arc<HostAccessRegistry>,
+}
+
+#[async_trait::async_trait]
+impl<S> PowerboxAuthorityValidator for CurrentPowerboxAuthority<S>
+where
+    S: EventStore,
+{
+    async fn validate_current(
+        &self,
+        grant_reference: &str,
+        subject: &PowerboxAuthoritySubject,
+    ) -> anyhow::Result<()> {
+        host_access::sync_host_access_journal(self.store.as_ref(), self.host_access.as_ref())
+            .await?;
+        let grant_id = self
+            .host_access
+            .resolve_powerbox_grant_reference(grant_reference)
+            .ok_or_else(|| anyhow::anyhow!("durable Host access grant reference is unknown"))?;
+        let (scope, resources) = match subject {
+            PowerboxAuthoritySubject::ExposureCreate {
+                installation_id,
+                run_id,
+                export_port,
+            } => (
+                HostAccessScope::ExposureManage,
+                vec![
+                    (
+                        HostAccessResourceKind::Installation,
+                        installation_id.as_str().to_string(),
+                    ),
+                    (HostAccessResourceKind::Run, run_id.as_str().to_string()),
+                    (
+                        HostAccessResourceKind::Port,
+                        plurora_work::installation_port_resource_id(installation_id, export_port),
+                    ),
+                ],
+            ),
+            PowerboxAuthoritySubject::ExposureRevoke {
+                installation_id,
+                run_id,
+                export_port,
+                exposure_id: _,
+            } => (
+                HostAccessScope::ExposureManage,
+                vec![
+                    (
+                        HostAccessResourceKind::Installation,
+                        installation_id.as_str().to_string(),
+                    ),
+                    (HostAccessResourceKind::Run, run_id.as_str().to_string()),
+                    (
+                        HostAccessResourceKind::Port,
+                        plurora_work::installation_port_resource_id(installation_id, export_port),
+                    ),
+                ],
+            ),
+            PowerboxAuthoritySubject::BindingSelect {
+                consumer_installation_id,
+                consumer_run,
+                import_port,
+                exposure_id,
+            } => {
+                let mut resources = vec![
+                    (
+                        HostAccessResourceKind::Installation,
+                        consumer_installation_id.as_str().to_string(),
+                    ),
+                    (
+                        HostAccessResourceKind::Port,
+                        plurora_work::installation_port_resource_id(
+                            consumer_installation_id,
+                            import_port,
+                        ),
+                    ),
+                    (
+                        HostAccessResourceKind::Exposure,
+                        exposure_id.as_str().to_string(),
+                    ),
+                ];
+                if let Some(run) = consumer_run {
+                    resources.push((HostAccessResourceKind::Run, run.run_id.as_str().to_string()));
+                }
+                (HostAccessScope::BindingManage, resources)
+            }
+            PowerboxAuthoritySubject::BindingRevoke {
+                consumer_installation_id,
+                consumer_run,
+                import_port,
+                exposure_id,
+                binding_id: _,
+            } => {
+                let mut resources = vec![
+                    (
+                        HostAccessResourceKind::Installation,
+                        consumer_installation_id.as_str().to_string(),
+                    ),
+                    (
+                        HostAccessResourceKind::Port,
+                        plurora_work::installation_port_resource_id(
+                            consumer_installation_id,
+                            import_port,
+                        ),
+                    ),
+                    (
+                        HostAccessResourceKind::Exposure,
+                        exposure_id.as_str().to_string(),
+                    ),
+                ];
+                if let Some(run) = consumer_run {
+                    resources.push((HostAccessResourceKind::Run, run.run_id.as_str().to_string()));
+                }
+                (HostAccessScope::BindingManage, resources)
+            }
+        };
+        anyhow::ensure!(
+            !resources.is_empty()
+                && resources.iter().all(|(kind, id)| {
+                    !id.trim().is_empty()
+                        && self
+                            .host_access
+                            .grant_allows_current(&grant_id, scope, *kind, id)
+                }),
+            "Host access grant is no longer current for every exact Powerbox mutation resource"
+        );
+        Ok(())
+    }
+}
+
+fn powerbox_authority_refresh<S>(state: &AppState<S>) -> PowerboxAuthorityRefresh
+where
+    S: EventStore,
+{
+    PowerboxAuthorityRefresh::new(Arc::new(CurrentPowerboxAuthority {
+        store: state.runtime.store(),
+        host_access: state.host_access.clone(),
+    }))
+}
+
+pub fn host_powerbox_authority_refresh<S>(
+    store: Arc<S>,
+    host_access: Arc<HostAccessRegistry>,
+) -> PowerboxAuthorityRefresh
+where
+    S: EventStore,
+{
+    PowerboxAuthorityRefresh::new(Arc::new(CurrentPowerboxAuthority { store, host_access }))
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -357,18 +521,35 @@ pub struct EventListQuery {
     pub writer_package_id: Option<PackageId>,
 }
 
-pub fn app() -> Router {
+struct EphemeralApp {
+    router: Router,
+    #[cfg(test)]
+    runtime: Arc<Runtime<InMemoryEventStore>>,
+    #[cfg(test)]
+    powerbox_store: Arc<InMemoryEventStore>,
+}
+
+fn ephemeral_app() -> EphemeralApp {
     let store = Arc::new(InMemoryEventStore::default());
+    let powerbox_store = Arc::new(InMemoryEventStore::default());
     let object_store = Arc::new(plurora_runtime::InMemoryObjectStore::default());
     let installations = InstallationRegistry::ephemeral(store.clone(), object_store.clone())
         .expect("create ephemeral installation registry");
     let runs = RunRegistry::new(store.clone());
+    let powerbox = PowerboxRegistry::new(
+        powerbox_store.clone(),
+        store.clone(),
+        installations.clone(),
+        runs.clone(),
+    )
+    .expect("Powerbox control journal is isolated from the Runtime public journal");
     let runtime = Arc::new(Runtime::new(
         store,
         RuntimeConfig {
             object_store,
             installation_control: installations.clone(),
             run_control: runs.clone(),
+            powerbox_control: powerbox.clone(),
             ..RuntimeConfig::default()
         },
     ));
@@ -376,17 +557,40 @@ pub fn app() -> Router {
         Arc::downgrade(&runtime),
     )))
     .expect("install Run lifecycle driver");
-    app_with_state(AppState {
-        runtime,
+    powerbox
+        .install_inspector(Arc::new(RuntimePowerboxInspector::new(Arc::downgrade(
+            &runtime,
+        ))))
+        .expect("install Powerbox Runtime inspector");
+    let host_access = host_access_registry();
+    powerbox
+        .install_authority_refresh(host_powerbox_authority_refresh(
+            runtime.store(),
+            host_access.clone(),
+        ))
+        .expect("install Powerbox Host access validator");
+    let router = app_with_state(AppState {
+        runtime: runtime.clone(),
         static_dir: None,
         access_token: None,
         app_base_domain: None,
         build_jobs: Arc::new(BuildDeployJobRegistry::default()),
         development: development_registry(),
-        host_access: host_access_registry(),
+        host_access,
         installations,
         target_agents: target_agent_registry(),
-    })
+    });
+    EphemeralApp {
+        router,
+        #[cfg(test)]
+        runtime,
+        #[cfg(test)]
+        powerbox_store,
+    }
+}
+
+pub fn app() -> Router {
+    ephemeral_app().router
 }
 
 pub fn app_with_state<S>(state: AppState<S>) -> Router
@@ -8374,7 +8578,8 @@ where
         context = context
             .with_host_operation(required_scope.as_str(), operation_resources)
             .with_installation_authority_refresh(installation_authority_refresh(&state))
-            .with_run_authority_refresh(run_authority_refresh(&state));
+            .with_run_authority_refresh(run_authority_refresh(&state))
+            .with_powerbox_authority_refresh(powerbox_authority_refresh(&state));
     }
     context.session_id = session_id;
     let result = state
@@ -8416,6 +8621,9 @@ fn required_host_scope_for_protocol_method(method: &str) -> HostAccessScope {
         | "host.run.list"
         | "host.run.get"
         | "host.run.status"
+        | "host.exposure.list"
+        | "host.binding.list"
+        | "host.binding.candidates"
         | "host.target.list"
         | "host.target.status"
         | "host.exec.list"
@@ -8451,6 +8659,10 @@ fn required_host_scope_for_protocol_method(method: &str) -> HostAccessScope {
 
         "host.run.start" | "host.run.stop" => HostAccessScope::Run,
 
+        "host.exposure.create" | "host.exposure.revoke" => HostAccessScope::ExposureManage,
+
+        "host.binding.select" | "host.binding.revoke" => HostAccessScope::BindingManage,
+
         "context.open" | "context.close" | "context.fork" => HostAccessScope::AccessManage,
 
         "host.target.register"
@@ -8475,6 +8687,78 @@ fn host_operation_resources_for_protocol_method(
     method: &str,
     params: &Value,
 ) -> Vec<ProtocolResourceSelector> {
+    let exact = |kind: &str, id: String| ProtocolResourceSelector {
+        owner: "host".to_string(),
+        kind: kind.to_string(),
+        id: Some(id),
+    };
+    if matches!(method, "host.exposure.create" | "host.exposure.revoke") {
+        let Some(installation_id) = params.get("installation_id").and_then(Value::as_str) else {
+            return Vec::new();
+        };
+        let Some(run_id) = params.get("run_id").and_then(Value::as_str) else {
+            return Vec::new();
+        };
+        let Some(port_id) = params.get("export_port").and_then(Value::as_str) else {
+            return Vec::new();
+        };
+        let Ok(installation) = InstallationId::parse(installation_id) else {
+            return Vec::new();
+        };
+        let Ok(port) = plurora_work::PortId::parse(port_id) else {
+            return Vec::new();
+        };
+        let resources = vec![
+            exact("installation", installation_id.to_string()),
+            exact("run", run_id.to_string()),
+            exact(
+                "port",
+                plurora_work::installation_port_resource_id(&installation, &port),
+            ),
+        ];
+        return resources;
+    }
+    if matches!(
+        method,
+        "host.binding.candidates" | "host.binding.select" | "host.binding.revoke"
+    ) {
+        let Some(installation_id) = params
+            .get("consumer_installation_id")
+            .and_then(Value::as_str)
+        else {
+            return Vec::new();
+        };
+        let Some(port_id) = params.get("import_port").and_then(Value::as_str) else {
+            return Vec::new();
+        };
+        let Ok(installation) = InstallationId::parse(installation_id) else {
+            return Vec::new();
+        };
+        let Ok(port) = plurora_work::PortId::parse(port_id) else {
+            return Vec::new();
+        };
+        let mut resources = vec![
+            exact("installation", installation_id.to_string()),
+            exact(
+                "port",
+                plurora_work::installation_port_resource_id(&installation, &port),
+            ),
+        ];
+        if let Some(run_id) = params
+            .get("consumer_run")
+            .and_then(|run| run.get("run_id"))
+            .and_then(Value::as_str)
+        {
+            resources.push(exact("run", run_id.to_string()));
+        }
+        if matches!(method, "host.binding.select" | "host.binding.revoke") {
+            let Some(exposure_id) = params.get("exposure_id").and_then(Value::as_str) else {
+                return Vec::new();
+            };
+            resources.push(exact("exposure", exposure_id.to_string()));
+        }
+        return resources;
+    }
     if matches!(
         method,
         "host.installation.get"
@@ -8486,7 +8770,7 @@ fn host_operation_resources_for_protocol_method(
             | "host.run.stop"
             | "host.run.status"
     ) {
-        let resources = params
+        let mut resources = params
             .get("installation_id")
             .and_then(Value::as_str)
             .map(|installation_id| {
@@ -8497,6 +8781,12 @@ fn host_operation_resources_for_protocol_method(
                 }]
             })
             .unwrap_or_default();
+        if matches!(method, "host.run.get" | "host.run.stop") {
+            let Some(run_id) = params.get("run_id").and_then(Value::as_str) else {
+                return Vec::new();
+            };
+            resources.push(exact("run", run_id.to_string()));
+        }
         return resources;
     }
 
@@ -9376,10 +9666,14 @@ mod tests {
         );
         let run_resources = host_operation_resources_for_protocol_method(
             "host.run.stop",
-            &json!({"installation_id": "11111111-1111-4111-8111-111111111111"}),
+            &json!({
+                "installation_id": "11111111-1111-4111-8111-111111111111",
+                "run_id": "22222222-2222-4222-8222-222222222222"
+            }),
         );
-        assert_eq!(run_resources.len(), 1);
+        assert_eq!(run_resources.len(), 2);
         assert_eq!(run_resources[0].kind, "installation");
+        assert_eq!(run_resources[1].kind, "run");
         assert_eq!(
             required_host_scope_for_protocol_method("unknown.future.method"),
             HostAccessScope::AccessManage
@@ -10318,6 +10612,116 @@ mod tests {
         let bytes = to_bytes(response.into_body(), usize::MAX).await?;
         let value: serde_json::Value = serde_json::from_slice(&bytes)?;
         assert_eq!(value["error"]["code"], "runtime/error/internal");
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn app_private_powerbox_events_are_absent_from_package_journal_and_sse(
+    ) -> anyhow::Result<()> {
+        use plurora_core::{
+            EntryDescriptor, EventPermissions, PackageContributions, PackageEntry, PermissionSet,
+            SandboxPolicy,
+        };
+
+        let assembled = ephemeral_app();
+        assembled
+            .runtime
+            .load_package(plurora_core::PackageManifest {
+                schema_version: 1,
+                id: "tests/event-reader".to_string(),
+                version: "0.1.0".to_string(),
+                display_name: None,
+                description: None,
+                author: None,
+                license: None,
+                entry: EntryDescriptor::v1(PackageEntry::RustInproc {
+                    crate_ref: "tests-event-reader".to_string(),
+                    symbol: "register".to_string(),
+                    abi_version: 1,
+                }),
+                provides: Vec::new(),
+                consumes: Vec::new(),
+                requires: Vec::new(),
+                contributes: PackageContributions::default(),
+                permissions: PermissionSet {
+                    events: EventPermissions {
+                        read: true,
+                        append: false,
+                    },
+                    ..PermissionSet::default()
+                },
+                sandbox_policy: SandboxPolicy::default(),
+            })
+            .await?;
+        assembled
+            .powerbox_store
+            .append_with_sequence(
+                "host_powerbox".to_string(),
+                "host/control-plane".to_string(),
+                "host-private/powerbox.binding-closing".to_string(),
+                1,
+                json!({"binding_id": "private-replay"}),
+                json!({"visibility": "host_private"}),
+            )
+            .await?;
+
+        let listed = assembled
+            .runtime
+            .call_protocol(
+                &ProtocolContext::package("tests/event-reader", "private-journal-test"),
+                "journal.list",
+                json!({"session_id": "host_powerbox"}),
+            )
+            .await
+            .map_err(protocol_error_to_anyhow)?;
+        assert_eq!(listed, json!([]));
+
+        let response = assembled
+            .router
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .uri("/journal/subscribe/host_powerbox")
+                    .body(Body::empty())?,
+            )
+            .await?;
+        assert_eq!(response.status(), StatusCode::OK);
+        let mut stream = response.into_body().into_data_stream();
+        assembled
+            .powerbox_store
+            .append_with_sequence(
+                "host_powerbox".to_string(),
+                "host/control-plane".to_string(),
+                "host-private/powerbox.exposure-closing".to_string(),
+                1,
+                json!({"exposure_id": "private-live"}),
+                json!({"visibility": "host_private"}),
+            )
+            .await?;
+        assert!(
+            tokio::time::timeout(Duration::from_millis(75), stream.next())
+                .await
+                .is_err()
+        );
+
+        assembled
+            .runtime
+            .store()
+            .append_with_sequence(
+                "host_powerbox".to_string(),
+                "host/control-plane".to_string(),
+                "host/binding.revoked".to_string(),
+                1,
+                json!({"test": "public-live"}),
+                json!({}),
+            )
+            .await?;
+        let frame = tokio::time::timeout(Duration::from_secs(1), stream.next())
+            .await?
+            .ok_or_else(|| anyhow::anyhow!("SSE stream ended before public event"))??;
+        let text = String::from_utf8(frame.to_vec())?;
+        assert!(text.contains("host/binding.revoked"));
+        assert!(!text.contains("host-private/powerbox"));
         Ok(())
     }
 

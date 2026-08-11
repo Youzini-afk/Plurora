@@ -36,7 +36,7 @@ See [`docs/CHARTER.md`](docs/CHARTER.en.md) for the principles and [`docs/archit
 
 ## Platform and official product
 
-Plurora is more than a kernel and is not identical to the official Web/Desktop product. The current official distribution uses Library, Settings, Installation frames, Console, and contributed surfaces to provide a local managed Host, remote Hosts, installation, Runs, creation, Realization, authority, and data management.
+Plurora is more than a kernel and is not identical to the official Web/Desktop product. The current official distribution uses Library, Settings, Installation frames, Console, and contributed surfaces to provide a local managed Host, remote Hosts, installation, Runs, Phase 5 Powerbox, authority, and data management. Managed Realization/deployment compilation remains Phase 6 planned.
 
 Those are evolving default product choices rather than permanent ontology for the whole platform:
 
@@ -51,7 +51,7 @@ See [`docs/product/PLATFORM_PRODUCT_MODEL.md`](docs/product/PLATFORM_PRODUCT_MOD
 
 The repository is in Foundation Alpha. Contract V1, the Rust Host/runtime, HTTP/RPC/SSE, Package and Component lifecycle, Web/PWA, Tauri Desktop, CLI, Work packing, Installation updates, Run lifecycle, authority, objects and artifacts, model integration, controlled development, targets, and Realization foundations already form a substantial operational surface.
 
-The current Contract V1 exposes 85 exact owner-based method IDs across Substrate, Host, Protocol, and Shell responsibilities. Implementation decomposition continues behind that public boundary without creating private first-party paths or parallel wire identities.
+The current Contract V1 exposes 92 exact owner-based method IDs, 69 platform events, and 39 top-level schemas (200 schemas total) across Substrate, Host, Protocol, and Shell responsibilities. Phase 5 Exposure/Binding/Powerbox is implemented. Implementation decomposition continues behind that public boundary without creating private first-party paths or parallel wire identities.
 
 See [`docs/ALPHA_STATUS.md`](docs/ALPHA_STATUS.en.md) for implemented, partial, and deferred state, and [`docs/roadmap/NEXT_STEPS.md`](docs/roadmap/NEXT_STEPS.en.md) for construction direction.
 
@@ -136,6 +136,7 @@ Major documents are available in English and Simplified Chinese and link to the 
 | Write a first Package / Component | [`docs/guides/PACKAGE_AUTHORING_WALKTHROUGH.md`](docs/guides/PACKAGE_AUTHORING_WALKTHROUGH.en.md) |
 | Pack Work / create Installation | [`docs/guides/PACKAGE_INSTALLATION.md`](docs/guides/PACKAGE_INSTALLATION.en.md) → [`docs/guides/INSTALLATION_MODEL.md`](docs/guides/INSTALLATION_MODEL.en.md) |
 | Use Library / start and stop Runs | [`docs/guides/RUN_LIBRARY.md`](docs/guides/RUN_LIBRARY.en.md) |
+| Use Powerbox / connect cross-Installation Ports | [`docs/guides/POWERBOX_BINDING.md`](docs/guides/POWERBOX_BINDING.en.md) |
 | Manage API keys / secrets | [`docs/guides/SECRET_MANAGEMENT.md`](docs/guides/SECRET_MANAGEMENT.en.md) |
 | Build agent / model / experience components | [`docs/guides/AGENT_PACKAGE_AUTHORING.md`](docs/guides/AGENT_PACKAGE_AUTHORING.en.md), [`docs/guides/MODEL_PROVIDER_INTEGRATION.md`](docs/guides/MODEL_PROVIDER_INTEGRATION.en.md), [`docs/guides/EXPERIENCE_RUNTIME_AUTHORING.md`](docs/guides/EXPERIENCE_RUNTIME_AUTHORING.en.md) |
 | Host third-party Web surfaces | [`docs/guides/SURFACE_HOSTING.md`](docs/guides/SURFACE_HOSTING.en.md) |

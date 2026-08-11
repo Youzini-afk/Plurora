@@ -21,7 +21,7 @@ The v1 contract supports two first-class participation modes:
 
 Path A is for Packages that need platform authority, network, secrets, audit, and SDK support. Path B is for self-contained applications and tools that need hosting but no platform authority.
 
-## Public method matrix (85)
+## Public method matrix (92)
 
 Complete request/response schemas live under `docs/spec/v1/schemas/methods/`. Method names are stable public API. v1 only allows additive changes.
 
@@ -157,6 +157,18 @@ Git installation is not a transport primitive; it belongs in the ordinary first-
 | `host.installation.update` | implemented | `installation.manage` plus exact Installation authority; refresh the current grant at durable/effect boundaries for every state action, including Preserve; require an expected revision and CAS-switch active Work/Lock pointers; for Reset/Replace the Host persists authority evidence plus a decision receipt before the real state effect, while failure preserves the prior pointer. |
 | `host.installation.remove` | implemented | `installation.manage` plus exact Installation authority; require an explicit `keep` or `delete` state decision and refresh the current grant at durable/effect boundaries; delete only Host-owned state and never a linked-local source. |
 
+### `host.exposure.*` and `host.binding.*` (7)
+
+| Method | Status | Owner / action / exact resource / typed request → result |
+|---|---:|---|
+| `host.exposure.list` | implemented | Host; `observe`; optional provider Installation/Run/Port selectors; `ExposureListRequest → ExposureView[]`. |
+| `host.exposure.create` | implemented | Host; `exposure.manage`; provider Installation + Run + export Port; `ExposureCreateRequest → ExposureMutationResult` with Exposure, revision, and idempotent marker. |
+| `host.exposure.revoke` | implemented | Host; `exposure.manage`; provider Installation + Run + export Port + Exposure; `ExposureRevokeRequest → ExposureMutationResult`, including affected Bindings. |
+| `host.binding.list` | implemented | Host; `observe`; optional consumer Installation/Run/status selectors; `BindingListRequest → BindingView[]`. |
+| `host.binding.candidates` | implemented | Host; `observe`; exact consumer Installation + import Port (optional launch/runtime Run pin); `BindingCandidatesRequest → BindingCandidatesResult`, effect-free with candidates and gaps. |
+| `host.binding.select` | implemented | Host; `binding.manage`; consumer Installation + import Port + Exposure + provider Installation (optional exact runtime Run); `BindingSelectRequest → BindingMutationResult`. |
+| `host.binding.revoke` | implemented | Host; `binding.manage`; consumer Installation + import Port + Exposure + Binding (optional exact runtime Run); `BindingRevokeRequest → BindingMutationResult`. |
+
 ### `host.run.*` (5)
 
 | Method | Status | Contract |
@@ -193,7 +205,7 @@ Git installation is not a transport primitive; it belongs in the ordinary first-
 | `protocol.extension.describe` | planned | Describe one extension point. |
 | `protocol.hook.list` | partial | List hook subscriptions. |
 
-## Event kind matrix (63)
+## Event kind matrix (69)
 
 The full registry is [`v1/EVENT_KIND_REGISTRY.md`](v1/EVENT_KIND_REGISTRY.en.md). Event payload schemas live under `docs/spec/v1/schemas/events/`.
 
@@ -202,6 +214,8 @@ The full registry is [`v1/EVENT_KIND_REGISTRY.md`](v1/EVENT_KIND_REGISTRY.en.md)
 | context | 3 | `context/opened`, `context/closed`, `context/forked` |
 | Package lifecycle | 9 | `host/package.loading`, `.starting`, `.ready`, `.loaded`, `.stopping`, `.stopped`, `.unloaded`, `.degraded`, `.log` |
 | Installation lifecycle | 3 | `host/installation.created`, `.updated`, `.removed` |
+| Exposure lifecycle | 3 | `host/exposure.created`, `.revoked`, `.expired` |
+| Binding lifecycle | 3 | `host/binding.selected`, `.revoked`, `.expired` |
 | Run lifecycle | 5 | `host/run.starting`, `.started`, `.stopping`, `.stopped`, `.failed` |
 | Capability lifecycle | 3 | `capability/invoked`, `capability/completed`, `capability/failed` |
 | Stream lifecycle | 7 | `capability/stream.started`, `.chunk`, `.progress`, `.ended`, `.error`, `.cancelled`, `.timeout` |
@@ -293,13 +307,13 @@ v1 only allows additive changes: optional fields, new methods, new events, new e
 
 ## Schemas and error codes
 
-- Method schemas: `docs/spec/v1/schemas/methods/` (85).
-- Event schemas: `docs/spec/v1/schemas/events/` (63).
-- Top-level schemas: `docs/spec/v1/schemas/*.schema.json` (39), including additive Protocol Commons, component/package-envelope, World Bundle, portable Work / Assembly contracts, Host-local Installation / Run / Exposure / Realization wire records, and Installation state snapshot, decision receipt, and authority evidence.
+- Method schemas: `docs/spec/v1/schemas/methods/` (92).
+- Event schemas: `docs/spec/v1/schemas/events/` (69).
+- Top-level schemas: `docs/spec/v1/schemas/*.schema.json` (39), including additive Protocol Commons, component/package-envelope, World Bundle, portable Work / Assembly contracts, Host-local Installation / Run / Exposure / Binding / Realization wire records, and Installation state snapshot, decision receipt, and authority evidence.
 - Error codes: [`v1/ERROR_CODES.md`](v1/ERROR_CODES.en.md).
 - Event registry: [`v1/EVENT_KIND_REGISTRY.md`](v1/EVENT_KIND_REGISTRY.en.md).
 
-All 187 schemas must pass `cargo run -p plurora-cli --bin validate-schemas`.
+All 200 schemas must pass `cargo run -p plurora-cli --bin validate-schemas`.
 
 ## Content-free invariant
 
@@ -473,8 +487,8 @@ First-party and third-party surfaces use the same descriptors, permission declar
 
 A v1 implementation must at least prove:
 
-1. 85 method schemas export.
-2. 63 event schemas validate.
+1. 92 method schemas export.
+2. 69 event schemas validate.
 3. 39 top-level schemas validate.
 4. Method registry and dispatcher are consistent.
 5. Capability handle mint/attenuate/revoke/list behavior is testable.
@@ -506,7 +520,7 @@ Long-term references point to `PUBLIC_CONTRACT.md`. The Contract Registry, error
 | `capability.*` | 5 |
 | `change.*` | 6 |
 | `context.*` | 6 |
-| `host.*` | 45 |
+| `host.*` | 52 |
 | `identity.*` | 1 |
 | `journal.*` | 3 |
 | `object.*` | 3 |

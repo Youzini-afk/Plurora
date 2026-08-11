@@ -1,5 +1,17 @@
 import type {
   ArtifactDescriptor,
+  BindingCandidatesRequest,
+  BindingCandidatesResult,
+  BindingListRequest,
+  BindingMutationResult,
+  BindingRevokeRequest,
+  BindingSelectRequest,
+  ExposureCreateRequest,
+  ExposureListRequest,
+  ExposureMutationResult,
+  ExposureRevokeRequest,
+  HostBindingListResult,
+  HostExposureListResult,
   HostInstallationListResult,
   HostRunListResult,
   InstallationCreateRequest,
@@ -185,14 +197,47 @@ export interface InstallExecuteResult {
 
 /** Structured public-contract error. UI can render reason codes without parsing prose. */
 export class ProtocolRpcError extends Error {
+  readonly reasonCode: string;
+  readonly nextStep?: string;
+  readonly details: ProtocolFailureDetails;
+
   constructor(
     readonly code: string,
-    message: string,
-    readonly details?: unknown,
+    _rawMessage: string,
+    details?: unknown,
   ) {
-    super(`${code}: ${message}`);
+    const safe = sanitizeProtocolFailureDetails(code, details);
+    super(safe.reason_code);
     this.name = "ProtocolRpcError";
+    this.reasonCode = safe.reason_code;
+    this.nextStep = safe.next_step;
+    this.details = safe;
   }
+}
+
+export interface ProtocolFailureDetails {
+  reason_code: string;
+  next_step?: string;
+  installation_id?: string;
+  run_id?: string;
+  port_id?: string;
+}
+
+function sanitizeProtocolFailureDetails(code: string, value: unknown): ProtocolFailureDetails {
+  const record = value && typeof value === "object" && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : {};
+  const safeString = (field: string): string | undefined => {
+    const candidate = record[field];
+    return typeof candidate === "string" ? candidate : undefined;
+  };
+  return {
+    reason_code: safeString("reason_code") ?? code,
+    ...(safeString("next_step") ? { next_step: safeString("next_step") } : {}),
+    ...(safeString("installation_id") ? { installation_id: safeString("installation_id") } : {}),
+    ...(safeString("run_id") ? { run_id: safeString("run_id") } : {}),
+    ...(safeString("port_id") ? { port_id: safeString("port_id") } : {}),
+  };
 }
 
 export interface InstallUninstallResult {
@@ -303,6 +348,32 @@ export interface PlatformEvent {
   created_at: string;
 }
 
+/** Public Host relay sessions. Private Powerbox journal events never use these. */
+export const HOST_EVENT_SESSIONS = {
+  installationLifecycle: "host_installation_lifecycle",
+  powerbox: "host_powerbox",
+} as const;
+
+export const HOST_INSTALLATION_LIFECYCLE_SESSION = HOST_EVENT_SESSIONS.installationLifecycle;
+export const HOST_POWERBOX_SESSION = HOST_EVENT_SESSIONS.powerbox;
+export const HOST_POWERBOX_RELAY_SESSIONS = [
+  HOST_EVENT_SESSIONS.powerbox,
+  HOST_EVENT_SESSIONS.installationLifecycle,
+] as const;
+
+export type HostEventSessionId = typeof HOST_EVENT_SESSIONS[keyof typeof HOST_EVENT_SESSIONS];
+export type EventSubscriptionOptions = { signal?: AbortSignal };
+
+export const PUBLIC_POWERBOX_EVENT_KINDS = [
+  "host/exposure.created",
+  "host/exposure.revoked",
+  "host/exposure.expired",
+  "host/binding.selected",
+  "host/binding.revoked",
+  "host/binding.expired",
+] as const;
+export type PublicPowerboxEventKind = typeof PUBLIC_POWERBOX_EVENT_KINDS[number];
+
 export interface SurfaceActivation {
   launch_capability_id?: string;
   session_template?: Record<string, unknown>;
@@ -351,7 +422,45 @@ export interface AssetRecord {
 export type {
   AcquisitionKind,
   AcquisitionRecord,
+  ActiveBindingRecord,
   ArtifactDescriptor,
+  AvailabilityPolicy,
+  BindingCandidate,
+  BindingCandidatesRequest,
+  BindingCandidatesResult,
+  BindingComponentDisclosure,
+  BindingDecisionStatus,
+  BindingEffectiveStatus,
+  BindingEndpointPin,
+  BindingGap,
+  BindingId,
+  BindingLifecyclePayloadSchema,
+  BindingListRequest,
+  BindingInstallationDisclosure,
+  BindingLock,
+  BindingMutationResult,
+  BindingPhase,
+  BindingRevokeRequest,
+  BindingSelectRequest,
+  BindingSelectionRecord,
+  BindingView,
+  BindingWorkDisclosure,
+  CapabilityPin,
+  ComponentPin,
+  ComponentBoundaryClaims,
+  ComponentClaimStatus,
+  ComponentTrustClass,
+  ExposureCreateRequest,
+  ExposureId,
+  ExposureLifecyclePayloadSchema,
+  ExposureListRequest,
+  ExposureMutationResult,
+  ExposureRecord,
+  ExposureRevokeRequest,
+  ExposureStatus,
+  ExposureView,
+  HostBindingListResult,
+  HostExposureListResult,
   HostInstallationListResult,
   HostRunListResult,
   InstallationChangeForArtifactDescriptor,
@@ -392,6 +501,11 @@ export type {
   InstallationUpdateRequest,
   InstallationView,
   InstallationWorkSummary,
+  PortId,
+  PortDescriptor,
+  PortRole,
+  ResolvedPortPin,
+  ResourceSelector,
   RunEntrypointPreflight,
   RunGap,
   RunGetRequest,
@@ -400,6 +514,7 @@ export type {
   RunListRequest,
   RunMutationResult,
   RunRecord,
+  RunRevisionPin,
   RunStartRequest,
   RunStartResult,
   RunStatus,
@@ -407,12 +522,14 @@ export type {
   RunStatusView,
   RunStopRequest,
   RunView,
+  SelectedTransport,
   StateAction,
   StateActionKind,
   StateBindingKind,
   StateBindingRecord,
   StateDisposition,
   StateSlotId,
+  TransportRequirements,
   WorkId,
   WorkEntrypoint,
   WorkEntrypointTarget,
@@ -1223,6 +1340,34 @@ export class PluroraProtocolClient {
     return this.invoke<RunMutationResult>("host.run.stop", input);
   }
 
+  listExposures(input: ExposureListRequest = {}): Promise<HostExposureListResult> {
+    return this.invoke<HostExposureListResult>("host.exposure.list", input);
+  }
+
+  createExposure(input: ExposureCreateRequest): Promise<ExposureMutationResult> {
+    return this.invoke<ExposureMutationResult>("host.exposure.create", input);
+  }
+
+  revokeExposure(input: ExposureRevokeRequest): Promise<ExposureMutationResult> {
+    return this.invoke<ExposureMutationResult>("host.exposure.revoke", input);
+  }
+
+  listBindings(input: BindingListRequest = {}): Promise<HostBindingListResult> {
+    return this.invoke<HostBindingListResult>("host.binding.list", input);
+  }
+
+  bindingCandidates(input: BindingCandidatesRequest): Promise<BindingCandidatesResult> {
+    return this.invoke<BindingCandidatesResult>("host.binding.candidates", input);
+  }
+
+  selectBinding(input: BindingSelectRequest): Promise<BindingMutationResult> {
+    return this.invoke<BindingMutationResult>("host.binding.select", input);
+  }
+
+  revokeBinding(input: BindingRevokeRequest): Promise<BindingMutationResult> {
+    return this.invoke<BindingMutationResult>("host.binding.revoke", input);
+  }
+
   openSession(labels: string[] = [], metadata: Record<string, unknown> = {}, activePackageSet: string[] = []) {
     return this.call<{ id: string }>("context.open", {
       active_package_set: activePackageSet,
@@ -1419,11 +1564,42 @@ export class PluroraProtocolClient {
     return this.call<PlatformEvent[]>("journal.list", { session_id: sessionId, limit: 50 });
   }
 
-  subscribeEvents(sessionId: string | undefined, onEvent: (event: PlatformEvent) => void) {
-    const targetSession = sessionId ?? "host_installation_lifecycle";
+  subscribeEvents(
+    sessionId: string | undefined,
+    onEvent: (event: PlatformEvent) => void,
+    options: EventSubscriptionOptions = {},
+  ): () => void {
+    const targetSession = sessionId ?? HOST_EVENT_SESSIONS.installationLifecycle;
+    if (options.signal?.aborted) return () => undefined;
     const source = new EventSource(this.eventSubscribeUrl(targetSession));
-    source.addEventListener("journal.event", (message) => onEvent(JSON.parse((message as MessageEvent).data)));
-    return () => source.close();
+    let closed = false;
+    source.addEventListener("journal.event", (message) => {
+      if (!closed) onEvent(JSON.parse((message as MessageEvent).data));
+    });
+    const close = () => {
+      if (closed) return;
+      closed = true;
+      source.close();
+      options.signal?.removeEventListener("abort", close);
+    };
+    options.signal?.addEventListener("abort", close, { once: true });
+    return close;
+  }
+
+  /** Subscribe to one or more public Host relay sessions with shared cleanup. */
+  subscribeHostEvents(
+    sessions: readonly HostEventSessionId[],
+    onEvent: (event: PlatformEvent) => void,
+    options: EventSubscriptionOptions = {},
+  ): () => void {
+    const uniqueSessions = [...new Set(sessions)];
+    const close = uniqueSessions.map((session) => this.subscribeEvents(session, onEvent, options));
+    let closed = false;
+    return () => {
+      if (closed) return;
+      closed = true;
+      close.forEach((unsubscribe) => unsubscribe());
+    };
   }
 
   private rpcHeaders(): Record<string, string> {

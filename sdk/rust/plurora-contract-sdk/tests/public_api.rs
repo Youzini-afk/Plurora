@@ -4,10 +4,17 @@ use anyhow::Result;
 use async_trait::async_trait;
 use futures::Stream;
 use plurora_contract_sdk::{
-    AppendEventRequest, ContractOwnerLayer, ContractSelection, ContractVersionRequirement,
-    EmptyParams, InstallationRecordSchemaVersion, ObjectGetRequest, ObjectGetResponse,
-    PluroraClient, PluroraTransport, ProtocolDescriptor, ProtocolSelection, WorkId, WorkRevision,
-    WorkRevisionSchema, OBJECT_PUT,
+    AppendEventRequest, BindingCandidate, BindingCandidatesRequest, BindingComponentDisclosure,
+    BindingInstallationDisclosure, BindingListRequest, BindingPhase, BindingRevokeRequest,
+    BindingSelectRequest, BindingView, BindingWorkDisclosure, ContractOwnerLayer,
+    ContractSelection, ContractVersionRequirement, EmptyParams, ExposureCreateRequest,
+    ExposureListRequest, ExposureRevokeRequest, ExposureView, HostBindingExpiredPayload,
+    HostBindingRevokedPayload, HostBindingSelectedPayload, HostExposureCreatedPayload,
+    HostExposureExpiredPayload, HostExposureRevokedPayload, InstallationRecordSchemaVersion,
+    ObjectGetRequest, ObjectGetResponse, PluroraClient, PluroraTransport, PortDescriptor,
+    ProtocolDescriptor, ProtocolSelection, WorkId, WorkRevision, WorkRevisionSchema,
+    HOST_BINDING_EXPIRED, HOST_BINDING_REVOKED, HOST_BINDING_SELECTED, HOST_EXPOSURE_CREATED,
+    HOST_EXPOSURE_EXPIRED, HOST_EXPOSURE_REVOKED, OBJECT_PUT,
 };
 
 #[derive(Clone, Debug, PartialEq)]
@@ -69,9 +76,43 @@ fn canonical_methods_are_available(client: &PluroraClient, params: EmptyParams) 
     let _target = client.host_target_list(params);
 }
 
+fn powerbox_methods_are_available(
+    client: &PluroraClient,
+    exposure_list: ExposureListRequest,
+    exposure_create: ExposureCreateRequest,
+    exposure_revoke: ExposureRevokeRequest,
+    binding_list: BindingListRequest,
+    candidates: BindingCandidatesRequest,
+    select: BindingSelectRequest,
+    revoke: BindingRevokeRequest,
+) {
+    let _ = client.host_exposure_list(exposure_list);
+    let _ = client.host_exposure_create(exposure_create);
+    let _ = client.host_exposure_revoke(exposure_revoke);
+    let _ = client.host_binding_list(binding_list);
+    let _ = client.host_binding_candidates(candidates);
+    let _ = client.host_binding_select(select);
+    let _ = client.host_binding_revoke(revoke);
+}
+
 fn work_revision_identity_and_title_remain_typed(value: &WorkRevision) {
     let _: &String = &value.title;
     let _: &WorkId = &value.work_id;
+}
+
+fn powerbox_candidate_disclosure_remains_typed(
+    candidate: &BindingCandidate,
+    candidates: &BindingCandidatesRequest,
+    select: &BindingSelectRequest,
+) {
+    let _: &BindingPhase = &candidates.phase;
+    let _: &BindingPhase = &select.phase;
+    let _: &ExposureView = &candidate.exposure;
+    let _: &PortDescriptor = &candidate.consumer_port;
+    let _: &PortDescriptor = &candidate.provider_port;
+    let _: &BindingWorkDisclosure = &candidate.provider_work;
+    let _: &BindingInstallationDisclosure = &candidate.provider_installation;
+    let _: &BindingComponentDisclosure = &candidate.provider_component;
 }
 
 #[test]
@@ -83,7 +124,52 @@ fn generated_modules_are_exported_from_the_crate_root() {
     let _ = std::mem::size_of::<ProtocolDescriptor>();
     let _ = generated_method_is_available;
     let _ = canonical_methods_are_available;
+    let _ = powerbox_methods_are_available;
     let _ = work_revision_identity_and_title_remain_typed;
+    let _ = powerbox_candidate_disclosure_remains_typed;
+
+    assert_eq!(HOST_EXPOSURE_CREATED, "host/exposure.created");
+    assert_eq!(HOST_EXPOSURE_REVOKED, "host/exposure.revoked");
+    assert_eq!(HOST_EXPOSURE_EXPIRED, "host/exposure.expired");
+    assert_eq!(HOST_BINDING_SELECTED, "host/binding.selected");
+    assert_eq!(HOST_BINDING_REVOKED, "host/binding.revoked");
+    assert_eq!(HOST_BINDING_EXPIRED, "host/binding.expired");
+    let _ = std::mem::size_of::<ExposureView>();
+    let _ = std::mem::size_of::<BindingView>();
+    let _ = std::mem::size_of::<HostExposureCreatedPayload>();
+    let _ = std::mem::size_of::<HostExposureRevokedPayload>();
+    let _ = std::mem::size_of::<HostExposureExpiredPayload>();
+    let _ = std::mem::size_of::<HostBindingSelectedPayload>();
+    let _ = std::mem::size_of::<HostBindingRevokedPayload>();
+    let _ = std::mem::size_of::<HostBindingExpiredPayload>();
+    let generated_types = include_str!("../src/types.rs");
+    for type_name in [
+        "BindingCandidate",
+        "BindingComponentDisclosure",
+        "BindingInstallationDisclosure",
+        "BindingWorkDisclosure",
+    ] {
+        let marker = format!("pub struct {type_name} {{");
+        let start = generated_types
+            .find(&marker)
+            .expect("generated public type");
+        let body = &generated_types[start..];
+        let end = body.find("\n}\n").expect("generated public type body") + 3;
+        for private in [
+            "authority_handle_id",
+            "authority_basis",
+            "grant_reference",
+            "raw_handle",
+            "host_path",
+            "secret_value",
+            "stderr",
+        ] {
+            assert!(
+                !body[..end].contains(private),
+                "{type_name} leaked {private}"
+            );
+        }
+    }
 }
 
 #[test]

@@ -2,6 +2,7 @@ import type {
   InstallationRecord,
   InstallationView,
   InstallationWorkSummary,
+  BindingGap,
   RunGap,
   RunStatus,
   RunView,
@@ -26,6 +27,7 @@ export interface LibraryAffordanceInput {
   entrypoint?: WorkEntrypoint | null;
   authority?: LibraryAuthorityInfo;
   preflight_gaps?: RunGap[];
+  binding_gaps?: BindingGap[];
 }
 
 export interface LibraryAffordance {
@@ -74,6 +76,12 @@ export function libraryAuthorityForInstallation(
 const BLOCKING_GAPS = new Set([
   "artifact_missing",
   "binding_unavailable",
+  "binding_ambiguous",
+  "binding_expired",
+  "port_incompatible",
+  "port_unresolved",
+  "unsupported_interaction",
+  "plan_stale",
   "target_unsatisfied",
   "approval_required",
   "outcome_unknown",
@@ -92,8 +100,8 @@ export function resolveLibraryAffordances(input: LibraryAffordanceInput): Librar
     reason_code: "authority_denied",
     next_step: "Refresh the current Host access identity before choosing an action.",
   };
-  const preflightKnown = input.preflight_gaps !== undefined;
-  const gaps = input.preflight_gaps ?? [];
+  const preflightKnown = input.preflight_gaps !== undefined || input.binding_gaps !== undefined;
+  const gaps = [...(input.preflight_gaps ?? []), ...(input.binding_gaps ?? [])];
   const affordances: LibraryAffordance[] = [];
 
   const canObserve = authority.can_observe !== false;
@@ -147,7 +155,7 @@ export function resolveLibraryAffordances(input: LibraryAffordanceInput): Librar
   return affordances;
 }
 
-function playBlock(input: LibraryAffordanceInput, gaps: RunGap[]): Pick<LibraryAffordance, "reason_code" | "next_step"> {
+function playBlock(input: LibraryAffordanceInput, gaps: Array<RunGap | BindingGap>): Pick<LibraryAffordance, "reason_code" | "next_step"> {
   const record = "record" in input.installation ? input.installation.record : input.installation;
   if (record.status !== "ready") {
     return {

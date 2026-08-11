@@ -126,6 +126,34 @@ pub(crate) fn method_schemas() -> Vec<(PlatformMethod, Value, Value)> {
                     schema_value::<RunStopRequest>(),
                     schema_value::<RunMutationResult>(),
                 ),
+                PlatformMethod::ExposureList => (
+                    schema_value::<ExposureListRequest>(),
+                    json!({"type":"array","items":schema_value::<ExposureView>()}),
+                ),
+                PlatformMethod::ExposureCreate => (
+                    schema_value::<ExposureCreateRequest>(),
+                    schema_value::<ExposureMutationResult>(),
+                ),
+                PlatformMethod::ExposureRevoke => (
+                    schema_value::<ExposureRevokeRequest>(),
+                    schema_value::<ExposureMutationResult>(),
+                ),
+                PlatformMethod::BindingList => (
+                    schema_value::<BindingListRequest>(),
+                    json!({"type":"array","items":schema_value::<BindingView>()}),
+                ),
+                PlatformMethod::BindingCandidates => (
+                    schema_value::<BindingCandidatesRequest>(),
+                    schema_value::<BindingCandidatesResult>(),
+                ),
+                PlatformMethod::BindingSelect => (
+                    schema_value::<BindingSelectRequest>(),
+                    schema_value::<BindingMutationResult>(),
+                ),
+                PlatformMethod::BindingRevoke => (
+                    schema_value::<BindingRevokeRequest>(),
+                    schema_value::<BindingMutationResult>(),
+                ),
                 PlatformMethod::TargetList => (
                     schema_value::<EmptyParams>(),
                     json!({"type":"array","items":schema_value::<ExecutionTarget>()}),

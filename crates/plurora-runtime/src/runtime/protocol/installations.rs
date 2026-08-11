@@ -120,9 +120,21 @@ where
             context.verified_authority_expiry_ms(),
             context.installation_authority_refresh(),
         )?);
-        Ok(serde_json::to_value(
-            self.config.installation_control.update(request).await?,
-        )?)
+        let result = self.config.installation_control.update(request).await?;
+        let invalidated = self
+            .config
+            .powerbox_control
+            .installation_changed(
+                &result.installation.record.installation_id,
+                Some(result.installation.revision),
+            )
+            .await?;
+        for binding_id in invalidated.affected_binding_ids {
+            self.run_bindings
+                .close_binding(&binding_id, "installation_updated")
+                .await;
+        }
+        Ok(serde_json::to_value(result)?)
     }
 
     pub(crate) async fn dispatch_installation_remove(
@@ -144,8 +156,17 @@ where
             context.verified_authority_expiry_ms(),
             context.installation_authority_refresh(),
         )?);
-        Ok(serde_json::to_value(
-            self.config.installation_control.remove(request).await?,
-        )?)
+        let result = self.config.installation_control.remove(request).await?;
+        let invalidated = self
+            .config
+            .powerbox_control
+            .installation_changed(&result.installation.record.installation_id, None)
+            .await?;
+        for binding_id in invalidated.affected_binding_ids {
+            self.run_bindings
+                .close_binding(&binding_id, "installation_removed")
+                .await;
+        }
+        Ok(serde_json::to_value(result)?)
     }
 }

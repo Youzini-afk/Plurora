@@ -25,8 +25,9 @@ use tokio::sync::{oneshot, Mutex, RwLock};
 use tokio::time::timeout;
 
 use crate::{
-    resolve_contract_method, EventStore, PackageRecord, PackageRegistry, PackageState,
-    PlatformMethod, ProtocolContext, ProtocolError, RunControl, Runtime,
+    resolve_contract_method, ComponentActivationIdentity, EventStore, InvocationBindingContext,
+    PackageRecord, PackageRegistry, PackageState, PlatformMethod, ProtocolContext, ProtocolError,
+    RunControl, Runtime,
 };
 
 pub struct SubprocessSupervisor {
@@ -47,8 +48,14 @@ pub struct SubprocessHandle {
     invoke_timeout: Duration,
     pending_responses: Mutex<HashMap<String, oneshot::Sender<Value>>>,
     reverse_platform_requests: Mutex<HashSet<String>>,
-    current_session_id: Mutex<Option<String>>,
+    active_invocations: Mutex<HashMap<String, SubprocessInvocationAuthority>>,
     transport_lost: AtomicBool,
+}
+
+#[derive(Clone)]
+struct SubprocessInvocationAuthority {
+    session_id: Option<String>,
+    bindings: HashMap<plurora_work::PortId, InvocationBindingContext>,
 }
 
 #[derive(Clone)]
@@ -180,7 +187,7 @@ impl SubprocessSupervisor {
             invoke_timeout: Duration::from_millis(manifest.sandbox_policy.cpu_quota_ms_per_invoke),
             pending_responses: Mutex::new(HashMap::new()),
             reverse_platform_requests: Mutex::new(HashSet::new()),
-            current_session_id: Mutex::new(None),
+            active_invocations: Mutex::new(HashMap::new()),
             transport_lost: AtomicBool::new(false),
         });
 
@@ -348,8 +355,9 @@ impl SubprocessSupervisor {
 
     pub async fn invoke<S>(
         self: &Arc<Self>,
-        _runtime: Runtime<S>,
+        runtime: Runtime<S>,
         package_id: &PackageId,
+        component_id: &str,
         capability_id: &str,
         session_id: Option<String>,
         input: Value,
@@ -364,20 +372,55 @@ impl SubprocessSupervisor {
             .get(package_id)
             .cloned()
             .ok_or_else(|| anyhow::anyhow!("subprocess package '{package_id}' is not ready"))?;
+        let bindings = match session_id.as_ref() {
+            Some(session_id) => {
+                runtime
+                    .run_binding_broker()
+                    .invocation_bindings_for_component(session_id, package_id, component_id)
+                    .await?
+            }
+            None => HashMap::new(),
+        };
+        let invocation_context_id = plurora_core::new_id("siv");
+        let request_id = format!("invoke-{invocation_context_id}");
+        let binding_handles = bindings
+            .iter()
+            .map(|(port_id, binding)| (port_id.as_str().to_string(), binding.handle_id))
+            .collect::<HashMap<_, _>>();
         let request = json!({
             "jsonrpc": "2.0",
-            "id": "invoke-1",
+            "id": request_id.clone(),
             "method": "capability.invoke",
-            "params": { "capability_id": capability_id, "session_id": session_id, "input": input }
+            "params": {
+                "capability_id": capability_id,
+                "session_id": session_id.clone(),
+                "input": input,
+                "invocation_context_id": invocation_context_id.clone(),
+                "bindings": binding_handles,
+            }
         });
-        *handle.current_session_id.lock().await = session_id;
+        handle.active_invocations.lock().await.insert(
+            invocation_context_id.clone(),
+            SubprocessInvocationAuthority {
+                session_id,
+                bindings,
+            },
+        );
         let response = match timeout(handle.invoke_timeout, handle.call(request)).await {
             Ok(Ok(response)) => {
-                *handle.current_session_id.lock().await = None;
+                handle
+                    .active_invocations
+                    .lock()
+                    .await
+                    .remove(&invocation_context_id);
                 response
             }
             Ok(Err(error)) => {
-                *handle.current_session_id.lock().await = None;
+                handle
+                    .active_invocations
+                    .lock()
+                    .await
+                    .remove(&invocation_context_id);
                 let _ = self
                     .report_transport_loss(
                         package_id,
@@ -388,8 +431,12 @@ impl SubprocessSupervisor {
                 return Err(error);
             }
             Err(_) => {
-                *handle.current_session_id.lock().await = None;
-                handle.pending_responses.lock().await.remove("invoke-1");
+                handle
+                    .active_invocations
+                    .lock()
+                    .await
+                    .remove(&invocation_context_id);
+                handle.pending_responses.lock().await.remove(&request_id);
                 let _ = self
                     .report_transport_loss(
                         package_id,
@@ -767,10 +814,60 @@ impl SubprocessHandle {
             } else {
                 None
             };
-            let session_id = self.current_session_id.lock().await.clone();
-            let response =
-                dispatch_reverse_platform_frame(&runtime, &self.package_id, session_id, frame)
-                    .await;
+            let authority =
+                match resolve_reverse_invocation_context(&self.active_invocations, &frame).await {
+                    Ok(authority) => authority,
+                    Err(message) => {
+                        let error = ProtocolError::invalid_request(message);
+                        if self
+                            .write_json_frame(json!({"jsonrpc": "2.0", "id": id, "error": error}))
+                            .await
+                            .is_err()
+                        {
+                            self.reverse_platform_requests
+                                .lock()
+                                .await
+                                .remove(&request_id);
+                            break "subprocess_transport_write_failed";
+                        }
+                        self.reverse_platform_requests
+                            .lock()
+                            .await
+                            .remove(&request_id);
+                        continue;
+                    }
+                };
+            let (session_id, activation) =
+                match reverse_invocation_authority(authority.as_ref(), &frame) {
+                    Ok(resolved) => resolved,
+                    Err(message) => {
+                        let error = ProtocolError::invalid_request(message);
+                        if self
+                            .write_json_frame(json!({"jsonrpc": "2.0", "id": id, "error": error}))
+                            .await
+                            .is_err()
+                        {
+                            self.reverse_platform_requests
+                                .lock()
+                                .await
+                                .remove(&request_id);
+                            break "subprocess_transport_write_failed";
+                        }
+                        self.reverse_platform_requests
+                            .lock()
+                            .await
+                            .remove(&request_id);
+                        continue;
+                    }
+                };
+            let response = dispatch_reverse_platform_frame_with_activation(
+                &runtime,
+                &self.package_id,
+                session_id,
+                activation,
+                frame,
+            )
+            .await;
             let stream_id = if platform_method.streaming() {
                 response
                     .get("result")
@@ -1014,6 +1111,103 @@ pub(crate) fn id_to_key(id: &Value) -> String {
     }
 }
 
+async fn resolve_reverse_invocation_context(
+    active_invocations: &Mutex<HashMap<String, SubprocessInvocationAuthority>>,
+    frame: &Value,
+) -> Result<Option<SubprocessInvocationAuthority>, String> {
+    let context_value = frame.get("invocation_context_id").or_else(|| {
+        frame
+            .get("params")
+            .and_then(|params| params.get("invocation_context_id"))
+    });
+    let background = frame
+        .get("params")
+        .and_then(|params| params.get("invocation_context"))
+        .and_then(|context| context.get("kind"))
+        .and_then(Value::as_str)
+        == Some("background");
+    match context_value {
+        Some(value) => {
+            if background {
+                return Err(
+                    "reverse request cannot combine a Host invocation token with background context"
+                        .to_string(),
+                );
+            }
+            let context_id = value.as_str().ok_or_else(|| {
+                "reverse invocation_context_id must be a Host-issued string token".to_string()
+            })?;
+            active_invocations
+                .lock()
+                .await
+                .get(context_id)
+                .cloned()
+                .ok_or_else(|| {
+                    "reverse invocation_context_id is unknown, expired, or replayed".to_string()
+                })
+                .map(Some)
+        }
+        None if background => Ok(None),
+        None => Err(
+            "reverse request requires a current Host-issued invocation_context_id or explicit background context"
+                .to_string(),
+        ),
+    }
+}
+
+fn reverse_invocation_authority(
+    authority: Option<&SubprocessInvocationAuthority>,
+    frame: &Value,
+) -> Result<(Option<String>, Option<ComponentActivationIdentity>), String> {
+    let requested_handle = frame
+        .get("params")
+        .and_then(|params| params.get("handle"))
+        .cloned()
+        .map(|value| {
+            serde_json::from_value::<CapHandleId>(value)
+                .map_err(|_| "reverse request carries an invalid capability handle".to_string())
+        })
+        .transpose()?;
+    let requested_port = frame
+        .get("params")
+        .and_then(|params| params.get("consumer_port"))
+        .and_then(Value::as_str)
+        .map(plurora_work::PortId::parse)
+        .transpose()
+        .map_err(|_| "reverse request carries an invalid consumer Port".to_string())?;
+    let Some(authority) = authority else {
+        if requested_handle.is_some() || requested_port.is_some() {
+            return Err("background reverse requests cannot use Run Binding authority".to_string());
+        }
+        return Ok((None, None));
+    };
+    let activation = requested_handle
+        .map(|handle_id| {
+            let binding = authority
+                .bindings
+                .values()
+                .find(|binding| binding.handle_id == handle_id)
+                .ok_or_else(|| {
+                    "reverse capability handle is not in the current Host invocation".to_string()
+                })?;
+            if requested_port
+                .as_ref()
+                .is_some_and(|port| port != &binding.activation.consumer_port)
+            {
+                return Err(
+                    "reverse capability handle does not match the requested consumer Port"
+                        .to_string(),
+                );
+            }
+            Ok(binding.activation.clone())
+        })
+        .transpose()?;
+    if requested_port.is_some() && requested_handle.is_none() {
+        return Err("reverse consumer Port requires its Host-issued Binding handle".to_string());
+    }
+    Ok((authority.session_id.clone(), activation))
+}
+
 /// Dispatch one reverse public-contract JSON-RPC frame from a subprocess child.
 /// The caller principal is always locked to `package_id`; any package_id in
 /// params is treated as untrusted request data by downstream dispatch.
@@ -1021,6 +1215,20 @@ pub async fn dispatch_reverse_platform_frame<S>(
     runtime: &Runtime<S>,
     package_id: &str,
     session_id: Option<String>,
+    frame: Value,
+) -> Value
+where
+    S: EventStore,
+{
+    dispatch_reverse_platform_frame_with_activation(runtime, package_id, session_id, None, frame)
+        .await
+}
+
+async fn dispatch_reverse_platform_frame_with_activation<S>(
+    runtime: &Runtime<S>,
+    package_id: &str,
+    session_id: Option<String>,
+    activation: Option<ComponentActivationIdentity>,
     frame: Value,
 ) -> Value
 where
@@ -1049,15 +1257,17 @@ where
     };
     let mut context = ProtocolContext::package(package_id.to_string(), "subprocess_stdio");
     context.session_id = session_id;
-    match runtime
-        .call_subprocess_protocol_negotiated(
-            &context,
-            method,
-            frame.get("params").cloned().unwrap_or(Value::Null),
-            contract.as_ref(),
-        )
-        .await
-    {
+    let dispatch = runtime.call_subprocess_protocol_negotiated(
+        &context,
+        method,
+        frame.get("params").cloned().unwrap_or(Value::Null),
+        contract.as_ref(),
+    );
+    let result = match activation {
+        Some(activation) => crate::inproc::with_component_activation(activation, dispatch).await,
+        None => dispatch.await,
+    };
+    match result {
         Ok(result) => json!({"jsonrpc": "2.0", "id": id, "result": result}),
         Err(error) => json!({"jsonrpc": "2.0", "id": id, "error": error}),
     }
@@ -1087,7 +1297,96 @@ mod tests {
         CapabilityDescriptor, EntryDescriptor, PackageContributions, SandboxPolicy,
         EVENT_PACKAGE_DEGRADED,
     };
-    use plurora_work::RunId;
+    use plurora_work::{InstallationId, NodeId, PortId, RunId};
+
+    #[test]
+    fn reverse_calls_receive_run_binding_only_from_the_exact_invocation_token_and_handle() {
+        let handle_id = CapHandleId::new();
+        let port_id = PortId::parse("save-import").unwrap();
+        let activation = ComponentActivationIdentity {
+            activation_id: "activation-1".to_string(),
+            installation_id: InstallationId::new(),
+            run_id: RunId::new(),
+            run_revision: 2,
+            session_id: "session-1".to_string(),
+            package_id: "example/child".to_string(),
+            component_id: "main".to_string(),
+            node_path: vec![NodeId::parse("node").unwrap()],
+            consumer_port: port_id.clone(),
+        };
+        let authority = SubprocessInvocationAuthority {
+            session_id: Some(activation.session_id.clone()),
+            bindings: HashMap::from([(
+                port_id.clone(),
+                InvocationBindingContext {
+                    handle_id,
+                    activation: activation.clone(),
+                },
+            )]),
+        };
+        let exact = json!({
+            "params": {
+                "handle": handle_id,
+                "consumer_port": port_id,
+            }
+        });
+        assert_eq!(
+            reverse_invocation_authority(Some(&authority), &exact),
+            Ok((Some("session-1".to_string()), Some(activation.clone())))
+        );
+
+        let background = reverse_invocation_authority(None, &exact);
+        assert!(background.is_err());
+        let wrong_handle = json!({"params": {"handle": CapHandleId::new()}});
+        assert!(reverse_invocation_authority(Some(&authority), &wrong_handle).is_err());
+        let wrong_port = json!({
+            "params": {"handle": handle_id, "consumer_port": "other-port"}
+        });
+        assert!(reverse_invocation_authority(Some(&authority), &wrong_port).is_err());
+    }
+
+    #[tokio::test]
+    async fn reverse_invocation_tokens_are_required_exact_and_not_replayable() {
+        let active = Mutex::new(HashMap::from([(
+            "host-token".to_string(),
+            SubprocessInvocationAuthority {
+                session_id: Some("session-1".to_string()),
+                bindings: HashMap::new(),
+            },
+        )]));
+        assert!(
+            resolve_reverse_invocation_context(&active, &json!({"params": {}}),)
+                .await
+                .is_err()
+        );
+        assert!(resolve_reverse_invocation_context(
+            &active,
+            &json!({"params": {"invocation_context_id": "unknown"}}),
+        )
+        .await
+        .is_err());
+        assert!(resolve_reverse_invocation_context(
+            &active,
+            &json!({"params": {"invocation_context_id": "host-token"}}),
+        )
+        .await
+        .unwrap()
+        .is_some());
+        active.lock().await.remove("host-token");
+        assert!(resolve_reverse_invocation_context(
+            &active,
+            &json!({"params": {"invocation_context_id": "host-token"}}),
+        )
+        .await
+        .is_err());
+        assert!(resolve_reverse_invocation_context(
+            &active,
+            &json!({"params": {"invocation_context": {"kind": "background"}}}),
+        )
+        .await
+        .unwrap()
+        .is_none());
+    }
 
     #[derive(Default)]
     struct LossSpy {
@@ -1473,7 +1772,7 @@ time.sleep(0.25)
         let temp = tempfile::tempdir()?;
         std::fs::write(
             temp.path().join("restart_eof.py"),
-            r#"import json, os, pathlib, sys, time
+            r#"import json, os, pathlib, sys
 counter = pathlib.Path("restart-count.txt")
 count = int(counter.read_text()) + 1 if counter.exists() else 1
 counter.write_text(str(count))
@@ -1482,8 +1781,7 @@ msg = json.loads(line)
 print(json.dumps({"jsonrpc":"2.0","id":msg.get("id"),"result":{"ready":True}}), flush=True)
 if count >= 2:
     os.close(sys.stdout.fileno())
-    time.sleep(0.1)
-    sys.exit(0)
+    os._exit(0)
 for line in sys.stdin:
     pass
 "#,

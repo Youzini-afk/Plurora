@@ -327,6 +327,17 @@ where
                 self.dispatch_installation_remove(context, params).await
             }
 
+            // Powerbox exposure / binding domain
+            PlatformMethod::ExposureList => self.dispatch_exposure_list(context, params).await,
+            PlatformMethod::ExposureCreate => self.dispatch_exposure_create(context, params).await,
+            PlatformMethod::ExposureRevoke => self.dispatch_exposure_revoke(context, params).await,
+            PlatformMethod::BindingList => self.dispatch_binding_list(context, params).await,
+            PlatformMethod::BindingCandidates => {
+                self.dispatch_binding_candidates(context, params).await
+            }
+            PlatformMethod::BindingSelect => self.dispatch_binding_select(context, params).await,
+            PlatformMethod::BindingRevoke => self.dispatch_binding_revoke(context, params).await,
+
             // Run domain
             PlatformMethod::RunList => self.dispatch_run_list(context, params).await,
             PlatformMethod::RunGet => self.dispatch_run_get(context, params).await,
@@ -368,7 +379,9 @@ where
             PlatformMethod::CapabilityHandleAttenuate => self.dispatch_cap_attenuate(&params).await,
             PlatformMethod::CapabilityHandleRevoke => self.dispatch_cap_revoke(&params).await,
             PlatformMethod::CapabilityHandleListFor => self.dispatch_cap_list_for(&params).await,
-            PlatformMethod::CapabilityStream => self.dispatch_capability_stream(&params).await,
+            PlatformMethod::CapabilityStream => {
+                self.dispatch_capability_stream(context, &params).await
+            }
             PlatformMethod::CapabilityCancel => self.dispatch_capability_cancel(&params).await,
 
             // Extension / hook domain
@@ -530,6 +543,8 @@ fn host_action_for_method(method: PlatformMethod) -> &'static str {
         | PlatformMethod::SessionClose
         | PlatformMethod::SessionFork => "access_manage",
         PlatformMethod::RunStart | PlatformMethod::RunStop => "run",
+        PlatformMethod::ExposureCreate | PlatformMethod::ExposureRevoke => "exposure.manage",
+        PlatformMethod::BindingSelect | PlatformMethod::BindingRevoke => "binding.manage",
         PlatformMethod::InstallationCreate
         | PlatformMethod::InstallationUpdate
         | PlatformMethod::InstallationRemove => "installation.manage",
@@ -549,6 +564,9 @@ fn host_action_for_method(method: PlatformMethod) -> &'static str {
         | PlatformMethod::HostDiagnostics
         | PlatformMethod::InstallationList
         | PlatformMethod::InstallationGet
+        | PlatformMethod::ExposureList
+        | PlatformMethod::BindingList
+        | PlatformMethod::BindingCandidates
         | PlatformMethod::RunList
         | PlatformMethod::RunGet
         | PlatformMethod::RunStatus

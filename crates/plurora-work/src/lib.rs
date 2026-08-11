@@ -28,10 +28,10 @@ pub use diagnostic::{
     DiagnosticCode, DiagnosticReport, DiagnosticSeverity, ModelError, ModelResult, WorkDiagnostic,
 };
 pub use host::{
-    AcquisitionKind, AcquisitionRecord, ActiveBindingRecord, ExposureRecord, ExposureStatus,
-    HealthStatus, InstallationRecord, InstallationSecretPolicy, InstallationStatus,
-    NodeInstanceRecord, NodeInstanceStatus, ResourceSelector, RunHealth, RunRecord, RunStatus,
-    StateBindingKind, StateBindingRecord,
+    installation_port_resource_id, AcquisitionKind, AcquisitionRecord, ActiveBindingRecord,
+    ExposureRecord, ExposureStatus, HealthStatus, InstallationRecord, InstallationSecretPolicy,
+    InstallationStatus, NodeInstanceRecord, NodeInstanceStatus, ResourceSelector, RunHealth,
+    RunRecord, RunStatus, StateBindingKind, StateBindingRecord,
 };
 pub use ids::{
     AssemblyId, BindingId, ExposureId, InstallationId, NodeId, PortId, RealizationId, RunId,

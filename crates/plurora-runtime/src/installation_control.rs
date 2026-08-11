@@ -260,9 +260,10 @@ pub struct InstallationRollbackPointer {
 
 /// A control-plane lease for one exact, Ready Installation secret-store revision.
 ///
-/// The opaque lease must exclude Installation lifecycle transitions until this
-/// value is dropped. This keeps a secret-store filesystem effect inside the same
-/// Ready/revision precondition that was checked immediately before the effect.
+/// The opaque shared lease must exclude lifecycle mutation of this Installation
+/// until this value is dropped without excluding unrelated Installations. This
+/// keeps a secret-store filesystem effect inside the same Ready/revision
+/// precondition that was checked immediately before the effect.
 pub struct InstallationSecretStoreGuard {
     installation_id: InstallationId,
     revision: u64,
@@ -857,11 +858,13 @@ pub trait InstallationControl: Send + Sync + 'static {
         anyhow::bail!("installation control unavailable")
     }
 
-    /// Acquire the secret-store path and an exclusion lease for an exact Ready
-    /// Installation revision. Implementations must synchronize durable authority,
-    /// acquire the same lock used by update/remove, check exact ID + revision +
-    /// Ready status under that lock, resolve the contained path, and retain the
-    /// lock in the returned guard. The default fails closed.
+    /// Acquire the secret-store path and a shared lifecycle lease for an exact
+    /// Ready Installation revision. Implementations must acquire the stable lock
+    /// for this Installation, synchronize durable authority under the global
+    /// journal/CAS lock, check exact ID + revision + Ready status, resolve the
+    /// contained path, and retain only the per-Installation shared lease in the
+    /// returned guard. Update/remove take the corresponding exclusive lease. The
+    /// default fails closed.
     async fn acquire_ready_secret_store(
         &self,
         _installation_id: &InstallationId,
@@ -870,8 +873,10 @@ pub trait InstallationControl: Send + Sync + 'static {
         anyhow::bail!("installation control unavailable")
     }
 
-    /// Acquire the same lifecycle exclusion used by update/remove and return the
-    /// verified, complete Work/Assembly/Lock closure for one exact Ready revision.
+    /// Acquire the per-Installation shared lifecycle exclusion paired with the
+    /// exclusive update/remove lease and return the verified, complete
+    /// Work/Assembly/Lock closure for one exact Ready revision. Unrelated
+    /// Installations must remain independently runnable and mutable.
     async fn acquire_ready_for_run(
         &self,
         _installation_id: &InstallationId,

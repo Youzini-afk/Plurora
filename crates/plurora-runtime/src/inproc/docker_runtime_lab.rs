@@ -1359,6 +1359,25 @@ pub fn prepare_docker_build_context(input: &Value) -> anyhow::Result<PreparedDoc
     })
 }
 
+#[cfg(test)]
+fn prepare_docker_build_context_at(
+    input: &Value,
+    data_dir: &Path,
+) -> anyhow::Result<PreparedDockerBuildContext> {
+    let spec = parse_build_image_request(input).map_err(anyhow::Error::msg)?;
+    anyhow::ensure!(
+        spec.strategy == BuildStrategy::Dockerfile,
+        "deployable build contexts only support dockerfile strategy"
+    );
+    let prepared = prepare_build_context_at(&spec, data_dir).map_err(anyhow::Error::msg)?;
+    verified_context_digest(&spec, &prepared.context).map_err(anyhow::Error::msg)?;
+    Ok(PreparedDockerBuildContext {
+        bytes: prepared.context.bytes,
+        files: prepared.context.files,
+        total_bytes: prepared.context.total_bytes,
+    })
+}
+
 fn verified_context_digest(spec: &BuildImageSpec, context: &ContextTar) -> Result<String, String> {
     let digest = sha256_digest(&context.bytes);
     if spec
@@ -1581,7 +1600,16 @@ fn build_labels(spec: &BuildImageSpec) -> HashMap<String, String> {
 }
 
 fn prepare_build_context(spec: &BuildImageSpec) -> Result<PreparedBuildContext, String> {
-    let validated_root = validate_build_context_scope(spec)?;
+    let data_dir = plurora_core::paths::data_dir()
+        .map_err(|_| "failed to resolve Plurora data directory".to_string())?;
+    prepare_build_context_at(spec, &data_dir)
+}
+
+fn prepare_build_context_at(
+    spec: &BuildImageSpec,
+    data_dir: &Path,
+) -> Result<PreparedBuildContext, String> {
+    let validated_root = validate_build_context_scope_at(spec, data_dir)?;
     match spec.strategy {
         BuildStrategy::Dockerfile => Ok(PreparedBuildContext {
             context: create_context_tar_at(spec, &validated_root)?,
@@ -1593,11 +1621,10 @@ fn prepare_build_context(spec: &BuildImageSpec) -> Result<PreparedBuildContext, 
     }
 }
 
-fn validate_build_context_scope(
+fn validate_build_context_scope_at(
     spec: &BuildImageSpec,
+    data_dir: &Path,
 ) -> Result<ValidatedBuildContextRoot, String> {
-    let data_dir = plurora_core::paths::data_dir()
-        .map_err(|_| "failed to resolve Plurora data directory".to_string())?;
     let data_dir = canonical_real_directory(&data_dir, "data directory")?;
     let workspaces = canonical_owned_directory(&data_dir, "workspaces", "workspaces root")?;
     let (scope_workspace_id, expected) = match &spec.context_scope {
@@ -2285,36 +2312,11 @@ fn redact_log_line(line: &str) -> String {
 
 #[cfg(test)]
 mod tests {
-    use std::ffi::OsString;
-    use std::sync::Mutex;
-
     use super::*;
 
-    static DATA_DIR_ENV_LOCK: Mutex<()> = Mutex::new(());
     const INSTALLATION_ID: &str = "00000000-0000-4000-8000-000000000001";
     const WORKSPACE_ID: &str = "00000000-0000-4000-8000-000000000002";
     const CHANGE_SET_ID: &str = "chg-0123456789abcdef";
-
-    struct DataDirEnv {
-        previous: Option<OsString>,
-    }
-
-    impl DataDirEnv {
-        fn set(path: &Path) -> Self {
-            let previous = std::env::var_os("PLURORA_DATA_DIR");
-            std::env::set_var("PLURORA_DATA_DIR", path);
-            Self { previous }
-        }
-    }
-
-    impl Drop for DataDirEnv {
-        fn drop(&mut self) {
-            match self.previous.take() {
-                Some(value) => std::env::set_var("PLURORA_DATA_DIR", value),
-                None => std::env::remove_var("PLURORA_DATA_DIR"),
-            }
-        }
-    }
 
     fn build_context_layout(data_dir: &Path, change_set_id: &str) -> (PathBuf, PathBuf) {
         let workspace = data_dir.join("workspaces").join(WORKSPACE_ID);
@@ -2598,13 +2600,6 @@ mod tests {
 
     #[test]
     fn docker_runtime_lab_build_image_accepts_nixpacks_strategy_shape() {
-        let _env_lock = DATA_DIR_ENV_LOCK
-            .lock()
-            .unwrap_or_else(|poisoned| poisoned.into_inner());
-        let temp = tempfile::tempdir().unwrap();
-        let data_dir = temp.path().to_path_buf();
-        let previous_data_dir = std::env::var_os("PLURORA_DATA_DIR");
-        std::env::set_var("PLURORA_DATA_DIR", &data_dir);
         let result = parse_build_image_request(&serde_json::json!({
             "approved": true,
             "strategy": "nixpacks",
@@ -2612,10 +2607,6 @@ mod tests {
             "workspace_id": WORKSPACE_ID,
             "build_id": "build-1",
         }));
-        match previous_data_dir {
-            Some(value) => std::env::set_var("PLURORA_DATA_DIR", value),
-            None => std::env::remove_var("PLURORA_DATA_DIR"),
-        }
         let spec = result.unwrap();
         assert_eq!(spec.strategy, BuildStrategy::Nixpacks);
         assert_eq!(spec.dockerfile, "Dockerfile");
@@ -2623,13 +2614,6 @@ mod tests {
 
     #[test]
     fn docker_runtime_lab_development_scratch_defaults_to_no_network() {
-        let _env_lock = DATA_DIR_ENV_LOCK
-            .lock()
-            .unwrap_or_else(|poisoned| poisoned.into_inner());
-        let temp = tempfile::tempdir().unwrap();
-        let data_dir = temp.path().to_path_buf();
-        let previous_data_dir = std::env::var_os("PLURORA_DATA_DIR");
-        std::env::set_var("PLURORA_DATA_DIR", &data_dir);
         let change_set_id = CHANGE_SET_ID;
         let result = parse_build_image_request(&serde_json::json!({
             "approved": true,
@@ -2639,10 +2623,6 @@ mod tests {
             "build_id": "build-1",
             "development_change_id": change_set_id
         }));
-        match previous_data_dir {
-            Some(value) => std::env::set_var("PLURORA_DATA_DIR", value),
-            None => std::env::remove_var("PLURORA_DATA_DIR"),
-        }
         let spec = result.unwrap();
         assert_eq!(spec.network_mode, BuildNetworkMode::None);
         assert_eq!(
@@ -2656,13 +2636,6 @@ mod tests {
 
     #[test]
     fn docker_runtime_lab_development_scratch_rejects_nixpacks() {
-        let _env_lock = DATA_DIR_ENV_LOCK
-            .lock()
-            .unwrap_or_else(|poisoned| poisoned.into_inner());
-        let temp = tempfile::tempdir().unwrap();
-        let data_dir = temp.path().to_path_buf();
-        let previous_data_dir = std::env::var_os("PLURORA_DATA_DIR");
-        std::env::set_var("PLURORA_DATA_DIR", &data_dir);
         let change_set_id = CHANGE_SET_ID;
         let result = parse_build_image_request(&serde_json::json!({
             "approved": true,
@@ -2672,10 +2645,6 @@ mod tests {
             "build_id": "build-1",
             "development_change_id": change_set_id
         }));
-        match previous_data_dir {
-            Some(value) => std::env::set_var("PLURORA_DATA_DIR", value),
-            None => std::env::remove_var("PLURORA_DATA_DIR"),
-        }
         assert!(result
             .unwrap_err()
             .contains("only supports dockerfile strategy"));
@@ -2683,18 +2652,15 @@ mod tests {
 
     #[test]
     fn docker_runtime_lab_development_build_context_uses_only_exact_scratch() {
-        let _env_lock = DATA_DIR_ENV_LOCK
-            .lock()
-            .unwrap_or_else(|poisoned| poisoned.into_inner());
         let temp = tempfile::tempdir().unwrap();
-        let _data_dir = DataDirEnv::set(temp.path());
         let (source, scratch) = build_context_layout(temp.path(), CHANGE_SET_ID);
         std::fs::write(source.join("source-only.txt"), "source").unwrap();
         std::fs::write(scratch.join("Dockerfile"), "FROM scratch\n").unwrap();
         std::fs::write(scratch.join("scratch-only.txt"), "scratch").unwrap();
 
-        let prepared = prepare_docker_build_context(&build_context_input(Some(CHANGE_SET_ID)))
-            .expect("development scratch context prepares without a source Dockerfile");
+        let prepared =
+            prepare_docker_build_context_at(&build_context_input(Some(CHANGE_SET_ID)), temp.path())
+                .expect("development scratch context prepares without a source Dockerfile");
         let entries = context_tar_entries(&prepared.bytes);
         assert_eq!(entries.get("Dockerfile").unwrap(), b"FROM scratch\n");
         assert_eq!(entries.get("scratch-only.txt").unwrap(), b"scratch");
@@ -2702,23 +2668,23 @@ mod tests {
 
         std::fs::remove_file(scratch.join("Dockerfile")).unwrap();
         std::fs::write(source.join("Dockerfile"), "FROM source\n").unwrap();
-        assert!(prepare_docker_build_context(&build_context_input(Some(CHANGE_SET_ID))).is_err());
+        assert!(prepare_docker_build_context_at(
+            &build_context_input(Some(CHANGE_SET_ID)),
+            temp.path()
+        )
+        .is_err());
     }
 
     #[test]
     fn docker_runtime_lab_workspace_build_context_still_uses_source() {
-        let _env_lock = DATA_DIR_ENV_LOCK
-            .lock()
-            .unwrap_or_else(|poisoned| poisoned.into_inner());
         let temp = tempfile::tempdir().unwrap();
-        let _data_dir = DataDirEnv::set(temp.path());
         let (source, scratch) = build_context_layout(temp.path(), CHANGE_SET_ID);
         std::fs::write(source.join("Dockerfile"), "FROM source\n").unwrap();
         std::fs::write(source.join("source-only.txt"), "source").unwrap();
         std::fs::write(scratch.join("Dockerfile"), "FROM scratch\n").unwrap();
         std::fs::write(scratch.join("scratch-only.txt"), "scratch").unwrap();
 
-        let prepared = prepare_docker_build_context(&build_context_input(None))
+        let prepared = prepare_docker_build_context_at(&build_context_input(None), temp.path())
             .expect("workspace source context prepares");
         let entries = context_tar_entries(&prepared.bytes);
         assert_eq!(entries.get("Dockerfile").unwrap(), b"FROM source\n");
@@ -2728,55 +2694,51 @@ mod tests {
 
     #[test]
     fn docker_runtime_lab_build_context_rejects_raw_wrong_and_missing_scopes() {
-        let _env_lock = DATA_DIR_ENV_LOCK
-            .lock()
-            .unwrap_or_else(|poisoned| poisoned.into_inner());
         let temp = tempfile::tempdir().unwrap();
-        let _data_dir = DataDirEnv::set(temp.path());
         let (source, scratch) = build_context_layout(temp.path(), CHANGE_SET_ID);
         std::fs::write(source.join("Dockerfile"), "FROM source\n").unwrap();
         std::fs::write(scratch.join("Dockerfile"), "FROM scratch\n").unwrap();
 
         let mut raw = build_context_input(Some(CHANGE_SET_ID));
         raw["context_dir"] = Value::String(scratch.to_string_lossy().into_owned());
-        assert!(prepare_docker_build_context(&raw)
+        assert!(prepare_docker_build_context_at(&raw, temp.path())
             .unwrap_err()
             .to_string()
             .contains("context_dir is not accepted"));
 
         let mut invalid_change = build_context_input(Some("chg-../../outside"));
-        assert!(prepare_docker_build_context(&invalid_change).is_err());
+        assert!(prepare_docker_build_context_at(&invalid_change, temp.path()).is_err());
         invalid_change["development_change_id"] = Value::String("chg-fedcba9876543210".into());
-        assert!(prepare_docker_build_context(&invalid_change).is_err());
+        assert!(prepare_docker_build_context_at(&invalid_change, temp.path()).is_err());
 
         let missing_workspace = WorkspaceId::parse("00000000-0000-4000-8000-000000000099").unwrap();
         let mut wrong_workspace = build_context_input(Some(CHANGE_SET_ID));
         wrong_workspace["workspace_id"] = Value::String(missing_workspace.to_string());
-        assert!(prepare_docker_build_context(&wrong_workspace).is_err());
+        assert!(prepare_docker_build_context_at(&wrong_workspace, temp.path()).is_err());
 
         let spec = parse_build_image_request(&build_context_input(Some(CHANGE_SET_ID))).unwrap();
         let mut mismatched = spec.clone();
         mismatched.workspace_id = missing_workspace;
-        assert!(validate_build_context_scope(&mismatched)
+        assert!(validate_build_context_scope_at(&mismatched, temp.path())
             .unwrap_err()
             .contains("did not match workspace_id"));
 
         std::fs::remove_file(scratch.join("Dockerfile")).unwrap();
         std::fs::remove_dir(&scratch).unwrap();
-        assert!(prepare_docker_build_context(&build_context_input(Some(CHANGE_SET_ID))).is_err());
+        assert!(prepare_docker_build_context_at(
+            &build_context_input(Some(CHANGE_SET_ID)),
+            temp.path()
+        )
+        .is_err());
     }
 
     #[test]
     fn docker_runtime_lab_build_context_identity_rejects_path_swap() {
-        let _env_lock = DATA_DIR_ENV_LOCK
-            .lock()
-            .unwrap_or_else(|poisoned| poisoned.into_inner());
         let temp = tempfile::tempdir().unwrap();
-        let _data_dir = DataDirEnv::set(temp.path());
         let (_, scratch) = build_context_layout(temp.path(), CHANGE_SET_ID);
         std::fs::write(scratch.join("Dockerfile"), "FROM original\n").unwrap();
         let spec = parse_build_image_request(&build_context_input(Some(CHANGE_SET_ID))).unwrap();
-        let validated = validate_build_context_scope(&spec).unwrap();
+        let validated = validate_build_context_scope_at(&spec, temp.path()).unwrap();
         let parked = scratch.with_file_name("workspace-parked");
         match std::fs::rename(&scratch, &parked) {
             Ok(()) => {
@@ -2798,11 +2760,7 @@ mod tests {
     fn docker_runtime_lab_development_scope_rejects_intermediate_symlink() {
         use std::os::unix::fs::symlink;
 
-        let _env_lock = DATA_DIR_ENV_LOCK
-            .lock()
-            .unwrap_or_else(|poisoned| poisoned.into_inner());
         let temp = tempfile::tempdir().unwrap();
-        let _data_dir = DataDirEnv::set(temp.path());
         let (source, scratch) = build_context_layout(temp.path(), CHANGE_SET_ID);
         std::fs::write(source.join("Dockerfile"), "FROM source\n").unwrap();
         let development = scratch.parent().unwrap().parent().unwrap().to_path_buf();
@@ -2813,17 +2771,17 @@ mod tests {
         std::fs::write(outside_scratch.join("Dockerfile"), "FROM outside\n").unwrap();
         symlink(&outside, &development).unwrap();
 
-        assert!(prepare_docker_build_context(&build_context_input(Some(CHANGE_SET_ID))).is_err());
+        assert!(prepare_docker_build_context_at(
+            &build_context_input(Some(CHANGE_SET_ID)),
+            temp.path()
+        )
+        .is_err());
     }
 
     #[cfg(windows)]
     #[test]
     fn docker_runtime_lab_development_scope_rejects_intermediate_reparse_point() {
-        let _env_lock = DATA_DIR_ENV_LOCK
-            .lock()
-            .unwrap_or_else(|poisoned| poisoned.into_inner());
         let temp = tempfile::tempdir().unwrap();
-        let _data_dir = DataDirEnv::set(temp.path());
         let (source, scratch) = build_context_layout(temp.path(), CHANGE_SET_ID);
         std::fs::write(source.join("Dockerfile"), "FROM source\n").unwrap();
         let development = scratch.parent().unwrap().parent().unwrap().to_path_buf();
@@ -2844,7 +2802,11 @@ mod tests {
             String::from_utf8_lossy(&output.stderr)
         );
 
-        assert!(prepare_docker_build_context(&build_context_input(Some(CHANGE_SET_ID))).is_err());
+        assert!(prepare_docker_build_context_at(
+            &build_context_input(Some(CHANGE_SET_ID)),
+            temp.path()
+        )
+        .is_err());
         std::fs::remove_dir(&development).unwrap();
     }
 

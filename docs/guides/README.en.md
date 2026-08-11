@@ -10,6 +10,7 @@ Capability-package authoring guides grouped by domain. Each one targets a class 
 - [`PACKAGE_INSTALLATION.md`](PACKAGE_INSTALLATION.en.md) — package/project install and update, lockfiles, `~/.plurora` layout, signatures/integrity, bundle freshness, and consent prompts
 - [`INSTALLATION_MODEL.md`](INSTALLATION_MODEL.en.md) — Work / Workspace / Installation boundaries, journal/projection, state update/removal, and Installation secret policy
 - [`RUN_LIBRARY.md`](RUN_LIBRARY.en.md) — Run journal, `host.run.*` lifecycle, structured gaps, and official Library affordances
+- [`POWERBOX_BINDING.md`](POWERBOX_BINDING.en.md) — Exposures, Powerbox candidate disclosure, cross-Installation Bindings, and runtime pins
 - [`DEPLOYMENT_RUNTIME.md`](DEPLOYMENT_RUNTIME.en.md) — target / exec / port / proxy deployment runtime, plurora-service reverse proxy, and Docker Deploy broker
 - [`HOST_OPERATIONS.md`](HOST_OPERATIONS.en.md) — Host liveness/readiness, offline SQLite backup and atomic restore, and release verification
 - [`SECRET_MANAGEMENT.md`](SECRET_MANAGEMENT.en.md) — `secret_ref:env:` / `secret_ref:store:`, local encrypted secret store, and API key management

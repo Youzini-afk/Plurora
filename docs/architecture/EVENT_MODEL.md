@@ -26,12 +26,14 @@ Runtime 分配 `id`、`sequence`、`timestamp` 与最终 writer 身份。Package
 
 ## 平台拥有的事件 kind
 
-63 个平台事件由显式 registry 定义，不依赖魔法字符串前缀。它们使用语义 owner namespace，例如：
+69 个平台事件由显式 registry 定义，不依赖魔法字符串前缀。它们使用语义 owner namespace，例如：
 
 ```text
 context/opened
 host/package.loading
 host/run.started
+host/exposure.created
+host/binding.selected
 capability/stream.started
 authority/grant.created
 object/put
@@ -40,7 +42,7 @@ change/proposal.applied
 runtime/error
 ```
 
-只有 writer `plurora/runtime` 可以追加 registry 中的平台事件。完整列表与 payload schema 见 [`../spec/v1/EVENT_KIND_REGISTRY.md`](../spec/v1/EVENT_KIND_REGISTRY.md)。
+只有 writer `plurora/runtime` 可以追加 registry 中的平台事件。完整 69 项列表与 payload schema 见 [`../spec/v1/EVENT_KIND_REGISTRY.md`](../spec/v1/EVENT_KIND_REGISTRY.md)。Exposure 与 Binding 的 public relay 只返回经过 Host authority 过滤的 journal projection；private intent、grant basis 与 runtime handle 不进入事件。
 
 显式 registry 很重要，因为平台事件横跨 Substrate、Host、Protocol 与 runtime 职责。用单一保留前缀反而会掩盖 owner。
 

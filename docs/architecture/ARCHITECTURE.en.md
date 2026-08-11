@@ -87,7 +87,7 @@ The Host manages resources and operations in the real environment:
 - package and component retrieval, installation, update, and removal;
 - local processes, WASM, remote services, and target lifecycle;
 - files, workspaces, secrets, network, ports, and proxies;
-- installation instances such as Projects used by a distribution;
+- Host-local Installation, Run, Exposure, Binding, and Realization records for Works;
 - deployment, runtime health, logs, backup, recovery, and diagnostics;
 - device identity, resource selectors, and Host administration policy.
 
@@ -151,7 +151,7 @@ The default answer is not “everything becomes a package.” It stays in the hi
 Contract V1 is the current operational public contract, used for generated SDKs and guarded by conformance. It currently carries responsibilities from several layers:
 
 - `context.*`, `journal.*`, `capability.*`, `authority.*`, `object.*`, and `identity.*` are substrate-owned;
-- `host.*` owns Project, target, exec, port, proxy, outbound adapters, package operations, and diagnostics;
+- `host.*` owns Installation, Run, Exposure, Binding, target, exec, port, proxy, outbound adapters, package operations, and diagnostics;
 - `protocol.*`, `change.*`, and `projection.*` belong to evolvable Protocols;
 - `shell.*` contribution discovery and surface interpretation belong to a Shell Profile.
 
@@ -162,6 +162,8 @@ Current clients and third-party integrations use these exact v1 identities. New 
 ### Web / PWA
 
 `clients/web` is the official React 19 + Tailwind v4 + Vite platform shell and can be installed as a PWA. It uses the public platform and Host boundaries through HTTP `POST /rpc`, SSE, and `/host/v1/*`; it does not read SQLite or import private runtime state.
+
+The Phase 5 Powerbox chooser uses `host.exposure.*` and `host.binding.*` to disclose exact provider/consumer Ports, audience, leases, trust, and evidence. It uses only the Host public relay and never holds private intent or runtime handles. The Surface bridge remains explicitly allowlisted; there is no private Powerbox bridge.
 
 ### SurfaceHost
 

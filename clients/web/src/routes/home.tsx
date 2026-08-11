@@ -14,6 +14,15 @@ import { ProtocolRpcError, type WorkEntrypoint } from "@/protocol/client";
 import { affordanceForAction } from "@/client-core/library-affordance";
 import { libraryAuthorityForInstallation } from "@/client-core/library-affordance";
 import { useAuth } from "@/lib/auth-gate";
+import { PowerboxChooser } from "@/components/powerbox/powerbox-chooser";
+import { activeHostCredentialScope } from "@/client-core/host-endpoint";
+import { createPowerboxContext, isBindingGapForPowerbox, type PowerboxConsumerContext } from "@/client-core/powerbox";
+
+interface HomePowerboxState {
+  installationId: string;
+  entrypoint: WorkEntrypoint;
+  context: PowerboxConsumerContext;
+}
 
 export function HomePage() {
   const t = useT();
@@ -24,6 +33,7 @@ export function HomePage() {
   const { installations, loading, error, refresh } = useHomeInstallations();
   const [busy, setBusy] = useState<{ installationId: string; action: "play" | "stop" } | null>(null);
   const [actionErrors, setActionErrors] = useState<Record<string, { reasonCode: string; nextStep: string }>>({});
+  const [powerbox, setPowerbox] = useState<HomePowerboxState | null>(null);
   const mutationKeys = useRef(new Map<string, string>());
   const visible = useMemo(() => filterInstallations(installations, search), [installations, search]);
 
@@ -36,6 +46,22 @@ export function HomePage() {
     });
     try {
       const status = await client.statusRun({ installation_id: installationId, entrypoint_id: entrypoint.id });
+      const statusGaps = status.preflight?.gaps ?? [];
+      const preflightGap = statusGaps.find(isBindingGapForPowerbox) ?? statusGaps[0];
+      if (preflightGap && isBindingGapForPowerbox(preflightGap) && preflightGap.port_id) {
+        setPowerbox({
+          installationId,
+          entrypoint,
+          context: createPowerboxContext({
+            hostScope: activeHostCredentialScope(),
+            installationId,
+            installationRevision: status.installation_revision,
+            importPort: preflightGap.port_id,
+            phase: "launch",
+          }),
+        });
+        return;
+      }
       const item = installations.find((candidate) => candidate.installationId === installationId);
       const authority = libraryAuthorityForInstallation(identity, installationId);
       const affordance = item ? affordanceForAction({
@@ -62,9 +88,24 @@ export function HomePage() {
         expected_installation_revision: status.installation_revision,
         idempotency_key: idempotencyKey,
       });
-      const startGap = result.gaps?.[0];
+      const startGaps = result.gaps ?? [];
+      const startGap = startGaps.find(isBindingGapForPowerbox) ?? startGaps[0];
       mutationKeys.current.delete(keyName);
-      if (startGap) setActionErrors((current) => ({ ...current, [installationId]: { reasonCode: startGap.reason_code, nextStep: startGap.next_step } }));
+      if (startGap && isBindingGapForPowerbox(startGap) && startGap.port_id) {
+        setPowerbox({
+          installationId,
+          entrypoint,
+          context: createPowerboxContext({
+            hostScope: activeHostCredentialScope(),
+            installationId,
+            installationRevision: status.installation_revision,
+            importPort: startGap.port_id,
+            phase: "launch",
+          }),
+        });
+      } else if (startGap) {
+        setActionErrors((current) => ({ ...current, [installationId]: { reasonCode: startGap.reason_code, nextStep: startGap.next_step } }));
+      }
       await refresh();
     } catch (error) {
       setActionErrors((current) => ({ ...current, [installationId]: structuredActionError(error) }));
@@ -130,6 +171,19 @@ export function HomePage() {
       </div>
 
       {error ? <p className="rounded-[12px] border border-deep-rust/30 bg-deep-rust-surface px-4 py-3 text-sm text-deep-rust">{error}</p> : null}
+      {powerbox ? (
+        <PowerboxChooser
+          client={client}
+          identity={identity}
+          context={powerbox.context}
+          onClose={() => setPowerbox(null)}
+          onSelected={async () => {
+            const next = powerbox;
+            setPowerbox(null);
+            await playEntrypoint(next.installationId, next.entrypoint);
+          }}
+        />
+      ) : null}
       {loading ? (
         <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3"><Skeleton className="h-64 rounded-[20px]" /><Skeleton className="h-64 rounded-[20px]" /></div>
       ) : visible.length === 0 ? (
@@ -165,14 +219,7 @@ export function HomePage() {
 
 function structuredActionError(error: unknown): { reasonCode: string; nextStep: string } {
   if (error instanceof ProtocolRpcError) {
-    const details = error.details;
-    if (details && typeof details === "object" && !Array.isArray(details)) {
-      const record = details as Record<string, unknown>;
-      const reasonCode = typeof record.reason_code === "string" ? record.reason_code : error.code;
-      const nextStep = typeof record.next_step === "string" ? record.next_step : "Inspect the structured Host diagnostic before retrying.";
-      return { reasonCode, nextStep };
-    }
-    return { reasonCode: error.code, nextStep: "Inspect the structured Host diagnostic before retrying." };
+    return { reasonCode: error.reasonCode, nextStep: error.nextStep ?? "Inspect the structured Host diagnostic before retrying." };
   }
   return { reasonCode: "outcome_unknown", nextStep: "Refresh the Library and inspect the Run status before retrying." };
 }

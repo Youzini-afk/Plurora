@@ -2,9 +2,6 @@
   "$defs": {
     "ActiveBindingRecord": {
       "properties": {
-        "authority_handle_id": {
-          "type": "string"
-        },
         "binding_id": {
           "$ref": "#/$defs/BindingId"
         },
@@ -29,7 +26,6 @@
         }
       },
       "required": [
-        "authority_handle_id",
         "binding_id",
         "consumer_installation_id",
         "consumer_port",
@@ -130,6 +126,12 @@
         "node_id": {
           "$ref": "#/$defs/NodeId"
         },
+        "node_path": {
+          "items": {
+            "$ref": "#/$defs/NodeId"
+          },
+          "type": "array"
+        },
         "realization_id": {
           "anyOf": [
             {
@@ -147,6 +149,7 @@
       "required": [
         "instance_id",
         "node_id",
+        "node_path",
         "status"
       ],
       "type": "object"

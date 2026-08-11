@@ -264,7 +264,6 @@ pub struct AcquisitionRecord {
 ///  "title": "ActiveBindingRecord",
 ///  "type": "object",
 ///  "required": [
-///    "authority_handle_id",
 ///    "binding_id",
 ///    "consumer_installation_id",
 ///    "consumer_port",
@@ -272,9 +271,6 @@ pub struct AcquisitionRecord {
 ///    "transport"
 ///  ],
 ///  "properties": {
-///    "authority_handle_id": {
-///      "type": "string"
-///    },
 ///    "binding_id": {
 ///      "$ref": "#/definitions/BindingId"
 ///    },
@@ -305,7 +301,6 @@ pub struct AcquisitionRecord {
 #[allow(clippy::large_enum_variant)]
 #[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
 pub struct ActiveBindingRecord {
-    pub authority_handle_id: ::std::string::String,
     pub binding_id: BindingId,
     pub consumer_installation_id: InstallationId,
     pub consumer_port: PortId,
@@ -1843,6 +1838,563 @@ impl ::std::convert::TryFrom<::std::string::String> for BackupPolicy {
         value.parse()
     }
 }
+///`BindingCandidate`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "BindingCandidate",
+///  "type": "object",
+///  "required": [
+///    "availability",
+///    "candidate_digest",
+///    "capability",
+///    "consumer",
+///    "consumer_port",
+///    "exposure",
+///    "phase",
+///    "provider",
+///    "provider_component",
+///    "provider_installation",
+///    "provider_port",
+///    "provider_work",
+///    "transport"
+///  ],
+///  "properties": {
+///    "availability": {
+///      "$ref": "#/definitions/AvailabilityPolicy"
+///    },
+///    "candidate_digest": {
+///      "description": "Digest of every canonical field below, including verified descriptive disclosure. Selection uses this digest, never an order-sensitive digest of the whole candidate set. Sorting ignores descriptive and publisher fields, but any disclosure drift still makes a prior decision stale.",
+///      "type": "string"
+///    },
+///    "capability": {
+///      "$ref": "#/definitions/CapabilityPin"
+///    },
+///    "consumer": {
+///      "$ref": "#/definitions/BindingEndpointPin"
+///    },
+///    "consumer_port": {
+///      "$ref": "#/definitions/PortDescriptor"
+///    },
+///    "effective_expires_at": {
+///      "type": [
+///        "string",
+///        "null"
+///      ],
+///      "format": "date-time"
+///    },
+///    "exposure": {
+///      "$ref": "#/definitions/ExposureView"
+///    },
+///    "phase": {
+///      "$ref": "#/definitions/BindingPhase"
+///    },
+///    "provider": {
+///      "$ref": "#/definitions/BindingEndpointPin"
+///    },
+///    "provider_component": {
+///      "$ref": "#/definitions/BindingComponentDisclosure"
+///    },
+///    "provider_installation": {
+///      "$ref": "#/definitions/BindingInstallationDisclosure"
+///    },
+///    "provider_port": {
+///      "$ref": "#/definitions/PortDescriptor"
+///    },
+///    "provider_work": {
+///      "$ref": "#/definitions/BindingWorkDisclosure"
+///    },
+///    "transport": {
+///      "$ref": "#/definitions/SelectedTransport"
+///    }
+///  },
+///  "additionalProperties": false
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+#[serde(deny_unknown_fields)]
+pub struct BindingCandidate {
+    pub availability: AvailabilityPolicy,
+    ///Digest of every canonical field below, including verified descriptive disclosure. Selection uses this digest, never an order-sensitive digest of the whole candidate set. Sorting ignores descriptive and publisher fields, but any disclosure drift still makes a prior decision stale.
+    pub candidate_digest: ::std::string::String,
+    pub capability: CapabilityPin,
+    pub consumer: BindingEndpointPin,
+    pub consumer_port: PortDescriptor,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub effective_expires_at: ::std::option::Option<::chrono::DateTime<::chrono::offset::Utc>>,
+    pub exposure: ExposureView,
+    pub phase: BindingPhase,
+    pub provider: BindingEndpointPin,
+    pub provider_component: BindingComponentDisclosure,
+    pub provider_installation: BindingInstallationDisclosure,
+    pub provider_port: PortDescriptor,
+    pub provider_work: BindingWorkDisclosure,
+    pub transport: SelectedTransport,
+}
+///`BindingCandidatesRequest`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "BindingCandidatesRequest",
+///  "type": "object",
+///  "required": [
+///    "consumer_installation_id",
+///    "expected_consumer_installation_revision",
+///    "import_port",
+///    "phase"
+///  ],
+///  "properties": {
+///    "consumer_installation_id": {
+///      "$ref": "#/definitions/InstallationId"
+///    },
+///    "consumer_run": {
+///      "anyOf": [
+///        {
+///          "$ref": "#/definitions/RunRevisionPin"
+///        },
+///        {
+///          "type": "null"
+///        }
+///      ]
+///    },
+///    "expected_consumer_installation_revision": {
+///      "type": "integer",
+///      "format": "uint64",
+///      "minimum": 0.0
+///    },
+///    "import_port": {
+///      "$ref": "#/definitions/PortId"
+///    },
+///    "phase": {
+///      "$ref": "#/definitions/BindingPhase"
+///    },
+///    "preferences": {
+///      "description": "An ordering hint only. It never selects a candidate or grants authority.",
+///      "type": "array",
+///      "items": {
+///        "$ref": "#/definitions/ResourceSelector"
+///      }
+///    }
+///  },
+///  "additionalProperties": false,
+///  "$schema": "https://json-schema.org/draft/2020-12/schema"
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+#[serde(deny_unknown_fields)]
+pub struct BindingCandidatesRequest {
+    pub consumer_installation_id: InstallationId,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub consumer_run: ::std::option::Option<RunRevisionPin>,
+    pub expected_consumer_installation_revision: u64,
+    pub import_port: PortId,
+    pub phase: BindingPhase,
+    ///An ordering hint only. It never selects a candidate or grants authority.
+    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
+    pub preferences: ::std::vec::Vec<ResourceSelector>,
+}
+///`BindingCandidatesResult`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "BindingCandidatesResult",
+///  "type": "object",
+///  "required": [
+///    "candidates"
+///  ],
+///  "properties": {
+///    "candidates": {
+///      "type": "array",
+///      "items": {
+///        "$ref": "#/definitions/BindingCandidate"
+///      }
+///    },
+///    "gaps": {
+///      "type": "array",
+///      "items": {
+///        "$ref": "#/definitions/BindingGap"
+///      }
+///    }
+///  },
+///  "$schema": "https://json-schema.org/draft/2020-12/schema"
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct BindingCandidatesResult {
+    pub candidates: ::std::vec::Vec<BindingCandidate>,
+    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
+    pub gaps: ::std::vec::Vec<BindingGap>,
+}
+///Host-verified Component identity and evidence. This is deliberately narrower than ComponentDescriptor so annotations, surfaces, and content roots cannot become an accidental disclosure channel.
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "BindingComponentDisclosure",
+///  "description": "Host-verified Component identity and evidence. This is deliberately narrower than ComponentDescriptor so annotations, surfaces, and content roots cannot become an accidental disclosure channel.",
+///  "type": "object",
+///  "required": [
+///    "behavior",
+///    "claim_status",
+///    "component_artifact",
+///    "component_id",
+///    "enforced_boundaries",
+///    "entry_kind",
+///    "package_id",
+///    "trust_class",
+///    "version"
+///  ],
+///  "properties": {
+///    "behavior": {
+///      "$ref": "#/definitions/ArtifactDescriptor"
+///    },
+///    "claim_status": {
+///      "$ref": "#/definitions/ComponentClaimStatus"
+///    },
+///    "component_artifact": {
+///      "$ref": "#/definitions/ArtifactDescriptor"
+///    },
+///    "component_id": {
+///      "type": "string"
+///    },
+///    "enforced_boundaries": {
+///      "$ref": "#/definitions/ComponentBoundaryClaims"
+///    },
+///    "entry_kind": {
+///      "type": "string"
+///    },
+///    "package_id": {
+///      "type": "string"
+///    },
+///    "protocol_implementations": {
+///      "type": "array",
+///      "items": {
+///        "$ref": "#/definitions/PackagedProtocolDescriptor"
+///      }
+///    },
+///    "trust_class": {
+///      "$ref": "#/definitions/ComponentTrustClass"
+///    },
+///    "version": {
+///      "type": "string"
+///    }
+///  },
+///  "additionalProperties": false
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+#[serde(deny_unknown_fields)]
+pub struct BindingComponentDisclosure {
+    pub behavior: ArtifactDescriptor,
+    pub claim_status: ComponentClaimStatus,
+    pub component_artifact: ArtifactDescriptor,
+    pub component_id: ::std::string::String,
+    pub enforced_boundaries: ComponentBoundaryClaims,
+    pub entry_kind: ::std::string::String,
+    pub package_id: ::std::string::String,
+    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
+    pub protocol_implementations: ::std::vec::Vec<PackagedProtocolDescriptor>,
+    pub trust_class: ComponentTrustClass,
+    pub version: ::std::string::String,
+}
+///`BindingDecisionStatus`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "BindingDecisionStatus",
+///  "type": "string",
+///  "enum": [
+///    "selected",
+///    "revoked",
+///    "expired"
+///  ]
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(
+    ::serde::Deserialize,
+    ::serde::Serialize,
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    Ord,
+    PartialEq,
+    PartialOrd,
+)]
+pub enum BindingDecisionStatus {
+    #[serde(rename = "selected")]
+    Selected,
+    #[serde(rename = "revoked")]
+    Revoked,
+    #[serde(rename = "expired")]
+    Expired,
+}
+impl ::std::fmt::Display for BindingDecisionStatus {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+        match *self {
+            Self::Selected => f.write_str("selected"),
+            Self::Revoked => f.write_str("revoked"),
+            Self::Expired => f.write_str("expired"),
+        }
+    }
+}
+impl ::std::str::FromStr for BindingDecisionStatus {
+    type Err = self::error::ConversionError;
+    fn from_str(value: &str) -> ::std::result::Result<Self, self::error::ConversionError> {
+        match value {
+            "selected" => Ok(Self::Selected),
+            "revoked" => Ok(Self::Revoked),
+            "expired" => Ok(Self::Expired),
+            _ => Err("invalid value".into()),
+        }
+    }
+}
+impl ::std::convert::TryFrom<&str> for BindingDecisionStatus {
+    type Error = self::error::ConversionError;
+    fn try_from(value: &str) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<&::std::string::String> for BindingDecisionStatus {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<::std::string::String> for BindingDecisionStatus {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: ::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+///`BindingEffectiveStatus`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "BindingEffectiveStatus",
+///  "oneOf": [
+///    {
+///      "type": "object",
+///      "required": [
+///        "kind"
+///      ],
+///      "properties": {
+///        "kind": {
+///          "type": "string",
+///          "enum": [
+///            "detached"
+///          ]
+///        }
+///      }
+///    },
+///    {
+///      "type": "object",
+///      "required": [
+///        "kind"
+///      ],
+///      "properties": {
+///        "kind": {
+///          "type": "string",
+///          "enum": [
+///            "active"
+///          ]
+///        }
+///      }
+///    },
+///    {
+///      "type": "object",
+///      "required": [
+///        "kind",
+///        "reason_code"
+///      ],
+///      "properties": {
+///        "kind": {
+///          "type": "string",
+///          "enum": [
+///            "broken"
+///          ]
+///        },
+///        "reason_code": {
+///          "type": "string"
+///        }
+///      }
+///    }
+///  ]
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+#[serde(tag = "kind", content = "reason_code")]
+pub enum BindingEffectiveStatus {
+    #[serde(rename = "detached")]
+    Detached,
+    #[serde(rename = "active")]
+    Active,
+    #[serde(rename = "broken")]
+    Broken(::std::string::String),
+}
+///`BindingEndpointPin`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "BindingEndpointPin",
+///  "type": "object",
+///  "required": [
+///    "component",
+///    "installation",
+///    "port"
+///  ],
+///  "properties": {
+///    "component": {
+///      "$ref": "#/definitions/ComponentPin"
+///    },
+///    "installation": {
+///      "$ref": "#/definitions/InstallationRevisionPin"
+///    },
+///    "port": {
+///      "$ref": "#/definitions/ResolvedPortPin"
+///    },
+///    "run": {
+///      "anyOf": [
+///        {
+///          "$ref": "#/definitions/RunRevisionPin"
+///        },
+///        {
+///          "type": "null"
+///        }
+///      ]
+///    }
+///  },
+///  "additionalProperties": false
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+#[serde(deny_unknown_fields)]
+pub struct BindingEndpointPin {
+    pub component: ComponentPin,
+    pub installation: InstallationRevisionPin,
+    pub port: ResolvedPortPin,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub run: ::std::option::Option<RunRevisionPin>,
+}
+///`BindingGap`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "BindingGap",
+///  "type": "object",
+///  "required": [
+///    "next_step",
+///    "reason_code"
+///  ],
+///  "properties": {
+///    "installation_id": {
+///      "anyOf": [
+///        {
+///          "$ref": "#/definitions/InstallationId"
+///        },
+///        {
+///          "type": "null"
+///        }
+///      ]
+///    },
+///    "interaction_model": {
+///      "type": [
+///        "string",
+///        "null"
+///      ]
+///    },
+///    "next_step": {
+///      "type": "string"
+///    },
+///    "node_id": {
+///      "anyOf": [
+///        {
+///          "$ref": "#/definitions/NodeId"
+///        },
+///        {
+///          "type": "null"
+///        }
+///      ]
+///    },
+///    "port_id": {
+///      "anyOf": [
+///        {
+///          "$ref": "#/definitions/PortId"
+///        },
+///        {
+///          "type": "null"
+///        }
+///      ]
+///    },
+///    "reason_code": {
+///      "type": "string"
+///    },
+///    "run_id": {
+///      "anyOf": [
+///        {
+///          "$ref": "#/definitions/RunId"
+///        },
+///        {
+///          "type": "null"
+///        }
+///      ]
+///    }
+///  },
+///  "additionalProperties": false
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+#[serde(deny_unknown_fields)]
+pub struct BindingGap {
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub installation_id: ::std::option::Option<InstallationId>,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub interaction_model: ::std::option::Option<::std::string::String>,
+    pub next_step: ::std::string::String,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub node_id: ::std::option::Option<NodeId>,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub port_id: ::std::option::Option<PortId>,
+    pub reason_code: ::std::string::String,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub run_id: ::std::option::Option<RunId>,
+}
 ///`BindingId`
 ///
 /// <details><summary>JSON schema</summary>
@@ -1898,6 +2450,140 @@ impl ::std::fmt::Display for BindingId {
         self.0.fmt(f)
     }
 }
+///Verified, public Installation origin shown before a Binding decision. It intentionally excludes state bindings, secret policy, and host-local paths.
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "BindingInstallationDisclosure",
+///  "description": "Verified, public Installation origin shown before a Binding decision. It intentionally excludes state bindings, secret policy, and host-local paths.",
+///  "type": "object",
+///  "required": [
+///    "display_name",
+///    "installation_id",
+///    "installation_revision",
+///    "source"
+///  ],
+///  "properties": {
+///    "display_name": {
+///      "type": "string"
+///    },
+///    "installation_id": {
+///      "$ref": "#/definitions/InstallationId"
+///    },
+///    "installation_revision": {
+///      "type": "integer",
+///      "format": "uint64",
+///      "minimum": 0.0
+///    },
+///    "source": {
+///      "$ref": "#/definitions/AcquisitionRecord"
+///    }
+///  },
+///  "additionalProperties": false
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+#[serde(deny_unknown_fields)]
+pub struct BindingInstallationDisclosure {
+    pub display_name: ::std::string::String,
+    pub installation_id: InstallationId,
+    pub installation_revision: u64,
+    pub source: AcquisitionRecord,
+}
+///`BindingLifecyclePayloadSchema`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "BindingLifecyclePayloadSchema",
+///  "type": "object",
+///  "required": [
+///    "binding"
+///  ],
+///  "properties": {
+///    "binding": {
+///      "$ref": "#/definitions/BindingView"
+///    }
+///  },
+///  "$schema": "https://json-schema.org/draft/2020-12/schema"
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct BindingLifecyclePayloadSchema {
+    pub binding: BindingView,
+}
+///`BindingListRequest`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "BindingListRequest",
+///  "type": "object",
+///  "properties": {
+///    "consumer_installation_id": {
+///      "anyOf": [
+///        {
+///          "$ref": "#/definitions/InstallationId"
+///        },
+///        {
+///          "type": "null"
+///        }
+///      ]
+///    },
+///    "run_id": {
+///      "anyOf": [
+///        {
+///          "$ref": "#/definitions/RunId"
+///        },
+///        {
+///          "type": "null"
+///        }
+///      ]
+///    },
+///    "status": {
+///      "anyOf": [
+///        {
+///          "$ref": "#/definitions/BindingDecisionStatus"
+///        },
+///        {
+///          "type": "null"
+///        }
+///      ]
+///    }
+///  },
+///  "additionalProperties": false,
+///  "$schema": "https://json-schema.org/draft/2020-12/schema"
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+#[serde(deny_unknown_fields)]
+pub struct BindingListRequest {
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub consumer_installation_id: ::std::option::Option<InstallationId>,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub run_id: ::std::option::Option<RunId>,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub status: ::std::option::Option<BindingDecisionStatus>,
+}
+impl ::std::default::Default for BindingListRequest {
+    fn default() -> Self {
+        Self {
+            consumer_installation_id: Default::default(),
+            run_id: Default::default(),
+            status: Default::default(),
+        }
+    }
+}
 ///`BindingLock`
 ///
 /// <details><summary>JSON schema</summary>
@@ -1946,6 +2632,44 @@ pub struct BindingLock {
     pub provider: PortEndpoint,
     pub provider_component: ArtifactDescriptor,
     pub transport: SelectedTransport,
+}
+///`BindingMutationResult`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "BindingMutationResult",
+///  "type": "object",
+///  "required": [
+///    "binding",
+///    "idempotent"
+///  ],
+///  "properties": {
+///    "affected_binding_ids": {
+///      "type": "array",
+///      "items": {
+///        "$ref": "#/definitions/BindingId"
+///      }
+///    },
+///    "binding": {
+///      "$ref": "#/definitions/BindingView"
+///    },
+///    "idempotent": {
+///      "type": "boolean"
+///    }
+///  },
+///  "$schema": "https://json-schema.org/draft/2020-12/schema"
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct BindingMutationResult {
+    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
+    pub affected_binding_ids: ::std::vec::Vec<BindingId>,
+    pub binding: BindingView,
+    pub idempotent: bool,
 }
 ///`BindingPhase`
 ///
@@ -2030,6 +2754,324 @@ impl ::std::convert::TryFrom<::std::string::String> for BindingPhase {
     ) -> ::std::result::Result<Self, self::error::ConversionError> {
         value.parse()
     }
+}
+///`BindingRevokeRequest`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "BindingRevokeRequest",
+///  "type": "object",
+///  "required": [
+///    "binding_id",
+///    "consumer_installation_id",
+///    "expected_binding_revision",
+///    "expected_consumer_installation_revision",
+///    "exposure_id",
+///    "idempotency_key",
+///    "import_port"
+///  ],
+///  "properties": {
+///    "binding_id": {
+///      "$ref": "#/definitions/BindingId"
+///    },
+///    "consumer_installation_id": {
+///      "$ref": "#/definitions/InstallationId"
+///    },
+///    "consumer_run": {
+///      "anyOf": [
+///        {
+///          "$ref": "#/definitions/RunRevisionPin"
+///        },
+///        {
+///          "type": "null"
+///        }
+///      ]
+///    },
+///    "expected_binding_revision": {
+///      "type": "integer",
+///      "format": "uint64",
+///      "minimum": 0.0
+///    },
+///    "expected_consumer_installation_revision": {
+///      "type": "integer",
+///      "format": "uint64",
+///      "minimum": 0.0
+///    },
+///    "exposure_id": {
+///      "$ref": "#/definitions/ExposureId"
+///    },
+///    "idempotency_key": {
+///      "type": "string"
+///    },
+///    "import_port": {
+///      "$ref": "#/definitions/PortId"
+///    }
+///  },
+///  "additionalProperties": false,
+///  "$schema": "https://json-schema.org/draft/2020-12/schema"
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+#[serde(deny_unknown_fields)]
+pub struct BindingRevokeRequest {
+    pub binding_id: BindingId,
+    pub consumer_installation_id: InstallationId,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub consumer_run: ::std::option::Option<RunRevisionPin>,
+    pub expected_binding_revision: u64,
+    pub expected_consumer_installation_revision: u64,
+    pub exposure_id: ExposureId,
+    pub idempotency_key: ::std::string::String,
+    pub import_port: PortId,
+}
+///`BindingSelectRequest`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "BindingSelectRequest",
+///  "type": "object",
+///  "required": [
+///    "candidate_digest",
+///    "consumer_installation_id",
+///    "expected_consumer_installation_revision",
+///    "expected_exposure_revision",
+///    "expected_provider_installation_revision",
+///    "exposure_id",
+///    "idempotency_key",
+///    "import_port",
+///    "phase",
+///    "provider_installation_id"
+///  ],
+///  "properties": {
+///    "candidate_digest": {
+///      "type": "string"
+///    },
+///    "consumer_installation_id": {
+///      "$ref": "#/definitions/InstallationId"
+///    },
+///    "consumer_run": {
+///      "anyOf": [
+///        {
+///          "$ref": "#/definitions/RunRevisionPin"
+///        },
+///        {
+///          "type": "null"
+///        }
+///      ]
+///    },
+///    "expected_consumer_installation_revision": {
+///      "type": "integer",
+///      "format": "uint64",
+///      "minimum": 0.0
+///    },
+///    "expected_exposure_revision": {
+///      "type": "integer",
+///      "format": "uint64",
+///      "minimum": 0.0
+///    },
+///    "expected_provider_installation_revision": {
+///      "type": "integer",
+///      "format": "uint64",
+///      "minimum": 0.0
+///    },
+///    "exposure_id": {
+///      "$ref": "#/definitions/ExposureId"
+///    },
+///    "idempotency_key": {
+///      "type": "string"
+///    },
+///    "import_port": {
+///      "$ref": "#/definitions/PortId"
+///    },
+///    "phase": {
+///      "$ref": "#/definitions/BindingPhase"
+///    },
+///    "provider_installation_id": {
+///      "$ref": "#/definitions/InstallationId"
+///    }
+///  },
+///  "additionalProperties": false,
+///  "$schema": "https://json-schema.org/draft/2020-12/schema"
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+#[serde(deny_unknown_fields)]
+pub struct BindingSelectRequest {
+    pub candidate_digest: ::std::string::String,
+    pub consumer_installation_id: InstallationId,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub consumer_run: ::std::option::Option<RunRevisionPin>,
+    pub expected_consumer_installation_revision: u64,
+    pub expected_exposure_revision: u64,
+    pub expected_provider_installation_revision: u64,
+    pub exposure_id: ExposureId,
+    pub idempotency_key: ::std::string::String,
+    pub import_port: PortId,
+    pub phase: BindingPhase,
+    pub provider_installation_id: InstallationId,
+}
+///`BindingSelectionRecord`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "BindingSelectionRecord",
+///  "type": "object",
+///  "required": [
+///    "availability",
+///    "binding_id",
+///    "candidate_digest",
+///    "capability",
+///    "consumer",
+///    "exposure_id",
+///    "exposure_revision",
+///    "phase",
+///    "provider",
+///    "status",
+///    "transport"
+///  ],
+///  "properties": {
+///    "availability": {
+///      "$ref": "#/definitions/AvailabilityPolicy"
+///    },
+///    "binding_id": {
+///      "$ref": "#/definitions/BindingId"
+///    },
+///    "candidate_digest": {
+///      "type": "string"
+///    },
+///    "capability": {
+///      "$ref": "#/definitions/CapabilityPin"
+///    },
+///    "consumer": {
+///      "$ref": "#/definitions/BindingEndpointPin"
+///    },
+///    "effective_expires_at": {
+///      "type": [
+///        "string",
+///        "null"
+///      ],
+///      "format": "date-time"
+///    },
+///    "exposure_id": {
+///      "$ref": "#/definitions/ExposureId"
+///    },
+///    "exposure_revision": {
+///      "type": "integer",
+///      "format": "uint64",
+///      "minimum": 0.0
+///    },
+///    "phase": {
+///      "$ref": "#/definitions/BindingPhase"
+///    },
+///    "provider": {
+///      "$ref": "#/definitions/BindingEndpointPin"
+///    },
+///    "status": {
+///      "$ref": "#/definitions/BindingDecisionStatus"
+///    },
+///    "transport": {
+///      "$ref": "#/definitions/SelectedTransport"
+///    }
+///  },
+///  "additionalProperties": false
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+#[serde(deny_unknown_fields)]
+pub struct BindingSelectionRecord {
+    pub availability: AvailabilityPolicy,
+    pub binding_id: BindingId,
+    pub candidate_digest: ::std::string::String,
+    pub capability: CapabilityPin,
+    pub consumer: BindingEndpointPin,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub effective_expires_at: ::std::option::Option<::chrono::DateTime<::chrono::offset::Utc>>,
+    pub exposure_id: ExposureId,
+    pub exposure_revision: u64,
+    pub phase: BindingPhase,
+    pub provider: BindingEndpointPin,
+    pub status: BindingDecisionStatus,
+    pub transport: SelectedTransport,
+}
+///`BindingView`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "BindingView",
+///  "type": "object",
+///  "required": [
+///    "effective_status",
+///    "record",
+///    "revision"
+///  ],
+///  "properties": {
+///    "effective_status": {
+///      "$ref": "#/definitions/BindingEffectiveStatus"
+///    },
+///    "record": {
+///      "$ref": "#/definitions/BindingSelectionRecord"
+///    },
+///    "revision": {
+///      "type": "integer",
+///      "format": "uint64",
+///      "minimum": 0.0
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct BindingView {
+    pub effective_status: BindingEffectiveStatus,
+    pub record: BindingSelectionRecord,
+    pub revision: u64,
+}
+///Verified, public Work identity shown before a Binding decision. Descriptive text is disclosure, never preference or execution authority.
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "BindingWorkDisclosure",
+///  "description": "Verified, public Work identity shown before a Binding decision. Descriptive text is disclosure, never preference or execution authority.",
+///  "type": "object",
+///  "required": [
+///    "title",
+///    "work_id"
+///  ],
+///  "properties": {
+///    "title": {
+///      "type": "string"
+///    },
+///    "work_id": {
+///      "$ref": "#/definitions/WorkId"
+///    }
+///  },
+///  "additionalProperties": false
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+#[serde(deny_unknown_fields)]
+pub struct BindingWorkDisclosure {
+    pub title: ::std::string::String,
+    pub work_id: WorkId,
 }
 ///`BranchRecord`
 ///
@@ -3100,6 +4142,37 @@ impl ::std::default::Default for CapabilityPermissions {
             invoke: Default::default(),
         }
     }
+}
+///`CapabilityPin`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "CapabilityPin",
+///  "type": "object",
+///  "required": [
+///    "capability_id",
+///    "capability_version"
+///  ],
+///  "properties": {
+///    "capability_id": {
+///      "type": "string"
+///    },
+///    "capability_version": {
+///      "type": "string"
+///    }
+///  },
+///  "additionalProperties": false
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+#[serde(deny_unknown_fields)]
+pub struct CapabilityPin {
+    pub capability_id: ::std::string::String,
+    pub capability_version: ::std::string::String,
 }
 ///`CapabilityRequirement`
 ///
@@ -4317,6 +5390,60 @@ pub struct ComponentDescriptor {
     pub surfaces: ::std::vec::Vec<PackagedSurfaceDescriptor>,
     pub trust_class: ComponentTrustClass,
     pub version: ::std::string::String,
+}
+///`ComponentPin`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "ComponentPin",
+///  "type": "object",
+///  "required": [
+///    "behavior_digest",
+///    "component_artifact",
+///    "component_id",
+///    "node_path",
+///    "package_id",
+///    "trust_class"
+///  ],
+///  "properties": {
+///    "behavior_digest": {
+///      "type": "string"
+///    },
+///    "component_artifact": {
+///      "$ref": "#/definitions/ArtifactDescriptor"
+///    },
+///    "component_id": {
+///      "type": "string"
+///    },
+///    "node_path": {
+///      "type": "array",
+///      "items": {
+///        "$ref": "#/definitions/NodeId"
+///      }
+///    },
+///    "package_id": {
+///      "type": "string"
+///    },
+///    "trust_class": {
+///      "$ref": "#/definitions/ComponentTrustClass"
+///    }
+///  },
+///  "additionalProperties": false
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+#[serde(deny_unknown_fields)]
+pub struct ComponentPin {
+    pub behavior_digest: ::std::string::String,
+    pub component_artifact: ArtifactDescriptor,
+    pub component_id: ::std::string::String,
+    pub node_path: ::std::vec::Vec<NodeId>,
+    pub package_id: ::std::string::String,
+    pub trust_class: ComponentTrustClass,
 }
 ///`ComponentTrustClass`
 ///
@@ -7895,6 +9022,79 @@ impl ::std::convert::TryFrom<::std::string::String> for ExecutorKind {
         value.parse()
     }
 }
+///`ExposureCreateRequest`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "ExposureCreateRequest",
+///  "type": "object",
+///  "required": [
+///    "audience",
+///    "expected_installation_revision",
+///    "expected_run_revision",
+///    "export_port",
+///    "idempotency_key",
+///    "installation_id",
+///    "run_id"
+///  ],
+///  "properties": {
+///    "audience": {
+///      "type": "array",
+///      "items": {
+///        "$ref": "#/definitions/ResourceSelector"
+///      }
+///    },
+///    "expected_installation_revision": {
+///      "type": "integer",
+///      "format": "uint64",
+///      "minimum": 0.0
+///    },
+///    "expected_run_revision": {
+///      "type": "integer",
+///      "format": "uint64",
+///      "minimum": 0.0
+///    },
+///    "expires_at": {
+///      "type": [
+///        "string",
+///        "null"
+///      ],
+///      "format": "date-time"
+///    },
+///    "export_port": {
+///      "$ref": "#/definitions/PortId"
+///    },
+///    "idempotency_key": {
+///      "type": "string"
+///    },
+///    "installation_id": {
+///      "$ref": "#/definitions/InstallationId"
+///    },
+///    "run_id": {
+///      "$ref": "#/definitions/RunId"
+///    }
+///  },
+///  "additionalProperties": false,
+///  "$schema": "https://json-schema.org/draft/2020-12/schema"
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+#[serde(deny_unknown_fields)]
+pub struct ExposureCreateRequest {
+    pub audience: ::std::vec::Vec<ResourceSelector>,
+    pub expected_installation_revision: u64,
+    pub expected_run_revision: u64,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub expires_at: ::std::option::Option<::chrono::DateTime<::chrono::offset::Utc>>,
+    pub export_port: PortId,
+    pub idempotency_key: ::std::string::String,
+    pub installation_id: InstallationId,
+    pub run_id: RunId,
+}
 ///`ExposureId`
 ///
 /// <details><summary>JSON schema</summary>
@@ -7949,6 +9149,134 @@ impl ::std::fmt::Display for ExposureId {
     fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
         self.0.fmt(f)
     }
+}
+///`ExposureLifecyclePayloadSchema`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "ExposureLifecyclePayloadSchema",
+///  "type": "object",
+///  "required": [
+///    "exposure"
+///  ],
+///  "properties": {
+///    "exposure": {
+///      "$ref": "#/definitions/ExposureView"
+///    }
+///  },
+///  "$schema": "https://json-schema.org/draft/2020-12/schema"
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct ExposureLifecyclePayloadSchema {
+    pub exposure: ExposureView,
+}
+///`ExposureListRequest`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "ExposureListRequest",
+///  "type": "object",
+///  "properties": {
+///    "installation_id": {
+///      "anyOf": [
+///        {
+///          "$ref": "#/definitions/InstallationId"
+///        },
+///        {
+///          "type": "null"
+///        }
+///      ]
+///    },
+///    "run_id": {
+///      "anyOf": [
+///        {
+///          "$ref": "#/definitions/RunId"
+///        },
+///        {
+///          "type": "null"
+///        }
+///      ]
+///    },
+///    "status": {
+///      "anyOf": [
+///        {
+///          "$ref": "#/definitions/ExposureStatus"
+///        },
+///        {
+///          "type": "null"
+///        }
+///      ]
+///    }
+///  },
+///  "additionalProperties": false,
+///  "$schema": "https://json-schema.org/draft/2020-12/schema"
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+#[serde(deny_unknown_fields)]
+pub struct ExposureListRequest {
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub installation_id: ::std::option::Option<InstallationId>,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub run_id: ::std::option::Option<RunId>,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub status: ::std::option::Option<ExposureStatus>,
+}
+impl ::std::default::Default for ExposureListRequest {
+    fn default() -> Self {
+        Self {
+            installation_id: Default::default(),
+            run_id: Default::default(),
+            status: Default::default(),
+        }
+    }
+}
+///`ExposureMutationResult`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "ExposureMutationResult",
+///  "type": "object",
+///  "required": [
+///    "exposure",
+///    "idempotent"
+///  ],
+///  "properties": {
+///    "affected_binding_ids": {
+///      "type": "array",
+///      "items": {
+///        "$ref": "#/definitions/BindingId"
+///      }
+///    },
+///    "exposure": {
+///      "$ref": "#/definitions/ExposureView"
+///    },
+///    "idempotent": {
+///      "type": "boolean"
+///    }
+///  },
+///  "$schema": "https://json-schema.org/draft/2020-12/schema"
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct ExposureMutationResult {
+    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
+    pub affected_binding_ids: ::std::vec::Vec<BindingId>,
+    pub exposure: ExposureView,
+    pub idempotent: bool,
 }
 ///`ExposureRecord`
 ///
@@ -8018,6 +9346,74 @@ pub struct ExposureRecord {
     #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
     pub run_id: ::std::option::Option<RunId>,
     pub status: ExposureStatus,
+}
+///`ExposureRevokeRequest`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "ExposureRevokeRequest",
+///  "type": "object",
+///  "required": [
+///    "expected_exposure_revision",
+///    "expected_installation_revision",
+///    "expected_run_revision",
+///    "export_port",
+///    "exposure_id",
+///    "idempotency_key",
+///    "installation_id",
+///    "run_id"
+///  ],
+///  "properties": {
+///    "expected_exposure_revision": {
+///      "type": "integer",
+///      "format": "uint64",
+///      "minimum": 0.0
+///    },
+///    "expected_installation_revision": {
+///      "type": "integer",
+///      "format": "uint64",
+///      "minimum": 0.0
+///    },
+///    "expected_run_revision": {
+///      "type": "integer",
+///      "format": "uint64",
+///      "minimum": 0.0
+///    },
+///    "export_port": {
+///      "$ref": "#/definitions/PortId"
+///    },
+///    "exposure_id": {
+///      "$ref": "#/definitions/ExposureId"
+///    },
+///    "idempotency_key": {
+///      "type": "string"
+///    },
+///    "installation_id": {
+///      "$ref": "#/definitions/InstallationId"
+///    },
+///    "run_id": {
+///      "$ref": "#/definitions/RunId"
+///    }
+///  },
+///  "additionalProperties": false,
+///  "$schema": "https://json-schema.org/draft/2020-12/schema"
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+#[serde(deny_unknown_fields)]
+pub struct ExposureRevokeRequest {
+    pub expected_exposure_revision: u64,
+    pub expected_installation_revision: u64,
+    pub expected_run_revision: u64,
+    pub export_port: PortId,
+    pub exposure_id: ExposureId,
+    pub idempotency_key: ::std::string::String,
+    pub installation_id: InstallationId,
+    pub run_id: RunId,
 }
 ///`ExposureStatus`
 ///
@@ -8097,6 +9493,37 @@ impl ::std::convert::TryFrom<::std::string::String> for ExposureStatus {
     ) -> ::std::result::Result<Self, self::error::ConversionError> {
         value.parse()
     }
+}
+///`ExposureView`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "ExposureView",
+///  "type": "object",
+///  "required": [
+///    "record",
+///    "revision"
+///  ],
+///  "properties": {
+///    "record": {
+///      "$ref": "#/definitions/ExposureRecord"
+///    },
+///    "revision": {
+///      "type": "integer",
+///      "format": "uint64",
+///      "minimum": 0.0
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct ExposureView {
+    pub record: ExposureRecord,
+    pub revision: u64,
 }
 ///`ExtensionPointDescriptor`
 ///
@@ -8612,6 +10039,93 @@ impl ::std::convert::TryFrom<::std::string::String> for HookTiming {
     ) -> ::std::result::Result<Self, self::error::ConversionError> {
         value.parse()
     }
+}
+///`HostBindingListResult`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "HostBindingListResult",
+///  "type": "array",
+///  "items": {
+///    "type": "object",
+///    "required": [
+///      "effective_status",
+///      "record",
+///      "revision"
+///    ],
+///    "properties": {
+///      "effective_status": {
+///        "$ref": "#/definitions/BindingEffectiveStatus"
+///      },
+///      "record": {
+///        "$ref": "#/definitions/BindingSelectionRecord"
+///      },
+///      "revision": {
+///        "type": "integer",
+///        "format": "uint64",
+///        "minimum": 0.0
+///      }
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+#[serde(transparent)]
+pub struct HostBindingListResult(pub ::std::vec::Vec<HostBindingListResultItem>);
+impl ::std::ops::Deref for HostBindingListResult {
+    type Target = ::std::vec::Vec<HostBindingListResultItem>;
+    fn deref(&self) -> &::std::vec::Vec<HostBindingListResultItem> {
+        &self.0
+    }
+}
+impl ::std::convert::From<HostBindingListResult> for ::std::vec::Vec<HostBindingListResultItem> {
+    fn from(value: HostBindingListResult) -> Self {
+        value.0
+    }
+}
+impl ::std::convert::From<::std::vec::Vec<HostBindingListResultItem>> for HostBindingListResult {
+    fn from(value: ::std::vec::Vec<HostBindingListResultItem>) -> Self {
+        Self(value)
+    }
+}
+///`HostBindingListResultItem`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "type": "object",
+///  "required": [
+///    "effective_status",
+///    "record",
+///    "revision"
+///  ],
+///  "properties": {
+///    "effective_status": {
+///      "$ref": "#/definitions/BindingEffectiveStatus"
+///    },
+///    "record": {
+///      "$ref": "#/definitions/BindingSelectionRecord"
+///    },
+///    "revision": {
+///      "type": "integer",
+///      "format": "uint64",
+///      "minimum": 0.0
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct HostBindingListResultItem {
+    pub effective_status: BindingEffectiveStatus,
+    pub record: BindingSelectionRecord,
+    pub revision: u64,
 }
 ///`HostDiagnosticsResult`
 ///
@@ -9229,6 +10743,84 @@ pub struct HostExecStoppedPayloadReceipt {
     #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
     pub references: ::std::vec::Vec<::std::string::String>,
     pub size_bytes: u64,
+}
+///`HostExposureListResult`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "HostExposureListResult",
+///  "type": "array",
+///  "items": {
+///    "type": "object",
+///    "required": [
+///      "record",
+///      "revision"
+///    ],
+///    "properties": {
+///      "record": {
+///        "$ref": "#/definitions/ExposureRecord"
+///      },
+///      "revision": {
+///        "type": "integer",
+///        "format": "uint64",
+///        "minimum": 0.0
+///      }
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+#[serde(transparent)]
+pub struct HostExposureListResult(pub ::std::vec::Vec<HostExposureListResultItem>);
+impl ::std::ops::Deref for HostExposureListResult {
+    type Target = ::std::vec::Vec<HostExposureListResultItem>;
+    fn deref(&self) -> &::std::vec::Vec<HostExposureListResultItem> {
+        &self.0
+    }
+}
+impl ::std::convert::From<HostExposureListResult> for ::std::vec::Vec<HostExposureListResultItem> {
+    fn from(value: HostExposureListResult) -> Self {
+        value.0
+    }
+}
+impl ::std::convert::From<::std::vec::Vec<HostExposureListResultItem>> for HostExposureListResult {
+    fn from(value: ::std::vec::Vec<HostExposureListResultItem>) -> Self {
+        Self(value)
+    }
+}
+///`HostExposureListResultItem`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "type": "object",
+///  "required": [
+///    "record",
+///    "revision"
+///  ],
+///  "properties": {
+///    "record": {
+///      "$ref": "#/definitions/ExposureRecord"
+///    },
+///    "revision": {
+///      "type": "integer",
+///      "format": "uint64",
+///      "minimum": 0.0
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct HostExposureListResultItem {
+    pub record: ExposureRecord,
+    pub revision: u64,
 }
 ///`HostInfo`
 ///
@@ -13191,6 +14783,49 @@ pub struct InstallationRemovedPayloadSchema {
     pub previous_revision: u64,
     pub view: InstallationView,
 }
+///`InstallationRevisionPin`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "InstallationRevisionPin",
+///  "type": "object",
+///  "required": [
+///    "assembly_lock",
+///    "installation_id",
+///    "installation_revision",
+///    "work_revision"
+///  ],
+///  "properties": {
+///    "assembly_lock": {
+///      "$ref": "#/definitions/ArtifactDescriptor"
+///    },
+///    "installation_id": {
+///      "$ref": "#/definitions/InstallationId"
+///    },
+///    "installation_revision": {
+///      "type": "integer",
+///      "format": "uint64",
+///      "minimum": 0.0
+///    },
+///    "work_revision": {
+///      "$ref": "#/definitions/ArtifactDescriptor"
+///    }
+///  },
+///  "additionalProperties": false
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+#[serde(deny_unknown_fields)]
+pub struct InstallationRevisionPin {
+    pub assembly_lock: ArtifactDescriptor,
+    pub installation_id: InstallationId,
+    pub installation_revision: u64,
+    pub work_revision: ArtifactDescriptor,
+}
 ///`InstallationRollbackPointer`
 ///
 /// <details><summary>JSON schema</summary>
@@ -15567,6 +17202,7 @@ impl<'de> ::serde::Deserialize<'de> for NodeId {
 ///  "required": [
 ///    "instance_id",
 ///    "node_id",
+///    "node_path",
 ///    "status"
 ///  ],
 ///  "properties": {
@@ -15575,6 +17211,12 @@ impl<'de> ::serde::Deserialize<'de> for NodeId {
 ///    },
 ///    "node_id": {
 ///      "$ref": "#/definitions/NodeId"
+///    },
+///    "node_path": {
+///      "type": "array",
+///      "items": {
+///        "$ref": "#/definitions/NodeId"
+///      }
 ///    },
 ///    "realization_id": {
 ///      "anyOf": [
@@ -15598,6 +17240,7 @@ impl<'de> ::serde::Deserialize<'de> for NodeId {
 pub struct NodeInstanceRecord {
     pub instance_id: ::std::string::String,
     pub node_id: NodeId,
+    pub node_path: ::std::vec::Vec<NodeId>,
     #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
     pub realization_id: ::std::option::Option<RealizationId>,
     pub status: NodeInstanceStatus,
@@ -23609,6 +25252,50 @@ pub struct ReplicaPolicy {
     pub max: u16,
     pub min: u16,
 }
+///`ResolvedPortPin`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "ResolvedPortPin",
+///  "type": "object",
+///  "required": [
+///    "canonical_contract_digest",
+///    "leaf_port",
+///    "node_path",
+///    "root_port"
+///  ],
+///  "properties": {
+///    "canonical_contract_digest": {
+///      "type": "string"
+///    },
+///    "leaf_port": {
+///      "$ref": "#/definitions/PortEndpoint"
+///    },
+///    "node_path": {
+///      "type": "array",
+///      "items": {
+///        "$ref": "#/definitions/NodeId"
+///      }
+///    },
+///    "root_port": {
+///      "$ref": "#/definitions/PortId"
+///    }
+///  },
+///  "additionalProperties": false
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+#[serde(deny_unknown_fields)]
+pub struct ResolvedPortPin {
+    pub canonical_contract_digest: ::std::string::String,
+    pub leaf_port: PortEndpoint,
+    pub node_path: ::std::vec::Vec<NodeId>,
+    pub root_port: PortId,
+}
 ///`ResourceCapacity`
 ///
 /// <details><summary>JSON schema</summary>
@@ -24453,6 +26140,45 @@ pub struct RunRecord {
     pub status: RunStatus,
     #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
     pub stopped_at: ::std::option::Option<::chrono::DateTime<::chrono::offset::Utc>>,
+}
+///Exact Run identity established by the Host. The three fields are one optional unit: Launch-time selection can omit the entire value, while a Runtime selection must carry all of it.
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "RunRevisionPin",
+///  "description": "Exact Run identity established by the Host. The three fields are one optional unit: Launch-time selection can omit the entire value, while a Runtime selection must carry all of it.",
+///  "type": "object",
+///  "required": [
+///    "context_id",
+///    "run_id",
+///    "run_revision"
+///  ],
+///  "properties": {
+///    "context_id": {
+///      "type": "string"
+///    },
+///    "run_id": {
+///      "$ref": "#/definitions/RunId"
+///    },
+///    "run_revision": {
+///      "type": "integer",
+///      "format": "uint64",
+///      "minimum": 0.0
+///    }
+///  },
+///  "additionalProperties": false
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+#[serde(deny_unknown_fields)]
+pub struct RunRevisionPin {
+    pub context_id: ::std::string::String,
+    pub run_id: RunId,
+    pub run_revision: u64,
 }
 ///`RunStartRequest`
 ///

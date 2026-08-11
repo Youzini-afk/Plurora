@@ -11,6 +11,10 @@ where
             serde_json::from_value(params.get("parent_handle").cloned().ok_or_else(|| {
                 anyhow::anyhow!("authority.handle.attenuate requires parent_handle")
             })?)?;
+        anyhow::ensure!(
+            !self.run_bindings.is_binding_handle(parent_handle).await,
+            "Run Binding authority cannot be attenuated outside the Binding broker"
+        );
         let constraints = params.get("constraints").cloned().unwrap_or(Value::Null);
         let handle_id = self.handles.attenuate(parent_handle, constraints).await?;
         let handle = self
@@ -28,6 +32,10 @@ where
                 .cloned()
                 .ok_or_else(|| anyhow::anyhow!("authority.handle.revoke requires handle"))?,
         )?;
+        anyhow::ensure!(
+            !self.run_bindings.is_binding_handle(handle).await,
+            "Run Binding authority must be revoked through host.binding.revoke"
+        );
         self.handles.revoke(handle).await?;
         Ok(json!({}))
     }
@@ -41,73 +49,95 @@ where
         Ok(json!({ "handles": self.handles.list_for(&package_id).await }))
     }
 
-    pub(crate) async fn dispatch_capability_stream(&self, params: &Value) -> anyhow::Result<Value> {
-        let (capability_id, handle_version) = if let Some(handle_value) = params.get("handle") {
-            let handle_id: CapHandleId = serde_json::from_value(handle_value.clone())?;
-            let handle = self
-                .handles
-                .lookup(handle_id)
-                .await
-                .ok_or_else(|| anyhow::anyhow!("capability handle not found"))?;
-            if handle.revoked {
-                anyhow::bail!("capability handle is revoked");
-            }
-            if let Some(expires_at) = handle.lease.expires_at {
-                if expires_at <= chrono::Utc::now() {
-                    anyhow::bail!("capability handle lease expired");
-                }
-            }
-            if let Some(max_invocations) = handle.lease.max_invocations {
-                if handle.lease.invocations_used >= max_invocations {
-                    anyhow::bail!("capability handle lease exhausted");
-                }
-            }
-            let version = if handle.cap_version == "1" {
-                None
-            } else {
-                Some(handle.cap_version)
-            };
-            (handle.cap_type, version)
-        } else {
-            (
-                params
-                    .get("capability_id")
-                    .and_then(Value::as_str)
-                    .ok_or_else(|| {
-                        anyhow::anyhow!("capability.stream requires capability_id or handle")
-                    })?
-                    .to_string(),
-                None,
-            )
-        };
-        let session_id = params
-            .get("session_id")
+    pub(crate) async fn dispatch_capability_stream(
+        &self,
+        context: &ProtocolContext,
+        params: &Value,
+    ) -> anyhow::Result<Value> {
+        let handle = params
+            .get("handle")
+            .cloned()
+            .map(serde_json::from_value)
+            .transpose()?;
+        let capability_id = params
+            .get("capability_id")
             .and_then(Value::as_str)
-            .ok_or_else(|| anyhow::anyhow!("capability.stream requires session_id"))?
-            .to_string();
-        let provider_package_id: Option<String> = params
+            .map(String::from);
+        let provider_package_id = params
             .get("provider_package_id")
             .and_then(Value::as_str)
             .map(String::from);
-        let version: Option<String> = handle_version.or_else(|| {
-            params
-                .get("version")
-                .and_then(Value::as_str)
-                .map(String::from)
-        });
-        let metadata = params
+        let version = params
+            .get("version")
+            .and_then(Value::as_str)
+            .map(String::from);
+        let (caller_package_id, session_id) = match &context.principal {
+            ProtocolPrincipal::Package { package_id } => (
+                Some(package_id.clone()),
+                context.session_id.clone().ok_or_else(|| {
+                    anyhow::anyhow!(
+                        "Package capability.stream requires a current invocation session"
+                    )
+                })?,
+            ),
+            _ => (
+                None,
+                context
+                    .session_id
+                    .clone()
+                    .or_else(|| {
+                        params
+                            .get("session_id")
+                            .and_then(Value::as_str)
+                            .map(String::from)
+                    })
+                    .ok_or_else(|| anyhow::anyhow!("capability.stream requires session_id"))?,
+            ),
+        };
+        let request = crate::CapabilityInvocationRequest {
+            handle,
+            capability_id,
+            caller_package_id,
+            provider_package_id,
+            version,
+            session_id: Some(session_id.clone()),
+            input: Value::Null,
+        };
+        let mut prepared = self.prepare_capability_invocation(&request).await?;
+        let mut metadata = params
             .get("metadata")
             .cloned()
             .unwrap_or_else(|| serde_json::json!({}));
+        if let Some(binding_permit) = prepared.binding_permit.as_ref() {
+            let binding_metadata = binding_permit.stream_metadata();
+            let object = metadata
+                .as_object_mut()
+                .ok_or_else(|| anyhow::anyhow!("capability.stream metadata must be an object"))?;
+            object.extend(
+                binding_metadata
+                    .as_object()
+                    .expect("broker stream metadata is an object")
+                    .clone(),
+            );
+        }
+        let binding_permit = prepared.binding_permit.take();
         let (frame, record) = self
-            .stream_capability_start(
+            .stream_capability_start_prepared(
                 &session_id,
-                &capability_id,
-                provider_package_id.as_ref().map(|x| x.as_str()),
-                version.as_ref().map(|s| s.as_str()),
+                &prepared.provider,
                 metadata,
+                binding_permit,
             )
             .await?;
+        if prepared.record_non_binding_invocation {
+            self.handles
+                .record_invocation(
+                    prepared
+                        .active_handle
+                        .expect("non-binding prepared stream has a handle"),
+                )
+                .await?;
+        }
         Ok(serde_json::json!({
             "frame": frame,
             "invocation": record,
@@ -148,5 +178,43 @@ where
                 .await?;
         }
         Ok(serde_json::to_value(frame)?)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::sync::Arc;
+
+    use super::*;
+    use crate::{InMemoryEventStore, RuntimeConfig};
+
+    #[tokio::test]
+    async fn package_stream_requires_an_explicit_handle() {
+        let runtime = Runtime::new(
+            Arc::new(InMemoryEventStore::default()),
+            RuntimeConfig::default(),
+        );
+        let session = runtime
+            .open_session(OpenSessionRequest {
+                labels: Vec::new(),
+                active_package_set: vec!["example/caller".to_string()],
+                metadata: json!({"kind": "run", "run_id": "run-test"}),
+            })
+            .await
+            .unwrap();
+        let mut context = ProtocolContext::package("example/caller", "test");
+        context.session_id = Some(session.id.clone());
+        let error = runtime
+            .call_protocol(
+                &context,
+                "capability.stream",
+                json!({
+                    "session_id": session.id,
+                    "capability_id": "example/provider/stream",
+                }),
+            )
+            .await
+            .unwrap_err();
+        assert!(error.message.contains("explicit capability handle"));
     }
 }

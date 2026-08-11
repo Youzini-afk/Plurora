@@ -37,8 +37,6 @@ components:
     ActiveBindingRecord:
       $schema: https://json-schema.org/draft/2020-12/schema
       properties:
-        authority_handle_id:
-          type: string
         binding_id:
           $ref: '#/components/schemas/BindingId'
         consumer_installation_id:
@@ -55,7 +53,6 @@ components:
         transport:
           $ref: '#/components/schemas/SelectedTransport'
       required:
-      - authority_handle_id
       - binding_id
       - consumer_installation_id
       - consumer_port
@@ -474,9 +471,272 @@ components:
       - allowed
       - forbidden
       type: string
+    BindingCandidate:
+      additionalProperties: false
+      properties:
+        availability:
+          $ref: '#/components/schemas/AvailabilityPolicy'
+        candidate_digest:
+          description: Digest of every canonical field below, including verified descriptive disclosure. Selection uses this digest, never an order-sensitive digest of the whole candidate set. Sorting ignores descriptive and publisher fields, but any disclosure drift still makes a prior decision stale.
+          type: string
+        capability:
+          $ref: '#/components/schemas/CapabilityPin'
+        consumer:
+          $ref: '#/components/schemas/BindingEndpointPin'
+        consumer_port:
+          $ref: '#/components/schemas/PortDescriptor'
+        effective_expires_at:
+          format: date-time
+          type:
+          - string
+          - 'null'
+        exposure:
+          $ref: '#/components/schemas/ExposureView'
+        phase:
+          $ref: '#/components/schemas/BindingPhase'
+        provider:
+          $ref: '#/components/schemas/BindingEndpointPin'
+        provider_component:
+          $ref: '#/components/schemas/BindingComponentDisclosure'
+        provider_installation:
+          $ref: '#/components/schemas/BindingInstallationDisclosure'
+        provider_port:
+          $ref: '#/components/schemas/PortDescriptor'
+        provider_work:
+          $ref: '#/components/schemas/BindingWorkDisclosure'
+        transport:
+          $ref: '#/components/schemas/SelectedTransport'
+      required:
+      - availability
+      - candidate_digest
+      - capability
+      - consumer
+      - consumer_port
+      - exposure
+      - phase
+      - provider
+      - provider_component
+      - provider_installation
+      - provider_port
+      - provider_work
+      - transport
+      type: object
+    BindingCandidatesRequest:
+      $schema: https://json-schema.org/draft/2020-12/schema
+      additionalProperties: false
+      properties:
+        consumer_installation_id:
+          $ref: '#/components/schemas/InstallationId'
+        consumer_run:
+          anyOf:
+          - $ref: '#/components/schemas/RunRevisionPin'
+          - type: 'null'
+        expected_consumer_installation_revision:
+          format: uint64
+          minimum: 0.0
+          type: integer
+        import_port:
+          $ref: '#/components/schemas/PortId'
+        phase:
+          $ref: '#/components/schemas/BindingPhase'
+        preferences:
+          description: An ordering hint only. It never selects a candidate or grants authority.
+          items:
+            $ref: '#/components/schemas/ResourceSelector'
+          type: array
+      required:
+      - consumer_installation_id
+      - expected_consumer_installation_revision
+      - import_port
+      - phase
+      title: BindingCandidatesRequest
+      type: object
+    BindingCandidatesResult:
+      $schema: https://json-schema.org/draft/2020-12/schema
+      properties:
+        candidates:
+          items:
+            $ref: '#/components/schemas/BindingCandidate'
+          type: array
+        gaps:
+          items:
+            $ref: '#/components/schemas/BindingGap'
+          type: array
+      required:
+      - candidates
+      title: BindingCandidatesResult
+      type: object
+    BindingComponentDisclosure:
+      additionalProperties: false
+      description: Host-verified Component identity and evidence. This is deliberately narrower than ComponentDescriptor so annotations, surfaces, and content roots cannot become an accidental disclosure channel.
+      properties:
+        behavior:
+          $ref: '#/components/schemas/ArtifactDescriptor'
+        claim_status:
+          $ref: '#/components/schemas/ComponentClaimStatus'
+        component_artifact:
+          $ref: '#/components/schemas/ArtifactDescriptor'
+        component_id:
+          type: string
+        enforced_boundaries:
+          $ref: '#/components/schemas/ComponentBoundaryClaims'
+        entry_kind:
+          type: string
+        package_id:
+          type: string
+        protocol_implementations:
+          items:
+            $ref: '#/components/schemas/PackagedProtocolDescriptor'
+          type: array
+        trust_class:
+          $ref: '#/components/schemas/ComponentTrustClass'
+        version:
+          type: string
+      required:
+      - behavior
+      - claim_status
+      - component_artifact
+      - component_id
+      - enforced_boundaries
+      - entry_kind
+      - package_id
+      - trust_class
+      - version
+      type: object
+    BindingDecisionStatus:
+      enum:
+      - selected
+      - revoked
+      - expired
+      type: string
+    BindingEffectiveStatus:
+      oneOf:
+      - properties:
+          kind:
+            enum:
+            - detached
+            type: string
+        required:
+        - kind
+        type: object
+      - properties:
+          kind:
+            enum:
+            - active
+            type: string
+        required:
+        - kind
+        type: object
+      - properties:
+          kind:
+            enum:
+            - broken
+            type: string
+          reason_code:
+            type: string
+        required:
+        - kind
+        - reason_code
+        type: object
+    BindingEndpointPin:
+      additionalProperties: false
+      properties:
+        component:
+          $ref: '#/components/schemas/ComponentPin'
+        installation:
+          $ref: '#/components/schemas/InstallationRevisionPin'
+        port:
+          $ref: '#/components/schemas/ResolvedPortPin'
+        run:
+          anyOf:
+          - $ref: '#/components/schemas/RunRevisionPin'
+          - type: 'null'
+      required:
+      - component
+      - installation
+      - port
+      type: object
+    BindingGap:
+      additionalProperties: false
+      properties:
+        installation_id:
+          anyOf:
+          - $ref: '#/components/schemas/InstallationId'
+          - type: 'null'
+        interaction_model:
+          type:
+          - string
+          - 'null'
+        next_step:
+          type: string
+        node_id:
+          anyOf:
+          - $ref: '#/components/schemas/NodeId'
+          - type: 'null'
+        port_id:
+          anyOf:
+          - $ref: '#/components/schemas/PortId'
+          - type: 'null'
+        reason_code:
+          type: string
+        run_id:
+          anyOf:
+          - $ref: '#/components/schemas/RunId'
+          - type: 'null'
+      required:
+      - next_step
+      - reason_code
+      type: object
     BindingId:
       format: uuid
       type: string
+    BindingInstallationDisclosure:
+      additionalProperties: false
+      description: Verified, public Installation origin shown before a Binding decision. It intentionally excludes state bindings, secret policy, and host-local paths.
+      properties:
+        display_name:
+          type: string
+        installation_id:
+          $ref: '#/components/schemas/InstallationId'
+        installation_revision:
+          format: uint64
+          minimum: 0.0
+          type: integer
+        source:
+          $ref: '#/components/schemas/AcquisitionRecord'
+      required:
+      - display_name
+      - installation_id
+      - installation_revision
+      - source
+      type: object
+    BindingLifecyclePayloadSchema:
+      $schema: https://json-schema.org/draft/2020-12/schema
+      properties:
+        binding:
+          $ref: '#/components/schemas/BindingView'
+      required:
+      - binding
+      title: BindingLifecyclePayloadSchema
+      type: object
+    BindingListRequest:
+      $schema: https://json-schema.org/draft/2020-12/schema
+      additionalProperties: false
+      properties:
+        consumer_installation_id:
+          anyOf:
+          - $ref: '#/components/schemas/InstallationId'
+          - type: 'null'
+        run_id:
+          anyOf:
+          - $ref: '#/components/schemas/RunId'
+          - type: 'null'
+        status:
+          anyOf:
+          - $ref: '#/components/schemas/BindingDecisionStatus'
+          - type: 'null'
+      title: BindingListRequest
+      type: object
     BindingLock:
       properties:
         binding_id:
@@ -499,6 +759,22 @@ components:
       - provider_component
       - transport
       type: object
+    BindingMutationResult:
+      $schema: https://json-schema.org/draft/2020-12/schema
+      properties:
+        affected_binding_ids:
+          items:
+            $ref: '#/components/schemas/BindingId'
+          type: array
+        binding:
+          $ref: '#/components/schemas/BindingView'
+        idempotent:
+          type: boolean
+      required:
+      - binding
+      - idempotent
+      title: BindingMutationResult
+      type: object
     BindingPhase:
       enum:
       - authoring
@@ -506,6 +782,161 @@ components:
       - launch
       - runtime
       type: string
+    BindingRevokeRequest:
+      $schema: https://json-schema.org/draft/2020-12/schema
+      additionalProperties: false
+      properties:
+        binding_id:
+          $ref: '#/components/schemas/BindingId'
+        consumer_installation_id:
+          $ref: '#/components/schemas/InstallationId'
+        consumer_run:
+          anyOf:
+          - $ref: '#/components/schemas/RunRevisionPin'
+          - type: 'null'
+        expected_binding_revision:
+          format: uint64
+          minimum: 0.0
+          type: integer
+        expected_consumer_installation_revision:
+          format: uint64
+          minimum: 0.0
+          type: integer
+        exposure_id:
+          $ref: '#/components/schemas/ExposureId'
+        idempotency_key:
+          type: string
+        import_port:
+          $ref: '#/components/schemas/PortId'
+      required:
+      - binding_id
+      - consumer_installation_id
+      - expected_binding_revision
+      - expected_consumer_installation_revision
+      - exposure_id
+      - idempotency_key
+      - import_port
+      title: BindingRevokeRequest
+      type: object
+    BindingSelectRequest:
+      $schema: https://json-schema.org/draft/2020-12/schema
+      additionalProperties: false
+      properties:
+        candidate_digest:
+          type: string
+        consumer_installation_id:
+          $ref: '#/components/schemas/InstallationId'
+        consumer_run:
+          anyOf:
+          - $ref: '#/components/schemas/RunRevisionPin'
+          - type: 'null'
+        expected_consumer_installation_revision:
+          format: uint64
+          minimum: 0.0
+          type: integer
+        expected_exposure_revision:
+          format: uint64
+          minimum: 0.0
+          type: integer
+        expected_provider_installation_revision:
+          format: uint64
+          minimum: 0.0
+          type: integer
+        exposure_id:
+          $ref: '#/components/schemas/ExposureId'
+        idempotency_key:
+          type: string
+        import_port:
+          $ref: '#/components/schemas/PortId'
+        phase:
+          $ref: '#/components/schemas/BindingPhase'
+        provider_installation_id:
+          $ref: '#/components/schemas/InstallationId'
+      required:
+      - candidate_digest
+      - consumer_installation_id
+      - expected_consumer_installation_revision
+      - expected_exposure_revision
+      - expected_provider_installation_revision
+      - exposure_id
+      - idempotency_key
+      - import_port
+      - phase
+      - provider_installation_id
+      title: BindingSelectRequest
+      type: object
+    BindingSelectionRecord:
+      additionalProperties: false
+      properties:
+        availability:
+          $ref: '#/components/schemas/AvailabilityPolicy'
+        binding_id:
+          $ref: '#/components/schemas/BindingId'
+        candidate_digest:
+          type: string
+        capability:
+          $ref: '#/components/schemas/CapabilityPin'
+        consumer:
+          $ref: '#/components/schemas/BindingEndpointPin'
+        effective_expires_at:
+          format: date-time
+          type:
+          - string
+          - 'null'
+        exposure_id:
+          $ref: '#/components/schemas/ExposureId'
+        exposure_revision:
+          format: uint64
+          minimum: 0.0
+          type: integer
+        phase:
+          $ref: '#/components/schemas/BindingPhase'
+        provider:
+          $ref: '#/components/schemas/BindingEndpointPin'
+        status:
+          $ref: '#/components/schemas/BindingDecisionStatus'
+        transport:
+          $ref: '#/components/schemas/SelectedTransport'
+      required:
+      - availability
+      - binding_id
+      - candidate_digest
+      - capability
+      - consumer
+      - exposure_id
+      - exposure_revision
+      - phase
+      - provider
+      - status
+      - transport
+      type: object
+    BindingView:
+      properties:
+        effective_status:
+          $ref: '#/components/schemas/BindingEffectiveStatus'
+        record:
+          $ref: '#/components/schemas/BindingSelectionRecord'
+        revision:
+          format: uint64
+          minimum: 0.0
+          type: integer
+      required:
+      - effective_status
+      - record
+      - revision
+      type: object
+    BindingWorkDisclosure:
+      additionalProperties: false
+      description: Verified, public Work identity shown before a Binding decision. Descriptive text is disclosure, never preference or execution authority.
+      properties:
+        title:
+          type: string
+        work_id:
+          $ref: '#/components/schemas/WorkId'
+      required:
+      - title
+      - work_id
+      type: object
     BranchRecord:
       $schema: https://json-schema.org/draft/2020-12/schema
       properties:
@@ -857,6 +1288,17 @@ components:
             type: string
           type: array
       type: object
+    CapabilityPin:
+      additionalProperties: false
+      properties:
+        capability_id:
+          type: string
+        capability_version:
+          type: string
+      required:
+      - capability_id
+      - capability_version
+      type: object
     CapabilityRequirement:
       properties:
         id:
@@ -1201,6 +1643,31 @@ components:
       - trust_class
       - version
       title: ComponentDescriptor
+      type: object
+    ComponentPin:
+      additionalProperties: false
+      properties:
+        behavior_digest:
+          type: string
+        component_artifact:
+          $ref: '#/components/schemas/ArtifactDescriptor'
+        component_id:
+          type: string
+        node_path:
+          items:
+            $ref: '#/components/schemas/NodeId'
+          type: array
+        package_id:
+          type: string
+        trust_class:
+          $ref: '#/components/schemas/ComponentTrustClass'
+      required:
+      - behavior_digest
+      - component_artifact
+      - component_id
+      - node_path
+      - package_id
+      - trust_class
       type: object
     ComponentTrustClass:
       enum:
@@ -2125,9 +2592,91 @@ components:
         enum:
         - real
         type: string
+    ExposureCreateRequest:
+      $schema: https://json-schema.org/draft/2020-12/schema
+      additionalProperties: false
+      properties:
+        audience:
+          items:
+            $ref: '#/components/schemas/ResourceSelector'
+          type: array
+        expected_installation_revision:
+          format: uint64
+          minimum: 0.0
+          type: integer
+        expected_run_revision:
+          format: uint64
+          minimum: 0.0
+          type: integer
+        expires_at:
+          format: date-time
+          type:
+          - string
+          - 'null'
+        export_port:
+          $ref: '#/components/schemas/PortId'
+        idempotency_key:
+          type: string
+        installation_id:
+          $ref: '#/components/schemas/InstallationId'
+        run_id:
+          $ref: '#/components/schemas/RunId'
+      required:
+      - audience
+      - expected_installation_revision
+      - expected_run_revision
+      - export_port
+      - idempotency_key
+      - installation_id
+      - run_id
+      title: ExposureCreateRequest
+      type: object
     ExposureId:
       format: uuid
       type: string
+    ExposureLifecyclePayloadSchema:
+      $schema: https://json-schema.org/draft/2020-12/schema
+      properties:
+        exposure:
+          $ref: '#/components/schemas/ExposureView'
+      required:
+      - exposure
+      title: ExposureLifecyclePayloadSchema
+      type: object
+    ExposureListRequest:
+      $schema: https://json-schema.org/draft/2020-12/schema
+      additionalProperties: false
+      properties:
+        installation_id:
+          anyOf:
+          - $ref: '#/components/schemas/InstallationId'
+          - type: 'null'
+        run_id:
+          anyOf:
+          - $ref: '#/components/schemas/RunId'
+          - type: 'null'
+        status:
+          anyOf:
+          - $ref: '#/components/schemas/ExposureStatus'
+          - type: 'null'
+      title: ExposureListRequest
+      type: object
+    ExposureMutationResult:
+      $schema: https://json-schema.org/draft/2020-12/schema
+      properties:
+        affected_binding_ids:
+          items:
+            $ref: '#/components/schemas/BindingId'
+          type: array
+        exposure:
+          $ref: '#/components/schemas/ExposureView'
+        idempotent:
+          type: boolean
+      required:
+      - exposure
+      - idempotent
+      title: ExposureMutationResult
+      type: object
     ExposureRecord:
       $schema: https://json-schema.org/draft/2020-12/schema
       properties:
@@ -2160,12 +2709,61 @@ components:
       - status
       title: ExposureRecord
       type: object
+    ExposureRevokeRequest:
+      $schema: https://json-schema.org/draft/2020-12/schema
+      additionalProperties: false
+      properties:
+        expected_exposure_revision:
+          format: uint64
+          minimum: 0.0
+          type: integer
+        expected_installation_revision:
+          format: uint64
+          minimum: 0.0
+          type: integer
+        expected_run_revision:
+          format: uint64
+          minimum: 0.0
+          type: integer
+        export_port:
+          $ref: '#/components/schemas/PortId'
+        exposure_id:
+          $ref: '#/components/schemas/ExposureId'
+        idempotency_key:
+          type: string
+        installation_id:
+          $ref: '#/components/schemas/InstallationId'
+        run_id:
+          $ref: '#/components/schemas/RunId'
+      required:
+      - expected_exposure_revision
+      - expected_installation_revision
+      - expected_run_revision
+      - export_port
+      - exposure_id
+      - idempotency_key
+      - installation_id
+      - run_id
+      title: ExposureRevokeRequest
+      type: object
     ExposureStatus:
       enum:
       - active
       - expired
       - revoked
       type: string
+    ExposureView:
+      properties:
+        record:
+          $ref: '#/components/schemas/ExposureRecord'
+        revision:
+          format: uint64
+          minimum: 0.0
+          type: integer
+      required:
+      - record
+      - revision
+      type: object
     ExtensionPointDescriptor:
       properties:
         id:
@@ -2294,6 +2892,25 @@ components:
       - sync
       - async
       type: string
+    HostBindingListResult:
+      items:
+        $schema: https://json-schema.org/draft/2020-12/schema
+        properties:
+          effective_status:
+            $ref: '#/components/schemas/BindingEffectiveStatus'
+          record:
+            $ref: '#/components/schemas/BindingSelectionRecord'
+          revision:
+            format: uint64
+            minimum: 0.0
+            type: integer
+        required:
+        - effective_status
+        - record
+        - revision
+        title: BindingView
+        type: object
+      type: array
     HostDiagnosticsResult:
       type: object
     HostExecCompletedPayload:
@@ -2440,6 +3057,22 @@ components:
           - type: 'null'
           default: null
       type: object
+    HostExposureListResult:
+      items:
+        $schema: https://json-schema.org/draft/2020-12/schema
+        properties:
+          record:
+            $ref: '#/components/schemas/ExposureRecord'
+          revision:
+            format: uint64
+            minimum: 0.0
+            type: integer
+        required:
+        - record
+        - revision
+        title: ExposureView
+        type: object
+      type: array
     HostInfo:
       $schema: https://json-schema.org/draft/2020-12/schema
       properties:
@@ -3654,6 +4287,25 @@ components:
       - view
       title: InstallationRemovedPayloadSchema
       type: object
+    InstallationRevisionPin:
+      additionalProperties: false
+      properties:
+        assembly_lock:
+          $ref: '#/components/schemas/ArtifactDescriptor'
+        installation_id:
+          $ref: '#/components/schemas/InstallationId'
+        installation_revision:
+          format: uint64
+          minimum: 0.0
+          type: integer
+        work_revision:
+          $ref: '#/components/schemas/ArtifactDescriptor'
+      required:
+      - assembly_lock
+      - installation_id
+      - installation_revision
+      - work_revision
+      type: object
     InstallationRollbackPointer:
       properties:
         assembly_lock:
@@ -4438,6 +5090,10 @@ components:
           type: string
         node_id:
           $ref: '#/components/schemas/NodeId'
+        node_path:
+          items:
+            $ref: '#/components/schemas/NodeId'
+          type: array
         realization_id:
           anyOf:
           - $ref: '#/components/schemas/RealizationId'
@@ -4447,6 +5103,7 @@ components:
       required:
       - instance_id
       - node_id
+      - node_path
       - status
       type: object
     NodeInstanceStatus:
@@ -7214,6 +7871,25 @@ components:
       - max
       - min
       type: object
+    ResolvedPortPin:
+      additionalProperties: false
+      properties:
+        canonical_contract_digest:
+          type: string
+        leaf_port:
+          $ref: '#/components/schemas/PortEndpoint'
+        node_path:
+          items:
+            $ref: '#/components/schemas/NodeId'
+          type: array
+        root_port:
+          $ref: '#/components/schemas/PortId'
+      required:
+      - canonical_contract_digest
+      - leaf_port
+      - node_path
+      - root_port
+      type: object
     ResourceCapacity:
       properties:
         cpu_millis:
@@ -7492,6 +8168,23 @@ components:
       - started_at
       - status
       title: RunRecord
+      type: object
+    RunRevisionPin:
+      additionalProperties: false
+      description: 'Exact Run identity established by the Host. The three fields are one optional unit: Launch-time selection can omit the entire value, while a Runtime selection must carry all of it.'
+      properties:
+        context_id:
+          type: string
+        run_id:
+          $ref: '#/components/schemas/RunId'
+        run_revision:
+          format: uint64
+          minimum: 0.0
+          type: integer
+      required:
+      - context_id
+      - run_id
+      - run_revision
       type: object
     RunStartRequest:
       $schema: https://json-schema.org/draft/2020-12/schema
@@ -9015,6 +9708,16 @@ paths:
                 type: object
           description: JSON-RPC response envelope
       summary: Invoke authority.decision.list
+      x-plurora-contract:
+        id: authority.decision.list
+        implementation_status: partial
+        introduced_in: plurora.contract.default/v1@0.1.0
+        maturity: experimental
+        owner_layer: substrate
+        request_schema: urn:plurora:schema:method:authority.decision.list:v1#/$defs/Params
+        response_schema: urn:plurora:schema:method:authority.decision.list:v1#/$defs/Result
+        streaming: false
+      x-plurora-implementation-status: partial
   /rpc/authority.grant.create:
     post:
       operationId: authorityGrantCreate
@@ -9128,6 +9831,16 @@ paths:
                 type: object
           description: JSON-RPC response envelope
       summary: Invoke authority.grant.create
+      x-plurora-contract:
+        id: authority.grant.create
+        implementation_status: partial
+        introduced_in: plurora.contract.default/v1@0.1.0
+        maturity: experimental
+        owner_layer: substrate
+        request_schema: urn:plurora:schema:method:authority.grant.create:v1#/$defs/Params
+        response_schema: urn:plurora:schema:method:authority.grant.create:v1#/$defs/Result
+        streaming: false
+      x-plurora-implementation-status: partial
   /rpc/authority.grant.list:
     post:
       operationId: authorityGrantList
@@ -9232,6 +9945,16 @@ paths:
                 type: object
           description: JSON-RPC response envelope
       summary: Invoke authority.grant.list
+      x-plurora-contract:
+        id: authority.grant.list
+        implementation_status: partial
+        introduced_in: plurora.contract.default/v1@0.1.0
+        maturity: experimental
+        owner_layer: substrate
+        request_schema: urn:plurora:schema:method:authority.grant.list:v1#/$defs/Params
+        response_schema: urn:plurora:schema:method:authority.grant.list:v1#/$defs/Result
+        streaming: false
+      x-plurora-implementation-status: partial
   /rpc/authority.grant.revoke:
     post:
       operationId: authorityGrantRevoke
@@ -9334,6 +10057,16 @@ paths:
                 type: object
           description: JSON-RPC response envelope
       summary: Invoke authority.grant.revoke
+      x-plurora-contract:
+        id: authority.grant.revoke
+        implementation_status: partial
+        introduced_in: plurora.contract.default/v1@0.1.0
+        maturity: experimental
+        owner_layer: substrate
+        request_schema: urn:plurora:schema:method:authority.grant.revoke:v1#/$defs/Params
+        response_schema: urn:plurora:schema:method:authority.grant.revoke:v1#/$defs/Result
+        streaming: false
+      x-plurora-implementation-status: partial
   /rpc/authority.handle.attenuate:
     post:
       operationId: authorityHandleAttenuate
@@ -9412,6 +10145,16 @@ paths:
                 type: object
           description: JSON-RPC response envelope
       summary: Invoke authority.handle.attenuate
+      x-plurora-contract:
+        id: authority.handle.attenuate
+        implementation_status: partial
+        introduced_in: plurora.contract.default/v1@0.1.0
+        maturity: experimental
+        owner_layer: substrate
+        request_schema: urn:plurora:schema:method:authority.handle.attenuate:v1#/$defs/Params
+        response_schema: urn:plurora:schema:method:authority.handle.attenuate:v1#/$defs/Result
+        streaming: false
+      x-plurora-implementation-status: partial
   /rpc/authority.handle.list:
     post:
       operationId: authorityHandleList
@@ -9490,6 +10233,16 @@ paths:
                 type: object
           description: JSON-RPC response envelope
       summary: Invoke authority.handle.list
+      x-plurora-contract:
+        id: authority.handle.list
+        implementation_status: partial
+        introduced_in: plurora.contract.default/v1@0.1.0
+        maturity: experimental
+        owner_layer: substrate
+        request_schema: urn:plurora:schema:method:authority.handle.list:v1#/$defs/Params
+        response_schema: urn:plurora:schema:method:authority.handle.list:v1#/$defs/Result
+        streaming: false
+      x-plurora-implementation-status: partial
   /rpc/authority.handle.revoke:
     post:
       operationId: authorityHandleRevoke
@@ -9559,6 +10312,16 @@ paths:
                 type: object
           description: JSON-RPC response envelope
       summary: Invoke authority.handle.revoke
+      x-plurora-contract:
+        id: authority.handle.revoke
+        implementation_status: partial
+        introduced_in: plurora.contract.default/v1@0.1.0
+        maturity: experimental
+        owner_layer: substrate
+        request_schema: urn:plurora:schema:method:authority.handle.revoke:v1#/$defs/Params
+        response_schema: urn:plurora:schema:method:authority.handle.revoke:v1#/$defs/Result
+        streaming: false
+      x-plurora-implementation-status: partial
   /rpc/capability.cancel:
     post:
       operationId: capabilityCancel
@@ -9678,6 +10441,16 @@ paths:
                 type: object
           description: JSON-RPC response envelope
       summary: Invoke capability.cancel
+      x-plurora-contract:
+        id: capability.cancel
+        implementation_status: partial
+        introduced_in: plurora.contract.default/v1@0.1.0
+        maturity: experimental
+        owner_layer: substrate
+        request_schema: urn:plurora:schema:method:capability.cancel:v1#/$defs/Params
+        response_schema: urn:plurora:schema:method:capability.cancel:v1#/$defs/Result
+        streaming: false
+      x-plurora-implementation-status: partial
   /rpc/capability.describe:
     post:
       operationId: capabilityDescribe
@@ -9742,6 +10515,16 @@ paths:
                 type: object
           description: JSON-RPC response envelope
       summary: Invoke capability.describe
+      x-plurora-contract:
+        id: capability.describe
+        implementation_status: planned
+        introduced_in: plurora.contract.default/v1@0.1.0
+        maturity: experimental
+        owner_layer: substrate
+        request_schema: urn:plurora:schema:method:capability.describe:v1#/$defs/Params
+        response_schema: urn:plurora:schema:method:capability.describe:v1#/$defs/Result
+        streaming: false
+      x-plurora-implementation-status: planned
   /rpc/capability.discover:
     post:
       operationId: capabilityDiscover
@@ -9847,6 +10630,16 @@ paths:
                 type: object
           description: JSON-RPC response envelope
       summary: Invoke capability.discover
+      x-plurora-contract:
+        id: capability.discover
+        implementation_status: implemented
+        introduced_in: plurora.contract.default/v1@0.1.0
+        maturity: candidate
+        owner_layer: substrate
+        request_schema: urn:plurora:schema:method:capability.discover:v1#/$defs/Params
+        response_schema: urn:plurora:schema:method:capability.discover:v1#/$defs/Result
+        streaming: false
+      x-plurora-implementation-status: implemented
   /rpc/capability.invoke:
     post:
       operationId: capabilityInvoke
@@ -9988,6 +10781,16 @@ paths:
                 type: object
           description: JSON-RPC response envelope
       summary: Invoke capability.invoke
+      x-plurora-contract:
+        id: capability.invoke
+        implementation_status: partial
+        introduced_in: plurora.contract.default/v1@0.1.0
+        maturity: experimental
+        owner_layer: substrate
+        request_schema: urn:plurora:schema:method:capability.invoke:v1#/$defs/Params
+        response_schema: urn:plurora:schema:method:capability.invoke:v1#/$defs/Result
+        streaming: false
+      x-plurora-implementation-status: partial
   /rpc/capability.stream:
     post:
       operationId: capabilityStream
@@ -10063,6 +10866,16 @@ paths:
                 type: object
           description: JSON-RPC response envelope
       summary: Invoke capability.stream
+      x-plurora-contract:
+        id: capability.stream
+        implementation_status: partial
+        introduced_in: plurora.contract.default/v1@0.1.0
+        maturity: experimental
+        owner_layer: substrate
+        request_schema: urn:plurora:schema:method:capability.stream:v1#/$defs/Params
+        response_schema: urn:plurora:schema:method:capability.stream:v1#/$defs/Result
+        streaming: true
+      x-plurora-implementation-status: partial
   /rpc/change.proposal.apply:
     post:
       operationId: changeProposalApply
@@ -10199,6 +11012,16 @@ paths:
                 type: object
           description: JSON-RPC response envelope
       summary: Invoke change.proposal.apply
+      x-plurora-contract:
+        id: change.proposal.apply
+        implementation_status: partial
+        introduced_in: plurora.contract.default/v1@0.1.0
+        maturity: experimental
+        owner_layer: protocol
+        request_schema: urn:plurora:schema:method:change.proposal.apply:v1#/$defs/Params
+        response_schema: urn:plurora:schema:method:change.proposal.apply:v1#/$defs/Result
+        streaming: false
+      x-plurora-implementation-status: partial
   /rpc/change.proposal.approve:
     post:
       operationId: changeProposalApprove
@@ -10339,6 +11162,16 @@ paths:
                 type: object
           description: JSON-RPC response envelope
       summary: Invoke change.proposal.approve
+      x-plurora-contract:
+        id: change.proposal.approve
+        implementation_status: partial
+        introduced_in: plurora.contract.default/v1@0.1.0
+        maturity: experimental
+        owner_layer: protocol
+        request_schema: urn:plurora:schema:method:change.proposal.approve:v1#/$defs/Params
+        response_schema: urn:plurora:schema:method:change.proposal.approve:v1#/$defs/Result
+        streaming: false
+      x-plurora-implementation-status: partial
   /rpc/change.proposal.create:
     post:
       operationId: changeProposalCreate
@@ -10535,6 +11368,16 @@ paths:
                 type: object
           description: JSON-RPC response envelope
       summary: Invoke change.proposal.create
+      x-plurora-contract:
+        id: change.proposal.create
+        implementation_status: partial
+        introduced_in: plurora.contract.default/v1@0.1.0
+        maturity: experimental
+        owner_layer: protocol
+        request_schema: urn:plurora:schema:method:change.proposal.create:v1#/$defs/Params
+        response_schema: urn:plurora:schema:method:change.proposal.create:v1#/$defs/Result
+        streaming: false
+      x-plurora-implementation-status: partial
   /rpc/change.proposal.get:
     post:
       operationId: changeProposalGet
@@ -10671,6 +11514,16 @@ paths:
                 type: object
           description: JSON-RPC response envelope
       summary: Invoke change.proposal.get
+      x-plurora-contract:
+        id: change.proposal.get
+        implementation_status: partial
+        introduced_in: plurora.contract.default/v1@0.1.0
+        maturity: experimental
+        owner_layer: protocol
+        request_schema: urn:plurora:schema:method:change.proposal.get:v1#/$defs/Params
+        response_schema: urn:plurora:schema:method:change.proposal.get:v1#/$defs/Result
+        streaming: false
+      x-plurora-implementation-status: partial
   /rpc/change.proposal.list:
     post:
       operationId: changeProposalList
@@ -10804,6 +11657,16 @@ paths:
                 type: object
           description: JSON-RPC response envelope
       summary: Invoke change.proposal.list
+      x-plurora-contract:
+        id: change.proposal.list
+        implementation_status: partial
+        introduced_in: plurora.contract.default/v1@0.1.0
+        maturity: experimental
+        owner_layer: protocol
+        request_schema: urn:plurora:schema:method:change.proposal.list:v1#/$defs/Params
+        response_schema: urn:plurora:schema:method:change.proposal.list:v1#/$defs/Result
+        streaming: false
+      x-plurora-implementation-status: partial
   /rpc/change.proposal.reject:
     post:
       operationId: changeProposalReject
@@ -10944,6 +11807,16 @@ paths:
                 type: object
           description: JSON-RPC response envelope
       summary: Invoke change.proposal.reject
+      x-plurora-contract:
+        id: change.proposal.reject
+        implementation_status: partial
+        introduced_in: plurora.contract.default/v1@0.1.0
+        maturity: experimental
+        owner_layer: protocol
+        request_schema: urn:plurora:schema:method:change.proposal.reject:v1#/$defs/Params
+        response_schema: urn:plurora:schema:method:change.proposal.reject:v1#/$defs/Result
+        streaming: false
+      x-plurora-implementation-status: partial
   /rpc/context.branch.list:
     post:
       operationId: contextBranchList
@@ -11039,6 +11912,16 @@ paths:
                 type: object
           description: JSON-RPC response envelope
       summary: Invoke context.branch.list
+      x-plurora-contract:
+        id: context.branch.list
+        implementation_status: partial
+        introduced_in: plurora.contract.default/v1@0.1.0
+        maturity: experimental
+        owner_layer: substrate
+        request_schema: urn:plurora:schema:method:context.branch.list:v1#/$defs/Params
+        response_schema: urn:plurora:schema:method:context.branch.list:v1#/$defs/Result
+        streaming: false
+      x-plurora-implementation-status: partial
   /rpc/context.close:
     post:
       operationId: contextClose
@@ -11142,6 +12025,16 @@ paths:
                 type: object
           description: JSON-RPC response envelope
       summary: Invoke context.close
+      x-plurora-contract:
+        id: context.close
+        implementation_status: implemented
+        introduced_in: plurora.contract.default/v1@0.1.0
+        maturity: candidate
+        owner_layer: substrate
+        request_schema: urn:plurora:schema:method:context.close:v1#/$defs/Params
+        response_schema: urn:plurora:schema:method:context.close:v1#/$defs/Result
+        streaming: false
+      x-plurora-implementation-status: implemented
   /rpc/context.fork:
     post:
       operationId: contextFork
@@ -11242,6 +12135,16 @@ paths:
                 type: object
           description: JSON-RPC response envelope
       summary: Invoke context.fork
+      x-plurora-contract:
+        id: context.fork
+        implementation_status: partial
+        introduced_in: plurora.contract.default/v1@0.1.0
+        maturity: experimental
+        owner_layer: substrate
+        request_schema: urn:plurora:schema:method:context.fork:v1#/$defs/Params
+        response_schema: urn:plurora:schema:method:context.fork:v1#/$defs/Result
+        streaming: false
+      x-plurora-implementation-status: partial
   /rpc/context.get:
     post:
       operationId: contextGet
@@ -11345,6 +12248,16 @@ paths:
                 type: object
           description: JSON-RPC response envelope
       summary: Invoke context.get
+      x-plurora-contract:
+        id: context.get
+        implementation_status: partial
+        introduced_in: plurora.contract.default/v1@0.1.0
+        maturity: experimental
+        owner_layer: substrate
+        request_schema: urn:plurora:schema:method:context.get:v1#/$defs/Params
+        response_schema: urn:plurora:schema:method:context.get:v1#/$defs/Result
+        streaming: false
+      x-plurora-implementation-status: partial
   /rpc/context.list:
     post:
       operationId: contextList
@@ -11409,6 +12322,16 @@ paths:
                 type: object
           description: JSON-RPC response envelope
       summary: Invoke context.list
+      x-plurora-contract:
+        id: context.list
+        implementation_status: planned
+        introduced_in: plurora.contract.default/v1@0.1.0
+        maturity: experimental
+        owner_layer: substrate
+        request_schema: urn:plurora:schema:method:context.list:v1#/$defs/Params
+        response_schema: urn:plurora:schema:method:context.list:v1#/$defs/Result
+        streaming: false
+      x-plurora-implementation-status: planned
   /rpc/context.open:
     post:
       operationId: contextOpen
@@ -11521,6 +12444,485 @@ paths:
                 type: object
           description: JSON-RPC response envelope
       summary: Invoke context.open
+      x-plurora-contract:
+        id: context.open
+        implementation_status: implemented
+        introduced_in: plurora.contract.default/v1@0.1.0
+        maturity: candidate
+        owner_layer: substrate
+        request_schema: urn:plurora:schema:method:context.open:v1#/$defs/Params
+        response_schema: urn:plurora:schema:method:context.open:v1#/$defs/Result
+        streaming: false
+      x-plurora-implementation-status: implemented
+  /rpc/host.binding.candidates:
+    post:
+      operationId: hostBindingCandidates
+      requestBody:
+        content:
+          application/json:
+            schema:
+              additionalProperties: false
+              properties:
+                contract:
+                  $ref: '#/components/schemas/ContractSelection'
+                id:
+                  oneOf:
+                  - type: string
+                  - type: integer
+                  - type: 'null'
+                jsonrpc:
+                  const: '2.0'
+                method:
+                  const: host.binding.candidates
+                params:
+                  $schema: https://json-schema.org/draft/2020-12/schema
+                  additionalProperties: false
+                  properties:
+                    consumer_installation_id:
+                      $ref: '#/components/schemas/InstallationId'
+                    consumer_run:
+                      anyOf:
+                      - $ref: '#/components/schemas/RunRevisionPin'
+                      - type: 'null'
+                    expected_consumer_installation_revision:
+                      format: uint64
+                      minimum: 0.0
+                      type: integer
+                    import_port:
+                      $ref: '#/components/schemas/PortId'
+                    phase:
+                      $ref: '#/components/schemas/BindingPhase'
+                    preferences:
+                      description: An ordering hint only. It never selects a candidate or grants authority.
+                      items:
+                        $ref: '#/components/schemas/ResourceSelector'
+                      type: array
+                  required:
+                  - consumer_installation_id
+                  - expected_consumer_installation_revision
+                  - import_port
+                  - phase
+                  title: BindingCandidatesRequest
+                  type: object
+              required:
+              - jsonrpc
+              - id
+              - method
+              - params
+              type: object
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: integer
+                      data: true
+                      message:
+                        type: string
+                    required:
+                    - code
+                    - message
+                    type: object
+                  id:
+                    oneOf:
+                    - type: string
+                    - type: integer
+                    - type: 'null'
+                  jsonrpc:
+                    const: '2.0'
+                  result:
+                    $schema: https://json-schema.org/draft/2020-12/schema
+                    properties:
+                      candidates:
+                        items:
+                          $ref: '#/components/schemas/BindingCandidate'
+                        type: array
+                      gaps:
+                        items:
+                          $ref: '#/components/schemas/BindingGap'
+                        type: array
+                    required:
+                    - candidates
+                    title: BindingCandidatesResult
+                    type: object
+                required:
+                - jsonrpc
+                - id
+                type: object
+          description: JSON-RPC response envelope
+      summary: Invoke host.binding.candidates
+      x-plurora-contract:
+        id: host.binding.candidates
+        implementation_status: implemented
+        introduced_in: plurora.contract.default/v1@0.1.0
+        maturity: candidate
+        owner_layer: host
+        request_schema: urn:plurora:schema:method:host.binding.candidates:v1#/$defs/Params
+        response_schema: urn:plurora:schema:method:host.binding.candidates:v1#/$defs/Result
+        streaming: false
+      x-plurora-implementation-status: implemented
+  /rpc/host.binding.list:
+    post:
+      operationId: hostBindingList
+      requestBody:
+        content:
+          application/json:
+            schema:
+              additionalProperties: false
+              properties:
+                contract:
+                  $ref: '#/components/schemas/ContractSelection'
+                id:
+                  oneOf:
+                  - type: string
+                  - type: integer
+                  - type: 'null'
+                jsonrpc:
+                  const: '2.0'
+                method:
+                  const: host.binding.list
+                params:
+                  $schema: https://json-schema.org/draft/2020-12/schema
+                  additionalProperties: false
+                  properties:
+                    consumer_installation_id:
+                      anyOf:
+                      - $ref: '#/components/schemas/InstallationId'
+                      - type: 'null'
+                    run_id:
+                      anyOf:
+                      - $ref: '#/components/schemas/RunId'
+                      - type: 'null'
+                    status:
+                      anyOf:
+                      - $ref: '#/components/schemas/BindingDecisionStatus'
+                      - type: 'null'
+                  title: BindingListRequest
+                  type: object
+              required:
+              - jsonrpc
+              - id
+              - method
+              - params
+              type: object
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: integer
+                      data: true
+                      message:
+                        type: string
+                    required:
+                    - code
+                    - message
+                    type: object
+                  id:
+                    oneOf:
+                    - type: string
+                    - type: integer
+                    - type: 'null'
+                  jsonrpc:
+                    const: '2.0'
+                  result:
+                    items:
+                      $schema: https://json-schema.org/draft/2020-12/schema
+                      properties:
+                        effective_status:
+                          $ref: '#/components/schemas/BindingEffectiveStatus'
+                        record:
+                          $ref: '#/components/schemas/BindingSelectionRecord'
+                        revision:
+                          format: uint64
+                          minimum: 0.0
+                          type: integer
+                      required:
+                      - effective_status
+                      - record
+                      - revision
+                      title: BindingView
+                      type: object
+                    type: array
+                required:
+                - jsonrpc
+                - id
+                type: object
+          description: JSON-RPC response envelope
+      summary: Invoke host.binding.list
+      x-plurora-contract:
+        id: host.binding.list
+        implementation_status: implemented
+        introduced_in: plurora.contract.default/v1@0.1.0
+        maturity: candidate
+        owner_layer: host
+        request_schema: urn:plurora:schema:method:host.binding.list:v1#/$defs/Params
+        response_schema: urn:plurora:schema:method:host.binding.list:v1#/$defs/Result
+        streaming: false
+      x-plurora-implementation-status: implemented
+  /rpc/host.binding.revoke:
+    post:
+      operationId: hostBindingRevoke
+      requestBody:
+        content:
+          application/json:
+            schema:
+              additionalProperties: false
+              properties:
+                contract:
+                  $ref: '#/components/schemas/ContractSelection'
+                id:
+                  oneOf:
+                  - type: string
+                  - type: integer
+                  - type: 'null'
+                jsonrpc:
+                  const: '2.0'
+                method:
+                  const: host.binding.revoke
+                params:
+                  $schema: https://json-schema.org/draft/2020-12/schema
+                  additionalProperties: false
+                  properties:
+                    binding_id:
+                      $ref: '#/components/schemas/BindingId'
+                    consumer_installation_id:
+                      $ref: '#/components/schemas/InstallationId'
+                    consumer_run:
+                      anyOf:
+                      - $ref: '#/components/schemas/RunRevisionPin'
+                      - type: 'null'
+                    expected_binding_revision:
+                      format: uint64
+                      minimum: 0.0
+                      type: integer
+                    expected_consumer_installation_revision:
+                      format: uint64
+                      minimum: 0.0
+                      type: integer
+                    exposure_id:
+                      $ref: '#/components/schemas/ExposureId'
+                    idempotency_key:
+                      type: string
+                    import_port:
+                      $ref: '#/components/schemas/PortId'
+                  required:
+                  - binding_id
+                  - consumer_installation_id
+                  - expected_binding_revision
+                  - expected_consumer_installation_revision
+                  - exposure_id
+                  - idempotency_key
+                  - import_port
+                  title: BindingRevokeRequest
+                  type: object
+              required:
+              - jsonrpc
+              - id
+              - method
+              - params
+              type: object
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: integer
+                      data: true
+                      message:
+                        type: string
+                    required:
+                    - code
+                    - message
+                    type: object
+                  id:
+                    oneOf:
+                    - type: string
+                    - type: integer
+                    - type: 'null'
+                  jsonrpc:
+                    const: '2.0'
+                  result:
+                    $schema: https://json-schema.org/draft/2020-12/schema
+                    properties:
+                      affected_binding_ids:
+                        items:
+                          $ref: '#/components/schemas/BindingId'
+                        type: array
+                      binding:
+                        $ref: '#/components/schemas/BindingView'
+                      idempotent:
+                        type: boolean
+                    required:
+                    - binding
+                    - idempotent
+                    title: BindingMutationResult
+                    type: object
+                required:
+                - jsonrpc
+                - id
+                type: object
+          description: JSON-RPC response envelope
+      summary: Invoke host.binding.revoke
+      x-plurora-contract:
+        id: host.binding.revoke
+        implementation_status: implemented
+        introduced_in: plurora.contract.default/v1@0.1.0
+        maturity: candidate
+        owner_layer: host
+        request_schema: urn:plurora:schema:method:host.binding.revoke:v1#/$defs/Params
+        response_schema: urn:plurora:schema:method:host.binding.revoke:v1#/$defs/Result
+        streaming: false
+      x-plurora-implementation-status: implemented
+  /rpc/host.binding.select:
+    post:
+      operationId: hostBindingSelect
+      requestBody:
+        content:
+          application/json:
+            schema:
+              additionalProperties: false
+              properties:
+                contract:
+                  $ref: '#/components/schemas/ContractSelection'
+                id:
+                  oneOf:
+                  - type: string
+                  - type: integer
+                  - type: 'null'
+                jsonrpc:
+                  const: '2.0'
+                method:
+                  const: host.binding.select
+                params:
+                  $schema: https://json-schema.org/draft/2020-12/schema
+                  additionalProperties: false
+                  properties:
+                    candidate_digest:
+                      type: string
+                    consumer_installation_id:
+                      $ref: '#/components/schemas/InstallationId'
+                    consumer_run:
+                      anyOf:
+                      - $ref: '#/components/schemas/RunRevisionPin'
+                      - type: 'null'
+                    expected_consumer_installation_revision:
+                      format: uint64
+                      minimum: 0.0
+                      type: integer
+                    expected_exposure_revision:
+                      format: uint64
+                      minimum: 0.0
+                      type: integer
+                    expected_provider_installation_revision:
+                      format: uint64
+                      minimum: 0.0
+                      type: integer
+                    exposure_id:
+                      $ref: '#/components/schemas/ExposureId'
+                    idempotency_key:
+                      type: string
+                    import_port:
+                      $ref: '#/components/schemas/PortId'
+                    phase:
+                      $ref: '#/components/schemas/BindingPhase'
+                    provider_installation_id:
+                      $ref: '#/components/schemas/InstallationId'
+                  required:
+                  - candidate_digest
+                  - consumer_installation_id
+                  - expected_consumer_installation_revision
+                  - expected_exposure_revision
+                  - expected_provider_installation_revision
+                  - exposure_id
+                  - idempotency_key
+                  - import_port
+                  - phase
+                  - provider_installation_id
+                  title: BindingSelectRequest
+                  type: object
+              required:
+              - jsonrpc
+              - id
+              - method
+              - params
+              type: object
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: integer
+                      data: true
+                      message:
+                        type: string
+                    required:
+                    - code
+                    - message
+                    type: object
+                  id:
+                    oneOf:
+                    - type: string
+                    - type: integer
+                    - type: 'null'
+                  jsonrpc:
+                    const: '2.0'
+                  result:
+                    $schema: https://json-schema.org/draft/2020-12/schema
+                    properties:
+                      affected_binding_ids:
+                        items:
+                          $ref: '#/components/schemas/BindingId'
+                        type: array
+                      binding:
+                        $ref: '#/components/schemas/BindingView'
+                      idempotent:
+                        type: boolean
+                    required:
+                    - binding
+                    - idempotent
+                    title: BindingMutationResult
+                    type: object
+                required:
+                - jsonrpc
+                - id
+                type: object
+          description: JSON-RPC response envelope
+      summary: Invoke host.binding.select
+      x-plurora-contract:
+        id: host.binding.select
+        implementation_status: implemented
+        introduced_in: plurora.contract.default/v1@0.1.0
+        maturity: candidate
+        owner_layer: host
+        request_schema: urn:plurora:schema:method:host.binding.select:v1#/$defs/Params
+        response_schema: urn:plurora:schema:method:host.binding.select:v1#/$defs/Result
+        streaming: false
+      x-plurora-implementation-status: implemented
   /rpc/host.diagnostics:
     post:
       operationId: hostDiagnostics
@@ -11585,6 +12987,16 @@ paths:
                 type: object
           description: JSON-RPC response envelope
       summary: Invoke host.diagnostics
+      x-plurora-contract:
+        id: host.diagnostics
+        implementation_status: partial
+        introduced_in: plurora.contract.default/v1@0.1.0
+        maturity: experimental
+        owner_layer: host
+        request_schema: urn:plurora:schema:method:host.diagnostics:v1#/$defs/Params
+        response_schema: urn:plurora:schema:method:host.diagnostics:v1#/$defs/Result
+        streaming: false
+      x-plurora-implementation-status: partial
   /rpc/host.exec.list:
     post:
       operationId: hostExecList
@@ -11658,6 +13070,16 @@ paths:
                 type: object
           description: JSON-RPC response envelope
       summary: Invoke host.exec.list
+      x-plurora-contract:
+        id: host.exec.list
+        implementation_status: partial
+        introduced_in: plurora.contract.default/v1@0.1.0
+        maturity: experimental
+        owner_layer: host
+        request_schema: urn:plurora:schema:method:host.exec.list:v1#/$defs/Params
+        response_schema: urn:plurora:schema:method:host.exec.list:v1#/$defs/Result
+        streaming: false
+      x-plurora-implementation-status: partial
   /rpc/host.exec.logs:
     post:
       operationId: hostExecLogs
@@ -11761,6 +13183,16 @@ paths:
                 type: object
           description: JSON-RPC response envelope
       summary: Invoke host.exec.logs
+      x-plurora-contract:
+        id: host.exec.logs
+        implementation_status: partial
+        introduced_in: plurora.contract.default/v1@0.1.0
+        maturity: experimental
+        owner_layer: host
+        request_schema: urn:plurora:schema:method:host.exec.logs:v1#/$defs/Params
+        response_schema: urn:plurora:schema:method:host.exec.logs:v1#/$defs/Result
+        streaming: false
+      x-plurora-implementation-status: partial
   /rpc/host.exec.start:
     post:
       operationId: hostExecStart
@@ -11886,6 +13318,16 @@ paths:
                 type: object
           description: JSON-RPC response envelope
       summary: Invoke host.exec.start
+      x-plurora-contract:
+        id: host.exec.start
+        implementation_status: partial
+        introduced_in: plurora.contract.default/v1@0.1.0
+        maturity: experimental
+        owner_layer: host
+        request_schema: urn:plurora:schema:method:host.exec.start:v1#/$defs/Params
+        response_schema: urn:plurora:schema:method:host.exec.start:v1#/$defs/Result
+        streaming: false
+      x-plurora-implementation-status: partial
   /rpc/host.exec.status:
     post:
       operationId: hostExecStatus
@@ -11966,6 +13408,16 @@ paths:
                 type: object
           description: JSON-RPC response envelope
       summary: Invoke host.exec.status
+      x-plurora-contract:
+        id: host.exec.status
+        implementation_status: partial
+        introduced_in: plurora.contract.default/v1@0.1.0
+        maturity: experimental
+        owner_layer: host
+        request_schema: urn:plurora:schema:method:host.exec.status:v1#/$defs/Params
+        response_schema: urn:plurora:schema:method:host.exec.status:v1#/$defs/Result
+        streaming: false
+      x-plurora-implementation-status: partial
   /rpc/host.exec.stop:
     post:
       operationId: hostExecStop
@@ -12053,6 +13505,362 @@ paths:
                 type: object
           description: JSON-RPC response envelope
       summary: Invoke host.exec.stop
+      x-plurora-contract:
+        id: host.exec.stop
+        implementation_status: partial
+        introduced_in: plurora.contract.default/v1@0.1.0
+        maturity: experimental
+        owner_layer: host
+        request_schema: urn:plurora:schema:method:host.exec.stop:v1#/$defs/Params
+        response_schema: urn:plurora:schema:method:host.exec.stop:v1#/$defs/Result
+        streaming: false
+      x-plurora-implementation-status: partial
+  /rpc/host.exposure.create:
+    post:
+      operationId: hostExposureCreate
+      requestBody:
+        content:
+          application/json:
+            schema:
+              additionalProperties: false
+              properties:
+                contract:
+                  $ref: '#/components/schemas/ContractSelection'
+                id:
+                  oneOf:
+                  - type: string
+                  - type: integer
+                  - type: 'null'
+                jsonrpc:
+                  const: '2.0'
+                method:
+                  const: host.exposure.create
+                params:
+                  $schema: https://json-schema.org/draft/2020-12/schema
+                  additionalProperties: false
+                  properties:
+                    audience:
+                      items:
+                        $ref: '#/components/schemas/ResourceSelector'
+                      type: array
+                    expected_installation_revision:
+                      format: uint64
+                      minimum: 0.0
+                      type: integer
+                    expected_run_revision:
+                      format: uint64
+                      minimum: 0.0
+                      type: integer
+                    expires_at:
+                      format: date-time
+                      type:
+                      - string
+                      - 'null'
+                    export_port:
+                      $ref: '#/components/schemas/PortId'
+                    idempotency_key:
+                      type: string
+                    installation_id:
+                      $ref: '#/components/schemas/InstallationId'
+                    run_id:
+                      $ref: '#/components/schemas/RunId'
+                  required:
+                  - audience
+                  - expected_installation_revision
+                  - expected_run_revision
+                  - export_port
+                  - idempotency_key
+                  - installation_id
+                  - run_id
+                  title: ExposureCreateRequest
+                  type: object
+              required:
+              - jsonrpc
+              - id
+              - method
+              - params
+              type: object
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: integer
+                      data: true
+                      message:
+                        type: string
+                    required:
+                    - code
+                    - message
+                    type: object
+                  id:
+                    oneOf:
+                    - type: string
+                    - type: integer
+                    - type: 'null'
+                  jsonrpc:
+                    const: '2.0'
+                  result:
+                    $schema: https://json-schema.org/draft/2020-12/schema
+                    properties:
+                      affected_binding_ids:
+                        items:
+                          $ref: '#/components/schemas/BindingId'
+                        type: array
+                      exposure:
+                        $ref: '#/components/schemas/ExposureView'
+                      idempotent:
+                        type: boolean
+                    required:
+                    - exposure
+                    - idempotent
+                    title: ExposureMutationResult
+                    type: object
+                required:
+                - jsonrpc
+                - id
+                type: object
+          description: JSON-RPC response envelope
+      summary: Invoke host.exposure.create
+      x-plurora-contract:
+        id: host.exposure.create
+        implementation_status: implemented
+        introduced_in: plurora.contract.default/v1@0.1.0
+        maturity: candidate
+        owner_layer: host
+        request_schema: urn:plurora:schema:method:host.exposure.create:v1#/$defs/Params
+        response_schema: urn:plurora:schema:method:host.exposure.create:v1#/$defs/Result
+        streaming: false
+      x-plurora-implementation-status: implemented
+  /rpc/host.exposure.list:
+    post:
+      operationId: hostExposureList
+      requestBody:
+        content:
+          application/json:
+            schema:
+              additionalProperties: false
+              properties:
+                contract:
+                  $ref: '#/components/schemas/ContractSelection'
+                id:
+                  oneOf:
+                  - type: string
+                  - type: integer
+                  - type: 'null'
+                jsonrpc:
+                  const: '2.0'
+                method:
+                  const: host.exposure.list
+                params:
+                  $schema: https://json-schema.org/draft/2020-12/schema
+                  additionalProperties: false
+                  properties:
+                    installation_id:
+                      anyOf:
+                      - $ref: '#/components/schemas/InstallationId'
+                      - type: 'null'
+                    run_id:
+                      anyOf:
+                      - $ref: '#/components/schemas/RunId'
+                      - type: 'null'
+                    status:
+                      anyOf:
+                      - $ref: '#/components/schemas/ExposureStatus'
+                      - type: 'null'
+                  title: ExposureListRequest
+                  type: object
+              required:
+              - jsonrpc
+              - id
+              - method
+              - params
+              type: object
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: integer
+                      data: true
+                      message:
+                        type: string
+                    required:
+                    - code
+                    - message
+                    type: object
+                  id:
+                    oneOf:
+                    - type: string
+                    - type: integer
+                    - type: 'null'
+                  jsonrpc:
+                    const: '2.0'
+                  result:
+                    items:
+                      $schema: https://json-schema.org/draft/2020-12/schema
+                      properties:
+                        record:
+                          $ref: '#/components/schemas/ExposureRecord'
+                        revision:
+                          format: uint64
+                          minimum: 0.0
+                          type: integer
+                      required:
+                      - record
+                      - revision
+                      title: ExposureView
+                      type: object
+                    type: array
+                required:
+                - jsonrpc
+                - id
+                type: object
+          description: JSON-RPC response envelope
+      summary: Invoke host.exposure.list
+      x-plurora-contract:
+        id: host.exposure.list
+        implementation_status: implemented
+        introduced_in: plurora.contract.default/v1@0.1.0
+        maturity: candidate
+        owner_layer: host
+        request_schema: urn:plurora:schema:method:host.exposure.list:v1#/$defs/Params
+        response_schema: urn:plurora:schema:method:host.exposure.list:v1#/$defs/Result
+        streaming: false
+      x-plurora-implementation-status: implemented
+  /rpc/host.exposure.revoke:
+    post:
+      operationId: hostExposureRevoke
+      requestBody:
+        content:
+          application/json:
+            schema:
+              additionalProperties: false
+              properties:
+                contract:
+                  $ref: '#/components/schemas/ContractSelection'
+                id:
+                  oneOf:
+                  - type: string
+                  - type: integer
+                  - type: 'null'
+                jsonrpc:
+                  const: '2.0'
+                method:
+                  const: host.exposure.revoke
+                params:
+                  $schema: https://json-schema.org/draft/2020-12/schema
+                  additionalProperties: false
+                  properties:
+                    expected_exposure_revision:
+                      format: uint64
+                      minimum: 0.0
+                      type: integer
+                    expected_installation_revision:
+                      format: uint64
+                      minimum: 0.0
+                      type: integer
+                    expected_run_revision:
+                      format: uint64
+                      minimum: 0.0
+                      type: integer
+                    export_port:
+                      $ref: '#/components/schemas/PortId'
+                    exposure_id:
+                      $ref: '#/components/schemas/ExposureId'
+                    idempotency_key:
+                      type: string
+                    installation_id:
+                      $ref: '#/components/schemas/InstallationId'
+                    run_id:
+                      $ref: '#/components/schemas/RunId'
+                  required:
+                  - expected_exposure_revision
+                  - expected_installation_revision
+                  - expected_run_revision
+                  - export_port
+                  - exposure_id
+                  - idempotency_key
+                  - installation_id
+                  - run_id
+                  title: ExposureRevokeRequest
+                  type: object
+              required:
+              - jsonrpc
+              - id
+              - method
+              - params
+              type: object
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: integer
+                      data: true
+                      message:
+                        type: string
+                    required:
+                    - code
+                    - message
+                    type: object
+                  id:
+                    oneOf:
+                    - type: string
+                    - type: integer
+                    - type: 'null'
+                  jsonrpc:
+                    const: '2.0'
+                  result:
+                    $schema: https://json-schema.org/draft/2020-12/schema
+                    properties:
+                      affected_binding_ids:
+                        items:
+                          $ref: '#/components/schemas/BindingId'
+                        type: array
+                      exposure:
+                        $ref: '#/components/schemas/ExposureView'
+                      idempotent:
+                        type: boolean
+                    required:
+                    - exposure
+                    - idempotent
+                    title: ExposureMutationResult
+                    type: object
+                required:
+                - jsonrpc
+                - id
+                type: object
+          description: JSON-RPC response envelope
+      summary: Invoke host.exposure.revoke
+      x-plurora-contract:
+        id: host.exposure.revoke
+        implementation_status: implemented
+        introduced_in: plurora.contract.default/v1@0.1.0
+        maturity: candidate
+        owner_layer: host
+        request_schema: urn:plurora:schema:method:host.exposure.revoke:v1#/$defs/Params
+        response_schema: urn:plurora:schema:method:host.exposure.revoke:v1#/$defs/Result
+        streaming: false
+      x-plurora-implementation-status: implemented
   /rpc/host.info:
     post:
       operationId: hostInfo
@@ -12180,6 +13988,16 @@ paths:
                 type: object
           description: JSON-RPC response envelope
       summary: Invoke host.info
+      x-plurora-contract:
+        id: host.info
+        implementation_status: implemented
+        introduced_in: plurora.contract.default/v1@0.1.0
+        maturity: candidate
+        owner_layer: host
+        request_schema: urn:plurora:schema:method:host.info:v1#/$defs/Params
+        response_schema: urn:plurora:schema:method:host.info:v1#/$defs/Result
+        streaming: false
+      x-plurora-implementation-status: implemented
   /rpc/host.installation.create:
     post:
       operationId: hostInstallationCreate
@@ -12292,6 +14110,16 @@ paths:
                 type: object
           description: JSON-RPC response envelope
       summary: Invoke host.installation.create
+      x-plurora-contract:
+        id: host.installation.create
+        implementation_status: implemented
+        introduced_in: plurora.contract.default/v1@0.1.0
+        maturity: candidate
+        owner_layer: host
+        request_schema: urn:plurora:schema:method:host.installation.create:v1#/$defs/Params
+        response_schema: urn:plurora:schema:method:host.installation.create:v1#/$defs/Result
+        streaming: false
+      x-plurora-implementation-status: implemented
   /rpc/host.installation.get:
     post:
       operationId: hostInstallationGet
@@ -12380,6 +14208,16 @@ paths:
                 type: object
           description: JSON-RPC response envelope
       summary: Invoke host.installation.get
+      x-plurora-contract:
+        id: host.installation.get
+        implementation_status: implemented
+        introduced_in: plurora.contract.default/v1@0.1.0
+        maturity: candidate
+        owner_layer: host
+        request_schema: urn:plurora:schema:method:host.installation.get:v1#/$defs/Params
+        response_schema: urn:plurora:schema:method:host.installation.get:v1#/$defs/Result
+        streaming: false
+      x-plurora-implementation-status: implemented
   /rpc/host.installation.list:
     post:
       operationId: hostInstallationList
@@ -12470,6 +14308,16 @@ paths:
                 type: object
           description: JSON-RPC response envelope
       summary: Invoke host.installation.list
+      x-plurora-contract:
+        id: host.installation.list
+        implementation_status: implemented
+        introduced_in: plurora.contract.default/v1@0.1.0
+        maturity: candidate
+        owner_layer: host
+        request_schema: urn:plurora:schema:method:host.installation.list:v1#/$defs/Params
+        response_schema: urn:plurora:schema:method:host.installation.list:v1#/$defs/Result
+        streaming: false
+      x-plurora-implementation-status: implemented
   /rpc/host.installation.remove:
     post:
       operationId: hostInstallationRemove
@@ -12569,6 +14417,16 @@ paths:
                 type: object
           description: JSON-RPC response envelope
       summary: Invoke host.installation.remove
+      x-plurora-contract:
+        id: host.installation.remove
+        implementation_status: implemented
+        introduced_in: plurora.contract.default/v1@0.1.0
+        maturity: candidate
+        owner_layer: host
+        request_schema: urn:plurora:schema:method:host.installation.remove:v1#/$defs/Params
+        response_schema: urn:plurora:schema:method:host.installation.remove:v1#/$defs/Result
+        streaming: false
+      x-plurora-implementation-status: implemented
   /rpc/host.installation.update:
     post:
       operationId: hostInstallationUpdate
@@ -12692,6 +14550,16 @@ paths:
                 type: object
           description: JSON-RPC response envelope
       summary: Invoke host.installation.update
+      x-plurora-contract:
+        id: host.installation.update
+        implementation_status: implemented
+        introduced_in: plurora.contract.default/v1@0.1.0
+        maturity: candidate
+        owner_layer: host
+        request_schema: urn:plurora:schema:method:host.installation.update:v1#/$defs/Params
+        response_schema: urn:plurora:schema:method:host.installation.update:v1#/$defs/Result
+        streaming: false
+      x-plurora-implementation-status: implemented
   /rpc/host.outbound.audit:
     post:
       operationId: hostOutboundAudit
@@ -12828,6 +14696,16 @@ paths:
                 type: object
           description: JSON-RPC response envelope
       summary: Invoke host.outbound.audit
+      x-plurora-contract:
+        id: host.outbound.audit
+        implementation_status: partial
+        introduced_in: plurora.contract.default/v1@0.1.0
+        maturity: experimental
+        owner_layer: host
+        request_schema: urn:plurora:schema:method:host.outbound.audit:v1#/$defs/Params
+        response_schema: urn:plurora:schema:method:host.outbound.audit:v1#/$defs/Result
+        streaming: false
+      x-plurora-implementation-status: partial
   /rpc/host.outbound.execute:
     post:
       operationId: hostOutboundExecute
@@ -12992,6 +14870,16 @@ paths:
                 type: object
           description: JSON-RPC response envelope
       summary: Invoke host.outbound.execute
+      x-plurora-contract:
+        id: host.outbound.execute
+        implementation_status: partial
+        introduced_in: plurora.contract.default/v1@0.1.0
+        maturity: experimental
+        owner_layer: host
+        request_schema: urn:plurora:schema:method:host.outbound.execute:v1#/$defs/Params
+        response_schema: urn:plurora:schema:method:host.outbound.execute:v1#/$defs/Result
+        streaming: false
+      x-plurora-implementation-status: partial
   /rpc/host.outbound.stream:
     post:
       operationId: hostOutboundStream
@@ -13157,6 +15045,16 @@ paths:
                 type: object
           description: JSON-RPC response envelope
       summary: Invoke host.outbound.stream
+      x-plurora-contract:
+        id: host.outbound.stream
+        implementation_status: partial
+        introduced_in: plurora.contract.default/v1@0.1.0
+        maturity: experimental
+        owner_layer: host
+        request_schema: urn:plurora:schema:method:host.outbound.stream:v1#/$defs/Params
+        response_schema: urn:plurora:schema:method:host.outbound.stream:v1#/$defs/Result
+        streaming: true
+      x-plurora-implementation-status: partial
   /rpc/host.outbound.websocket.close:
     post:
       operationId: hostOutboundWebsocketClose
@@ -13252,6 +15150,16 @@ paths:
                 type: object
           description: JSON-RPC response envelope
       summary: Invoke host.outbound.websocket.close
+      x-plurora-contract:
+        id: host.outbound.websocket.close
+        implementation_status: partial
+        introduced_in: plurora.contract.default/v1@0.1.0
+        maturity: experimental
+        owner_layer: host
+        request_schema: urn:plurora:schema:method:host.outbound.websocket.close:v1#/$defs/Params
+        response_schema: urn:plurora:schema:method:host.outbound.websocket.close:v1#/$defs/Result
+        streaming: false
+      x-plurora-implementation-status: partial
   /rpc/host.outbound.websocket.open:
     post:
       operationId: hostOutboundWebsocketOpen
@@ -13384,6 +15292,16 @@ paths:
                 type: object
           description: JSON-RPC response envelope
       summary: Invoke host.outbound.websocket.open
+      x-plurora-contract:
+        id: host.outbound.websocket.open
+        implementation_status: partial
+        introduced_in: plurora.contract.default/v1@0.1.0
+        maturity: experimental
+        owner_layer: host
+        request_schema: urn:plurora:schema:method:host.outbound.websocket.open:v1#/$defs/Params
+        response_schema: urn:plurora:schema:method:host.outbound.websocket.open:v1#/$defs/Result
+        streaming: true
+      x-plurora-implementation-status: partial
   /rpc/host.outbound.websocket.send:
     post:
       operationId: hostOutboundWebsocketSend
@@ -13479,6 +15397,16 @@ paths:
                 type: object
           description: JSON-RPC response envelope
       summary: Invoke host.outbound.websocket.send
+      x-plurora-contract:
+        id: host.outbound.websocket.send
+        implementation_status: partial
+        introduced_in: plurora.contract.default/v1@0.1.0
+        maturity: experimental
+        owner_layer: host
+        request_schema: urn:plurora:schema:method:host.outbound.websocket.send:v1#/$defs/Params
+        response_schema: urn:plurora:schema:method:host.outbound.websocket.send:v1#/$defs/Result
+        streaming: false
+      x-plurora-implementation-status: partial
   /rpc/host.package.audit:
     post:
       operationId: hostPackageAudit
@@ -13587,6 +15515,16 @@ paths:
                 type: object
           description: JSON-RPC response envelope
       summary: Invoke host.package.audit
+      x-plurora-contract:
+        id: host.package.audit
+        implementation_status: partial
+        introduced_in: plurora.contract.default/v1@0.1.0
+        maturity: experimental
+        owner_layer: host
+        request_schema: urn:plurora:schema:method:host.package.audit:v1#/$defs/Params
+        response_schema: urn:plurora:schema:method:host.package.audit:v1#/$defs/Result
+        streaming: false
+      x-plurora-implementation-status: partial
   /rpc/host.package.describe:
     post:
       operationId: hostPackageDescribe
@@ -13651,6 +15589,16 @@ paths:
                 type: object
           description: JSON-RPC response envelope
       summary: Invoke host.package.describe
+      x-plurora-contract:
+        id: host.package.describe
+        implementation_status: planned
+        introduced_in: plurora.contract.default/v1@0.1.0
+        maturity: experimental
+        owner_layer: host
+        request_schema: urn:plurora:schema:method:host.package.describe:v1#/$defs/Params
+        response_schema: urn:plurora:schema:method:host.package.describe:v1#/$defs/Result
+        streaming: false
+      x-plurora-implementation-status: planned
   /rpc/host.package.list:
     post:
       operationId: hostPackageList
@@ -13791,6 +15739,16 @@ paths:
                 type: object
           description: JSON-RPC response envelope
       summary: Invoke host.package.list
+      x-plurora-contract:
+        id: host.package.list
+        implementation_status: implemented
+        introduced_in: plurora.contract.default/v1@0.1.0
+        maturity: candidate
+        owner_layer: host
+        request_schema: urn:plurora:schema:method:host.package.list:v1#/$defs/Params
+        response_schema: urn:plurora:schema:method:host.package.list:v1#/$defs/Result
+        streaming: false
+      x-plurora-implementation-status: implemented
   /rpc/host.package.load:
     post:
       operationId: hostPackageLoad
@@ -14025,6 +15983,16 @@ paths:
                 type: object
           description: JSON-RPC response envelope
       summary: Invoke host.package.load
+      x-plurora-contract:
+        id: host.package.load
+        implementation_status: partial
+        introduced_in: plurora.contract.default/v1@0.1.0
+        maturity: experimental
+        owner_layer: host
+        request_schema: urn:plurora:schema:method:host.package.load:v1#/$defs/Params
+        response_schema: urn:plurora:schema:method:host.package.load:v1#/$defs/Result
+        streaming: false
+      x-plurora-implementation-status: partial
   /rpc/host.package.logs:
     post:
       operationId: hostPackageLogs
@@ -14109,6 +16077,16 @@ paths:
                 type: object
           description: JSON-RPC response envelope
       summary: Invoke host.package.logs
+      x-plurora-contract:
+        id: host.package.logs
+        implementation_status: partial
+        introduced_in: plurora.contract.default/v1@0.1.0
+        maturity: experimental
+        owner_layer: host
+        request_schema: urn:plurora:schema:method:host.package.logs:v1#/$defs/Params
+        response_schema: urn:plurora:schema:method:host.package.logs:v1#/$defs/Result
+        streaming: false
+      x-plurora-implementation-status: partial
   /rpc/host.package.restart:
     post:
       operationId: hostPackageRestart
@@ -14252,6 +16230,16 @@ paths:
                 type: object
           description: JSON-RPC response envelope
       summary: Invoke host.package.restart
+      x-plurora-contract:
+        id: host.package.restart
+        implementation_status: partial
+        introduced_in: plurora.contract.default/v1@0.1.0
+        maturity: experimental
+        owner_layer: host
+        request_schema: urn:plurora:schema:method:host.package.restart:v1#/$defs/Params
+        response_schema: urn:plurora:schema:method:host.package.restart:v1#/$defs/Result
+        streaming: false
+      x-plurora-implementation-status: partial
   /rpc/host.package.status:
     post:
       operationId: hostPackageStatus
@@ -14395,6 +16383,16 @@ paths:
                 type: object
           description: JSON-RPC response envelope
       summary: Invoke host.package.status
+      x-plurora-contract:
+        id: host.package.status
+        implementation_status: implemented
+        introduced_in: plurora.contract.default/v1@0.1.0
+        maturity: candidate
+        owner_layer: host
+        request_schema: urn:plurora:schema:method:host.package.status:v1#/$defs/Params
+        response_schema: urn:plurora:schema:method:host.package.status:v1#/$defs/Result
+        streaming: false
+      x-plurora-implementation-status: implemented
   /rpc/host.package.unload:
     post:
       operationId: hostPackageUnload
@@ -14538,6 +16536,16 @@ paths:
                 type: object
           description: JSON-RPC response envelope
       summary: Invoke host.package.unload
+      x-plurora-contract:
+        id: host.package.unload
+        implementation_status: partial
+        introduced_in: plurora.contract.default/v1@0.1.0
+        maturity: experimental
+        owner_layer: host
+        request_schema: urn:plurora:schema:method:host.package.unload:v1#/$defs/Params
+        response_schema: urn:plurora:schema:method:host.package.unload:v1#/$defs/Result
+        streaming: false
+      x-plurora-implementation-status: partial
   /rpc/host.ping:
     post:
       operationId: hostPing
@@ -14607,6 +16615,16 @@ paths:
                 type: object
           description: JSON-RPC response envelope
       summary: Invoke host.ping
+      x-plurora-contract:
+        id: host.ping
+        implementation_status: partial
+        introduced_in: plurora.contract.default/v1@0.1.0
+        maturity: experimental
+        owner_layer: host
+        request_schema: urn:plurora:schema:method:host.ping:v1#/$defs/Params
+        response_schema: urn:plurora:schema:method:host.ping:v1#/$defs/Result
+        streaming: false
+      x-plurora-implementation-status: partial
   /rpc/host.port.lease:
     post:
       operationId: hostPortLease
@@ -14696,6 +16714,16 @@ paths:
                 type: object
           description: JSON-RPC response envelope
       summary: Invoke host.port.lease
+      x-plurora-contract:
+        id: host.port.lease
+        implementation_status: partial
+        introduced_in: plurora.contract.default/v1@0.1.0
+        maturity: experimental
+        owner_layer: host
+        request_schema: urn:plurora:schema:method:host.port.lease:v1#/$defs/Params
+        response_schema: urn:plurora:schema:method:host.port.lease:v1#/$defs/Result
+        streaming: false
+      x-plurora-implementation-status: partial
   /rpc/host.port.list:
     post:
       operationId: hostPortList
@@ -14792,6 +16820,16 @@ paths:
                 type: object
           description: JSON-RPC response envelope
       summary: Invoke host.port.list
+      x-plurora-contract:
+        id: host.port.list
+        implementation_status: partial
+        introduced_in: plurora.contract.default/v1@0.1.0
+        maturity: experimental
+        owner_layer: host
+        request_schema: urn:plurora:schema:method:host.port.list:v1#/$defs/Params
+        response_schema: urn:plurora:schema:method:host.port.list:v1#/$defs/Result
+        streaming: false
+      x-plurora-implementation-status: partial
   /rpc/host.port.release:
     post:
       operationId: hostPortRelease
@@ -14891,6 +16929,16 @@ paths:
                 type: object
           description: JSON-RPC response envelope
       summary: Invoke host.port.release
+      x-plurora-contract:
+        id: host.port.release
+        implementation_status: partial
+        introduced_in: plurora.contract.default/v1@0.1.0
+        maturity: experimental
+        owner_layer: host
+        request_schema: urn:plurora:schema:method:host.port.release:v1#/$defs/Params
+        response_schema: urn:plurora:schema:method:host.port.release:v1#/$defs/Result
+        streaming: false
+      x-plurora-implementation-status: partial
   /rpc/host.port.status:
     post:
       operationId: hostPortStatus
@@ -14990,6 +17038,16 @@ paths:
                 type: object
           description: JSON-RPC response envelope
       summary: Invoke host.port.status
+      x-plurora-contract:
+        id: host.port.status
+        implementation_status: partial
+        introduced_in: plurora.contract.default/v1@0.1.0
+        maturity: experimental
+        owner_layer: host
+        request_schema: urn:plurora:schema:method:host.port.status:v1#/$defs/Params
+        response_schema: urn:plurora:schema:method:host.port.status:v1#/$defs/Result
+        streaming: false
+      x-plurora-implementation-status: partial
   /rpc/host.proxy.list:
     post:
       operationId: hostProxyList
@@ -15085,6 +17143,16 @@ paths:
                 type: object
           description: JSON-RPC response envelope
       summary: Invoke host.proxy.list
+      x-plurora-contract:
+        id: host.proxy.list
+        implementation_status: partial
+        introduced_in: plurora.contract.default/v1@0.1.0
+        maturity: experimental
+        owner_layer: host
+        request_schema: urn:plurora:schema:method:host.proxy.list:v1#/$defs/Params
+        response_schema: urn:plurora:schema:method:host.proxy.list:v1#/$defs/Result
+        streaming: false
+      x-plurora-implementation-status: partial
   /rpc/host.proxy.register:
     post:
       operationId: hostProxyRegister
@@ -15173,6 +17241,16 @@ paths:
                 type: object
           description: JSON-RPC response envelope
       summary: Invoke host.proxy.register
+      x-plurora-contract:
+        id: host.proxy.register
+        implementation_status: partial
+        introduced_in: plurora.contract.default/v1@0.1.0
+        maturity: experimental
+        owner_layer: host
+        request_schema: urn:plurora:schema:method:host.proxy.register:v1#/$defs/Params
+        response_schema: urn:plurora:schema:method:host.proxy.register:v1#/$defs/Result
+        streaming: false
+      x-plurora-implementation-status: partial
   /rpc/host.proxy.status:
     post:
       operationId: hostProxyStatus
@@ -15271,6 +17349,16 @@ paths:
                 type: object
           description: JSON-RPC response envelope
       summary: Invoke host.proxy.status
+      x-plurora-contract:
+        id: host.proxy.status
+        implementation_status: partial
+        introduced_in: plurora.contract.default/v1@0.1.0
+        maturity: experimental
+        owner_layer: host
+        request_schema: urn:plurora:schema:method:host.proxy.status:v1#/$defs/Params
+        response_schema: urn:plurora:schema:method:host.proxy.status:v1#/$defs/Result
+        streaming: false
+      x-plurora-implementation-status: partial
   /rpc/host.proxy.unregister:
     post:
       operationId: hostProxyUnregister
@@ -15369,6 +17457,16 @@ paths:
                 type: object
           description: JSON-RPC response envelope
       summary: Invoke host.proxy.unregister
+      x-plurora-contract:
+        id: host.proxy.unregister
+        implementation_status: partial
+        introduced_in: plurora.contract.default/v1@0.1.0
+        maturity: experimental
+        owner_layer: host
+        request_schema: urn:plurora:schema:method:host.proxy.unregister:v1#/$defs/Params
+        response_schema: urn:plurora:schema:method:host.proxy.unregister:v1#/$defs/Result
+        streaming: false
+      x-plurora-implementation-status: partial
   /rpc/host.run.get:
     post:
       operationId: hostRunGet
@@ -15462,6 +17560,16 @@ paths:
                 type: object
           description: JSON-RPC response envelope
       summary: Invoke host.run.get
+      x-plurora-contract:
+        id: host.run.get
+        implementation_status: implemented
+        introduced_in: plurora.contract.default/v1@0.1.0
+        maturity: candidate
+        owner_layer: host
+        request_schema: urn:plurora:schema:method:host.run.get:v1#/$defs/Params
+        response_schema: urn:plurora:schema:method:host.run.get:v1#/$defs/Result
+        streaming: false
+      x-plurora-implementation-status: implemented
   /rpc/host.run.list:
     post:
       operationId: hostRunList
@@ -15558,6 +17666,16 @@ paths:
                 type: object
           description: JSON-RPC response envelope
       summary: Invoke host.run.list
+      x-plurora-contract:
+        id: host.run.list
+        implementation_status: implemented
+        introduced_in: plurora.contract.default/v1@0.1.0
+        maturity: candidate
+        owner_layer: host
+        request_schema: urn:plurora:schema:method:host.run.list:v1#/$defs/Params
+        response_schema: urn:plurora:schema:method:host.run.list:v1#/$defs/Result
+        streaming: false
+      x-plurora-implementation-status: implemented
   /rpc/host.run.start:
     post:
       operationId: hostRunStart
@@ -15654,6 +17772,16 @@ paths:
                 type: object
           description: JSON-RPC response envelope
       summary: Invoke host.run.start
+      x-plurora-contract:
+        id: host.run.start
+        implementation_status: implemented
+        introduced_in: plurora.contract.default/v1@0.1.0
+        maturity: candidate
+        owner_layer: host
+        request_schema: urn:plurora:schema:method:host.run.start:v1#/$defs/Params
+        response_schema: urn:plurora:schema:method:host.run.start:v1#/$defs/Result
+        streaming: false
+      x-plurora-implementation-status: implemented
   /rpc/host.run.status:
     post:
       operationId: hostRunStatus
@@ -15752,6 +17880,16 @@ paths:
                 type: object
           description: JSON-RPC response envelope
       summary: Invoke host.run.status
+      x-plurora-contract:
+        id: host.run.status
+        implementation_status: implemented
+        introduced_in: plurora.contract.default/v1@0.1.0
+        maturity: candidate
+        owner_layer: host
+        request_schema: urn:plurora:schema:method:host.run.status:v1#/$defs/Params
+        response_schema: urn:plurora:schema:method:host.run.status:v1#/$defs/Result
+        streaming: false
+      x-plurora-implementation-status: implemented
   /rpc/host.run.stop:
     post:
       operationId: hostRunStop
@@ -15843,6 +17981,16 @@ paths:
                 type: object
           description: JSON-RPC response envelope
       summary: Invoke host.run.stop
+      x-plurora-contract:
+        id: host.run.stop
+        implementation_status: implemented
+        introduced_in: plurora.contract.default/v1@0.1.0
+        maturity: candidate
+        owner_layer: host
+        request_schema: urn:plurora:schema:method:host.run.stop:v1#/$defs/Params
+        response_schema: urn:plurora:schema:method:host.run.stop:v1#/$defs/Result
+        streaming: false
+      x-plurora-implementation-status: implemented
   /rpc/host.surface.bundle.resolve:
     post:
       operationId: hostSurfaceBundleResolve
@@ -15945,6 +18093,16 @@ paths:
                 type: object
           description: JSON-RPC response envelope
       summary: Invoke host.surface.bundle.resolve
+      x-plurora-contract:
+        id: host.surface.bundle.resolve
+        implementation_status: partial
+        introduced_in: plurora.contract.default/v1@0.1.0
+        maturity: experimental
+        owner_layer: host
+        request_schema: urn:plurora:schema:method:host.surface.bundle.resolve:v1#/$defs/Params
+        response_schema: urn:plurora:schema:method:host.surface.bundle.resolve:v1#/$defs/Result
+        streaming: false
+      x-plurora-implementation-status: partial
   /rpc/host.target.list:
     post:
       operationId: hostTargetList
@@ -16091,6 +18249,16 @@ paths:
                 type: object
           description: JSON-RPC response envelope
       summary: Invoke host.target.list
+      x-plurora-contract:
+        id: host.target.list
+        implementation_status: partial
+        introduced_in: plurora.contract.default/v1@0.1.0
+        maturity: experimental
+        owner_layer: host
+        request_schema: urn:plurora:schema:method:host.target.list:v1#/$defs/Params
+        response_schema: urn:plurora:schema:method:host.target.list:v1#/$defs/Result
+        streaming: false
+      x-plurora-implementation-status: partial
   /rpc/host.target.register:
     post:
       operationId: hostTargetRegister
@@ -16313,6 +18481,16 @@ paths:
                 type: object
           description: JSON-RPC response envelope
       summary: Invoke host.target.register
+      x-plurora-contract:
+        id: host.target.register
+        implementation_status: partial
+        introduced_in: plurora.contract.default/v1@0.1.0
+        maturity: experimental
+        owner_layer: host
+        request_schema: urn:plurora:schema:method:host.target.register:v1#/$defs/Params
+        response_schema: urn:plurora:schema:method:host.target.register:v1#/$defs/Result
+        streaming: false
+      x-plurora-implementation-status: partial
   /rpc/host.target.status:
     post:
       operationId: hostTargetStatus
@@ -16462,6 +18640,16 @@ paths:
                 type: object
           description: JSON-RPC response envelope
       summary: Invoke host.target.status
+      x-plurora-contract:
+        id: host.target.status
+        implementation_status: partial
+        introduced_in: plurora.contract.default/v1@0.1.0
+        maturity: experimental
+        owner_layer: host
+        request_schema: urn:plurora:schema:method:host.target.status:v1#/$defs/Params
+        response_schema: urn:plurora:schema:method:host.target.status:v1#/$defs/Result
+        streaming: false
+      x-plurora-implementation-status: partial
   /rpc/host.target.unregister:
     post:
       operationId: hostTargetUnregister
@@ -16611,6 +18799,16 @@ paths:
                 type: object
           description: JSON-RPC response envelope
       summary: Invoke host.target.unregister
+      x-plurora-contract:
+        id: host.target.unregister
+        implementation_status: partial
+        introduced_in: plurora.contract.default/v1@0.1.0
+        maturity: experimental
+        owner_layer: host
+        request_schema: urn:plurora:schema:method:host.target.unregister:v1#/$defs/Params
+        response_schema: urn:plurora:schema:method:host.target.unregister:v1#/$defs/Result
+        streaming: false
+      x-plurora-implementation-status: partial
   /rpc/identity.current:
     post:
       operationId: identityCurrent
@@ -16675,6 +18873,16 @@ paths:
                 type: object
           description: JSON-RPC response envelope
       summary: Invoke identity.current
+      x-plurora-contract:
+        id: identity.current
+        implementation_status: planned
+        introduced_in: plurora.contract.default/v1@0.1.0
+        maturity: experimental
+        owner_layer: substrate
+        request_schema: urn:plurora:schema:method:identity.current:v1#/$defs/Params
+        response_schema: urn:plurora:schema:method:identity.current:v1#/$defs/Result
+        streaming: false
+      x-plurora-implementation-status: planned
   /rpc/journal.append:
     post:
       operationId: journalAppend
@@ -16788,6 +18996,16 @@ paths:
                 type: object
           description: JSON-RPC response envelope
       summary: Invoke journal.append
+      x-plurora-contract:
+        id: journal.append
+        implementation_status: implemented
+        introduced_in: plurora.contract.default/v1@0.1.0
+        maturity: candidate
+        owner_layer: substrate
+        request_schema: urn:plurora:schema:method:journal.append:v1#/$defs/Params
+        response_schema: urn:plurora:schema:method:journal.append:v1#/$defs/Result
+        streaming: false
+      x-plurora-implementation-status: implemented
   /rpc/journal.list:
     post:
       operationId: journalList
@@ -16917,6 +19135,16 @@ paths:
                 type: object
           description: JSON-RPC response envelope
       summary: Invoke journal.list
+      x-plurora-contract:
+        id: journal.list
+        implementation_status: partial
+        introduced_in: plurora.contract.default/v1@0.1.0
+        maturity: experimental
+        owner_layer: substrate
+        request_schema: urn:plurora:schema:method:journal.list:v1#/$defs/Params
+        response_schema: urn:plurora:schema:method:journal.list:v1#/$defs/Result
+        streaming: false
+      x-plurora-implementation-status: partial
   /rpc/journal.subscribe:
     post:
       operationId: journalSubscribe
@@ -16981,6 +19209,16 @@ paths:
                 type: object
           description: JSON-RPC response envelope
       summary: Invoke journal.subscribe
+      x-plurora-contract:
+        id: journal.subscribe
+        implementation_status: planned
+        introduced_in: plurora.contract.default/v1@0.1.0
+        maturity: experimental
+        owner_layer: substrate
+        request_schema: urn:plurora:schema:method:journal.subscribe:v1#/$defs/Params
+        response_schema: urn:plurora:schema:method:journal.subscribe:v1#/$defs/Result
+        streaming: true
+      x-plurora-implementation-status: planned
   /rpc/object.get:
     post:
       operationId: objectGet
@@ -17051,6 +19289,16 @@ paths:
                 type: object
           description: JSON-RPC response envelope
       summary: Invoke object.get
+      x-plurora-contract:
+        id: object.get
+        implementation_status: partial
+        introduced_in: plurora.contract.default/v1@0.1.0
+        maturity: experimental
+        owner_layer: substrate
+        request_schema: urn:plurora:schema:method:object.get:v1#/$defs/Params
+        response_schema: urn:plurora:schema:method:object.get:v1#/$defs/Result
+        streaming: false
+      x-plurora-implementation-status: partial
   /rpc/object.list:
     post:
       operationId: objectList
@@ -17148,6 +19396,16 @@ paths:
                 type: object
           description: JSON-RPC response envelope
       summary: Invoke object.list
+      x-plurora-contract:
+        id: object.list
+        implementation_status: partial
+        introduced_in: plurora.contract.default/v1@0.1.0
+        maturity: experimental
+        owner_layer: substrate
+        request_schema: urn:plurora:schema:method:object.list:v1#/$defs/Params
+        response_schema: urn:plurora:schema:method:object.list:v1#/$defs/Result
+        streaming: false
+      x-plurora-implementation-status: partial
   /rpc/object.put:
     post:
       operationId: objectPut
@@ -17244,6 +19502,16 @@ paths:
                 type: object
           description: JSON-RPC response envelope
       summary: Invoke object.put
+      x-plurora-contract:
+        id: object.put
+        implementation_status: partial
+        introduced_in: plurora.contract.default/v1@0.1.0
+        maturity: experimental
+        owner_layer: substrate
+        request_schema: urn:plurora:schema:method:object.put:v1#/$defs/Params
+        response_schema: urn:plurora:schema:method:object.put:v1#/$defs/Result
+        streaming: false
+      x-plurora-implementation-status: partial
   /rpc/projection.get:
     post:
       operationId: projectionGet
@@ -17330,6 +19598,16 @@ paths:
                 type: object
           description: JSON-RPC response envelope
       summary: Invoke projection.get
+      x-plurora-contract:
+        id: projection.get
+        implementation_status: partial
+        introduced_in: plurora.contract.default/v1@0.1.0
+        maturity: experimental
+        owner_layer: protocol
+        request_schema: urn:plurora:schema:method:projection.get:v1#/$defs/Params
+        response_schema: urn:plurora:schema:method:projection.get:v1#/$defs/Result
+        streaming: false
+      x-plurora-implementation-status: partial
   /rpc/projection.list:
     post:
       operationId: projectionList
@@ -17413,6 +19691,16 @@ paths:
                 type: object
           description: JSON-RPC response envelope
       summary: Invoke projection.list
+      x-plurora-contract:
+        id: projection.list
+        implementation_status: partial
+        introduced_in: plurora.contract.default/v1@0.1.0
+        maturity: experimental
+        owner_layer: protocol
+        request_schema: urn:plurora:schema:method:projection.list:v1#/$defs/Params
+        response_schema: urn:plurora:schema:method:projection.list:v1#/$defs/Result
+        streaming: false
+      x-plurora-implementation-status: partial
   /rpc/projection.rebuild:
     post:
       operationId: projectionRebuild
@@ -17499,6 +19787,16 @@ paths:
                 type: object
           description: JSON-RPC response envelope
       summary: Invoke projection.rebuild
+      x-plurora-contract:
+        id: projection.rebuild
+        implementation_status: partial
+        introduced_in: plurora.contract.default/v1@0.1.0
+        maturity: experimental
+        owner_layer: protocol
+        request_schema: urn:plurora:schema:method:projection.rebuild:v1#/$defs/Params
+        response_schema: urn:plurora:schema:method:projection.rebuild:v1#/$defs/Result
+        streaming: false
+      x-plurora-implementation-status: partial
   /rpc/projection.register:
     post:
       operationId: projectionRegister
@@ -17595,6 +19893,16 @@ paths:
                 type: object
           description: JSON-RPC response envelope
       summary: Invoke projection.register
+      x-plurora-contract:
+        id: projection.register
+        implementation_status: partial
+        introduced_in: plurora.contract.default/v1@0.1.0
+        maturity: experimental
+        owner_layer: protocol
+        request_schema: urn:plurora:schema:method:projection.register:v1#/$defs/Params
+        response_schema: urn:plurora:schema:method:projection.register:v1#/$defs/Result
+        streaming: false
+      x-plurora-implementation-status: partial
   /rpc/protocol.extension.describe:
     post:
       operationId: protocolExtensionDescribe
@@ -17659,6 +19967,16 @@ paths:
                 type: object
           description: JSON-RPC response envelope
       summary: Invoke protocol.extension.describe
+      x-plurora-contract:
+        id: protocol.extension.describe
+        implementation_status: planned
+        introduced_in: plurora.contract.default/v1@0.1.0
+        maturity: experimental
+        owner_layer: protocol
+        request_schema: urn:plurora:schema:method:protocol.extension.describe:v1#/$defs/Params
+        response_schema: urn:plurora:schema:method:protocol.extension.describe:v1#/$defs/Result
+        streaming: false
+      x-plurora-implementation-status: planned
   /rpc/protocol.extension.list:
     post:
       operationId: protocolExtensionList
@@ -17725,6 +20043,16 @@ paths:
                 type: object
           description: JSON-RPC response envelope
       summary: Invoke protocol.extension.list
+      x-plurora-contract:
+        id: protocol.extension.list
+        implementation_status: implemented
+        introduced_in: plurora.contract.default/v1@0.1.0
+        maturity: candidate
+        owner_layer: protocol
+        request_schema: urn:plurora:schema:method:protocol.extension.list:v1#/$defs/Params
+        response_schema: urn:plurora:schema:method:protocol.extension.list:v1#/$defs/Result
+        streaming: false
+      x-plurora-implementation-status: implemented
   /rpc/protocol.hook.list:
     post:
       operationId: protocolHookList
@@ -17801,6 +20129,16 @@ paths:
                 type: object
           description: JSON-RPC response envelope
       summary: Invoke protocol.hook.list
+      x-plurora-contract:
+        id: protocol.hook.list
+        implementation_status: partial
+        introduced_in: plurora.contract.default/v1@0.1.0
+        maturity: experimental
+        owner_layer: protocol
+        request_schema: urn:plurora:schema:method:protocol.hook.list:v1#/$defs/Params
+        response_schema: urn:plurora:schema:method:protocol.hook.list:v1#/$defs/Result
+        streaming: false
+      x-plurora-implementation-status: partial
   /rpc/shell.contribution.describe:
     post:
       operationId: shellContributionDescribe
@@ -17870,6 +20208,16 @@ paths:
                 type: object
           description: JSON-RPC response envelope
       summary: Invoke shell.contribution.describe
+      x-plurora-contract:
+        id: shell.contribution.describe
+        implementation_status: partial
+        introduced_in: plurora.shell.default/v1@0.1.0
+        maturity: experimental
+        owner_layer: shell
+        request_schema: urn:plurora:schema:method:shell.contribution.describe:v1#/$defs/Params
+        response_schema: urn:plurora:schema:method:shell.contribution.describe:v1#/$defs/Result
+        streaming: false
+      x-plurora-implementation-status: partial
   /rpc/shell.contribution.list:
     post:
       operationId: shellContributionList
@@ -17939,3 +20287,13 @@ paths:
                 type: object
           description: JSON-RPC response envelope
       summary: Invoke shell.contribution.list
+      x-plurora-contract:
+        id: shell.contribution.list
+        implementation_status: partial
+        introduced_in: plurora.shell.default/v1@0.1.0
+        maturity: experimental
+        owner_layer: shell
+        request_schema: urn:plurora:schema:method:shell.contribution.list:v1#/$defs/Params
+        response_schema: urn:plurora:schema:method:shell.contribution.list:v1#/$defs/Result
+        streaming: false
+      x-plurora-implementation-status: partial

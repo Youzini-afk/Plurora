@@ -21,6 +21,8 @@ use crate::cli::{
     HostWebSocketOutboundExecutorKind, HostWebSocketOutboundProfile,
 };
 
+const RUNTIME_PUBLIC_JOURNAL_FILE: &str = "events.sqlite3";
+
 impl LiveWebSocketProfile for HostWebSocketOutboundProfile {
     fn allowed_hosts(&self) -> &[String] {
         &self.allowed_hosts
@@ -118,7 +120,7 @@ pub(crate) async fn host_serve(
         register_profile_package_roots(&mut runtime_config, &profile, Some(&profile_path)).await?;
         match &profile.event_store {
             HostEventStoreProfile::Memory => {
-                let (runtime, installations) = runtime_with_installations(
+                let (runtime, installations, powerbox, runs) = runtime_with_installations(
                     Arc::new(InMemoryEventStore::default()),
                     runtime_config,
                     schema_data_dir,
@@ -131,6 +133,8 @@ pub(crate) async fn host_serve(
                     http,
                     runtime,
                     installations,
+                    powerbox,
+                    runs,
                     "memory",
                     static_dir,
                     access_token,
@@ -150,10 +154,11 @@ pub(crate) async fn host_serve(
                         )
                     })?;
                 }
+                ensure_distinct_journal_paths(&resolved, &installation_journal)?;
                 let store = Arc::new(SqliteEventStore::open(&resolved).with_context(|| {
                     format!("failed to open sqlite event store {}", resolved.display())
                 })?);
-                let (runtime, installations) = runtime_with_installations(
+                let (runtime, installations, powerbox, runs) = runtime_with_installations(
                     store,
                     runtime_config,
                     schema_data_dir,
@@ -170,6 +175,8 @@ pub(crate) async fn host_serve(
                     http,
                     runtime,
                     installations,
+                    powerbox,
+                    runs,
                     "sqlite",
                     static_dir,
                     access_token,
@@ -188,7 +195,7 @@ pub(crate) async fn host_serve(
                         )
                     })?;
                     let store = plurora_runtime::PostgresEventStore::connect(&url).await?;
-                    let (runtime, installations) = runtime_with_installations(
+                    let (runtime, installations, powerbox, runs) = runtime_with_installations(
                         Arc::new(store),
                         runtime_config,
                         schema_data_dir,
@@ -205,6 +212,8 @@ pub(crate) async fn host_serve(
                         http,
                         runtime,
                         installations,
+                        powerbox,
+                        runs,
                         "postgres",
                         static_dir,
                         access_token,
@@ -226,8 +235,16 @@ pub(crate) async fn host_serve(
         runtime_config.object_store = Arc::new(FilesystemObjectStore::new(object_root));
         runtime_config.deployment_reconcile_source =
             Arc::new(plurora_runtime::DockerDeploymentReconcileSource);
-        let store = installation_store.clone();
-        let (runtime, installations) = runtime_with_installations(
+        let runtime_journal = prepare_host_event_journal(
+            &runtime_root,
+            RUNTIME_PUBLIC_JOURNAL_FILE,
+        )?;
+        ensure_distinct_journal_paths(&runtime_journal, &installation_journal)?;
+        let store = Arc::new(
+            SqliteEventStore::open(&runtime_journal)
+                .context("failed to open the durable Runtime public journal")?,
+        );
+        let (runtime, installations, powerbox, runs) = runtime_with_installations(
             store,
             runtime_config,
             schema_data_dir,
@@ -243,6 +260,8 @@ pub(crate) async fn host_serve(
             http,
             runtime,
             installations,
+            powerbox,
+            runs,
             "sqlite",
             static_dir,
             access_token,
@@ -291,6 +310,53 @@ fn prepare_host_owned_directory(data_dir: &Path, name: &str) -> Result<PathBuf> 
     Ok(canonical)
 }
 
+fn prepare_host_event_journal(runtime_root: &Path, name: &str) -> Result<PathBuf> {
+    let path = runtime_root.join(name);
+    for candidate in std::iter::once(path.clone()).chain(
+        ["-journal", "-wal", "-shm"]
+            .into_iter()
+            .map(|suffix| runtime_root.join(format!("{name}{suffix}"))),
+    ) {
+        if !candidate.exists() {
+            continue;
+        }
+        let metadata = fs::symlink_metadata(&candidate)
+            .with_context(|| format!("failed to inspect Host journal {}", candidate.display()))?;
+        anyhow::ensure!(
+            metadata.file_type().is_file()
+                && !metadata.file_type().is_symlink()
+                && !is_reparse_point(&metadata),
+            "Host journal must be a regular non-link file"
+        );
+    }
+    Ok(path)
+}
+
+fn ensure_distinct_journal_paths(left: &Path, right: &Path) -> Result<()> {
+    fn resolved_identity(path: &Path) -> Result<PathBuf> {
+        if path.exists() {
+            return fs::canonicalize(path)
+                .with_context(|| format!("failed to resolve Host journal {}", path.display()));
+        }
+        let parent = path
+            .parent()
+            .ok_or_else(|| anyhow::anyhow!("Host journal has no parent directory"))?;
+        let parent = fs::canonicalize(parent).with_context(|| {
+            format!("failed to resolve Host journal parent {}", parent.display())
+        })?;
+        let file = path
+            .file_name()
+            .ok_or_else(|| anyhow::anyhow!("Host journal has no file name"))?;
+        Ok(parent.join(file))
+    }
+
+    anyhow::ensure!(
+        resolved_identity(left)? != resolved_identity(right)?,
+        "Runtime public journal must be physically distinct from the Host authority journal"
+    );
+    Ok(())
+}
+
 #[cfg(windows)]
 fn is_reparse_point(metadata: &fs::Metadata) -> bool {
     use std::os::windows::fs::MetadataExt;
@@ -308,26 +374,42 @@ async fn runtime_with_installations<S>(
     data_dir: &Path,
     installation_store: Arc<dyn EventStore>,
     owner_lease: &plurora_service::DevelopmentHostLease,
-) -> Result<(Arc<Runtime<S>>, Arc<plurora_service::InstallationRegistry>)>
+) -> Result<(
+    Arc<Runtime<S>>,
+    Arc<plurora_service::InstallationRegistry>,
+    Arc<plurora_service::PowerboxRegistry>,
+    Arc<plurora_service::RunRegistry>,
+)>
 where
     S: EventStore,
 {
+    let runtime_public_store: Arc<dyn EventStore> = store.clone();
     let installations = plurora_service::InstallationRegistry::persistent(
         installation_store.clone(),
         config.object_store.clone(),
         data_dir,
     )?;
     installations.install_owner_lease(owner_lease.clone())?;
-    let runs = plurora_service::RunRegistry::new(installation_store);
+    let runs = plurora_service::RunRegistry::new(installation_store.clone());
     runs.install_owner_lease(owner_lease.clone())?;
+    let powerbox = plurora_service::PowerboxRegistry::new(
+        installation_store,
+        runtime_public_store,
+        installations.clone(),
+        runs.clone(),
+    )?;
+    powerbox.install_owner_lease(owner_lease.clone())?;
     config.installation_control = installations.clone();
     config.run_control = runs.clone();
+    config.powerbox_control = powerbox.clone();
     let runtime = Arc::new(Runtime::new(store, config));
     runs.install_driver(Arc::new(plurora_runtime::AssemblyRuntimeDriver::new(
         Arc::downgrade(&runtime),
     )))?;
-    runs.hydrate().await.context("Run recovery failed")?;
-    Ok((runtime, installations))
+    powerbox.install_inspector(Arc::new(plurora_service::RuntimePowerboxInspector::new(
+        Arc::downgrade(&runtime),
+    )))?;
+    Ok((runtime, installations, powerbox, runs))
 }
 
 pub fn runtime_config_from_profile(profile: &HostProfile) -> Result<RuntimeConfig> {
@@ -926,7 +1008,7 @@ mod tests {
         )
         .await?;
         let profile_a = Arc::new(InMemoryEventStore::default());
-        let (_, installations_a) = runtime_with_installations(
+        let (_, installations_a, _, _) = runtime_with_installations(
             profile_a.clone(),
             RuntimeConfig::default(),
             data.path(),
@@ -938,7 +1020,7 @@ mod tests {
         assert!(profile_a.list_all().await?.is_empty());
 
         let profile_b = Arc::new(InMemoryEventStore::default());
-        let (_, installations_b) = runtime_with_installations(
+        let (_, installations_b, _, _) = runtime_with_installations(
             profile_b.clone(),
             RuntimeConfig::default(),
             data.path(),
@@ -952,6 +1034,45 @@ mod tests {
         plurora_service::release_development_host_lease(installation_store, &owner).await?;
         Ok(())
     }
+
+    #[tokio::test]
+    async fn runtime_wiring_rejects_a_public_control_store_alias() -> Result<()> {
+        let data = tempfile::tempdir()?;
+        let shared = Arc::new(InMemoryEventStore::default());
+        let owner = plurora_service::acquire_development_host_lease(
+            shared.clone(),
+            plurora_service::development_registry(),
+        )
+        .await?;
+        let result = runtime_with_installations(
+            shared.clone(),
+            RuntimeConfig::default(),
+            data.path(),
+            shared.clone(),
+            &owner,
+        )
+        .await;
+        let error = match result {
+            Ok(_) => panic!("Runtime and Powerbox control journals must not alias"),
+            Err(error) => error,
+        };
+        assert!(error.to_string().contains("physically distinct"));
+        plurora_service::release_development_host_lease(shared, &owner).await?;
+        Ok(())
+    }
+
+    #[test]
+    fn default_runtime_journal_path_is_distinct_from_host_authority() -> Result<()> {
+        let data = tempfile::tempdir()?;
+        let runtime_root = data.path().join("runtime");
+        fs::create_dir(&runtime_root)?;
+        let runtime_journal =
+            prepare_host_event_journal(&runtime_root, RUNTIME_PUBLIC_JOURNAL_FILE)?;
+        let control_journal = runtime_root.join("installations.sqlite3");
+        ensure_distinct_journal_paths(&runtime_journal, &control_journal)?;
+        assert!(ensure_distinct_journal_paths(&control_journal, &control_journal).is_err());
+        Ok(())
+    }
 }
 
 fn managed_host_listen_line(addr: SocketAddr) -> String {
@@ -962,6 +1083,8 @@ async fn serve_runtime<S>(
     http: SocketAddr,
     runtime: Arc<Runtime<S>>,
     installations: Arc<plurora_service::InstallationRegistry>,
+    powerbox: Arc<plurora_service::PowerboxRegistry>,
+    runs: Arc<plurora_service::RunRegistry>,
     backend_kind: &'static str,
     static_dir: Option<PathBuf>,
     access_token: Option<String>,
@@ -989,6 +1112,12 @@ where
             .await
             .context("failed to hydrate durable Host access control plane")?;
     println!("  Host access journal events loaded: {host_access_events}");
+    powerbox
+        .install_authority_refresh(plurora_service::host_powerbox_authority_refresh(
+            runtime.store(),
+            host_access.clone(),
+        ))
+        .context("failed to install durable Powerbox authority validation")?;
     let target_agents = plurora_service::target_agent_registry();
     let target_agent_events = plurora_service::hydrate_target_agent_control_plane(
         runtime.store(),
@@ -1003,6 +1132,30 @@ where
             .await
             .context("failed to hydrate Installation registry as Host owner")?;
     println!("  installations loaded: {installation_count}");
+    owner_lease
+        .ensure_durable_owner()
+        .await
+        .context("Powerbox recovery requires the active Host owner lease")?;
+    let powerbox_events = powerbox
+        .hydrate()
+        .await
+        .context("failed to hydrate durable Powerbox registry")?;
+    println!("  Powerbox journal events loaded: {powerbox_events}");
+    owner_lease
+        .ensure_durable_owner()
+        .await
+        .context("Run recovery requires the active Host owner lease")?;
+    runs.hydrate().await.context("Run recovery failed")?;
+    let interrupted = powerbox
+        .reconcile_runs()
+        .await
+        .context("failed to reconcile Powerbox decisions with recovered Runs")?;
+    for binding_id in interrupted.affected_binding_ids {
+        runtime
+            .run_binding_broker()
+            .close_binding(&binding_id, "run_interrupted")
+            .await;
+    }
     runtime
         .hydrate_deployment_from_events()
         .await
@@ -1072,12 +1225,55 @@ where
         ),
     }
     let _health_supervisor = plurora_service::spawn_health_supervisor(state.clone());
+    let _powerbox_expiry = spawn_powerbox_expiry_supervisor(powerbox, runtime.clone());
     let bootstrap_token = std::env::var("PLURORA_HTTP_BOOTSTRAP_TOKEN")
         .ok()
         .filter(|token| !token.is_empty());
     let app = plurora_service::app_with_state_and_bootstrap_token(state, bootstrap_token);
     axum::serve(listener, app).await?;
     Ok(())
+}
+
+fn spawn_powerbox_expiry_supervisor<S>(
+    powerbox: Arc<plurora_service::PowerboxRegistry>,
+    runtime: Arc<Runtime<S>>,
+) -> tokio::task::JoinHandle<()>
+where
+    S: EventStore,
+{
+    tokio::spawn(async move {
+        loop {
+            match powerbox.next_expiry().await {
+                Some(expires_at) => {
+                    let delay = (expires_at - chrono::Utc::now())
+                        .to_std()
+                        .unwrap_or_default();
+                    tokio::select! {
+                        _ = tokio::time::sleep(delay) => {}
+                        _ = powerbox.expiry_changed() => continue,
+                    }
+                }
+                None => powerbox.expiry_changed().await,
+            }
+            match powerbox.sweep_expired().await {
+                Ok(invalidated) => {
+                    for binding_id in invalidated.affected_binding_ids {
+                        runtime
+                            .run_binding_broker()
+                            .close_binding(&binding_id, "powerbox_expired")
+                            .await;
+                    }
+                }
+                Err(error) => {
+                    eprintln!("Powerbox expiry reconciliation will retry: {error}");
+                    tokio::select! {
+                        _ = tokio::time::sleep(runtime.config().package_activation_loss_retry_delay) => {}
+                        _ = powerbox.expiry_changed() => {}
+                    }
+                }
+            }
+        }
+    })
 }
 
 async fn hydrate_installations_as_host_owner(
@@ -1184,27 +1380,41 @@ where
 }
 
 pub(crate) async fn host_stdio() -> Result<()> {
-    let store = Arc::new(InMemoryEventStore::default());
+    let runtime_store = Arc::new(InMemoryEventStore::default());
+    let control_store = Arc::new(InMemoryEventStore::default());
     let object_store = Arc::new(InMemoryObjectStore::default());
-    let installations =
-        plurora_service::InstallationRegistry::ephemeral(store.clone(), object_store.clone())?;
+    let installations = plurora_service::InstallationRegistry::ephemeral(
+        control_store.clone(),
+        object_store.clone(),
+    )?;
     installations
         .hydrate()
         .await
         .context("failed to hydrate ephemeral Installation registry")?;
-    let runs = plurora_service::RunRegistry::new(store.clone());
+    let runs = plurora_service::RunRegistry::new(control_store.clone());
+    let powerbox = plurora_service::PowerboxRegistry::new(
+        control_store,
+        runtime_store.clone(),
+        installations.clone(),
+        runs.clone(),
+    )?;
     let runtime = Arc::new(Runtime::new(
-        store,
+        runtime_store,
         RuntimeConfig {
             object_store,
             installation_control: installations,
             run_control: runs.clone(),
+            powerbox_control: powerbox.clone(),
             ..RuntimeConfig::default()
         },
     ));
     runs.install_driver(Arc::new(plurora_runtime::AssemblyRuntimeDriver::new(
         Arc::downgrade(&runtime),
     )))?;
+    powerbox.install_inspector(Arc::new(plurora_service::RuntimePowerboxInspector::new(
+        Arc::downgrade(&runtime),
+    )))?;
+    powerbox.hydrate().await?;
     runs.hydrate().await?;
     let context = ProtocolContext::host_dev("host_stdio");
     let stdin = BufReader::new(tokio::io::stdin());

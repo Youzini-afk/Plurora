@@ -13,6 +13,7 @@ use uuid::Uuid;
 
 use crate::installation_control::InstallationAuthorityRefresh;
 use crate::run_control::RunAuthorityRefresh;
+use crate::PowerboxAuthorityRefresh;
 use crate::{
     contract_layers, contract_methods, contract_profiles, contract_versions, protocol_descriptors,
     resolve_contract_method, ContractLayerInfo, ContractMaturity, ContractMethod,
@@ -49,6 +50,13 @@ pub enum PlatformMethod {
     InstallationCreate,
     InstallationUpdate,
     InstallationRemove,
+    ExposureList,
+    ExposureCreate,
+    ExposureRevoke,
+    BindingList,
+    BindingCandidates,
+    BindingSelect,
+    BindingRevoke,
     RunList,
     RunGet,
     RunStart,
@@ -140,6 +148,13 @@ impl PlatformMethod {
             Self::InstallationCreate => "host.installation.create",
             Self::InstallationUpdate => "host.installation.update",
             Self::InstallationRemove => "host.installation.remove",
+            Self::ExposureList => "host.exposure.list",
+            Self::ExposureCreate => "host.exposure.create",
+            Self::ExposureRevoke => "host.exposure.revoke",
+            Self::BindingList => "host.binding.list",
+            Self::BindingCandidates => "host.binding.candidates",
+            Self::BindingSelect => "host.binding.select",
+            Self::BindingRevoke => "host.binding.revoke",
             Self::RunList => "host.run.list",
             Self::RunGet => "host.run.get",
             Self::RunStart => "host.run.start",
@@ -231,6 +246,13 @@ impl PlatformMethod {
             Self::InstallationCreate => MethodStatus::Implemented,
             Self::InstallationUpdate => MethodStatus::Implemented,
             Self::InstallationRemove => MethodStatus::Implemented,
+            Self::ExposureList
+            | Self::ExposureCreate
+            | Self::ExposureRevoke
+            | Self::BindingList
+            | Self::BindingCandidates
+            | Self::BindingSelect
+            | Self::BindingRevoke => MethodStatus::Implemented,
             Self::RunList | Self::RunGet | Self::RunStart | Self::RunStop | Self::RunStatus => {
                 MethodStatus::Implemented
             }
@@ -331,6 +353,13 @@ impl PlatformMethod {
             Self::InstallationCreate,
             Self::InstallationUpdate,
             Self::InstallationRemove,
+            Self::ExposureList,
+            Self::ExposureCreate,
+            Self::ExposureRevoke,
+            Self::BindingList,
+            Self::BindingCandidates,
+            Self::BindingSelect,
+            Self::BindingRevoke,
             Self::RunList,
             Self::RunGet,
             Self::RunStart,
@@ -431,6 +460,13 @@ impl PlatformMethod {
             | Self::InstallationCreate
             | Self::InstallationUpdate
             | Self::InstallationRemove
+            | Self::ExposureList
+            | Self::ExposureCreate
+            | Self::ExposureRevoke
+            | Self::BindingList
+            | Self::BindingCandidates
+            | Self::BindingSelect
+            | Self::BindingRevoke
             | Self::RunList
             | Self::RunGet
             | Self::RunStart
@@ -643,6 +679,11 @@ pub struct ProtocolAuthorityContext {
     #[serde(skip)]
     #[schemars(skip)]
     run_authority_refresh: Option<RunAuthorityRefresh>,
+    /// Trusted service callback used to refresh exact Exposure/Binding
+    /// mutation authority immediately before each durable append or effect.
+    #[serde(skip)]
+    #[schemars(skip)]
+    powerbox_authority_refresh: Option<PowerboxAuthorityRefresh>,
 }
 
 /// Request-specific Host operation facts established by a trusted transport
@@ -724,6 +765,7 @@ impl ProtocolContext {
                 verified_expires_at_ms: None,
                 authority_refresh: None,
                 run_authority_refresh: None,
+                powerbox_authority_refresh: None,
             }),
             host_operation: None,
             session_id: None,
@@ -797,6 +839,19 @@ impl ProtocolContext {
         self.authority
             .as_ref()
             .and_then(|authority| authority.run_authority_refresh.clone())
+    }
+
+    pub fn with_powerbox_authority_refresh(mut self, refresh: PowerboxAuthorityRefresh) -> Self {
+        if let Some(authority) = self.authority.as_mut() {
+            authority.powerbox_authority_refresh = Some(refresh);
+        }
+        self
+    }
+
+    pub(crate) fn powerbox_authority_refresh(&self) -> Option<PowerboxAuthorityRefresh> {
+        self.authority
+            .as_ref()
+            .and_then(|authority| authority.powerbox_authority_refresh.clone())
     }
 
     pub(crate) fn verified_authority_expiry_ms(&self) -> Option<i64> {
@@ -916,6 +971,31 @@ pub struct ProtocolError {
     pub details: Value,
 }
 
+/// Typed marker for a Runtime operation whose durable effect may have committed
+/// even though its public acknowledgement could not be completed.
+#[derive(Debug)]
+pub struct RuntimeOutcomeUnknown {
+    stage: &'static str,
+}
+
+impl fmt::Display for RuntimeOutcomeUnknown {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(formatter, "Runtime outcome is unknown after {}", self.stage)
+    }
+}
+
+impl std::error::Error for RuntimeOutcomeUnknown {}
+
+pub fn runtime_outcome_unknown(stage: &'static str) -> anyhow::Error {
+    RuntimeOutcomeUnknown { stage }.into()
+}
+
+fn is_runtime_outcome_unknown(error: &anyhow::Error) -> bool {
+    error
+        .chain()
+        .any(|cause| cause.downcast_ref::<RuntimeOutcomeUnknown>().is_some())
+}
+
 impl ProtocolError {
     pub fn new(code: impl Into<String>, message: impl Into<String>, details: Value) -> Self {
         Self {
@@ -931,7 +1011,9 @@ impl ProtocolError {
 
     pub fn from_anyhow(error: anyhow::Error) -> Self {
         let message = error.to_string();
-        let code = if message.contains("not allowed")
+        let code = if is_runtime_outcome_unknown(&error) {
+            "runtime/error/outcome_unknown"
+        } else if message.contains("not allowed")
             || message.contains("permission")
             || message.contains("authority_denied")
         {
@@ -1099,6 +1181,41 @@ pub const PLATFORM_METHODS: &[ProtocolMethod] = &[
     },
     ProtocolMethod {
         id: "host.installation.remove",
+        streaming: false,
+        status: MethodStatus::Implemented,
+    },
+    ProtocolMethod {
+        id: "host.exposure.list",
+        streaming: false,
+        status: MethodStatus::Implemented,
+    },
+    ProtocolMethod {
+        id: "host.exposure.create",
+        streaming: false,
+        status: MethodStatus::Implemented,
+    },
+    ProtocolMethod {
+        id: "host.exposure.revoke",
+        streaming: false,
+        status: MethodStatus::Implemented,
+    },
+    ProtocolMethod {
+        id: "host.binding.list",
+        streaming: false,
+        status: MethodStatus::Implemented,
+    },
+    ProtocolMethod {
+        id: "host.binding.candidates",
+        streaming: false,
+        status: MethodStatus::Implemented,
+    },
+    ProtocolMethod {
+        id: "host.binding.select",
+        streaming: false,
+        status: MethodStatus::Implemented,
+    },
+    ProtocolMethod {
+        id: "host.binding.revoke",
         streaming: false,
         status: MethodStatus::Implemented,
     },
@@ -1478,13 +1595,20 @@ mod tests {
     #[test]
     fn installation_and_run_methods_have_unique_public_identities() {
         let ids = method_ids();
-        assert_eq!(ids.len(), 85);
+        assert_eq!(ids.len(), 92);
         for expected in [
             "host.installation.list",
             "host.installation.get",
             "host.installation.create",
             "host.installation.update",
             "host.installation.remove",
+            "host.exposure.list",
+            "host.exposure.create",
+            "host.exposure.revoke",
+            "host.binding.list",
+            "host.binding.candidates",
+            "host.binding.select",
+            "host.binding.revoke",
             "host.run.list",
             "host.run.get",
             "host.run.start",
@@ -1510,6 +1634,21 @@ mod tests {
                 "runtime/error/conflict"
             );
         }
+    }
+
+    #[test]
+    fn outcome_unknown_requires_the_typed_marker() {
+        assert_eq!(
+            ProtocolError::from_anyhow(runtime_outcome_unknown("public event relay")).code,
+            "runtime/error/outcome_unknown"
+        );
+        assert_eq!(
+            ProtocolError::from_anyhow(anyhow::anyhow!(
+                "ordinary failure containing outcome_unknown text"
+            ))
+            .code,
+            "runtime/error/internal"
+        );
     }
 
     #[test]

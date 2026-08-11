@@ -170,6 +170,7 @@ pub enum NodeInstanceStatus {
 pub struct NodeInstanceRecord {
     pub instance_id: String,
     pub node_id: NodeId,
+    pub node_path: Vec<NodeId>,
     pub status: NodeInstanceStatus,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub realization_id: Option<RealizationId>,
@@ -211,7 +212,6 @@ pub struct ActiveBindingRecord {
     pub consumer_installation_id: InstallationId,
     pub consumer_port: PortId,
     pub exposure_id: ExposureId,
-    pub authority_handle_id: String,
     pub transport: SelectedTransport,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub expires_at: Option<DateTime<Utc>>,
@@ -219,12 +219,6 @@ pub struct ActiveBindingRecord {
 
 impl ActiveBindingRecord {
     pub fn validate(&self) -> ModelResult<()> {
-        if self.authority_handle_id.trim().is_empty() {
-            return Err(ModelError::new(
-                DiagnosticCode::WorkInvalid,
-                "active binding is missing its authority handle id",
-            ));
-        }
         self.transport.validate()?;
         validate_portable_model(self)
     }
@@ -272,6 +266,8 @@ impl RunRecord {
         for instance in &self.node_instances {
             if instance.instance_id.trim().is_empty()
                 || !instance_ids.insert(instance.instance_id.as_str())
+                || instance.node_path.is_empty()
+                || instance.node_path.last() != Some(&instance.node_id)
             {
                 return Err(ModelError::new(
                     DiagnosticCode::WorkInvalid,
@@ -338,6 +334,14 @@ impl ExposureRecord {
         }
         validate_portable_model(self)
     }
+}
+
+/// Returns the stable Host resource id for one exact Installation port.
+///
+/// Installation ids are UUIDs and `PortId` deliberately excludes `/`, so this
+/// representation is unambiguous without inventing a second escaping grammar.
+pub fn installation_port_resource_id(installation_id: &InstallationId, port_id: &PortId) -> String {
+    format!("{installation_id}/{port_id}")
 }
 
 #[cfg(test)]
@@ -453,5 +457,36 @@ mod tests {
                 DiagnosticCode::WorkInvalid
             );
         }
+    }
+
+    #[test]
+    fn active_binding_wire_model_never_contains_an_authority_handle() {
+        let binding = ActiveBindingRecord {
+            binding_id: BindingId::new(),
+            consumer_installation_id: InstallationId::new(),
+            consumer_port: PortId::parse("save").unwrap(),
+            exposure_id: ExposureId::new(),
+            transport: SelectedTransport {
+                class_id: "plurora.transport.capability/v1".to_string(),
+                properties: BTreeMap::new(),
+            },
+            expires_at: None,
+        };
+        binding.validate().unwrap();
+        let wire = serde_json::to_value(binding).unwrap();
+        assert!(wire.get("authority_handle_id").is_none());
+        let schema = serde_json::to_value(schemars::schema_for!(ActiveBindingRecord)).unwrap();
+        assert!(!schema.to_string().contains("authority_handle_id"));
+    }
+
+    #[test]
+    fn installation_port_resource_is_exact_and_unambiguous() {
+        let installation_id = InstallationId::new();
+        let port_id = PortId::parse("save-slot.v1").unwrap();
+        assert_eq!(
+            installation_port_resource_id(&installation_id, &port_id),
+            format!("{installation_id}/save-slot.v1")
+        );
+        assert!(PortId::parse("nested/save").is_err());
     }
 }

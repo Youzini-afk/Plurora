@@ -84,6 +84,14 @@ The current Web/Desktop distribution organizes itself around Home, Settings, Pro
 
 A third-party distribution may have no Home, no Project, or a completely different root object and navigation model. It needs only to obey the public contracts and authority boundaries it adopts.
 
+## Phase 5 Powerbox UX
+
+Home/Library discovers Works and Installations; the Installation frame provides the Powerbox chooser. The chooser first shows the binding phase, then the exact Exposure, audience, expiry, and both PortContracts (protocol, interface, version, Profiles, interaction, effects, transport, and multiplicity). Provider Work/Installation source, Component trust/claims/boundaries/evidence, artifact/behavior digests, and stale state are shown in separate sections.
+
+First-party and third-party providers follow identical disclosure rules and deterministic ordering; publisher identity never selects a candidate. Zero or multiple candidates require a user or explicit policy decision, while a preference is only an ordering hint. The UI never guesses unknown values, implicitly deploys/rebinds, or displays runtime handles, credentials, or private intent. Visible candidates are capped at 256; overflow is a structured diagnostic rather than silent truncation.
+
+PWA/mobile and Desktop reuse the same Host API with Host/Installation cache isolation. Closing a tab, iframe, or PWA connection does not stop a Run or revoke an Exposure/Binding. Surfaces have only a public allowlisted bridge; there is no private Powerbox bridge or first-party bypass.
+
 ## Product boundary of Project
 
 Project is a practical model used by the current official Host and distribution to organize installable, runnable instances. It fits applications, workspaces, and some experiences, but it is not the permanent root of all Plurora data and interaction.
@@ -139,4 +147,4 @@ A product is not better merely because it has more features. Ask whether:
 - work survives replacement of components, clients, or Hosts;
 - new capability preserves public boundaries and third-party space.
 
-Current implementation is recorded in [`../ALPHA_STATUS.md`](../ALPHA_STATUS.en.md), and construction direction in [`../roadmap/NEXT_STEPS.md`](../roadmap/NEXT_STEPS.en.md).
+Current implementation is recorded in [`../ALPHA_STATUS.md`](../ALPHA_STATUS.en.md): Exposure, Binding, and Powerbox are Phase 5 implemented, while Managed Realization/deployment compilation remains Phase 6 planned. Construction direction is in [`../roadmap/NEXT_STEPS.md`](../roadmap/NEXT_STEPS.en.md).

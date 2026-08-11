@@ -1,0 +1,1050 @@
+{
+  "$defs": {
+    "AcquisitionKind": {
+      "enum": [
+        "work_bundle",
+        "package",
+        "git_snapshot",
+        "local_import",
+        "remote_catalog",
+        "foreign_binding"
+      ],
+      "type": "string"
+    },
+    "AcquisitionRecord": {
+      "properties": {
+        "kind": {
+          "$ref": "#/$defs/AcquisitionKind"
+        },
+        "provenance_refs": {
+          "items": {
+            "$ref": "#/$defs/ArtifactDescriptor"
+          },
+          "type": "array"
+        },
+        "source_ref": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ArtifactDescriptor"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "update_channel": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "kind"
+      ],
+      "type": "object"
+    },
+    "ArtifactDescriptor": {
+      "properties": {
+        "annotations": {
+          "additionalProperties": true,
+          "default": {},
+          "type": "object"
+        },
+        "artifact_type_uri": {
+          "type": "string"
+        },
+        "digest": {
+          "type": "string"
+        },
+        "media_type": {
+          "type": "string"
+        },
+        "references": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "size_bytes": {
+          "format": "uint64",
+          "minimum": 0.0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "artifact_type_uri",
+        "digest",
+        "media_type",
+        "size_bytes"
+      ],
+      "type": "object"
+    },
+    "AvailabilityPolicy": {
+      "enum": [
+        "required",
+        "degraded_without",
+        "optional"
+      ],
+      "type": "string"
+    },
+    "BindingCandidate": {
+      "additionalProperties": false,
+      "properties": {
+        "availability": {
+          "$ref": "#/$defs/AvailabilityPolicy"
+        },
+        "candidate_digest": {
+          "description": "Digest of every canonical field below, including verified descriptive disclosure. Selection uses this digest, never an order-sensitive digest of the whole candidate set. Sorting ignores descriptive and publisher fields, but any disclosure drift still makes a prior decision stale.",
+          "type": "string"
+        },
+        "capability": {
+          "$ref": "#/$defs/CapabilityPin"
+        },
+        "consumer": {
+          "$ref": "#/$defs/BindingEndpointPin"
+        },
+        "consumer_port": {
+          "$ref": "#/$defs/PortDescriptor"
+        },
+        "effective_expires_at": {
+          "format": "date-time",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "exposure": {
+          "$ref": "#/$defs/ExposureView"
+        },
+        "phase": {
+          "$ref": "#/$defs/BindingPhase"
+        },
+        "provider": {
+          "$ref": "#/$defs/BindingEndpointPin"
+        },
+        "provider_component": {
+          "$ref": "#/$defs/BindingComponentDisclosure"
+        },
+        "provider_installation": {
+          "$ref": "#/$defs/BindingInstallationDisclosure"
+        },
+        "provider_port": {
+          "$ref": "#/$defs/PortDescriptor"
+        },
+        "provider_work": {
+          "$ref": "#/$defs/BindingWorkDisclosure"
+        },
+        "transport": {
+          "$ref": "#/$defs/SelectedTransport"
+        }
+      },
+      "required": [
+        "availability",
+        "candidate_digest",
+        "capability",
+        "consumer",
+        "consumer_port",
+        "exposure",
+        "phase",
+        "provider",
+        "provider_component",
+        "provider_installation",
+        "provider_port",
+        "provider_work",
+        "transport"
+      ],
+      "type": "object"
+    },
+    "BindingComponentDisclosure": {
+      "additionalProperties": false,
+      "description": "Host-verified Component identity and evidence. This is deliberately narrower than ComponentDescriptor so annotations, surfaces, and content roots cannot become an accidental disclosure channel.",
+      "properties": {
+        "behavior": {
+          "$ref": "#/$defs/ArtifactDescriptor"
+        },
+        "claim_status": {
+          "$ref": "#/$defs/ComponentClaimStatus"
+        },
+        "component_artifact": {
+          "$ref": "#/$defs/ArtifactDescriptor"
+        },
+        "component_id": {
+          "type": "string"
+        },
+        "enforced_boundaries": {
+          "$ref": "#/$defs/ComponentBoundaryClaims"
+        },
+        "entry_kind": {
+          "type": "string"
+        },
+        "package_id": {
+          "type": "string"
+        },
+        "protocol_implementations": {
+          "items": {
+            "$ref": "#/$defs/PackagedProtocolDescriptor"
+          },
+          "type": "array"
+        },
+        "trust_class": {
+          "$ref": "#/$defs/ComponentTrustClass"
+        },
+        "version": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "behavior",
+        "claim_status",
+        "component_artifact",
+        "component_id",
+        "enforced_boundaries",
+        "entry_kind",
+        "package_id",
+        "trust_class",
+        "version"
+      ],
+      "type": "object"
+    },
+    "BindingEndpointPin": {
+      "additionalProperties": false,
+      "properties": {
+        "component": {
+          "$ref": "#/$defs/ComponentPin"
+        },
+        "installation": {
+          "$ref": "#/$defs/InstallationRevisionPin"
+        },
+        "port": {
+          "$ref": "#/$defs/ResolvedPortPin"
+        },
+        "run": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RunRevisionPin"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "component",
+        "installation",
+        "port"
+      ],
+      "type": "object"
+    },
+    "BindingGap": {
+      "additionalProperties": false,
+      "properties": {
+        "installation_id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/InstallationId"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "interaction_model": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "next_step": {
+          "type": "string"
+        },
+        "node_id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/NodeId"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "port_id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PortId"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "reason_code": {
+          "type": "string"
+        },
+        "run_id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RunId"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "next_step",
+        "reason_code"
+      ],
+      "type": "object"
+    },
+    "BindingInstallationDisclosure": {
+      "additionalProperties": false,
+      "description": "Verified, public Installation origin shown before a Binding decision. It intentionally excludes state bindings, secret policy, and host-local paths.",
+      "properties": {
+        "display_name": {
+          "type": "string"
+        },
+        "installation_id": {
+          "$ref": "#/$defs/InstallationId"
+        },
+        "installation_revision": {
+          "format": "uint64",
+          "minimum": 0.0,
+          "type": "integer"
+        },
+        "source": {
+          "$ref": "#/$defs/AcquisitionRecord"
+        }
+      },
+      "required": [
+        "display_name",
+        "installation_id",
+        "installation_revision",
+        "source"
+      ],
+      "type": "object"
+    },
+    "BindingPhase": {
+      "enum": [
+        "authoring",
+        "installation",
+        "launch",
+        "runtime"
+      ],
+      "type": "string"
+    },
+    "BindingWorkDisclosure": {
+      "additionalProperties": false,
+      "description": "Verified, public Work identity shown before a Binding decision. Descriptive text is disclosure, never preference or execution authority.",
+      "properties": {
+        "title": {
+          "type": "string"
+        },
+        "work_id": {
+          "$ref": "#/$defs/WorkId"
+        }
+      },
+      "required": [
+        "title",
+        "work_id"
+      ],
+      "type": "object"
+    },
+    "CapabilityPin": {
+      "additionalProperties": false,
+      "properties": {
+        "capability_id": {
+          "type": "string"
+        },
+        "capability_version": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "capability_id",
+        "capability_version"
+      ],
+      "type": "object"
+    },
+    "ComponentBoundaryClaims": {
+      "properties": {
+        "filesystem_isolation": {
+          "type": "boolean"
+        },
+        "network_isolation": {
+          "type": "boolean"
+        },
+        "no_code_execution": {
+          "type": "boolean"
+        },
+        "process_failure_isolation": {
+          "type": "boolean"
+        },
+        "remote_identity": {
+          "type": "boolean"
+        },
+        "resource_limits_enforced": {
+          "type": "boolean"
+        },
+        "revocation_enforced": {
+          "type": "boolean"
+        },
+        "tenancy_isolation": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "filesystem_isolation",
+        "network_isolation",
+        "no_code_execution",
+        "process_failure_isolation",
+        "remote_identity",
+        "resource_limits_enforced",
+        "revocation_enforced",
+        "tenancy_isolation"
+      ],
+      "type": "object"
+    },
+    "ComponentClaimStatus": {
+      "enum": [
+        "declared",
+        "legacy_adapted",
+        "foreign_capsule"
+      ],
+      "type": "string"
+    },
+    "ComponentPin": {
+      "additionalProperties": false,
+      "properties": {
+        "behavior_digest": {
+          "type": "string"
+        },
+        "component_artifact": {
+          "$ref": "#/$defs/ArtifactDescriptor"
+        },
+        "component_id": {
+          "type": "string"
+        },
+        "node_path": {
+          "items": {
+            "$ref": "#/$defs/NodeId"
+          },
+          "type": "array"
+        },
+        "package_id": {
+          "type": "string"
+        },
+        "trust_class": {
+          "$ref": "#/$defs/ComponentTrustClass"
+        }
+      },
+      "required": [
+        "behavior_digest",
+        "component_artifact",
+        "component_id",
+        "node_path",
+        "package_id",
+        "trust_class"
+      ],
+      "type": "object"
+    },
+    "ComponentTrustClass": {
+      "enum": [
+        "sandboxed_component",
+        "isolated_process",
+        "remote_boundary",
+        "trusted_native",
+        "static_resource",
+        "foreign_capsule"
+      ],
+      "type": "string"
+    },
+    "EffectClass": {
+      "enum": [
+        "pure",
+        "deterministic_stateful",
+        "recorded_nondeterministic",
+        "external_effecting",
+        "realtime_best_effort"
+      ],
+      "type": "string"
+    },
+    "Errors": {
+      "items": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "details": true,
+          "message": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "details",
+          "message"
+        ],
+        "title": "ErrorShape",
+        "type": "object"
+      },
+      "type": "array"
+    },
+    "ExposureId": {
+      "format": "uuid",
+      "type": "string"
+    },
+    "ExposureRecord": {
+      "properties": {
+        "audience": {
+          "items": {
+            "$ref": "#/$defs/ResourceSelector"
+          },
+          "type": "array"
+        },
+        "expires_at": {
+          "format": "date-time",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "export_port": {
+          "$ref": "#/$defs/PortId"
+        },
+        "exposure_id": {
+          "$ref": "#/$defs/ExposureId"
+        },
+        "installation_id": {
+          "$ref": "#/$defs/InstallationId"
+        },
+        "run_id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RunId"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "status": {
+          "$ref": "#/$defs/ExposureStatus"
+        }
+      },
+      "required": [
+        "audience",
+        "export_port",
+        "exposure_id",
+        "installation_id",
+        "status"
+      ],
+      "type": "object"
+    },
+    "ExposureStatus": {
+      "enum": [
+        "active",
+        "expired",
+        "revoked"
+      ],
+      "type": "string"
+    },
+    "ExposureView": {
+      "properties": {
+        "record": {
+          "$ref": "#/$defs/ExposureRecord"
+        },
+        "revision": {
+          "format": "uint64",
+          "minimum": 0.0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "record",
+        "revision"
+      ],
+      "type": "object"
+    },
+    "InstallationId": {
+      "format": "uuid",
+      "type": "string"
+    },
+    "InstallationRevisionPin": {
+      "additionalProperties": false,
+      "properties": {
+        "assembly_lock": {
+          "$ref": "#/$defs/ArtifactDescriptor"
+        },
+        "installation_id": {
+          "$ref": "#/$defs/InstallationId"
+        },
+        "installation_revision": {
+          "format": "uint64",
+          "minimum": 0.0,
+          "type": "integer"
+        },
+        "work_revision": {
+          "$ref": "#/$defs/ArtifactDescriptor"
+        }
+      },
+      "required": [
+        "assembly_lock",
+        "installation_id",
+        "installation_revision",
+        "work_revision"
+      ],
+      "type": "object"
+    },
+    "NodeId": {
+      "pattern": "^(?!.*\\.\\.)[A-Za-z0-9._-]+$",
+      "type": "string"
+    },
+    "PackagedProtocolDescriptor": {
+      "properties": {
+        "artifact": {
+          "$ref": "#/$defs/ArtifactDescriptor"
+        },
+        "implementation": {
+          "$ref": "#/$defs/ProtocolImplementationDeclaration"
+        }
+      },
+      "required": [
+        "artifact",
+        "implementation"
+      ],
+      "type": "object"
+    },
+    "Params": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {
+        "consumer_installation_id": {
+          "$ref": "#/$defs/InstallationId"
+        },
+        "consumer_run": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RunRevisionPin"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "expected_consumer_installation_revision": {
+          "format": "uint64",
+          "minimum": 0.0,
+          "type": "integer"
+        },
+        "import_port": {
+          "$ref": "#/$defs/PortId"
+        },
+        "phase": {
+          "$ref": "#/$defs/BindingPhase"
+        },
+        "preferences": {
+          "description": "An ordering hint only. It never selects a candidate or grants authority.",
+          "items": {
+            "$ref": "#/$defs/ResourceSelector"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "consumer_installation_id",
+        "expected_consumer_installation_revision",
+        "import_port",
+        "phase"
+      ],
+      "title": "BindingCandidatesRequest",
+      "type": "object"
+    },
+    "PortContract": {
+      "properties": {
+        "interface_id": {
+          "type": "string"
+        },
+        "profiles": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "protocol_id": {
+          "type": "string"
+        },
+        "version": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "interface_id",
+        "protocol_id",
+        "version"
+      ],
+      "type": "object"
+    },
+    "PortDescriptor": {
+      "properties": {
+        "annotations": {
+          "additionalProperties": true,
+          "type": "object"
+        },
+        "contract": {
+          "$ref": "#/$defs/PortContract"
+        },
+        "interaction": {
+          "type": "string"
+        },
+        "port_id": {
+          "$ref": "#/$defs/PortId"
+        },
+        "role": {
+          "$ref": "#/$defs/PortRole"
+        },
+        "transport": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/TransportRequirements"
+            }
+          ],
+          "default": {
+            "large_payload": false,
+            "local_only": false,
+            "ordered": false,
+            "reliable": false,
+            "same_process": false,
+            "shared_memory_allowed": false
+          }
+        }
+      },
+      "required": [
+        "contract",
+        "interaction",
+        "port_id",
+        "role"
+      ],
+      "type": "object"
+    },
+    "PortEndpoint": {
+      "properties": {
+        "node_id": {
+          "$ref": "#/$defs/NodeId"
+        },
+        "port_id": {
+          "$ref": "#/$defs/PortId"
+        }
+      },
+      "required": [
+        "node_id",
+        "port_id"
+      ],
+      "type": "object"
+    },
+    "PortId": {
+      "pattern": "^(?!.*\\.\\.)[A-Za-z0-9._-]+$",
+      "type": "string"
+    },
+    "PortMultiplicity": {
+      "properties": {
+        "max": {
+          "format": "uint16",
+          "minimum": 0.0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "min": {
+          "format": "uint16",
+          "minimum": 0.0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "min"
+      ],
+      "type": "object"
+    },
+    "PortRole": {
+      "oneOf": [
+        {
+          "properties": {
+            "accepted_effects": {
+              "items": {
+                "$ref": "#/$defs/EffectClass"
+              },
+              "type": "array"
+            },
+            "availability": {
+              "$ref": "#/$defs/AvailabilityPolicy"
+            },
+            "kind": {
+              "enum": [
+                "import"
+              ],
+              "type": "string"
+            },
+            "latest_binding_phase": {
+              "$ref": "#/$defs/BindingPhase"
+            },
+            "multiplicity": {
+              "$ref": "#/$defs/PortMultiplicity"
+            }
+          },
+          "required": [
+            "accepted_effects",
+            "availability",
+            "kind",
+            "latest_binding_phase",
+            "multiplicity"
+          ],
+          "type": "object"
+        },
+        {
+          "properties": {
+            "effect_class": {
+              "$ref": "#/$defs/EffectClass"
+            },
+            "kind": {
+              "enum": [
+                "export"
+              ],
+              "type": "string"
+            },
+            "multiplicity": {
+              "$ref": "#/$defs/PortMultiplicity"
+            }
+          },
+          "required": [
+            "effect_class",
+            "kind",
+            "multiplicity"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "ProtocolImplementationDeclaration": {
+      "properties": {
+        "conformance_vectors": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "profiles": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "protocol_id": {
+          "type": "string"
+        },
+        "version": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "protocol_id",
+        "version"
+      ],
+      "type": "object"
+    },
+    "ResolvedPortPin": {
+      "additionalProperties": false,
+      "properties": {
+        "canonical_contract_digest": {
+          "type": "string"
+        },
+        "leaf_port": {
+          "$ref": "#/$defs/PortEndpoint"
+        },
+        "node_path": {
+          "items": {
+            "$ref": "#/$defs/NodeId"
+          },
+          "type": "array"
+        },
+        "root_port": {
+          "$ref": "#/$defs/PortId"
+        }
+      },
+      "required": [
+        "canonical_contract_digest",
+        "leaf_port",
+        "node_path",
+        "root_port"
+      ],
+      "type": "object"
+    },
+    "ResourceSelector": {
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "kind": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "kind"
+      ],
+      "type": "object"
+    },
+    "Result": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "properties": {
+        "candidates": {
+          "items": {
+            "$ref": "#/$defs/BindingCandidate"
+          },
+          "type": "array"
+        },
+        "gaps": {
+          "items": {
+            "$ref": "#/$defs/BindingGap"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "candidates"
+      ],
+      "title": "BindingCandidatesResult",
+      "type": "object"
+    },
+    "RunId": {
+      "format": "uuid",
+      "type": "string"
+    },
+    "RunRevisionPin": {
+      "additionalProperties": false,
+      "description": "Exact Run identity established by the Host. The three fields are one optional unit: Launch-time selection can omit the entire value, while a Runtime selection must carry all of it.",
+      "properties": {
+        "context_id": {
+          "type": "string"
+        },
+        "run_id": {
+          "$ref": "#/$defs/RunId"
+        },
+        "run_revision": {
+          "format": "uint64",
+          "minimum": 0.0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "context_id",
+        "run_id",
+        "run_revision"
+      ],
+      "type": "object"
+    },
+    "SelectedTransport": {
+      "properties": {
+        "class_id": {
+          "type": "string"
+        },
+        "properties": {
+          "additionalProperties": true,
+          "type": "object"
+        }
+      },
+      "required": [
+        "class_id"
+      ],
+      "type": "object"
+    },
+    "TransportRequirements": {
+      "properties": {
+        "allowed_classes": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "extensions": {
+          "additionalProperties": true,
+          "type": "object"
+        },
+        "large_payload": {
+          "default": false,
+          "type": "boolean"
+        },
+        "local_only": {
+          "default": false,
+          "type": "boolean"
+        },
+        "max_latency_class": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "ordered": {
+          "default": false,
+          "type": "boolean"
+        },
+        "reliable": {
+          "default": false,
+          "type": "boolean"
+        },
+        "same_process": {
+          "default": false,
+          "type": "boolean"
+        },
+        "shared_memory_allowed": {
+          "default": false,
+          "type": "boolean"
+        }
+      },
+      "type": "object"
+    },
+    "WorkId": {
+      "pattern": "^(?!.*\\.\\.)[A-Za-z0-9._-]+(?:/[A-Za-z0-9._-]+)+$",
+      "type": "string"
+    }
+  },
+  "$id": "urn:plurora:schema:method:host.binding.candidates:v1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Plurora public platform method host.binding.candidates.",
+  "properties": {
+    "errors": {
+      "$ref": "#/$defs/Errors"
+    },
+    "method": {
+      "const": "host.binding.candidates"
+    },
+    "params": {
+      "$ref": "#/$defs/Params"
+    },
+    "result": {
+      "$ref": "#/$defs/Result"
+    }
+  },
+  "required": [
+    "method",
+    "params"
+  ],
+  "title": "host.binding.candidates",
+  "type": "object",
+  "x-plurora-contract": {
+    "id": "host.binding.candidates",
+    "implementation_status": "implemented",
+    "introduced_in": "plurora.contract.default/v1@0.1.0",
+    "maturity": "candidate",
+    "owner_layer": "host",
+    "request_schema": "urn:plurora:schema:method:host.binding.candidates:v1#/$defs/Params",
+    "response_schema": "urn:plurora:schema:method:host.binding.candidates:v1#/$defs/Result",
+    "streaming": false
+  }
+}

@@ -386,6 +386,14 @@ impl RunActivation {
             .map(|boxed| *boxed)
             .map_err(|_| anyhow::anyhow!("Run activation state type is invalid"))
     }
+
+    pub(crate) fn get<T: Any + Send>(&self) -> anyhow::Result<&T> {
+        self.opaque
+            .as_ref()
+            .ok_or_else(|| anyhow::anyhow!("Run activation state was already released"))?
+            .downcast_ref::<T>()
+            .ok_or_else(|| anyhow::anyhow!("Run activation state type is invalid"))
+    }
 }
 
 #[async_trait]

@@ -280,7 +280,7 @@ fn health() -> Result<Value> {
 
 #[cfg(test)]
 mod tests {
-    use std::collections::BTreeMap;
+    use std::collections::{BTreeMap, HashMap};
     use std::ffi::OsString;
     use std::path::PathBuf;
     use std::sync::atomic::{AtomicBool, Ordering};
@@ -495,11 +495,17 @@ mod tests {
             session_id: None,
             input,
         };
-        crate::inproc::with_runtime_invoker(runtime, None, async {
-            try_handle(&request)
-                .await
-                .expect("secret-store capability must be handled")
-        })
+        crate::inproc::with_runtime_invoker(
+            runtime,
+            None,
+            PACKAGE_ID.to_string(),
+            HashMap::new(),
+            async {
+                try_handle(&request)
+                    .await
+                    .expect("secret-store capability must be handled")
+            },
+        )
         .await
     }
 

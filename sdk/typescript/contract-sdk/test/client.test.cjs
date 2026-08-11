@@ -1,6 +1,9 @@
 const assert = require("node:assert/strict");
+const fs = require("node:fs");
+const path = require("node:path");
 
 const { fromHttpRpc, PluroraClient } = require("../dist/client.js");
+const methods = require("../dist/methods.js");
 
 async function main() {
   const originalFetch = global.fetch;
@@ -23,6 +26,48 @@ async function main() {
   };
 
   try {
+    for (const name of [
+      "hostExposureList", "hostExposureCreate", "hostExposureRevoke",
+      "hostBindingList", "hostBindingCandidates", "hostBindingSelect", "hostBindingRevoke",
+    ]) {
+      assert.equal(typeof methods[name], "function", `${name} must be generated`);
+    }
+    const eventsSource = fs.readFileSync(path.join(__dirname, "../src/events.ts"), "utf8");
+    for (const eventName of [
+      "HostExposureCreatedEvent", "HostExposureRevokedEvent", "HostExposureExpiredEvent",
+      "HostBindingSelectedEvent", "HostBindingRevokedEvent", "HostBindingExpiredEvent",
+    ]) {
+      assert.match(eventsSource, new RegExp(`interface ${eventName}\\b`));
+    }
+    const typesSource = fs.readFileSync(path.join(__dirname, "../src/types.ts"), "utf8");
+    for (const typeName of [
+      "BindingCandidate", "BindingComponentDisclosure",
+      "BindingInstallationDisclosure", "BindingWorkDisclosure",
+    ]) {
+      assert.match(typesSource, new RegExp(`interface ${typeName}\\b`));
+    }
+    for (const requiredField of [
+      "exposure", "consumer_port", "provider_port", "provider_work",
+      "provider_installation", "provider_component", "phase",
+    ]) {
+      assert.match(typesSource, new RegExp(`"${requiredField}":`));
+    }
+    for (const typeName of [
+      "BindingCandidate", "BindingComponentDisclosure",
+      "BindingInstallationDisclosure", "BindingWorkDisclosure",
+    ]) {
+      const start = typesSource.indexOf(`export interface ${typeName} {`);
+      assert.notEqual(start, -1, `${typeName} must exist`);
+      const end = typesSource.indexOf("\n}\n", start);
+      assert.notEqual(end, -1, `${typeName} must have a complete body`);
+      const body = typesSource.slice(start, end + 3);
+      for (const privateField of [
+        "authority_handle_id", "authority_basis", "grant_reference", "raw_handle",
+        "host_path", "secret_value", "stderr",
+      ]) {
+        assert.doesNotMatch(body, new RegExp(privateField));
+      }
+    }
     const selection = {
       profile: "plurora.contract.default/v1",
       protocols: [{

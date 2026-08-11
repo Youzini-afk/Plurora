@@ -191,6 +191,22 @@ impl PackageRunClaim {
     pub(crate) fn package_id(&self) -> &PackageId {
         &self.package_id
     }
+
+    pub(crate) fn component_id(&self) -> &str {
+        &self.component_id
+    }
+
+    pub(crate) fn component_artifact(&self) -> &plurora_core::ArtifactDescriptor {
+        &self.component_artifact
+    }
+
+    pub(crate) fn behavior_digest(&self) -> &str {
+        &self.component_behavior.digest
+    }
+
+    pub(crate) fn trust_class(&self) -> ComponentTrustClass {
+        self.trust_class
+    }
 }
 
 #[derive(Default)]

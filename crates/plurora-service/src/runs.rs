@@ -1,5 +1,5 @@
 use std::collections::{BTreeMap, HashMap, HashSet};
-use std::sync::{Arc, RwLock};
+use std::sync::{Arc, RwLock, Weak};
 
 use anyhow::{anyhow, ensure};
 use async_trait::async_trait;
@@ -15,7 +15,7 @@ use plurora_runtime::{
 use plurora_work::{HealthStatus, NodeInstanceStatus, RunHealth, RunId, RunRecord, RunStatus};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
-use tokio::sync::Mutex;
+use tokio::sync::{Mutex, Notify};
 
 use crate::DevelopmentHostLease;
 
@@ -58,13 +58,28 @@ struct RunState {
     idempotency: HashMap<(plurora_work::InstallationId, RunOperation, String), AppliedIdempotency>,
 }
 
+enum StartCommitOutcome {
+    Retry,
+    Lost(RunView),
+    Failed(anyhow::Error),
+}
+
+enum RunActivationOwnership {
+    Available(RunActivation),
+    Cleaning,
+}
+
 pub struct RunRegistry {
     store: Arc<dyn EventStore>,
     state: RwLock<RunState>,
     apply: Arc<Mutex<()>>,
-    active: Mutex<HashMap<RunId, RunActivation>>,
+    start_locks: Mutex<HashMap<plurora_work::InstallationId, Weak<Mutex<()>>>>,
+    active: Mutex<HashMap<RunId, RunActivationOwnership>>,
+    cleanup_locks: Mutex<HashMap<RunId, Arc<Mutex<()>>>>,
     driver: RwLock<Option<Arc<dyn RunLifecycleDriver>>>,
     owner_lease: RwLock<Option<DevelopmentHostLease>>,
+    cleanup_changed: Arc<Notify>,
+    cleanup_retry_delay: std::time::Duration,
 }
 
 impl std::fmt::Debug for RunRegistry {
@@ -86,14 +101,70 @@ impl std::fmt::Debug for RunRegistry {
 
 impl RunRegistry {
     pub fn new(store: Arc<dyn EventStore>) -> Arc<Self> {
-        Arc::new(Self {
+        let registry = Arc::new(Self {
             store,
             state: RwLock::new(RunState::default()),
             apply: Arc::new(Mutex::new(())),
+            start_locks: Mutex::new(HashMap::new()),
             active: Mutex::new(HashMap::new()),
+            cleanup_locks: Mutex::new(HashMap::new()),
             driver: RwLock::new(None),
             owner_lease: RwLock::new(None),
-        })
+            cleanup_changed: Arc::new(Notify::new()),
+            cleanup_retry_delay: std::time::Duration::from_secs(1),
+        });
+        registry.spawn_cleanup_supervisor();
+        registry
+    }
+
+    fn spawn_cleanup_supervisor(self: &Arc<Self>) {
+        if tokio::runtime::Handle::try_current().is_err() {
+            return;
+        }
+        let registry = Arc::downgrade(self);
+        let changed = self.cleanup_changed.clone();
+        tokio::spawn(async move {
+            loop {
+                changed.notified().await;
+                let Some(registry) = registry.upgrade() else {
+                    return;
+                };
+                loop {
+                    let stopping = match registry.stopping_runs().await {
+                        Ok(stopping) => stopping,
+                        Err(_) => {
+                            tokio::time::sleep(registry.cleanup_retry_delay).await;
+                            continue;
+                        }
+                    };
+                    let terminal_activations = match registry.terminal_activation_ids().await {
+                        Ok(run_ids) => run_ids,
+                        Err(_) => {
+                            tokio::time::sleep(registry.cleanup_retry_delay).await;
+                            continue;
+                        }
+                    };
+                    if stopping.is_empty() && terminal_activations.is_empty() {
+                        break;
+                    }
+                    let mut retry = false;
+                    for run in stopping {
+                        if registry.complete_stopping(run, true, None).await.is_err() {
+                            retry = true;
+                        }
+                    }
+                    for run_id in terminal_activations {
+                        if registry.cleanup_terminal_activation(&run_id).await.is_err() {
+                            retry = true;
+                        }
+                    }
+                    if !retry {
+                        break;
+                    }
+                    tokio::time::sleep(registry.cleanup_retry_delay).await;
+                }
+            }
+        });
     }
 
     pub fn install_owner_lease(&self, lease: DevelopmentHostLease) -> anyhow::Result<()> {
@@ -130,6 +201,17 @@ impl RunRegistry {
 
     fn next_sequence(&self) -> anyhow::Result<EventSequence> {
         Ok(self.state.read().map_err(lock_error)?.next_sequence)
+    }
+
+    async fn start_lock(&self, installation_id: &plurora_work::InstallationId) -> Arc<Mutex<()>> {
+        let mut locks = self.start_locks.lock().await;
+        locks.retain(|_, lock| lock.strong_count() > 0);
+        if let Some(lock) = locks.get(installation_id).and_then(Weak::upgrade) {
+            return lock;
+        }
+        let lock = Arc::new(Mutex::new(()));
+        locks.insert(installation_id.clone(), Arc::downgrade(&lock));
+        lock
     }
 
     fn apply_event(&self, event: &EventEnvelope) -> anyhow::Result<()> {
@@ -289,140 +371,108 @@ impl RunRegistry {
         idempotent: bool,
     ) -> anyhow::Result<RunStartResult> {
         loop {
-            if current.record.status != RunStatus::Starting {
-                if !is_active(current.record.status) {
-                    self.cleanup_terminal_activation(&current.record.run_id)
-                        .await?;
-                }
-                return Ok(RunStartResult {
-                    run: Some(current),
-                    gaps: Vec::new(),
-                    idempotent,
-                });
-            }
-
-            let activation = {
-                let active = self.active.lock().await;
-                active.get(&current.record.run_id).map(|activation| {
-                    (
-                        activation.context_id.clone(),
-                        activation.node_instances.clone(),
-                        activation.bindings.clone(),
-                    )
-                })
-            };
-            let (kind, next) = if let Some((context_id, node_instances, bindings)) = activation {
-                (
-                    EVENT_RUN_STARTED,
-                    running_run(current.clone(), context_id, node_instances, bindings),
-                )
-            } else {
-                (
-                    EVENT_RUN_FAILED,
-                    interrupted_run(current.clone(), "outcome_unknown"),
-                )
-            };
-
-            match self
-                .append_with_installation_authority(
-                    kind,
-                    RunJournalPayload {
-                        run: next.clone(),
-                        idempotency: None,
-                    },
-                    authority,
-                    &request.installation_id,
-                )
-                .await
-            {
-                Ok(()) => {
-                    if next.record.status == RunStatus::Interrupted {
-                        self.cleanup_terminal_activation(&next.record.run_id)
-                            .await?;
+            let (next, cleanup_terminal) = {
+                let _apply = self.apply.lock().await;
+                self.sync_journal().await?;
+                current = self
+                    .state
+                    .read()
+                    .map_err(lock_error)?
+                    .runs
+                    .get(&current.record.run_id)
+                    .cloned()
+                    .ok_or_else(|| anyhow!("Run disappeared while resuming start"))?;
+                if current.record.status != RunStatus::Starting {
+                    (current.clone(), !is_active(current.record.status))
+                } else {
+                    let activation = {
+                        let active = self.active.lock().await;
+                        active
+                            .get(&current.record.run_id)
+                            .and_then(|ownership| match ownership {
+                                RunActivationOwnership::Available(activation) => Some((
+                                    activation.context_id.clone(),
+                                    activation.node_instances.clone(),
+                                    activation.bindings.clone(),
+                                )),
+                                RunActivationOwnership::Cleaning => None,
+                            })
+                    };
+                    let (kind, next) =
+                        if let Some((context_id, node_instances, bindings)) = activation {
+                            (
+                                EVENT_RUN_STARTED,
+                                running_run(current.clone(), context_id, node_instances, bindings),
+                            )
+                        } else {
+                            (
+                                EVENT_RUN_FAILED,
+                                interrupted_run(current.clone(), "outcome_unknown"),
+                            )
+                        };
+                    match self
+                        .append_with_installation_authority(
+                            kind,
+                            RunJournalPayload {
+                                run: next.clone(),
+                                idempotency: None,
+                            },
+                            authority,
+                            &request.installation_id,
+                        )
+                        .await
+                    {
+                        Ok(()) => (next.clone(), next.record.status == RunStatus::Interrupted),
+                        Err(error) if is_run_journal_cas_loss(&error) => continue,
+                        Err(error) => return Err(error),
                     }
-                    return Ok(RunStartResult {
-                        run: Some(next),
-                        gaps: Vec::new(),
-                        idempotent,
-                    });
                 }
-                Err(error) if is_run_journal_cas_loss(&error) => {
-                    self.sync_journal().await?;
-                    current = self
-                        .state
-                        .read()
-                        .map_err(lock_error)?
-                        .runs
-                        .get(&current.record.run_id)
-                        .cloned()
-                        .ok_or_else(|| anyhow!("Run disappeared after journal CAS loss"))?;
-                }
-                Err(error) => return Err(error),
+            };
+            if cleanup_terminal {
+                self.cleanup_terminal_activation(&next.record.run_id)
+                    .await?;
             }
+            return Ok(RunStartResult {
+                run: Some(next),
+                gaps: Vec::new(),
+                idempotent,
+            });
         }
     }
 
-    async fn stop_starting(
+    async fn fail_starting_if_current(
         &self,
-        request: &RunStopRequest,
-        authority: &plurora_runtime::RunMutationAuthority,
-        fingerprint: &str,
-        mut current: RunView,
-    ) -> anyhow::Result<RunMutationResult> {
+        starting: &RunView,
+        reason_code: &str,
+    ) -> anyhow::Result<Option<RunView>> {
         loop {
-            ensure!(
-                current.revision == request.expected_revision,
-                "run_revision_conflict"
-            );
-            ensure!(
-                current.record.status == RunStatus::Starting,
-                "run_revision_conflict"
-            );
-            let interrupted = interrupted_run(current.clone(), "explicit_stop_before_start_commit");
+            let _apply = self.apply.lock().await;
+            self.sync_journal().await?;
+            let current = self
+                .state
+                .read()
+                .map_err(lock_error)?
+                .runs
+                .get(&starting.record.run_id)
+                .cloned()
+                .ok_or_else(|| anyhow!("Run disappeared before activation failure commit"))?;
+            if current.record.status != RunStatus::Starting || current.revision != starting.revision
+            {
+                return Ok(None);
+            }
+            let failed = failed_run(current, reason_code);
             match self
-                .append_with_run_authority(
+                .append(
                     EVENT_RUN_FAILED,
                     RunJournalPayload {
-                        run: interrupted.clone(),
-                        idempotency: Some(RunIdempotencyClaim {
-                            operation: RunOperation::Stop,
-                            key_hash: idempotency_key_hash(&request.idempotency_key),
-                            request_fingerprint: fingerprint.to_string(),
-                        }),
+                        run: failed.clone(),
+                        idempotency: None,
                     },
-                    authority,
-                    &request.installation_id,
-                    &request.run_id,
                 )
                 .await
             {
-                Ok(()) => {
-                    self.cleanup_terminal_activation(&request.run_id).await?;
-                    return Ok(RunMutationResult {
-                        run: interrupted,
-                        idempotent: false,
-                    });
-                }
-                Err(error) if is_run_journal_cas_loss(&error) => {
-                    self.sync_journal().await?;
-                    let durable = self
-                        .state
-                        .read()
-                        .map_err(lock_error)?
-                        .runs
-                        .get(&request.run_id)
-                        .filter(|run| run.record.installation_id == request.installation_id)
-                        .cloned()
-                        .ok_or_else(|| anyhow!("Run disappeared after journal CAS loss"))?;
-                    if !is_active(durable.record.status) {
-                        self.cleanup_terminal_activation(&request.run_id).await?;
-                        return Ok(RunMutationResult {
-                            run: durable,
-                            idempotent: true,
-                        });
-                    }
-                    current = durable;
-                }
+                Ok(()) => return Ok(Some(failed)),
+                Err(error) if is_run_journal_cas_loss(&error) => continue,
                 Err(error) => return Err(error),
             }
         }
@@ -430,58 +480,217 @@ impl RunRegistry {
 
     async fn cleanup_terminal_activation(&self, run_id: &RunId) -> anyhow::Result<()> {
         let driver = self.driver()?;
-        let activation = { self.active.lock().await.remove(run_id) };
-        let Some(mut activation) = activation else {
-            return Ok(());
+        let mut activation = {
+            let mut active = self.active.lock().await;
+            match active.get_mut(run_id) {
+                Some(ownership @ RunActivationOwnership::Available(_)) => {
+                    match std::mem::replace(ownership, RunActivationOwnership::Cleaning) {
+                        RunActivationOwnership::Available(activation) => activation,
+                        RunActivationOwnership::Cleaning => unreachable!(),
+                    }
+                }
+                Some(RunActivationOwnership::Cleaning) => {
+                    anyhow::bail!("Run activation cleanup is already in progress")
+                }
+                None => return Ok(()),
+            }
         };
         if driver.stop(run_id, &mut activation).await.is_err() {
-            let replaced = self.active.lock().await.insert(run_id.clone(), activation);
+            let replaced = self.active.lock().await.insert(
+                run_id.clone(),
+                RunActivationOwnership::Available(activation),
+            );
             ensure!(
-                replaced.is_none(),
+                matches!(replaced, Some(RunActivationOwnership::Cleaning)),
                 "Run activation cleanup ownership changed concurrently"
             );
             return Err(anyhow!(
                 "Run activation cleanup failed after terminal Run commit"
             ));
         }
+        let removed = self.active.lock().await.remove(run_id);
+        ensure!(
+            matches!(removed, Some(RunActivationOwnership::Cleaning)),
+            "Run activation cleanup ownership changed before release"
+        );
         Ok(())
     }
 
-    pub async fn hydrate(&self) -> anyhow::Result<usize> {
-        self.ensure_owner_lease().await?;
+    async fn cleanup_lock(&self, run_id: &RunId) -> Arc<Mutex<()>> {
+        let mut locks = self.cleanup_locks.lock().await;
+        locks
+            .entry(run_id.clone())
+            .or_insert_with(|| Arc::new(Mutex::new(())))
+            .clone()
+    }
+
+    async fn stopping_runs(&self) -> anyhow::Result<Vec<RunView>> {
         let _apply = self.apply.lock().await;
-        let loaded = self.sync_journal().await?;
-        let active = self
+        self.sync_journal().await?;
+        Ok(self
             .state
             .read()
             .map_err(lock_error)?
             .runs
             .values()
-            .filter(|run| is_active(run.record.status))
+            .filter(|run| run.record.status == RunStatus::Stopping)
             .cloned()
-            .collect::<Vec<_>>();
-        for mut run in active {
-            run.revision = run.revision.saturating_add(1);
-            run.record.status = RunStatus::Interrupted;
-            run.record.stopped_at = Some(Utc::now());
-            run.record.health = RunHealth {
-                status: HealthStatus::Unhealthy,
-                reason_code: Some("host_restart".to_string()),
-                diagnostic_refs: Vec::new(),
-            };
-            for node in &mut run.record.node_instances {
-                node.status = NodeInstanceStatus::Interrupted;
-            }
-            self.append(
-                EVENT_RUN_FAILED,
-                RunJournalPayload {
-                    run,
-                    idempotency: None,
-                },
-            )
-            .await?;
+            .collect())
+    }
+
+    async fn terminal_activation_ids(&self) -> anyhow::Result<Vec<RunId>> {
+        let _apply = self.apply.lock().await;
+        self.sync_journal().await?;
+        let terminal = self
+            .state
+            .read()
+            .map_err(lock_error)?
+            .runs
+            .values()
+            .filter(|run| {
+                matches!(
+                    run.record.status,
+                    RunStatus::Stopped | RunStatus::Failed | RunStatus::Interrupted
+                )
+            })
+            .map(|run| run.record.run_id.clone())
+            .collect::<HashSet<_>>();
+        Ok(self
+            .active
+            .lock()
+            .await
+            .keys()
+            .filter(|run_id| terminal.contains(*run_id))
+            .cloned()
+            .collect())
+    }
+
+    async fn complete_stopping(
+        &self,
+        stopping: RunView,
+        idempotent: bool,
+        terminal_claim: Option<RunIdempotencyClaim>,
+    ) -> anyhow::Result<RunMutationResult> {
+        let run_id = stopping.record.run_id.clone();
+        let cleanup_lock = self.cleanup_lock(&run_id).await;
+        let _cleanup = cleanup_lock.lock().await;
+
+        let current = {
+            let _apply = self.apply.lock().await;
+            self.sync_journal().await?;
+            self.state
+                .read()
+                .map_err(lock_error)?
+                .runs
+                .get(&run_id)
+                .cloned()
+                .ok_or_else(|| anyhow!("Run disappeared while completing cleanup"))?
+        };
+        if current.record.status != RunStatus::Stopping {
+            self.cleanup_locks.lock().await.remove(&run_id);
+            return Ok(RunMutationResult {
+                run: current,
+                idempotent: true,
+            });
         }
-        self.active.lock().await.clear();
+
+        let activation_was_owned = self.active.lock().await.contains_key(&run_id);
+        if let Err(error) = self.cleanup_terminal_activation(&run_id).await {
+            self.cleanup_changed.notify_one();
+            return Err(anyhow!(
+                "Run cleanup failed while durable status remains Stopping: {error}"
+            ));
+        }
+
+        loop {
+            let _apply = self.apply.lock().await;
+            self.sync_journal().await?;
+            let durable = self
+                .state
+                .read()
+                .map_err(lock_error)?
+                .runs
+                .get(&run_id)
+                .cloned()
+                .ok_or_else(|| anyhow!("Run disappeared after cleanup"))?;
+            if durable.record.status != RunStatus::Stopping {
+                self.cleanup_locks.lock().await.remove(&run_id);
+                return Ok(RunMutationResult {
+                    run: durable,
+                    idempotent: true,
+                });
+            }
+            self.ensure_owner_lease().await?;
+            let terminal = terminal_after_cleanup(durable, activation_was_owned);
+            let kind = if terminal.record.status == RunStatus::Stopped {
+                EVENT_RUN_STOPPED
+            } else {
+                EVENT_RUN_FAILED
+            };
+            match self
+                .append(
+                    kind,
+                    RunJournalPayload {
+                        run: terminal.clone(),
+                        idempotency: terminal_claim.clone(),
+                    },
+                )
+                .await
+            {
+                Ok(()) => {
+                    self.cleanup_locks.lock().await.remove(&run_id);
+                    return Ok(RunMutationResult {
+                        run: terminal,
+                        idempotent,
+                    });
+                }
+                Err(error) if is_run_journal_cas_loss(&error) => continue,
+                Err(error) => {
+                    self.cleanup_changed.notify_one();
+                    return Err(error);
+                }
+            }
+        }
+    }
+
+    pub async fn hydrate(&self) -> anyhow::Result<usize> {
+        self.ensure_owner_lease().await?;
+        let (loaded, pending) = {
+            let _apply = self.apply.lock().await;
+            let loaded = self.sync_journal().await?;
+            let active = self
+                .state
+                .read()
+                .map_err(lock_error)?
+                .runs
+                .values()
+                .filter(|run| is_active(run.record.status))
+                .cloned()
+                .collect::<Vec<_>>();
+            let mut pending = Vec::with_capacity(active.len());
+            for run in active {
+                if run.record.status == RunStatus::Stopping {
+                    pending.push(run);
+                    continue;
+                }
+                let stopping = stopping_run(run, "host_restart");
+                self.append(
+                    EVENT_RUN_STOPPING,
+                    RunJournalPayload {
+                        run: stopping.clone(),
+                        idempotency: None,
+                    },
+                )
+                .await?;
+                pending.push(stopping);
+            }
+            (loaded, pending)
+        };
+        for run in pending {
+            if self.complete_stopping(run, true, None).await.is_err() {
+                self.cleanup_changed.notify_one();
+            }
+        }
         Ok(loaded)
     }
 }
@@ -565,17 +774,22 @@ impl RunControl for RunRegistry {
             .as_ref()
             .ok_or_else(|| anyhow!("authority_denied: Run start authority is missing"))?;
         let fingerprint = start_fingerprint(&request);
-        let _apply = self.apply.lock().await;
-        self.sync_journal().await?;
         authority
             .refresh_current_for_installation(&request.installation_id)
             .await?;
-        if let Some(run) = self.lookup_idempotency(
-            &request.installation_id,
-            RunOperation::Start,
-            &request.idempotency_key,
-            &fingerprint,
-        )? {
+        let start_lock = self.start_lock(&request.installation_id).await;
+        let _start = start_lock.lock().await;
+        let replay = {
+            let _apply = self.apply.lock().await;
+            self.sync_journal().await?;
+            self.lookup_idempotency(
+                &request.installation_id,
+                RunOperation::Start,
+                &request.idempotency_key,
+                &fingerprint,
+            )?
+        };
+        if let Some(run) = replay {
             if run.record.status == RunStatus::Starting {
                 return self
                     .resume_starting_start(&request, authority, run, true)
@@ -587,25 +801,6 @@ impl RunControl for RunRegistry {
                 idempotent: true,
             });
         }
-        let activation_run_ids = self
-            .active
-            .lock()
-            .await
-            .keys()
-            .cloned()
-            .collect::<HashSet<_>>();
-        ensure!(
-            !self
-                .state
-                .read()
-                .map_err(lock_error)?
-                .runs
-                .values()
-                .any(|run| run.record.installation_id == request.installation_id
-                    && (is_active(run.record.status)
-                        || activation_run_ids.contains(&run.record.run_id))),
-            "active_run_exists: Installation already has an active Run"
-        );
 
         let driver = self.driver()?;
         let preparation = driver.prepare_start(&request).await?;
@@ -621,125 +816,212 @@ impl RunControl for RunRegistry {
             });
         }
 
-        authority
-            .refresh_current_for_installation(&request.installation_id)
-            .await?;
-        let now = Utc::now();
-        let run_id = RunId::new();
-        let starting = RunView {
-            record: RunRecord {
-                run_id: run_id.clone(),
-                installation_id: request.installation_id.clone(),
-                context_id: None,
-                status: RunStatus::Starting,
-                node_instances: Vec::new(),
-                bindings: Vec::new(),
-                started_at: now,
-                stopped_at: None,
-                health: RunHealth {
-                    status: HealthStatus::Unknown,
-                    reason_code: None,
-                    diagnostic_refs: Vec::new(),
+        let starting = loop {
+            let _apply = self.apply.lock().await;
+            self.sync_journal().await?;
+            if let Some(run) = self.lookup_idempotency(
+                &request.installation_id,
+                RunOperation::Start,
+                &request.idempotency_key,
+                &fingerprint,
+            )? {
+                drop(_apply);
+                if run.record.status == RunStatus::Starting {
+                    return self
+                        .resume_starting_start(&request, authority, run, true)
+                        .await;
+                }
+                return Ok(RunStartResult {
+                    run: Some(run),
+                    gaps: Vec::new(),
+                    idempotent: true,
+                });
+            }
+            let activation_run_ids = self
+                .active
+                .lock()
+                .await
+                .keys()
+                .cloned()
+                .collect::<HashSet<_>>();
+            ensure!(
+                !self
+                    .state
+                    .read()
+                    .map_err(lock_error)?
+                    .runs
+                    .values()
+                    .any(|run| run.record.installation_id == request.installation_id
+                        && (is_active(run.record.status)
+                            || activation_run_ids.contains(&run.record.run_id))),
+                "active_run_exists: Installation already has an active Run"
+            );
+            authority
+                .refresh_current_for_installation(&request.installation_id)
+                .await?;
+            let now = Utc::now();
+            let starting = RunView {
+                record: RunRecord {
+                    run_id: RunId::new(),
+                    installation_id: request.installation_id.clone(),
+                    context_id: None,
+                    status: RunStatus::Starting,
+                    node_instances: Vec::new(),
+                    bindings: Vec::new(),
+                    started_at: now,
+                    stopped_at: None,
+                    health: RunHealth {
+                        status: HealthStatus::Unknown,
+                        reason_code: None,
+                        diagnostic_refs: Vec::new(),
+                    },
                 },
-            },
-            revision: 1,
-            installation_revision: request.expected_installation_revision,
-            entrypoint_id: preparation.entrypoint_id.clone(),
+                revision: 1,
+                installation_revision: request.expected_installation_revision,
+                entrypoint_id: preparation.entrypoint_id.clone(),
+            };
+            match self
+                .append_with_installation_authority(
+                    EVENT_RUN_STARTING,
+                    RunJournalPayload {
+                        run: starting.clone(),
+                        idempotency: Some(RunIdempotencyClaim {
+                            operation: RunOperation::Start,
+                            key_hash: idempotency_key_hash(&request.idempotency_key),
+                            request_fingerprint: fingerprint.clone(),
+                        }),
+                    },
+                    authority,
+                    &request.installation_id,
+                )
+                .await
+            {
+                Ok(()) => break starting,
+                Err(error) if is_run_journal_cas_loss(&error) => continue,
+                Err(error) => return Err(error),
+            }
         };
-        self.append_with_installation_authority(
-            EVENT_RUN_STARTING,
-            RunJournalPayload {
-                run: starting.clone(),
-                idempotency: Some(RunIdempotencyClaim {
-                    operation: RunOperation::Start,
-                    key_hash: idempotency_key_hash(&request.idempotency_key),
-                    request_fingerprint: fingerprint,
-                }),
-            },
-            authority,
-            &request.installation_id,
-        )
-        .await?;
+        let run_id = starting.record.run_id.clone();
 
         self.ensure_owner_lease().await?;
         if let Err(error) = authority
             .refresh_current_for_installation(&request.installation_id)
             .await
         {
-            self.append(
-                EVENT_RUN_FAILED,
-                RunJournalPayload {
-                    run: failed_run(starting, "authority_denied"),
-                    idempotency: None,
-                },
-            )
-            .await?;
+            self.fail_starting_if_current(&starting, "authority_denied")
+                .await?;
             return Err(error);
         }
         let mut activation = match driver.activate(&run_id, preparation).await {
             Ok(activation) => activation,
             Err(error) => {
-                let failed = failed_run(starting, "activation_failed");
-                self.append(
-                    EVENT_RUN_FAILED,
-                    RunJournalPayload {
-                        run: failed,
-                        idempotency: None,
-                    },
-                )
-                .await?;
+                self.fail_starting_if_current(&starting, "activation_failed")
+                    .await?;
                 let _ = error;
                 return Err(anyhow!("Run activation failed"));
             }
         };
-        let failure_base = starting.clone();
-        let running = running_run(
-            starting.clone(),
-            activation.context_id.clone(),
-            activation.node_instances.clone(),
-            activation.bindings.clone(),
-        );
-        if let Err(error) = self
-            .append_with_installation_authority(
-                EVENT_RUN_STARTED,
-                RunJournalPayload {
-                    run: running.clone(),
-                    idempotency: None,
-                },
-                authority,
-                &request.installation_id,
-            )
-            .await
-        {
-            if is_run_journal_cas_loss(&error) {
-                self.active.lock().await.insert(run_id, activation);
-                return self
-                    .resume_starting_start(&request, authority, starting, false)
-                    .await;
+
+        loop {
+            let outcome = {
+                let _apply = self.apply.lock().await;
+                self.sync_journal().await?;
+                let current = self
+                    .state
+                    .read()
+                    .map_err(lock_error)?
+                    .runs
+                    .get(&run_id)
+                    .cloned()
+                    .ok_or_else(|| anyhow!("Run disappeared after activation"))?;
+                if current.record.status != RunStatus::Starting
+                    || current.revision != starting.revision
+                {
+                    StartCommitOutcome::Lost(current)
+                } else {
+                    let running = running_run(
+                        current,
+                        activation.context_id.clone(),
+                        activation.node_instances.clone(),
+                        activation.bindings.clone(),
+                    );
+                    match self
+                        .append_with_installation_authority(
+                            EVENT_RUN_STARTED,
+                            RunJournalPayload {
+                                run: running.clone(),
+                                idempotency: None,
+                            },
+                            authority,
+                            &request.installation_id,
+                        )
+                        .await
+                    {
+                        Ok(()) => {
+                            let replaced = self.active.lock().await.insert(
+                                run_id.clone(),
+                                RunActivationOwnership::Available(activation),
+                            );
+                            ensure!(
+                                replaced.is_none(),
+                                "Run activation ownership already exists"
+                            );
+                            return Ok(RunStartResult {
+                                run: Some(running),
+                                gaps: Vec::new(),
+                                idempotent: false,
+                            });
+                        }
+                        Err(error) if is_run_journal_cas_loss(&error) => StartCommitOutcome::Retry,
+                        Err(error) => StartCommitOutcome::Failed(error),
+                    }
+                }
+            };
+            match outcome {
+                StartCommitOutcome::Retry => continue,
+                StartCommitOutcome::Lost(current) => {
+                    if driver.stop(&run_id, &mut activation).await.is_err() {
+                        let replaced = self.active.lock().await.insert(
+                            run_id.clone(),
+                            RunActivationOwnership::Available(activation),
+                        );
+                        ensure!(
+                            replaced.is_none(),
+                            "Run activation cleanup ownership changed"
+                        );
+                        self.cleanup_changed.notify_one();
+                        return Err(anyhow!(
+                            "outcome_unknown: concurrent Run terminal won but activation cleanup failed"
+                        ));
+                    }
+                    return Ok(RunStartResult {
+                        run: Some(current),
+                        gaps: Vec::new(),
+                        idempotent: false,
+                    });
+                }
+                StartCommitOutcome::Failed(error) => {
+                    if driver.stop(&run_id, &mut activation).await.is_err() {
+                        let replaced = self.active.lock().await.insert(
+                            run_id.clone(),
+                            RunActivationOwnership::Available(activation),
+                        );
+                        ensure!(
+                            replaced.is_none(),
+                            "Run activation cleanup ownership changed"
+                        );
+                        self.cleanup_changed.notify_one();
+                        return Err(anyhow!(
+                            "outcome_unknown: Run activation commit failed and cleanup requires retry"
+                        ));
+                    }
+                    let _ = self
+                        .fail_starting_if_current(&starting, "activation_commit_failed")
+                        .await;
+                    return Err(error);
+                }
             }
-            if driver.stop(&run_id, &mut activation).await.is_err() {
-                self.active.lock().await.insert(run_id, activation);
-                return Err(anyhow!(
-                    "outcome_unknown: Run activation commit failed and cleanup requires retry"
-                ));
-            }
-            let _ = self
-                .append(
-                    EVENT_RUN_FAILED,
-                    RunJournalPayload {
-                        run: failed_run(failure_base, "activation_commit_failed"),
-                        idempotency: None,
-                    },
-                )
-                .await;
-            return Err(error);
         }
-        self.active.lock().await.insert(run_id, activation);
-        Ok(RunStartResult {
-            run: Some(running),
-            gaps: Vec::new(),
-            idempotent: false,
-        })
     }
 
     async fn stop(&self, request: RunStopRequest) -> anyhow::Result<RunMutationResult> {
@@ -749,137 +1031,77 @@ impl RunControl for RunRegistry {
             .as_ref()
             .ok_or_else(|| anyhow!("authority_denied: Run stop authority is missing"))?;
         let fingerprint = stop_fingerprint(&request);
-        let _apply = self.apply.lock().await;
-        self.sync_journal().await?;
-        authority
-            .refresh_current_for_run(&request.installation_id, &request.run_id)
-            .await?;
-        let (stopping, replayed, terminal_claim) = if let Some(run) = self.lookup_idempotency(
-            &request.installation_id,
-            RunOperation::Stop,
-            &request.idempotency_key,
-            &fingerprint,
-        )? {
-            if run.record.status == RunStatus::Stopping {
+        let (stopping, replayed, terminal_claim) = {
+            let _apply = self.apply.lock().await;
+            self.sync_journal().await?;
+            authority
+                .refresh_current_for_run(&request.installation_id, &request.run_id)
+                .await?;
+            if let Some(run) = self.lookup_idempotency(
+                &request.installation_id,
+                RunOperation::Stop,
+                &request.idempotency_key,
+                &fingerprint,
+            )? {
+                if run.record.status != RunStatus::Stopping {
+                    return Ok(RunMutationResult {
+                        run,
+                        idempotent: true,
+                    });
+                }
                 (run, true, None)
             } else {
-                self.ensure_owner_lease().await?;
-                authority
-                    .refresh_current_for_run(&request.installation_id, &request.run_id)
-                    .await?;
-                self.cleanup_terminal_activation(&request.run_id).await?;
-                return Ok(RunMutationResult {
-                    run,
-                    idempotent: true,
-                });
-            }
-        } else {
-            let current = self
-                .state
-                .read()
-                .map_err(lock_error)?
-                .runs
-                .get(&request.run_id)
-                .filter(|run| run.record.installation_id == request.installation_id)
-                .cloned()
-                .ok_or_else(|| anyhow!("Run not found for the Installation"))?;
-            ensure!(
-                current.revision == request.expected_revision,
-                "run_revision_conflict"
-            );
-            if !is_active(current.record.status) {
-                return Ok(RunMutationResult {
-                    run: current,
-                    idempotent: true,
-                });
-            }
-            if current.record.status == RunStatus::Starting {
-                return self
-                    .stop_starting(&request, authority, &fingerprint, current)
-                    .await;
-            }
-            if current.record.status == RunStatus::Stopping {
-                (
-                    current,
-                    false,
-                    Some(RunIdempotencyClaim {
-                        operation: RunOperation::Stop,
-                        key_hash: idempotency_key_hash(&request.idempotency_key),
-                        request_fingerprint: fingerprint,
-                    }),
-                )
-            } else {
-                let mut stopping = current;
-                stopping.revision = stopping.revision.saturating_add(1);
-                stopping.record.status = RunStatus::Stopping;
-                for node in &mut stopping.record.node_instances {
-                    node.status = NodeInstanceStatus::Stopping;
+                let current = self
+                    .state
+                    .read()
+                    .map_err(lock_error)?
+                    .runs
+                    .get(&request.run_id)
+                    .filter(|run| run.record.installation_id == request.installation_id)
+                    .cloned()
+                    .ok_or_else(|| anyhow!("Run not found for the Installation"))?;
+                ensure!(
+                    current.revision == request.expected_revision,
+                    "run_revision_conflict"
+                );
+                if !is_active(current.record.status) {
+                    return Ok(RunMutationResult {
+                        run: current,
+                        idempotent: true,
+                    });
                 }
-                self.append_with_run_authority(
-                    EVENT_RUN_STOPPING,
-                    RunJournalPayload {
-                        run: stopping.clone(),
-                        idempotency: Some(RunIdempotencyClaim {
-                            operation: RunOperation::Stop,
-                            key_hash: idempotency_key_hash(&request.idempotency_key),
-                            request_fingerprint: fingerprint,
-                        }),
-                    },
-                    authority,
-                    &request.installation_id,
-                    &request.run_id,
-                )
-                .await?;
-                (stopping, false, None)
+                let claim = RunIdempotencyClaim {
+                    operation: RunOperation::Stop,
+                    key_hash: idempotency_key_hash(&request.idempotency_key),
+                    request_fingerprint: fingerprint,
+                };
+                if current.record.status == RunStatus::Stopping {
+                    (current, false, Some(claim))
+                } else {
+                    let reason = if current.record.status == RunStatus::Starting {
+                        "explicit_stop_before_start_commit"
+                    } else {
+                        "explicit_stop"
+                    };
+                    let stopping = stopping_run(current, reason);
+                    self.append_with_run_authority(
+                        EVENT_RUN_STOPPING,
+                        RunJournalPayload {
+                            run: stopping.clone(),
+                            idempotency: Some(claim),
+                        },
+                        authority,
+                        &request.installation_id,
+                        &request.run_id,
+                    )
+                    .await?;
+                    self.cleanup_changed.notify_one();
+                    (stopping, false, None)
+                }
             }
         };
-        if !self.active.lock().await.contains_key(&request.run_id) {
-            let interrupted = interrupted_run(stopping, "outcome_unknown");
-            self.append(
-                EVENT_RUN_FAILED,
-                RunJournalPayload {
-                    run: interrupted.clone(),
-                    idempotency: terminal_claim,
-                },
-            )
-            .await?;
-            return Ok(RunMutationResult {
-                run: interrupted,
-                idempotent: replayed,
-            });
-        }
-        let mut stopped = stopping;
-        stopped.revision = stopped.revision.saturating_add(1);
-        stopped.record.status = RunStatus::Stopped;
-        stopped.record.stopped_at = Some(Utc::now());
-        stopped.record.health = RunHealth {
-            status: HealthStatus::Unknown,
-            reason_code: Some("explicit_stop".to_string()),
-            diagnostic_refs: Vec::new(),
-        };
-        for node in &mut stopped.record.node_instances {
-            node.status = NodeInstanceStatus::Stopped;
-        }
-        self.append_with_run_authority(
-            EVENT_RUN_STOPPED,
-            RunJournalPayload {
-                run: stopped.clone(),
-                idempotency: terminal_claim,
-            },
-            authority,
-            &request.installation_id,
-            &request.run_id,
-        )
-        .await?;
-        self.ensure_owner_lease().await?;
-        authority
-            .refresh_current_for_run(&request.installation_id, &request.run_id)
-            .await?;
-        self.cleanup_terminal_activation(&request.run_id).await?;
-        Ok(RunMutationResult {
-            run: stopped,
-            idempotent: replayed,
-        })
+        self.complete_stopping(stopping, replayed, terminal_claim)
+            .await
     }
 
     async fn package_activation_lost(
@@ -888,13 +1110,13 @@ impl RunControl for RunRegistry {
         mut run_ids: Vec<RunId>,
     ) -> anyhow::Result<()> {
         self.ensure_owner_lease().await?;
-        let _apply = self.apply.lock().await;
         run_ids.sort();
         run_ids.dedup();
 
         let mut cleanup_failed = false;
         for run_id in run_ids {
-            loop {
+            let stopping = loop {
+                let _apply = self.apply.lock().await;
                 self.sync_journal().await?;
                 let Some(current) = self
                     .state
@@ -904,54 +1126,47 @@ impl RunControl for RunRegistry {
                     .get(&run_id)
                     .cloned()
                 else {
-                    break;
+                    break None;
                 };
-
                 if !is_active(current.record.status) {
-                    self.ensure_owner_lease().await?;
-                    if self.cleanup_terminal_activation(&run_id).await.is_err() {
-                        cleanup_failed = true;
-                    }
-                    break;
+                    break None;
                 }
-
-                let activation_is_owned = self.active.lock().await.contains_key(&run_id);
-                let terminal = if activation_is_owned {
-                    failed_run(current, "package_activation_lost")
-                } else {
-                    interrupted_run(current, "package_activation_lost")
-                };
+                if current.record.status == RunStatus::Stopping {
+                    break Some(current);
+                }
+                let stopping = stopping_run(current, "package_activation_lost");
                 match self
                     .append(
-                        EVENT_RUN_FAILED,
+                        EVENT_RUN_STOPPING,
                         RunJournalPayload {
-                            run: terminal,
+                            run: stopping.clone(),
                             idempotency: None,
                         },
                     )
                     .await
                 {
                     Ok(()) => {
-                        self.ensure_owner_lease().await?;
-                        if self.cleanup_terminal_activation(&run_id).await.is_err() {
-                            cleanup_failed = true;
-                        }
-                        break;
+                        self.cleanup_changed.notify_one();
+                        break Some(stopping);
                     }
-                    Err(error) if is_run_journal_cas_loss(&error) => {
-                        // Another valid journal append won the sequence. Resync
-                        // and converge from durable state rather than guessing a
-                        // second terminal revision.
-                        continue;
-                    }
+                    Err(error) if is_run_journal_cas_loss(&error) => continue,
                     Err(error) => return Err(error),
                 }
+            };
+            if let Some(stopping) = stopping {
+                if self.complete_stopping(stopping, true, None).await.is_err() {
+                    cleanup_failed = true;
+                }
+            } else if self.active.lock().await.contains_key(&run_id)
+                && self.cleanup_terminal_activation(&run_id).await.is_err()
+            {
+                cleanup_failed = true;
             }
         }
 
         if cleanup_failed {
             return Err(anyhow!(
-                "Run activation cleanup failed after package activation loss was committed"
+                "Run activation cleanup failed while package-loss Runs remain Stopping"
             ));
         }
         Ok(())
@@ -1040,7 +1255,7 @@ fn ensure_valid_transition(before: RunStatus, after: RunStatus) -> anyhow::Resul
         (before, after),
         (
             RunStatus::Starting,
-            RunStatus::Running | RunStatus::Failed | RunStatus::Interrupted
+            RunStatus::Running | RunStatus::Stopping | RunStatus::Failed | RunStatus::Interrupted
         ) | (
             RunStatus::Running | RunStatus::Degraded,
             RunStatus::Stopping | RunStatus::Failed | RunStatus::Interrupted
@@ -1080,6 +1295,54 @@ fn running_run(
         diagnostic_refs: Vec::new(),
     };
     run
+}
+
+fn stopping_run(mut run: RunView, reason_code: &str) -> RunView {
+    run.revision = run.revision.saturating_add(1);
+    run.record.status = RunStatus::Stopping;
+    run.record.stopped_at = None;
+    run.record.health = RunHealth {
+        status: HealthStatus::Unknown,
+        reason_code: Some(reason_code.to_string()),
+        diagnostic_refs: Vec::new(),
+    };
+    for node in &mut run.record.node_instances {
+        node.status = NodeInstanceStatus::Stopping;
+    }
+    run
+}
+
+fn terminal_after_cleanup(mut run: RunView, activation_was_owned: bool) -> RunView {
+    let stopping_reason = run
+        .record
+        .health
+        .reason_code
+        .clone()
+        .unwrap_or_else(|| "outcome_unknown".to_string());
+    match stopping_reason.as_str() {
+        "explicit_stop" if activation_was_owned => {
+            run.revision = run.revision.saturating_add(1);
+            run.record.status = RunStatus::Stopped;
+            run.record.stopped_at = Some(Utc::now());
+            run.record.health = RunHealth {
+                status: HealthStatus::Unknown,
+                reason_code: Some("explicit_stop".to_string()),
+                diagnostic_refs: Vec::new(),
+            };
+            for node in &mut run.record.node_instances {
+                node.status = NodeInstanceStatus::Stopped;
+            }
+            run
+        }
+        "package_activation_lost" if activation_was_owned => {
+            failed_run(run, "package_activation_lost")
+        }
+        "explicit_stop_before_start_commit" => {
+            interrupted_run(run, "explicit_stop_before_start_commit")
+        }
+        "host_restart" => interrupted_run(run, "host_restart"),
+        _ => interrupted_run(run, "outcome_unknown"),
+    }
 }
 
 fn failed_run(mut run: RunView, reason_code: &str) -> RunView {
@@ -1154,8 +1417,8 @@ mod tests {
 
     use plurora_core::{ArtifactDescriptor, EventKind, PackageId, SessionId};
     use plurora_runtime::{
-        InMemoryEventStore, ProtocolContext, RunEntrypointPreflight, RunGap, RunPreparation,
-        RunStatusInspection, Runtime, RuntimeConfig,
+        InMemoryEventStore, ProtocolContext, RunEntrypointPreflight, RunGap, RunGetRequest,
+        RunPreparation, RunStatusInspection, Runtime, RuntimeConfig,
     };
     use plurora_work::{InstallationId, WORK_REVISION_TYPE_URI};
     use serde_json::json;
@@ -1176,15 +1439,26 @@ mod tests {
         stops: AtomicUsize,
         stop_failures_remaining: AtomicUsize,
         active_leases: Arc<AtomicUsize>,
+        active_sessions: Arc<AtomicUsize>,
+        active_bindings: Arc<AtomicUsize>,
+        active_generations: Arc<AtomicUsize>,
         released_runs: std::sync::Mutex<HashSet<RunId>>,
         context_id: std::sync::Mutex<Option<String>>,
     }
 
-    struct TestRunLease(Arc<AtomicUsize>);
+    struct TestRunLease {
+        leases: Arc<AtomicUsize>,
+        sessions: Arc<AtomicUsize>,
+        bindings: Arc<AtomicUsize>,
+        generations: Arc<AtomicUsize>,
+    }
 
     impl Drop for TestRunLease {
         fn drop(&mut self) {
-            self.0.fetch_sub(1, Ordering::SeqCst);
+            self.leases.fetch_sub(1, Ordering::SeqCst);
+            self.sessions.fetch_sub(1, Ordering::SeqCst);
+            self.bindings.fetch_sub(1, Ordering::SeqCst);
+            self.generations.fetch_sub(1, Ordering::SeqCst);
         }
     }
 
@@ -1331,6 +1605,9 @@ mod tests {
                 stops: AtomicUsize::new(0),
                 stop_failures_remaining: AtomicUsize::new(0),
                 active_leases: Arc::new(AtomicUsize::new(0)),
+                active_sessions: Arc::new(AtomicUsize::new(0)),
+                active_bindings: Arc::new(AtomicUsize::new(0)),
+                active_generations: Arc::new(AtomicUsize::new(0)),
                 released_runs: std::sync::Mutex::new(HashSet::new()),
                 context_id: std::sync::Mutex::new(None),
             })
@@ -1347,6 +1624,9 @@ mod tests {
                 stops: AtomicUsize::new(0),
                 stop_failures_remaining: AtomicUsize::new(0),
                 active_leases: Arc::new(AtomicUsize::new(0)),
+                active_sessions: Arc::new(AtomicUsize::new(0)),
+                active_bindings: Arc::new(AtomicUsize::new(0)),
+                active_generations: Arc::new(AtomicUsize::new(0)),
                 released_runs: std::sync::Mutex::new(HashSet::new()),
                 context_id: std::sync::Mutex::new(None),
             })
@@ -1363,6 +1643,9 @@ mod tests {
                 stops: AtomicUsize::new(0),
                 stop_failures_remaining: AtomicUsize::new(0),
                 active_leases: Arc::new(AtomicUsize::new(0)),
+                active_sessions: Arc::new(AtomicUsize::new(0)),
+                active_bindings: Arc::new(AtomicUsize::new(0)),
+                active_generations: Arc::new(AtomicUsize::new(0)),
                 released_runs: std::sync::Mutex::new(HashSet::new()),
                 context_id: std::sync::Mutex::new(None),
             })
@@ -1441,6 +1724,9 @@ mod tests {
         ) -> anyhow::Result<RunActivation> {
             self.activations.fetch_add(1, Ordering::SeqCst);
             self.active_leases.fetch_add(1, Ordering::SeqCst);
+            self.active_sessions.fetch_add(1, Ordering::SeqCst);
+            self.active_bindings.fetch_add(1, Ordering::SeqCst);
+            self.active_generations.fetch_add(1, Ordering::SeqCst);
             Ok(RunActivation::new(
                 Some(
                     self.context_id
@@ -1451,7 +1737,12 @@ mod tests {
                 ),
                 Vec::new(),
                 Vec::new(),
-                Box::new(TestRunLease(self.active_leases.clone())),
+                Box::new(TestRunLease {
+                    leases: self.active_leases.clone(),
+                    sessions: self.active_sessions.clone(),
+                    bindings: self.active_bindings.clone(),
+                    generations: self.active_generations.clone(),
+                }),
             ))
         }
 
@@ -1472,6 +1763,152 @@ mod tests {
                 "Run resources were already released"
             );
             Ok(())
+        }
+    }
+
+    struct LockOrderDriver {
+        inner: Arc<TestDriver>,
+        powerbox: Arc<tokio::sync::Mutex<()>>,
+        cleanup_entered: Arc<tokio::sync::Notify>,
+    }
+
+    struct ConcurrentActivationDriver {
+        inner: Arc<TestDriver>,
+        barrier: Arc<tokio::sync::Barrier>,
+        active: AtomicUsize,
+        max_active: AtomicUsize,
+    }
+
+    #[async_trait]
+    impl RunLifecycleDriver for ConcurrentActivationDriver {
+        async fn inspect_status(
+            &self,
+            request: &RunStatusRequest,
+        ) -> anyhow::Result<RunStatusInspection> {
+            self.inner.inspect_status(request).await
+        }
+
+        async fn prepare_start(&self, request: &RunStartRequest) -> anyhow::Result<RunPreparation> {
+            self.inner.prepare_start(request).await
+        }
+
+        async fn activate(
+            &self,
+            run_id: &RunId,
+            preparation: RunPreparation,
+        ) -> anyhow::Result<RunActivation> {
+            let active = self.active.fetch_add(1, Ordering::SeqCst) + 1;
+            self.max_active.fetch_max(active, Ordering::SeqCst);
+            self.barrier.wait().await;
+            let result = self.inner.activate(run_id, preparation).await;
+            self.active.fetch_sub(1, Ordering::SeqCst);
+            result
+        }
+
+        async fn stop(&self, run_id: &RunId, activation: &mut RunActivation) -> anyhow::Result<()> {
+            self.inner.stop(run_id, activation).await
+        }
+    }
+
+    struct GatedActivationDriver {
+        inner: Arc<TestDriver>,
+        entered: Arc<tokio::sync::Barrier>,
+        release: Arc<tokio::sync::Barrier>,
+    }
+
+    struct GatedLostCleanupDriver {
+        inner: Arc<TestDriver>,
+        activation_entered: Arc<tokio::sync::Barrier>,
+        activation_release: Arc<tokio::sync::Barrier>,
+        retry_entered: Arc<tokio::sync::Barrier>,
+        retry_release: Arc<tokio::sync::Barrier>,
+    }
+
+    #[async_trait]
+    impl RunLifecycleDriver for GatedLostCleanupDriver {
+        async fn inspect_status(
+            &self,
+            request: &RunStatusRequest,
+        ) -> anyhow::Result<RunStatusInspection> {
+            self.inner.inspect_status(request).await
+        }
+
+        async fn prepare_start(&self, request: &RunStartRequest) -> anyhow::Result<RunPreparation> {
+            self.inner.prepare_start(request).await
+        }
+
+        async fn activate(
+            &self,
+            run_id: &RunId,
+            preparation: RunPreparation,
+        ) -> anyhow::Result<RunActivation> {
+            self.activation_entered.wait().await;
+            self.activation_release.wait().await;
+            self.inner.activate(run_id, preparation).await
+        }
+
+        async fn stop(&self, run_id: &RunId, activation: &mut RunActivation) -> anyhow::Result<()> {
+            if self.inner.stops.load(Ordering::SeqCst) == 1 {
+                self.retry_entered.wait().await;
+                self.retry_release.wait().await;
+            }
+            self.inner.stop(run_id, activation).await
+        }
+    }
+
+    #[async_trait]
+    impl RunLifecycleDriver for GatedActivationDriver {
+        async fn inspect_status(
+            &self,
+            request: &RunStatusRequest,
+        ) -> anyhow::Result<RunStatusInspection> {
+            self.inner.inspect_status(request).await
+        }
+
+        async fn prepare_start(&self, request: &RunStartRequest) -> anyhow::Result<RunPreparation> {
+            self.inner.prepare_start(request).await
+        }
+
+        async fn activate(
+            &self,
+            run_id: &RunId,
+            preparation: RunPreparation,
+        ) -> anyhow::Result<RunActivation> {
+            self.entered.wait().await;
+            self.release.wait().await;
+            self.inner.activate(run_id, preparation).await
+        }
+
+        async fn stop(&self, run_id: &RunId, activation: &mut RunActivation) -> anyhow::Result<()> {
+            self.inner.stop(run_id, activation).await
+        }
+    }
+
+    #[async_trait]
+    impl RunLifecycleDriver for LockOrderDriver {
+        async fn inspect_status(
+            &self,
+            request: &RunStatusRequest,
+        ) -> anyhow::Result<RunStatusInspection> {
+            self.inner.inspect_status(request).await
+        }
+
+        async fn prepare_start(&self, request: &RunStartRequest) -> anyhow::Result<RunPreparation> {
+            self.inner.prepare_start(request).await
+        }
+
+        async fn activate(
+            &self,
+            run_id: &RunId,
+            preparation: RunPreparation,
+        ) -> anyhow::Result<RunActivation> {
+            self.inner.activate(run_id, preparation).await
+        }
+
+        async fn stop(&self, run_id: &RunId, activation: &mut RunActivation) -> anyhow::Result<()> {
+            self.cleanup_entered.notify_one();
+            let _powerbox = self.powerbox.lock().await;
+            self.inner.stop(run_id, activation).await
         }
     }
 
@@ -1650,20 +2087,17 @@ mod tests {
             Vec::new(),
             "test",
         );
-        let child_view: RunView = serde_json::from_value(
-            runtime
-                .call_protocol(
-                    &installation_only,
-                    "host.run.get",
-                    json!({
-                        "installation_id": installation_id,
-                        "run_id": started.record.run_id,
-                    }),
-                )
-                .await
-                .map_err(protocol_error)?,
-        )?;
-        assert_eq!(child_view, started);
+        assert!(runtime
+            .call_protocol(
+                &installation_only,
+                "host.run.get",
+                json!({
+                    "installation_id": installation_id,
+                    "run_id": started.record.run_id,
+                }),
+            )
+            .await
+            .is_err());
         let exact_run = ProtocolContext::host_device(
             "observe-grant",
             vec!["observe".to_string()],
@@ -2109,7 +2543,7 @@ mod tests {
         )?;
         assert!(!stopped.idempotent);
         assert_eq!(stopped.run.record.status, RunStatus::Interrupted);
-        assert_eq!(stopped.run.revision, 2);
+        assert_eq!(stopped.run.revision, 3);
         assert_eq!(
             stopped.run.record.health.reason_code.as_deref(),
             Some("explicit_stop_before_start_commit")
@@ -2167,7 +2601,7 @@ mod tests {
                 .iter()
                 .filter(|event| event.kind == EVENT_RUN_STOPPING)
                 .count(),
-            0
+            1
         );
         assert_eq!(
             events
@@ -2192,11 +2626,10 @@ mod tests {
                 RunPreparation::ready(6, "default".to_string(), Box::new(())),
             )
             .await?;
-        registry
-            .active
-            .lock()
-            .await
-            .insert(starting.record.run_id.clone(), activation);
+        registry.active.lock().await.insert(
+            starting.record.run_id.clone(),
+            RunActivationOwnership::Available(activation),
+        );
         driver.fail_next_stop();
 
         let stop_params = json!({
@@ -2214,15 +2647,15 @@ mod tests {
             .await
             .expect_err("the first terminal cleanup is injected to fail");
         assert!(first.message.contains("cleanup failed"));
-        let terminal = registry
+        let stopping = registry
             .get(plurora_runtime::RunGetRequest {
                 installation_id: installation_id.clone(),
                 run_id: starting.record.run_id.clone(),
             })
             .await?
-            .expect("Interrupted Run remains durable");
-        assert_eq!(terminal.record.status, RunStatus::Interrupted);
-        assert_eq!(terminal.revision, 2);
+            .expect("Stopping Run remains durable until cleanup succeeds");
+        assert_eq!(stopping.record.status, RunStatus::Stopping);
+        assert_eq!(stopping.revision, 2);
         assert_eq!(driver.stops.load(Ordering::SeqCst), 1);
         assert_eq!(driver.active_leases.load(Ordering::SeqCst), 1);
         assert!(registry
@@ -2230,6 +2663,15 @@ mod tests {
             .lock()
             .await
             .contains_key(&starting.record.run_id));
+        assert_eq!(
+            store
+                .list_session(&JOURNAL_SESSION.to_string())
+                .await?
+                .iter()
+                .filter(|event| event.kind == EVENT_RUN_FAILED)
+                .count(),
+            0
+        );
 
         let replay: RunMutationResult = serde_json::from_value(
             runtime
@@ -2243,6 +2685,7 @@ mod tests {
         )?;
         assert!(replay.idempotent);
         assert_eq!(replay.run.record.status, RunStatus::Interrupted);
+        assert_eq!(replay.run.revision, 3);
         assert_eq!(driver.stops.load(Ordering::SeqCst), 2);
         assert_eq!(driver.active_leases.load(Ordering::SeqCst), 0);
         assert!(!registry
@@ -2286,7 +2729,7 @@ mod tests {
                 .map_err(protocol_error)?,
         )?;
         assert_eq!(stopped.run.record.status, RunStatus::Interrupted);
-        assert_eq!(stopped.run.revision, 2);
+        assert_eq!(stopped.run.revision, 3);
         assert_eq!(driver.stops.load(Ordering::SeqCst), 0);
         let events = store.list_session(&JOURNAL_SESSION.to_string()).await?;
         assert_eq!(
@@ -2301,7 +2744,7 @@ mod tests {
                 .iter()
                 .filter(|event| event.kind == EVENT_RUN_STOPPING)
                 .count(),
-            0
+            1
         );
         Ok(())
     }
@@ -2340,9 +2783,7 @@ mod tests {
             .await?
             .run
             .expect("Run starts");
-        let mut stopping = started.clone();
-        stopping.revision = 3;
-        stopping.record.status = RunStatus::Stopping;
+        let stopping = stopping_run(started.clone(), "explicit_stop");
         let original_request = RunStopRequest {
             installation_id: installation_id.clone(),
             run_id: started.record.run_id.clone(),
@@ -2424,9 +2865,7 @@ mod tests {
             .await?
             .run
             .expect("Run starts");
-        let mut stopping = started.clone();
-        stopping.revision = 3;
-        stopping.record.status = RunStatus::Stopping;
+        let stopping = stopping_run(started.clone(), "explicit_stop");
         let request = RunStopRequest {
             installation_id: installation_id.clone(),
             run_id: started.record.run_id.clone(),
@@ -2491,15 +2930,15 @@ mod tests {
             .await
             .expect_err("the first driver stop is injected to fail");
         assert!(first_error.message.contains("cleanup failed"));
-        let terminal = registry
+        let stopping = registry
             .get(plurora_runtime::RunGetRequest {
                 installation_id: installation_id.clone(),
                 run_id: started.record.run_id.clone(),
             })
             .await?
-            .expect("Stopped Run remains durable");
-        assert_eq!(terminal.record.status, RunStatus::Stopped);
-        assert_eq!(terminal.revision, 4);
+            .expect("Stopping Run remains durable");
+        assert_eq!(stopping.record.status, RunStatus::Stopping);
+        assert_eq!(stopping.revision, 3);
         assert_eq!(driver.stops.load(Ordering::SeqCst), 1);
         assert_eq!(driver.active_leases.load(Ordering::SeqCst), 1);
         assert!(registry
@@ -2507,6 +2946,15 @@ mod tests {
             .lock()
             .await
             .contains_key(&started.record.run_id));
+        assert_eq!(
+            store
+                .list_session(&JOURNAL_SESSION.to_string())
+                .await?
+                .iter()
+                .filter(|event| event.kind == EVENT_RUN_STOPPED)
+                .count(),
+            0
+        );
         let replacement = start(
             &runtime,
             &installation_id,
@@ -2528,7 +2976,8 @@ mod tests {
                 .map_err(protocol_error)?,
         )?;
         assert!(replay.idempotent);
-        assert_eq!(replay.run, terminal);
+        assert_eq!(replay.run.record.status, RunStatus::Stopped);
+        assert_eq!(replay.run.revision, 4);
         assert_eq!(driver.stops.load(Ordering::SeqCst), 2);
         assert_eq!(driver.active_leases.load(Ordering::SeqCst), 0);
         assert_eq!(
@@ -2552,7 +3001,7 @@ mod tests {
                 json!({
                     "installation_id": installation_id,
                     "run_id": started.record.run_id,
-                    "expected_revision": terminal.revision,
+                    "expected_revision": replay.run.revision,
                     "idempotency_key": "terminal-running-stop",
                 }),
             )
@@ -2575,6 +3024,344 @@ mod tests {
                 .count(),
             1
         );
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn run_stop_releases_apply_before_powerbox_cleanup_barrier() -> anyhow::Result<()> {
+        let inner = TestDriver::ready();
+        let powerbox = Arc::new(tokio::sync::Mutex::new(()));
+        let powerbox_held = Arc::new(tokio::sync::Notify::new());
+        let cleanup_entered = Arc::new(tokio::sync::Notify::new());
+        let store = Arc::new(InMemoryEventStore::default());
+        let registry = RunRegistry::new(store.clone());
+        registry
+            .install_driver(Arc::new(LockOrderDriver {
+                inner: inner.clone(),
+                powerbox: powerbox.clone(),
+                cleanup_entered: cleanup_entered.clone(),
+            }))
+            .unwrap();
+        let runtime = Arc::new(Runtime::new(
+            store,
+            RuntimeConfig {
+                run_control: registry.clone(),
+                ..RuntimeConfig::default()
+            },
+        ));
+        let installation_id = InstallationId::new();
+        let started = start(&runtime, &installation_id, 1, "lock-order-start")
+            .await?
+            .run
+            .expect("Run starts");
+
+        let holder = {
+            let registry = registry.clone();
+            let powerbox = powerbox.clone();
+            let powerbox_held = powerbox_held.clone();
+            let cleanup_entered = cleanup_entered.clone();
+            let installation_id = installation_id.clone();
+            let run_id = started.record.run_id.clone();
+            tokio::spawn(async move {
+                let powerbox_guard = powerbox.lock().await;
+                powerbox_held.notify_one();
+                cleanup_entered.notified().await;
+                let current = RunControl::get(
+                    registry.as_ref(),
+                    plurora_runtime::RunGetRequest {
+                        installation_id,
+                        run_id,
+                    },
+                )
+                .await?;
+                drop(powerbox_guard);
+                anyhow::ensure!(current.is_some(), "concurrent Run get lost durable state");
+                Ok::<(), anyhow::Error>(())
+            })
+        };
+        powerbox_held.notified().await;
+        let stopping = {
+            let runtime = runtime.clone();
+            let installation_id = installation_id.clone();
+            let run_id = started.record.run_id.clone();
+            tokio::spawn(async move {
+                runtime
+                    .call_protocol(
+                        &ProtocolContext::host_dev("powerbox-run-lock-order"),
+                        "host.run.stop",
+                        json!({
+                            "installation_id": installation_id,
+                            "run_id": run_id,
+                            "expected_revision": started.revision,
+                            "idempotency_key": "lock-order-stop",
+                        }),
+                    )
+                    .await
+                    .map_err(protocol_error)?;
+                Ok::<(), anyhow::Error>(())
+            })
+        };
+        tokio::time::timeout(std::time::Duration::from_secs(1), async {
+            holder.await??;
+            stopping.await??;
+            Ok::<(), anyhow::Error>(())
+        })
+        .await
+        .map_err(|_| anyhow!("Powerbox/Run lock order formed a cycle"))??;
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn different_installations_activate_concurrently_for_twenty_rounds() -> anyhow::Result<()>
+    {
+        for round in 0..20 {
+            let inner = TestDriver::ready();
+            let driver = Arc::new(ConcurrentActivationDriver {
+                inner: inner.clone(),
+                barrier: Arc::new(tokio::sync::Barrier::new(2)),
+                active: AtomicUsize::new(0),
+                max_active: AtomicUsize::new(0),
+            });
+            let store = Arc::new(InMemoryEventStore::default());
+            let registry = RunRegistry::new(store.clone());
+            registry.install_driver(driver.clone())?;
+            let runtime = Runtime::new(
+                store,
+                RuntimeConfig {
+                    run_control: registry,
+                    ..RuntimeConfig::default()
+                },
+            );
+            let installation_a = InstallationId::new();
+            let installation_b = InstallationId::new();
+            let key_a = format!("parallel-a-{round}");
+            let key_b = format!("parallel-b-{round}");
+            let (left, right) = tokio::time::timeout(std::time::Duration::from_secs(1), async {
+                tokio::join!(
+                    start(&runtime, &installation_a, 1, &key_a),
+                    start(&runtime, &installation_b, 1, &key_b),
+                )
+            })
+            .await
+            .map_err(|_| anyhow!("different Installation starts were globally serialized"))?;
+            let left = left?.run.expect("left Run starts");
+            let right = right?.run.expect("right Run starts");
+            assert_eq!(driver.max_active.load(Ordering::SeqCst), 2);
+            for (installation_id, run, key) in [
+                (installation_a, left, format!("parallel-stop-a-{round}")),
+                (installation_b, right, format!("parallel-stop-b-{round}")),
+            ] {
+                runtime
+                    .call_protocol(
+                        &ProtocolContext::host_dev("parallel-start-cleanup"),
+                        "host.run.stop",
+                        json!({
+                            "installation_id": installation_id,
+                            "run_id": run.record.run_id,
+                            "expected_revision": run.revision,
+                            "idempotency_key": key,
+                        }),
+                    )
+                    .await
+                    .map_err(protocol_error)?;
+            }
+        }
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn stop_can_terminalize_starting_while_activation_is_in_flight() -> anyhow::Result<()> {
+        let inner = TestDriver::ready();
+        let entered = Arc::new(tokio::sync::Barrier::new(2));
+        let release = Arc::new(tokio::sync::Barrier::new(2));
+        let store = Arc::new(InMemoryEventStore::default());
+        let registry = RunRegistry::new(store.clone());
+        registry.install_driver(Arc::new(GatedActivationDriver {
+            inner: inner.clone(),
+            entered: entered.clone(),
+            release: release.clone(),
+        }))?;
+        let runtime = Arc::new(Runtime::new(
+            store,
+            RuntimeConfig {
+                run_control: registry.clone(),
+                ..RuntimeConfig::default()
+            },
+        ));
+        let installation_id = InstallationId::new();
+        let starting_task = {
+            let runtime = runtime.clone();
+            let installation_id = installation_id.clone();
+            tokio::spawn(
+                async move { start(&runtime, &installation_id, 1, "in-flight-start").await },
+            )
+        };
+        entered.wait().await;
+        let starting = registry
+            .list(RunListRequest {
+                installation_id: Some(installation_id.clone()),
+                status: Some(RunStatus::Starting),
+            })
+            .await?
+            .pop()
+            .expect("Starting reservation is durable before activation");
+        let stopped: RunMutationResult = serde_json::from_value(
+            tokio::time::timeout(
+                std::time::Duration::from_secs(1),
+                runtime.call_protocol(
+                    &ProtocolContext::host_dev("in-flight-stop"),
+                    "host.run.stop",
+                    json!({
+                        "installation_id": installation_id,
+                        "run_id": starting.record.run_id,
+                        "expected_revision": starting.revision,
+                        "idempotency_key": "in-flight-stop",
+                    }),
+                ),
+            )
+            .await
+            .map_err(|_| anyhow!("stop was blocked behind the activation effect"))?
+            .map_err(protocol_error)?,
+        )?;
+        assert_eq!(stopped.run.record.status, RunStatus::Interrupted);
+        release.wait().await;
+        let start_result = starting_task.await??;
+        assert_eq!(
+            start_result
+                .run
+                .expect("terminal Run is returned")
+                .record
+                .status,
+            RunStatus::Interrupted
+        );
+        assert_eq!(inner.activations.load(Ordering::SeqCst), 1);
+        assert_eq!(inner.stops.load(Ordering::SeqCst), 1);
+        assert!(registry.active.lock().await.is_empty());
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn lost_start_cleanup_failure_retains_ownership_until_retry_releases_every_resource(
+    ) -> anyhow::Result<()> {
+        for round in 0..20 {
+            let inner = TestDriver::ready();
+            inner.fail_next_stop();
+            let activation_entered = Arc::new(tokio::sync::Barrier::new(2));
+            let activation_release = Arc::new(tokio::sync::Barrier::new(2));
+            let retry_entered = Arc::new(tokio::sync::Barrier::new(2));
+            let retry_release = Arc::new(tokio::sync::Barrier::new(2));
+            let store = Arc::new(InMemoryEventStore::default());
+            let registry = RunRegistry::new(store.clone());
+            registry.install_driver(Arc::new(GatedLostCleanupDriver {
+                inner: inner.clone(),
+                activation_entered: activation_entered.clone(),
+                activation_release: activation_release.clone(),
+                retry_entered: retry_entered.clone(),
+                retry_release: retry_release.clone(),
+            }))?;
+            let runtime = Arc::new(Runtime::new(
+                store.clone(),
+                RuntimeConfig {
+                    run_control: registry.clone(),
+                    ..RuntimeConfig::default()
+                },
+            ));
+            let installation_id = InstallationId::new();
+            let starting_task = {
+                let runtime = runtime.clone();
+                let installation_id = installation_id.clone();
+                tokio::spawn(async move {
+                    start(
+                        &runtime,
+                        &installation_id,
+                        1,
+                        &format!("lost-cleanup-start-{round}"),
+                    )
+                    .await
+                })
+            };
+            activation_entered.wait().await;
+            let starting = registry
+                .list(RunListRequest {
+                    installation_id: Some(installation_id.clone()),
+                    status: Some(RunStatus::Starting),
+                })
+                .await?
+                .pop()
+                .expect("Starting reservation is durable before activation");
+            let stopped: RunMutationResult = serde_json::from_value(
+                runtime
+                    .call_protocol(
+                        &ProtocolContext::host_dev("lost-cleanup-stop"),
+                        "host.run.stop",
+                        json!({
+                            "installation_id": installation_id,
+                            "run_id": starting.record.run_id,
+                            "expected_revision": starting.revision,
+                            "idempotency_key": format!("lost-cleanup-stop-{round}"),
+                        }),
+                    )
+                    .await
+                    .map_err(protocol_error)?,
+            )?;
+            assert_eq!(stopped.run.record.status, RunStatus::Interrupted);
+            activation_release.wait().await;
+            let start_error = starting_task
+                .await?
+                .expect_err("the first cleanup failure makes the start outcome unknown");
+            assert!(start_error.to_string().contains("outcome_unknown"));
+            retry_entered.wait().await;
+
+            assert_eq!(
+                registry
+                    .get(RunGetRequest {
+                        installation_id: installation_id.clone(),
+                        run_id: starting.record.run_id.clone(),
+                    })
+                    .await?
+                    .expect("terminal Run remains durable")
+                    .record
+                    .status,
+                RunStatus::Interrupted
+            );
+            assert_eq!(inner.active_leases.load(Ordering::SeqCst), 1);
+            assert_eq!(inner.active_sessions.load(Ordering::SeqCst), 1);
+            assert_eq!(inner.active_bindings.load(Ordering::SeqCst), 1);
+            assert_eq!(inner.active_generations.load(Ordering::SeqCst), 1);
+            let replacement = start(
+                &runtime,
+                &installation_id,
+                1,
+                &format!("lost-cleanup-replacement-{round}"),
+            )
+            .await
+            .expect_err("cleanup ownership blocks a replacement Run");
+            assert!(replacement.to_string().contains("active_run_exists"));
+
+            retry_release.wait().await;
+            tokio::time::timeout(std::time::Duration::from_secs(1), async {
+                while !registry.active.lock().await.is_empty() {
+                    tokio::task::yield_now().await;
+                }
+            })
+            .await
+            .map_err(|_| anyhow!("terminal activation cleanup retry did not finish"))?;
+            assert_eq!(inner.active_leases.load(Ordering::SeqCst), 0);
+            assert_eq!(inner.active_sessions.load(Ordering::SeqCst), 0);
+            assert_eq!(inner.active_bindings.load(Ordering::SeqCst), 0);
+            assert_eq!(inner.active_generations.load(Ordering::SeqCst), 0);
+            assert_eq!(inner.stops.load(Ordering::SeqCst), 2);
+            assert_eq!(
+                store
+                    .list_session(&JOURNAL_SESSION.to_string())
+                    .await?
+                    .iter()
+                    .filter(|event| event.kind == EVENT_RUN_FAILED)
+                    .count(),
+                1,
+                "cleanup retry must not duplicate the terminal Run event"
+            );
+        }
         Ok(())
     }
 
@@ -2743,18 +3530,17 @@ mod tests {
             (installation_a.clone(), run_a.record.run_id.clone()),
             (installation_b.clone(), run_b.record.run_id.clone()),
         ] {
-            let terminal = registry
+            let durable = registry
                 .get(plurora_runtime::RunGetRequest {
                     installation_id,
                     run_id,
                 })
                 .await?
-                .expect("package loss terminal remains durable");
-            assert_eq!(terminal.record.status, RunStatus::Failed);
-            assert_eq!(
-                terminal.record.health.reason_code.as_deref(),
-                Some("package_activation_lost")
-            );
+                .expect("package loss state remains durable");
+            assert!(matches!(
+                durable.record.status,
+                RunStatus::Stopping | RunStatus::Failed
+            ));
         }
         assert_eq!(
             store
@@ -2763,7 +3549,7 @@ mod tests {
                 .iter()
                 .filter(|event| event.kind == EVENT_RUN_FAILED)
                 .count(),
-            2
+            1
         );
 
         registry
@@ -2772,6 +3558,23 @@ mod tests {
         assert_eq!(driver.stops.load(Ordering::SeqCst), 3);
         assert_eq!(driver.active_leases.load(Ordering::SeqCst), 0);
         assert!(registry.active.lock().await.is_empty());
+        for (installation_id, run_id) in [
+            (installation_a, run_a.record.run_id),
+            (installation_b, run_b.record.run_id),
+        ] {
+            assert_eq!(
+                registry
+                    .get(plurora_runtime::RunGetRequest {
+                        installation_id,
+                        run_id,
+                    })
+                    .await?
+                    .expect("retried package loss Run")
+                    .record
+                    .status,
+                RunStatus::Failed
+            );
+        }
         assert_eq!(
             store
                 .list_session(&JOURNAL_SESSION.to_string())
@@ -2825,7 +3628,7 @@ mod tests {
         assert_eq!(interrupted.record.status, RunStatus::Interrupted);
         assert_eq!(
             interrupted.record.health.reason_code.as_deref(),
-            Some("package_activation_lost")
+            Some("outcome_unknown")
         );
         assert_eq!(untouched.record.status, RunStatus::Running);
         assert_eq!(driver.stops.load(Ordering::SeqCst), 0);
@@ -2925,7 +3728,7 @@ mod tests {
             .await?
             .unwrap();
         assert_eq!(terminal.record.status, RunStatus::Failed);
-        assert_eq!(terminal.revision, 3);
+        assert_eq!(terminal.revision, 4);
         assert_eq!(driver.stops.load(Ordering::SeqCst), 1);
         assert_eq!(
             store
@@ -3227,7 +4030,7 @@ mod tests {
             .await?
             .expect("recovered Run");
         assert_eq!(view.record.status, RunStatus::Interrupted);
-        assert_eq!(view.revision, 3);
+        assert_eq!(view.revision, 4);
         assert_eq!(recovery_driver.stops.load(Ordering::SeqCst), 0);
         Ok(())
     }
@@ -3252,7 +4055,7 @@ mod tests {
             .await?
             .expect("Starting is terminalized on restart");
         assert_eq!(view.record.status, RunStatus::Interrupted);
-        assert_eq!(view.revision, 2);
+        assert_eq!(view.revision, 3);
         assert_eq!(
             view.record.health.reason_code.as_deref(),
             Some("host_restart")

@@ -4,8 +4,8 @@
 
 Executable v1 contracts and the hostile conformance roadmap. These docs are backed by code and tests — not aspirational specs.
 
-- [`PUBLIC_CONTRACT.md`](PUBLIC_CONTRACT.en.md) — v1 public contract: 85 methods, 63 events, capability handles, Path A / Path B, SDKs, and conformance
-- [`CONTRACT_LAYERING_MATRIX.md`](CONTRACT_LAYERING_MATRIX.en.md) — candidate ownership matrix for the 85 methods, 63 events, and top-level schemas
+- [`PUBLIC_CONTRACT.md`](PUBLIC_CONTRACT.en.md) — v1 public contract: 92 methods, 69 events, capability handles, Path A / Path B, SDKs, and conformance
+- [`CONTRACT_LAYERING_MATRIX.md`](CONTRACT_LAYERING_MATRIX.en.md) — candidate ownership matrix for the 92 methods, 69 events, and top-level schemas
 - [`CONTRACT_REGISTRY.md`](CONTRACT_REGISTRY.en.md) — executable exact-ID registry and explicit contract/profile/version negotiation
 - [`OBJECT_STORE.md`](OBJECT_STORE.en.md) — Experimental SHA-256 ObjectStore, ArtifactDescriptor, asset conversion, and verified reads
 - [`EFFECT_RECEIPTS.md`](EFFECT_RECEIPTS.en.md) — Experimental EffectReceipt, terminal evidence, historical replay, and branch re-execution
@@ -17,7 +17,7 @@ Executable v1 contracts and the hostile conformance roadmap. These docs are back
 - [`v1/EVENT_KIND_REGISTRY.md`](v1/EVENT_KIND_REGISTRY.en.md) — v1 event kind registry
 - [`v1/ERROR_CODES.md`](v1/ERROR_CODES.en.md) — v1 error codes
 - [`v1/VERSIONING.md`](v1/VERSIONING.en.md) — v1 additive-only versioning strategy
-- [`v1/schemas/`](v1/schemas/) — 187 JSON Schemas (85 methods + 63 events + 39 top-level), the SDK source of truth
+- [`v1/schemas/`](v1/schemas/) — 200 JSON Schemas (92 methods + 69 events + 39 top-level), the SDK source of truth
 
 Run the full suite:
 
