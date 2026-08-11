@@ -31,15 +31,18 @@ develop.execute
 access_manage
 ```
 
-`deploy` 暂时只服务于尚未由 Realization 替换的旧 target/deployment 执行面，不进入默认设备 grant，并将在 Phase 6 删除。
+旧 `deploy` scope 已在 Phase 6 删除。底层 target/exec/port/proxy adapter 不是普通设备的部署权限；它们只对 HostAdmin/HostDev 或显式 `access_manage` 管理边界开放。Managed lifecycle 只通过 `realization.plan` / `realization.apply`。
 
-Phase 5 的 Exposure/Binding 方法已经使用这些 action：
+Exposure/Binding 与 Realization 方法使用这些 action：
 
 | Action | Methods | Exact resources |
 |---|---|---|
 | `observe` | `host.exposure.list`, `host.binding.list`, `host.binding.candidates` | 可见的 provider/consumer Installation、Run、Exposure、Binding 与 Port |
 | `exposure.manage` | `host.exposure.create`, `host.exposure.revoke` | provider Installation + Run + export Port；revoke 另含 exact Exposure |
 | `binding.manage` | `host.binding.select`, `host.binding.revoke` | consumer Installation + import Port + Exposure；revoke 另含 exact Binding；Runtime 可带 exact Run pin |
+| `realization.plan` | `host.realization.plan` | exact Installation + Target；只生成并持久化内容寻址 plan，不产生 target effect |
+| `observe` | `host.realization.list`, `host.realization.get` | list 按可见 Installation/Target/Realization 过滤；get 要求 exact Installation + Realization |
+| `realization.apply` | `host.realization.apply`, `stop`, `rollback`, `reconcile` | exact Installation + Target + current Realization；rollback 另要求 exact historic Realization |
 
 Port 的复合资源 ID 使用 `<installation-id>/<port-id>`。它只是 resource selector 的稳定拼接形式，不是 filesystem path、credential 或 handle。
 
@@ -122,6 +125,7 @@ HostOperationContext
 - Run start 要求 `run` 与精确 Installation。RunId 由 Host 在 preflight 后生成；后续 get/stop 必须同时携带 I/R，registry 先证明 Run 是该精确 Installation 的 child，才从父 selector 派生本次 exact child authority。该规则不跨 Installation，也不是第一方私有 bypass；Host restart 会把 active Run 标为 `interrupted`。
 - package surface 只能拿到短期、方法 allowlist 的衰减 handle，不能获得 root/device credential。
 - Binding runtime 只向选中的 Component 注入最小 handle；provider stop、Exposure revoke/expiry、owner revoke 或版本漂移会在每个 effect barrier 重新校验并使 Binding 失效。
+- Realization plan 固定 Installation revision、Target inventory 与 plan digest；apply/stop/rollback/reconcile 在每个 durable/effect 边界前重新验证当前 grant、exact resources、owner lease 与 revision。Plan 和 approval 不是 authority，private effect checkpoint 与 receipt 也不进入 public wire。
 
 ## 审计
 

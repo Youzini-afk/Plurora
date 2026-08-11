@@ -21,7 +21,7 @@ v1 契约支持两种参与方式：
 
 路径 A 适合需要平台 authority、network、secret、audit 与 SDK 的 Package。路径 B 适合只需要托管、不需要平台 authority 的自包含应用与工具。
 
-## 公开方法矩阵（92）
+## 公开方法矩阵（99）
 
 完整请求/响应 schema 位于 `docs/spec/v1/schemas/methods/`。方法名是稳定公开 API；v1 只允许 additive 变更。
 
@@ -179,6 +179,18 @@ Git 安装不是 transport primitive；它属于普通第一方 capability Packa
 | `host.run.stop` | implemented | `run` authority + exact Installation 与请求中的 Run child；registry 验证 I/R 归属，要求 expected Run revision 与幂等键，停止该 Run 的激活上下文并写入 terminal event，不卸载全局 Package。 |
 | `host.run.status` | implemented | `observe` + exact Installation；返回当前 Installation revision、active Run 概况，以及可选 entrypoint 的零副作用 preflight gaps；结果不授予 authority，start 会重验。 |
 
+### `host.realization.*`（7）
+
+| 方法 | 状态 | 契约 |
+|---|---:|---|
+| `host.realization.plan` | implemented | `realization.plan` + exact Installation/Target；读取已验证 Work、AssemblyLock、OperationalIntent 与 TargetInventory，纯编译并持久化 content-addressed `RealizationPlan`；不执行 target effect。 |
+| `host.realization.apply` | implemented | `realization.apply` + exact Installation/Target/Realization；重验 plan digest、Installation/Target preconditions、逐项风险 approval 与 current authority，然后经同一 typed Target operation path 执行并持久化资源和 receipt。 |
+| `host.realization.get` | implemented | `observe` + exact Installation/Realization；返回单个 durable `RealizationRevision`。 |
+| `host.realization.list` | implemented | `observe`；按可见 Installation、Realization 与可选 Target 过滤 durable projections。 |
+| `host.realization.stop` | implemented | `realization.apply` + exact Installation/Target/Realization；先持久化私有 stopping intent，关闭已记录资源，再提交公开 Stopped；重试续作而不重新猜测 live workspace。 |
+| `host.realization.rollback` | implemented | `realization.apply` + exact Installation/Target/current/historic Realization；只读取持久化 historic plan 与 approval，Host 生成 replacement ID；apply/stop 的私有 effect checkpoint 支持安全续作。 |
+| `host.realization.reconcile` | implemented | `realization.apply` + exact Installation/Target/Realization；只观察 Target truth，写入 receipt 和结构化 `outcome_unknown` / `recovery_required`，不隐式重放 apply。 |
+
 ### `host.*` / `identity.current`（4）
 
 | 方法 | 状态 | 契约 |
@@ -205,7 +217,7 @@ Git 安装不是 transport primitive；它属于普通第一方 capability Packa
 | `protocol.extension.describe` | planned | 描述单个 extension point。 |
 | `protocol.hook.list` | partial | 列出 hook subscriptions。 |
 
-## 事件类型矩阵（69）
+## 事件类型矩阵（76）
 
 完整 registry 见 [`v1/EVENT_KIND_REGISTRY.md`](v1/EVENT_KIND_REGISTRY.md)。事件 payload schema 位于 `docs/spec/v1/schemas/events/`。事件分组如下：
 
@@ -217,6 +229,7 @@ Git 安装不是 transport primitive；它属于普通第一方 capability Packa
 | Exposure lifecycle | 3 | `host/exposure.created`、`.revoked`、`.expired` |
 | Binding lifecycle | 3 | `host/binding.selected`、`.revoked`、`.expired` |
 | Run lifecycle | 5 | `host/run.starting`、`.started`、`.stopping`、`.stopped`、`.failed` |
+| Realization lifecycle | 7 | `host/realization.planned`、`.applying`、`.active`、`.stopped`、`.failed`、`.rolled_back`、`.reconciled` |
 | Capability lifecycle | 3 | `capability/invoked`、`capability/completed`、`capability/failed` |
 | Stream lifecycle | 7 | `capability/stream.started`、`.chunk`、`.progress`、`.ended`、`.error`、`.cancelled`、`.timeout` |
 | Authority | 3 | `authority/grant.created`、`authority/grant.revoked`、`authority/denied` |
@@ -307,13 +320,13 @@ v1 仅允许 additive 变更：新增可选字段、新增方法、新增事件�
 
 ## Schema 与错误码
 
-- 方法 schema：`docs/spec/v1/schemas/methods/`（92）。
-- 事件 schema：`docs/spec/v1/schemas/events/`（69）。
+- 方法 schema：`docs/spec/v1/schemas/methods/`（99）。
+- 事件 schema：`docs/spec/v1/schemas/events/`（76）。
 - 顶层 schema：`docs/spec/v1/schemas/*.schema.json`（39），包含 additive Protocol Commons、component/package-envelope、World Bundle、便携 Work / Assembly 契约、Host-local Installation / Run / Exposure / Binding / Realization wire record，以及 Installation state snapshot、decision receipt 与 authority evidence。
 - 错误码：[`v1/ERROR_CODES.md`](v1/ERROR_CODES.md)。
 - 事件 registry：[`v1/EVENT_KIND_REGISTRY.md`](v1/EVENT_KIND_REGISTRY.md)。
 
-200 个 schema 必须通过 `cargo run -p plurora-cli --bin validate-schemas`。
+214 个 schema 必须通过 `cargo run -p plurora-cli --bin validate-schemas`。
 
 ## 内容无关不变量
 
@@ -487,8 +500,8 @@ Surface contribution 是 Package 声明的 UI/UX 入口 descriptor。Runtime 保
 
 一个 v1 实现至少需要证明：
 
-1. 92 个方法 schema 可导出。
-2. 69 个事件 schema 可验证。
+1. 99 个方法 schema 可导出。
+2. 76 个事件 schema 可验证。
 3. 39 个顶层 schema 可验证。
 4. 方法 registry 与 dispatcher 一致。
 5. capability handle mint/attenuate/revoke/list 行为可测试。
@@ -520,7 +533,7 @@ Host operator 应能通过公开方法或 CLI 看见：
 | `capability.*` | 5 |
 | `change.*` | 6 |
 | `context.*` | 6 |
-| `host.*` | 52 |
+| `host.*` | 59 |
 | `identity.*` | 1 |
 | `journal.*` | 3 |
 | `object.*` | 3 |

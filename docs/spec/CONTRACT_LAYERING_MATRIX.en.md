@@ -22,7 +22,7 @@ It answers:
 | Code | Layer | Responsibility |
 |---|---|---|
 | `S` | Constitutional Substrate | Identity, authority, journal, objects, invocation, streams, receipts, causal lineage |
-| `H` | Host Control Plane | Installation, processes, targets, ports, proxies, secrets, deployment, local diagnostics |
+| `H` | Host Control Plane | Installations, processes, Targets, ports, proxies, secrets, Realizations, local diagnostics |
 | `C` | Protocol Commons | Shared semantic contracts, change workflow, projections, extension contracts |
 | `P` | Shell / Product Profile | Surface contributions, layout, interaction mapping, Product defaults |
 | `X` | Mixed boundary | Current behavior combines responsibilities from more than one layer |
@@ -31,12 +31,12 @@ It answers:
 
 ## Current factual baseline
 
-- 92 exact public method IDs and 92 method schemas.
-- 69 explicit platform-owned event kinds and 69 payload schemas.
-- 39 top-level schemas; 200 schemas total.
+- 99 exact public method IDs and 99 method schemas.
+- 76 explicit platform-owned event kinds and 76 payload schemas.
+- 39 top-level schemas; 214 schemas total.
 - Contract Registry `0.1.0` exposes one wire ID per method and no aliases.
 - Method IDs declare owner through their first dot segment.
-- Platform event ownership is explicit; all 69 kinds require writer `plurora/runtime`.
+- Platform event ownership is explicit; all 76 kinds require writer `plurora/runtime`.
 - Package event and capability IDs remain under the exact Package ID slash namespace.
 - Explicit contract and Protocol Commons negotiation occurs before dispatch and fails closed.
 
@@ -50,7 +50,7 @@ It answers:
 | `authority.*` | 7 | `S` | Handles, grants, revocation, decisions |
 | `object.*` | 3 | `S` / `H` | Put/get are substrate-shaped; global listing remains Host-shaped |
 | `identity.*` | 1 | `S` | Authenticated principal/context discovery |
-| `host.*` | 52 | `H` / `X` | Host-local operations; effects still depend on substrate authority and receipts |
+| `host.*` | 59 | `H` / `X` | Host-local operations; effects still depend on substrate authority and receipts |
 | `protocol.*` | 3 | `C` | Extension-contract discovery and subscriptions |
 | `change.*` | 6 | `C` | Approval-gated Change protocol facade |
 | `projection.*` | 4 | `C` | Derived-view protocol operations |
@@ -65,6 +65,7 @@ It answers:
 | Run lifecycle | 5 | `H`: durable Run journal and local activation |
 | Exposure lifecycle | 3 | `H`: explicit lease over provider Installation, Run, and export Port |
 | Binding lifecycle | 4 | `H`: consumer import Port, Exposure, and optional Run pin |
+| Realization lifecycle | 7 | `H`: pure planning, exact approval, Target effects, receipts, stop/rollback/reconcile |
 | target / exec / port / proxy | 17 | `H`, with `S` authority and receipt evidence |
 | outbound | 6 | `X`: Host network adapters plus `S` policy, secrets, streams, and receipts |
 | surface bundle resolution | 1 | `X`: Host serving plus Shell Profile interpretation |
@@ -81,6 +82,7 @@ A mixed classification does not create a private API. It identifies where implem
 | Exposure lifecycle | 3 | `H` |
 | Binding lifecycle | 3 | `H` |
 | Run lifecycle | 5 | `H` |
+| Realization lifecycle | 7 | `H` |
 | Capability and stream lifecycle | 10 | `S` |
 | Authority | 3 | `S` |
 | Object | 1 | `S` |

@@ -11,7 +11,8 @@ Capability-package authoring guides grouped by domain. Each one targets a class 
 - [`INSTALLATION_MODEL.md`](INSTALLATION_MODEL.en.md) — Work / Workspace / Installation boundaries, journal/projection, state update/removal, and Installation secret policy
 - [`RUN_LIBRARY.md`](RUN_LIBRARY.en.md) — Run journal, `host.run.*` lifecycle, structured gaps, and official Library affordances
 - [`POWERBOX_BINDING.md`](POWERBOX_BINDING.en.md) — Exposures, Powerbox candidate disclosure, cross-Installation Bindings, and runtime pins
-- [`DEPLOYMENT_RUNTIME.md`](DEPLOYMENT_RUNTIME.en.md) — target / exec / port / proxy deployment runtime, plurora-service reverse proxy, and Docker Deploy broker
+- [`REALIZATION.md`](REALIZATION.en.md) — pure planning, TargetInventory, `host.realization.*`, effect checkpoints, Docker/Agent backends, rollback, and reconcile
+- [`DEPLOYMENT_RUNTIME.md`](DEPLOYMENT_RUNTIME.en.md) — low-level target / exec / port / proxy adapters and reverse proxy used by the Realization executor
 - [`HOST_OPERATIONS.md`](HOST_OPERATIONS.en.md) — Host liveness/readiness, offline SQLite backup and atomic restore, and release verification
 - [`SECRET_MANAGEMENT.md`](SECRET_MANAGEMENT.en.md) — `secret_ref:env:` / `secret_ref:store:`, local encrypted secret store, and API key management
 - [`REAL_MODEL_END_TO_END.md`](REAL_MODEL_END_TO_END.en.md) — complete path from YdlTavern Send to a real model provider response

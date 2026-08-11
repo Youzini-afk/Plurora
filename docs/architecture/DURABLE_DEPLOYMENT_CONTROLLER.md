@@ -1,235 +1,114 @@
-# 可恢复部署控制器
+# 可恢复 Realization 控制器
 
 > [English](./DURABLE_DEPLOYMENT_CONTROLLER.en.md) · [中文](./DURABLE_DEPLOYMENT_CONTROLLER.md)
 
-状态：**Phase 5 Host-local Candidate 实现**。本页记录当前 Host 运行时仍保留的 transitional target/exec/port/proxy broker。它不是公开的 Project、old Composition 或 Deployment 身份；`DeploymentRevision` 等记录只表示 Host-local operation projection。Phase 5 Powerbox Exposure/Binding 已实现，Phase 6 Realization 的 plan/apply 与 `RealizationRevision` 仍 planned。独立的 canonical `host.deployment.*` API 与自动自愈 restart 尚未启用，不能把候选名称当作已暴露合同。
+状态：**Phase 6 Candidate 实现**。本页记录 `host.realization.*` 背后的 durable controller。它是 Host-owned mutable authority，不是 Constitutional Substrate，也不是 Project、old Composition 或 Deployment identity。旧 build-deploy、Installation-deployment 与 ChangeSet-deployment 路由已删除且没有 alias；target/exec/port/proxy 只保留为底层 Host adapter。
 
-当前实现：
+## 不变量
 
-- 单一连续 deployment journal 使用 sequence CAS，revision 激活同时按预期 parent revision fencing；
-- 构建输出在部署前解析为内容寻址的 Docker image ID；
-- build-deploy、recover、rollback 和按 Installation 归属的 direct operation 统一采用 candidate-first readiness、按 lease 守卫的 route promotion，以及日志提交后再排空旧实例；
-- 长部署 authority 在不持久化凭据的前提下进入日志，并在每个新副作用前与唯一 Host 控制面 lease 一起重新校验；
-- `local` 与 Agent 使用同一类型化 artifact transfer、declarative verifier、deployment apply/stop、operation ledger 与 receipt 合同；远端端口只绑定 loopback，流量只经认证 tunnel 返回 Host；
-- Verified ChangeSet 使用不可变 build-context artifact 创建 private preview，独立审批后提交 `VerifiedActivate` revision；recover/rollback 在记录的 target 上从 durable context 重建，不读取 workspace 或重新抓取源码；
-- 启动时先恢复 durable route，再投影 target-operation receipt，最后执行通用 broker reconcile；读取真实 ownership label、清理未提交 candidate，无法观测时保留 stale / `recovery_required` 而不假定资源消失；
-- GitHub CI 以真实 MDN 仓库和第二种 Python fixture 覆盖 candidate failure、显式 recover、Host crash/lease takeover/restart 投影与 rollback。
+- `RealizationPlan` 是纯、content-addressed 编译产物；plan 不调用 Target effect。
+- `RealizationRevision` 是 Host control journal 的 mutable projection；公开 Runtime journal 只接收经过脱敏的 lifecycle relay。
+- apply/stop/rollback/reconcile 在每个新 effect 前重新验证 Host owner lease、当前 grant、exact resources、revision 与 plan precondition。
+- journal replay 只重建 projection/continuation，不等于重做外部 effect。
+- local Docker 与 remote Target Agent 使用同一 typed operation、fencing、idempotency 与 receipt 语义。
+- Run、Exposure/Binding 与 Realization 是独立 lifecycle；任何一个都不能隐式创建、apply、stop 或 rebind 另一个。
 
-## 目标与不变量
-
-部署控制器维护用户声明的期望状态与 target 报告的实际状态，并通过可审计、幂等、有 fencing 的操作让两者收敛。
-
-必须始终成立：
-
-- Build 与 Deploy 分离；部署只消费不可变 artifact/image descriptor；
-- journal 可以重建控制面投影，但重放 journal 绝不等于重做副作用；
-- 已健康的 active revision 在 candidate 通过检查并成功激活前继续服务；
-- retry、cancel、recover 和 rollback 使用同一 operation/receipt 模型；
-- 自动重启来自持久 desired state 与明确 restart policy，不来自健康线程里的隐式命令；
-- target-specific Docker、端口和隧道细节不进入 constitutional substrate。
-
-## 领域记录
-
-### ArtifactDescriptor
-
-构建输出是不可变描述符：
+## Records
 
 ```text
-ArtifactDescriptor
-  digest
-  media_type
-  size?
-  source_revision?
-  build_descriptor_hash?
-  provenance_ref
-  created_at
+OperationalIntent (portable Work ref)
+TargetInventorySnapshot (Host-observed artifact)
+RealizationPlan (content-addressed pure result)
+  work_revision / assembly_lock / operational_intent / inventory
+  build_actions / launch_actions / state_actions / endpoint_actions
+  placements / transports / preconditions / required_authority / risk_summary
+
+RealizationRevision (Host projection)
+  realization_id / parent_realization_id?
+  installation_id / target_id / revision
+  plan_ref / plan_digest / status
+  actual_resources[] / receipt_refs[] / health
+  created_at / updated_at
 ```
 
-便利的 `build-deploy` API 可以保留，但内部必须先落下 terminal Build record 和 ArtifactDescriptor，再创建 DeploymentIntent。
+Plan 与 receipt artifact 进入 ObjectStore；journal 保存 refs 与 typed lifecycle facts。Credential、raw secret、绝对路径、raw stderr 与 live workspace 内容不进入公开 record/event。
 
-### DeploymentIntent
+## Planner
 
-用户希望运行的版本化期望状态：
+Planner 的输入固定 current Installation revision、WorkRevision、AssemblyLock、OperationalIntent 与 TargetInventorySnapshot。相同 canonical 输入产生相同 plan bytes/digest。它只接受 Intent 允许且 inventory 明确提供的 execution class；缺失 artifact/binding/capability、离线 Target、资源不足或 approval requirement 形成结构化 gap，不自动选择另一个 Target 或按 publisher 排序。
 
-```text
-DeploymentIntent
-  installation_ref
-  target_ref
-  generation
-  artifact_ref
-  executor_profile
-  env_secret_refs[]
-  mounts[]
-  ingress_spec
-  health_policy
-  restart_policy
-  rollout_strategy
-  created_by / authority_ref
-```
-
-Intent 不保存 secret 明文。每次修改创建更高 generation；历史 generation 不可变。
-
-### DeploymentRevision
-
-Revision 是 intent 的已解析快照，包含精确 artifact、route、lease、policy 和 provenance 引用。Rollback 选择以前的 revision 作为新 intent 的来源，而不是修改历史 revision。
-
-### DeploymentOperation
-
-```text
-DeploymentOperation
-  id
-  installation_ref / target_ref / generation
-  kind: apply | recover | rollback | stop | reconcile
-  phase
-  status
-  idempotency_key
-  lease_owner / lease_epoch / lease_expires_at
-  attempt / next_retry_at?
-  cancellation_requested_at?
-  correlation / causation
-```
-
-一个 Installation × target 同时只有一个可改变 active generation 的 operation。数据库 compare-and-append 或 CAS 获取 lease；旧 epoch 的 worker 和 target 请求必须被拒绝。
-
-### ObservedDeployment
-
-Observed state 来自 target，而不是由 intent 推断：实际执行实体、artifact digest、健康、端口、route、agent operation ledger、最后观测时间和 fencing epoch。未知、离线和不兼容是明确状态，不能伪装成 Failed 或 Removed。
+`host.realization.plan` 可以持久化 immutable artifacts 与 Planned revision，但 driver effect 计数必须保持零。
 
 ## Apply 状态机
 
 ```mermaid
 stateDiagram-v2
-  [*] --> Accepted
-  Accepted --> Materializing
-  Materializing --> StartingCandidate
-  StartingCandidate --> Probing
-  Probing --> Activating
-  Activating --> DrainingPrevious
-  DrainingPrevious --> Succeeded
-  Accepted --> Cancelled
-  Materializing --> Compensating
-  StartingCandidate --> Compensating
-  Probing --> Compensating
-  Activating --> Reconciling: outcome unknown
-  Compensating --> Failed
-  Reconciling --> Activating: candidate not active
-  Reconciling --> DrainingPrevious: candidate active
-  Reconciling --> NeedsAttention: truth unavailable
+  [*] --> Planned
+  Planned --> Applying: exact plan + approval + CAS
+  Applying --> Active: checkpoint + terminal commit
+  Applying --> Failed
+  Applying --> OutcomeUnknown
+  Applying --> RecoveryRequired
+  Active --> Stopping
+  Stopping --> Stopped: checkpoint + terminal commit
+  Active --> Applying: explicit rollback replacement
+  Applying --> RolledBack: replacement active + parent stopped
+  Active --> Degraded: observed drift
+  Degraded --> Active: explicit reconcile
 ```
 
-每个 operation step 只能在对应 terminal effect receipt 被持久化后前进。外部 effect 请求携带 operation id、step id、generation 和 lease epoch；重复请求返回相同结果或当前状态。
+Apply 只能消费 persisted `plan_ref`，approval 必须绑定 exact plan digest、有效期与每一项 risk acceptance。请求还固定 expected revision 与 idempotency key；同 key 同 fingerprint 重放，另一 fingerprint 冲突。一个 Installation × Target 的 active-changing operation 由 control journal CAS 与 Host owner lease fencing。
 
-## 安全激活
+## Effect checkpoint
 
-默认 HTTP 容器策略是 candidate-first：
-
-1. 保留 active revision、route 和 lease；
-2. 为 candidate 分配独立执行实体和实际端口；
-3. 根据声明式 policy 做 readiness 检查；
-4. 在一个控制面事务中把 route active pointer 切到 candidate；
-5. 观察激活结果并写 receipt；
-6. 排空、停止并回收 previous revision。
-
-激活前失败只清理 candidate。激活结果未知时不得直接停止任一版本，必须读取 route/target truth 后 reconcile。
-
-不是所有 workload 都支持双运行。`rollout_strategy` 初始只允许：
-
-- `candidate_first`：HTTP、可并行运行；
-- `recreate`：显式接受停机，适合不可并行资源。
-
-默认不得从 `candidate_first` 自动降级为 `recreate`。
-
-## Receipt 与副作用纪律
-
-每个外部动作产生结构化 EffectReceipt：
+外部 effect 与 Host journal 无法成为单一数据库事务。控制器因此在外部 effect 成功后、公开 terminal 前写 Host-private checkpoint：
 
 ```text
-EffectReceipt
-  operation_id / step_id / attempt
-  target_ref / lease_epoch
-  effect_kind
-  request_digest
-  terminal_status
-  observed_refs[]
-  started_at / finished_at
-  diagnostic_ref?
+host-private/realization.effect-applied
+host-private/realization.effect-stopped
+host-private/realization.stopping
 ```
 
-receipt 证明 target 报告了什么，不把不可信远端声明提升为绝对真相。控制器仍需用 target identity、fencing 和后续 observation 判断可信度。
+Checkpoint 携带 stable action/request digest、observed resource 与结构化 receipt facts。它不属于 76 个 public platform event，也不进入 Runtime journal/SSE。
 
-## 恢复与 reconcile
+- Applying + apply checkpoint：hydrate/same-key retry 只物化 receipt 并提交 Active，不重复 apply。
+- Stopping + stop checkpoint：只提交 Stopped，不重复 stop。
+- rollback replacement checkpoint 已存在而 parent stop 失败：继续 parent stop，不重新 apply replacement。
+- Applying 没有 checkpoint：重启后进入 `recovery_required`，不猜测 effect 成败。
+- 外部 effect 后连 control journal 也不可写：返回 `outcome_unknown`，等待显式 reconcile；不能伪造 terminal。
 
-Host 启动或 target 重连时：
+## Executor
 
-1. 从 journal 水化 intent、revision、operation、route pointer 和 receipt；
-2. 将未终止 operation 标记为 `Reconciling`，不立即重跑；
-3. 查询 target 的 observed entities 和 operation ledger；
-4. 比较 generation、artifact digest、step receipt 和 lease epoch；
-5. 确定继续、补偿、认领已完成效果或进入 `NeedsAttention`；
-6. 只有取得新 lease 后才能产生新 effect。
+首个 backend 支持 immutable OCI image 与 Dockerfile build。Build 先产生 content-addressed image；launch 使用 typed Target operation；实际 loopback port、route、container/workload identity 只从 receipt 进入 `actual_resources`。Agent 与 local driver 都校验 Target identity、lease/policy epoch、operation/step/request digest、Installation ownership 与 artifact digests，未知 operation 没有 shell fallback。
 
-默认 reconcile source 不能把“无法观测”解释为“实体不存在”。本地 Docker 与 remote agent 都必须提供实际 truth source；不可用时保守保留记录和资源引用。
+Host route 默认 `host_authenticated`；只有 plan/approval 明确选择 public policy 才公开。Target 端只绑定 loopback；remote traffic 经 authenticated reverse tunnel。
 
-## Restart policy
+## Stop、rollback 与 reconcile
 
-自动恢复在 apply/reconcile 稳定后单独开启：
+- stop 只作用于当前 revision 的 persisted `actual_resources`，先 stopping intent，再 checked effect/checkpoint，最后公开 Stopped。
+- rollback 读取 historic persisted plan 和新的 exact approval，创建新 RealizationId；不读取 live Workspace、不重新抓取源码，也不修改历史 revision。
+- reconcile 只观察 typed Target truth 并更新 health/resources/receipts；它不重新 apply。
+- Target offline/observation unavailable 不解释为资源不存在；保留 `outcome_unknown` / `recovery_required`。
 
-```text
-RestartPolicy
-  mode: never | on_failure | always
-  max_attempts
-  window
-  initial_backoff / max_backoff
-  reset_after_healthy
-```
+## Public contract
 
-健康监督器只更新 observed health 并发出审计事件。Controller 根据 desired state、policy 和 retry budget 创建新的 recover operation。超过预算进入 `CrashLoopBackoff`，等待人工操作或窗口重置。
+| Method | Action | Exact resources |
+|---|---|---|
+| `host.realization.plan` | `realization.plan` | Installation + Target |
+| `host.realization.get/list` | `observe` | visible Installation + Realization；list 可按 Target 过滤 |
+| `host.realization.apply/stop/reconcile` | `realization.apply` | Installation + Target + Realization |
+| `host.realization.rollback` | `realization.apply` | Installation + Target + current + historic Realization |
 
-## Retention 与 GC
+公开事件是 `planned/applying/active/stopped/failed/rolled_back/reconciled` 七种。Private checkpoint、grant basis 与 effect continuation 不公开。旧 `host.deployment.*` 不存在，也没有 compatibility alias。
 
-- active、previous、正在操作和显式保留 revision 的 artifact 不可 GC；
-- rollback 只有在 artifact、secret refs 和 executor compatibility 仍可满足时显示为可执行；
-- operation diagnostics 和日志通过 artifact refs 管理保留期；
-- orphan 扫描先产生候选与审计，再由策略或用户批准回收；
-- secret 生命周期独立于 artifact reachability。
+## Completion gate
 
-## 故障矩阵
+- planner deterministic 且 effect-free；
+- authority/revision/approval stale 或被撤销时 effect 为零；
+- 每个 effect/terminal 间 crash 可从 checkpoint 收敛且不重复 effect；
+- stop/rollback/reconcile 只消费 persisted plan/resources；
+- local 与 Agent driver 产生同语义 receipt；
+- Web、PWA、CLI 只用 public `host.realization.*`，关闭 UI 不 stop；
+- public events/schema/SDK/conformance 与 registry 单一事实源一致。
 
-| 故障点 | 必须行为 |
-|---|---|
-| candidate 启动失败 | active 不变；清理 candidate；operation Failed |
-| readiness 超时 | active 不变；保留有界诊断；补偿 candidate |
-| route 切换前 Host 崩溃 | 重启后查询 target/route，不重复创建 candidate |
-| route 切换响应丢失 | 进入 Reconciling，先确认 active pointer |
-| 切换成功后旧实例停止失败 | 新 revision 保持 active，记录 cleanup warning 并重试回收 |
-| target 离线 | operation Paused/Reconciling，不伪造 terminal receipt |
-| stale worker 恢复 | lease epoch 不匹配，所有 effect 被拒绝 |
-| rollback artifact 已 GC | 在创建 effect 前明确拒绝并解释缺失引用 |
-| Host 连续重启 | idempotency key 与 ledger 保证最多一个有效实体集合 |
-
-## 公共合同
-
-当前公开合同包括 Phase 5 Host Powerbox 方法/事件，以及 transitional `/host/v1/build-deploy`、Installation 级 recover/rollback、target operation 和 ChangeSet deployment preview/approve/activate/reconcile 路由。它们都属于 Host owner；不存在 kernel 部署编排方法。以下名称只是未来 Realization 可能收敛 facade 时的 canonical Host 候选，不是当前 endpoint：
-
-- `host.deployment.intent.get/apply/stop`；
-- `host.deployment.operation.get/list/cancel/reconcile`；
-- `host.deployment.revision.list/activate`；
-- `host.deployment.observe` 和 operation event stream。
-
-现有 build-deploy/recover/rollback 与 verified ChangeSet 路由作为 Host-local facade 映射到该模型；`platform.port/proxy/exec` 保持 adapter，不承担长期 orchestration。Managed Realization 属于 Phase 6 计划，并非已实现的 managed deployment 合同。
-
-## 当前边界
-
-当前 Candidate 已通过现有 facade 提供 durable journal/lease/receipt、local/Agent truth、candidate-first 激活、启动 reconcile、显式 recover/rollback 和客户端接线。它不宣称上面的候选 `host.deployment.*` 名称已成为公开 API，也不宣称 managed Realization 已完成。
-
-健康监督目前只更新 readiness、保留诊断并触发显式 reconcile；它不会自动重新部署。自动 restart 只有在部署意图、retry budget、backoff、fencing、审计和 `CrashLoopBackoff` 状态都形成可恢复合同时才可启用。
-
-## 完成门槛
-
-- 对每个状态转换执行 Host kill/restart，结果可收敛且无重复 effect；
-- 新 candidate 未健康时旧版本持续服务；
-- activation response 丢失、target 离线和 stale worker 均保守恢复；
-- recover、rollback、cancel 与 Host 启动 reconcile 共享 operation 与 receipt；
-- local target 与 remote Agent 通过同一语义 operation/receipt conformance。
-
-上述当前适用门槛由 GitHub CI 的本地故障矩阵、Remote Target Agent acceptance 与真实外部项目 Host operations acceptance 覆盖。自动 restart 的 retry-budget/CrashLoopBackoff 门槛尚未启用，不能由“健康监督已存在”推断为完成。
+产品使用说明见 [`../guides/REALIZATION.md`](../guides/REALIZATION.md)，Target wire 见 [`TARGET_AGENT_PROTOCOL.md`](TARGET_AGENT_PROTOCOL.md)。

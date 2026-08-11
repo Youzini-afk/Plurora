@@ -11,7 +11,8 @@
 - [`INSTALLATION_MODEL.md`](INSTALLATION_MODEL.md) — Work / Workspace / Installation 边界、journal/projection、state update/remove 与 Installation secret policy
 - [`RUN_LIBRARY.md`](RUN_LIBRARY.md) — Run journal、`host.run.*` 生命周期、结构化 gap 与官方 Library affordance
 - [`POWERBOX_BINDING.md`](POWERBOX_BINDING.md) — Exposure、Powerbox candidate disclosure、跨 Installation Binding 与 runtime pin
-- [`DEPLOYMENT_RUNTIME.md`](DEPLOYMENT_RUNTIME.md) — target / exec / port / proxy 部署运行时、plurora-service 反代、Docker Deploy broker
+- [`REALIZATION.md`](REALIZATION.md) — pure planner、TargetInventory、`host.realization.*`、effect checkpoint、Docker/Agent backend 与 rollback/reconcile
+- [`DEPLOYMENT_RUNTIME.md`](DEPLOYMENT_RUNTIME.md) — Realization executor 使用的 target / exec / port / proxy 低层 adapter 与反向代理
 - [`HOST_OPERATIONS.md`](HOST_OPERATIONS.md) — Host liveness/readiness、SQLite 离线备份与原子恢复、release 校验
 - [`SECRET_MANAGEMENT.md`](SECRET_MANAGEMENT.md) — `secret_ref:env:` / `secret_ref:store:`、本地加密 secret store 与 API key 管理
 - [`REAL_MODEL_END_TO_END.md`](REAL_MODEL_END_TO_END.md) — 从 YdlTavern Send 到真实模型 provider 响应的完整链路

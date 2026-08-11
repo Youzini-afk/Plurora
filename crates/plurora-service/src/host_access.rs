@@ -55,17 +55,12 @@ pub enum HostAccessScope {
     DevelopApprove,
     #[serde(rename = "develop.execute")]
     DevelopExecute,
-    /// Transitional Phase 3 scope for existing target/deployment methods.
-    /// Realization methods must migrate to `realization.plan` or
-    /// `realization.apply` before the Phase 6 boundary.
-    #[serde(rename = "deploy")]
-    Deploy,
     #[serde(rename = "access_manage")]
     AccessManage,
 }
 
 impl HostAccessScope {
-    pub const ALL: [Self; 12] = [
+    pub const ALL: [Self; 11] = [
         Self::Observe,
         Self::InstallationManage,
         Self::Run,
@@ -76,7 +71,6 @@ impl HostAccessScope {
         Self::DevelopPropose,
         Self::DevelopApprove,
         Self::DevelopExecute,
-        Self::Deploy,
         Self::AccessManage,
     ];
 
@@ -92,7 +86,6 @@ impl HostAccessScope {
             Self::DevelopPropose => "develop.propose",
             Self::DevelopApprove => "develop.approve",
             Self::DevelopExecute => "develop.execute",
-            Self::Deploy => "deploy",
             Self::AccessManage => "access_manage",
         }
     }
@@ -2154,7 +2147,6 @@ mod tests {
             (HostAccessScope::DevelopApprove, "develop.approve"),
             (HostAccessScope::DevelopExecute, "develop.execute"),
             (HostAccessScope::AccessManage, "access_manage"),
-            (HostAccessScope::Deploy, "deploy"),
         ];
         for (scope, wire_name) in scopes {
             assert_eq!(scope.as_str(), wire_name);

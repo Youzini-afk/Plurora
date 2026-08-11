@@ -52,7 +52,7 @@ The shell talks to the Host exclusively through published boundaries:
 
 - `POST /rpc` for all `platform.*` methods.
 - `GET /journal/subscribe/:session_id` (SSE) for event tails.
-- `/host/v1/*` for Host-owned deployment, controlled development, and scoped device-access workflows that deliberately remain outside Contract V1.
+- `/host/v1/*` for typed Target-Agent adapters, controlled development, and scoped device-access workflows that deliberately remain outside Contract V1.
 - `postMessage` bridge for surfaces mounted in sandboxed iframes.
 
 There is no SQLite access and no private runtime call. Shell-owned features that
@@ -75,7 +75,6 @@ src/
 │   ├── plurora-client.tsx       # PluroraProvider, usePlurora, useAsync, useEventTail
 │   ├── format.ts               # Shared display helpers (relative time, bytes, etc)
 │   ├── home-data.ts            # Legacy sample data helpers; production screens read host protocol
-│   ├── installation-deployment.ts   # Docker and Build & Deploy descriptor parsers for explicit deploy brokers
 │   └── cn.ts                   # clsx + tailwind-merge composer
 ├── components/
 │   ├── icons.tsx               # Phosphor re-exports with semantic names
@@ -103,6 +102,8 @@ src/
 │   │   ├── install-card.tsx
 │   │   ├── activity-timeline.tsx
 │   │   └── workshop-utilities.tsx
+│   ├── realization/
+│   │   └── realization-workbench.tsx # plan/apply/stop/rollback/reconcile with explicit approval
 │   └── install/
 │       ├── install-modal.tsx   # modal shell around install-lab flow
 │       ├── use-install-flow.ts # state machine + public capability calls
@@ -115,7 +116,7 @@ src/
 │   ├── home.tsx
 │   ├── home/                   # Library hooks/helpers (Installations, Runs, failure diagnostics)
 │   ├── pairing.tsx             # one-time HTTPS device pairing screen
-│   ├── installation-frame.tsx       # Work entrypoints, Run controls, and Run history
+│   ├── installation-frame.tsx       # Work entrypoints, Run/Powerbox controls, and Realization workbench
 │   └── settings/
 │       ├── index.tsx           # Tab dispatcher
 │       ├── api-connections.tsx # secret-store-lab wired
@@ -127,6 +128,7 @@ src/
 ├── client-core/
 │   ├── host-access.ts          # typed Host access REST boundary
 │   ├── powerbox.ts             # Exposure/Binding candidate and selection client
+│   ├── realization.ts          # effect-free plan and explicit Realization mutation helpers
 │   └── pairing-credential.ts   # immediate URL scrubbing + memory-only one-time token
 ├── protocol/
 │   └── client.ts               # PluroraProtocolClient — typed RPC + SSE wrappers
@@ -196,7 +198,7 @@ mode for legibility on bark backgrounds.
 | Settings — Host Access | `/host/v1/access*` identity, pairing, grant, and revoke APIs |
 | Installation tab | `host.installation.get` + `host.run.get/status`; Run controls use explicit `host.run.*` |
 | Powerbox | `host.exposure.*` + `host.binding.*` (Phase 5 public chooser) |
-| Transitional deployment | `platform.port.*` + `platform.proxy.*` (Realization remains Phase 6 planned) |
+| Realization | `host.realization.plan/apply/get/list/stop/rollback/reconcile`; shown only when Work declares OperationalIntent |
 | Install Modal | `host.installation.create` with a typed Installation DTO |
 | Failure Modal | `host.package.list/status/logs` redacted failure summaries |
 
@@ -216,10 +218,27 @@ quick actions are discovery affordances in the current slice; executable wiring
 must still cross proposal, permission, and audit boundaries.
 
 Run lifecycle uses only explicit `host.run.start|stop|status` calls. Starting a
-Run never invokes the transitional deployment broker, creates a managed
-Realization, or publishes a route. Phase 5 Exposure/Binding uses the public
-Powerbox chooser and exact Installation/Port/Run selectors; managed Realization
-plan/apply remains the Phase 6 boundary.
+Run never invokes Realization, builds an image, or publishes a route. Powerbox
+uses the public Exposure/Binding chooser and exact Installation/Port/Run
+selectors. Managed resources are a separate explicit flow through
+`host.realization.plan` followed by approval-bound `apply`; stop, rollback, and
+reconcile remain explicit revisioned actions.
+
+### Realization workbench
+
+The Installation frame renders the Realization workbench only when the Work
+declares OperationalIntent. Planning is effect-free and displays the stable plan
+digest, resource actions, target placement, risk/approval requirements, and
+structured gaps before an apply button becomes available. Apply binds the exact
+plan reference, digest, Installation revision, Target, approval decision, and
+idempotency key. The UI lists current and historical revisions and exposes
+explicit stop, rollback, and reconcile controls; it never treats closing a tab,
+starting a Run, or selecting a Binding as implicit apply/stop.
+
+Local Docker and enrolled Target Agents execute through the same typed Host
+Realization contract. Raw Target/exec/port/proxy adapters are not surfaced as a
+second lifecycle, and the retired deploy/build-deploy/Installation-deployment
+routes have no Web fallback.
 
 ### Powerbox chooser
 
@@ -333,6 +352,8 @@ Production hosting still needs a static fileserver route (deferred).
   — Surface bundle contract and mount lifecycle.
 - [`../../docs/guides/INSTALLATION_MODEL.md`](../../docs/guides/INSTALLATION_MODEL.md)
   — Work / Installation lifecycle and Home card semantics.
+- [`../../docs/guides/REALIZATION.md`](../../docs/guides/REALIZATION.md)
+  — OperationalIntent planning, approval, execution, recovery, and rollback.
 - [`../../docs/guides/SECRET_MANAGEMENT.md`](../../docs/guides/SECRET_MANAGEMENT.md)
   — `secret_ref` contract and platform/Installation scoping.
 - [`../../docs/architecture/HOST_REMOTE_ACCESS.md`](../../docs/architecture/HOST_REMOTE_ACCESS.md)

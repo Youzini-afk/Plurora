@@ -37,6 +37,13 @@ pub const EVENT_EXPOSURE_EXPIRED: &str = "host/exposure.expired";
 pub const EVENT_BINDING_SELECTED: &str = "host/binding.selected";
 pub const EVENT_BINDING_REVOKED: &str = "host/binding.revoked";
 pub const EVENT_BINDING_EXPIRED: &str = "host/binding.expired";
+pub const EVENT_REALIZATION_PLANNED: &str = "host/realization.planned";
+pub const EVENT_REALIZATION_APPLYING: &str = "host/realization.applying";
+pub const EVENT_REALIZATION_ACTIVE: &str = "host/realization.active";
+pub const EVENT_REALIZATION_STOPPED: &str = "host/realization.stopped";
+pub const EVENT_REALIZATION_FAILED: &str = "host/realization.failed";
+pub const EVENT_REALIZATION_ROLLED_BACK: &str = "host/realization.rolled_back";
+pub const EVENT_REALIZATION_RECONCILED: &str = "host/realization.reconciled";
 pub const EVENT_ASSET_PUT: &str = "object/put";
 pub const EVENT_PROJECTION_UPDATED: &str = "projection/updated";
 pub const EVENT_PROPOSAL_CREATED: &str = "change/proposal.created";
@@ -112,6 +119,13 @@ pub const PLATFORM_EVENT_KINDS: &[&str] = &[
     EVENT_BINDING_SELECTED,
     EVENT_BINDING_REVOKED,
     EVENT_BINDING_EXPIRED,
+    EVENT_REALIZATION_PLANNED,
+    EVENT_REALIZATION_APPLYING,
+    EVENT_REALIZATION_ACTIVE,
+    EVENT_REALIZATION_STOPPED,
+    EVENT_REALIZATION_FAILED,
+    EVENT_REALIZATION_ROLLED_BACK,
+    EVENT_REALIZATION_RECONCILED,
     EVENT_ASSET_PUT,
     EVENT_PROJECTION_UPDATED,
     EVENT_PROPOSAL_CREATED,

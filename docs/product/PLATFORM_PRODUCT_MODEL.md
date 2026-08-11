@@ -74,15 +74,15 @@
 
 ## 官方 Shell 的当前组织方式
 
-当前 Web/Desktop 发行版使用 Home、Settings、Project frame、项目控制台和可贡献 Surface 来组织体验。这是一套正在演化的官方产品结构，不是所有 Plurora 客户端的强制结构。
+当前 Web/Desktop 发行版使用 Home、Settings、Installation frame、Workbench 和可贡献 Surface 来组织体验。这是一套正在演化的官方产品结构，不是所有 Plurora 客户端的强制结构。
 
 - **Home / Library：** 发现、安装、启动和继续使用；
 - **Settings / Control：** Host、身份、权限、存储、连接和包管理；
-- **Project / App frame：** 承载某个安装实例自己的主要界面；
-- **Workbench / Console：** 诊断、创作、变更、部署和恢复等高级能力；
+- **Installation / App frame：** 承载某个安装实例自己的主要界面；
+- **Workbench / Console：** 诊断、创作、变更、Realization 和恢复等高级能力；
 - **Contextual assistance：** 在明确作用域内提供解释、建议与受控操作。
 
-第三方发行版可以没有 Home、没有 Project，或采用完全不同的根对象和导航。它只要遵守采用的公开合同与权限边界即可。
+第三方发行版可以没有 Home、没有 Library，或采用完全不同的根对象和导航。它只要遵守采用的公开合同与权限边界即可。
 
 ## Phase 5 Powerbox UX
 
@@ -92,11 +92,17 @@ Home/Library 负责 Work 与 Installation 的发现，Installation frame 提供 
 
 PWA/mobile 与 Desktop 复用同一 Host API；Host/Installation cache 隔离，关闭 tab、iframe 或 PWA 连接不会停止 Run，也不会撤销 Exposure/Binding。Surface 只有公开 allowlist bridge，没有 Powerbox private bridge 或第一方旁路。
 
-## Project 的产品边界
+## Phase 6 Realization UX
 
-Project 是当前官方 Host 与发行版用于组织可安装、可运行实例的实用模型。它适合应用、工作区和一部分体验，但不是 Plurora 上所有数据与交互的永久根对象。
+Installation frame 只在 Work 声明 OperationalIntent 时显示 Realization workbench。Plan 与 Apply 必须是两个可区分步骤：Plan 显示 exact Target、actions、preconditions、required authority 和每项 risk；用户逐项确认后才允许 Apply。Status、history、Stop 与 Reconcile 都显示真实 `RealizationRevision`，不把 UI 临时状态伪装为 Host truth。
 
-其他产品可以围绕 World、Document、Service、Workspace、Collection、Simulation 或自己的协议对象组织。通用基底不能要求所有这些对象伪装成 Project；Host 也不能因为管理 Project 就拥有其内容语义。
+0 个可满足 Target 显示结构化 gap；多个 Target 要求显式选择。关闭 frame 不会 stop，Run start 不会隐式 apply，rollback 不读取 live workspace。Local 与 Agent Target、第一方与第三方 Work 使用同一 plan/approval/receipt/authority 边界。
+
+## Work 与 Installation 的产品边界
+
+Work 是便携逻辑作品，Installation 是某台 Host 对 exact Work/Lock 的采用记录，Run 与 Realization 是彼此独立的运行/机器资源生命周期。它们都不是所有 Plurora 数据与交互的永久根对象。
+
+其他产品可以围绕 World、Document、Service、Workspace、Collection、Simulation 或自己的协议对象组织。通用基底不能要求这些对象伪装成 Installation；Host 也不能因为管理 Installation 就拥有其内容语义。
 
 ## 好用的原则
 
@@ -114,7 +120,7 @@ Project 是当前官方 Host 与发行版用于组织可安装、可运行实例
 
 ### 状态与恢复优先
 
-长期任务、远程连接、安装、更新、部署和迁移都必须可观察、可取消或可恢复。失败后不要求用户手工编辑数据库。
+长期任务、远程连接、安装、更新、Realization 和迁移都必须可观察、可取消或可恢复。失败后不要求用户手工编辑数据库。
 
 ### 数据管理是一等体验
 
@@ -147,4 +153,4 @@ Project 是当前官方 Host 与发行版用于组织可安装、可运行实例
 - 更换组件、客户端或 Host 时是否保留工作；
 - 新功能是否保持公开边界和第三方空间。
 
-具体当前状态见 [`../ALPHA_STATUS.md`](../ALPHA_STATUS.md)：Exposure、Binding 与 Powerbox 为 Phase 5 implemented，Managed Realization/部署编译仍是 Phase 6 planned；建设方向见 [`../roadmap/NEXT_STEPS.md`](../roadmap/NEXT_STEPS.md)。
+具体当前状态见 [`../ALPHA_STATUS.md`](../ALPHA_STATUS.md)：Exposure、Binding 与 Powerbox 为 Phase 5 implemented，Managed Realization 与部署编译为 Phase 6 implemented；建设方向见 [`../roadmap/NEXT_STEPS.md`](../roadmap/NEXT_STEPS.md)。

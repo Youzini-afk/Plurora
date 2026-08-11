@@ -119,11 +119,29 @@ await client.revokeBinding({
   idempotency_key: "binding-revoke-1",
   import_port: "save-import",
 });
+const realizationId = "11111111-1111-4111-8111-111111111111";
+const rollbackRealizationId = "22222222-2222-4222-8222-222222222222";
+const planRef = { artifact_type_uri: "urn:plurora:realization-plan:v1", media_type: "application/json", digest: "sha256:" + "e".repeat(64), size_bytes: 100 };
+const approval = { plan_digest: planRef.digest, decision: "approved", accepted_risks: ["public_endpoint"], decided_at: "2026-08-12T00:00:00.000Z" };
+await client.listRealizations({ installation_id: "installation-1", target_id: "local" });
+await client.getRealization({ installation_id: "installation-1", realization_id: realizationId });
+await client.planRealization({
+  installation_id: "installation-1",
+  expected_installation_revision: 5,
+  target_id: "local",
+  backends: [{ kind: "oci_image", workload_id: "server", execution_class: "oci-container.v1", image: "example/app@sha256:" + "f".repeat(64), container_port: 8080, port_name: "http", route_id: "installation-1-http", route_access: "host_authenticated", pull_if_missing: false }],
+  idempotency_key: "realization-plan-1",
+});
+await client.applyRealization({ installation_id: "installation-1", target_id: "local", realization_id: realizationId, expected_revision: 1, plan_ref: planRef, approval, idempotency_key: "realization-apply-1" });
+await client.stopRealization({ installation_id: "installation-1", target_id: "local", realization_id: realizationId, expected_revision: 2, idempotency_key: "realization-stop-1" });
+await client.rollbackRealization({ installation_id: "installation-1", target_id: "local", realization_id: realizationId, expected_revision: 3, rollback_to_realization_id: rollbackRealizationId, approval, idempotency_key: "realization-rollback-1" });
+await client.reconcileRealization({ installation_id: "installation-1", target_id: "local", realization_id: realizationId, expected_revision: 4, idempotency_key: "realization-reconcile-1" });
 
 const expectedMethods = [
   "host.installation.list", "host.installation.get", "host.installation.create", "host.installation.update",
   "host.exposure.list", "host.exposure.create", "host.exposure.revoke",
   "host.binding.list", "host.binding.candidates", "host.binding.select", "host.binding.revoke",
+  "host.realization.list", "host.realization.get", "host.realization.plan", "host.realization.apply", "host.realization.stop", "host.realization.rollback", "host.realization.reconcile",
 ];
 if (requests.map((request) => request.method).join(",") !== expectedMethods.join(",")) {
   throw new Error("RPC wrappers did not use the exact public Host methods");
@@ -142,6 +160,13 @@ const expectedBodies: Record<string, Record<string, unknown>> = {
   "host.binding.candidates": { consumer_installation_id: "installation-1", expected_consumer_installation_revision: 5, import_port: "save-import", phase: "launch" },
   "host.binding.select": { candidate_digest: "sha256:" + "d".repeat(64), consumer_installation_id: "installation-1", expected_consumer_installation_revision: 5, expected_exposure_revision: 2, expected_provider_installation_revision: 4, exposure_id: "exposure-1", idempotency_key: "binding-select-1", import_port: "save-import", phase: "launch", provider_installation_id: "installation-provider" },
   "host.binding.revoke": { binding_id: "binding-1", consumer_installation_id: "installation-1", expected_binding_revision: 3, expected_consumer_installation_revision: 5, exposure_id: "exposure-1", idempotency_key: "binding-revoke-1", import_port: "save-import" },
+  "host.realization.list": { installation_id: "installation-1", target_id: "local" },
+  "host.realization.get": { installation_id: "installation-1", realization_id: realizationId },
+  "host.realization.plan": { installation_id: "installation-1", expected_installation_revision: 5, target_id: "local", backends: [{ kind: "oci_image", workload_id: "server", execution_class: "oci-container.v1", image: "example/app@sha256:" + "f".repeat(64), container_port: 8080, port_name: "http", route_id: "installation-1-http", route_access: "host_authenticated", pull_if_missing: false }], idempotency_key: "realization-plan-1" },
+  "host.realization.apply": { installation_id: "installation-1", target_id: "local", realization_id: realizationId, expected_revision: 1, plan_ref: planRef, approval, idempotency_key: "realization-apply-1" },
+  "host.realization.stop": { installation_id: "installation-1", target_id: "local", realization_id: realizationId, expected_revision: 2, idempotency_key: "realization-stop-1" },
+  "host.realization.rollback": { installation_id: "installation-1", target_id: "local", realization_id: realizationId, expected_revision: 3, rollback_to_realization_id: rollbackRealizationId, approval, idempotency_key: "realization-rollback-1" },
+  "host.realization.reconcile": { installation_id: "installation-1", target_id: "local", realization_id: realizationId, expected_revision: 4, idempotency_key: "realization-reconcile-1" },
 };
 for (const [method, expected] of Object.entries(expectedBodies)) {
   const actual = requests.find((request) => request.method === method)?.params;

@@ -1267,6 +1267,22 @@ export type HostProxyRegisteredPayload = Record<string, unknown>;
 
 export type HostProxyUnregisteredPayload = Record<string, unknown>;
 
+export type HostRealizationListResult = Array<{
+  "activated_at"?: null | string;
+  "actual_resources"?: Array<RealizedResource>;
+  "created_at": string;
+  "health": RealizationHealth;
+  "installation_id": InstallationId;
+  "parent_realization_id"?: RealizationId | null;
+  "plan_ref": ArtifactDescriptor;
+  "realization_id": RealizationId;
+  "receipts"?: Array<ArtifactDescriptor>;
+  "revision": number;
+  "status": RealizationStatus;
+  "stopped_at"?: null | string;
+  "updated_at": string;
+}>;
+
 export type HostRunListResult = Array<{
   "entrypoint_id": string;
   "installation_revision": number;
@@ -1792,6 +1808,8 @@ export interface LocalExecStopResponse {
   "exec_id": string;
   "status": ExecStatus;
 }
+
+export type ManagedTargetBuildNetworkMode = "none" | "bridge";
 
 export type MethodStatus = "implemented" | "partial" | "planned";
 
@@ -2873,6 +2891,57 @@ export interface ReadinessProbe {
 
 export type ReadinessProbeKind = "none" | "tcp_port" | "http_get";
 
+export interface RealizationApplyRequest {
+  "approval": RealizationApproval;
+  "expected_revision": number;
+  "idempotency_key": string;
+  "installation_id": InstallationId;
+  "plan_ref": ArtifactDescriptor;
+  "realization_id": RealizationId;
+  "target_id": string;
+}
+
+export interface RealizationApproval {
+  "accepted_risks"?: Array<string>;
+  "decided_at": string;
+  "decision": string;
+  "expires_at"?: null | string;
+  "plan_digest": string;
+}
+
+export type RealizationBackendSelection = {
+  "build_context_ref": ArtifactDescriptor;
+  "build_descriptor_hash": string;
+  "container_port": number;
+  "dockerfile": string;
+  "execution_class": string;
+  "health_path"?: null | string;
+  "kind": "docker_build";
+  "network_mode": ManagedTargetBuildNetworkMode;
+  "port_name": string;
+  "route_access"?: ProxyRouteAccess;
+  "route_id": string;
+  "source_tree_digest": string;
+  "workload_id": string;
+  "workspace_id": WorkspaceId;
+} | {
+  "container_port": number;
+  "execution_class": string;
+  "health_path"?: null | string;
+  "image": string;
+  "kind": "oci_image";
+  "port_name": string;
+  "pull_if_missing"?: boolean;
+  "route_access"?: ProxyRouteAccess;
+  "route_id": string;
+  "workload_id": string;
+};
+
+export interface RealizationGetRequest {
+  "installation_id": InstallationId;
+  "realization_id": RealizationId;
+}
+
 export interface RealizationHealth {
   "evidence_refs"?: Array<ArtifactDescriptor>;
   "reason_code"?: null | string;
@@ -2880,6 +2949,24 @@ export interface RealizationHealth {
 }
 
 export type RealizationId = string;
+
+export interface RealizationLifecyclePayloadSchema {
+  "operation": string;
+  "realization": RealizationRevision;
+  "reason_code"?: null | string;
+  "target_id": string;
+}
+
+export interface RealizationListRequest {
+  "installation_id"?: InstallationId | null;
+  "target_id"?: null | string;
+}
+
+export interface RealizationMutationResult {
+  "gaps"?: Array<RealizationPlanningGap>;
+  "realization": RealizationRevision;
+  "replayed": boolean;
+}
 
 export interface RealizationPlan {
   "assembly_lock": ArtifactDescriptor;
@@ -2899,6 +2986,37 @@ export interface RealizationPlan {
   "work_revision": ArtifactDescriptor;
 }
 
+export interface RealizationPlanRequest {
+  "backends": Array<RealizationBackendSelection>;
+  "expected_installation_revision": number;
+  "idempotency_key": string;
+  "installation_id": InstallationId;
+  "target_id": string;
+}
+
+export interface RealizationPlanResult {
+  "gaps"?: Array<RealizationPlanningGap>;
+  "plan"?: RealizationPlan | null;
+  "plan_ref"?: ArtifactDescriptor | null;
+  "realization"?: RealizationRevision | null;
+  "replayed": boolean;
+}
+
+export interface RealizationPlanningGap {
+  "next_step": string;
+  "reason_code": string;
+  "target_id"?: null | string;
+  "workload_id"?: null | string;
+}
+
+export interface RealizationReconcileRequest {
+  "expected_revision": number;
+  "idempotency_key": string;
+  "installation_id": InstallationId;
+  "realization_id": RealizationId;
+  "target_id": string;
+}
+
 export interface RealizationRevision {
   "activated_at"?: null | string;
   "actual_resources"?: Array<RealizedResource>;
@@ -2909,10 +3027,31 @@ export interface RealizationRevision {
   "plan_ref": ArtifactDescriptor;
   "realization_id": RealizationId;
   "receipts"?: Array<ArtifactDescriptor>;
+  "revision": number;
   "status": RealizationStatus;
+  "stopped_at"?: null | string;
+  "updated_at": string;
+}
+
+export interface RealizationRollbackRequest {
+  "approval": RealizationApproval;
+  "expected_revision": number;
+  "idempotency_key": string;
+  "installation_id": InstallationId;
+  "realization_id": RealizationId;
+  "rollback_to_realization_id": RealizationId;
+  "target_id": string;
 }
 
 export type RealizationStatus = "planned" | "applying" | "active" | "degraded" | "stopping" | "stopped" | "failed" | "outcome_unknown" | "recovery_required";
+
+export interface RealizationStopRequest {
+  "expected_revision": number;
+  "idempotency_key": string;
+  "installation_id": InstallationId;
+  "realization_id": RealizationId;
+  "target_id": string;
+}
 
 export interface RealizedResource {
   "backend_id": string;
@@ -3520,6 +3659,8 @@ export interface WorkloadIntent {
   "restart_policy": RestartPolicy;
   "workload_id": string;
 }
+
+export type WorkspaceId = string;
 
 export interface WorldBundleArchive {
   "archive_format": string;

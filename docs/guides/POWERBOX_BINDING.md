@@ -2,7 +2,7 @@
 
 > [English](./POWERBOX_BINDING.en.md) · [中文](./POWERBOX_BINDING.md)
 
-本指南描述 Phase 5 已实现的跨 Installation Powerbox。它把 provider 的公开 Exposure 与 consumer 的 import Port 连接起来，但不把候选、偏好或 UI 变成执行权。Managed Realization、远程部署编译与 `host.realization.*` 仍属于 Phase 6，当前不能把它们描述成已实现的 managed deployment。
+本指南描述 Phase 5 已实现的跨 Installation Powerbox。它把 provider 的公开 Exposure 与 consumer 的 import Port 连接起来，但不把候选、偏好或 UI 变成执行权。Phase 6 已实现 Managed Realization 与 `host.realization.*`；Powerbox 仍不会隐式 plan、apply、deploy 或 rebind。
 
 ## 权威与隔离
 
@@ -89,7 +89,7 @@ Surface 只有显式 allowlist 的公开 bridge；没有 Powerbox private bridge
 
 ## 验证与边界
 
-Phase 5 的 6 个 conformance case 覆盖 method owner/status/typed DTO、action-before-effect、69-event payload、无 private authority、effect-free candidates/no auto-select，以及 launch/runtime exact Run pin：
+Phase 5 的 6 个 conformance case 覆盖 method owner/status/typed DTO、action-before-effect、76-event registry 中对应 payload、无 private authority、effect-free candidates/no auto-select，以及 launch/runtime exact Run pin：
 
 ```text
 powerbox.public_method_identity_owner_typed_dto
@@ -100,6 +100,6 @@ powerbox.candidates_effect_free_no_auto_select
 powerbox.launch_runtime_exact_run_pin
 ```
 
-生成输出与 schema/SDK 清洁检查使用本 Phase 生成链 hash `9c3923c6ffd365a3b7a0a5e64a177a9d89708e70e215e454bfd9b1a5098d6e94`。当前公开合同为 92 methods、69 events、39 top-level、200 schemas；Phase 6 Realization 仍为 planned。
+当前公开合同为 99 methods、76 events、39 top-level、214 schemas；Phase 6 Realization 已实现且不改变 Powerbox 的 least-authority 边界。
 
-相关文档：[`RUN_LIBRARY.md`](RUN_LIBRARY.md)、[`INSTALLATION_MODEL.md`](INSTALLATION_MODEL.md)、[`../architecture/HOST_RESOURCE_AUTHORITY.md`](../architecture/HOST_RESOURCE_AUTHORITY.md)、[`../spec/PUBLIC_CONTRACT.md`](../spec/PUBLIC_CONTRACT.md)。
+相关文档：[`RUN_LIBRARY.md`](RUN_LIBRARY.md)、[`REALIZATION.md`](REALIZATION.md)、[`INSTALLATION_MODEL.md`](INSTALLATION_MODEL.md)、[`../architecture/HOST_RESOURCE_AUTHORITY.md`](../architecture/HOST_RESOURCE_AUTHORITY.md)、[`../spec/PUBLIC_CONTRACT.md`](../spec/PUBLIC_CONTRACT.md)。

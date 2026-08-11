@@ -1031,22 +1031,6 @@ where
             "/host/v1/development/:subject_kind/:subject_id/changes/:change_set_id/recover",
             post(recover_change::<S>),
         )
-        .route(
-            "/host/v1/development/:subject_kind/:subject_id/changes/:change_set_id/deployment/preview",
-            post(create_deployment_preview::<S>),
-        )
-        .route(
-            "/host/v1/development/:subject_kind/:subject_id/changes/:change_set_id/deployment/approve",
-            post(approve_deployment::<S>),
-        )
-        .route(
-            "/host/v1/development/:subject_kind/:subject_id/changes/:change_set_id/deployment/activate",
-            post(activate_deployment::<S>),
-        )
-        .route(
-            "/host/v1/development/:subject_kind/:subject_id/changes/:change_set_id/deployment/reconcile",
-            post(reconcile_deployment::<S>),
-        )
 }
 
 async fn list_changes<S>(

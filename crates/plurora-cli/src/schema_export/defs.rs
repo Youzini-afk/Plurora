@@ -92,6 +92,13 @@ pub(crate) struct RunLifecyclePayloadSchema {
     run: RunView,
 }
 #[derive(JsonSchema)]
+pub(crate) struct RealizationLifecyclePayloadSchema {
+    realization: plurora_work::RealizationRevision,
+    target_id: String,
+    operation: String,
+    reason_code: Option<String>,
+}
+#[derive(JsonSchema)]
 pub(crate) struct ExposureLifecyclePayloadSchema {
     exposure: ExposureView,
 }

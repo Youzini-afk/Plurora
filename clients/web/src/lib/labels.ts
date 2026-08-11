@@ -326,8 +326,6 @@ export interface LocaleDictionary {
   installationFrameUpdatesAvailable: (count: number) => string;
   installationFrameUpdatesCurrent: string;
   installationFrameUpdateUnavailable: string;
-  installationFrameDeploymentMetric: string;
-  installationFrameDeploymentSummary: (targets: number, executions: number, running: number, ports: number, proxies: number) => string;
   installationFrameInstallationId: string;
   installationFrameInstallationType: string;
   installationFrameSession: string;
@@ -408,145 +406,6 @@ export interface LocaleDictionary {
   installationFrameDevelopmentApprove: string;
   installationFrameDevelopmentExecute: string;
   installationFrameDevelopmentRecover: string;
-  installationFrameDevelopmentDeploymentTitle: string;
-  installationFrameDevelopmentDeploymentDescription: string;
-  installationFrameDevelopmentDeploymentStatusPreparing: string;
-  installationFrameDevelopmentDeploymentStatusBuilding: string;
-  installationFrameDevelopmentDeploymentStatusPreviewing: string;
-  installationFrameDevelopmentDeploymentStatusActivating: string;
-  installationFrameDevelopmentDeploymentInvalidConfig: string;
-  installationFrameDevelopmentDeploymentPreview: string;
-  installationFrameDevelopmentDeploymentPreviewing: string;
-  installationFrameDevelopmentDeploymentPreviewConfirm: (targetId: string, routeId: string) => string;
-  installationFrameDevelopmentDeploymentPreviewStarted: string;
-  installationFrameDevelopmentDeploymentPreviewFailed: string;
-  installationFrameDevelopmentDeploymentSourceTree: string;
-  installationFrameDevelopmentDeploymentBuildContext: string;
-  installationFrameDevelopmentDeploymentCandidate: string;
-  installationFrameDevelopmentDeploymentOpenPreview: string;
-  installationFrameDevelopmentDeploymentApproveConfirm: (targetId: string, routeId: string, exposure: string) => string;
-  installationFrameDevelopmentDeploymentApproved: string;
-  installationFrameDevelopmentDeploymentRejected: string;
-  installationFrameDevelopmentDeploymentActivate: string;
-  installationFrameDevelopmentDeploymentActivating: string;
-  installationFrameDevelopmentDeploymentActivateConfirm: (targetId: string, routeId: string, exposure: string) => string;
-  installationFrameDevelopmentDeploymentActivated: string;
-  installationFrameDevelopmentDeploymentActivationFailed: string;
-  installationFrameDevelopmentDeploymentRecoveryHint: string;
-  installationFrameDevelopmentDeploymentReconcile: string;
-  installationFrameDevelopmentDeploymentReconciling: string;
-  installationFrameDevelopmentDeploymentReconcileConfirm: string;
-  installationFrameDevelopmentDeploymentReconciled: string;
-  installationFrameDevelopmentDeploymentReconciliationFailed: string;
-  installationFrameDevelopmentDeploymentOpenProduction: string;
-  installationFrameDeploymentSection: string;
-  installationFrameDeploymentDescription: string;
-  installationFrameRemoteTargetOperationsOnly: string;
-  installationFrameTargetOperations: string;
-  installationFrameTargetOperationEmpty: string;
-  installationFrameTargetOperationShowDetails: string;
-  installationFrameTargetOperationHideDetails: string;
-  installationFrameTargetOperationRevision: string;
-  installationFrameTargetOperationExecution: string;
-  installationFrameTargetOperationUpdatedAt: string;
-  installationFrameTargetOperationRequestDigest: string;
-  installationFrameTargetOperationAuthorityDigest: string;
-  installationFrameTargetOperationOutput: string;
-  installationFrameTargetOperationDiagnostics: string;
-  installationFrameTargetOperationNoDiagnostics: string;
-  installationFrameTargetOperationReceiptPending: string;
-  installationFrameTargetOperationShowingRecent: (shown: number, total: number) => string;
-  installationFrameDeploymentExecutions: string;
-  installationFrameDeploymentPortLeases: string;
-  installationFrameDeploymentProxyRoutes: string;
-  installationFrameDeploymentEmpty: string;
-  installationFrameDeploymentReady: string;
-  installationFrameDeploymentExitCode: string;
-  installationFrameDeploymentHistoryTitle: string;
-  installationFrameDeploymentHistoryDescription: string;
-  installationFrameDeploymentActiveRevision: string;
-  installationFrameDeploymentRecoveryRequired: string;
-  installationFrameDeploymentRecover: string;
-  installationFrameDeploymentRecovering: string;
-  installationFrameDeploymentRecoverConfirm: string;
-  installationFrameDeploymentRecoveredTitle: string;
-  installationFrameDeploymentRecoveryFailedTitle: string;
-  installationFrameDeploymentRevisionHistory: string;
-  installationFrameDeploymentRollback: string;
-  installationFrameDeploymentRollingBack: string;
-  installationFrameDeploymentRollbackConfirm: (revisionId: string) => string;
-  installationFrameDeploymentRolledBackTitle: string;
-  installationFrameDeploymentRollbackFailedTitle: string;
-  installationFrameDeploymentNotRecoverable: string;
-  installationFrameDeploymentNoActiveOnTarget: (targetId: string) => string;
-  installationFrameDeploymentJobHistory: string;
-  installationFrameDeploymentCreatedAt: string;
-  installationFrameDeploymentSourceCommit: string;
-  installationFrameDeploymentBuildDigest: string;
-  installationFrameDeploymentParentRevision: string;
-  installationFrameRouteExposure: string;
-  installationFrameRoutePrivate: string;
-  installationFrameRoutePrivateBody: string;
-  installationFrameRoutePublic: string;
-  installationFrameRoutePublicBody: string;
-  installationFrameRoutePublicWarning: string;
-  installationFrameDeployActionTitle: string;
-  installationFrameDeployActionDescription: string;
-  installationFrameDeployInvalidTitle: string;
-  installationFrameDeploy: string;
-  installationFrameDeploying: string;
-  installationFrameStopDeployment: string;
-  installationFrameStoppingDeployment: string;
-  installationFrameDeployImage: string;
-  installationFrameDeployContainerPort: string;
-  installationFrameDeployRouteId: string;
-  installationFrameDeployPortName: string;
-  installationFrameDeployHealthPath: string;
-  installationFrameDeployContainerId: string;
-  installationFrameDeployPullWarning: string;
-  installationFrameDeployActiveHint: string;
-  installationFrameDeployConfirm: (image: string) => string;
-  installationFrameStopDeploymentConfirm: (routeId: string) => string;
-  installationFrameDeploySuccessTitle: string;
-  installationFrameDeploySuccessBody: (routeId: string) => string;
-  installationFrameDeployFailedTitle: string;
-  installationFrameDeployFailedBody: string;
-  installationFrameStopDeploymentSuccessTitle: string;
-  installationFrameStopDeploymentPartialTitle: string;
-  installationFrameBuildDeployTitle: string;
-  installationFrameBuildDeployDescription: string;
-  installationFrameBuildDeployInvalidTitle: string;
-  installationFrameBuildDeployButton: string;
-  installationFrameBuildDeployRunning: string;
-  installationFrameBuildDeployCancel: string;
-  installationFrameBuildDeployCancelConfirmTitle: string;
-  installationFrameBuildDeployCancelConfirmBody: string;
-  installationFrameBuildDeployStrategy: string;
-  installationFrameBuildDeploySource: string;
-  installationFrameBuildDeployRef: string;
-  installationFrameBuildDeployEnv: string;
-  installationFrameBuildDeploySecretRef: string;
-  installationFrameBuildDeployPlainEnv: string;
-  installationFrameBuildDeployMounts: string;
-  installationFrameBuildDeployApproveMount: string;
-  installationFrameBuildDeployApproveRisk: string;
-  installationFrameBuildDeployHighRiskBadge: string;
-  installationFrameBuildDeployJob: string;
-  installationFrameBuildDeployTracker: string;
-  installationFrameBuildDeployCopyLogs: string;
-  installationFrameBuildDeployNoLogs: string;
-  installationFrameBuildDeployResultReady: string;
-  installationFrameBuildDeployResultFailed: string;
-  installationFrameBuildDeployResultCancelled: string;
-  installationFrameBuildDeployNewBuild: string;
-  installationFrameBuildDeployRestart: string;
-  installationFrameBuildDeployEditConfig: string;
-  installationFrameBuildDeployConfirm: (routeId: string) => string;
-  installationFrameBuildDeployStartedTitle: string;
-  installationFrameBuildDeployStartedBody: (jobId: string) => string;
-  installationFrameBuildDeployFailedTitle: string;
-  installationFrameBuildDeployCancelTitle: string;
-  installationFrameBuildDeployReady: (url: string) => string;
   installationFrameStatusReady: string;
   installationFrameStatusNotReady: string;
   installationFrameShowLogs: string;
@@ -716,8 +575,8 @@ export interface LocaleDictionary {
   accessScopeBindingManageBody: string;
   accessScopeExposureManage: string;
   accessScopeExposureManageBody: string;
-  accessScopeDeploy: string;
-  accessScopeDeployBody: string;
+  accessScopeRealization: string;
+  accessScopeRealizationBody: string;
   accessScopeDevelopPropose: string;
   accessScopeDevelopProposeBody: string;
   accessScopeDevelopApprove: string;
@@ -1255,9 +1114,6 @@ export const labels = {
     installationFrameUpdatesAvailable: (count) => `${count} update${count === 1 ? "" : "s"} available`,
     installationFrameUpdatesCurrent: "Up to date",
     installationFrameUpdateUnavailable: "Update check unavailable",
-    installationFrameDeploymentMetric: "Deployment",
-    installationFrameDeploymentSummary: (targets, executions, running, ports, proxies) =>
-      `${targets} targets · ${running}/${executions} exec running · ${ports} ports · ${proxies} proxies`,
     installationFrameInstallationId: "Installation ID",
     installationFrameInstallationType: "Type",
     installationFrameSession: "Session",
@@ -1338,146 +1194,6 @@ export const labels = {
     installationFrameDevelopmentApprove: "Approve",
     installationFrameDevelopmentExecute: "Execute",
     installationFrameDevelopmentRecover: "Reconcile",
-    installationFrameDevelopmentDeploymentTitle: "Verified deployment",
-    installationFrameDevelopmentDeploymentDescription: "Build the committed CAS context on the selected target, inspect its private preview, then approve and activate that exact candidate.",
-    installationFrameDevelopmentDeploymentStatusPreparing: "Preparing",
-    installationFrameDevelopmentDeploymentStatusBuilding: "Building",
-    installationFrameDevelopmentDeploymentStatusPreviewing: "Previewing",
-    installationFrameDevelopmentDeploymentStatusActivating: "Activating",
-    installationFrameDevelopmentDeploymentInvalidConfig: "Container port, port name, and route ID must be valid.",
-    installationFrameDevelopmentDeploymentPreview: "Create private preview",
-    installationFrameDevelopmentDeploymentPreviewing: "Preparing preview…",
-    installationFrameDevelopmentDeploymentPreviewConfirm: (targetId, routeId) => `Build and run this verified change on ${targetId} as a private preview for route ${routeId}?`,
-    installationFrameDevelopmentDeploymentPreviewStarted: "Private deployment preview started",
-    installationFrameDevelopmentDeploymentPreviewFailed: "Could not create deployment preview",
-    installationFrameDevelopmentDeploymentSourceTree: "Verified source tree",
-    installationFrameDevelopmentDeploymentBuildContext: "CAS build context",
-    installationFrameDevelopmentDeploymentCandidate: "Private candidate",
-    installationFrameDevelopmentDeploymentOpenPreview: "Open private preview",
-    installationFrameDevelopmentDeploymentApproveConfirm: (targetId, routeId, exposure) => `Approve the exact candidate and evidence shown here for target ${targetId}, route ${routeId}, with ${exposure} exposure?`,
-    installationFrameDevelopmentDeploymentApproved: "Deployment candidate approved",
-    installationFrameDevelopmentDeploymentRejected: "Deployment candidate rejected",
-    installationFrameDevelopmentDeploymentActivate: "Activate",
-    installationFrameDevelopmentDeploymentActivating: "Activating…",
-    installationFrameDevelopmentDeploymentActivateConfirm: (targetId, routeId, exposure) => `Atomically switch production route ${routeId} on target ${targetId} to this approved candidate with ${exposure} exposure?`,
-    installationFrameDevelopmentDeploymentActivated: "Verified deployment activated",
-    installationFrameDevelopmentDeploymentActivationFailed: "Could not activate verified deployment",
-    installationFrameDevelopmentDeploymentRecoveryHint: "This candidate requires reconciliation. Inspect its durable target operation and deployment revision before retrying.",
-    installationFrameDevelopmentDeploymentReconcile: "Reconcile outcome",
-    installationFrameDevelopmentDeploymentReconciling: "Reconciling…",
-    installationFrameDevelopmentDeploymentReconcileConfirm: "Reconcile durable target truth now? A matching committed activation will be adopted; otherwise an exactly identified uncertain candidate will be stopped and its Host resources cleaned. Effects without durable identity remain blocked for manual inspection.",
-    installationFrameDevelopmentDeploymentReconciled: "Deployment outcome reconciled",
-    installationFrameDevelopmentDeploymentReconciliationFailed: "Deployment still requires reconciliation",
-    installationFrameDevelopmentDeploymentOpenProduction: "Open production route",
-    installationFrameDeploymentSection: "Deployment",
-    installationFrameDeploymentDescription: "Read-only target, execution, port, and proxy diagnostics reported by the host.",
-    installationFrameRemoteTargetOperationsOnly:
-      "Verified artifact deployment, revision recovery, and diagnostics use this selected target. Legacy image and Git deployment actions remain local-only and are hidden here.",
-    installationFrameTargetOperations: "Target operations",
-    installationFrameTargetOperationEmpty: "No durable target operations have been recorded for this installation and target.",
-    installationFrameTargetOperationShowDetails: "Show details",
-    installationFrameTargetOperationHideDetails: "Hide details",
-    installationFrameTargetOperationRevision: "Operation revision",
-    installationFrameTargetOperationExecution: "Execution ID",
-    installationFrameTargetOperationUpdatedAt: "Updated",
-    installationFrameTargetOperationRequestDigest: "Request digest",
-    installationFrameTargetOperationAuthorityDigest: "Authority digest",
-    installationFrameTargetOperationOutput: "Receipt output",
-    installationFrameTargetOperationDiagnostics: "Terminal diagnostics",
-    installationFrameTargetOperationNoDiagnostics: "The terminal receipt contains no diagnostics.",
-    installationFrameTargetOperationReceiptPending: "No terminal receipt is available yet. Refresh to observe the next durable state.",
-    installationFrameTargetOperationShowingRecent: (shown, total) => `Showing the newest ${shown} of ${total} operations.`,
-    installationFrameDeploymentExecutions: "Executions",
-    installationFrameDeploymentPortLeases: "Port Leases",
-    installationFrameDeploymentProxyRoutes: "Proxy Routes",
-    installationFrameDeploymentEmpty: "No deployment records reported by the host.",
-    installationFrameDeploymentReady: "Ready",
-    installationFrameDeploymentExitCode: "Exit code",
-    installationFrameDeploymentHistoryTitle: "Durable deployment history",
-    installationFrameDeploymentHistoryDescription: "Host-owned revisions and job receipts survive restarts; recovery only replays secret references and other safe inputs.",
-    installationFrameDeploymentActiveRevision: "Active revision",
-    installationFrameDeploymentRecoveryRequired: "Recovery required",
-    installationFrameDeploymentRecover: "Recover",
-    installationFrameDeploymentRecovering: "Recovering…",
-    installationFrameDeploymentRecoverConfirm: "Recover the active revision from its durable receipt? The existing route resources will be cleaned up first.",
-    installationFrameDeploymentRecoveredTitle: "Deployment recovered",
-    installationFrameDeploymentRecoveryFailedTitle: "Deployment recovery failed",
-    installationFrameDeploymentRevisionHistory: "Revision history",
-    installationFrameDeploymentRollback: "Roll back",
-    installationFrameDeploymentRollingBack: "Rolling back…",
-    installationFrameDeploymentRollbackConfirm: (revisionId) => `Activate deployment revision ${revisionId}? The current deployment will be stopped first.`,
-    installationFrameDeploymentRolledBackTitle: "Deployment rolled back",
-    installationFrameDeploymentRollbackFailedTitle: "Deployment rollback failed",
-    installationFrameDeploymentNotRecoverable: "Manual rebuild required",
-    installationFrameDeploymentNoActiveOnTarget: (targetId) => `No active revision is running on target ${targetId}.`,
-    installationFrameDeploymentJobHistory: "Recent deployment jobs",
-    installationFrameDeploymentCreatedAt: "Created",
-    installationFrameDeploymentSourceCommit: "Source commit",
-    installationFrameDeploymentBuildDigest: "Build descriptor",
-    installationFrameDeploymentParentRevision: "Parent revision",
-    installationFrameRouteExposure: "Route exposure",
-    installationFrameRoutePrivate: "Host authenticated",
-    installationFrameRoutePrivateBody: "Only authenticated Host clients can reach this service through the managed /p route.",
-    installationFrameRoutePublic: "Public",
-    installationFrameRoutePublicBody: "Allow unauthenticated requests through the configured virtual-host domain.",
-    installationFrameRoutePublicWarning: "Public exposure bypasses Host authentication for this application route. Publish only services designed for the internet.",
-    installationFrameDeployActionTitle: "Explicit Docker deployment",
-    installationFrameDeployActionDescription: "Starts one prebuilt HTTP container using host-owned port and proxy resources.",
-    installationFrameDeployInvalidTitle: "Deployment metadata is invalid",
-    installationFrameDeploy: "Deploy",
-    installationFrameDeploying: "Deploying…",
-    installationFrameStopDeployment: "Stop deployment",
-    installationFrameStoppingDeployment: "Stopping…",
-    installationFrameDeployImage: "Image",
-    installationFrameDeployContainerPort: "Container port",
-    installationFrameDeployRouteId: "Route ID",
-    installationFrameDeployPortName: "Port name",
-    installationFrameDeployHealthPath: "Health path",
-    installationFrameDeployContainerId: "Container ID",
-    installationFrameDeployPullWarning: "This deployment may pull the image if it is missing. Only deploy trusted image references.",
-    installationFrameDeployActiveHint: "An active route, port lease, or tracked container is present for this descriptor.",
-    installationFrameDeployConfirm: (image) => `Deploy Docker image ${image}? This will lease a local port and start a container on this host.`,
-    installationFrameStopDeploymentConfirm: (routeId) => `Stop the host-managed deployment for route ${routeId}? Its active durable revision will be deactivated.`,
-    installationFrameDeploySuccessTitle: "Deployment started",
-    installationFrameDeploySuccessBody: (routeId) => `Proxy route ${routeId} is registered.`,
-    installationFrameDeployFailedTitle: "Deployment failed",
-    installationFrameDeployFailedBody: "Docker runtime lab or host resource setup failed.",
-    installationFrameStopDeploymentSuccessTitle: "Deployment stopped",
-    installationFrameStopDeploymentPartialTitle: "Deployment cleanup partially failed",
-    installationFrameBuildDeployTitle: "Build & Deploy",
-    installationFrameBuildDeployDescription: "Clone the installation workspace, build an image, then start it through the host deployment broker.",
-    installationFrameBuildDeployInvalidTitle: "Build-deploy metadata is invalid",
-    installationFrameBuildDeployButton: "Build & Deploy",
-    installationFrameBuildDeployRunning: "Running…",
-    installationFrameBuildDeployCancel: "Cancel job",
-    installationFrameBuildDeployCancelConfirmTitle: "Cancel build job?",
-    installationFrameBuildDeployCancelConfirmBody: "The host will stop after the current safe checkpoint and roll back any acquired deploy resources.",
-    installationFrameBuildDeployStrategy: "Strategy",
-    installationFrameBuildDeploySource: "Source",
-    installationFrameBuildDeployRef: "Ref",
-    installationFrameBuildDeployEnv: "Runtime env",
-    installationFrameBuildDeploySecretRef: "secret ref",
-    installationFrameBuildDeployPlainEnv: "plain",
-    installationFrameBuildDeployMounts: "Runtime mounts",
-    installationFrameBuildDeployApproveMount: "I've verified this path is correct",
-    installationFrameBuildDeployApproveRisk: "I approve read-write access",
-    installationFrameBuildDeployHighRiskBadge: "RW high risk",
-    installationFrameBuildDeployJob: "Job",
-    installationFrameBuildDeployTracker: "Build thread",
-    installationFrameBuildDeployCopyLogs: "Copy logs",
-    installationFrameBuildDeployNoLogs: "Waiting for job events…",
-    installationFrameBuildDeployResultReady: "Deployment ready",
-    installationFrameBuildDeployResultFailed: "Deployment failed",
-    installationFrameBuildDeployResultCancelled: "Deployment cancelled",
-    installationFrameBuildDeployNewBuild: "New Build",
-    installationFrameBuildDeployRestart: "Restart",
-    installationFrameBuildDeployEditConfig: "Edit Config",
-    installationFrameBuildDeployConfirm: (routeId) => `Build and deploy route ${routeId}? This may run Docker builds on the host.`,
-    installationFrameBuildDeployStartedTitle: "Build job started",
-    installationFrameBuildDeployStartedBody: (jobId) => `Tracking job ${jobId}.`,
-    installationFrameBuildDeployFailedTitle: "Build-deploy failed",
-    installationFrameBuildDeployCancelTitle: "Cancel requested",
-    installationFrameBuildDeployReady: (url) => `Ready at ${url}`,
     installationFrameStatusReady: "Ready",
     installationFrameStatusNotReady: "Not ready",
     installationFrameShowLogs: "Show logs",
@@ -1651,8 +1367,8 @@ export const labels = {
     accessScopeBindingManageBody: "Explicitly select or revoke providers for exact consumer Installation, Port, Exposure, and Binding selectors.",
     accessScopeExposureManage: "Manage Exposures",
     accessScopeExposureManageBody: "Create or revoke an exact provider Installation, Run, export Port, audience, and Exposure.",
-    accessScopeDeploy: "Deploy",
-    accessScopeDeployBody: "Build, deploy, recover, and manage runtime routes.",
+    accessScopeRealization: "Realization",
+    accessScopeRealizationBody: "Plan, apply, reconcile, roll back, and stop managed Realizations.",
     accessScopeDevelopPropose: "Propose changes",
     accessScopeDevelopProposeBody: "Draft and inspect controlled installation change sets.",
     accessScopeDevelopApprove: "Approve changes",
@@ -2192,9 +1908,6 @@ export const labels = {
     installationFrameUpdatesAvailable: (count) => `${count} 个更新可用`,
     installationFrameUpdatesCurrent: "已是最新",
     installationFrameUpdateUnavailable: "更新检查不可用",
-    installationFrameDeploymentMetric: "部署",
-    installationFrameDeploymentSummary: (targets, executions, running, ports, proxies) =>
-      `${targets} 个目标 · ${running}/${executions} 个执行运行中 · ${ports} 个端口 · ${proxies} 个代理`,
     installationFrameInstallationId: "项目 ID",
     installationFrameInstallationType: "类型",
     installationFrameSession: "会话",
@@ -2275,146 +1988,6 @@ export const labels = {
     installationFrameDevelopmentApprove: "批准",
     installationFrameDevelopmentExecute: "执行",
     installationFrameDevelopmentRecover: "对账恢复",
-    installationFrameDevelopmentDeploymentTitle: "已验证部署",
-    installationFrameDevelopmentDeploymentDescription: "在选定目标上构建已提交的 CAS 上下文，检查其私有预览，再批准并激活这个精确候选版本。",
-    installationFrameDevelopmentDeploymentStatusPreparing: "正在准备",
-    installationFrameDevelopmentDeploymentStatusBuilding: "正在构建",
-    installationFrameDevelopmentDeploymentStatusPreviewing: "正在生成预览",
-    installationFrameDevelopmentDeploymentStatusActivating: "正在激活",
-    installationFrameDevelopmentDeploymentInvalidConfig: "容器端口、端口名和路由 ID 必须有效。",
-    installationFrameDevelopmentDeploymentPreview: "创建私有预览",
-    installationFrameDevelopmentDeploymentPreviewing: "正在准备预览…",
-    installationFrameDevelopmentDeploymentPreviewConfirm: (targetId, routeId) => `在目标 ${targetId} 上构建并运行这个已验证变更，作为路由 ${routeId} 的私有预览？`,
-    installationFrameDevelopmentDeploymentPreviewStarted: "私有部署预览已启动",
-    installationFrameDevelopmentDeploymentPreviewFailed: "无法创建部署预览",
-    installationFrameDevelopmentDeploymentSourceTree: "已验证源码树",
-    installationFrameDevelopmentDeploymentBuildContext: "CAS 构建上下文",
-    installationFrameDevelopmentDeploymentCandidate: "私有候选版本",
-    installationFrameDevelopmentDeploymentOpenPreview: "打开私有预览",
-    installationFrameDevelopmentDeploymentApproveConfirm: (targetId, routeId, exposure) => `批准这里展示的精确候选版本与证据，用于目标 ${targetId} 的路由 ${routeId}，暴露范围为“${exposure}”？`,
-    installationFrameDevelopmentDeploymentApproved: "部署候选版本已批准",
-    installationFrameDevelopmentDeploymentRejected: "部署候选版本已拒绝",
-    installationFrameDevelopmentDeploymentActivate: "激活",
-    installationFrameDevelopmentDeploymentActivating: "正在激活…",
-    installationFrameDevelopmentDeploymentActivateConfirm: (targetId, routeId, exposure) => `将目标 ${targetId} 的生产路由 ${routeId} 原子切换到这个已批准候选版本，暴露范围为“${exposure}”？`,
-    installationFrameDevelopmentDeploymentActivated: "已验证部署已激活",
-    installationFrameDevelopmentDeploymentActivationFailed: "无法激活已验证部署",
-    installationFrameDevelopmentDeploymentRecoveryHint: "该候选版本需要对账。重试前请先检查它的持久化目标操作与部署修订。",
-    installationFrameDevelopmentDeploymentReconcile: "对账处理",
-    installationFrameDevelopmentDeploymentReconciling: "正在对账…",
-    installationFrameDevelopmentDeploymentReconcileConfirm: "现在根据持久化目标事实进行对账？若存在完全匹配且已提交的激活修订，将直接采纳；否则会停止能够被精确识别的不确定候选版本并清理其 Host 资源。缺少持久身份的效果仍会阻断并等待人工核验。",
-    installationFrameDevelopmentDeploymentReconciled: "部署结果已完成对账",
-    installationFrameDevelopmentDeploymentReconciliationFailed: "部署仍需要对账",
-    installationFrameDevelopmentDeploymentOpenProduction: "打开生产路由",
-    installationFrameDeploymentSection: "部署",
-    installationFrameDeploymentDescription: "主机报告的只读目标、执行、端口和代理诊断。",
-    installationFrameRemoteTargetOperationsOnly:
-      "已验证制品部署、修订恢复和诊断会使用当前选定目标；旧版镜像与 Git 部署仍仅限本机，因此在此隐藏。",
-    installationFrameTargetOperations: "目标操作",
-    installationFrameTargetOperationEmpty: "该项目与目标尚无持久化操作记录。",
-    installationFrameTargetOperationShowDetails: "显示详情",
-    installationFrameTargetOperationHideDetails: "隐藏详情",
-    installationFrameTargetOperationRevision: "操作修订",
-    installationFrameTargetOperationExecution: "执行 ID",
-    installationFrameTargetOperationUpdatedAt: "更新时间",
-    installationFrameTargetOperationRequestDigest: "请求摘要",
-    installationFrameTargetOperationAuthorityDigest: "授权摘要",
-    installationFrameTargetOperationOutput: "回执输出",
-    installationFrameTargetOperationDiagnostics: "终态诊断",
-    installationFrameTargetOperationNoDiagnostics: "终态回执没有诊断信息。",
-    installationFrameTargetOperationReceiptPending: "当前还没有终态回执；刷新后可查看下一项持久状态。",
-    installationFrameTargetOperationShowingRecent: (shown, total) => `显示最新 ${shown} 项，共 ${total} 项操作。`,
-    installationFrameDeploymentExecutions: "执行",
-    installationFrameDeploymentPortLeases: "端口租约",
-    installationFrameDeploymentProxyRoutes: "代理路由",
-    installationFrameDeploymentEmpty: "主机未报告部署记录。",
-    installationFrameDeploymentReady: "就绪",
-    installationFrameDeploymentExitCode: "退出码",
-    installationFrameDeploymentHistoryTitle: "持久化部署历史",
-    installationFrameDeploymentHistoryDescription: "主机拥有的修订与任务回执会跨重启保留；恢复只会重放密钥引用等安全输入。",
-    installationFrameDeploymentActiveRevision: "活动修订",
-    installationFrameDeploymentRecoveryRequired: "需要恢复",
-    installationFrameDeploymentRecover: "恢复",
-    installationFrameDeploymentRecovering: "正在恢复…",
-    installationFrameDeploymentRecoverConfirm: "根据持久化回执恢复活动修订？主机会先清理现有路由资源。",
-    installationFrameDeploymentRecoveredTitle: "部署已恢复",
-    installationFrameDeploymentRecoveryFailedTitle: "部署恢复失败",
-    installationFrameDeploymentRevisionHistory: "修订历史",
-    installationFrameDeploymentRollback: "回滚",
-    installationFrameDeploymentRollingBack: "正在回滚…",
-    installationFrameDeploymentRollbackConfirm: (revisionId) => `激活部署修订 ${revisionId}？当前部署会先被停止。`,
-    installationFrameDeploymentRolledBackTitle: "部署已回滚",
-    installationFrameDeploymentRollbackFailedTitle: "部署回滚失败",
-    installationFrameDeploymentNotRecoverable: "需要手动重新构建",
-    installationFrameDeploymentNoActiveOnTarget: (targetId) => `目标 ${targetId} 当前没有活动修订。`,
-    installationFrameDeploymentJobHistory: "近期部署任务",
-    installationFrameDeploymentCreatedAt: "创建时间",
-    installationFrameDeploymentSourceCommit: "来源提交",
-    installationFrameDeploymentBuildDigest: "构建描述摘要",
-    installationFrameDeploymentParentRevision: "父修订",
-    installationFrameRouteExposure: "路由暴露范围",
-    installationFrameRoutePrivate: "需要 Host 认证",
-    installationFrameRoutePrivateBody: "只有已认证的 Host 客户端可通过托管的 /p 路由访问此服务。",
-    installationFrameRoutePublic: "公开访问",
-    installationFrameRoutePublicBody: "允许未经认证的请求通过已配置的虚拟主机域名访问。",
-    installationFrameRoutePublicWarning: "公开访问会绕过该应用路由的 Host 认证。请只发布已按互联网暴露场景设计的服务。",
-    installationFrameDeployActionTitle: "显式 Docker 部署",
-    installationFrameDeployActionDescription: "使用主机拥有的端口和代理资源启动一个预构建 HTTP 容器。",
-    installationFrameDeployInvalidTitle: "部署元数据无效",
-    installationFrameDeploy: "部署",
-    installationFrameDeploying: "正在部署…",
-    installationFrameStopDeployment: "停止部署",
-    installationFrameStoppingDeployment: "正在停止…",
-    installationFrameDeployImage: "镜像",
-    installationFrameDeployContainerPort: "容器端口",
-    installationFrameDeployRouteId: "路由 ID",
-    installationFrameDeployPortName: "端口名",
-    installationFrameDeployHealthPath: "健康路径",
-    installationFrameDeployContainerId: "容器 ID",
-    installationFrameDeployPullWarning: "如果缺少镜像，此部署可能会拉取镜像。请只部署可信镜像引用。",
-    installationFrameDeployActiveHint: "该描述符已有活动路由、端口租约或已跟踪容器。",
-    installationFrameDeployConfirm: (image) => `部署 Docker 镜像 ${image}？这将在此主机上租用本地端口并启动容器。`,
-    installationFrameStopDeploymentConfirm: (routeId) => `停止路由 ${routeId} 的主机托管部署？其活动持久化修订也会被停用。`,
-    installationFrameDeploySuccessTitle: "部署已启动",
-    installationFrameDeploySuccessBody: (routeId) => `代理路由 ${routeId} 已注册。`,
-    installationFrameDeployFailedTitle: "部署失败",
-    installationFrameDeployFailedBody: "Docker runtime lab 或主机资源设置失败。",
-    installationFrameStopDeploymentSuccessTitle: "部署已停止",
-    installationFrameStopDeploymentPartialTitle: "部署清理部分失败",
-    installationFrameBuildDeployTitle: "构建并部署",
-    installationFrameBuildDeployDescription: "克隆项目工作区、构建镜像，然后通过主机部署代理启动。",
-    installationFrameBuildDeployInvalidTitle: "构建部署元数据无效",
-    installationFrameBuildDeployButton: "构建并部署",
-    installationFrameBuildDeployRunning: "运行中…",
-    installationFrameBuildDeployCancel: "取消任务",
-    installationFrameBuildDeployCancelConfirmTitle: "取消构建任务？",
-    installationFrameBuildDeployCancelConfirmBody: "主机会在下一个安全检查点停止，并回滚已获取的部署资源。",
-    installationFrameBuildDeployStrategy: "策略",
-    installationFrameBuildDeploySource: "来源",
-    installationFrameBuildDeployRef: "引用",
-    installationFrameBuildDeployEnv: "运行时环境变量",
-    installationFrameBuildDeploySecretRef: "密钥引用",
-    installationFrameBuildDeployPlainEnv: "明文",
-    installationFrameBuildDeployMounts: "运行时挂载",
-    installationFrameBuildDeployApproveMount: "我已确认此路径正确",
-    installationFrameBuildDeployApproveRisk: "我批准读写访问",
-    installationFrameBuildDeployHighRiskBadge: "读写高风险",
-    installationFrameBuildDeployJob: "任务",
-    installationFrameBuildDeployTracker: "构建线程",
-    installationFrameBuildDeployCopyLogs: "复制日志",
-    installationFrameBuildDeployNoLogs: "等待任务事件…",
-    installationFrameBuildDeployResultReady: "部署已就绪",
-    installationFrameBuildDeployResultFailed: "部署失败",
-    installationFrameBuildDeployResultCancelled: "部署已取消",
-    installationFrameBuildDeployNewBuild: "新构建",
-    installationFrameBuildDeployRestart: "重新启动",
-    installationFrameBuildDeployEditConfig: "编辑配置",
-    installationFrameBuildDeployConfirm: (routeId) => `构建并部署路由 ${routeId}？这可能会在主机上运行 Docker 构建。`,
-    installationFrameBuildDeployStartedTitle: "构建任务已启动",
-    installationFrameBuildDeployStartedBody: (jobId) => `正在跟踪任务 ${jobId}。`,
-    installationFrameBuildDeployFailedTitle: "构建部署失败",
-    installationFrameBuildDeployCancelTitle: "已请求取消",
-    installationFrameBuildDeployReady: (url) => `已就绪：${url}`,
     installationFrameStatusReady: "已就绪",
     installationFrameStatusNotReady: "未就绪",
     installationFrameShowLogs: "显示日志",
@@ -2586,8 +2159,8 @@ export const labels = {
     accessScopeBindingManageBody: "针对准确的消费方 Installation、Port、Exposure 和 Binding 显式选择或撤销提供方。",
     accessScopeExposureManage: "管理 Exposure",
     accessScopeExposureManageBody: "针对准确的提供方 Installation、Run、导出 Port、受众和 Exposure 创建或撤销暴露。",
-    accessScopeDeploy: "部署",
-    accessScopeDeployBody: "构建、部署、恢复并管理运行时路由。",
+    accessScopeRealization: "Realization",
+    accessScopeRealizationBody: "规划、应用、对账、回滚和停止托管 Realization。",
     accessScopeDevelopPropose: "提出变更",
     accessScopeDevelopProposeBody: "起草并查看受控项目变更集。",
     accessScopeDevelopApprove: "审批变更",

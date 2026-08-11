@@ -176,8 +176,24 @@
       },
       "type": "array"
     },
+    "revision": {
+      "format": "uint64",
+      "minimum": 0.0,
+      "type": "integer"
+    },
     "status": {
       "$ref": "#/$defs/RealizationStatus"
+    },
+    "stopped_at": {
+      "format": "date-time",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "updated_at": {
+      "format": "date-time",
+      "type": "string"
     }
   },
   "required": [
@@ -186,7 +202,9 @@
     "installation_id",
     "plan_ref",
     "realization_id",
-    "status"
+    "revision",
+    "status",
+    "updated_at"
   ],
   "title": "RealizationRevision",
   "type": "object"

@@ -29,6 +29,7 @@ mod project_intake_lab;
 mod proposals;
 mod protocol;
 mod protocol_installation;
+mod realization;
 mod registry;
 mod replacement;
 mod run;

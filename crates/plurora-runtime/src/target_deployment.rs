@@ -117,7 +117,7 @@ pub struct ManagedTargetDeploymentApply {
     pub operation_id: String,
 }
 
-#[derive(Debug, Clone, Copy, Deserialize, Serialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Deserialize, Serialize, schemars::JsonSchema, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum ManagedTargetBuildNetworkMode {
     None,

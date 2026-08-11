@@ -21,7 +21,7 @@ The v1 contract supports two first-class participation modes:
 
 Path A is for Packages that need platform authority, network, secrets, audit, and SDK support. Path B is for self-contained applications and tools that need hosting but no platform authority.
 
-## Public method matrix (92)
+## Public method matrix (99)
 
 Complete request/response schemas live under `docs/spec/v1/schemas/methods/`. Method names are stable public API. v1 only allows additive changes.
 
@@ -179,6 +179,18 @@ Git installation is not a transport primitive; it belongs in the ordinary first-
 | `host.run.stop` | implemented | `run` authority plus an exact Installation and the requested Run child; the registry verifies I/R ownership, requires the expected Run revision and an idempotency key, stops that Run's activation context, emits a terminal event, and does not unload global Packages. |
 | `host.run.status` | implemented | `observe` plus exact Installation; returns the current Installation revision, active-Run overview, and optional zero-effect entrypoint preflight gaps. It grants no authority, and start revalidates it. |
 
+### `host.realization.*` (7)
+
+| Method | Status | Contract |
+|---|---:|---|
+| `host.realization.plan` | implemented | `realization.plan` plus exact Installation/Target; reads verified Work, AssemblyLock, OperationalIntent, and TargetInventory, purely compiles and persists a content-addressed `RealizationPlan`, and performs no target effect. |
+| `host.realization.apply` | implemented | `realization.apply` plus exact Installation/Target/Realization; revalidates plan digest, Installation/Target preconditions, every declared risk approval, and current authority before executing through the same typed Target-operation path and persisting resources and receipts. |
+| `host.realization.get` | implemented | `observe` plus exact Installation/Realization; returns one durable `RealizationRevision`. |
+| `host.realization.list` | implemented | `observe`; filters durable projections by visible Installation and Realization plus an optional Target. |
+| `host.realization.stop` | implemented | `realization.apply` plus exact Installation/Target/Realization; durably records a private stopping intent, closes recorded resources, then commits public Stopped. Retry resumes instead of consulting a live workspace. |
+| `host.realization.rollback` | implemented | `realization.apply` plus exact Installation/Target/current/historic Realization; reads only the persisted historic plan and approval, Host-generates the replacement ID, and uses private apply/stop effect checkpoints for safe continuation. |
+| `host.realization.reconcile` | implemented | `realization.apply` plus exact Installation/Target/Realization; observes Target truth, persists receipts and structured `outcome_unknown` / `recovery_required`, and never implicitly replays apply. |
+
 ### `host.*` / `identity.current` (4)
 
 | Method | Status | Contract |
@@ -205,7 +217,7 @@ Git installation is not a transport primitive; it belongs in the ordinary first-
 | `protocol.extension.describe` | planned | Describe one extension point. |
 | `protocol.hook.list` | partial | List hook subscriptions. |
 
-## Event kind matrix (69)
+## Event kind matrix (76)
 
 The full registry is [`v1/EVENT_KIND_REGISTRY.md`](v1/EVENT_KIND_REGISTRY.en.md). Event payload schemas live under `docs/spec/v1/schemas/events/`.
 
@@ -217,6 +229,7 @@ The full registry is [`v1/EVENT_KIND_REGISTRY.md`](v1/EVENT_KIND_REGISTRY.en.md)
 | Exposure lifecycle | 3 | `host/exposure.created`, `.revoked`, `.expired` |
 | Binding lifecycle | 3 | `host/binding.selected`, `.revoked`, `.expired` |
 | Run lifecycle | 5 | `host/run.starting`, `.started`, `.stopping`, `.stopped`, `.failed` |
+| Realization lifecycle | 7 | `host/realization.planned`, `.applying`, `.active`, `.stopped`, `.failed`, `.rolled_back`, `.reconciled` |
 | Capability lifecycle | 3 | `capability/invoked`, `capability/completed`, `capability/failed` |
 | Stream lifecycle | 7 | `capability/stream.started`, `.chunk`, `.progress`, `.ended`, `.error`, `.cancelled`, `.timeout` |
 | Authority | 3 | `authority/grant.created`, `authority/grant.revoked`, `authority/denied` |
@@ -307,13 +320,13 @@ v1 only allows additive changes: optional fields, new methods, new events, new e
 
 ## Schemas and error codes
 
-- Method schemas: `docs/spec/v1/schemas/methods/` (92).
-- Event schemas: `docs/spec/v1/schemas/events/` (69).
+- Method schemas: `docs/spec/v1/schemas/methods/` (99).
+- Event schemas: `docs/spec/v1/schemas/events/` (76).
 - Top-level schemas: `docs/spec/v1/schemas/*.schema.json` (39), including additive Protocol Commons, component/package-envelope, World Bundle, portable Work / Assembly contracts, Host-local Installation / Run / Exposure / Binding / Realization wire records, and Installation state snapshot, decision receipt, and authority evidence.
 - Error codes: [`v1/ERROR_CODES.md`](v1/ERROR_CODES.en.md).
 - Event registry: [`v1/EVENT_KIND_REGISTRY.md`](v1/EVENT_KIND_REGISTRY.en.md).
 
-All 200 schemas must pass `cargo run -p plurora-cli --bin validate-schemas`.
+All 214 schemas must pass `cargo run -p plurora-cli --bin validate-schemas`.
 
 ## Content-free invariant
 
@@ -487,8 +500,8 @@ First-party and third-party surfaces use the same descriptors, permission declar
 
 A v1 implementation must at least prove:
 
-1. 92 method schemas export.
-2. 69 event schemas validate.
+1. 99 method schemas export.
+2. 76 event schemas validate.
 3. 39 top-level schemas validate.
 4. Method registry and dispatcher are consistent.
 5. Capability handle mint/attenuate/revoke/list behavior is testable.
@@ -520,7 +533,7 @@ Long-term references point to `PUBLIC_CONTRACT.md`. The Contract Registry, error
 | `capability.*` | 5 |
 | `change.*` | 6 |
 | `context.*` | 6 |
-| `host.*` | 52 |
+| `host.*` | 59 |
 | `identity.*` | 1 |
 | `journal.*` | 3 |
 | `object.*` | 3 |

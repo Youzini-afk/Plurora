@@ -2,7 +2,7 @@
 
 > [English](./POWERBOX_BINDING.en.md) · [中文](./POWERBOX_BINDING.md)
 
-This guide describes the Phase 5 cross-Installation Powerbox. It connects a provider's public Exposure to a consumer import Port without turning candidates, preferences, or UI into authority. Managed Realization, remote deployment compilation, and `host.realization.*` remain Phase 6; they must not be described as implemented managed deployment here.
+This guide describes the Phase 5 cross-Installation Powerbox. It connects a provider's public Exposure to a consumer import Port without turning candidates, preferences, or UI into authority. Phase 6 implements Managed Realization and `host.realization.*`; Powerbox still never implicitly plans, applies, deploys, or rebinds.
 
 ## Authority and isolation
 
@@ -89,7 +89,7 @@ Surfaces have only an explicitly allowlisted public bridge. There is no private 
 
 ## Verification and boundary
 
-Six Phase 5 conformance cases cover method owner/status/typed DTOs, action-before-effect, 69-event payloads, no private authority, effect-free candidates/no auto-select, and exact launch/runtime Run pins:
+Six Phase 5 conformance cases cover method owner/status/typed DTOs, action-before-effect, the corresponding payloads in the 76-event registry, no private authority, effect-free candidates/no auto-select, and exact launch/runtime Run pins:
 
 ```text
 powerbox.public_method_identity_owner_typed_dto
@@ -100,6 +100,6 @@ powerbox.candidates_effect_free_no_auto_select
 powerbox.launch_runtime_exact_run_pin
 ```
 
-Generated-output and schema/SDK cleanliness use the Phase generation-chain hash `9c3923c6ffd365a3b7a0a5e64a177a9d89708e70e215e454bfd9b1a5098d6e94`. The current public contract is 92 methods, 69 events, 39 top-level schemas, and 200 schemas total; Phase 6 Realization remains planned.
+The current public contract is 99 methods, 76 events, 39 top-level schemas, and 214 schemas total. Phase 6 Realization is implemented without weakening Powerbox's least-authority boundary.
 
-Related documents: [`RUN_LIBRARY.en.md`](RUN_LIBRARY.en.md), [`INSTALLATION_MODEL.en.md`](INSTALLATION_MODEL.en.md), [`../architecture/HOST_RESOURCE_AUTHORITY.en.md`](../architecture/HOST_RESOURCE_AUTHORITY.en.md), and [`../spec/PUBLIC_CONTRACT.en.md`](../spec/PUBLIC_CONTRACT.en.md).
+Related documents: [`RUN_LIBRARY.en.md`](RUN_LIBRARY.en.md), [`REALIZATION.en.md`](REALIZATION.en.md), [`INSTALLATION_MODEL.en.md`](INSTALLATION_MODEL.en.md), [`../architecture/HOST_RESOURCE_AUTHORITY.en.md`](../architecture/HOST_RESOURCE_AUTHORITY.en.md), and [`../spec/PUBLIC_CONTRACT.en.md`](../spec/PUBLIC_CONTRACT.en.md).

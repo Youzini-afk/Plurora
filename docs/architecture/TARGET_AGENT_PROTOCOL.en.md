@@ -2,7 +2,7 @@
 
 > [English](./TARGET_AGENT_PROTOCOL.en.md) · [中文](./TARGET_AGENT_PROTOCOL.md)
 
-Status: **Phase 5 transitional Candidate contract**. A Target Agent is a remote execution adapter for the Host Control Plane. It is not a remote package, general SSH shell, second Host, or application identity provider. Identity, typed operations, artifacts, the Host-local Docker operation broker, and the authenticated reverse tunnel form one controlled boundary. Phase 5 Powerbox Exposure/Binding is implemented; managed Realization plan/apply and deployment compilation remain planned for Phase 6. Automatic placement and target-edge ingress are outside the current contract.
+Status: **Phase 6 Candidate implementation**. A Target Agent is a remote execution adapter for the Host Control Plane. It is not a remote package, general SSH shell, second Host, or application identity provider. Identity, typed operations, artifacts, the Host-local Docker operation broker, and the authenticated reverse tunnel form one controlled boundary. Managed Realization now connects stable OperationalIntent/TargetInventory plans and apply/stop/rollback/reconcile to the same local/Agent typed-operation and receipt path. Automatic placement and target-edge ingress remain outside this contract.
 
 ## Three remote boundaries
 
@@ -56,11 +56,11 @@ The `target-agent.v1` identity and observation control plane exposes:
 
 | Caller | Route | Authority and purpose |
 |---|---|---|
-| Host client | `POST /host/v1/targets/{target_id}/enrollments` | `deploy` scope plus target selector; creates a single-use challenge with a maximum 15-minute lifetime |
+| Host client | `POST /host/v1/targets/{target_id}/enrollments` | root/`access_manage` plus target selector; creates a single-use challenge with a maximum 15-minute lifetime |
 | Agent | `POST /target-agent/v1/enroll` | Consumes the challenge, negotiates version/capabilities, and receives a Host-generated bootstrap target credential once |
 | Agent | `POST /target-agent/v1/heartbeat` | Separate `PluroraTarget` credential; refreshes observation and 45-second liveness |
 | Host client | `GET /host/v1/targets/{target_id}/observe` | `observe` scope plus target selector; returns declarations, effective capabilities, epochs, and observed summary |
-| Host client | `POST /host/v1/targets/{target_id}/revoke` | `deploy` scope plus target selector; revokes identity and advances both lease and policy epochs |
+| Host client | `POST /host/v1/targets/{target_id}/revoke` | root/`access_manage` plus target selector; revokes identity and advances both lease and policy epochs |
 
 Enrollment tokens and agent credentials enter the `host_control_target_agents` journal only as domain-separated SHA-256 digests. Challenges are single-use; after restart every non-revoked remote target first returns to `Offline`; an old credential or epoch cannot restore availability. The compatibility names `host.target.register/unregister` now fail closed, so caller JSON cannot bypass enrollment and create an `Available` target.
 
@@ -68,7 +68,7 @@ The typed-worker control plane exposes these routes without adding a general com
 
 | Caller | Route | Authority and purpose |
 |---|---|---|
-| Host client | `POST/GET /host/v1/targets/{target_id}/operations` | transitional-operation `deploy`/`observe` plus target and Installation selectors; create or list typed operations |
+| Host client | `POST/GET /host/v1/targets/{target_id}/operations` | HostAdmin/HostDev or `access_manage` for the low-level adapter, `observe` for reads, plus exact Target and Installation selectors; ordinary managed lifecycle must use `host.realization.*` |
 | Host client | `GET /host/v1/targets/{target_id}/operations/{operation_id}` | Read an Installation-scoped durable operation and receipt |
 | Agent | `GET /target-agent/v1/operations/next` | Return pending work only to the live target with matching epochs |
 | Agent | `POST /target-agent/v1/operations/{operation_id}/progress` | Persist accepted/running; the first random `execution_id` owns execution |
@@ -83,7 +83,7 @@ Operation authority binds target, operation, step, Installation, effect, artifac
 
 Driver routing selects local or Agent execution from `ExecutionTargetReachability`; no caller-provided network address can act as a fallback. Local and Agent transitional Host operations share one typed Docker driver: non-privileged bridge networking, `127.0.0.1` binding only, no command/env/mount inputs, and idempotent lookup through target/Installation/operation/route/lease ownership labels. The `apply` receipt returns Docker's actual loopback port. The Host projects a successful receipt back into the target-owned lease and promotes route readiness only when route, lease, Installation, and target all match; restart recovery never uses Host-local Docker observation to discard remote leases. An effect that was issued but cannot be confirmed becomes `outcome_unknown` rather than a false failure; Host startup durably resolves interrupted local Accepted/Running records the same way.
 
-The Candidate authenticated reverse-tunnel/transitional preview baseline is also implemented. An Agent with `reverse_tunnel` reachability and the Host transitional-operation capability initiates `GET /target-agent/v1/tunnel` with its existing `PluroraTarget` identity. The Host accepts one live tunnel per target only when identity, lease epoch, and policy epoch match. Every `Open` binds the target, route, port lease, port name, Docker-observed port, and both epochs; bounded binary streams are multiplexed only by Host-generated opaque stream IDs. Before connecting, the Agent revalidates every managed-container ownership label, Running state, and exact `127.0.0.1` port mapping, so the tunnel cannot dial an arbitrary Agent loopback port. Disconnect or revoke immediately makes that target's routes unready; reconnect restores them only from durable receipt projection. Public versus Host-authenticated access remains Host route policy, and arbitrary network upstreams remain forbidden. Managed Realization remains outside this Candidate boundary.
+The Candidate authenticated reverse-tunnel baseline is also implemented. An Agent with `reverse_tunnel` reachability and typed-operation capability initiates `GET /target-agent/v1/tunnel` with its existing `PluroraTarget` identity. The Host accepts one live tunnel per target only when identity, lease epoch, and policy epoch match. Every `Open` binds the target, route, port lease, port name, Docker-observed port, and both epochs; bounded binary streams are multiplexed only by Host-generated opaque stream IDs. Before connecting, the Agent revalidates every managed-container ownership label, Running state, and exact `127.0.0.1` port mapping, so the tunnel cannot dial an arbitrary Agent loopback port. Disconnect or revoke immediately makes that target's routes unready; reconnect restores them only from durable receipt projection. Public versus Host-authenticated access remains Host route policy, and arbitrary network upstreams remain forbidden. Realization is the only public managed lifecycle over this execution path; Agent primitives remain adapters.
 
 ## Transport session
 

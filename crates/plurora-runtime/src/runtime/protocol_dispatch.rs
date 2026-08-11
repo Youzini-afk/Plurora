@@ -345,6 +345,27 @@ where
             PlatformMethod::RunStop => self.dispatch_run_stop(context, params).await,
             PlatformMethod::RunStatus => self.dispatch_run_status(context, params).await,
 
+            // Managed Realization domain
+            PlatformMethod::RealizationPlan => {
+                self.dispatch_realization_plan(context, params).await
+            }
+            PlatformMethod::RealizationApply => {
+                self.dispatch_realization_apply(context, params).await
+            }
+            PlatformMethod::RealizationGet => self.dispatch_realization_get(context, params).await,
+            PlatformMethod::RealizationList => {
+                self.dispatch_realization_list(context, params).await
+            }
+            PlatformMethod::RealizationStop => {
+                self.dispatch_realization_stop(context, params).await
+            }
+            PlatformMethod::RealizationRollback => {
+                self.dispatch_realization_rollback(context, params).await
+            }
+            PlatformMethod::RealizationReconcile => {
+                self.dispatch_realization_reconcile(context, params).await
+            }
+
             // Deployment Hub Phase 1 primitives
             PlatformMethod::TargetList => self.dispatch_target_list(context).await,
             PlatformMethod::TargetStatus => self.dispatch_target_status(context, &params).await,
@@ -543,6 +564,11 @@ fn host_action_for_method(method: PlatformMethod) -> &'static str {
         | PlatformMethod::SessionClose
         | PlatformMethod::SessionFork => "access_manage",
         PlatformMethod::RunStart | PlatformMethod::RunStop => "run",
+        PlatformMethod::RealizationPlan => "realization.plan",
+        PlatformMethod::RealizationApply
+        | PlatformMethod::RealizationStop
+        | PlatformMethod::RealizationRollback
+        | PlatformMethod::RealizationReconcile => "realization.apply",
         PlatformMethod::ExposureCreate | PlatformMethod::ExposureRevoke => "exposure.manage",
         PlatformMethod::BindingSelect | PlatformMethod::BindingRevoke => "binding.manage",
         PlatformMethod::InstallationCreate
@@ -558,7 +584,7 @@ fn host_action_for_method(method: PlatformMethod) -> &'static str {
         | PlatformMethod::PortLease
         | PlatformMethod::PortRelease
         | PlatformMethod::ProxyRegister
-        | PlatformMethod::ProxyUnregister => "deploy",
+        | PlatformMethod::ProxyUnregister => "access_manage",
         PlatformMethod::HostInfo
         | PlatformMethod::HostPing
         | PlatformMethod::HostDiagnostics
@@ -570,6 +596,8 @@ fn host_action_for_method(method: PlatformMethod) -> &'static str {
         | PlatformMethod::RunList
         | PlatformMethod::RunGet
         | PlatformMethod::RunStatus
+        | PlatformMethod::RealizationGet
+        | PlatformMethod::RealizationList
         | PlatformMethod::TargetList
         | PlatformMethod::TargetStatus
         | PlatformMethod::ExecStatus
@@ -624,7 +652,7 @@ fn ensure_deployment_hub_control_allowed(
     ) {
         "observe"
     } else {
-        "deploy"
+        "access_manage"
     };
     if context.is_host_device() {
         anyhow::ensure!(

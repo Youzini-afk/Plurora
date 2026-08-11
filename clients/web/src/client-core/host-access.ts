@@ -8,7 +8,6 @@ export type HostAccessScope =
   | "exposure.manage"
   | "realization.plan"
   | "realization.apply"
-  | "deploy"
   | "develop.propose"
   | "develop.approve"
   | "develop.execute"

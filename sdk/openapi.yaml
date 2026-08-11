@@ -3495,6 +3495,64 @@ components:
       type: object
     HostProxyUnregisteredPayload:
       type: object
+    HostRealizationListResult:
+      items:
+        $schema: https://json-schema.org/draft/2020-12/schema
+        properties:
+          activated_at:
+            format: date-time
+            type:
+            - string
+            - 'null'
+          actual_resources:
+            items:
+              $ref: '#/components/schemas/RealizedResource'
+            type: array
+          created_at:
+            format: date-time
+            type: string
+          health:
+            $ref: '#/components/schemas/RealizationHealth'
+          installation_id:
+            $ref: '#/components/schemas/InstallationId'
+          parent_realization_id:
+            anyOf:
+            - $ref: '#/components/schemas/RealizationId'
+            - type: 'null'
+          plan_ref:
+            $ref: '#/components/schemas/ArtifactDescriptor'
+          realization_id:
+            $ref: '#/components/schemas/RealizationId'
+          receipts:
+            items:
+              $ref: '#/components/schemas/ArtifactDescriptor'
+            type: array
+          revision:
+            format: uint64
+            minimum: 0.0
+            type: integer
+          status:
+            $ref: '#/components/schemas/RealizationStatus'
+          stopped_at:
+            format: date-time
+            type:
+            - string
+            - 'null'
+          updated_at:
+            format: date-time
+            type: string
+        required:
+        - created_at
+        - health
+        - installation_id
+        - plan_ref
+        - realization_id
+        - revision
+        - status
+        - updated_at
+        title: RealizationRevision
+        type: object
+      type: array
     HostRunListResult:
       items:
         $schema: https://json-schema.org/draft/2020-12/schema
@@ -5012,6 +5070,11 @@ components:
       - status
       title: LocalExecStopResponse
       type: object
+    ManagedTargetBuildNetworkMode:
+      enum:
+      - none
+      - bridge
+      type: string
     MethodStatus:
       enum:
       - implemented
@@ -7663,6 +7726,167 @@ components:
       - tcp_port
       - http_get
       type: string
+    RealizationApplyRequest:
+      $schema: https://json-schema.org/draft/2020-12/schema
+      additionalProperties: false
+      properties:
+        approval:
+          $ref: '#/components/schemas/RealizationApproval'
+        expected_revision:
+          format: uint64
+          minimum: 0.0
+          type: integer
+        idempotency_key:
+          type: string
+        installation_id:
+          $ref: '#/components/schemas/InstallationId'
+        plan_ref:
+          $ref: '#/components/schemas/ArtifactDescriptor'
+        realization_id:
+          $ref: '#/components/schemas/RealizationId'
+        target_id:
+          type: string
+      required:
+      - approval
+      - expected_revision
+      - idempotency_key
+      - installation_id
+      - plan_ref
+      - realization_id
+      - target_id
+      title: RealizationApplyRequest
+      type: object
+    RealizationApproval:
+      additionalProperties: false
+      properties:
+        accepted_risks:
+          items:
+            type: string
+          type: array
+        decided_at:
+          format: date-time
+          type: string
+        decision:
+          type: string
+        expires_at:
+          format: date-time
+          type:
+          - string
+          - 'null'
+        plan_digest:
+          type: string
+      required:
+      - decided_at
+      - decision
+      - plan_digest
+      type: object
+    RealizationBackendSelection:
+      oneOf:
+      - additionalProperties: false
+        properties:
+          container_port:
+            format: uint16
+            minimum: 0.0
+            type: integer
+          execution_class:
+            type: string
+          health_path:
+            type:
+            - string
+            - 'null'
+          image:
+            type: string
+          kind:
+            enum:
+            - oci_image
+            type: string
+          port_name:
+            type: string
+          pull_if_missing:
+            default: false
+            type: boolean
+          route_access:
+            allOf:
+            - $ref: '#/components/schemas/ProxyRouteAccess'
+            default: host_authenticated
+          route_id:
+            type: string
+          workload_id:
+            type: string
+        required:
+        - container_port
+        - execution_class
+        - image
+        - kind
+        - port_name
+        - route_id
+        - workload_id
+        type: object
+      - additionalProperties: false
+        properties:
+          build_context_ref:
+            $ref: '#/components/schemas/ArtifactDescriptor'
+          build_descriptor_hash:
+            type: string
+          container_port:
+            format: uint16
+            minimum: 0.0
+            type: integer
+          dockerfile:
+            type: string
+          execution_class:
+            type: string
+          health_path:
+            type:
+            - string
+            - 'null'
+          kind:
+            enum:
+            - docker_build
+            type: string
+          network_mode:
+            $ref: '#/components/schemas/ManagedTargetBuildNetworkMode'
+          port_name:
+            type: string
+          route_access:
+            allOf:
+            - $ref: '#/components/schemas/ProxyRouteAccess'
+            default: host_authenticated
+          route_id:
+            type: string
+          source_tree_digest:
+            type: string
+          workload_id:
+            type: string
+          workspace_id:
+            $ref: '#/components/schemas/WorkspaceId'
+        required:
+        - build_context_ref
+        - build_descriptor_hash
+        - container_port
+        - dockerfile
+        - execution_class
+        - kind
+        - network_mode
+        - port_name
+        - route_id
+        - source_tree_digest
+        - workload_id
+        - workspace_id
+        type: object
+    RealizationGetRequest:
+      $schema: https://json-schema.org/draft/2020-12/schema
+      additionalProperties: false
+      properties:
+        installation_id:
+          $ref: '#/components/schemas/InstallationId'
+        realization_id:
+          $ref: '#/components/schemas/RealizationId'
+      required:
+      - installation_id
+      - realization_id
+      title: RealizationGetRequest
+      type: object
     RealizationHealth:
       properties:
         evidence_refs:
@@ -7681,6 +7905,55 @@ components:
     RealizationId:
       format: uuid
       type: string
+    RealizationLifecyclePayloadSchema:
+      $schema: https://json-schema.org/draft/2020-12/schema
+      properties:
+        operation:
+          type: string
+        realization:
+          $ref: '#/components/schemas/RealizationRevision'
+        reason_code:
+          type:
+          - string
+          - 'null'
+        target_id:
+          type: string
+      required:
+      - operation
+      - realization
+      - target_id
+      title: RealizationLifecyclePayloadSchema
+      type: object
+    RealizationListRequest:
+      $schema: https://json-schema.org/draft/2020-12/schema
+      additionalProperties: false
+      properties:
+        installation_id:
+          anyOf:
+          - $ref: '#/components/schemas/InstallationId'
+          - type: 'null'
+        target_id:
+          type:
+          - string
+          - 'null'
+      title: RealizationListRequest
+      type: object
+    RealizationMutationResult:
+      $schema: https://json-schema.org/draft/2020-12/schema
+      properties:
+        gaps:
+          items:
+            $ref: '#/components/schemas/RealizationPlanningGap'
+          type: array
+        realization:
+          $ref: '#/components/schemas/RealizationRevision'
+        replayed:
+          type: boolean
+      required:
+      - realization
+      - replayed
+      title: RealizationMutationResult
+      type: object
     RealizationPlan:
       $schema: https://json-schema.org/draft/2020-12/schema
       properties:
@@ -7745,6 +8018,99 @@ components:
       - work_revision
       title: RealizationPlan
       type: object
+    RealizationPlanRequest:
+      $schema: https://json-schema.org/draft/2020-12/schema
+      additionalProperties: false
+      properties:
+        backends:
+          items:
+            $ref: '#/components/schemas/RealizationBackendSelection'
+          type: array
+        expected_installation_revision:
+          format: uint64
+          minimum: 0.0
+          type: integer
+        idempotency_key:
+          type: string
+        installation_id:
+          $ref: '#/components/schemas/InstallationId'
+        target_id:
+          type: string
+      required:
+      - backends
+      - expected_installation_revision
+      - idempotency_key
+      - installation_id
+      - target_id
+      title: RealizationPlanRequest
+      type: object
+    RealizationPlanResult:
+      $schema: https://json-schema.org/draft/2020-12/schema
+      properties:
+        gaps:
+          items:
+            $ref: '#/components/schemas/RealizationPlanningGap'
+          type: array
+        plan:
+          anyOf:
+          - $ref: '#/components/schemas/RealizationPlan'
+          - type: 'null'
+        plan_ref:
+          anyOf:
+          - $ref: '#/components/schemas/ArtifactDescriptor'
+          - type: 'null'
+        realization:
+          anyOf:
+          - $ref: '#/components/schemas/RealizationRevision'
+          - type: 'null'
+        replayed:
+          type: boolean
+      required:
+      - replayed
+      title: RealizationPlanResult
+      type: object
+    RealizationPlanningGap:
+      properties:
+        next_step:
+          type: string
+        reason_code:
+          type: string
+        target_id:
+          type:
+          - string
+          - 'null'
+        workload_id:
+          type:
+          - string
+          - 'null'
+      required:
+      - next_step
+      - reason_code
+      type: object
+    RealizationReconcileRequest:
+      $schema: https://json-schema.org/draft/2020-12/schema
+      additionalProperties: false
+      properties:
+        expected_revision:
+          format: uint64
+          minimum: 0.0
+          type: integer
+        idempotency_key:
+          type: string
+        installation_id:
+          $ref: '#/components/schemas/InstallationId'
+        realization_id:
+          $ref: '#/components/schemas/RealizationId'
+        target_id:
+          type: string
+      required:
+      - expected_revision
+      - idempotency_key
+      - installation_id
+      - realization_id
+      - target_id
+      title: RealizationReconcileRequest
+      type: object
     RealizationRevision:
       $schema: https://json-schema.org/draft/2020-12/schema
       properties:
@@ -7776,16 +8142,60 @@ components:
           items:
             $ref: '#/components/schemas/ArtifactDescriptor'
           type: array
+        revision:
+          format: uint64
+          minimum: 0.0
+          type: integer
         status:
           $ref: '#/components/schemas/RealizationStatus'
+        stopped_at:
+          format: date-time
+          type:
+          - string
+          - 'null'
+        updated_at:
+          format: date-time
+          type: string
       required:
       - created_at
       - health
       - installation_id
       - plan_ref
       - realization_id
+      - revision
       - status
+      - updated_at
       title: RealizationRevision
+      type: object
+    RealizationRollbackRequest:
+      $schema: https://json-schema.org/draft/2020-12/schema
+      additionalProperties: false
+      properties:
+        approval:
+          $ref: '#/components/schemas/RealizationApproval'
+        expected_revision:
+          format: uint64
+          minimum: 0.0
+          type: integer
+        idempotency_key:
+          type: string
+        installation_id:
+          $ref: '#/components/schemas/InstallationId'
+        realization_id:
+          $ref: '#/components/schemas/RealizationId'
+        rollback_to_realization_id:
+          $ref: '#/components/schemas/RealizationId'
+        target_id:
+          type: string
+      required:
+      - approval
+      - expected_revision
+      - idempotency_key
+      - installation_id
+      - realization_id
+      - rollback_to_realization_id
+      - target_id
+      title: RealizationRollbackRequest
       type: object
     RealizationStatus:
       enum:
@@ -7799,6 +8209,30 @@ components:
       - outcome_unknown
       - recovery_required
       type: string
+    RealizationStopRequest:
+      $schema: https://json-schema.org/draft/2020-12/schema
+      additionalProperties: false
+      properties:
+        expected_revision:
+          format: uint64
+          minimum: 0.0
+          type: integer
+        idempotency_key:
+          type: string
+        installation_id:
+          $ref: '#/components/schemas/InstallationId'
+        realization_id:
+          $ref: '#/components/schemas/RealizationId'
+        target_id:
+          type: string
+      required:
+      - expected_revision
+      - idempotency_key
+      - installation_id
+      - realization_id
+      - target_id
+      title: RealizationStopRequest
+      type: object
     RealizedResource:
       properties:
         backend_id:
@@ -9414,6 +9848,9 @@ components:
       - restart_policy
       - workload_id
       type: object
+    WorkspaceId:
+      format: uuid
+      type: string
     WorldBundleArchive:
       $schema: https://json-schema.org/draft/2020-12/schema
       properties:
@@ -17467,6 +17904,846 @@ paths:
         response_schema: urn:plurora:schema:method:host.proxy.unregister:v1#/$defs/Result
         streaming: false
       x-plurora-implementation-status: partial
+  /rpc/host.realization.apply:
+    post:
+      operationId: hostRealizationApply
+      requestBody:
+        content:
+          application/json:
+            schema:
+              additionalProperties: false
+              properties:
+                contract:
+                  $ref: '#/components/schemas/ContractSelection'
+                id:
+                  oneOf:
+                  - type: string
+                  - type: integer
+                  - type: 'null'
+                jsonrpc:
+                  const: '2.0'
+                method:
+                  const: host.realization.apply
+                params:
+                  $schema: https://json-schema.org/draft/2020-12/schema
+                  additionalProperties: false
+                  properties:
+                    approval:
+                      $ref: '#/components/schemas/RealizationApproval'
+                    expected_revision:
+                      format: uint64
+                      minimum: 0.0
+                      type: integer
+                    idempotency_key:
+                      type: string
+                    installation_id:
+                      $ref: '#/components/schemas/InstallationId'
+                    plan_ref:
+                      $ref: '#/components/schemas/ArtifactDescriptor'
+                    realization_id:
+                      $ref: '#/components/schemas/RealizationId'
+                    target_id:
+                      type: string
+                  required:
+                  - approval
+                  - expected_revision
+                  - idempotency_key
+                  - installation_id
+                  - plan_ref
+                  - realization_id
+                  - target_id
+                  title: RealizationApplyRequest
+                  type: object
+              required:
+              - jsonrpc
+              - id
+              - method
+              - params
+              type: object
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: integer
+                      data: true
+                      message:
+                        type: string
+                    required:
+                    - code
+                    - message
+                    type: object
+                  id:
+                    oneOf:
+                    - type: string
+                    - type: integer
+                    - type: 'null'
+                  jsonrpc:
+                    const: '2.0'
+                  result:
+                    $schema: https://json-schema.org/draft/2020-12/schema
+                    properties:
+                      gaps:
+                        items:
+                          $ref: '#/components/schemas/RealizationPlanningGap'
+                        type: array
+                      realization:
+                        $ref: '#/components/schemas/RealizationRevision'
+                      replayed:
+                        type: boolean
+                    required:
+                    - realization
+                    - replayed
+                    title: RealizationMutationResult
+                    type: object
+                required:
+                - jsonrpc
+                - id
+                type: object
+          description: JSON-RPC response envelope
+      summary: Invoke host.realization.apply
+      x-plurora-contract:
+        id: host.realization.apply
+        implementation_status: implemented
+        introduced_in: plurora.contract.default/v1@0.1.0
+        maturity: candidate
+        owner_layer: host
+        request_schema: urn:plurora:schema:method:host.realization.apply:v1#/$defs/Params
+        response_schema: urn:plurora:schema:method:host.realization.apply:v1#/$defs/Result
+        streaming: false
+      x-plurora-implementation-status: implemented
+  /rpc/host.realization.get:
+    post:
+      operationId: hostRealizationGet
+      requestBody:
+        content:
+          application/json:
+            schema:
+              additionalProperties: false
+              properties:
+                contract:
+                  $ref: '#/components/schemas/ContractSelection'
+                id:
+                  oneOf:
+                  - type: string
+                  - type: integer
+                  - type: 'null'
+                jsonrpc:
+                  const: '2.0'
+                method:
+                  const: host.realization.get
+                params:
+                  $schema: https://json-schema.org/draft/2020-12/schema
+                  additionalProperties: false
+                  properties:
+                    installation_id:
+                      $ref: '#/components/schemas/InstallationId'
+                    realization_id:
+                      $ref: '#/components/schemas/RealizationId'
+                  required:
+                  - installation_id
+                  - realization_id
+                  title: RealizationGetRequest
+                  type: object
+              required:
+              - jsonrpc
+              - id
+              - method
+              - params
+              type: object
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: integer
+                      data: true
+                      message:
+                        type: string
+                    required:
+                    - code
+                    - message
+                    type: object
+                  id:
+                    oneOf:
+                    - type: string
+                    - type: integer
+                    - type: 'null'
+                  jsonrpc:
+                    const: '2.0'
+                  result:
+                    $schema: https://json-schema.org/draft/2020-12/schema
+                    properties:
+                      activated_at:
+                        format: date-time
+                        type:
+                        - string
+                        - 'null'
+                      actual_resources:
+                        items:
+                          $ref: '#/components/schemas/RealizedResource'
+                        type: array
+                      created_at:
+                        format: date-time
+                        type: string
+                      health:
+                        $ref: '#/components/schemas/RealizationHealth'
+                      installation_id:
+                        $ref: '#/components/schemas/InstallationId'
+                      parent_realization_id:
+                        anyOf:
+                        - $ref: '#/components/schemas/RealizationId'
+                        - type: 'null'
+                      plan_ref:
+                        $ref: '#/components/schemas/ArtifactDescriptor'
+                      realization_id:
+                        $ref: '#/components/schemas/RealizationId'
+                      receipts:
+                        items:
+                          $ref: '#/components/schemas/ArtifactDescriptor'
+                        type: array
+                      revision:
+                        format: uint64
+                        minimum: 0.0
+                        type: integer
+                      status:
+                        $ref: '#/components/schemas/RealizationStatus'
+                      stopped_at:
+                        format: date-time
+                        type:
+                        - string
+                        - 'null'
+                      updated_at:
+                        format: date-time
+                        type: string
+                    required:
+                    - created_at
+                    - health
+                    - installation_id
+                    - plan_ref
+                    - realization_id
+                    - revision
+                    - status
+                    - updated_at
+                    title: RealizationRevision
+                    type: object
+                required:
+                - jsonrpc
+                - id
+                type: object
+          description: JSON-RPC response envelope
+      summary: Invoke host.realization.get
+      x-plurora-contract:
+        id: host.realization.get
+        implementation_status: implemented
+        introduced_in: plurora.contract.default/v1@0.1.0
+        maturity: candidate
+        owner_layer: host
+        request_schema: urn:plurora:schema:method:host.realization.get:v1#/$defs/Params
+        response_schema: urn:plurora:schema:method:host.realization.get:v1#/$defs/Result
+        streaming: false
+      x-plurora-implementation-status: implemented
+  /rpc/host.realization.list:
+    post:
+      operationId: hostRealizationList
+      requestBody:
+        content:
+          application/json:
+            schema:
+              additionalProperties: false
+              properties:
+                contract:
+                  $ref: '#/components/schemas/ContractSelection'
+                id:
+                  oneOf:
+                  - type: string
+                  - type: integer
+                  - type: 'null'
+                jsonrpc:
+                  const: '2.0'
+                method:
+                  const: host.realization.list
+                params:
+                  $schema: https://json-schema.org/draft/2020-12/schema
+                  additionalProperties: false
+                  properties:
+                    installation_id:
+                      anyOf:
+                      - $ref: '#/components/schemas/InstallationId'
+                      - type: 'null'
+                    target_id:
+                      type:
+                      - string
+                      - 'null'
+                  title: RealizationListRequest
+                  type: object
+              required:
+              - jsonrpc
+              - id
+              - method
+              - params
+              type: object
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: integer
+                      data: true
+                      message:
+                        type: string
+                    required:
+                    - code
+                    - message
+                    type: object
+                  id:
+                    oneOf:
+                    - type: string
+                    - type: integer
+                    - type: 'null'
+                  jsonrpc:
+                    const: '2.0'
+                  result:
+                    items:
+                      $schema: https://json-schema.org/draft/2020-12/schema
+                      properties:
+                        activated_at:
+                          format: date-time
+                          type:
+                          - string
+                          - 'null'
+                        actual_resources:
+                          items:
+                            $ref: '#/components/schemas/RealizedResource'
+                          type: array
+                        created_at:
+                          format: date-time
+                          type: string
+                        health:
+                          $ref: '#/components/schemas/RealizationHealth'
+                        installation_id:
+                          $ref: '#/components/schemas/InstallationId'
+                        parent_realization_id:
+                          anyOf:
+                          - $ref: '#/components/schemas/RealizationId'
+                          - type: 'null'
+                        plan_ref:
+                          $ref: '#/components/schemas/ArtifactDescriptor'
+                        realization_id:
+                          $ref: '#/components/schemas/RealizationId'
+                        receipts:
+                          items:
+                            $ref: '#/components/schemas/ArtifactDescriptor'
+                          type: array
+                        revision:
+                          format: uint64
+                          minimum: 0.0
+                          type: integer
+                        status:
+                          $ref: '#/components/schemas/RealizationStatus'
+                        stopped_at:
+                          format: date-time
+                          type:
+                          - string
+                          - 'null'
+                        updated_at:
+                          format: date-time
+                          type: string
+                      required:
+                      - created_at
+                      - health
+                      - installation_id
+                      - plan_ref
+                      - realization_id
+                      - revision
+                      - status
+                      - updated_at
+                      title: RealizationRevision
+                      type: object
+                    type: array
+                required:
+                - jsonrpc
+                - id
+                type: object
+          description: JSON-RPC response envelope
+      summary: Invoke host.realization.list
+      x-plurora-contract:
+        id: host.realization.list
+        implementation_status: implemented
+        introduced_in: plurora.contract.default/v1@0.1.0
+        maturity: candidate
+        owner_layer: host
+        request_schema: urn:plurora:schema:method:host.realization.list:v1#/$defs/Params
+        response_schema: urn:plurora:schema:method:host.realization.list:v1#/$defs/Result
+        streaming: false
+      x-plurora-implementation-status: implemented
+  /rpc/host.realization.plan:
+    post:
+      operationId: hostRealizationPlan
+      requestBody:
+        content:
+          application/json:
+            schema:
+              additionalProperties: false
+              properties:
+                contract:
+                  $ref: '#/components/schemas/ContractSelection'
+                id:
+                  oneOf:
+                  - type: string
+                  - type: integer
+                  - type: 'null'
+                jsonrpc:
+                  const: '2.0'
+                method:
+                  const: host.realization.plan
+                params:
+                  $schema: https://json-schema.org/draft/2020-12/schema
+                  additionalProperties: false
+                  properties:
+                    backends:
+                      items:
+                        $ref: '#/components/schemas/RealizationBackendSelection'
+                      type: array
+                    expected_installation_revision:
+                      format: uint64
+                      minimum: 0.0
+                      type: integer
+                    idempotency_key:
+                      type: string
+                    installation_id:
+                      $ref: '#/components/schemas/InstallationId'
+                    target_id:
+                      type: string
+                  required:
+                  - backends
+                  - expected_installation_revision
+                  - idempotency_key
+                  - installation_id
+                  - target_id
+                  title: RealizationPlanRequest
+                  type: object
+              required:
+              - jsonrpc
+              - id
+              - method
+              - params
+              type: object
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: integer
+                      data: true
+                      message:
+                        type: string
+                    required:
+                    - code
+                    - message
+                    type: object
+                  id:
+                    oneOf:
+                    - type: string
+                    - type: integer
+                    - type: 'null'
+                  jsonrpc:
+                    const: '2.0'
+                  result:
+                    $schema: https://json-schema.org/draft/2020-12/schema
+                    properties:
+                      gaps:
+                        items:
+                          $ref: '#/components/schemas/RealizationPlanningGap'
+                        type: array
+                      plan:
+                        anyOf:
+                        - $ref: '#/components/schemas/RealizationPlan'
+                        - type: 'null'
+                      plan_ref:
+                        anyOf:
+                        - $ref: '#/components/schemas/ArtifactDescriptor'
+                        - type: 'null'
+                      realization:
+                        anyOf:
+                        - $ref: '#/components/schemas/RealizationRevision'
+                        - type: 'null'
+                      replayed:
+                        type: boolean
+                    required:
+                    - replayed
+                    title: RealizationPlanResult
+                    type: object
+                required:
+                - jsonrpc
+                - id
+                type: object
+          description: JSON-RPC response envelope
+      summary: Invoke host.realization.plan
+      x-plurora-contract:
+        id: host.realization.plan
+        implementation_status: implemented
+        introduced_in: plurora.contract.default/v1@0.1.0
+        maturity: candidate
+        owner_layer: host
+        request_schema: urn:plurora:schema:method:host.realization.plan:v1#/$defs/Params
+        response_schema: urn:plurora:schema:method:host.realization.plan:v1#/$defs/Result
+        streaming: false
+      x-plurora-implementation-status: implemented
+  /rpc/host.realization.reconcile:
+    post:
+      operationId: hostRealizationReconcile
+      requestBody:
+        content:
+          application/json:
+            schema:
+              additionalProperties: false
+              properties:
+                contract:
+                  $ref: '#/components/schemas/ContractSelection'
+                id:
+                  oneOf:
+                  - type: string
+                  - type: integer
+                  - type: 'null'
+                jsonrpc:
+                  const: '2.0'
+                method:
+                  const: host.realization.reconcile
+                params:
+                  $schema: https://json-schema.org/draft/2020-12/schema
+                  additionalProperties: false
+                  properties:
+                    expected_revision:
+                      format: uint64
+                      minimum: 0.0
+                      type: integer
+                    idempotency_key:
+                      type: string
+                    installation_id:
+                      $ref: '#/components/schemas/InstallationId'
+                    realization_id:
+                      $ref: '#/components/schemas/RealizationId'
+                    target_id:
+                      type: string
+                  required:
+                  - expected_revision
+                  - idempotency_key
+                  - installation_id
+                  - realization_id
+                  - target_id
+                  title: RealizationReconcileRequest
+                  type: object
+              required:
+              - jsonrpc
+              - id
+              - method
+              - params
+              type: object
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: integer
+                      data: true
+                      message:
+                        type: string
+                    required:
+                    - code
+                    - message
+                    type: object
+                  id:
+                    oneOf:
+                    - type: string
+                    - type: integer
+                    - type: 'null'
+                  jsonrpc:
+                    const: '2.0'
+                  result:
+                    $schema: https://json-schema.org/draft/2020-12/schema
+                    properties:
+                      gaps:
+                        items:
+                          $ref: '#/components/schemas/RealizationPlanningGap'
+                        type: array
+                      realization:
+                        $ref: '#/components/schemas/RealizationRevision'
+                      replayed:
+                        type: boolean
+                    required:
+                    - realization
+                    - replayed
+                    title: RealizationMutationResult
+                    type: object
+                required:
+                - jsonrpc
+                - id
+                type: object
+          description: JSON-RPC response envelope
+      summary: Invoke host.realization.reconcile
+      x-plurora-contract:
+        id: host.realization.reconcile
+        implementation_status: implemented
+        introduced_in: plurora.contract.default/v1@0.1.0
+        maturity: candidate
+        owner_layer: host
+        request_schema: urn:plurora:schema:method:host.realization.reconcile:v1#/$defs/Params
+        response_schema: urn:plurora:schema:method:host.realization.reconcile:v1#/$defs/Result
+        streaming: false
+      x-plurora-implementation-status: implemented
+  /rpc/host.realization.rollback:
+    post:
+      operationId: hostRealizationRollback
+      requestBody:
+        content:
+          application/json:
+            schema:
+              additionalProperties: false
+              properties:
+                contract:
+                  $ref: '#/components/schemas/ContractSelection'
+                id:
+                  oneOf:
+                  - type: string
+                  - type: integer
+                  - type: 'null'
+                jsonrpc:
+                  const: '2.0'
+                method:
+                  const: host.realization.rollback
+                params:
+                  $schema: https://json-schema.org/draft/2020-12/schema
+                  additionalProperties: false
+                  properties:
+                    approval:
+                      $ref: '#/components/schemas/RealizationApproval'
+                    expected_revision:
+                      format: uint64
+                      minimum: 0.0
+                      type: integer
+                    idempotency_key:
+                      type: string
+                    installation_id:
+                      $ref: '#/components/schemas/InstallationId'
+                    realization_id:
+                      $ref: '#/components/schemas/RealizationId'
+                    rollback_to_realization_id:
+                      $ref: '#/components/schemas/RealizationId'
+                    target_id:
+                      type: string
+                  required:
+                  - approval
+                  - expected_revision
+                  - idempotency_key
+                  - installation_id
+                  - realization_id
+                  - rollback_to_realization_id
+                  - target_id
+                  title: RealizationRollbackRequest
+                  type: object
+              required:
+              - jsonrpc
+              - id
+              - method
+              - params
+              type: object
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: integer
+                      data: true
+                      message:
+                        type: string
+                    required:
+                    - code
+                    - message
+                    type: object
+                  id:
+                    oneOf:
+                    - type: string
+                    - type: integer
+                    - type: 'null'
+                  jsonrpc:
+                    const: '2.0'
+                  result:
+                    $schema: https://json-schema.org/draft/2020-12/schema
+                    properties:
+                      gaps:
+                        items:
+                          $ref: '#/components/schemas/RealizationPlanningGap'
+                        type: array
+                      realization:
+                        $ref: '#/components/schemas/RealizationRevision'
+                      replayed:
+                        type: boolean
+                    required:
+                    - realization
+                    - replayed
+                    title: RealizationMutationResult
+                    type: object
+                required:
+                - jsonrpc
+                - id
+                type: object
+          description: JSON-RPC response envelope
+      summary: Invoke host.realization.rollback
+      x-plurora-contract:
+        id: host.realization.rollback
+        implementation_status: implemented
+        introduced_in: plurora.contract.default/v1@0.1.0
+        maturity: candidate
+        owner_layer: host
+        request_schema: urn:plurora:schema:method:host.realization.rollback:v1#/$defs/Params
+        response_schema: urn:plurora:schema:method:host.realization.rollback:v1#/$defs/Result
+        streaming: false
+      x-plurora-implementation-status: implemented
+  /rpc/host.realization.stop:
+    post:
+      operationId: hostRealizationStop
+      requestBody:
+        content:
+          application/json:
+            schema:
+              additionalProperties: false
+              properties:
+                contract:
+                  $ref: '#/components/schemas/ContractSelection'
+                id:
+                  oneOf:
+                  - type: string
+                  - type: integer
+                  - type: 'null'
+                jsonrpc:
+                  const: '2.0'
+                method:
+                  const: host.realization.stop
+                params:
+                  $schema: https://json-schema.org/draft/2020-12/schema
+                  additionalProperties: false
+                  properties:
+                    expected_revision:
+                      format: uint64
+                      minimum: 0.0
+                      type: integer
+                    idempotency_key:
+                      type: string
+                    installation_id:
+                      $ref: '#/components/schemas/InstallationId'
+                    realization_id:
+                      $ref: '#/components/schemas/RealizationId'
+                    target_id:
+                      type: string
+                  required:
+                  - expected_revision
+                  - idempotency_key
+                  - installation_id
+                  - realization_id
+                  - target_id
+                  title: RealizationStopRequest
+                  type: object
+              required:
+              - jsonrpc
+              - id
+              - method
+              - params
+              type: object
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: integer
+                      data: true
+                      message:
+                        type: string
+                    required:
+                    - code
+                    - message
+                    type: object
+                  id:
+                    oneOf:
+                    - type: string
+                    - type: integer
+                    - type: 'null'
+                  jsonrpc:
+                    const: '2.0'
+                  result:
+                    $schema: https://json-schema.org/draft/2020-12/schema
+                    properties:
+                      gaps:
+                        items:
+                          $ref: '#/components/schemas/RealizationPlanningGap'
+                        type: array
+                      realization:
+                        $ref: '#/components/schemas/RealizationRevision'
+                      replayed:
+                        type: boolean
+                    required:
+                    - realization
+                    - replayed
+                    title: RealizationMutationResult
+                    type: object
+                required:
+                - jsonrpc
+                - id
+                type: object
+          description: JSON-RPC response envelope
+      summary: Invoke host.realization.stop
+      x-plurora-contract:
+        id: host.realization.stop
+        implementation_status: implemented
+        introduced_in: plurora.contract.default/v1@0.1.0
+        maturity: candidate
+        owner_layer: host
+        request_schema: urn:plurora:schema:method:host.realization.stop:v1#/$defs/Params
+        response_schema: urn:plurora:schema:method:host.realization.stop:v1#/$defs/Result
+        streaming: false
+      x-plurora-implementation-status: implemented
   /rpc/host.run.get:
     post:
       operationId: hostRunGet

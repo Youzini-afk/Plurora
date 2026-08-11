@@ -11,6 +11,7 @@ pub(crate) mod manifest;
 pub(crate) mod package;
 pub(crate) mod perf;
 pub mod powerbox;
+pub mod realization;
 pub mod run;
 pub mod target_agent;
 pub(crate) mod work;

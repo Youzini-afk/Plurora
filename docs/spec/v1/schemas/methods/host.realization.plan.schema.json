@@ -1,0 +1,897 @@
+{
+  "$defs": {
+    "ArtifactDescriptor": {
+      "properties": {
+        "annotations": {
+          "additionalProperties": true,
+          "default": {},
+          "type": "object"
+        },
+        "artifact_type_uri": {
+          "type": "string"
+        },
+        "digest": {
+          "type": "string"
+        },
+        "media_type": {
+          "type": "string"
+        },
+        "references": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "size_bytes": {
+          "format": "uint64",
+          "minimum": 0.0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "artifact_type_uri",
+        "digest",
+        "media_type",
+        "size_bytes"
+      ],
+      "type": "object"
+    },
+    "BindingPhase": {
+      "enum": [
+        "authoring",
+        "installation",
+        "launch",
+        "runtime"
+      ],
+      "type": "string"
+    },
+    "BuildAction": {
+      "properties": {
+        "action_id": {
+          "type": "string"
+        },
+        "builder_id": {
+          "type": "string"
+        },
+        "input_refs": {
+          "items": {
+            "$ref": "#/$defs/ArtifactDescriptor"
+          },
+          "type": "array"
+        },
+        "node_id": {
+          "$ref": "#/$defs/NodeId"
+        },
+        "output_id": {
+          "type": "string"
+        },
+        "parameter_ref": {
+          "$ref": "#/$defs/ArtifactDescriptor"
+        }
+      },
+      "required": [
+        "action_id",
+        "builder_id",
+        "node_id",
+        "output_id",
+        "parameter_ref"
+      ],
+      "type": "object"
+    },
+    "ChangePrecondition": {
+      "properties": {
+        "expected": {
+          "default": null
+        },
+        "kind": {
+          "type": "string"
+        },
+        "target": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "kind"
+      ],
+      "type": "object"
+    },
+    "EndpointAction": {
+      "properties": {
+        "action_id": {
+          "type": "string"
+        },
+        "endpoint_id": {
+          "type": "string"
+        },
+        "target_id": {
+          "type": "string"
+        },
+        "transport": {
+          "$ref": "#/$defs/SelectedTransport"
+        },
+        "visibility": {
+          "$ref": "#/$defs/EndpointVisibility"
+        }
+      },
+      "required": [
+        "action_id",
+        "endpoint_id",
+        "target_id",
+        "transport",
+        "visibility"
+      ],
+      "type": "object"
+    },
+    "EndpointVisibility": {
+      "enum": [
+        "private",
+        "shared",
+        "public"
+      ],
+      "type": "string"
+    },
+    "Errors": {
+      "items": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "details": true,
+          "message": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "details",
+          "message"
+        ],
+        "title": "ErrorShape",
+        "type": "object"
+      },
+      "type": "array"
+    },
+    "HealthStatus": {
+      "enum": [
+        "unknown",
+        "healthy",
+        "degraded",
+        "unhealthy"
+      ],
+      "type": "string"
+    },
+    "InstallationId": {
+      "format": "uuid",
+      "type": "string"
+    },
+    "LaunchAction": {
+      "properties": {
+        "action_id": {
+          "type": "string"
+        },
+        "artifact": {
+          "$ref": "#/$defs/ArtifactDescriptor"
+        },
+        "node_id": {
+          "$ref": "#/$defs/NodeId"
+        },
+        "parameter_ref": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ArtifactDescriptor"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "target_id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "action_id",
+        "artifact",
+        "node_id",
+        "target_id"
+      ],
+      "type": "object"
+    },
+    "ManagedTargetBuildNetworkMode": {
+      "enum": [
+        "none",
+        "bridge"
+      ],
+      "type": "string"
+    },
+    "NodeId": {
+      "pattern": "^(?!.*\\.\\.)[A-Za-z0-9._-]+$",
+      "type": "string"
+    },
+    "NodePlacement": {
+      "properties": {
+        "execution_class": {
+          "type": "string"
+        },
+        "node_id": {
+          "$ref": "#/$defs/NodeId"
+        },
+        "placement_id": {
+          "type": "string"
+        },
+        "target_id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "execution_class",
+        "node_id",
+        "placement_id",
+        "target_id"
+      ],
+      "type": "object"
+    },
+    "Params": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {
+        "backends": {
+          "items": {
+            "$ref": "#/$defs/RealizationBackendSelection"
+          },
+          "type": "array"
+        },
+        "expected_installation_revision": {
+          "format": "uint64",
+          "minimum": 0.0,
+          "type": "integer"
+        },
+        "idempotency_key": {
+          "type": "string"
+        },
+        "installation_id": {
+          "$ref": "#/$defs/InstallationId"
+        },
+        "target_id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "backends",
+        "expected_installation_revision",
+        "idempotency_key",
+        "installation_id",
+        "target_id"
+      ],
+      "title": "RealizationPlanRequest",
+      "type": "object"
+    },
+    "PortEndpoint": {
+      "properties": {
+        "node_id": {
+          "$ref": "#/$defs/NodeId"
+        },
+        "port_id": {
+          "$ref": "#/$defs/PortId"
+        }
+      },
+      "required": [
+        "node_id",
+        "port_id"
+      ],
+      "type": "object"
+    },
+    "PortId": {
+      "pattern": "^(?!.*\\.\\.)[A-Za-z0-9._-]+$",
+      "type": "string"
+    },
+    "ProxyRouteAccess": {
+      "enum": [
+        "host_authenticated",
+        "public"
+      ],
+      "type": "string"
+    },
+    "RealizationBackendSelection": {
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "container_port": {
+              "format": "uint16",
+              "minimum": 0.0,
+              "type": "integer"
+            },
+            "execution_class": {
+              "type": "string"
+            },
+            "health_path": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "image": {
+              "type": "string"
+            },
+            "kind": {
+              "enum": [
+                "oci_image"
+              ],
+              "type": "string"
+            },
+            "port_name": {
+              "type": "string"
+            },
+            "pull_if_missing": {
+              "default": false,
+              "type": "boolean"
+            },
+            "route_access": {
+              "allOf": [
+                {
+                  "$ref": "#/$defs/ProxyRouteAccess"
+                }
+              ],
+              "default": "host_authenticated"
+            },
+            "route_id": {
+              "type": "string"
+            },
+            "workload_id": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "container_port",
+            "execution_class",
+            "image",
+            "kind",
+            "port_name",
+            "route_id",
+            "workload_id"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "build_context_ref": {
+              "$ref": "#/$defs/ArtifactDescriptor"
+            },
+            "build_descriptor_hash": {
+              "type": "string"
+            },
+            "container_port": {
+              "format": "uint16",
+              "minimum": 0.0,
+              "type": "integer"
+            },
+            "dockerfile": {
+              "type": "string"
+            },
+            "execution_class": {
+              "type": "string"
+            },
+            "health_path": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "kind": {
+              "enum": [
+                "docker_build"
+              ],
+              "type": "string"
+            },
+            "network_mode": {
+              "$ref": "#/$defs/ManagedTargetBuildNetworkMode"
+            },
+            "port_name": {
+              "type": "string"
+            },
+            "route_access": {
+              "allOf": [
+                {
+                  "$ref": "#/$defs/ProxyRouteAccess"
+                }
+              ],
+              "default": "host_authenticated"
+            },
+            "route_id": {
+              "type": "string"
+            },
+            "source_tree_digest": {
+              "type": "string"
+            },
+            "workload_id": {
+              "type": "string"
+            },
+            "workspace_id": {
+              "$ref": "#/$defs/WorkspaceId"
+            }
+          },
+          "required": [
+            "build_context_ref",
+            "build_descriptor_hash",
+            "container_port",
+            "dockerfile",
+            "execution_class",
+            "kind",
+            "network_mode",
+            "port_name",
+            "route_id",
+            "source_tree_digest",
+            "workload_id",
+            "workspace_id"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "RealizationHealth": {
+      "properties": {
+        "evidence_refs": {
+          "items": {
+            "$ref": "#/$defs/ArtifactDescriptor"
+          },
+          "type": "array"
+        },
+        "reason_code": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "status": {
+          "$ref": "#/$defs/HealthStatus"
+        }
+      },
+      "required": [
+        "status"
+      ],
+      "type": "object"
+    },
+    "RealizationId": {
+      "format": "uuid",
+      "type": "string"
+    },
+    "RealizationPlan": {
+      "properties": {
+        "assembly_lock": {
+          "$ref": "#/$defs/ArtifactDescriptor"
+        },
+        "build_actions": {
+          "items": {
+            "$ref": "#/$defs/BuildAction"
+          },
+          "type": "array"
+        },
+        "endpoint_actions": {
+          "items": {
+            "$ref": "#/$defs/EndpointAction"
+          },
+          "type": "array"
+        },
+        "installation_id": {
+          "$ref": "#/$defs/InstallationId"
+        },
+        "inventory_refs": {
+          "items": {
+            "$ref": "#/$defs/ArtifactDescriptor"
+          },
+          "type": "array"
+        },
+        "launch_actions": {
+          "items": {
+            "$ref": "#/$defs/LaunchAction"
+          },
+          "type": "array"
+        },
+        "operational_intent": {
+          "$ref": "#/$defs/ArtifactDescriptor"
+        },
+        "placements": {
+          "items": {
+            "$ref": "#/$defs/NodePlacement"
+          },
+          "type": "array"
+        },
+        "preconditions": {
+          "items": {
+            "$ref": "#/$defs/ChangePrecondition"
+          },
+          "type": "array"
+        },
+        "required_authority": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "risk_summary": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "schema": {
+          "const": "plurora.realization-plan.v1",
+          "type": "string"
+        },
+        "state_actions": {
+          "items": {
+            "$ref": "#/$defs/StateAction"
+          },
+          "type": "array"
+        },
+        "transports": {
+          "items": {
+            "$ref": "#/$defs/TransportBindingPlan"
+          },
+          "type": "array"
+        },
+        "work_revision": {
+          "$ref": "#/$defs/ArtifactDescriptor"
+        }
+      },
+      "required": [
+        "assembly_lock",
+        "installation_id",
+        "inventory_refs",
+        "operational_intent",
+        "required_authority",
+        "schema",
+        "work_revision"
+      ],
+      "type": "object"
+    },
+    "RealizationPlanningGap": {
+      "properties": {
+        "next_step": {
+          "type": "string"
+        },
+        "reason_code": {
+          "type": "string"
+        },
+        "target_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "workload_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "next_step",
+        "reason_code"
+      ],
+      "type": "object"
+    },
+    "RealizationRevision": {
+      "properties": {
+        "activated_at": {
+          "format": "date-time",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "actual_resources": {
+          "items": {
+            "$ref": "#/$defs/RealizedResource"
+          },
+          "type": "array"
+        },
+        "created_at": {
+          "format": "date-time",
+          "type": "string"
+        },
+        "health": {
+          "$ref": "#/$defs/RealizationHealth"
+        },
+        "installation_id": {
+          "$ref": "#/$defs/InstallationId"
+        },
+        "parent_realization_id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RealizationId"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "plan_ref": {
+          "$ref": "#/$defs/ArtifactDescriptor"
+        },
+        "realization_id": {
+          "$ref": "#/$defs/RealizationId"
+        },
+        "receipts": {
+          "items": {
+            "$ref": "#/$defs/ArtifactDescriptor"
+          },
+          "type": "array"
+        },
+        "revision": {
+          "format": "uint64",
+          "minimum": 0.0,
+          "type": "integer"
+        },
+        "status": {
+          "$ref": "#/$defs/RealizationStatus"
+        },
+        "stopped_at": {
+          "format": "date-time",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "updated_at": {
+          "format": "date-time",
+          "type": "string"
+        }
+      },
+      "required": [
+        "created_at",
+        "health",
+        "installation_id",
+        "plan_ref",
+        "realization_id",
+        "revision",
+        "status",
+        "updated_at"
+      ],
+      "type": "object"
+    },
+    "RealizationStatus": {
+      "enum": [
+        "planned",
+        "applying",
+        "active",
+        "degraded",
+        "stopping",
+        "stopped",
+        "failed",
+        "outcome_unknown",
+        "recovery_required"
+      ],
+      "type": "string"
+    },
+    "RealizedResource": {
+      "properties": {
+        "backend_id": {
+          "type": "string"
+        },
+        "properties": {
+          "additionalProperties": true,
+          "type": "object"
+        },
+        "receipt_ref": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ArtifactDescriptor"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "resource_id": {
+          "type": "string"
+        },
+        "resource_type": {
+          "type": "string"
+        },
+        "target_id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "backend_id",
+        "resource_id",
+        "resource_type",
+        "target_id"
+      ],
+      "type": "object"
+    },
+    "Result": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "properties": {
+        "gaps": {
+          "items": {
+            "$ref": "#/$defs/RealizationPlanningGap"
+          },
+          "type": "array"
+        },
+        "plan": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RealizationPlan"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "plan_ref": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ArtifactDescriptor"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "realization": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RealizationRevision"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "replayed": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "replayed"
+      ],
+      "title": "RealizationPlanResult",
+      "type": "object"
+    },
+    "SelectedTransport": {
+      "properties": {
+        "class_id": {
+          "type": "string"
+        },
+        "properties": {
+          "additionalProperties": true,
+          "type": "object"
+        }
+      },
+      "required": [
+        "class_id"
+      ],
+      "type": "object"
+    },
+    "StateAction": {
+      "properties": {
+        "action_id": {
+          "type": "string"
+        },
+        "input_ref": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ArtifactDescriptor"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "kind": {
+          "$ref": "#/$defs/StateActionKind"
+        },
+        "state_slot_id": {
+          "$ref": "#/$defs/StateSlotId"
+        },
+        "target_id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "action_id",
+        "kind",
+        "state_slot_id",
+        "target_id"
+      ],
+      "type": "object"
+    },
+    "StateActionKind": {
+      "enum": [
+        "provision",
+        "attach",
+        "snapshot",
+        "restore",
+        "migrate"
+      ],
+      "type": "string"
+    },
+    "StateSlotId": {
+      "pattern": "^(?!.*\\.\\.)[A-Za-z0-9._-]+$",
+      "type": "string"
+    },
+    "TransportBindingPlan": {
+      "properties": {
+        "binding_id": {
+          "type": "string"
+        },
+        "consumer": {
+          "$ref": "#/$defs/PortEndpoint"
+        },
+        "consumer_target_id": {
+          "type": "string"
+        },
+        "phase": {
+          "$ref": "#/$defs/BindingPhase"
+        },
+        "provider": {
+          "$ref": "#/$defs/PortEndpoint"
+        },
+        "provider_target_id": {
+          "type": "string"
+        },
+        "transport": {
+          "$ref": "#/$defs/SelectedTransport"
+        }
+      },
+      "required": [
+        "binding_id",
+        "consumer",
+        "consumer_target_id",
+        "phase",
+        "provider",
+        "provider_target_id",
+        "transport"
+      ],
+      "type": "object"
+    },
+    "WorkspaceId": {
+      "format": "uuid",
+      "type": "string"
+    }
+  },
+  "$id": "urn:plurora:schema:method:host.realization.plan:v1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Plurora public platform method host.realization.plan.",
+  "properties": {
+    "errors": {
+      "$ref": "#/$defs/Errors"
+    },
+    "method": {
+      "const": "host.realization.plan"
+    },
+    "params": {
+      "$ref": "#/$defs/Params"
+    },
+    "result": {
+      "$ref": "#/$defs/Result"
+    }
+  },
+  "required": [
+    "method",
+    "params"
+  ],
+  "title": "host.realization.plan",
+  "type": "object",
+  "x-plurora-contract": {
+    "id": "host.realization.plan",
+    "implementation_status": "implemented",
+    "introduced_in": "plurora.contract.default/v1@0.1.0",
+    "maturity": "candidate",
+    "owner_layer": "host",
+    "request_schema": "urn:plurora:schema:method:host.realization.plan:v1#/$defs/Params",
+    "response_schema": "urn:plurora:schema:method:host.realization.plan:v1#/$defs/Result",
+    "streaming": false
+  }
+}

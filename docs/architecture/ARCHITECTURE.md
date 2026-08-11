@@ -2,9 +2,9 @@
 
 > [English](./ARCHITECTURE.en.md) · [中文](./ARCHITECTURE.md)
 
-Plurora 不是“内核、能力包、项目”三层的封闭产品栈。它是一组有明确所有权和单向依赖的开放层次：极小的宪法基底、可演化的协议、可替换的组件与内容、管理现实资源的 Host、可替换的发行版，以及自由发展的产品。
+Plurora 不是“内核、能力包、单一产品容器”三层的封闭产品栈。它是一组有明确所有权和单向依赖的开放层次：极小的宪法基底、可演化的协议、可替换的组件与内容、管理现实资源的 Host、可替换的发行版，以及自由发展的产品。
 
-当前 Contract V1 和代码中仍保留 `session`、`package`、`project`、`surface`、`proposal` 等历史边界。它们是正在运行的公开合同，不自动等同于永久架构。长期归属见 [`CONSTITUTION_V2.md`](CONSTITUTION_V2.md) 与 [`../spec/CONTRACT_LAYERING_MATRIX.md`](../spec/CONTRACT_LAYERING_MATRIX.md)。
+当前 Contract V1 公开 `context`、`package`、`surface`、`change`、Work/Installation/Run/Exposure/Binding/Realization 等边界。它们是正在运行的合同，不自动等同于永久架构。长期归属见 [`CONSTITUTION_V2.md`](CONSTITUTION_V2.md) 与 [`../spec/CONTRACT_LAYERING_MATRIX.md`](../spec/CONTRACT_LAYERING_MATRIX.md)。
 
 ## 分层模型
 
@@ -27,7 +27,7 @@ Plurora 不是“内核、能力包、项目”三层的封闭产品栈。它是
 └─────────────────────────────────────────────────────────────────┘
 
 Host Control Plane / Runtime Fabric 与上述层正交：
-安装、进程、文件、secret、网络、端口、代理、target、部署、备份、诊断。
+安装、进程、文件、secret、网络、端口、代理、target、资源 Realization、备份、诊断。
 ```
 
 “正交”意味着 Host 可以为不同产品和协议提供机器能力，但不能因此拥有它们的内容语义。一个无头服务、一个本地创作工具和一个多人世界可以共享 Host 与基底，却采用完全不同的协议和 Shell。
@@ -50,7 +50,7 @@ Host Control Plane / Runtime Fabric 与上述层正交：
 
 基底不拥有 Project、Home、Play、Forge、Assistant、模型、agent、记忆、世界、文档、部署产品或具体 secret store。
 
-现有 `plurora-core` / `plurora-runtime` 中仍混合了一部分 Host、协议和 Shell 语义；迁移时以兼容和数据安全为前提逐步拆分，不通过一次性重写制造新的不稳定。
+现有 `plurora-core` / `plurora-runtime` 中仍混合了一部分 Host、协议和 Shell 语义；拆分必须保持数据安全与公开合同精确性，但不会为已退休的 Project、old Composition 或 Deployment identity 保留兼容 alias。
 
 ### Protocol Commons
 
@@ -87,14 +87,14 @@ Host 管理现实环境中的资源和操作：
 - 本地进程、WASM、远程服务和 target 生命周期；
 - 文件、workspace、secret、网络、端口与代理；
 - Work 的 Host-local Installation、Run、Exposure、Binding 与 Realization 记录；
-- 部署、运行健康、日志、备份、恢复和诊断；
+- Realization、运行健康、日志、备份、恢复和诊断；
 - 设备身份、资源 selector 与 Host 管理策略。
 
 Host 操作仍必须使用基底提供的身份、权力、效果和审计机制。Host 不因能启动一个 World 或 Document 产品，就获得解释其内容的权力。
 
 ### Distributions / Shells / Clients
 
-发行版把平台能力组织成可用产品。当前官方发行版包括 React Web/PWA、Tauri Desktop 和 Rust CLI，并使用 Home、Settings、Project frame、Console 与 Surface bridge。
+发行版把平台能力组织成可用产品。当前官方发行版包括 React Web/PWA、Tauri Desktop 和 Rust CLI，并使用 Library、Settings、Installation frame、Realization workbench 与 Surface bridge。
 
 这些都是官方产品选择：
 
@@ -111,7 +111,7 @@ Surface slot、Home card、Forge panel 和 Assistant action 属于当前 Shell P
 
 产品可以选择：
 
-- 是否采用 Project；
+- 是否采用 Work，或使用另一种领域协议对象；
 - 是否使用事件溯源、分支或审批；
 - 是否使用 AI；
 - 是否提供 UI；
@@ -150,7 +150,7 @@ Host 为各层提供受权的现实资源，但不创造反向语义依赖。
 Contract V1 是当前可运行、可生成 SDK、由 conformance 守护的公开合同。它同时承载了多层职责：
 
 - `context.*`、`journal.*`、`capability.*`、`authority.*`、`object.*` 与 `identity.*` 属于 Substrate；
-- `host.*` 拥有 Installation、Run、Exposure、Binding、target、exec、port、proxy、outbound adapter、Package operation 与 diagnostics；
+- `host.*` 拥有 Installation、Run、Exposure、Binding、Realization、target、exec、port、proxy、outbound adapter、Package operation 与 diagnostics；
 - `protocol.*`、`change.*` 与 `projection.*` 属于可演化 Protocol；
 - `shell.*` contribution discovery 与 surface interpretation 属于 Shell Profile。
 
@@ -164,6 +164,8 @@ Contract V1 是当前可运行、可生成 SDK、由 conformance 守护的公开
 
 Phase 5 的 Powerbox chooser 通过 `host.exposure.*` 与 `host.binding.*` 显示 exact provider/consumer Port、audience、lease、trust 与 evidence；它只使用 Host public relay，不持有 private intent 或 runtime handle。Surface bridge 仍是显式 allowlist，没有 Powerbox private bridge。
 
+Phase 6 的 Realization workbench 通过 `host.realization.*` 先显示 effect-free plan、stable digest、preconditions 与风险，再执行 approval-bound apply/stop/rollback/reconcile。Run start、Binding select 与关闭 UI 都不会隐式触发 Realization effect。
+
 ### SurfaceHost
 
 第三方 Web Surface 由 sandboxed iframe 挂载。默认 Surface 没有 kernel access；Host 只转发显式方法和 capability allowlist，并把 stream ownership、session、Installation/Run grant 与短期 asset lease 绑定到当前 mount。完整边界见 [`../guides/SURFACE_HOSTING.md`](../guides/SURFACE_HOSTING.md)。
@@ -176,11 +178,11 @@ Desktop、Web/PWA 与远程 Host 连接复用同一 client core 和公开边界�
 
 ### CLI 与无头使用
 
-`plurora-cli` 提供 Host、Work、Installation、Package、Contract、conformance 和运维入口。CLI 在本机运行也不能通过读取 Host 数据目录获得公开协议之外的产品权威。
+`plurora-cli` 提供 Host、Work、Installation、Run、Exposure/Binding、Realization、Package、Contract、conformance 和运维入口。CLI 在本机运行也不能通过读取 Host 数据目录获得公开协议之外的产品权威。
 
 ## Work / Workspace / Installation 模型
 
-WorkRevision 是可移植内容身份，Workspace 是某台 Host 上的可变源码位置，Installation 是 Host journal 中对 Work 的采用记录。Run 与 Exposure 是独立、可重复的运行事实，不能被 Installation `ready` 代替。
+WorkRevision 是可移植内容身份，Workspace 是某台 Host 上的可变源码位置，Installation 是 Host journal 中对 Work 的采用记录。Run、Exposure/Binding 与 Realization 是相互独立的 Host-local 事实，不能被 Installation `ready` 代替，也不能互相隐式创建。
 
 World、Document、Service 或其他协议对象可以独立存在；它们可以通过 Component、Port、Adapter 与 Work 组合，而不丢失自身身份。详见 [`../guides/INSTALLATION_MODEL.md`](../guides/INSTALLATION_MODEL.md) 与 [`../product/PLATFORM_PRODUCT_MODEL.md`](../product/PLATFORM_PRODUCT_MODEL.md)。
 

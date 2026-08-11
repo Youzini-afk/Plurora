@@ -21,8 +21,8 @@ use tokio::sync::{Mutex, RwLock};
 use crate::{
     EventStore, HostPolicy, InMemoryObjectStore, InprocPackageCatalog, InstallationControl,
     InstallationScopeContext, ObjectStore, PowerboxControl, ProtocolContext, ProtocolPrincipal,
-    RunControl, SecretResolverConfig, UnavailableInstallationControl, UnavailablePowerboxControl,
-    UnavailableRunControl,
+    RealizationControl, RunControl, SecretResolverConfig, UnavailableInstallationControl,
+    UnavailablePowerboxControl, UnavailableRealizationControl, UnavailableRunControl,
 };
 
 mod artifacts;
@@ -139,6 +139,8 @@ pub struct RuntimeConfig {
     pub run_control: Arc<dyn RunControl>,
     /// Host-owned durable Exposure/Binding control plane. The default fails closed.
     pub powerbox_control: Arc<dyn PowerboxControl>,
+    /// Host-owned durable Managed Realization control plane. The default fails closed.
+    pub realization_control: Arc<dyn RealizationControl>,
     /// Delay between durable retries after a Package activation-loss report
     /// fails. Retries have no attempt limit and stop when the Runtime is gone.
     pub package_activation_loss_retry_delay: Duration,
@@ -193,6 +195,7 @@ impl fmt::Debug for RuntimeConfig {
             .field("installation_control", &"configured")
             .field("run_control", &"configured")
             .field("powerbox_control", &"configured")
+            .field("realization_control", &"configured")
             .field(
                 "package_activation_loss_retry_delay",
                 &self.package_activation_loss_retry_delay,
@@ -223,6 +226,7 @@ impl Default for RuntimeConfig {
             installation_control: Arc::new(UnavailableInstallationControl),
             run_control: Arc::new(UnavailableRunControl),
             powerbox_control: Arc::new(UnavailablePowerboxControl),
+            realization_control: Arc::new(UnavailableRealizationControl),
             package_activation_loss_retry_delay: Duration::from_millis(250),
             outbound_executor: OutboundExecutorConfig::default(),
             outbound_execute_policy: OutboundExecutePolicyConfig::default(),

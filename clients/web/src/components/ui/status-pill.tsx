@@ -83,6 +83,11 @@ const STATE_TO_TONE: Record<string, StatusTone> = {
   degraded: "failed",
   loading: "starting",
   archived: "stopped",
+  planned: "stopped",
+  applying: "starting",
+  active: "running",
+  outcome_unknown: "interrupted",
+  recovery_required: "interrupted",
 };
 
 export function installationStateTone(state: string): StatusTone {
@@ -90,5 +95,9 @@ export function installationStateTone(state: string): StatusTone {
 }
 
 export function runStateTone(state: string): StatusTone {
+  return STATE_TO_TONE[state] ?? "neutral";
+}
+
+export function realizationStateTone(state: string): StatusTone {
   return STATE_TO_TONE[state] ?? "neutral";
 }

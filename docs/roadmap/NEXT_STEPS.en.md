@@ -6,7 +6,7 @@ Plurora does not move forward by expanding around one product, example, or workf
 
 These directions progress in parallel. Phase numbers would create a false linear order. Every concrete task should belong to a clear user lifecycle, architecture layer, and long-term responsibility.
 
-The current candidate construction line now converges three needs—game composition, open-source project deployment, and closed-source entrypoints—into one model: portable Work revisions, recursive Assemblies, Host-local Installations, Runs, and Target-compiled Realizations. The destructive model, Public Contract reset, Codex execution rules, phase commits, and final acceptance scenarios are specified in [`WORK_ASSEMBLY_REALIZATION.md`](WORK_ASSEMBLY_REALIZATION.en.md). That document is a temporary development plan, not an automatic Stable platform ontology; delete it after completion and move durable conclusions into formal documentation.
+The candidate line now has its Work, Assembly, Installation, Run, Exposure/Binding, and Target-compiled Realization foundations implemented. The next boundary is Foreign Work, Rights/Transparency, closed-source entrypoints, and opaque-state backup. The destructive model, Public Contract reset, Codex execution rules, phase commits, and final acceptance scenarios are specified in [`WORK_ASSEMBLY_REALIZATION.md`](WORK_ASSEMBLY_REALIZATION.en.md). That document is a temporary development plan, not an automatic Stable platform ontology; Phase 9 deletes it and moves durable conclusions into formal documentation.
 
 ## Most important current work
 
@@ -32,7 +32,7 @@ A creator should not need to understand the whole kernel before beginning, and s
 template / import
 → local run and hot reload
 → observe events, calls, objects, and state
-→ modify content, composition, components, or protocols
+→ modify content, Assemblies, components, or protocols
 → human / AI assistance
 → debug and test
 → package, share, deploy
@@ -59,7 +59,7 @@ Contract V1 remains the supported exact public boundary. Current work should:
 - give new capability an explicit namespace, version, and maturity;
 - maintain the exact Contract Registry, generated identities, and explicit contract/profile/Protocol negotiation;
 - preserve readable prior data and unknown fields through explicit versioned readers and migration tooling when a breaking boundary is introduced;
-- classify Surface slots, Project, targets, and deployment as Profile or Host rather than permanent substrate ontology;
+- classify Surface slots, Work, Targets, and Realization as Profile or Host rather than permanent substrate ontology;
 - create a Protocol only when real shared semantics exist, rather than freezing one Package's private JSON prematurely.
 
 See [`../spec/CONTRACT_LAYERING_MATRIX.md`](../spec/CONTRACT_LAYERING_MATRIX.en.md) for itemized ownership and [`../architecture/CONSTITUTION_V2.md`](../architecture/CONSTITUTION_V2.en.md) for the candidate constitution.
@@ -79,7 +79,7 @@ WASM, remote execution, and new transports do not become priorities merely becau
 
 ### Treat user data, content, and artifacts as long-term assets
 
-ObjectStore, ArtifactDescriptor, World Bundle, deployment artifacts, and effect receipts already exist, but long-term data governance must converge:
+ObjectStore, ArtifactDescriptor, World Bundle, Realization plan/resource artifacts, and effect receipts already exist, but long-term data governance must converge:
 
 - clear classification of user data, reconstructable cache, executable artifacts, and temporary diagnostics;
 - content digests, references, provenance, reachability, retention, and garbage collection;
@@ -110,7 +110,7 @@ Local use remains first-class while users can extend capability to remote device
 
 - a managed local Host works without a cloud account;
 - remote Hosts use explicit HTTPS identity, pairing, grants, and resource selectors;
-- one client strictly isolates credentials, caches, and Project or target preferences between Hosts;
+- one client strictly isolates credentials, caches, and Installation or Target preferences between Hosts;
 - device revocation, ancestor revocation, offline state, reconnect, and expiration are understandable;
 - large artifact transfer is resumable, verifiable, and bounded;
 - multi-Host content and state migration do not depend on local absolute paths;
@@ -133,10 +133,10 @@ The current implementation snapshot is in [`../ALPHA_STATUS.md`](../ALPHA_STATUS
 
 These may continue to be built, but none defines Plurora's only direction:
 
-- a Project workflow;
+- one Work-centric workflow;
 - play-creation, Tavern, worlds, or chat;
 - agents or model inference;
-- Docker and deployment;
+- Docker and the Realization executor;
 - the official Web or Desktop shell;
 - one protocol profile;
 - one demonstration, fixture, or external project.
@@ -147,8 +147,8 @@ They are products, protocols, Host capabilities, or use cases on the platform. I
 
 Without clear user value and layer ownership, do not proactively add:
 
-- deployment backends added for feature count;
-- kernel-owned chat, agent, memory, world, or Project UI semantics;
+- Realization backends added for feature count;
+- kernel-owned chat, agent, memory, world, or product UI semantics;
 - first-party Package private APIs, name privilege, or hidden routing;
 - arbitrary remote shells, unlimited Host filesystems, or long-lived root credentials;
 - Stable schemas without migration paths;

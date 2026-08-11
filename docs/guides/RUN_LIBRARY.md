@@ -64,7 +64,7 @@ Start/stop 的相同幂等键与相同 fingerprint 会重放 durable 结果；fi
 - `unsupported_backend`：WASM、remote、`contract: none`/Foreign Capsule、非 JSON-RPC subprocess 等执行形态在本 Phase 没有 Run driver；改用受支持的本地实现。
 - `target_unsatisfied`：entrypoint/Port 无法满足，或 Work 带有需要机器资源的 OperationalIntent；按照 gap 的 next step 准备所需 Realization。
 
-这些 gap 是诊断与下一步，不是隐式授权。Run start 不 build 源码、不创建 public route、不执行 managed deployment，也不调用未来 Phase 6 的 `host.realization.apply`。缺少 managed Realization 时必须停在 gap。
+这些 gap 是诊断与下一步，不是隐式授权。Run start 不 build 源码、不创建 public route、不执行 managed Realization，也不隐式调用 `host.realization.apply`。缺少 managed Realization 时必须停在 gap，由用户通过独立 plan/approval/apply 流程处理。
 
 ## Powerbox 与 Library
 
@@ -77,12 +77,12 @@ Start/stop 的相同幂等键与相同 fingerprint 会重放 durable 结果；fi
 - stop effect 已发生但 terminal journal commit 无法确认时，重放收敛为 `interrupted` + `outcome_unknown`，不会把 Stopping 猜成成功。
 - Powerbox chooser 通过 `host.exposure.*` / `host.binding.*` 显示 explicit phase、exact Exposure/audience/expiry、两端 PortContract、provider source/trust/claims/boundaries/evidence、candidate digest/stale 状态；0 或多个候选都要求明确选择，preference 只是排序 hint。
 - Runtime 只注入选中 Port 的最小 handle；同一 Component 多 Port 可共享 activation，不同 Component 或 node path 隔离。provider stop、revoke、expiry 或 version drift 会取消 Binding；不跨 Installation 共享 state/secret。
-- Exposure 与跨 Installation Binding 已在 Phase 5 实现；Managed Realization 的 plan/apply 与 `host.realization.*` 仍是 Phase 6 planned，不在本指南宣称已完成。
+- Exposure 与跨 Installation Binding 已在 Phase 5 实现；Managed Realization 的 plan/apply 与 `host.realization.*` 已在 Phase 6 实现，但 Run 生命周期仍与其分离，详见 [`REALIZATION.md`](REALIZATION.md)。
 
 ## 相关契约
 
-- [`../spec/PUBLIC_CONTRACT.md`](../spec/PUBLIC_CONTRACT.md) — 92 methods、69 events 与 authority 约定。
-- [`../spec/v1/EVENT_KIND_REGISTRY.md`](../spec/v1/EVENT_KIND_REGISTRY.md) — Run、Exposure、Binding lifecycle events。
+- [`../spec/PUBLIC_CONTRACT.md`](../spec/PUBLIC_CONTRACT.md) — 99 methods、76 events 与 authority 约定。
+- [`../spec/v1/EVENT_KIND_REGISTRY.md`](../spec/v1/EVENT_KIND_REGISTRY.md) — Run、Exposure、Binding、Realization lifecycle events。
 - [`INSTALLATION_MODEL.md`](INSTALLATION_MODEL.md) — Installation journal、state 与 Work 边界。
 - [`../architecture/HOST_RESOURCE_AUTHORITY.md`](../architecture/HOST_RESOURCE_AUTHORITY.md) — exact resource selector 与 `run` action。
 - [`POWERBOX_BINDING.md`](POWERBOX_BINDING.md) — candidate disclosure、runtime pin 与 revoke/expiry 规则。

@@ -12702,6 +12702,228 @@ impl ::std::convert::From<::serde_json::Map<::std::string::String, ::serde_json:
         Self(value)
     }
 }
+///`HostRealizationListResult`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "HostRealizationListResult",
+///  "type": "array",
+///  "items": {
+///    "type": "object",
+///    "required": [
+///      "created_at",
+///      "health",
+///      "installation_id",
+///      "plan_ref",
+///      "realization_id",
+///      "revision",
+///      "status",
+///      "updated_at"
+///    ],
+///    "properties": {
+///      "activated_at": {
+///        "type": [
+///          "string",
+///          "null"
+///        ],
+///        "format": "date-time"
+///      },
+///      "actual_resources": {
+///        "type": "array",
+///        "items": {
+///          "$ref": "#/definitions/RealizedResource"
+///        }
+///      },
+///      "created_at": {
+///        "type": "string",
+///        "format": "date-time"
+///      },
+///      "health": {
+///        "$ref": "#/definitions/RealizationHealth"
+///      },
+///      "installation_id": {
+///        "$ref": "#/definitions/InstallationId"
+///      },
+///      "parent_realization_id": {
+///        "anyOf": [
+///          {
+///            "$ref": "#/definitions/RealizationId"
+///          },
+///          {
+///            "type": "null"
+///          }
+///        ]
+///      },
+///      "plan_ref": {
+///        "$ref": "#/definitions/ArtifactDescriptor"
+///      },
+///      "realization_id": {
+///        "$ref": "#/definitions/RealizationId"
+///      },
+///      "receipts": {
+///        "type": "array",
+///        "items": {
+///          "$ref": "#/definitions/ArtifactDescriptor"
+///        }
+///      },
+///      "revision": {
+///        "type": "integer",
+///        "format": "uint64",
+///        "minimum": 0.0
+///      },
+///      "status": {
+///        "$ref": "#/definitions/RealizationStatus"
+///      },
+///      "stopped_at": {
+///        "type": [
+///          "string",
+///          "null"
+///        ],
+///        "format": "date-time"
+///      },
+///      "updated_at": {
+///        "type": "string",
+///        "format": "date-time"
+///      }
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+#[serde(transparent)]
+pub struct HostRealizationListResult(pub ::std::vec::Vec<HostRealizationListResultItem>);
+impl ::std::ops::Deref for HostRealizationListResult {
+    type Target = ::std::vec::Vec<HostRealizationListResultItem>;
+    fn deref(&self) -> &::std::vec::Vec<HostRealizationListResultItem> {
+        &self.0
+    }
+}
+impl ::std::convert::From<HostRealizationListResult>
+    for ::std::vec::Vec<HostRealizationListResultItem>
+{
+    fn from(value: HostRealizationListResult) -> Self {
+        value.0
+    }
+}
+impl ::std::convert::From<::std::vec::Vec<HostRealizationListResultItem>>
+    for HostRealizationListResult
+{
+    fn from(value: ::std::vec::Vec<HostRealizationListResultItem>) -> Self {
+        Self(value)
+    }
+}
+///`HostRealizationListResultItem`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "type": "object",
+///  "required": [
+///    "created_at",
+///    "health",
+///    "installation_id",
+///    "plan_ref",
+///    "realization_id",
+///    "revision",
+///    "status",
+///    "updated_at"
+///  ],
+///  "properties": {
+///    "activated_at": {
+///      "type": [
+///        "string",
+///        "null"
+///      ],
+///      "format": "date-time"
+///    },
+///    "actual_resources": {
+///      "type": "array",
+///      "items": {
+///        "$ref": "#/definitions/RealizedResource"
+///      }
+///    },
+///    "created_at": {
+///      "type": "string",
+///      "format": "date-time"
+///    },
+///    "health": {
+///      "$ref": "#/definitions/RealizationHealth"
+///    },
+///    "installation_id": {
+///      "$ref": "#/definitions/InstallationId"
+///    },
+///    "parent_realization_id": {
+///      "anyOf": [
+///        {
+///          "$ref": "#/definitions/RealizationId"
+///        },
+///        {
+///          "type": "null"
+///        }
+///      ]
+///    },
+///    "plan_ref": {
+///      "$ref": "#/definitions/ArtifactDescriptor"
+///    },
+///    "realization_id": {
+///      "$ref": "#/definitions/RealizationId"
+///    },
+///    "receipts": {
+///      "type": "array",
+///      "items": {
+///        "$ref": "#/definitions/ArtifactDescriptor"
+///      }
+///    },
+///    "revision": {
+///      "type": "integer",
+///      "format": "uint64",
+///      "minimum": 0.0
+///    },
+///    "status": {
+///      "$ref": "#/definitions/RealizationStatus"
+///    },
+///    "stopped_at": {
+///      "type": [
+///        "string",
+///        "null"
+///      ],
+///      "format": "date-time"
+///    },
+///    "updated_at": {
+///      "type": "string",
+///      "format": "date-time"
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct HostRealizationListResultItem {
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub activated_at: ::std::option::Option<::chrono::DateTime<::chrono::offset::Utc>>,
+    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
+    pub actual_resources: ::std::vec::Vec<RealizedResource>,
+    pub created_at: ::chrono::DateTime<::chrono::offset::Utc>,
+    pub health: RealizationHealth,
+    pub installation_id: InstallationId,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub parent_realization_id: ::std::option::Option<RealizationId>,
+    pub plan_ref: ArtifactDescriptor,
+    pub realization_id: RealizationId,
+    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
+    pub receipts: ::std::vec::Vec<ArtifactDescriptor>,
+    pub revision: u64,
+    pub status: RealizationStatus,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub stopped_at: ::std::option::Option<::chrono::DateTime<::chrono::offset::Utc>>,
+    pub updated_at: ::chrono::DateTime<::chrono::offset::Utc>,
+}
 ///`HostRunListResult`
 ///
 /// <details><summary>JSON schema</summary>
@@ -16873,6 +17095,80 @@ pub struct LocalExecStopResponse {
     pub error: ::std::option::Option<::std::string::String>,
     pub exec_id: ::std::string::String,
     pub status: ExecStatus,
+}
+///`ManagedTargetBuildNetworkMode`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "ManagedTargetBuildNetworkMode",
+///  "type": "string",
+///  "enum": [
+///    "none",
+///    "bridge"
+///  ]
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(
+    ::serde::Deserialize,
+    ::serde::Serialize,
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    Ord,
+    PartialEq,
+    PartialOrd,
+)]
+pub enum ManagedTargetBuildNetworkMode {
+    #[serde(rename = "none")]
+    None,
+    #[serde(rename = "bridge")]
+    Bridge,
+}
+impl ::std::fmt::Display for ManagedTargetBuildNetworkMode {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+        match *self {
+            Self::None => f.write_str("none"),
+            Self::Bridge => f.write_str("bridge"),
+        }
+    }
+}
+impl ::std::str::FromStr for ManagedTargetBuildNetworkMode {
+    type Err = self::error::ConversionError;
+    fn from_str(value: &str) -> ::std::result::Result<Self, self::error::ConversionError> {
+        match value {
+            "none" => Ok(Self::None),
+            "bridge" => Ok(Self::Bridge),
+            _ => Err("invalid value".into()),
+        }
+    }
+}
+impl ::std::convert::TryFrom<&str> for ManagedTargetBuildNetworkMode {
+    type Error = self::error::ConversionError;
+    fn try_from(value: &str) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<&::std::string::String> for ManagedTargetBuildNetworkMode {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<::std::string::String> for ManagedTargetBuildNetworkMode {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: ::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
 }
 ///`MethodStatus`
 ///
@@ -24519,6 +24815,335 @@ impl ::std::convert::TryFrom<::std::string::String> for ReadinessProbeKind {
         value.parse()
     }
 }
+///`RealizationApplyRequest`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "RealizationApplyRequest",
+///  "type": "object",
+///  "required": [
+///    "approval",
+///    "expected_revision",
+///    "idempotency_key",
+///    "installation_id",
+///    "plan_ref",
+///    "realization_id",
+///    "target_id"
+///  ],
+///  "properties": {
+///    "approval": {
+///      "$ref": "#/definitions/RealizationApproval"
+///    },
+///    "expected_revision": {
+///      "type": "integer",
+///      "format": "uint64",
+///      "minimum": 0.0
+///    },
+///    "idempotency_key": {
+///      "type": "string"
+///    },
+///    "installation_id": {
+///      "$ref": "#/definitions/InstallationId"
+///    },
+///    "plan_ref": {
+///      "$ref": "#/definitions/ArtifactDescriptor"
+///    },
+///    "realization_id": {
+///      "$ref": "#/definitions/RealizationId"
+///    },
+///    "target_id": {
+///      "type": "string"
+///    }
+///  },
+///  "additionalProperties": false,
+///  "$schema": "https://json-schema.org/draft/2020-12/schema"
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+#[serde(deny_unknown_fields)]
+pub struct RealizationApplyRequest {
+    pub approval: RealizationApproval,
+    pub expected_revision: u64,
+    pub idempotency_key: ::std::string::String,
+    pub installation_id: InstallationId,
+    pub plan_ref: ArtifactDescriptor,
+    pub realization_id: RealizationId,
+    pub target_id: ::std::string::String,
+}
+///`RealizationApproval`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "RealizationApproval",
+///  "type": "object",
+///  "required": [
+///    "decided_at",
+///    "decision",
+///    "plan_digest"
+///  ],
+///  "properties": {
+///    "accepted_risks": {
+///      "type": "array",
+///      "items": {
+///        "type": "string"
+///      }
+///    },
+///    "decided_at": {
+///      "type": "string",
+///      "format": "date-time"
+///    },
+///    "decision": {
+///      "type": "string"
+///    },
+///    "expires_at": {
+///      "type": [
+///        "string",
+///        "null"
+///      ],
+///      "format": "date-time"
+///    },
+///    "plan_digest": {
+///      "type": "string"
+///    }
+///  },
+///  "additionalProperties": false
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+#[serde(deny_unknown_fields)]
+pub struct RealizationApproval {
+    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
+    pub accepted_risks: ::std::vec::Vec<::std::string::String>,
+    pub decided_at: ::chrono::DateTime<::chrono::offset::Utc>,
+    pub decision: ::std::string::String,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub expires_at: ::std::option::Option<::chrono::DateTime<::chrono::offset::Utc>>,
+    pub plan_digest: ::std::string::String,
+}
+///`RealizationBackendSelection`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "RealizationBackendSelection",
+///  "oneOf": [
+///    {
+///      "type": "object",
+///      "required": [
+///        "container_port",
+///        "execution_class",
+///        "image",
+///        "kind",
+///        "port_name",
+///        "route_id",
+///        "workload_id"
+///      ],
+///      "properties": {
+///        "container_port": {
+///          "type": "integer",
+///          "format": "uint16",
+///          "minimum": 0.0
+///        },
+///        "execution_class": {
+///          "type": "string"
+///        },
+///        "health_path": {
+///          "type": [
+///            "string",
+///            "null"
+///          ]
+///        },
+///        "image": {
+///          "type": "string"
+///        },
+///        "kind": {
+///          "type": "string",
+///          "enum": [
+///            "oci_image"
+///          ]
+///        },
+///        "port_name": {
+///          "type": "string"
+///        },
+///        "pull_if_missing": {
+///          "default": false,
+///          "type": "boolean"
+///        },
+///        "route_access": {
+///          "default": "host_authenticated",
+///          "allOf": [
+///            {
+///              "$ref": "#/definitions/ProxyRouteAccess"
+///            }
+///          ]
+///        },
+///        "route_id": {
+///          "type": "string"
+///        },
+///        "workload_id": {
+///          "type": "string"
+///        }
+///      },
+///      "additionalProperties": false
+///    },
+///    {
+///      "type": "object",
+///      "required": [
+///        "build_context_ref",
+///        "build_descriptor_hash",
+///        "container_port",
+///        "dockerfile",
+///        "execution_class",
+///        "kind",
+///        "network_mode",
+///        "port_name",
+///        "route_id",
+///        "source_tree_digest",
+///        "workload_id",
+///        "workspace_id"
+///      ],
+///      "properties": {
+///        "build_context_ref": {
+///          "$ref": "#/definitions/ArtifactDescriptor"
+///        },
+///        "build_descriptor_hash": {
+///          "type": "string"
+///        },
+///        "container_port": {
+///          "type": "integer",
+///          "format": "uint16",
+///          "minimum": 0.0
+///        },
+///        "dockerfile": {
+///          "type": "string"
+///        },
+///        "execution_class": {
+///          "type": "string"
+///        },
+///        "health_path": {
+///          "type": [
+///            "string",
+///            "null"
+///          ]
+///        },
+///        "kind": {
+///          "type": "string",
+///          "enum": [
+///            "docker_build"
+///          ]
+///        },
+///        "network_mode": {
+///          "$ref": "#/definitions/ManagedTargetBuildNetworkMode"
+///        },
+///        "port_name": {
+///          "type": "string"
+///        },
+///        "route_access": {
+///          "default": "host_authenticated",
+///          "allOf": [
+///            {
+///              "$ref": "#/definitions/ProxyRouteAccess"
+///            }
+///          ]
+///        },
+///        "route_id": {
+///          "type": "string"
+///        },
+///        "source_tree_digest": {
+///          "type": "string"
+///        },
+///        "workload_id": {
+///          "type": "string"
+///        },
+///        "workspace_id": {
+///          "$ref": "#/definitions/WorkspaceId"
+///        }
+///      },
+///      "additionalProperties": false
+///    }
+///  ]
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+#[serde(tag = "kind", deny_unknown_fields)]
+pub enum RealizationBackendSelection {
+    #[serde(rename = "oci_image")]
+    OciImage {
+        container_port: u16,
+        execution_class: ::std::string::String,
+        #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+        health_path: ::std::option::Option<::std::string::String>,
+        image: ::std::string::String,
+        port_name: ::std::string::String,
+        #[serde(default)]
+        pull_if_missing: bool,
+        #[serde(default = "defaults::realization_backend_selection_oci_image_route_access")]
+        route_access: ProxyRouteAccess,
+        route_id: ::std::string::String,
+        workload_id: ::std::string::String,
+    },
+    #[serde(rename = "docker_build")]
+    DockerBuild {
+        build_context_ref: ArtifactDescriptor,
+        build_descriptor_hash: ::std::string::String,
+        container_port: u16,
+        dockerfile: ::std::string::String,
+        execution_class: ::std::string::String,
+        #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+        health_path: ::std::option::Option<::std::string::String>,
+        network_mode: ManagedTargetBuildNetworkMode,
+        port_name: ::std::string::String,
+        #[serde(default = "defaults::realization_backend_selection_docker_build_route_access")]
+        route_access: ProxyRouteAccess,
+        route_id: ::std::string::String,
+        source_tree_digest: ::std::string::String,
+        workload_id: ::std::string::String,
+        workspace_id: WorkspaceId,
+    },
+}
+///`RealizationGetRequest`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "RealizationGetRequest",
+///  "type": "object",
+///  "required": [
+///    "installation_id",
+///    "realization_id"
+///  ],
+///  "properties": {
+///    "installation_id": {
+///      "$ref": "#/definitions/InstallationId"
+///    },
+///    "realization_id": {
+///      "$ref": "#/definitions/RealizationId"
+///    }
+///  },
+///  "additionalProperties": false,
+///  "$schema": "https://json-schema.org/draft/2020-12/schema"
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+#[serde(deny_unknown_fields)]
+pub struct RealizationGetRequest {
+    pub installation_id: InstallationId,
+    pub realization_id: RealizationId,
+}
 ///`RealizationHealth`
 ///
 /// <details><summary>JSON schema</summary>
@@ -24613,6 +25238,135 @@ impl ::std::fmt::Display for RealizationId {
     fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
         self.0.fmt(f)
     }
+}
+///`RealizationLifecyclePayloadSchema`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "RealizationLifecyclePayloadSchema",
+///  "type": "object",
+///  "required": [
+///    "operation",
+///    "realization",
+///    "target_id"
+///  ],
+///  "properties": {
+///    "operation": {
+///      "type": "string"
+///    },
+///    "realization": {
+///      "$ref": "#/definitions/RealizationRevision"
+///    },
+///    "reason_code": {
+///      "type": [
+///        "string",
+///        "null"
+///      ]
+///    },
+///    "target_id": {
+///      "type": "string"
+///    }
+///  },
+///  "$schema": "https://json-schema.org/draft/2020-12/schema"
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct RealizationLifecyclePayloadSchema {
+    pub operation: ::std::string::String,
+    pub realization: RealizationRevision,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub reason_code: ::std::option::Option<::std::string::String>,
+    pub target_id: ::std::string::String,
+}
+///`RealizationListRequest`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "RealizationListRequest",
+///  "type": "object",
+///  "properties": {
+///    "installation_id": {
+///      "anyOf": [
+///        {
+///          "$ref": "#/definitions/InstallationId"
+///        },
+///        {
+///          "type": "null"
+///        }
+///      ]
+///    },
+///    "target_id": {
+///      "type": [
+///        "string",
+///        "null"
+///      ]
+///    }
+///  },
+///  "additionalProperties": false,
+///  "$schema": "https://json-schema.org/draft/2020-12/schema"
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+#[serde(deny_unknown_fields)]
+pub struct RealizationListRequest {
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub installation_id: ::std::option::Option<InstallationId>,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub target_id: ::std::option::Option<::std::string::String>,
+}
+impl ::std::default::Default for RealizationListRequest {
+    fn default() -> Self {
+        Self {
+            installation_id: Default::default(),
+            target_id: Default::default(),
+        }
+    }
+}
+///`RealizationMutationResult`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "RealizationMutationResult",
+///  "type": "object",
+///  "required": [
+///    "realization",
+///    "replayed"
+///  ],
+///  "properties": {
+///    "gaps": {
+///      "type": "array",
+///      "items": {
+///        "$ref": "#/definitions/RealizationPlanningGap"
+///      }
+///    },
+///    "realization": {
+///      "$ref": "#/definitions/RealizationRevision"
+///    },
+///    "replayed": {
+///      "type": "boolean"
+///    }
+///  },
+///  "$schema": "https://json-schema.org/draft/2020-12/schema"
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct RealizationMutationResult {
+    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
+    pub gaps: ::std::vec::Vec<RealizationPlanningGap>,
+    pub realization: RealizationRevision,
+    pub replayed: bool,
 }
 ///`RealizationPlan`
 ///
@@ -24742,6 +25496,127 @@ pub struct RealizationPlan {
     pub transports: ::std::vec::Vec<TransportBindingPlan>,
     pub work_revision: ArtifactDescriptor,
 }
+///`RealizationPlanRequest`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "RealizationPlanRequest",
+///  "type": "object",
+///  "required": [
+///    "backends",
+///    "expected_installation_revision",
+///    "idempotency_key",
+///    "installation_id",
+///    "target_id"
+///  ],
+///  "properties": {
+///    "backends": {
+///      "type": "array",
+///      "items": {
+///        "$ref": "#/definitions/RealizationBackendSelection"
+///      }
+///    },
+///    "expected_installation_revision": {
+///      "type": "integer",
+///      "format": "uint64",
+///      "minimum": 0.0
+///    },
+///    "idempotency_key": {
+///      "type": "string"
+///    },
+///    "installation_id": {
+///      "$ref": "#/definitions/InstallationId"
+///    },
+///    "target_id": {
+///      "type": "string"
+///    }
+///  },
+///  "additionalProperties": false,
+///  "$schema": "https://json-schema.org/draft/2020-12/schema"
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+#[serde(deny_unknown_fields)]
+pub struct RealizationPlanRequest {
+    pub backends: ::std::vec::Vec<RealizationBackendSelection>,
+    pub expected_installation_revision: u64,
+    pub idempotency_key: ::std::string::String,
+    pub installation_id: InstallationId,
+    pub target_id: ::std::string::String,
+}
+///`RealizationPlanResult`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "RealizationPlanResult",
+///  "type": "object",
+///  "required": [
+///    "replayed"
+///  ],
+///  "properties": {
+///    "gaps": {
+///      "type": "array",
+///      "items": {
+///        "$ref": "#/definitions/RealizationPlanningGap"
+///      }
+///    },
+///    "plan": {
+///      "anyOf": [
+///        {
+///          "$ref": "#/definitions/RealizationPlan"
+///        },
+///        {
+///          "type": "null"
+///        }
+///      ]
+///    },
+///    "plan_ref": {
+///      "anyOf": [
+///        {
+///          "$ref": "#/definitions/ArtifactDescriptor"
+///        },
+///        {
+///          "type": "null"
+///        }
+///      ]
+///    },
+///    "realization": {
+///      "anyOf": [
+///        {
+///          "$ref": "#/definitions/RealizationRevision"
+///        },
+///        {
+///          "type": "null"
+///        }
+///      ]
+///    },
+///    "replayed": {
+///      "type": "boolean"
+///    }
+///  },
+///  "$schema": "https://json-schema.org/draft/2020-12/schema"
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct RealizationPlanResult {
+    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
+    pub gaps: ::std::vec::Vec<RealizationPlanningGap>,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub plan: ::std::option::Option<RealizationPlan>,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub plan_ref: ::std::option::Option<ArtifactDescriptor>,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub realization: ::std::option::Option<RealizationRevision>,
+    pub replayed: bool,
+}
 ///`RealizationPlanSchema`
 ///
 /// <details><summary>JSON schema</summary>
@@ -24810,6 +25685,100 @@ impl ::std::convert::TryFrom<::std::string::String> for RealizationPlanSchema {
         value.parse()
     }
 }
+///`RealizationPlanningGap`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "RealizationPlanningGap",
+///  "type": "object",
+///  "required": [
+///    "next_step",
+///    "reason_code"
+///  ],
+///  "properties": {
+///    "next_step": {
+///      "type": "string"
+///    },
+///    "reason_code": {
+///      "type": "string"
+///    },
+///    "target_id": {
+///      "type": [
+///        "string",
+///        "null"
+///      ]
+///    },
+///    "workload_id": {
+///      "type": [
+///        "string",
+///        "null"
+///      ]
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct RealizationPlanningGap {
+    pub next_step: ::std::string::String,
+    pub reason_code: ::std::string::String,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub target_id: ::std::option::Option<::std::string::String>,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub workload_id: ::std::option::Option<::std::string::String>,
+}
+///`RealizationReconcileRequest`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "RealizationReconcileRequest",
+///  "type": "object",
+///  "required": [
+///    "expected_revision",
+///    "idempotency_key",
+///    "installation_id",
+///    "realization_id",
+///    "target_id"
+///  ],
+///  "properties": {
+///    "expected_revision": {
+///      "type": "integer",
+///      "format": "uint64",
+///      "minimum": 0.0
+///    },
+///    "idempotency_key": {
+///      "type": "string"
+///    },
+///    "installation_id": {
+///      "$ref": "#/definitions/InstallationId"
+///    },
+///    "realization_id": {
+///      "$ref": "#/definitions/RealizationId"
+///    },
+///    "target_id": {
+///      "type": "string"
+///    }
+///  },
+///  "additionalProperties": false,
+///  "$schema": "https://json-schema.org/draft/2020-12/schema"
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+#[serde(deny_unknown_fields)]
+pub struct RealizationReconcileRequest {
+    pub expected_revision: u64,
+    pub idempotency_key: ::std::string::String,
+    pub installation_id: InstallationId,
+    pub realization_id: RealizationId,
+    pub target_id: ::std::string::String,
+}
 ///`RealizationRevision`
 ///
 /// <details><summary>JSON schema</summary>
@@ -24824,7 +25793,9 @@ impl ::std::convert::TryFrom<::std::string::String> for RealizationPlanSchema {
 ///    "installation_id",
 ///    "plan_ref",
 ///    "realization_id",
-///    "status"
+///    "revision",
+///    "status",
+///    "updated_at"
 ///  ],
 ///  "properties": {
 ///    "activated_at": {
@@ -24872,8 +25843,24 @@ impl ::std::convert::TryFrom<::std::string::String> for RealizationPlanSchema {
 ///        "$ref": "#/definitions/ArtifactDescriptor"
 ///      }
 ///    },
+///    "revision": {
+///      "type": "integer",
+///      "format": "uint64",
+///      "minimum": 0.0
+///    },
 ///    "status": {
 ///      "$ref": "#/definitions/RealizationStatus"
+///    },
+///    "stopped_at": {
+///      "type": [
+///        "string",
+///        "null"
+///      ],
+///      "format": "date-time"
+///    },
+///    "updated_at": {
+///      "type": "string",
+///      "format": "date-time"
 ///    }
 ///  },
 ///  "$schema": "https://json-schema.org/draft/2020-12/schema"
@@ -24896,7 +25883,70 @@ pub struct RealizationRevision {
     pub realization_id: RealizationId,
     #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
     pub receipts: ::std::vec::Vec<ArtifactDescriptor>,
+    pub revision: u64,
     pub status: RealizationStatus,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub stopped_at: ::std::option::Option<::chrono::DateTime<::chrono::offset::Utc>>,
+    pub updated_at: ::chrono::DateTime<::chrono::offset::Utc>,
+}
+///`RealizationRollbackRequest`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "RealizationRollbackRequest",
+///  "type": "object",
+///  "required": [
+///    "approval",
+///    "expected_revision",
+///    "idempotency_key",
+///    "installation_id",
+///    "realization_id",
+///    "rollback_to_realization_id",
+///    "target_id"
+///  ],
+///  "properties": {
+///    "approval": {
+///      "$ref": "#/definitions/RealizationApproval"
+///    },
+///    "expected_revision": {
+///      "type": "integer",
+///      "format": "uint64",
+///      "minimum": 0.0
+///    },
+///    "idempotency_key": {
+///      "type": "string"
+///    },
+///    "installation_id": {
+///      "$ref": "#/definitions/InstallationId"
+///    },
+///    "realization_id": {
+///      "$ref": "#/definitions/RealizationId"
+///    },
+///    "rollback_to_realization_id": {
+///      "$ref": "#/definitions/RealizationId"
+///    },
+///    "target_id": {
+///      "type": "string"
+///    }
+///  },
+///  "additionalProperties": false,
+///  "$schema": "https://json-schema.org/draft/2020-12/schema"
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+#[serde(deny_unknown_fields)]
+pub struct RealizationRollbackRequest {
+    pub approval: RealizationApproval,
+    pub expected_revision: u64,
+    pub idempotency_key: ::std::string::String,
+    pub installation_id: InstallationId,
+    pub realization_id: RealizationId,
+    pub rollback_to_realization_id: RealizationId,
+    pub target_id: ::std::string::String,
 }
 ///`RealizationStatus`
 ///
@@ -25006,6 +26056,55 @@ impl ::std::convert::TryFrom<::std::string::String> for RealizationStatus {
     ) -> ::std::result::Result<Self, self::error::ConversionError> {
         value.parse()
     }
+}
+///`RealizationStopRequest`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "RealizationStopRequest",
+///  "type": "object",
+///  "required": [
+///    "expected_revision",
+///    "idempotency_key",
+///    "installation_id",
+///    "realization_id",
+///    "target_id"
+///  ],
+///  "properties": {
+///    "expected_revision": {
+///      "type": "integer",
+///      "format": "uint64",
+///      "minimum": 0.0
+///    },
+///    "idempotency_key": {
+///      "type": "string"
+///    },
+///    "installation_id": {
+///      "$ref": "#/definitions/InstallationId"
+///    },
+///    "realization_id": {
+///      "$ref": "#/definitions/RealizationId"
+///    },
+///    "target_id": {
+///      "type": "string"
+///    }
+///  },
+///  "additionalProperties": false,
+///  "$schema": "https://json-schema.org/draft/2020-12/schema"
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+#[serde(deny_unknown_fields)]
+pub struct RealizationStopRequest {
+    pub expected_revision: u64,
+    pub idempotency_key: ::std::string::String,
+    pub installation_id: InstallationId,
+    pub realization_id: RealizationId,
+    pub target_id: ::std::string::String,
 }
 ///`RealizedResource`
 ///
@@ -30655,6 +31754,61 @@ pub struct WorkloadIntent {
     pub restart_policy: RestartPolicy,
     pub workload_id: ::std::string::String,
 }
+///`WorkspaceId`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "WorkspaceId",
+///  "type": "string",
+///  "format": "uuid"
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+#[serde(transparent)]
+pub struct WorkspaceId(pub ::uuid::Uuid);
+impl ::std::ops::Deref for WorkspaceId {
+    type Target = ::uuid::Uuid;
+    fn deref(&self) -> &::uuid::Uuid {
+        &self.0
+    }
+}
+impl ::std::convert::From<WorkspaceId> for ::uuid::Uuid {
+    fn from(value: WorkspaceId) -> Self {
+        value.0
+    }
+}
+impl ::std::convert::From<::uuid::Uuid> for WorkspaceId {
+    fn from(value: ::uuid::Uuid) -> Self {
+        Self(value)
+    }
+}
+impl ::std::str::FromStr for WorkspaceId {
+    type Err = <::uuid::Uuid as ::std::str::FromStr>::Err;
+    fn from_str(value: &str) -> ::std::result::Result<Self, Self::Err> {
+        Ok(Self(value.parse()?))
+    }
+}
+impl ::std::convert::TryFrom<&str> for WorkspaceId {
+    type Error = <::uuid::Uuid as ::std::str::FromStr>::Err;
+    fn try_from(value: &str) -> ::std::result::Result<Self, Self::Error> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<String> for WorkspaceId {
+    type Error = <::uuid::Uuid as ::std::str::FromStr>::Err;
+    fn try_from(value: String) -> ::std::result::Result<Self, Self::Error> {
+        value.parse()
+    }
+}
+impl ::std::fmt::Display for WorkspaceId {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+        self.0.fmt(f)
+    }
+}
 ///`WorldBundleArchive`
 ///
 /// <details><summary>JSON schema</summary>
@@ -31481,6 +32635,14 @@ pub mod defaults {
     }
     pub(super) fn proxy_route_register_request_protocol() -> super::ProxyProtocol {
         super::ProxyProtocol::Http
+    }
+    pub(super) fn realization_backend_selection_docker_build_route_access(
+    ) -> super::ProxyRouteAccess {
+        super::ProxyRouteAccess::HostAuthenticated
+    }
+    pub(super) fn realization_backend_selection_oci_image_route_access() -> super::ProxyRouteAccess
+    {
+        super::ProxyRouteAccess::HostAuthenticated
     }
     pub(super) fn remote_auth_config() -> ::serde_json::Value {
         ::serde_json::from_str::<::serde_json::Value>("null").unwrap()

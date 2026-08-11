@@ -303,11 +303,11 @@ assertEqual(exactAuthority.canRevoke(one.exposure.record.exposure_id, "binding-1
 const noPortAuthority = powerboxAuthorityForContext({
   kind: "device",
   device_name: "phone",
-  scopes: ["observe", "binding.manage", "deploy"],
+  scopes: ["observe", "binding.manage", "realization.apply"],
   resources: [{ kind: "installation", id: "consumer-installation" }, { kind: "exposure", id: one.exposure.record.exposure_id }],
 }, launch);
 assertEqual(noPortAuthority.canObserve, false, "missing Port selector must fail closed");
-assertEqual(noPortAuthority.canSelect(one.exposure.record.exposure_id), false, "deploy scope must not substitute for binding.manage resources");
+assertEqual(noPortAuthority.canSelect(one.exposure.record.exposure_id), false, "unrelated authority must not substitute for binding.manage resources");
 const rawPortAuthority = powerboxAuthorityForContext({
   kind: "device",
   device_name: "phone",

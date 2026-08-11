@@ -12,6 +12,7 @@ pub mod package;
 pub mod pi;
 pub mod protocol;
 pub mod protocol_commons;
+pub mod realization_control;
 pub mod redaction;
 pub mod run_control;
 pub mod runtime;
@@ -115,6 +116,16 @@ pub use protocol_commons::{
     PROTOCOL_COMMONS_REGISTRY_VERSION, SHELL_PROTOCOL_ID, SHELL_PROTOCOL_PROFILE,
     SHELL_PROTOCOL_VERSION, WORK_EXPERIMENTAL_PROFILE, WORK_PROTOCOL_ID, WORK_PROTOCOL_VERSION,
     WORLD_BUNDLE_EXPERIMENTAL_PROFILE, WORLD_BUNDLE_PROTOCOL_ID, WORLD_BUNDLE_PROTOCOL_VERSION,
+};
+pub use realization_control::{
+    DockerBuildBackendSelection, OciImageBackendSelection, RealizationApplyRequest,
+    RealizationApproval, RealizationAuthorityRefresh, RealizationAuthoritySubject,
+    RealizationAuthorityValidator, RealizationBackendSelection, RealizationControl,
+    RealizationEffectKind, RealizationEffectReceipt, RealizationGetRequest, RealizationListRequest,
+    RealizationMutationAuthority, RealizationMutationResult, RealizationPlanRequest,
+    RealizationPlanResult, RealizationReconcileRequest, RealizationRollbackRequest,
+    RealizationStopRequest, UnavailableRealizationControl, REALIZATION_APPLY_ACTION,
+    REALIZATION_PLAN_ACTION,
 };
 pub use redaction::{
     redact_effect_value, redact_secrets_in_value, scan_effect_value_for_raw_secrets,

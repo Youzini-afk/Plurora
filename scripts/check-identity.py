@@ -120,7 +120,7 @@ EXPECTED_METHOD_PREFIX_COUNTS = {
     "capability": 5,
     "change": 6,
     "context": 6,
-    "host": 52,
+    "host": 59,
     "identity": 1,
     "journal": 3,
     "object": 3,
@@ -370,10 +370,10 @@ def check_generated_contract() -> list[str]:
         source_event_kinds = {
             event_constants[name] for name in registry_names if name in event_constants
         }
-    if len(source_method_ids) != 92:
-        errors.append(f"expected 92 runtime method identities, found {len(source_method_ids)}")
-    if len(source_event_kinds) != 69:
-        errors.append(f"expected 69 core event identities, found {len(source_event_kinds)}")
+    if len(source_method_ids) != 99:
+        errors.append(f"expected 99 runtime method identities, found {len(source_method_ids)}")
+    if len(source_event_kinds) != 76:
+        errors.append(f"expected 76 core event identities, found {len(source_event_kinds)}")
 
     method_paths = sorted(method_dir.glob("*.schema.json"))
     event_paths = sorted(event_dir.glob("*.schema.json"))
@@ -596,7 +596,7 @@ def main() -> int:
 
     print(
         "Plurora identity check passed: "
-        f"zero retired identities; 92 methods, 69 events, {len(EXPECTED_TOP_LEVEL_SCHEMAS)} top-level schemas; "
+        f"zero retired identities; 99 methods, 76 events, {len(EXPECTED_TOP_LEVEL_SCHEMAS)} top-level schemas; "
         "34 first-party Package manifests."
     )
     return 0

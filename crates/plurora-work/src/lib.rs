@@ -62,9 +62,11 @@ pub use port::{
     INTERACTION_ENDPOINT, INTERACTION_EVENT_STREAM, INTERACTION_SNAPSHOT, KNOWN_INTERACTION_MODELS,
 };
 pub use realization::{
-    BuildAction, EndpointAction, LaunchAction, NodePlacement, RealizationHealth, RealizationPlan,
-    RealizationRevision, RealizationStatus, RealizedResource, StateAction, StateActionKind,
-    TransportBindingPlan, MAX_REALIZATION_PLAN_ACTIONS, REALIZATION_PLAN_TYPE_URI,
+    compile_realization_plan, BuildAction, EndpointAction, LaunchAction, NodePlacement,
+    PlannedWorkloadInput, RealizationHealth, RealizationPlan, RealizationPlannerInput,
+    RealizationPlanningGap, RealizationRevision, RealizationStatus, RealizedResource, StateAction,
+    StateActionKind, TransportBindingPlan, EXECUTION_CLASS_CAPABILITY_PREFIX,
+    MAX_REALIZATION_PLAN_ACTIONS, REALIZATION_PLAN_TYPE_URI,
 };
 pub use resolver::{
     resolve_assembly, resolve_assembly_at_phase, validate_resolver_containment, ExposureHop,

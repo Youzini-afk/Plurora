@@ -107,6 +107,34 @@ pub(crate) fn event_schemas() -> Vec<(&'static str, Value)> {
             schema_value::<RunLifecyclePayloadSchema>(),
         ),
         (
+            EVENT_REALIZATION_PLANNED,
+            schema_value::<RealizationLifecyclePayloadSchema>(),
+        ),
+        (
+            EVENT_REALIZATION_APPLYING,
+            schema_value::<RealizationLifecyclePayloadSchema>(),
+        ),
+        (
+            EVENT_REALIZATION_ACTIVE,
+            schema_value::<RealizationLifecyclePayloadSchema>(),
+        ),
+        (
+            EVENT_REALIZATION_STOPPED,
+            schema_value::<RealizationLifecyclePayloadSchema>(),
+        ),
+        (
+            EVENT_REALIZATION_FAILED,
+            schema_value::<RealizationLifecyclePayloadSchema>(),
+        ),
+        (
+            EVENT_REALIZATION_ROLLED_BACK,
+            schema_value::<RealizationLifecyclePayloadSchema>(),
+        ),
+        (
+            EVENT_REALIZATION_RECONCILED,
+            schema_value::<RealizationLifecyclePayloadSchema>(),
+        ),
+        (
             EVENT_EXPOSURE_CREATED,
             schema_value::<ExposureLifecyclePayloadSchema>(),
         ),

@@ -62,7 +62,7 @@ When activation is unsafe, the result keeps `run: null` and returns structured `
 - `unsupported_backend`: WASM, remote, `contract: none`/Foreign Capsule, and unsupported subprocess forms have no Run driver in this Phase; use a supported local implementation.
 - `target_unsatisfied`: an entrypoint/Port cannot be satisfied, or the Work carries an OperationalIntent requiring machine resources; follow the gap's next step to prepare the required Realization.
 
-Gaps are diagnostics and next steps, not implicit authority. Run start does not build source, create a public route, execute managed deployment, or call the future Phase 6 `host.realization.apply`. A missing managed Realization remains a gap.
+Gaps are diagnostics and next steps, not implicit authority. Run start does not build source, create a public route, execute a managed Realization, or implicitly call `host.realization.apply`. A missing managed Realization remains a gap resolved through a separate plan/approval/apply flow.
 
 ## Powerbox and Library
 
@@ -75,12 +75,12 @@ The official Library reads visible Work, Installation, Run, Rights, and current 
 - If the stop effect happened but its terminal journal commit cannot be confirmed, replay converges to `interrupted` + `outcome_unknown` rather than guessing that Stopping succeeded.
 - The Powerbox chooser uses `host.exposure.*` / `host.binding.*` to disclose the explicit phase, exact Exposure/audience/expiry, both PortContracts, provider source/trust/claims/boundaries/evidence, and candidate digest/stale state. Zero or multiple candidates require an explicit choice; preferences are ordering hints only.
 - Runtime injects the selected Port's least-authority handle. Multiple Ports on one Component may share activation, while a different Component or node path is isolated. Provider stop, revoke, expiry, or version drift cancels the Binding; state and secrets never cross Installations.
-- Exposure and cross-Installation Binding are implemented in Phase 5. Managed Realization plan/apply and `host.realization.*` remain Phase 6 planned and are not claimed as complete here.
+- Exposure and cross-Installation Binding are implemented in Phase 5. Managed Realization plan/apply and `host.realization.*` are implemented in Phase 6, but remain lifecycle-separated from Run; see [`REALIZATION.md`](REALIZATION.en.md).
 
 ## Related contracts
 
-- [`../spec/PUBLIC_CONTRACT.md`](../spec/PUBLIC_CONTRACT.en.md) — 92 methods, 69 events, and authority rules.
-- [`../spec/v1/EVENT_KIND_REGISTRY.md`](../spec/v1/EVENT_KIND_REGISTRY.en.md) — Run, Exposure, and Binding lifecycle events.
+- [`../spec/PUBLIC_CONTRACT.md`](../spec/PUBLIC_CONTRACT.en.md) — 99 methods, 76 events, and authority rules.
+- [`../spec/v1/EVENT_KIND_REGISTRY.md`](../spec/v1/EVENT_KIND_REGISTRY.en.md) — Run, Exposure, Binding, and Realization lifecycle events.
 - [`INSTALLATION_MODEL.md`](INSTALLATION_MODEL.en.md) — Installation journal, state, and Work boundaries.
 - [`../architecture/HOST_RESOURCE_AUTHORITY.md`](../architecture/HOST_RESOURCE_AUTHORITY.en.md) — exact selectors and the `run` action.
 - [`POWERBOX_BINDING.md`](POWERBOX_BINDING.en.md) — candidate disclosure, runtime pins, revoke, and expiry rules.

@@ -120,7 +120,7 @@ pub(crate) async fn host_serve(
         register_profile_package_roots(&mut runtime_config, &profile, Some(&profile_path)).await?;
         match &profile.event_store {
             HostEventStoreProfile::Memory => {
-                let (runtime, installations, powerbox, runs) = runtime_with_installations(
+                let (runtime, installations, powerbox, realizations, runs) = runtime_with_installations(
                     Arc::new(InMemoryEventStore::default()),
                     runtime_config,
                     schema_data_dir,
@@ -134,6 +134,7 @@ pub(crate) async fn host_serve(
                     runtime,
                     installations,
                     powerbox,
+                    realizations,
                     runs,
                     "memory",
                     static_dir,
@@ -158,7 +159,7 @@ pub(crate) async fn host_serve(
                 let store = Arc::new(SqliteEventStore::open(&resolved).with_context(|| {
                     format!("failed to open sqlite event store {}", resolved.display())
                 })?);
-                let (runtime, installations, powerbox, runs) = runtime_with_installations(
+                let (runtime, installations, powerbox, realizations, runs) = runtime_with_installations(
                     store,
                     runtime_config,
                     schema_data_dir,
@@ -176,6 +177,7 @@ pub(crate) async fn host_serve(
                     runtime,
                     installations,
                     powerbox,
+                    realizations,
                     runs,
                     "sqlite",
                     static_dir,
@@ -195,7 +197,7 @@ pub(crate) async fn host_serve(
                         )
                     })?;
                     let store = plurora_runtime::PostgresEventStore::connect(&url).await?;
-                    let (runtime, installations, powerbox, runs) = runtime_with_installations(
+                    let (runtime, installations, powerbox, realizations, runs) = runtime_with_installations(
                         Arc::new(store),
                         runtime_config,
                         schema_data_dir,
@@ -213,6 +215,7 @@ pub(crate) async fn host_serve(
                         runtime,
                         installations,
                         powerbox,
+                        realizations,
                         runs,
                         "postgres",
                         static_dir,
@@ -244,7 +247,7 @@ pub(crate) async fn host_serve(
             SqliteEventStore::open(&runtime_journal)
                 .context("failed to open the durable Runtime public journal")?,
         );
-        let (runtime, installations, powerbox, runs) = runtime_with_installations(
+        let (runtime, installations, powerbox, realizations, runs) = runtime_with_installations(
             store,
             runtime_config,
             schema_data_dir,
@@ -261,6 +264,7 @@ pub(crate) async fn host_serve(
             runtime,
             installations,
             powerbox,
+            realizations,
             runs,
             "sqlite",
             static_dir,
@@ -378,6 +382,7 @@ async fn runtime_with_installations<S>(
     Arc<Runtime<S>>,
     Arc<plurora_service::InstallationRegistry>,
     Arc<plurora_service::PowerboxRegistry>,
+    Arc<plurora_service::RealizationRegistry>,
     Arc<plurora_service::RunRegistry>,
 )>
 where
@@ -393,15 +398,24 @@ where
     let runs = plurora_service::RunRegistry::new(installation_store.clone());
     runs.install_owner_lease(owner_lease.clone())?;
     let powerbox = plurora_service::PowerboxRegistry::new(
-        installation_store,
-        runtime_public_store,
+        installation_store.clone(),
+        runtime_public_store.clone(),
         installations.clone(),
         runs.clone(),
     )?;
     powerbox.install_owner_lease(owner_lease.clone())?;
+    let realizations = plurora_service::RealizationRegistry::new(
+        installation_store,
+        runtime_public_store,
+        config.object_store.clone(),
+        installations.clone(),
+        config.target_registry.clone(),
+    )?;
+    realizations.install_owner_lease(owner_lease.clone())?;
     config.installation_control = installations.clone();
     config.run_control = runs.clone();
     config.powerbox_control = powerbox.clone();
+    config.realization_control = realizations.clone();
     let runtime = Arc::new(Runtime::new(store, config));
     runs.install_driver(Arc::new(plurora_runtime::AssemblyRuntimeDriver::new(
         Arc::downgrade(&runtime),
@@ -409,7 +423,7 @@ where
     powerbox.install_inspector(Arc::new(plurora_service::RuntimePowerboxInspector::new(
         Arc::downgrade(&runtime),
     )))?;
-    Ok((runtime, installations, powerbox, runs))
+    Ok((runtime, installations, powerbox, realizations, runs))
 }
 
 pub fn runtime_config_from_profile(profile: &HostProfile) -> Result<RuntimeConfig> {
@@ -1008,7 +1022,7 @@ mod tests {
         )
         .await?;
         let profile_a = Arc::new(InMemoryEventStore::default());
-        let (_, installations_a, _, _) = runtime_with_installations(
+        let (_, installations_a, _, _, _) = runtime_with_installations(
             profile_a.clone(),
             RuntimeConfig::default(),
             data.path(),
@@ -1020,7 +1034,7 @@ mod tests {
         assert!(profile_a.list_all().await?.is_empty());
 
         let profile_b = Arc::new(InMemoryEventStore::default());
-        let (_, installations_b, _, _) = runtime_with_installations(
+        let (_, installations_b, _, _, _) = runtime_with_installations(
             profile_b.clone(),
             RuntimeConfig::default(),
             data.path(),
@@ -1084,6 +1098,7 @@ async fn serve_runtime<S>(
     runtime: Arc<Runtime<S>>,
     installations: Arc<plurora_service::InstallationRegistry>,
     powerbox: Arc<plurora_service::PowerboxRegistry>,
+    realizations: Arc<plurora_service::RealizationRegistry>,
     runs: Arc<plurora_service::RunRegistry>,
     backend_kind: &'static str,
     static_dir: Option<PathBuf>,
@@ -1127,6 +1142,38 @@ where
     .await
     .context("failed to hydrate durable target agent control plane")?;
     println!("  target agent journal events loaded: {target_agent_events}");
+    let build_jobs = plurora_service::build_deploy_job_registry();
+    let state = plurora_service::AppState {
+        runtime: runtime.clone(),
+        static_dir: static_dir.clone(),
+        access_token: access_token.clone(),
+        app_base_domain: app_base_domain.clone(),
+        build_jobs: build_jobs.clone(),
+        development: development.clone(),
+        host_access: host_access.clone(),
+        installations: installations.clone(),
+        target_agents: target_agents.clone(),
+    };
+    realizations.install_driver(Arc::new(plurora_service::ServiceRealizationExecutor::new(
+        &state,
+    )));
+    runtime
+        .hydrate_deployment_from_events()
+        .await
+        .context("failed to rehydrate managed Realization backend state")?;
+    match plurora_service::reconcile_realization_backends(&state).await {
+        Ok(summary) => println!(
+            "  Realization backend reconcile: target_workloads_projected={} routes_promoted={} routes_removed={} leases_promoted={} leases_released={}",
+            summary.target_workloads_projected,
+            summary.runtime.routes_promoted,
+            summary.runtime.routes_removed,
+            summary.runtime.leases_promoted,
+            summary.runtime.leases_released
+        ),
+        Err(error) => eprintln!(
+            "warning: Realization backend reconcile paused; durable records were preserved: {error}"
+        ),
+    }
     let installation_count =
         hydrate_installations_as_host_owner(installations.clone(), &owner_lease)
             .await
@@ -1144,6 +1191,15 @@ where
     owner_lease
         .ensure_durable_owner()
         .await
+        .context("Realization recovery requires the active Host owner lease")?;
+    let realization_events = realizations
+        .hydrate()
+        .await
+        .context("failed to hydrate durable Realization registry")?;
+    println!("  Realization journal events loaded: {realization_events}");
+    owner_lease
+        .ensure_durable_owner()
+        .await
         .context("Run recovery requires the active Host owner lease")?;
     runs.hydrate().await.context("Run recovery failed")?;
     let interrupted = powerbox
@@ -1156,16 +1212,6 @@ where
             .close_binding(&binding_id, "run_interrupted")
             .await;
     }
-    runtime
-        .hydrate_deployment_from_events()
-        .await
-        .context("failed to rehydrate deployment runtime state")?;
-    let build_jobs = plurora_service::build_deploy_job_registry();
-    let deployment_events =
-        plurora_service::hydrate_deployment_control_plane(runtime.store(), build_jobs.clone())
-            .await
-            .context("failed to hydrate durable deployment control plane")?;
-    println!("  deployment journal events loaded: {deployment_events}");
     let development_events =
         plurora_service::hydrate_development_control_plane(runtime.store(), development.clone())
             .await
@@ -1198,33 +1244,6 @@ where
     {
         println!("  app vhost base domain: {domain}");
     }
-    let state = plurora_service::AppState {
-        runtime: runtime.clone(),
-        static_dir,
-        access_token,
-        app_base_domain,
-        build_jobs,
-        development,
-        host_access,
-        installations,
-        target_agents,
-    };
-    match plurora_service::reconcile_deployment_control_plane(&state).await {
-        Ok(summary) => println!(
-            "  deployment reconcile: durable_routes_restored={} target_deployments_projected={} orphan_candidates_found={} routes_promoted={} routes_removed={} leases_promoted={} leases_released={}",
-            summary.durable_routes_restored,
-            summary.target_deployments_projected,
-            summary.orphan_candidates_found,
-            summary.runtime.routes_promoted,
-            summary.runtime.routes_removed,
-            summary.runtime.leases_promoted,
-            summary.runtime.leases_released
-        ),
-        Err(error) => eprintln!(
-            "warning: deployment reconcile paused; stale runtime records were preserved: {error}"
-        ),
-    }
-    let _health_supervisor = plurora_service::spawn_health_supervisor(state.clone());
     let _powerbox_expiry = spawn_powerbox_expiry_supervisor(powerbox, runtime.clone());
     let bootstrap_token = std::env::var("PLURORA_HTTP_BOOTSTRAP_TOKEN")
         .ok()
@@ -1393,10 +1412,18 @@ pub(crate) async fn host_stdio() -> Result<()> {
         .context("failed to hydrate ephemeral Installation registry")?;
     let runs = plurora_service::RunRegistry::new(control_store.clone());
     let powerbox = plurora_service::PowerboxRegistry::new(
-        control_store,
+        control_store.clone(),
         runtime_store.clone(),
         installations.clone(),
         runs.clone(),
+    )?;
+    let target_registry = Arc::new(plurora_runtime::ExecutionTargetRegistry::default());
+    let realizations = plurora_service::RealizationRegistry::new(
+        control_store,
+        runtime_store.clone(),
+        object_store.clone(),
+        installations.clone(),
+        target_registry.clone(),
     )?;
     let runtime = Arc::new(Runtime::new(
         runtime_store,
@@ -1405,6 +1432,8 @@ pub(crate) async fn host_stdio() -> Result<()> {
             installation_control: installations,
             run_control: runs.clone(),
             powerbox_control: powerbox.clone(),
+            realization_control: realizations.clone(),
+            target_registry,
             ..RuntimeConfig::default()
         },
     ));
@@ -1415,6 +1444,7 @@ pub(crate) async fn host_stdio() -> Result<()> {
         Arc::downgrade(&runtime),
     )))?;
     powerbox.hydrate().await?;
+    realizations.hydrate().await?;
     runs.hydrate().await?;
     let context = ProtocolContext::host_dev("host_stdio");
     let stdin = BufReader::new(tokio::io::stdin());

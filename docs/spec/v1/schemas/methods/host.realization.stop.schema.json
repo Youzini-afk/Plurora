@@ -1,0 +1,349 @@
+{
+  "$defs": {
+    "ArtifactDescriptor": {
+      "properties": {
+        "annotations": {
+          "additionalProperties": true,
+          "default": {},
+          "type": "object"
+        },
+        "artifact_type_uri": {
+          "type": "string"
+        },
+        "digest": {
+          "type": "string"
+        },
+        "media_type": {
+          "type": "string"
+        },
+        "references": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "size_bytes": {
+          "format": "uint64",
+          "minimum": 0.0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "artifact_type_uri",
+        "digest",
+        "media_type",
+        "size_bytes"
+      ],
+      "type": "object"
+    },
+    "Errors": {
+      "items": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "details": true,
+          "message": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "details",
+          "message"
+        ],
+        "title": "ErrorShape",
+        "type": "object"
+      },
+      "type": "array"
+    },
+    "HealthStatus": {
+      "enum": [
+        "unknown",
+        "healthy",
+        "degraded",
+        "unhealthy"
+      ],
+      "type": "string"
+    },
+    "InstallationId": {
+      "format": "uuid",
+      "type": "string"
+    },
+    "Params": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {
+        "expected_revision": {
+          "format": "uint64",
+          "minimum": 0.0,
+          "type": "integer"
+        },
+        "idempotency_key": {
+          "type": "string"
+        },
+        "installation_id": {
+          "$ref": "#/$defs/InstallationId"
+        },
+        "realization_id": {
+          "$ref": "#/$defs/RealizationId"
+        },
+        "target_id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "expected_revision",
+        "idempotency_key",
+        "installation_id",
+        "realization_id",
+        "target_id"
+      ],
+      "title": "RealizationStopRequest",
+      "type": "object"
+    },
+    "RealizationHealth": {
+      "properties": {
+        "evidence_refs": {
+          "items": {
+            "$ref": "#/$defs/ArtifactDescriptor"
+          },
+          "type": "array"
+        },
+        "reason_code": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "status": {
+          "$ref": "#/$defs/HealthStatus"
+        }
+      },
+      "required": [
+        "status"
+      ],
+      "type": "object"
+    },
+    "RealizationId": {
+      "format": "uuid",
+      "type": "string"
+    },
+    "RealizationPlanningGap": {
+      "properties": {
+        "next_step": {
+          "type": "string"
+        },
+        "reason_code": {
+          "type": "string"
+        },
+        "target_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "workload_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "next_step",
+        "reason_code"
+      ],
+      "type": "object"
+    },
+    "RealizationRevision": {
+      "properties": {
+        "activated_at": {
+          "format": "date-time",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "actual_resources": {
+          "items": {
+            "$ref": "#/$defs/RealizedResource"
+          },
+          "type": "array"
+        },
+        "created_at": {
+          "format": "date-time",
+          "type": "string"
+        },
+        "health": {
+          "$ref": "#/$defs/RealizationHealth"
+        },
+        "installation_id": {
+          "$ref": "#/$defs/InstallationId"
+        },
+        "parent_realization_id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RealizationId"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "plan_ref": {
+          "$ref": "#/$defs/ArtifactDescriptor"
+        },
+        "realization_id": {
+          "$ref": "#/$defs/RealizationId"
+        },
+        "receipts": {
+          "items": {
+            "$ref": "#/$defs/ArtifactDescriptor"
+          },
+          "type": "array"
+        },
+        "revision": {
+          "format": "uint64",
+          "minimum": 0.0,
+          "type": "integer"
+        },
+        "status": {
+          "$ref": "#/$defs/RealizationStatus"
+        },
+        "stopped_at": {
+          "format": "date-time",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "updated_at": {
+          "format": "date-time",
+          "type": "string"
+        }
+      },
+      "required": [
+        "created_at",
+        "health",
+        "installation_id",
+        "plan_ref",
+        "realization_id",
+        "revision",
+        "status",
+        "updated_at"
+      ],
+      "type": "object"
+    },
+    "RealizationStatus": {
+      "enum": [
+        "planned",
+        "applying",
+        "active",
+        "degraded",
+        "stopping",
+        "stopped",
+        "failed",
+        "outcome_unknown",
+        "recovery_required"
+      ],
+      "type": "string"
+    },
+    "RealizedResource": {
+      "properties": {
+        "backend_id": {
+          "type": "string"
+        },
+        "properties": {
+          "additionalProperties": true,
+          "type": "object"
+        },
+        "receipt_ref": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ArtifactDescriptor"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "resource_id": {
+          "type": "string"
+        },
+        "resource_type": {
+          "type": "string"
+        },
+        "target_id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "backend_id",
+        "resource_id",
+        "resource_type",
+        "target_id"
+      ],
+      "type": "object"
+    },
+    "Result": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "properties": {
+        "gaps": {
+          "items": {
+            "$ref": "#/$defs/RealizationPlanningGap"
+          },
+          "type": "array"
+        },
+        "realization": {
+          "$ref": "#/$defs/RealizationRevision"
+        },
+        "replayed": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "realization",
+        "replayed"
+      ],
+      "title": "RealizationMutationResult",
+      "type": "object"
+    }
+  },
+  "$id": "urn:plurora:schema:method:host.realization.stop:v1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Plurora public platform method host.realization.stop.",
+  "properties": {
+    "errors": {
+      "$ref": "#/$defs/Errors"
+    },
+    "method": {
+      "const": "host.realization.stop"
+    },
+    "params": {
+      "$ref": "#/$defs/Params"
+    },
+    "result": {
+      "$ref": "#/$defs/Result"
+    }
+  },
+  "required": [
+    "method",
+    "params"
+  ],
+  "title": "host.realization.stop",
+  "type": "object",
+  "x-plurora-contract": {
+    "id": "host.realization.stop",
+    "implementation_status": "implemented",
+    "introduced_in": "plurora.contract.default/v1@0.1.0",
+    "maturity": "candidate",
+    "owner_layer": "host",
+    "request_schema": "urn:plurora:schema:method:host.realization.stop:v1#/$defs/Params",
+    "response_schema": "urn:plurora:schema:method:host.realization.stop:v1#/$defs/Result",
+    "streaming": false
+  }
+}

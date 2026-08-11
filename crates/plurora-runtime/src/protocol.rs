@@ -13,13 +13,13 @@ use uuid::Uuid;
 
 use crate::installation_control::InstallationAuthorityRefresh;
 use crate::run_control::RunAuthorityRefresh;
-use crate::PowerboxAuthorityRefresh;
 use crate::{
     contract_layers, contract_methods, contract_profiles, contract_versions, protocol_descriptors,
     resolve_contract_method, ContractLayerInfo, ContractMaturity, ContractMethod,
     ContractProfileInfo, ContractSelection, ContractVersionInfo, CONTRACT_REGISTRY_VERSION,
     DEFAULT_CONTRACT_PROFILE, PROTOCOL_COMMONS_REGISTRY_VERSION,
 };
+use crate::{PowerboxAuthorityRefresh, RealizationAuthorityRefresh};
 
 // ---------------------------------------------------------------------------
 // PlatformMethod is the single source of truth for public handler identity,
@@ -62,6 +62,13 @@ pub enum PlatformMethod {
     RunStart,
     RunStop,
     RunStatus,
+    RealizationPlan,
+    RealizationApply,
+    RealizationGet,
+    RealizationList,
+    RealizationStop,
+    RealizationRollback,
+    RealizationReconcile,
     TargetList,
     TargetStatus,
     TargetRegister,
@@ -160,6 +167,13 @@ impl PlatformMethod {
             Self::RunStart => "host.run.start",
             Self::RunStop => "host.run.stop",
             Self::RunStatus => "host.run.status",
+            Self::RealizationPlan => "host.realization.plan",
+            Self::RealizationApply => "host.realization.apply",
+            Self::RealizationGet => "host.realization.get",
+            Self::RealizationList => "host.realization.list",
+            Self::RealizationStop => "host.realization.stop",
+            Self::RealizationRollback => "host.realization.rollback",
+            Self::RealizationReconcile => "host.realization.reconcile",
             Self::TargetList => "host.target.list",
             Self::TargetStatus => "host.target.status",
             Self::TargetRegister => "host.target.register",
@@ -256,6 +270,13 @@ impl PlatformMethod {
             Self::RunList | Self::RunGet | Self::RunStart | Self::RunStop | Self::RunStatus => {
                 MethodStatus::Implemented
             }
+            Self::RealizationPlan
+            | Self::RealizationApply
+            | Self::RealizationGet
+            | Self::RealizationList
+            | Self::RealizationStop
+            | Self::RealizationRollback
+            | Self::RealizationReconcile => MethodStatus::Implemented,
             Self::TargetList
             | Self::TargetStatus
             | Self::TargetRegister
@@ -365,6 +386,13 @@ impl PlatformMethod {
             Self::RunStart,
             Self::RunStop,
             Self::RunStatus,
+            Self::RealizationPlan,
+            Self::RealizationApply,
+            Self::RealizationGet,
+            Self::RealizationList,
+            Self::RealizationStop,
+            Self::RealizationRollback,
+            Self::RealizationReconcile,
             Self::TargetList,
             Self::TargetStatus,
             Self::TargetRegister,
@@ -472,6 +500,13 @@ impl PlatformMethod {
             | Self::RunStart
             | Self::RunStop
             | Self::RunStatus
+            | Self::RealizationPlan
+            | Self::RealizationApply
+            | Self::RealizationGet
+            | Self::RealizationList
+            | Self::RealizationStop
+            | Self::RealizationRollback
+            | Self::RealizationReconcile
             | Self::TargetList
             | Self::TargetStatus
             | Self::TargetRegister
@@ -684,6 +719,11 @@ pub struct ProtocolAuthorityContext {
     #[serde(skip)]
     #[schemars(skip)]
     powerbox_authority_refresh: Option<PowerboxAuthorityRefresh>,
+    /// Trusted service callback used to refresh exact Managed Realization
+    /// authority immediately before each durable append or external effect.
+    #[serde(skip)]
+    #[schemars(skip)]
+    realization_authority_refresh: Option<RealizationAuthorityRefresh>,
 }
 
 /// Request-specific Host operation facts established by a trusted transport
@@ -766,6 +806,7 @@ impl ProtocolContext {
                 authority_refresh: None,
                 run_authority_refresh: None,
                 powerbox_authority_refresh: None,
+                realization_authority_refresh: None,
             }),
             host_operation: None,
             session_id: None,
@@ -852,6 +893,22 @@ impl ProtocolContext {
         self.authority
             .as_ref()
             .and_then(|authority| authority.powerbox_authority_refresh.clone())
+    }
+
+    pub fn with_realization_authority_refresh(
+        mut self,
+        refresh: RealizationAuthorityRefresh,
+    ) -> Self {
+        if let Some(authority) = self.authority.as_mut() {
+            authority.realization_authority_refresh = Some(refresh);
+        }
+        self
+    }
+
+    pub(crate) fn realization_authority_refresh(&self) -> Option<RealizationAuthorityRefresh> {
+        self.authority
+            .as_ref()
+            .and_then(|authority| authority.realization_authority_refresh.clone())
     }
 
     pub(crate) fn verified_authority_expiry_ms(&self) -> Option<i64> {
@@ -1245,6 +1302,41 @@ pub const PLATFORM_METHODS: &[ProtocolMethod] = &[
         status: MethodStatus::Implemented,
     },
     ProtocolMethod {
+        id: "host.realization.plan",
+        streaming: false,
+        status: MethodStatus::Implemented,
+    },
+    ProtocolMethod {
+        id: "host.realization.apply",
+        streaming: false,
+        status: MethodStatus::Implemented,
+    },
+    ProtocolMethod {
+        id: "host.realization.get",
+        streaming: false,
+        status: MethodStatus::Implemented,
+    },
+    ProtocolMethod {
+        id: "host.realization.list",
+        streaming: false,
+        status: MethodStatus::Implemented,
+    },
+    ProtocolMethod {
+        id: "host.realization.stop",
+        streaming: false,
+        status: MethodStatus::Implemented,
+    },
+    ProtocolMethod {
+        id: "host.realization.rollback",
+        streaming: false,
+        status: MethodStatus::Implemented,
+    },
+    ProtocolMethod {
+        id: "host.realization.reconcile",
+        streaming: false,
+        status: MethodStatus::Implemented,
+    },
+    ProtocolMethod {
         id: "host.target.list",
         streaming: false,
         status: MethodStatus::Partial,
@@ -1595,7 +1687,7 @@ mod tests {
     #[test]
     fn installation_and_run_methods_have_unique_public_identities() {
         let ids = method_ids();
-        assert_eq!(ids.len(), 92);
+        assert_eq!(ids.len(), 99);
         for expected in [
             "host.installation.list",
             "host.installation.get",
@@ -1706,7 +1798,7 @@ mod tests {
         assert!(context.is_host_device());
         assert_eq!(context.host_device_grant_id(), Some("grant-1"));
         assert!(context.allows_host_action("observe"));
-        assert!(!context.allows_host_action("deploy"));
+        assert!(!context.allows_host_action("realization.apply"));
         assert!(context.allows_host_resource("host", "installation", "installation-a"));
         assert!(!context.allows_host_resource("host", "installation", "installation-ab"));
     }

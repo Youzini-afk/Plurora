@@ -13,7 +13,7 @@ use cli::{
 use commands::audit;
 use commands::{
     capability, conformance_package, demo, host, installation, manifest, package, perf, powerbox,
-    run, world_bundle,
+    realization, run, world_bundle,
 };
 
 pub async fn run_cli(cli: Cli) -> anyhow::Result<()> {
@@ -179,6 +179,7 @@ pub async fn run_cli(cli: Cli) -> anyhow::Result<()> {
         Command::Run(args) => run::run(args).await,
         Command::Exposure(args) => powerbox::run_exposure(args).await,
         Command::Binding(args) => powerbox::run_binding(args).await,
+        Command::Realization(args) => realization::run(args).await,
         Command::Work(args) => commands::work::run(args).await,
         Command::InitPackage {
             path,

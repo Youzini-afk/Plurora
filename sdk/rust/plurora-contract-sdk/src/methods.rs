@@ -535,6 +535,69 @@ impl PluroraClient {
             .await?;
         Ok(serde_json::from_value(raw)?)
     }
+    pub async fn host_realization_apply(
+        &self,
+        params: RealizationApplyRequest,
+    ) -> Result<RealizationMutationResult> {
+        let raw = self
+            .invoke("host.realization.apply", serde_json::to_value(params)?)
+            .await?;
+        Ok(serde_json::from_value(raw)?)
+    }
+    pub async fn host_realization_get(
+        &self,
+        params: RealizationGetRequest,
+    ) -> Result<RealizationRevision> {
+        let raw = self
+            .invoke("host.realization.get", serde_json::to_value(params)?)
+            .await?;
+        Ok(serde_json::from_value(raw)?)
+    }
+    pub async fn host_realization_list(
+        &self,
+        params: RealizationListRequest,
+    ) -> Result<HostRealizationListResult> {
+        let raw = self
+            .invoke("host.realization.list", serde_json::to_value(params)?)
+            .await?;
+        Ok(serde_json::from_value(raw)?)
+    }
+    pub async fn host_realization_plan(
+        &self,
+        params: RealizationPlanRequest,
+    ) -> Result<RealizationPlanResult> {
+        let raw = self
+            .invoke("host.realization.plan", serde_json::to_value(params)?)
+            .await?;
+        Ok(serde_json::from_value(raw)?)
+    }
+    pub async fn host_realization_reconcile(
+        &self,
+        params: RealizationReconcileRequest,
+    ) -> Result<RealizationMutationResult> {
+        let raw = self
+            .invoke("host.realization.reconcile", serde_json::to_value(params)?)
+            .await?;
+        Ok(serde_json::from_value(raw)?)
+    }
+    pub async fn host_realization_rollback(
+        &self,
+        params: RealizationRollbackRequest,
+    ) -> Result<RealizationMutationResult> {
+        let raw = self
+            .invoke("host.realization.rollback", serde_json::to_value(params)?)
+            .await?;
+        Ok(serde_json::from_value(raw)?)
+    }
+    pub async fn host_realization_stop(
+        &self,
+        params: RealizationStopRequest,
+    ) -> Result<RealizationMutationResult> {
+        let raw = self
+            .invoke("host.realization.stop", serde_json::to_value(params)?)
+            .await?;
+        Ok(serde_json::from_value(raw)?)
+    }
     pub async fn host_run_get(&self, params: RunGetRequest) -> Result<RunView> {
         let raw = self
             .invoke("host.run.get", serde_json::to_value(params)?)

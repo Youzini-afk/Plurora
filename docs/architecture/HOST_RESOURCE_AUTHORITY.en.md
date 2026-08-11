@@ -31,15 +31,18 @@ develop.execute
 access_manage
 ```
 
-`deploy` temporarily supports the target/deployment execution surface that Realization has not yet replaced. It is absent from default device grants and is removed in Phase 6.
+The old `deploy` scope was removed in Phase 6. Low-level target/exec/port/proxy adapters are not ordinary-device deployment authority; they are confined to HostAdmin/HostDev or an explicit `access_manage` administration boundary. Managed lifecycle is exposed only through `realization.plan` / `realization.apply`.
 
-Phase 5 Exposure/Binding methods use these actions:
+Exposure/Binding and Realization methods use these actions:
 
 | Action | Methods | Exact resources |
 |---|---|---|
 | `observe` | `host.exposure.list`, `host.binding.list`, `host.binding.candidates` | visible provider/consumer Installations, Runs, Exposures, Bindings, and Ports |
 | `exposure.manage` | `host.exposure.create`, `host.exposure.revoke` | provider Installation + Run + export Port; revoke also requires the exact Exposure |
 | `binding.manage` | `host.binding.select`, `host.binding.revoke` | consumer Installation + import Port + Exposure; revoke also requires the exact Binding; Runtime may carry an exact Run pin |
+| `realization.plan` | `host.realization.plan` | exact Installation + Target; creates and persists a content-addressed plan without target effects |
+| `observe` | `host.realization.list`, `host.realization.get` | list filters visible Installation/Target/Realization resources; get requires exact Installation + Realization |
+| `realization.apply` | `host.realization.apply`, `stop`, `rollback`, `reconcile` | exact Installation + Target + current Realization; rollback also requires the exact historic Realization |
 
 The composite Port resource ID is `<installation-id>/<port-id>`. It is a stable resource-selector composition, not a filesystem path, credential, or handle.
 
@@ -122,6 +125,7 @@ Unknown resources, ownership conflicts, missing selectors, expired grants, and r
 - Run start requires `run` plus an exact Installation. The Host generates RunId after preflight. Later get/stop calls carry both I/R, and the registry must prove that the Run is a child of that exact Installation before deriving authority for that child request. The rule never crosses Installations and is not a first-party private bypass. Host restart marks active Runs `interrupted`.
 - Package surfaces receive only short-lived, method-allowlisted attenuated handles, never root/device credentials.
 - Binding runtime injects a least-authority handle only into the selected Component. Provider stop, Exposure revoke/expiry, owner revoke, or version drift is rechecked at every effect barrier and invalidates the Binding.
+- A Realization plan pins the Installation revision, Target inventory, and plan digest. Apply/stop/rollback/reconcile revalidate the current grant, exact resources, owner lease, and revision before every durable/effect boundary. A plan or approval is not authority, and private effect checkpoints/receipts never enter the public wire.
 
 ## Audit linkage
 

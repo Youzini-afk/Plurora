@@ -43,7 +43,7 @@ develop.execute
 access_manage
 ```
 
-`deploy` 是 Phase 6 前的过渡 scope，只服务尚未由 Realization 替换的 target/deployment 操作，并且不在默认设备 grant 中。
+旧 `deploy` scope 已在 Phase 6 删除。普通设备若要规划或执行 managed resources，必须分别获得 `realization.plan` 或 `realization.apply`，并携带 exact Installation、Target 与 Realization selector。底层 target/exec/port/proxy adapter 不继承这些 scope。
 
 Web 默认邀请只选 `observe`。未知 HTTP path、未知 RPC method 与宽泛管理变更 fail closed；新 grant 只能是调用者 authority 的子集，只有 root 可以转授 `access_manage`。
 
@@ -89,7 +89,7 @@ plurora host access --access-token "$PLURORA_HTTP_ACCESS_TOKEN" revoke <grant-id
 
 Sandbox surface 是 opaque origin，不能携带 Host Cookie 或 Bearer。`host.surface.bundle.resolve` 把受保护 Package bundle 换成随机、五分钟、只读、绑定 grant 与 bundle root 的 `/surface-assets/<lease>/...` URL。Lease 不是 RPC credential，撤销或过期会失效。
 
-Phase 4 的 Exposure 定义 endpoint 与 access policy；Phase 6 的 Realization 执行实际资源计划。过渡 `host.proxy.*` / deployment route 仍默认 `host_authenticated`，只有用户显式选择 `public` 才允许 public vhost。
+Exposure 定义 endpoint 与 access policy；Realization 把 OperationalIntent 编译成持久化资源计划并通过 typed Target operation 执行。底层 `host.proxy.*` adapter 仍默认 `host_authenticated`；只有 plan 中经用户显式批准的 `public` policy 才允许 public vhost。不存在旧 deployment route alias。
 
 公开应用自行承担互联网输入、应用身份、CSRF、速率限制与内容安全。Host grant 不是应用用户系统。
 

@@ -13,6 +13,7 @@ import type {
   HostBindingListResult,
   HostExposureListResult,
   HostInstallationListResult,
+  HostRealizationListResult,
   HostRunListResult,
   InstallationCreateRequest,
   InstallationMutationResult,
@@ -20,6 +21,16 @@ import type {
   InstallationStatus,
   InstallationUpdateRequest,
   InstallationView,
+  RealizationApplyRequest,
+  RealizationGetRequest,
+  RealizationListRequest,
+  RealizationMutationResult,
+  RealizationPlanRequest,
+  RealizationPlanResult,
+  RealizationReconcileRequest,
+  RealizationRevision,
+  RealizationRollbackRequest,
+  RealizationStopRequest,
   RunGetRequest,
   RunListRequest,
   RunMutationResult,
@@ -221,6 +232,8 @@ export interface ProtocolFailureDetails {
   installation_id?: string;
   run_id?: string;
   port_id?: string;
+  target_id?: string;
+  realization_id?: string;
 }
 
 function sanitizeProtocolFailureDetails(code: string, value: unknown): ProtocolFailureDetails {
@@ -237,6 +250,8 @@ function sanitizeProtocolFailureDetails(code: string, value: unknown): ProtocolF
     ...(safeString("installation_id") ? { installation_id: safeString("installation_id") } : {}),
     ...(safeString("run_id") ? { run_id: safeString("run_id") } : {}),
     ...(safeString("port_id") ? { port_id: safeString("port_id") } : {}),
+    ...(safeString("target_id") ? { target_id: safeString("target_id") } : {}),
+    ...(safeString("realization_id") ? { realization_id: safeString("realization_id") } : {}),
   };
 }
 
@@ -279,14 +294,9 @@ export interface InstallationUpdateResult {
 }
 
 const INSTALL_LAB_PROVIDER = "plurora/install-lab";
-const DOCKER_RUNTIME_LAB_PROVIDER = "plurora/docker-runtime-lab";
 const INSTALL_LAB_CAPABILITIES = {
   resolvePlan: `${INSTALL_LAB_PROVIDER}/resolve_plan`,
   detectKind: `${INSTALL_LAB_PROVIDER}/detect_kind`,
-} as const;
-const DOCKER_RUNTIME_LAB_CAPABILITIES = {
-  startContainer: `${DOCKER_RUNTIME_LAB_PROVIDER}/start_container`,
-  stopContainer: `${DOCKER_RUNTIME_LAB_PROVIDER}/stop_container`,
 } as const;
 
 function normalizeInstallRootUrl(input: string): string {
@@ -352,10 +362,12 @@ export interface PlatformEvent {
 export const HOST_EVENT_SESSIONS = {
   installationLifecycle: "host_installation_lifecycle",
   powerbox: "host_powerbox",
+  realizations: "host_realizations",
 } as const;
 
 export const HOST_INSTALLATION_LIFECYCLE_SESSION = HOST_EVENT_SESSIONS.installationLifecycle;
 export const HOST_POWERBOX_SESSION = HOST_EVENT_SESSIONS.powerbox;
+export const HOST_REALIZATIONS_SESSION = HOST_EVENT_SESSIONS.realizations;
 export const HOST_POWERBOX_RELAY_SESSIONS = [
   HOST_EVENT_SESSIONS.powerbox,
   HOST_EVENT_SESSIONS.installationLifecycle,
@@ -373,6 +385,17 @@ export const PUBLIC_POWERBOX_EVENT_KINDS = [
   "host/binding.expired",
 ] as const;
 export type PublicPowerboxEventKind = typeof PUBLIC_POWERBOX_EVENT_KINDS[number];
+
+export const PUBLIC_REALIZATION_EVENT_KINDS = [
+  "host/realization.planned",
+  "host/realization.applying",
+  "host/realization.active",
+  "host/realization.stopped",
+  "host/realization.failed",
+  "host/realization.rolled_back",
+  "host/realization.reconciled",
+] as const;
+export type PublicRealizationEventKind = typeof PUBLIC_REALIZATION_EVENT_KINDS[number];
 
 export interface SurfaceActivation {
   launch_capability_id?: string;
@@ -462,6 +485,7 @@ export type {
   HostBindingListResult,
   HostExposureListResult,
   HostInstallationListResult,
+  HostRealizationListResult,
   HostRunListResult,
   InstallationChangeForArtifactDescriptor,
   InstallationChangeForAssemblyBinding,
@@ -506,6 +530,25 @@ export type {
   PortRole,
   ResolvedPortPin,
   ResourceSelector,
+  RealizationApplyRequest,
+  RealizationApproval,
+  RealizationBackendSelection,
+  RealizationGetRequest,
+  RealizationHealth,
+  RealizationId,
+  RealizationLifecyclePayloadSchema,
+  RealizationListRequest,
+  RealizationMutationResult,
+  RealizationPlan,
+  RealizationPlanRequest,
+  RealizationPlanResult,
+  RealizationPlanningGap,
+  RealizationReconcileRequest,
+  RealizationRevision,
+  RealizationRollbackRequest,
+  RealizationStatus,
+  RealizationStopRequest,
+  RealizedResource,
   RunEntrypointPreflight,
   RunGap,
   RunGetRequest,
@@ -580,498 +623,12 @@ export interface ProxyRegisterRequest {
   };
 }
 
-export interface DockerStartContainerInput {
-  image: string;
-  container_port: number;
-  host_port: number;
-  route_id: string;
-  port_lease_id: string;
-  approved: true;
-  pull_if_missing?: boolean;
-  container_name?: string;
-  name?: string;
-}
-
-export interface DockerStartContainerOutput {
-  kind?: string;
-  container_id?: string;
-  container_name?: string;
-  status?: string;
-  image?: string;
-  container_port?: number;
-  host_port?: number;
-  route_id?: string;
-  port_lease_id?: string;
-  docker_performed?: boolean;
-  container_started?: boolean;
-  reason?: string;
-  diagnostics?: unknown;
-  warnings?: unknown;
-}
-
-export interface DockerStopContainerInput {
-  approved: true;
-  container_id?: string;
-  container_name?: string;
-  container?: string;
-  route_id: string;
-  port_lease_id: string;
-  timeout_secs?: number;
-  force?: boolean;
-}
-
-export interface DockerStopContainerOutput {
-  kind?: string;
-  container_id?: string;
-  container_name?: string;
-  status?: string;
-  docker_performed?: boolean;
-  reason?: string;
-}
-
-export interface HostDeployInstallationInput {
-  installation_id: string;
-  image: string;
-  container_port: number;
-  port_name: string;
-  route_id: string;
-  route_access: "host_authenticated" | "public";
-  health_path?: string;
-  pull_if_missing: boolean;
-}
-
-export interface HostDeployInstallationOutput {
-  route_id: string;
-  route_access: "host_authenticated" | "public";
-  public_url: string;
-  port_lease_id: string;
-  container_id: string;
-  container_name?: string | null;
-}
-
-export interface HostStopInstallationDeploymentOutput {
-  route_id: string;
-  stopped: boolean;
-  warnings: string[];
-}
-
-export type BuildDeployStrategy = "dockerfile" | "nixpacks";
-export type BuildDeployJobState = "queued" | "cloning" | "building" | "starting" | "registering_proxy" | "probing" | "ready" | "failed" | "cancelled" | string;
-
-export interface RuntimeEnvSpec {
-  name: string;
-  value?: string;
-  secret_ref?: string;
-}
-
-export interface RuntimeMountSpec {
-  source_host_path: string;
-  container_path: string;
-  mode?: "ro" | "rw";
-  approved: boolean;
-  high_risk_approved?: boolean;
-  reason: string;
-}
-
-export interface HostBuildDeployRequest {
-  installation_id: string;
-  source_url: string;
-  ref_name: string;
-  strategy?: BuildDeployStrategy;
-  dockerfile?: string;
-  container_port: number;
-  port_name: string;
-  route_id: string;
-  route_access: "host_authenticated" | "public";
-  health_path?: string;
-  approved: true;
-  source_commit?: string;
-  build_id?: string;
-  runtime_env?: RuntimeEnvSpec[];
-  runtime_mounts?: RuntimeMountSpec[];
-  idempotency_key?: string;
-}
-
-export interface RuntimeEnvSummary {
-  name: string;
-  source: "plain" | "secret_ref" | string;
-}
-
-export interface RuntimeMountSummary {
-  container_path: string;
-  mode: "ro" | "rw" | string;
-  source_basename?: string | null;
-  source_kind?: string;
-  source_hash?: string;
-  approved?: boolean;
-}
-
-export interface HostBuildDeployResult {
-  workspace_id: string;
-  route_id: string;
-  route_access: "host_authenticated" | "public";
-  public_url: string;
-  port_lease_id: string;
-  container_id: string;
-  container_name?: string | null;
-  image: string;
-  build_id: string;
-  source_commit: string;
-  build_descriptor_hash: string;
-  strategy: string;
-  runtime_env?: RuntimeEnvSummary[];
-  runtime_mounts?: RuntimeMountSummary[];
-  warnings?: string[];
-}
-
-export interface BuildDeployJobSubmitResponse {
-  job_id: string;
-  status_url: string;
-  events_url: string;
-  state: BuildDeployJobState;
-}
-
-export interface BuildDeployJobStatusResponse {
-  job_id: string;
-  installation_id: string;
-  route_id: string;
-  build_id?: string | null;
-  state: BuildDeployJobState;
-  created_at_ms: number;
-  updated_at_ms: number;
-  result?: HostBuildDeployResult | null;
-  error?: string | null;
-  events_url: string;
-  idempotency_key?: string | null;
-  operation: DeploymentOperation;
-}
-
-export interface BuildDeployJobEvent {
-  job_id: string;
-  state: BuildDeployJobState;
-  message: string;
-  sequence: number;
-  timestamp_ms: number;
-}
-
-export interface BuildDeployCancelResponse {
-  job_id: string;
-  state: BuildDeployJobState;
-  cancelled: boolean;
-}
-
-export type DeploymentOperation = "build_deploy" | "verified_activate" | "recover" | "rollback";
-export type DeploymentSourceKind = "git_clone" | "verified_artifact";
-
-export interface PersistedRuntimeEnvSpec {
-  name: string;
-  secret_ref: string;
-}
-
-export interface DeploymentRevision {
-  revision_id: string;
-  installation_id: string;
-  workspace_id: string;
-  job_id?: string | null;
-  operation: DeploymentOperation;
-  parent_revision_id?: string | null;
-  created_at_ms: number;
-  target_id: string;
-  source_kind: DeploymentSourceKind;
-  source_url: string;
-  ref_name: string;
-  dockerfile?: string | null;
-  container_port: number;
-  port_name: string;
-  route_id: string;
-  route_access: "host_authenticated" | "public";
-  health_path?: string | null;
-  image: string;
-  build_id: string;
-  source_commit: string;
-  build_descriptor_hash: string;
-  strategy: string;
-  runtime_env: PersistedRuntimeEnvSpec[];
-  verified_change_set_id?: string | null;
-  verification_ref?: ArtifactDescriptor | null;
-  build_context_ref?: ArtifactDescriptor | null;
-  preview_ref?: ArtifactDescriptor | null;
-  approval_ref?: ArtifactDescriptor | null;
-  verified_build_network_mode?: DevelopmentNetworkMode | null;
-  target_deployment?: { deployment_id: string; route_id: string; port_lease_id: string } | null;
-  recoverable: boolean;
-  recovery_blockers: string[];
-  receipt: HostBuildDeployResult;
-}
-
-export interface InstallationDeploymentsResponse {
-  installation_id: string;
-  active_revision_id?: string | null;
-  active_revision?: DeploymentRevision | null;
-  recovery_required: boolean;
-  runtime_ready: boolean;
-  jobs: BuildDeployJobStatusResponse[];
-  revisions: DeploymentRevision[];
-}
-
-export interface DeploymentActionResponse {
-  operation: DeploymentOperation;
-  previous_revision_id?: string | null;
-  revision: DeploymentRevision;
-  warnings: string[];
-}
-
-export type DevelopmentNetworkMode = "none" | "bridge";
-export type DevelopmentWorkspaceOwnership = "managed_external" | "linked_local" | "native_managed";
-export type DevelopmentChangeStatus = "drafted" | "approved" | "rejected" | "staging" | "verifying" | "promoting" | "verified" | "committed" | "recovery_required" | "failed";
-
-export type DevelopmentVerificationPlan =
-  | { kind: "static_validation" }
-  | { kind: "docker_build"; dockerfile?: string; network_mode?: DevelopmentNetworkMode; timeout_secs?: number };
-
-export type DevelopmentFileOperationRequest =
-  | { op: "file_write"; path: string; content: string; executable?: boolean }
-  | { op: "file_delete"; path: string };
-
-export interface DevelopmentDraftRequest {
-  goal: string;
-  operations: DevelopmentFileOperationRequest[];
-  verification?: DevelopmentVerificationPlan;
-  expected_tree_digest?: string;
-  idempotency_key?: string;
-}
-
-export interface DevelopmentVerificationResult {
-  kind: string;
-  succeeded: boolean;
-  network_mode: DevelopmentNetworkMode;
-  image?: string | null;
-  log_tail?: string | null;
-  artifact_ref: ArtifactDescriptor;
-  deployment_artifact_ref?: ArtifactDescriptor;
-}
-
-export type DevelopmentDeploymentStatus =
-  | "preparing"
-  | "building"
-  | "previewing"
-  | "preview_ready"
-  | "approved"
-  | "rejected"
-  | "activating"
-  | "active"
-  | "recovery_required"
-  | "failed";
-
-export interface DevelopmentDeploymentPreviewRequest {
-  target_id: string;
-  container_port: number;
-  port_name: string;
-  route_id: string;
-  route_access?: "host_authenticated" | "public";
-  health_path?: string;
-  idempotency_key?: string;
-}
-
-export interface DevelopmentDeploymentApprovalRequest {
-  approved: boolean;
-  reason?: string;
-}
-
-export interface DevelopmentDeploymentPreview {
-  route_id: string;
-  public_url: string;
-  port_lease_id: string;
-  deployment: { deployment_id: string; route_id: string; port_lease_id: string };
-  image: string;
-  image_id: string;
-  container_id: string;
-  container_name?: string | null;
-  build_operation_id: string;
-  deployment_operation_id: string;
-  ready_at_ms: number;
-}
-
-export interface DevelopmentDeploymentRecord {
-  schema_version: number;
-  deployment_id: string;
-  status: DevelopmentDeploymentStatus;
-  target_id: string;
-  workspace_id: string;
-  source_tree_digest: string;
-  verification_ref: ArtifactDescriptor;
-  build_context_ref: ArtifactDescriptor;
-  authority_ref: ArtifactDescriptor;
-  dockerfile: string;
-  network_mode: DevelopmentNetworkMode;
-  container_port: number;
-  port_name: string;
-  route_id: string;
-  route_access: "host_authenticated" | "public";
-  health_path?: string | null;
-  preview_route_id: string;
-  preview_port_lease_id?: string | null;
-  target_deployment_id?: string | null;
-  build_id: string;
-  build_descriptor_hash: string;
-  build_operation_id?: string | null;
-  deployment_operation_id?: string | null;
-  preview?: DevelopmentDeploymentPreview | null;
-  preview_ref?: ArtifactDescriptor | null;
-  approval_decision?: DevelopmentApprovalDecision | null;
-  approval_ref?: ArtifactDescriptor | null;
-  activation_revision_id?: string | null;
-  previous_revision_id?: string | null;
-  error?: string | null;
-  created_at_ms: number;
-  updated_at_ms: number;
-  idempotency_key?: string | null;
-  request_digest: string;
-}
-
-export interface DevelopmentApprovalDecision {
-  id: string;
-  decision_type_uri: string;
-  change_set_id: string;
-  outcome: "allowed" | "denied" | "requires_approval";
-  principal: { kind: string } & Record<string, unknown>;
-  reason?: string | null;
-  evaluated_authority: string[];
-  decided_at: string;
-  policy_ref?: ArtifactDescriptor | null;
-}
-
-export interface DevelopmentChangeRecord {
-  schema_version: number;
-  revision: number;
-  subject?: { kind: "installation"; installation_id: string } | { kind: "workspace"; workspace_id: string };
-  installation_id?: string;
-  workspace_id?: string;
-  target_installation_id?: string;
-  workspace_ownership: DevelopmentWorkspaceOwnership;
-  intent: { id: string; goal: unknown; created_at: string } & Record<string, unknown>;
-  intent_ref: ArtifactDescriptor;
-  change_set: {
-    id: string;
-    operations: Array<{ op: string; target?: string | null; input_refs?: ArtifactDescriptor[]; payload?: unknown }>;
-    required_authority: string[];
-    expected_effects: unknown;
-    created_at: string;
-  } & Record<string, unknown>;
-  change_set_ref: ArtifactDescriptor;
-  policy_decision: Record<string, unknown>;
-  policy_decision_ref: ArtifactDescriptor;
-  approval_decision?: DevelopmentApprovalDecision | null;
-  approval_ref?: ArtifactDescriptor | null;
-  status: DevelopmentChangeStatus;
-  base_tree_digest: string;
-  proposed_tree_digest?: string | null;
-  verification_plan: DevelopmentVerificationPlan;
-  verification_result?: DevelopmentVerificationResult | null;
-  managed_promotion?: {
-    previous_tree_digest: string;
-    proposed_tree_digest: string;
-    destination_preexisting: boolean;
-  } | null;
-  recovery_kind?: "docker_verification" | "managed_promotion" | null;
-  commit?: Record<string, unknown> | null;
-  deployment?: DevelopmentDeploymentRecord | null;
-  error?: string | null;
-  created_at_ms: number;
-  updated_at_ms: number;
-  idempotency_key?: string | null;
-}
-
-export interface DevelopmentChangeListResponse {
-  changes: DevelopmentChangeRecord[];
-}
-
-export interface DevelopmentExecuteResponse {
-  accepted: boolean;
-  change: DevelopmentChangeRecord;
-}
-
-export interface DevelopmentPatchBundle {
-  schema_version: number;
-  installation_id: string;
-  change_set_id: string;
-  base_tree_digest: string;
-  operations: Array<
-    | { op: "file_write"; path: string; content: string; executable: boolean; content_digest: string }
-    | { op: "file_delete"; path: string }
-  >;
-}
-
 export interface ExecutionTarget {
   id: string;
   name: string;
   reachability: "local_host" | string;
   status: "available" | "unavailable" | string;
   capabilities?: Array<"local_exec" | "port_lease" | "http_proxy_upstream" | "websocket_proxy_upstream" | string>;
-}
-
-export type TargetOperationKind =
-  | "artifact_materialize"
-  | "artifact_release"
-  | "deployment_apply"
-  | "deployment_observe"
-  | "deployment_drain"
-  | "deployment_stop"
-  | "health_probe"
-  | "verifier_run";
-
-export type TargetOperationStatus =
-  | "requested"
-  | "accepted"
-  | "running"
-  | "succeeded"
-  | "failed"
-  | "cancelled"
-  | "outcome_unknown"
-  | "expired";
-
-export interface TargetOperationAuthority {
-  target_id: string;
-  operation_id: string;
-  step_id: string;
-  installation_id: string;
-  effect: TargetOperationKind;
-  artifact_digests: string[];
-  lease_epoch: number;
-  policy_epoch: number;
-  issued_at_ms: number;
-  expires_at_ms: number;
-  nonce: string;
-  request_digest: string;
-  authority_digest: string;
-}
-
-export interface TargetOperationReceipt {
-  operation_id: string;
-  target_id: string;
-  execution_id: string;
-  step_id: string;
-  request_digest: string;
-  authority_digest: string;
-  status: Exclude<TargetOperationStatus, "requested" | "accepted" | "running" | "expired">;
-  completed_at_ms: number;
-  output: unknown;
-  diagnostics: string[];
-}
-
-export interface TargetOperationRecord {
-  operation_id: string;
-  target_id: string;
-  installation_id: string;
-  revision: number;
-  status: TargetOperationStatus;
-  execution_id?: string | null;
-  spec: { kind: TargetOperationKind } & Record<string, unknown>;
-  authority: TargetOperationAuthority;
-  idempotency_key?: string | null;
-  receipt?: TargetOperationReceipt | null;
-  created_at_ms: number;
-  updated_at_ms: number;
 }
 
 export interface ExecStatus {
@@ -1217,16 +774,6 @@ export class PluroraProtocolClient {
     return this.call<ExecutionTarget>("host.target.status", { target_id: targetId });
   }
 
-  listTargetOperations(targetId: string): Promise<TargetOperationRecord[]> {
-    return this.fetchHostGetJson(`/host/v1/targets/${encodeURIComponent(targetId)}/operations`);
-  }
-
-  getTargetOperation(targetId: string, operationId: string): Promise<TargetOperationRecord> {
-    return this.fetchHostGetJson(
-      `/host/v1/targets/${encodeURIComponent(targetId)}/operations/${encodeURIComponent(operationId)}`,
-    );
-  }
-
   listExecs() {
     return this.call<LocalExecListResponse>("host.exec.list");
   }
@@ -1340,6 +887,34 @@ export class PluroraProtocolClient {
     return this.invoke<RunMutationResult>("host.run.stop", input);
   }
 
+  listRealizations(input: RealizationListRequest = {}): Promise<HostRealizationListResult> {
+    return this.invoke<HostRealizationListResult>("host.realization.list", input);
+  }
+
+  getRealization(input: RealizationGetRequest): Promise<RealizationRevision> {
+    return this.invoke<RealizationRevision>("host.realization.get", input);
+  }
+
+  planRealization(input: RealizationPlanRequest): Promise<RealizationPlanResult> {
+    return this.invoke<RealizationPlanResult>("host.realization.plan", input);
+  }
+
+  applyRealization(input: RealizationApplyRequest): Promise<RealizationMutationResult> {
+    return this.invoke<RealizationMutationResult>("host.realization.apply", input);
+  }
+
+  stopRealization(input: RealizationStopRequest): Promise<RealizationMutationResult> {
+    return this.invoke<RealizationMutationResult>("host.realization.stop", input);
+  }
+
+  rollbackRealization(input: RealizationRollbackRequest): Promise<RealizationMutationResult> {
+    return this.invoke<RealizationMutationResult>("host.realization.rollback", input);
+  }
+
+  reconcileRealization(input: RealizationReconcileRequest): Promise<RealizationMutationResult> {
+    return this.invoke<RealizationMutationResult>("host.realization.reconcile", input);
+  }
+
   listExposures(input: ExposureListRequest = {}): Promise<HostExposureListResult> {
     return this.invoke<HostExposureListResult>("host.exposure.list", input);
   }
@@ -1405,132 +980,6 @@ export class PluroraProtocolClient {
     }, [INSTALL_LAB_PROVIDER]);
     const result = await this.invokeCapability<TOutput>(capabilityId, input, INSTALL_LAB_PROVIDER, session.id);
     return result.output;
-  }
-
-  private async invokeDockerRuntimeLab<TOutput>(capabilityId: string, input: unknown): Promise<TOutput> {
-    const session = await this.openSession(["deploy", "plurora/docker-runtime-lab"], {
-      source: "clients/web",
-      capability_id: capabilityId,
-    }, [DOCKER_RUNTIME_LAB_PROVIDER]);
-    const result = await this.invokeCapability<TOutput>(capabilityId, input, DOCKER_RUNTIME_LAB_PROVIDER, session.id);
-    return result.output;
-  }
-
-  async startDockerContainer(input: DockerStartContainerInput): Promise<DockerStartContainerOutput> {
-    return await this.invokeDockerRuntimeLab<DockerStartContainerOutput>(DOCKER_RUNTIME_LAB_CAPABILITIES.startContainer, input);
-  }
-
-  async stopDockerContainer(input: DockerStopContainerInput): Promise<DockerStopContainerOutput> {
-    return await this.invokeDockerRuntimeLab<DockerStopContainerOutput>(DOCKER_RUNTIME_LAB_CAPABILITIES.stopContainer, input);
-  }
-
-  deployInstallation(input: HostDeployInstallationInput): Promise<HostDeployInstallationOutput> {
-    return this.fetchHostJson("/host/v1/deploy", input);
-  }
-
-  stopInstallationDeployment(input: { route_id: string }): Promise<HostStopInstallationDeploymentOutput> {
-    return this.fetchHostJson("/host/v1/deploy/stop", input);
-  }
-
-  buildDeployInstallation(input: HostBuildDeployRequest, options: { wait?: boolean } = {}): Promise<BuildDeployJobSubmitResponse | BuildDeployJobStatusResponse> {
-    const suffix = options.wait ? "?wait=true" : "";
-    return this.fetchHostJson(`/host/v1/build-deploy${suffix}`, input);
-  }
-
-  getBuildDeployJob(jobId: string): Promise<BuildDeployJobStatusResponse> {
-    return this.fetchHostGetJson(`/host/v1/build-deploy/${encodeURIComponent(jobId)}`);
-  }
-
-  cancelBuildDeployJob(jobId: string): Promise<BuildDeployCancelResponse> {
-    return this.fetchHostJson(`/host/v1/build-deploy/${encodeURIComponent(jobId)}/cancel`, {});
-  }
-
-  getInstallationDeployments(installationId: string): Promise<InstallationDeploymentsResponse> {
-    return this.fetchHostGetJson(`/host/v1/installations/${encodeURIComponent(installationId)}/deployments`);
-  }
-
-  recoverInstallationDeployment(installationId: string): Promise<DeploymentActionResponse> {
-    return this.fetchHostJson(`/host/v1/installations/${encodeURIComponent(installationId)}/deployments/recover`, {});
-  }
-
-  rollbackInstallationDeployment(installationId: string, revisionId: string): Promise<DeploymentActionResponse> {
-    return this.fetchHostJson(`/host/v1/installations/${encodeURIComponent(installationId)}/deployments/rollback`, {
-      revision_id: revisionId,
-    });
-  }
-
-  listInstallationChanges(installationId: string): Promise<DevelopmentChangeListResponse> {
-    return this.fetchHostGetJson(`/host/v1/installations/${encodeURIComponent(installationId)}/changes`);
-  }
-
-  getInstallationChange(installationId: string, changeSetId: string): Promise<DevelopmentChangeRecord> {
-    return this.fetchHostGetJson(`/host/v1/installations/${encodeURIComponent(installationId)}/changes/${encodeURIComponent(changeSetId)}`);
-  }
-
-  getInstallationChangeBundle(installationId: string, changeSetId: string): Promise<DevelopmentPatchBundle> {
-    return this.fetchHostGetJson(`/host/v1/installations/${encodeURIComponent(installationId)}/changes/${encodeURIComponent(changeSetId)}/bundle`);
-  }
-
-  draftInstallationChange(installationId: string, input: DevelopmentDraftRequest): Promise<DevelopmentChangeRecord> {
-    return this.fetchHostJson(`/host/v1/installations/${encodeURIComponent(installationId)}/changes`, input);
-  }
-
-  approveInstallationChange(installationId: string, changeSetId: string, approved: boolean, reason?: string): Promise<DevelopmentChangeRecord> {
-    return this.fetchHostJson(`/host/v1/installations/${encodeURIComponent(installationId)}/changes/${encodeURIComponent(changeSetId)}/approve`, {
-      approved,
-      ...(reason ? { reason } : {}),
-    });
-  }
-
-  executeInstallationChange(installationId: string, changeSetId: string): Promise<DevelopmentExecuteResponse> {
-    return this.fetchHostJson(`/host/v1/installations/${encodeURIComponent(installationId)}/changes/${encodeURIComponent(changeSetId)}/execute`, {});
-  }
-
-  recoverInstallationChange(installationId: string, changeSetId: string): Promise<DevelopmentChangeRecord> {
-    return this.fetchHostJson(`/host/v1/installations/${encodeURIComponent(installationId)}/changes/${encodeURIComponent(changeSetId)}/recover`, {});
-  }
-
-  createInstallationDeploymentPreview(
-    installationId: string,
-    changeSetId: string,
-    input: DevelopmentDeploymentPreviewRequest,
-  ): Promise<DevelopmentChangeRecord> {
-    return this.fetchHostJson(
-      `/host/v1/installations/${encodeURIComponent(installationId)}/changes/${encodeURIComponent(changeSetId)}/deployment/preview`,
-      input,
-    );
-  }
-
-  approveInstallationDeployment(
-    installationId: string,
-    changeSetId: string,
-    input: DevelopmentDeploymentApprovalRequest,
-  ): Promise<DevelopmentChangeRecord> {
-    return this.fetchHostJson(
-      `/host/v1/installations/${encodeURIComponent(installationId)}/changes/${encodeURIComponent(changeSetId)}/deployment/approve`,
-      input,
-    );
-  }
-
-  activateInstallationDeployment(installationId: string, changeSetId: string): Promise<DevelopmentChangeRecord> {
-    return this.fetchHostJson(
-      `/host/v1/installations/${encodeURIComponent(installationId)}/changes/${encodeURIComponent(changeSetId)}/deployment/activate`,
-      {},
-    );
-  }
-
-  reconcileInstallationDeployment(installationId: string, changeSetId: string): Promise<DevelopmentChangeRecord> {
-    return this.fetchHostJson(
-      `/host/v1/installations/${encodeURIComponent(installationId)}/changes/${encodeURIComponent(changeSetId)}/deployment/reconcile`,
-      {},
-    );
-  }
-
-  subscribeBuildDeployJob(jobId: string, onEvent: (event: BuildDeployJobEvent) => void, onError?: (error: Event) => void) {
-    const source = new EventSource(this.buildDeployJobEventsUrl(jobId));
-    source.addEventListener("build_deploy", (message) => onEvent(JSON.parse((message as MessageEvent).data)));
-    if (onError) source.addEventListener("error", onError);
-    return () => source.close();
   }
 
   async resolveInstallPlan(source: InstallSource): Promise<InstallPlan> {
@@ -1626,49 +1075,8 @@ export class PluroraProtocolClient {
     }
   }
 
-  private async fetchHostJson<T>(path: string, body: unknown): Promise<T> {
-    try {
-      const response = await fetch(`${this.baseUrl}${path}`, {
-        method: "POST",
-        headers: this.rpcHeaders(),
-        body: JSON.stringify(body),
-      });
-      await throwForHttpError(response);
-      return (await response.json()) as T;
-    } catch (err: unknown) {
-      if (isFetchTransportError(err)) {
-        throw new Error("Cannot reach the Plurora Host control API. Check that the Host is reachable and the access token is valid.");
-      }
-      throw err;
-    }
-  }
-
-  private async fetchHostGetJson<T>(path: string): Promise<T> {
-    try {
-      const response = await fetch(`${this.baseUrl}${path}`, {
-        method: "GET",
-        headers: this.rpcHeaders(),
-      });
-      await throwForHttpError(response);
-      return (await response.json()) as T;
-    } catch (err: unknown) {
-      if (isFetchTransportError(err)) {
-        throw new Error("Cannot reach the Plurora Host control API. Check that the Host is reachable and the access token is valid.");
-      }
-      throw err;
-    }
-  }
-
   private eventSubscribeUrl(sessionId: string): string {
     const url = new URL(`${this.baseUrl}/journal/subscribe/${encodeURIComponent(sessionId)}`);
-    if (this.accessToken) {
-      url.searchParams.set("access_token", this.accessToken);
-    }
-    return url.toString();
-  }
-
-  private buildDeployJobEventsUrl(jobId: string): string {
-    const url = new URL(`${this.baseUrl}/host/v1/build-deploy/${encodeURIComponent(jobId)}/events`);
     if (this.accessToken) {
       url.searchParams.set("access_token", this.accessToken);
     }

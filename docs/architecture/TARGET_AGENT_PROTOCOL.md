@@ -2,7 +2,7 @@
 
 > [English](./TARGET_AGENT_PROTOCOL.en.md) · [中文](./TARGET_AGENT_PROTOCOL.md)
 
-状态：**Phase 5 transitional Candidate 合同**。Target Agent 是 Host Control Plane 的远程执行适配器，不是 remote package、通用 SSH shell、第二个 Host 或被部署应用的身份系统。身份、类型化 operation、artifact、Host-local Docker operation broker 与 authenticated reverse tunnel 已形成同一受控边界。Phase 5 Powerbox Exposure/Binding 已实现；managed Realization 的 plan/apply 与部署编译仍是 Phase 6 planned。自动调度与 target-edge ingress 不在当前合同内。
+状态：**Phase 6 Candidate 实现**。Target Agent 是 Host Control Plane 的远程执行适配器，不是 remote package、通用 SSH shell、第二个 Host 或被执行应用的身份系统。身份、类型化 operation、artifact、Host-local Docker operation broker 与 authenticated reverse tunnel 已形成同一受控边界。Managed Realization 已把 OperationalIntent/TargetInventory 的稳定 plan、apply/stop/rollback/reconcile 接到 local 与 Agent 的同一 typed operation/receipt 路径；自动调度与 target-edge ingress 不在当前合同内。
 
 ## 三种远程边界
 
@@ -61,11 +61,11 @@ Host journal 只保存 public identity、credential digest/serial、状态和审
 
 | 调用方 | 路由 | 权威与作用 |
 |---|---|---|
-| Host 客户端 | `POST /host/v1/targets/{target_id}/enrollments` | `deploy` scope + target selector；创建最长 15 分钟的单次 challenge |
+| Host 客户端 | `POST /host/v1/targets/{target_id}/enrollments` | root/`access_manage` + target selector；创建最长 15 分钟的单次 challenge |
 | Agent | `POST /target-agent/v1/enroll` | 消费 challenge，协商版本/能力并一次性接收 Host 生成的 bootstrap target credential |
 | Agent | `POST /target-agent/v1/heartbeat` | 独立 `PluroraTarget` credential；刷新 observation 与 45 秒 liveness |
 | Host 客户端 | `GET /host/v1/targets/{target_id}/observe` | `observe` scope + target selector；读取声明、有效能力、epoch 与观测摘要 |
-| Host 客户端 | `POST /host/v1/targets/{target_id}/revoke` | `deploy` scope + target selector；撤销身份并同时推进 lease/policy epoch |
+| Host 客户端 | `POST /host/v1/targets/{target_id}/revoke` | root/`access_manage` + target selector；撤销身份并同时推进 lease/policy epoch |
 
 Enrollment token 和 agent credential 只以带 domain separation 的 SHA-256 digest 进入 `host_control_target_agents` journal；challenge 单次消费，重启后非 revoked target 先回到 `Offline`，旧凭据与旧 epoch 不能恢复为可用状态。`host.target.register/unregister` 保留兼容方法名但 fail closed，调用方 JSON 不能绕过该流程制造 `Available` target。
 
@@ -73,7 +73,7 @@ Typed-worker 控制面暴露以下路由；它们不提供通用命令：
 
 | 调用方 | 路由 | 权威与作用 |
 |---|---|---|
-| Host 客户端 | `POST/GET /host/v1/targets/{target_id}/operations` | transitional-operation `deploy`/`observe` scope，同时约束 target 与 Installation selector；创建或列出类型化 operation |
+| Host 客户端 | `POST/GET /host/v1/targets/{target_id}/operations` | HostAdmin/HostDev 或 `access_manage` 执行底层 adapter，`observe` 读取；同时约束 target 与 Installation selector。普通 managed lifecycle 只能经 `host.realization.*` |
 | Host 客户端 | `GET /host/v1/targets/{target_id}/operations/{operation_id}` | 读取 Installation-scoped durable operation/receipt |
 | Agent | `GET /target-agent/v1/operations/next` | 仅向 live、epoch 匹配的 target 返回其未终结 operation |
 | Agent | `POST /target-agent/v1/operations/{operation_id}/progress` | 持久记录 accepted/running；首个随机 `execution_id` 获得唯一执行权 |
@@ -88,7 +88,7 @@ Operation authority 绑定 target/operation/step/Installation/effect/artifact/le
 
 Driver routing 按 `ExecutionTargetReachability` 选择 local 或 Agent，不接受调用方提供的任意网络地址作为 fallback。Local 与 Agent 的 transitional Host operation 共用一个类型化 Docker driver：固定非特权 bridge、只绑定 `127.0.0.1`、不接受 command/env/mount，并以 target/Installation/operation/route/lease ownership labels 幂等查找；`apply` 回执返回 Docker 实际分配的 loopback port。Host 将成功回执中的实际端口投影回 target-owned lease，并只在 route/lease/Installation/target 全部匹配时提升 route readiness；重启恢复不会用 Host-local Docker 观察误删远端 lease。Docker effect 发出后无法确认结果时回执为 `outcome_unknown`，不会误报失败；Host 重启时遗留的 local Accepted/Running 也持久收敛到该状态。
 
-authenticated reverse tunnel/transitional preview 的 Candidate 基线也已实现。具有 `reverse_tunnel` reachability 与 Host transitional-operation capability 的 Agent 使用同一 `PluroraTarget` 身份主动连接 `GET /target-agent/v1/tunnel`；Host 对每个 target 只接受一个 identity/lease epoch/policy epoch 都匹配的 live tunnel。每次 `Open` 都精确绑定 target、route、port lease、port name、Docker 实际端口和两个 epoch；有界 binary stream 只使用 Host 生成的 opaque stream ID 复用。Agent 在连接前重新验证受管容器的全部 ownership labels、Running 状态以及精确的 `127.0.0.1` 端口映射，因此 tunnel 不能被用来拨号任意 Agent loopback 端口。断线或 revoke 会令该 target 的 route 立即 unready，重连后再按 durable receipt 投影恢复；public/Host-authenticated 判定仍只属于 Host route policy，Host 也没有放宽任意网络 upstream。Managed Realization 仍在此 Candidate 边界之外。
+authenticated reverse tunnel 的 Candidate 基线也已实现。具有 `reverse_tunnel` reachability 与 typed-operation capability 的 Agent 使用同一 `PluroraTarget` 身份主动连接 `GET /target-agent/v1/tunnel`；Host 对每个 target 只接受一个 identity/lease epoch/policy epoch 都匹配的 live tunnel。每次 `Open` 都精确绑定 target、route、port lease、port name、Docker 实际端口和两个 epoch；有界 binary stream 只使用 Host 生成的 opaque stream ID 复用。Agent 在连接前重新验证受管容器的全部 ownership labels、Running 状态以及精确的 `127.0.0.1` 端口映射，因此 tunnel 不能被用来拨号任意 Agent loopback 端口。断线或 revoke 会令该 target 的 route 立即 unready，重连后再按 durable receipt 投影恢复；public/Host-authenticated 判定仍只属于 Host route policy，Host 也没有放宽任意网络 upstream。Realization 是这条执行路径的唯一公开 managed lifecycle；Agent 原语本身仍只是 adapter。
 
 ## Transport session
 

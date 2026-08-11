@@ -6,7 +6,7 @@ Plurora 的下一步不是围绕某个单一产品、示例或工作流扩张，
 
 这些方向并行推进，不用阶段编号制造虚假的线性顺序。每一项具体工作都应落在清楚的用户生命周期、架构层和长期责任中。
 
-当前已把游戏组合、开源项目部署与闭源入口三个需求收敛为同一条候选建设主线：可移植的 Work revision、递归 Assembly、Host-local Installation、Run，以及面向 Target 编译的 Realization。具体破坏性模型、公开合同重置、Codex 执行规则、分阶段提交和最终验收见 [`WORK_ASSEMBLY_REALIZATION.md`](WORK_ASSEMBLY_REALIZATION.md)。该文件是开发期临时实施计划，不自动成为 Stable 平台本体；完成后删除并把长期结论归入正式文档。
+当前已完成这条候选主线的 Work、Assembly、Installation、Run、Exposure/Binding 与 Target-compiled Realization 基础。下一项边界是 Foreign Work、Rights/Transparency、闭源入口与 opaque-state backup。具体破坏性模型、公开合同重置、Codex 执行规则、分阶段提交和最终验收见 [`WORK_ASSEMBLY_REALIZATION.md`](WORK_ASSEMBLY_REALIZATION.md)。该文件是开发期临时实施计划，不自动成为 Stable 平台本体；Phase 9 完成后删除并把长期结论归入正式文档。
 
 ## 当前最重要的工作
 
@@ -32,7 +32,7 @@ Plurora 的下一步不是围绕某个单一产品、示例或工作流扩张，
 模板 / 导入
 → 本地运行与热更新
 → 观察事件、调用、对象和状态
-→ 修改内容、composition、组件或协议
+→ 修改内容、Assembly、组件或协议
 → 人类 / AI 辅助
 → 调试与测试
 → 打包、分享、部署
@@ -59,7 +59,7 @@ Contract V1 继续作为受支持的精确公开边界。建设重点是：
 - 为新能力选择明确 namespace、version 和 maturity；
 - 继续维护精确 Contract Registry、生成 identity 与显式 contract/profile/Protocol negotiation；
 - 当引入 breaking boundary 时，通过显式 versioned reader 与 migration tooling 保持较早数据和 unknown field 可读；
-- 将 Surface slot、Project、target、deployment 等正确标记为 Profile / Host，而不是永久 substrate ontology；
+- 将 Surface slot、Work、Target 与 Realization 正确标记为 Profile / Host，而不是永久 substrate ontology；
 - 只在有真实公共语义时建立 Protocol，不把某个 Package 私有 JSON 过早冻结成平台标准。
 
 逐项归属见 [`../spec/CONTRACT_LAYERING_MATRIX.md`](../spec/CONTRACT_LAYERING_MATRIX.md)，候选宪法见 [`../architecture/CONSTITUTION_V2.md`](../architecture/CONSTITUTION_V2.md)。
@@ -79,7 +79,7 @@ WASM、remote 或新 transport 不因为“技术更新”自动优先；只有�
 
 ### 把用户数据、内容和工件当作长期资产
 
-ObjectStore、ArtifactDescriptor、World Bundle、deployment artifact 和 effect receipt 已经出现，但还需要统一长期数据治理：
+ObjectStore、ArtifactDescriptor、World Bundle、Realization plan/resource artifact 和 effect receipt 已经出现，但还需要统一长期数据治理：
 
 - 用户数据、可重建 cache、可执行工件和临时诊断明确分类；
 - 内容摘要、引用、provenance、可达性、保留和垃圾回收；
@@ -110,7 +110,7 @@ ObjectStore、ArtifactDescriptor、World Bundle、deployment artifact 和 effect
 
 - managed local Host 无需云账户即可工作；
 - remote Host 使用明确 HTTPS 身份、pairing、grant 和资源 selector；
-- 同一客户端严格隔离不同 Host 的凭据、缓存和 Project / target 偏好；
+- 同一客户端严格隔离不同 Host 的凭据、缓存和 Installation / Target 偏好；
 - 设备撤销、祖先授权撤销、离线、重连和过期处理清楚；
 - 大工件传输可恢复、可校验、可限额；
 - 多 Host 内容和状态迁移不依赖本机绝对路径；
@@ -133,10 +133,10 @@ ObjectStore、ArtifactDescriptor、World Bundle、deployment artifact 和 effect
 
 以下能力可以继续建设，但不能被写成 Plurora 唯一方向：
 
-- Project workflow；
+- 单一 Work-centric workflow；
 - 游创、Tavern、世界或聊天；
 - agent 或模型推理；
-- Docker 与部署；
+- Docker 与 Realization executor；
 - 官方 Web / Desktop Shell；
 - 某个 protocol profile；
 - 某个演示、fixture 或外部项目。
@@ -147,8 +147,8 @@ ObjectStore、ArtifactDescriptor、World Bundle、deployment artifact 和 effect
 
 在没有清楚用户价值和所属层之前，不主动增加：
 
-- 以功能数量为目的的新部署后端；
-- 内核内置聊天、agent、memory、world 或 Project UI 语义；
+- 以功能数量为目的的新 Realization backend；
+- 内核内置聊天、agent、memory、world 或产品 UI 语义；
 - 官方 Package 私有 API、名称特权或隐藏路由；
 - 任意远程 shell、无限 Host 文件系统或长期 root credential；
 - 没有迁移路径的 Stable schema；

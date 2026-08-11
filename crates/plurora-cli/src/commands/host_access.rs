@@ -12,7 +12,6 @@ const VALID_SCOPES: &[&str] = &[
     "exposure.manage",
     "realization.plan",
     "realization.apply",
-    "deploy",
     "develop.propose",
     "develop.approve",
     "develop.execute",

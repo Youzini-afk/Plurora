@@ -198,6 +198,8 @@ pub(crate) enum Command {
     Exposure(crate::commands::powerbox::ExposureArgs),
     /// Discover, select, list, and revoke explicit Host-owned Bindings.
     Binding(crate::commands::powerbox::BindingArgs),
+    /// Plan, apply, inspect, stop, roll back, and reconcile Managed Realizations.
+    Realization(crate::commands::realization::RealizationArgs),
     /// Create, validate, pack, or inspect portable Work sources.
     Work(crate::commands::work::WorkArgs),
     /// Generate package skeletons.

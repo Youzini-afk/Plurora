@@ -11,6 +11,7 @@ import { PowerboxChooser } from "@/components/powerbox/powerbox-chooser";
 import { PowerboxWorkbench } from "@/components/powerbox/powerbox-workbench";
 import { activeHostCredentialScope } from "@/client-core/host-endpoint";
 import { createPowerboxContext, isBindingGapForPowerbox, type PowerboxConsumerContext } from "@/client-core/powerbox";
+import { RealizationWorkbench } from "@/components/realization/realization-workbench";
 
 /** Navigation and tab close are observational. They never stop a Run. */
 export const INSTALLATION_FRAME_POLICY = { stopRunOnUnmount: false } as const;
@@ -208,6 +209,7 @@ export function InstallationFrame({ installationId, chrome = "shell" }: { instal
               }}
             />
           ) : null}
+          {view.work_summary.operational_intent ? <RealizationWorkbench client={client} identity={identity} installation={view} /> : null}
           <section className="rounded-[16px] border border-whisper-border bg-pure-surface p-5">
             <div className="flex items-center justify-between gap-3">
               <div><h2 className="font-display text-lg font-bold">Entrypoints</h2><p className="mt-1 text-xs text-steel-secondary">Preflight runs only when you choose an entrypoint.</p></div>

@@ -34,7 +34,9 @@ use plurora_runtime::{
     AppendEventRequest, EventStore, InMemoryEventStore, InstallationAuthorityRefresh,
     InstallationAuthoritySubject, InstallationAuthorityValidator, InstallationControl,
     OpenSessionRequest, PowerboxAuthorityRefresh, PowerboxAuthoritySubject,
-    PowerboxAuthorityValidator, RunAuthorityRefresh, RunAuthorityValidator, Runtime, RuntimeConfig,
+    PowerboxAuthorityValidator, RealizationAuthorityRefresh, RealizationAuthoritySubject,
+    RealizationAuthorityValidator, RealizationListRequest, RunAuthorityRefresh,
+    RunAuthorityValidator, Runtime, RuntimeConfig,
 };
 use plurora_runtime::{
     PortBindScope, PortLeaseStatusKind, ProxyProtocol, ProxyRouteAccess, ProxyRouteStatusKind,
@@ -54,6 +56,7 @@ mod development;
 mod host_access;
 mod installations;
 mod powerbox;
+mod realization;
 mod runs;
 mod target_agent;
 
@@ -73,6 +76,11 @@ pub use host_access::{
 };
 pub use installations::InstallationRegistry;
 pub use powerbox::{PowerboxEndpointInspector, PowerboxRegistry, RuntimePowerboxInspector};
+pub use realization::{
+    reconcile_realization_backends, RealizationBackendReconcileSummary, RealizationExecution,
+    RealizationExecutionDriver, RealizationObservation, RealizationRegistry,
+    ServiceRealizationExecutor,
+};
 pub use runs::RunRegistry;
 pub use target_agent::{
     decode_target_tunnel_data, encode_target_tunnel_data, hydrate_target_agent_control_plane,
@@ -458,6 +466,92 @@ where
     PowerboxAuthorityRefresh::new(Arc::new(CurrentPowerboxAuthority { store, host_access }))
 }
 
+struct CurrentRealizationAuthority<S>
+where
+    S: EventStore,
+{
+    store: Arc<S>,
+    host_access: Arc<HostAccessRegistry>,
+}
+
+#[async_trait::async_trait]
+impl<S> RealizationAuthorityValidator for CurrentRealizationAuthority<S>
+where
+    S: EventStore,
+{
+    async fn validate_current(
+        &self,
+        grant_id: &str,
+        subject: &RealizationAuthoritySubject,
+    ) -> anyhow::Result<()> {
+        host_access::sync_host_access_journal(self.store.as_ref(), self.host_access.as_ref())
+            .await?;
+        let (scope, installation_id, target_id, realization_ids) = match subject {
+            RealizationAuthoritySubject::Plan {
+                installation_id,
+                target_id,
+            } => (
+                HostAccessScope::RealizationPlan,
+                installation_id,
+                target_id,
+                &[][..],
+            ),
+            RealizationAuthoritySubject::Apply {
+                installation_id,
+                target_id,
+                realization_ids,
+            } => (
+                HostAccessScope::RealizationApply,
+                installation_id,
+                target_id,
+                realization_ids.as_slice(),
+            ),
+        };
+        anyhow::ensure!(
+            self.host_access.grant_allows_current(
+                grant_id,
+                scope,
+                HostAccessResourceKind::Installation,
+                installation_id.as_str(),
+            ) && self.host_access.grant_allows_current(
+                grant_id,
+                scope,
+                HostAccessResourceKind::Target,
+                target_id,
+            ) && realization_ids.iter().all(|realization_id| self
+                .host_access
+                .grant_allows_current(
+                    grant_id,
+                    scope,
+                    HostAccessResourceKind::Realization,
+                    realization_id.as_str(),
+                )),
+            "Host access grant is no longer current for every exact Realization resource"
+        );
+        Ok(())
+    }
+}
+
+fn realization_authority_refresh<S>(state: &AppState<S>) -> RealizationAuthorityRefresh
+where
+    S: EventStore,
+{
+    RealizationAuthorityRefresh::new(Arc::new(CurrentRealizationAuthority {
+        store: state.runtime.store(),
+        host_access: state.host_access.clone(),
+    }))
+}
+
+pub fn host_realization_authority_refresh<S>(
+    store: Arc<S>,
+    host_access: Arc<HostAccessRegistry>,
+) -> RealizationAuthorityRefresh
+where
+    S: EventStore,
+{
+    RealizationAuthorityRefresh::new(Arc::new(CurrentRealizationAuthority { store, host_access }))
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum HostCredentialSource {
     OptionalLoopback,
@@ -532,6 +626,7 @@ struct EphemeralApp {
 fn ephemeral_app() -> EphemeralApp {
     let store = Arc::new(InMemoryEventStore::default());
     let powerbox_store = Arc::new(InMemoryEventStore::default());
+    let realization_store = Arc::new(InMemoryEventStore::default());
     let object_store = Arc::new(plurora_runtime::InMemoryObjectStore::default());
     let installations = InstallationRegistry::ephemeral(store.clone(), object_store.clone())
         .expect("create ephemeral installation registry");
@@ -543,6 +638,15 @@ fn ephemeral_app() -> EphemeralApp {
         runs.clone(),
     )
     .expect("Powerbox control journal is isolated from the Runtime public journal");
+    let target_registry = Arc::new(plurora_runtime::ExecutionTargetRegistry::default());
+    let realizations = RealizationRegistry::new(
+        realization_store,
+        store.clone(),
+        object_store.clone(),
+        installations.clone(),
+        target_registry.clone(),
+    )
+    .expect("Realization control journal is isolated from the Runtime public journal");
     let runtime = Arc::new(Runtime::new(
         store,
         RuntimeConfig {
@@ -550,6 +654,8 @@ fn ephemeral_app() -> EphemeralApp {
             installation_control: installations.clone(),
             run_control: runs.clone(),
             powerbox_control: powerbox.clone(),
+            realization_control: realizations,
+            target_registry,
             ..RuntimeConfig::default()
         },
     ));
@@ -620,39 +726,6 @@ where
         ));
     let protected_control = Router::new()
         .route("/journal/subscribe/:session_id", get(subscribe_events::<S>))
-        .route("/host/v1/deploy", post(deploy_installation::<S>))
-        .route(
-            "/host/v1/deploy/stop",
-            post(stop_installation_deployment::<S>),
-        )
-        .route(
-            "/host/v1/build-deploy",
-            post(build_deploy_installation::<S>),
-        )
-        .route(
-            "/host/v1/build-deploy/:job_id",
-            get(build_deploy_job_status::<S>),
-        )
-        .route(
-            "/host/v1/build-deploy/:job_id/events",
-            get(build_deploy_job_events::<S>),
-        )
-        .route(
-            "/host/v1/build-deploy/:job_id/cancel",
-            post(cancel_build_deploy_job::<S>),
-        )
-        .route(
-            "/host/v1/installations/:installation_id/deployments",
-            get(installation_deployments::<S>),
-        )
-        .route(
-            "/host/v1/installations/:installation_id/deployments/recover",
-            post(recover_installation_deployment::<S>),
-        )
-        .route(
-            "/host/v1/installations/:installation_id/deployments/rollback",
-            post(rollback_installation_deployment::<S>),
-        )
         .merge(development::routes::<S>())
         .merge(host_access::protected_routes::<S>())
         .merge(target_control)
@@ -787,7 +860,7 @@ struct HostReadinessResponse {
 struct HostReadinessComponents {
     event_store: HostReadinessComponent,
     control_plane_lease: HostReadinessComponent,
-    deployments: HostDeploymentReadiness,
+    realizations: HostRealizationReadiness,
 }
 
 #[derive(Debug, Serialize)]
@@ -796,10 +869,10 @@ struct HostReadinessComponent {
 }
 
 #[derive(Debug, Serialize)]
-struct HostDeploymentReadiness {
+struct HostRealizationReadiness {
     status: &'static str,
     durable: usize,
-    ready: usize,
+    active: usize,
     degraded: usize,
 }
 
@@ -810,7 +883,7 @@ where
     let store_ready = state
         .runtime
         .store()
-        .list_session_range(&DEPLOYMENT_JOURNAL_SESSION.to_string(), None, Some(1))
+        .list_session_range(&"host_realizations".to_string(), None, Some(1))
         .await
         .is_ok();
     let lease_ready = store_ready
@@ -821,36 +894,41 @@ where
         .await
         .is_ok();
 
-    let durable_routes = state.build_jobs.durable_routes();
-    let mut ready_routes = 0usize;
-    for durable in &durable_routes {
-        let route_ready = state
-            .runtime
-            .config()
-            .proxy_route_registry
-            .status(&durable.route_id)
-            .await
-            .is_some_and(|route| {
-                route.status == ProxyRouteStatusKind::Active
-                    && route.ready
-                    && route.upstream.port_lease_id == durable.port_lease_id
-            });
-        let lease_ready = state
-            .runtime
-            .config()
-            .port_lease_registry
-            .status(&durable.port_lease_id)
-            .await
-            .is_some_and(|lease| lease.status == PortLeaseStatusKind::Active);
-        if route_ready && lease_ready {
-            ready_routes += 1;
-        }
-    }
-    let degraded_routes = durable_routes.len().saturating_sub(ready_routes);
+    let realizations = state
+        .runtime
+        .config()
+        .realization_control
+        .list(RealizationListRequest {
+            installation_id: None,
+            target_id: None,
+        })
+        .await;
+    let (durable_realizations, active_realizations, degraded_realizations) = realizations
+        .as_ref()
+        .map(|records| {
+            let active = records
+                .iter()
+                .filter(|record| record.status == plurora_work::RealizationStatus::Active)
+                .count();
+            let degraded = records
+                .iter()
+                .filter(|record| {
+                    matches!(
+                        record.status,
+                        plurora_work::RealizationStatus::Degraded
+                            | plurora_work::RealizationStatus::Failed
+                            | plurora_work::RealizationStatus::OutcomeUnknown
+                            | plurora_work::RealizationStatus::RecoveryRequired
+                    )
+                })
+                .count();
+            (records.len(), active, degraded)
+        })
+        .unwrap_or_default();
     let ready = store_ready && lease_ready;
     let status = if !ready {
         "unready"
-    } else if degraded_routes > 0 {
+    } else if realizations.is_err() || degraded_realizations > 0 {
         "degraded"
     } else {
         "ready"
@@ -865,15 +943,15 @@ where
             control_plane_lease: HostReadinessComponent {
                 status: if lease_ready { "ok" } else { "failed" },
             },
-            deployments: HostDeploymentReadiness {
-                status: if degraded_routes == 0 {
+            realizations: HostRealizationReadiness {
+                status: if realizations.is_ok() && degraded_realizations == 0 {
                     "ok"
                 } else {
                     "degraded"
                 },
-                durable: durable_routes.len(),
-                ready: ready_routes,
-                degraded: degraded_routes,
+                durable: durable_realizations,
+                active: active_realizations,
+                degraded: degraded_realizations,
             },
         },
     };
@@ -1355,9 +1433,7 @@ fn query_access_token(uri: &Uri) -> Option<String> {
 
 fn event_stream_query_credentials_allowed(request: &Request) -> bool {
     let path = request.uri().path();
-    request.method() == Method::GET
-        && (path.starts_with("/journal/subscribe/")
-            || (path.starts_with("/host/v1/build-deploy/") && path.ends_with("/events")))
+    request.method() == Method::GET && path.starts_with("/journal/subscribe/")
 }
 
 fn unsafe_cookie_origin_mismatch(request: &Request, source: HostCredentialSource) -> bool {
@@ -1428,7 +1504,7 @@ fn required_host_scope_for_http(method: &Method, path: &str) -> Option<HostAcces
     }
     if path.starts_with("/host/v1/development/") && path.contains("/changes") {
         if path.contains("/deployment/") {
-            return Some(HostAccessScope::Deploy);
+            return Some(HostAccessScope::AccessManage);
         }
         if method == Method::GET || path.ends_with("/changes") {
             return Some(HostAccessScope::DevelopPropose);
@@ -1445,7 +1521,7 @@ fn required_host_scope_for_http(method: &Method, path: &str) -> Option<HostAcces
         return Some(if method == Method::GET {
             HostAccessScope::Observe
         } else {
-            HostAccessScope::Deploy
+            HostAccessScope::AccessManage
         });
     }
     if path.starts_with("/journal/subscribe/") {
@@ -1964,8 +2040,8 @@ impl DeploymentAuthorityLease {
     ) -> anyhow::Result<()> {
         anyhow::ensure!(
             self.identity_kind == HostAccessIdentityKind::Root
-                || self.scopes.contains(&HostAccessScope::Deploy),
-            "deployment authority lease does not include deploy"
+                || self.scopes.contains(&HostAccessScope::RealizationApply),
+            "deployment authority lease does not include realization.apply"
         );
         anyhow::ensure!(
             self.allows_resource(
@@ -2022,7 +2098,7 @@ impl DeploymentAuthorityLease {
             )
         };
         context.with_host_operation(
-            "deploy",
+            "realization.apply",
             vec![
                 ProtocolResourceSelector {
                     owner: "host".to_string(),
@@ -4234,7 +4310,7 @@ where
     )
     .await?
     .with_host_operation(
-        "deploy",
+        "realization.apply",
         vec![
             ProtocolResourceSelector {
                 owner: "host".to_string(),
@@ -4322,7 +4398,7 @@ where
     )
     .await?
     .with_host_operation(
-        "deploy",
+        "realization.apply",
         vec![
             ProtocolResourceSelector {
                 owner: "host".to_string(),
@@ -4868,7 +4944,7 @@ where
         None => identity
             .protocol_context("host_deploy_stop")
             .with_host_operation(
-                "deploy",
+                "realization.apply",
                 vec![ProtocolResourceSelector {
                     owner: "host".to_string(),
                     kind: "target".to_string(),
@@ -8579,7 +8655,8 @@ where
             .with_host_operation(required_scope.as_str(), operation_resources)
             .with_installation_authority_refresh(installation_authority_refresh(&state))
             .with_run_authority_refresh(run_authority_refresh(&state))
-            .with_powerbox_authority_refresh(powerbox_authority_refresh(&state));
+            .with_powerbox_authority_refresh(powerbox_authority_refresh(&state))
+            .with_realization_authority_refresh(realization_authority_refresh(&state));
     }
     context.session_id = session_id;
     let result = state
@@ -8624,6 +8701,8 @@ fn required_host_scope_for_protocol_method(method: &str) -> HostAccessScope {
         | "host.exposure.list"
         | "host.binding.list"
         | "host.binding.candidates"
+        | "host.realization.list"
+        | "host.realization.get"
         | "host.target.list"
         | "host.target.status"
         | "host.exec.list"
@@ -8663,6 +8742,13 @@ fn required_host_scope_for_protocol_method(method: &str) -> HostAccessScope {
 
         "host.binding.select" | "host.binding.revoke" => HostAccessScope::BindingManage,
 
+        "host.realization.plan" => HostAccessScope::RealizationPlan,
+
+        "host.realization.apply"
+        | "host.realization.stop"
+        | "host.realization.rollback"
+        | "host.realization.reconcile" => HostAccessScope::RealizationApply,
+
         "context.open" | "context.close" | "context.fork" => HostAccessScope::AccessManage,
 
         "host.target.register"
@@ -8672,7 +8758,7 @@ fn required_host_scope_for_protocol_method(method: &str) -> HostAccessScope {
         | "host.port.lease"
         | "host.port.release"
         | "host.proxy.register"
-        | "host.proxy.unregister" => HostAccessScope::Deploy,
+        | "host.proxy.unregister" => HostAccessScope::AccessManage,
 
         "change.proposal.create" => HostAccessScope::DevelopPropose,
         "change.proposal.approve" | "change.proposal.reject" => HostAccessScope::DevelopApprove,
@@ -8692,6 +8778,42 @@ fn host_operation_resources_for_protocol_method(
         kind: kind.to_string(),
         id: Some(id),
     };
+    if matches!(
+        method,
+        "host.realization.plan"
+            | "host.realization.apply"
+            | "host.realization.get"
+            | "host.realization.stop"
+            | "host.realization.rollback"
+            | "host.realization.reconcile"
+    ) {
+        let Some(installation_id) = params.get("installation_id").and_then(Value::as_str) else {
+            return Vec::new();
+        };
+        let mut resources = vec![exact("installation", installation_id.to_string())];
+        if method != "host.realization.get" {
+            let Some(target_id) = params.get("target_id").and_then(Value::as_str) else {
+                return Vec::new();
+            };
+            resources.push(exact("target", target_id.to_string()));
+        }
+        if method != "host.realization.plan" {
+            let Some(realization_id) = params.get("realization_id").and_then(Value::as_str) else {
+                return Vec::new();
+            };
+            resources.push(exact("realization", realization_id.to_string()));
+        }
+        if method == "host.realization.rollback" {
+            let Some(rollback_id) = params
+                .get("rollback_to_realization_id")
+                .and_then(Value::as_str)
+            else {
+                return Vec::new();
+            };
+            resources.push(exact("realization", rollback_id.to_string()));
+        }
+        return resources;
+    }
     if matches!(method, "host.exposure.create" | "host.exposure.revoke") {
         let Some(installation_id) = params.get("installation_id").and_then(Value::as_str) else {
             return Vec::new();
@@ -9419,8 +9541,8 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn removed_installation_cannot_start_deployment_or_target_effects() -> anyhow::Result<()>
-    {
+    async fn removed_installation_cannot_start_target_effects_and_deploy_alias_is_absent(
+    ) -> anyhow::Result<()> {
         let store = Arc::new(InMemoryEventStore::default());
         let objects = Arc::new(plurora_runtime::InMemoryObjectStore::default());
         let installations = InstallationRegistry::ephemeral(store.clone(), objects.clone())?;
@@ -9485,12 +9607,7 @@ mod tests {
                     ))?,
             )
             .await?;
-        assert_eq!(deploy.status(), StatusCode::CONFLICT);
-        let deploy_body =
-            String::from_utf8(to_bytes(deploy.into_body(), usize::MAX).await?.to_vec())?;
-        assert!(deploy_body.contains("installation is not active for new effects"));
-        assert!(!deploy_body.contains(installation_id.as_str()));
-        assert!(!deploy_body.contains("secret_ref:"));
+        assert_eq!(deploy.status(), StatusCode::NOT_FOUND);
 
         let target = app
             .oneshot(
@@ -9538,16 +9655,13 @@ mod tests {
             Some("event-token")
         );
 
-        let job_events = Request::builder()
+        let retired_job_events = Request::builder()
             .method(Method::GET)
             .uri("/host/v1/build-deploy/job-1/events?access_token=device-token")
             .body(Body::empty())?;
-        assert_eq!(
-            presented_host_credentials(&job_events)
-                .event_query
-                .as_deref(),
-            Some("device-token")
-        );
+        assert!(presented_host_credentials(&retired_job_events)
+            .event_query
+            .is_none());
 
         for request in [
             Request::builder()
@@ -9568,7 +9682,7 @@ mod tests {
     fn cookie_mutations_require_same_origin_when_origin_is_present() -> anyhow::Result<()> {
         let same_origin = Request::builder()
             .method(Method::POST)
-            .uri("/host/v1/deploy")
+            .uri("/host/v1/access/pairings")
             .header(header::HOST, "host.example.test:443")
             .header(header::ORIGIN, "https://host.example.test")
             .body(Body::empty())?;
@@ -9579,7 +9693,7 @@ mod tests {
 
         let cross_origin = Request::builder()
             .method(Method::POST)
-            .uri("/host/v1/deploy")
+            .uri("/host/v1/access/pairings")
             .header(header::HOST, "host.example.test")
             .header(header::ORIGIN, "https://evil.example.test")
             .body(Body::empty())?;
@@ -9590,7 +9704,7 @@ mod tests {
 
         let bearer_cross_origin = Request::builder()
             .method(Method::POST)
-            .uri("/host/v1/deploy")
+            .uri("/host/v1/access/pairings")
             .header(header::HOST, "host.example.test")
             .header(header::ORIGIN, "https://evil.example.test")
             .body(Body::empty())?;
@@ -9629,7 +9743,7 @@ mod tests {
                 &Method::POST,
                 "/host/v1/development/workspace/22222222-2222-4222-8222-222222222222/changes/change-1/deployment/preview"
             ),
-            Some(HostAccessScope::Deploy)
+            Some(HostAccessScope::AccessManage)
         );
         for action in ["approve", "activate", "reconcile"] {
             assert_eq!(
@@ -9637,12 +9751,12 @@ mod tests {
                     &Method::POST,
                     &format!("/host/v1/development/workspace/22222222-2222-4222-8222-222222222222/changes/change-1/deployment/{action}")
                 ),
-                Some(HostAccessScope::Deploy)
+                Some(HostAccessScope::AccessManage)
             );
         }
         assert_eq!(
             required_host_scope_for_http(&Method::POST, "/host/v1/deploy"),
-            Some(HostAccessScope::Deploy)
+            Some(HostAccessScope::AccessManage)
         );
         assert_eq!(
             required_host_scope_for_http(&Method::POST, "/unrecognized"),
@@ -10746,7 +10860,7 @@ mod tests {
         assert_eq!(value["ready"], true);
         assert_eq!(value["components"]["event_store"]["status"], "ok");
         assert_eq!(value["components"]["control_plane_lease"]["status"], "ok");
-        assert_eq!(value["components"]["deployments"]["durable"], 0);
+        assert_eq!(value["components"]["realizations"]["durable"], 0);
         assert!(!String::from_utf8(body.to_vec())?.contains("route_id"));
         Ok(())
     }
@@ -10784,7 +10898,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn readyz_keeps_host_ready_when_a_workload_is_degraded() -> anyhow::Result<()> {
+    async fn readyz_ignores_retired_deployment_projection() -> anyhow::Result<()> {
         let store = Arc::new(InMemoryEventStore::default());
         let (runtime, installations) = test_runtime(store, RuntimeConfig::default());
         let build_jobs = build_deploy_job_registry();
@@ -10814,10 +10928,10 @@ mod tests {
         assert_eq!(response.status(), StatusCode::OK);
         let body = to_bytes(response.into_body(), usize::MAX).await?;
         let value: Value = serde_json::from_slice(&body)?;
-        assert_eq!(value["status"], "degraded");
+        assert_eq!(value["status"], "ready");
         assert_eq!(value["ready"], true);
-        assert_eq!(value["components"]["deployments"]["durable"], 1);
-        assert_eq!(value["components"]["deployments"]["degraded"], 1);
+        assert_eq!(value["components"]["realizations"]["durable"], 0);
+        assert_eq!(value["components"]["realizations"]["degraded"], 0);
         assert!(!String::from_utf8(body.to_vec())?.contains("private-route"));
         Ok(())
     }
@@ -11126,7 +11240,7 @@ mod tests {
                     .body(Body::from(
                         json!({
                             "device_name": "Installation A device",
-                            "scopes": ["observe", "deploy", "develop.propose", "access_manage"],
+                            "scopes": ["observe", "realization.apply", "develop.propose", "access_manage"],
                             "resources": [
                                 {"kind": "installation", "id": installation_a},
                                 {"kind": "target", "id": "local"}
@@ -11516,7 +11630,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn token_gate_protects_host_deploy() -> anyhow::Result<()> {
+    async fn retired_host_deploy_route_is_not_an_authenticated_alias() -> anyhow::Result<()> {
         let store = Arc::new(InMemoryEventStore::default());
         let (runtime, installations) = test_runtime(store, RuntimeConfig::default());
         let app = app_with_state(AppState {
@@ -11531,7 +11645,8 @@ mod tests {
             target_agents: target_agent_registry(),
         });
 
-        let denied = app
+        let without_token = app
+            .clone()
             .oneshot(
                 Request::builder()
                     .method("POST")
@@ -11549,12 +11664,24 @@ mod tests {
                     ))?,
             )
             .await?;
-        assert_eq!(denied.status(), StatusCode::UNAUTHORIZED);
+        assert_eq!(without_token.status(), StatusCode::NOT_FOUND);
+
+        let with_token = app
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/host/v1/deploy")
+                    .header("authorization", "Bearer deploy-token")
+                    .header("content-type", "application/json")
+                    .body(Body::from("{}"))?,
+            )
+            .await?;
+        assert_eq!(with_token.status(), StatusCode::NOT_FOUND);
         Ok(())
     }
 
     #[tokio::test]
-    async fn host_deploy_rolls_back_port_lease_when_docker_start_fails() -> anyhow::Result<()> {
+    async fn retired_host_deploy_route_has_no_port_or_proxy_effect() -> anyhow::Result<()> {
         let store = Arc::new(InMemoryEventStore::default());
         let (runtime, installations) = test_runtime(store, RuntimeConfig::default());
         let app = app_with_state(AppState {
@@ -11588,7 +11715,7 @@ mod tests {
                     ))?,
             )
             .await?;
-        assert!(!response.status().is_success());
+        assert_eq!(response.status(), StatusCode::NOT_FOUND);
 
         let context = ProtocolContext::host_dev("host_deploy_test");
         let leases = runtime

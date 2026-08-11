@@ -1,6 +1,6 @@
 # Event Kind Registry (v1)
 
-This table lists the 69 event kinds emitted exclusively by the Plurora platform runtime. Ordinary Package writers use their own Package ID namespace and cannot impersonate a platform-owned kind.
+This table lists the 76 event kinds emitted exclusively by the Plurora platform runtime. Ordinary Package writers use their own Package ID namespace and cannot impersonate a platform-owned kind.
 
 | Event kind | Payload schema | Writer | Trigger | Status |
 |---|---|---|---|---|
@@ -30,6 +30,13 @@ This table lists the 69 event kinds emitted exclusively by the Plurora platform 
 | `host/run.stopping` | [`./schemas/events/host__run.stopping.schema.json`](./schemas/events/host__run.stopping.schema.json) | `plurora/runtime` | Run stop is authorized and enters stopping | implemented |
 | `host/run.stopped` | [`./schemas/events/host__run.stopped.schema.json`](./schemas/events/host__run.stopped.schema.json) | `plurora/runtime` | Run activation context stops and a terminal record commits | implemented |
 | `host/run.failed` | [`./schemas/events/host__run.failed.schema.json`](./schemas/events/host__run.failed.schema.json) | `plurora/runtime` | Run activation fails or Host restart marks an incomplete Run interrupted | implemented |
+| `host/realization.planned` | [`./schemas/events/host__realization.planned.schema.json`](./schemas/events/host__realization.planned.schema.json) | `plurora/runtime` | Pure planning persisted the exact RealizationPlan and Planned revision | implemented |
+| `host/realization.applying` | [`./schemas/events/host__realization.applying.schema.json`](./schemas/events/host__realization.applying.schema.json) | `plurora/runtime` | Apply/rollback intent is durable before Target effects begin | implemented |
+| `host/realization.active` | [`./schemas/events/host__realization.active.schema.json`](./schemas/events/host__realization.active.schema.json) | `plurora/runtime` | Target effects, receipts, and actual resources committed as Active | implemented |
+| `host/realization.stopped` | [`./schemas/events/host__realization.stopped.schema.json`](./schemas/events/host__realization.stopped.schema.json) | `plurora/runtime` | Recorded resources closed before the Stopped terminal revision committed | implemented |
+| `host/realization.failed` | [`./schemas/events/host__realization.failed.schema.json`](./schemas/events/host__realization.failed.schema.json) | `plurora/runtime` | Apply failed or its outcome is uncertain, with a stable reason code | implemented |
+| `host/realization.rolled_back` | [`./schemas/events/host__realization.rolled_back.schema.json`](./schemas/events/host__realization.rolled_back.schema.json) | `plurora/runtime` | A persisted historic plan produced a new active replacement | implemented |
+| `host/realization.reconciled` | [`./schemas/events/host__realization.reconciled.schema.json`](./schemas/events/host__realization.reconciled.schema.json) | `plurora/runtime` | Effect-free Target observation updated Realization truth | implemented |
 | `object/put` | [`./schemas/events/object__put.schema.json`](./schemas/events/object__put.schema.json) | `plurora/runtime` | Opaque asset stored | implemented |
 | `projection/updated` | [`./schemas/events/projection__updated.schema.json`](./schemas/events/projection__updated.schema.json) | `plurora/runtime` | Projection state rebuilt/updated | implemented |
 | `change/proposal.created` | [`./schemas/events/change__proposal.created.schema.json`](./schemas/events/change__proposal.created.schema.json) | `plurora/runtime` | Proposal created | partial |

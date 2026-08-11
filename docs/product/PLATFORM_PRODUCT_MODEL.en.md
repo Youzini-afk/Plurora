@@ -74,15 +74,15 @@ Creator tools may be opinionated but receive no private kernel authority. AI ass
 
 ## Current organization of the official shell
 
-The current Web/Desktop distribution organizes itself around Home, Settings, Project frames, Project Console, and contributed surfaces. This is an evolving official product structure, not a mandatory structure for all Plurora clients.
+The current Web/Desktop distribution organizes itself around Home, Settings, Installation frames, Workbenches, and contributed surfaces. This is an evolving official product structure, not a mandatory structure for all Plurora clients.
 
 - **Home / Library:** discover, install, launch, and resume;
 - **Settings / Control:** Hosts, identities, authority, storage, connections, and package management;
-- **Project / App frame:** host the primary interface of an installed instance;
-- **Workbench / Console:** diagnostics, creation, changes, deployment, and recovery;
+- **Installation / App frame:** host the primary interface of an installed instance;
+- **Workbench / Console:** diagnostics, creation, changes, Realization, and recovery;
 - **Contextual assistance:** explanations, suggestions, and controlled operations within explicit scope.
 
-A third-party distribution may have no Home, no Project, or a completely different root object and navigation model. It needs only to obey the public contracts and authority boundaries it adopts.
+A third-party distribution may have no Home, no Library, or a completely different root object and navigation model. It needs only to obey the public contracts and authority boundaries it adopts.
 
 ## Phase 5 Powerbox UX
 
@@ -92,11 +92,17 @@ First-party and third-party providers follow identical disclosure rules and dete
 
 PWA/mobile and Desktop reuse the same Host API with Host/Installation cache isolation. Closing a tab, iframe, or PWA connection does not stop a Run or revoke an Exposure/Binding. Surfaces have only a public allowlisted bridge; there is no private Powerbox bridge or first-party bypass.
 
-## Product boundary of Project
+## Phase 6 Realization UX
 
-Project is a practical model used by the current official Host and distribution to organize installable, runnable instances. It fits applications, workspaces, and some experiences, but it is not the permanent root of all Plurora data and interaction.
+The Installation frame shows a Realization workbench only when Work declares OperationalIntent. Plan and Apply are visibly separate: Plan discloses the exact Target, actions, preconditions, required authority, and every risk; Apply remains unavailable until every risk is acknowledged. Status, history, Stop, and Reconcile display real `RealizationRevision` facts rather than presenting UI state as Host truth.
 
-Other products may organize around a World, Document, Service, Workspace, Collection, Simulation, or their own protocol objects. The generic substrate must not force those objects to pretend to be Projects, and the Host does not gain their content semantics merely by managing a Project.
+Zero suitable Targets produce structured gaps; multiple Targets require explicit selection. Closing the frame never stops anything, Run start never implicitly applies, and rollback never reads a live workspace. Local and Agent Targets, plus first-party and third-party Work, use the same plan/approval/receipt/authority boundary.
+
+## Product boundaries of Work and Installation
+
+Work is a portable logical creation. Installation is one Host's adoption of an exact Work/Lock. Run and Realization are separate runtime and machine-resource lifecycles. None is the permanent root of all Plurora data and interaction.
+
+Other products may organize around a World, Document, Service, Workspace, Collection, Simulation, or their own protocol objects. The generic substrate must not force those objects to pretend to be Installations, and the Host does not gain their content semantics merely by managing an Installation.
 
 ## Usability principles
 
@@ -114,7 +120,7 @@ Authority UI explains the operation, target resource, duration, risk, and revoca
 
 ### Prioritize state and recovery
 
-Long-running work, remote connections, installation, updates, deployment, and migration are observable, cancellable where possible, and recoverable. Failure must not require manual database editing.
+Long-running work, remote connections, installation, updates, Realization, and migration are observable, cancellable where possible, and recoverable. Failure must not require manual database editing.
 
 ### Treat data management as first-class product work
 
@@ -147,4 +153,4 @@ A product is not better merely because it has more features. Ask whether:
 - work survives replacement of components, clients, or Hosts;
 - new capability preserves public boundaries and third-party space.
 
-Current implementation is recorded in [`../ALPHA_STATUS.md`](../ALPHA_STATUS.en.md): Exposure, Binding, and Powerbox are Phase 5 implemented, while Managed Realization/deployment compilation remains Phase 6 planned. Construction direction is in [`../roadmap/NEXT_STEPS.md`](../roadmap/NEXT_STEPS.en.md).
+Current implementation is recorded in [`../ALPHA_STATUS.md`](../ALPHA_STATUS.en.md): Exposure, Binding, and Powerbox are Phase 5 implemented, while Managed Realization and deployment compilation are Phase 6 implemented. Construction direction is in [`../roadmap/NEXT_STEPS.md`](../roadmap/NEXT_STEPS.en.md).

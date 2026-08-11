@@ -126,6 +126,34 @@ pub(crate) fn method_schemas() -> Vec<(PlatformMethod, Value, Value)> {
                     schema_value::<RunStopRequest>(),
                     schema_value::<RunMutationResult>(),
                 ),
+                PlatformMethod::RealizationPlan => (
+                    schema_value::<RealizationPlanRequest>(),
+                    schema_value::<RealizationPlanResult>(),
+                ),
+                PlatformMethod::RealizationApply => (
+                    schema_value::<RealizationApplyRequest>(),
+                    schema_value::<RealizationMutationResult>(),
+                ),
+                PlatformMethod::RealizationGet => (
+                    schema_value::<RealizationGetRequest>(),
+                    schema_value::<plurora_work::RealizationRevision>(),
+                ),
+                PlatformMethod::RealizationList => (
+                    schema_value::<RealizationListRequest>(),
+                    json!({"type":"array","items":schema_value::<plurora_work::RealizationRevision>()}),
+                ),
+                PlatformMethod::RealizationStop => (
+                    schema_value::<RealizationStopRequest>(),
+                    schema_value::<RealizationMutationResult>(),
+                ),
+                PlatformMethod::RealizationRollback => (
+                    schema_value::<RealizationRollbackRequest>(),
+                    schema_value::<RealizationMutationResult>(),
+                ),
+                PlatformMethod::RealizationReconcile => (
+                    schema_value::<RealizationReconcileRequest>(),
+                    schema_value::<RealizationMutationResult>(),
+                ),
                 PlatformMethod::ExposureList => (
                     schema_value::<ExposureListRequest>(),
                     json!({"type":"array","items":schema_value::<ExposureView>()}),

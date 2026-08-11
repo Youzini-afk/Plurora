@@ -11,7 +11,7 @@ cargo test --workspace
 cargo run -p plurora-cli -- conformance
 ```
 
-当前矩阵记录已实现的 conformance 覆盖。具名 CLI 用例和 crate/service 单元测试共同支撑这些结果。当前 CLI conformance 总数：**453**。
+当前矩阵记录已实现的 conformance 覆盖。具名 CLI 用例和 crate/service 单元测试共同支撑这些结果。当前 CLI conformance 总数：**470**。
 
 ## Conformance Feedback Loop
 
@@ -77,6 +77,18 @@ cargo run -p plurora-cli -- conformance --slowest 3
 | `powerbox.public_wire_no_private_authority` | public wire 不暴露 handle、credential、grant basis 或 host path | implemented |
 | `powerbox.candidates_effect_free_no_auto_select` | candidates effect-free、disclosure 完整、0/多候选不自动选择 | implemented |
 | `powerbox.launch_runtime_exact_run_pin` | Launch 与 Runtime 的 exact Run/context/node path pin 区分 | implemented |
+
+### Phase 6 Realization conformance cases
+
+以下五个具名用例覆盖公开 Realization identity、authority、事件、effect-free plan、approval 与持久化 rollback 边界：
+
+| Case id | 覆盖 | 状态 |
+|---|---|---|
+| `realization.public_method_identity_owner_typed_dto` | 7 个 `host.realization.*` method 的 exact ID、Host owner、implemented status 与 typed request/result | implemented |
+| `realization.public_actions_no_effect_on_denial` | `observe` / `realization.plan` / `realization.apply` 在 controller effect 前拒绝，且 exact resources 不越权 | implemented |
+| `realization.public_event_identity_payload` | 7 个 Realization lifecycle event 的 registry identity 与 public payload schema | implemented |
+| `realization.plan_effect_free_apply_exact_approval` | plan 无 target effect；apply 固定 plan digest、approval、revision 与 idempotency | implemented |
+| `realization.rollback_persisted_plan_no_workspace` | rollback 只读取持久化 plan/revision，不接受 live workspace、source URL、raw secret 或 stderr | implemented |
 
 Surface/static bundle 与 bridge 还覆盖以下稳定断言：
 
@@ -394,6 +406,6 @@ Surface/static bundle 与 bridge 还覆盖以下稳定断言：
 
 ## CLI 具名用例
 
-`cargo run -p plurora-cli -- conformance --list` 是具名用例的可执行事实源；当前输出 453 个 case id 与 tags。本文只维护会影响架构判断的覆盖矩阵，不复制一份容易漂移的完整列表。
+`cargo run -p plurora-cli -- conformance --list` 是具名用例的可执行事实源；当前输出 470 个 case id 与 tags。本文只维护会影响架构判断的覆盖矩阵，不复制一份容易漂移的完整列表。
 
 运行器支持 `--case`、`--tag`、`--fail-fast` 与 `--slowest`。任何列为 Host 必需的用例都必须通过，对应里程碑才能宣布完成。

@@ -11,7 +11,7 @@ cargo test --workspace
 cargo run -p plurora-cli -- conformance
 ```
 
-The current matrix records implemented conformance coverage. Named CLI cases and crate/service unit tests support these results. Current CLI conformance total: **453**.
+The current matrix records implemented conformance coverage. Named CLI cases and crate/service unit tests support these results. Current CLI conformance total: **470**.
 
 ## Conformance Feedback Loop
 
@@ -77,6 +77,18 @@ These six named cases cover the public Exposure/Binding methods and events, auth
 | `powerbox.public_wire_no_private_authority` | public wire omits handles, credentials, grant basis, and host paths | implemented |
 | `powerbox.candidates_effect_free_no_auto_select` | effect-free candidates, complete disclosure, and no auto-selection for zero/multiple candidates | implemented |
 | `powerbox.launch_runtime_exact_run_pin` | distinct exact Run/context/node-path pins for Launch and Runtime | implemented |
+
+### Phase 6 Realization conformance cases
+
+These five named cases cover public Realization identity, authority, events, effect-free planning, approval, and persisted rollback boundaries:
+
+| Case id | Coverage | Status |
+|---|---|---|
+| `realization.public_method_identity_owner_typed_dto` | exact IDs, Host owner, implemented status, and typed request/results for seven `host.realization.*` methods | implemented |
+| `realization.public_actions_no_effect_on_denial` | `observe` / `realization.plan` / `realization.apply` deny before controller effects and enforce exact resources | implemented |
+| `realization.public_event_identity_payload` | registry identity and public payload schemas for seven Realization lifecycle events | implemented |
+| `realization.plan_effect_free_apply_exact_approval` | plan has no target effect; apply pins plan digest, approval, revision, and idempotency | implemented |
+| `realization.rollback_persisted_plan_no_workspace` | rollback reads persisted plans/revisions only and accepts no live workspace, source URL, raw secret, or stderr | implemented |
 
 Surface/static bundle and bridge coverage also includes these stable assertions:
 
@@ -403,6 +415,6 @@ Surface/static bundle and bridge coverage also includes these stable assertions:
 
 ## Named CLI cases
 
-`cargo run -p plurora-cli -- conformance --list` is the executable source of truth for named cases; it currently emits 453 case ids plus tags. This document keeps only coverage that changes architectural judgment instead of duplicating a complete list that drifts.
+`cargo run -p plurora-cli -- conformance --list` is the executable source of truth for named cases; it currently emits 470 case ids plus tags. This document keeps only coverage that changes architectural judgment instead of duplicating a complete list that drifts.
 
 The runner supports `--case`, `--tag`, `--fail-fast`, and `--slowest`. Every Host-required case must pass before the corresponding milestone is complete.

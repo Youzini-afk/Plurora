@@ -2,9 +2,9 @@
 
 > [English](./ARCHITECTURE.en.md) · [中文](./ARCHITECTURE.md)
 
-Plurora is not a closed three-tier product stack of “kernel, packages, projects.” It is a set of open layers with explicit ownership and one-way dependencies: a very small constitutional substrate, evolvable protocols, replaceable components and content, a Host that manages real resources, replaceable distributions, and freely evolving products.
+Plurora is not a closed three-tier product stack of “kernel, packages, one product container.” It is a set of open layers with explicit ownership and one-way dependencies: a very small constitutional substrate, evolvable protocols, replaceable components and content, a Host that manages real resources, replaceable distributions, and freely evolving products.
 
-Contract V1 and the current code still retain historical boundaries such as `session`, `package`, `project`, `surface`, and `proposal`. They are the operational public contract, not automatically the permanent architecture. Long-term ownership is described by [`CONSTITUTION_V2.md`](CONSTITUTION_V2.en.md) and [`../spec/CONTRACT_LAYERING_MATRIX.md`](../spec/CONTRACT_LAYERING_MATRIX.en.md).
+Contract V1 currently exposes boundaries including `context`, `package`, `surface`, `change`, Work/Installation/Run/Exposure/Binding/Realization. They are the operational public contract, not automatically the permanent architecture. Long-term ownership is described by [`CONSTITUTION_V2.md`](CONSTITUTION_V2.en.md) and [`../spec/CONTRACT_LAYERING_MATRIX.md`](../spec/CONTRACT_LAYERING_MATRIX.en.md).
 
 ## Layering model
 
@@ -28,7 +28,7 @@ Contract V1 and the current code still retain historical boundaries such as `ses
 
 Host Control Plane / Runtime Fabric is orthogonal to those layers:
 installation, processes, files, secrets, network, ports, targets,
-deployment, backup, and diagnostics.
+resource Realization, backup, and diagnostics.
 ```
 
 “Orthogonal” means that a Host can supply machine capability to different products and protocols without owning their content semantics. A headless service, a local creation tool, and a multiplayer world may share the same Host and substrate while using completely different protocols and shells.
@@ -51,7 +51,7 @@ The substrate owns only mechanisms that cannot safely be reimplemented by an ord
 
 The substrate does not own Project, Home, Play, Forge, Assistant, models, agents, memory, worlds, documents, deployment products, or a concrete secret store.
 
-The current `plurora-core` and `plurora-runtime` still mix some Host, protocol, and shell semantics. Migration separates them incrementally with compatibility and data safety rather than creating instability through a one-shot rewrite.
+The current `plurora-core` and `plurora-runtime` still mix some Host, protocol, and shell semantics. Separation preserves data safety and exact public contracts, but retains no compatibility alias for retired Project, old Composition, or Deployment identities.
 
 ### Protocol Commons
 
@@ -88,14 +88,14 @@ The Host manages resources and operations in the real environment:
 - local processes, WASM, remote services, and target lifecycle;
 - files, workspaces, secrets, network, ports, and proxies;
 - Host-local Installation, Run, Exposure, Binding, and Realization records for Works;
-- deployment, runtime health, logs, backup, recovery, and diagnostics;
+- Realization, runtime health, logs, backup, recovery, and diagnostics;
 - device identity, resource selectors, and Host administration policy.
 
 Host operations still use substrate identity, authority, effects, and audit. The ability to start a World or Document product does not give the Host authority to interpret its content.
 
 ### Distributions / Shells / Clients
 
-A distribution organizes platform capability into a usable product. The current official distribution includes React Web/PWA, Tauri Desktop, and Rust CLI, and uses Home, Settings, Project frames, Console, and a Surface bridge.
+A distribution organizes platform capability into a usable product. The current official distribution includes React Web/PWA, Tauri Desktop, and Rust CLI, and uses Library, Settings, Installation frames, a Realization workbench, and a Surface bridge.
 
 These are official product choices:
 
@@ -112,7 +112,7 @@ The top layer owns domain ontology, business rules, and final interaction. Chat,
 
 A product chooses:
 
-- whether to use Project;
+- whether to use Work or another domain-protocol object;
 - whether to use event sourcing, branches, or approval;
 - whether to use AI;
 - whether to provide a UI;
@@ -151,7 +151,7 @@ The default answer is not “everything becomes a package.” It stays in the hi
 Contract V1 is the current operational public contract, used for generated SDKs and guarded by conformance. It currently carries responsibilities from several layers:
 
 - `context.*`, `journal.*`, `capability.*`, `authority.*`, `object.*`, and `identity.*` are substrate-owned;
-- `host.*` owns Installation, Run, Exposure, Binding, target, exec, port, proxy, outbound adapters, package operations, and diagnostics;
+- `host.*` owns Installation, Run, Exposure, Binding, Realization, target, exec, port, proxy, outbound adapters, package operations, and diagnostics;
 - `protocol.*`, `change.*`, and `projection.*` belong to evolvable Protocols;
 - `shell.*` contribution discovery and surface interpretation belong to a Shell Profile.
 
@@ -165,6 +165,8 @@ Current clients and third-party integrations use these exact v1 identities. New 
 
 The Phase 5 Powerbox chooser uses `host.exposure.*` and `host.binding.*` to disclose exact provider/consumer Ports, audience, leases, trust, and evidence. It uses only the Host public relay and never holds private intent or runtime handles. The Surface bridge remains explicitly allowlisted; there is no private Powerbox bridge.
 
+The Phase 6 Realization workbench uses `host.realization.*` to present an effect-free plan, stable digest, preconditions, and risks before approval-bound apply/stop/rollback/reconcile. Run start, Binding selection, and UI closure never trigger implicit Realization effects.
+
 ### SurfaceHost
 
 Third-party Web surfaces are mounted in sandboxed iframes. A surface has no kernel access by default. The Host forwards only explicit methods and capability allowlists, and binds stream ownership, session, Installation/Run grants, and short-lived asset leases to the current mount. See [`../guides/SURFACE_HOSTING.md`](../guides/SURFACE_HOSTING.en.md).
@@ -177,11 +179,11 @@ Desktop, Web/PWA, and remote Host connections reuse the same client core and pub
 
 ### CLI and headless use
 
-`plurora-cli` exposes Host, Work, Installation, Package, Contract, conformance, and operational entry points. Running locally does not allow the CLI to gain product authority by inspecting the Host data directory outside the public boundary.
+`plurora-cli` exposes Host, Work, Installation, Run, Exposure/Binding, Realization, Package, Contract, conformance, and operational entry points. Running locally does not allow the CLI to gain product authority by inspecting the Host data directory outside the public boundary.
 
 ## Work / Workspace / Installation model
 
-WorkRevision is portable content identity, Workspace is a mutable source location on one Host, and Installation is the Host journal's adoption record for Work. Run and Exposure are separate repeatable runtime facts; Installation `ready` cannot stand in for them.
+WorkRevision is portable content identity, Workspace is a mutable source location on one Host, and Installation is the Host journal's adoption record for Work. Run, Exposure/Binding, and Realization are independent Host-local facts; Installation `ready` cannot stand in for them, and none implicitly creates another.
 
 World, Document, Service, and other protocol objects may exist independently. Components, Ports, and Adapters can compose them into Work without destroying their identity. See [`../guides/INSTALLATION_MODEL.md`](../guides/INSTALLATION_MODEL.en.md) and [`../product/PLATFORM_PRODUCT_MODEL.md`](../product/PLATFORM_PRODUCT_MODEL.en.md).
 
