@@ -1,4 +1,4 @@
-//! Deterministic, state-rich reference simulation used by the Phase 8 Work kit.
+//! Deterministic, state-rich reference simulation used by the modular Work kit.
 //!
 //! State is explicit input/output. The package owns no process-global game
 //! state, performs no network access, and can use an AI adviser only through an

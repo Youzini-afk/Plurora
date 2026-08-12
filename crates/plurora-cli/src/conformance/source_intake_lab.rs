@@ -1,4 +1,4 @@
-//! Conformance tests for `plurora/project-intake-lab` (External Project Operating Plane Alpha Phase E1 + E5).
+//! Conformance tests for `plurora/source-intake-lab` (External Source Operating Plane).
 //!
 //! Covers:
 //! 1. Intake contract shape (11 capabilities, 3 surfaces, ordinary package, no execution)
@@ -7,7 +7,7 @@
 //! 4. Workspace plan is plan-only
 //! 5. Local path rejection (path traversal, home path, absolute sensitive path)
 //! 6. Adapter plan is plan-only
-//! 7. No forbidden namespace (platform.project/workspace/git/npm/deploy/ide)
+//! 7. No forbidden namespace (platform-reserved source/workspace/git/npm/workload/ide)
 //! 8. No raw secrets in any capability
 //! 9. Adapter manifest preview no write (E5)
 //! 10. Rejects first-party adapter id (E5)
@@ -26,15 +26,15 @@ use serde_json::json;
 use super::fixtures::*;
 use crate::commands::manifest;
 
-const PACKAGE_ID: &str = "plurora/project-intake-lab";
+const PACKAGE_ID: &str = "plurora/source-intake-lab";
 
-async fn load_project_intake_lab(
+async fn load_source_intake_lab(
 ) -> anyhow::Result<plurora_runtime::Runtime<plurora_runtime::InMemoryEventStore>> {
     let (_store, runtime) = runtime();
     runtime
         .load_package(
             manifest::read_manifest(PathBuf::from(
-                "packages/plurora/project-intake-lab/manifest.yaml",
+                "packages/plurora/source-intake-lab/manifest.yaml",
             ))
             .await?,
         )
@@ -63,14 +63,14 @@ async fn invoke(
 
 /// Case 1: Intake contract — 7 capabilities, 3 surfaces, ordinary package,
 /// no execution, no forbidden namespace.
-pub(crate) async fn project_intake_contract() -> anyhow::Result<()> {
-    let rt = load_project_intake_lab().await?;
+pub(crate) async fn source_intake_contract() -> anyhow::Result<()> {
+    let rt = load_source_intake_lab().await?;
 
     let contract = invoke(&rt, "describe_intake_contract", json!({})).await?;
 
     anyhow::ensure!(
-        contract.output["kind"] == json!("project_intake_contract"),
-        "describe_intake_contract must return project_intake_contract kind"
+        contract.output["kind"] == json!("source_intake_contract"),
+        "describe_intake_contract must return source_intake_contract kind"
     );
     anyhow::ensure!(
         contract.output["package_kind"] == json!("ordinary"),
@@ -108,11 +108,10 @@ pub(crate) async fn project_intake_contract() -> anyhow::Result<()> {
     // No forbidden namespace
     let output_str = serde_json::to_string(&contract.output).unwrap();
     for token in &[
-        "platform.project.",
         "platform.workspace.",
         "platform.git.",
         "platform.npm.",
-        "platform.deploy.",
+        "platform.workload.",
         "platform.ide.",
     ] {
         anyhow::ensure!(
@@ -126,13 +125,13 @@ pub(crate) async fn project_intake_contract() -> anyhow::Result<()> {
 }
 
 /// Case 2: Source classification — git/npm/local/archive/unknown.
-pub(crate) async fn project_intake_source_classification() -> anyhow::Result<()> {
-    let rt = load_project_intake_lab().await?;
+pub(crate) async fn source_intake_source_classification() -> anyhow::Result<()> {
+    let rt = load_source_intake_lab().await?;
 
     // git
     let git = invoke(
         &rt,
-        "inspect_external_project_ref",
+        "inspect_external_source_ref",
         json!({"source_ref": "https://github.com/example/project.git"}),
     )
     .await?;
@@ -141,7 +140,7 @@ pub(crate) async fn project_intake_source_classification() -> anyhow::Result<()>
     // npm
     let npm = invoke(
         &rt,
-        "inspect_external_project_ref",
+        "inspect_external_source_ref",
         json!({"source_ref": "npm:lodash"}),
     )
     .await?;
@@ -150,7 +149,7 @@ pub(crate) async fn project_intake_source_classification() -> anyhow::Result<()>
     // local
     let local = invoke(
         &rt,
-        "inspect_external_project_ref",
+        "inspect_external_source_ref",
         json!({"source_ref": "./my-project"}),
     )
     .await?;
@@ -160,7 +159,7 @@ pub(crate) async fn project_intake_source_classification() -> anyhow::Result<()>
     // archive
     let archive = invoke(
         &rt,
-        "inspect_external_project_ref",
+        "inspect_external_source_ref",
         json!({"source_ref": "project.tar.gz"}),
     )
     .await?;
@@ -174,13 +173,13 @@ pub(crate) async fn project_intake_source_classification() -> anyhow::Result<()>
 }
 
 /// Case 3: Stack detection — node with npm lifecycle risk, rust, python, unknown.
-pub(crate) async fn project_intake_stack_detection() -> anyhow::Result<()> {
-    let rt = load_project_intake_lab().await?;
+pub(crate) async fn source_intake_stack_detection() -> anyhow::Result<()> {
+    let rt = load_source_intake_lab().await?;
 
     // Node with lifecycle scripts
     let node = invoke(
         &rt,
-        "detect_project_stack_from_metadata",
+        "detect_source_stack_from_metadata",
         json!({"metadata": {
             "package_json": {
                 "name": "test",
@@ -218,7 +217,7 @@ pub(crate) async fn project_intake_stack_detection() -> anyhow::Result<()> {
     // Rust
     let rust = invoke(
         &rt,
-        "detect_project_stack_from_metadata",
+        "detect_source_stack_from_metadata",
         json!({"metadata": {"cargo_toml": {"name": "test"}}}),
     )
     .await?;
@@ -227,7 +226,7 @@ pub(crate) async fn project_intake_stack_detection() -> anyhow::Result<()> {
     // Python
     let python = invoke(
         &rt,
-        "detect_project_stack_from_metadata",
+        "detect_source_stack_from_metadata",
         json!({"metadata": {"pyproject": {"name": "test"}}}),
     )
     .await?;
@@ -236,7 +235,7 @@ pub(crate) async fn project_intake_stack_detection() -> anyhow::Result<()> {
     // Unknown
     let unknown = invoke(
         &rt,
-        "detect_project_stack_from_metadata",
+        "detect_source_stack_from_metadata",
         json!({"metadata": {}}),
     )
     .await?;
@@ -246,8 +245,8 @@ pub(crate) async fn project_intake_stack_detection() -> anyhow::Result<()> {
 }
 
 /// Case 4: Workspace plan is plan-only, no execution.
-pub(crate) async fn project_intake_workspace_plan() -> anyhow::Result<()> {
-    let rt = load_project_intake_lab().await?;
+pub(crate) async fn source_intake_workspace_plan() -> anyhow::Result<()> {
+    let rt = load_source_intake_lab().await?;
 
     let plan = invoke(
         &rt,
@@ -256,7 +255,7 @@ pub(crate) async fn project_intake_workspace_plan() -> anyhow::Result<()> {
     )
     .await?;
 
-    anyhow::ensure!(plan.output["kind"] == json!("project_workspace_plan"));
+    anyhow::ensure!(plan.output["kind"] == json!("source_workspace_plan"));
     anyhow::ensure!(plan.output["plan_only"] == json!(true));
     anyhow::ensure!(plan.output["requires_user_approval"] == json!(true));
     anyhow::ensure!(plan.output["execution_performed"] == json!(false));
@@ -266,13 +265,13 @@ pub(crate) async fn project_intake_workspace_plan() -> anyhow::Result<()> {
 }
 
 /// Case 5: Local path rejection — path traversal, home path, absolute sensitive path.
-pub(crate) async fn project_intake_local_path_rejection() -> anyhow::Result<()> {
-    let rt = load_project_intake_lab().await?;
+pub(crate) async fn source_intake_local_path_rejection() -> anyhow::Result<()> {
+    let rt = load_source_intake_lab().await?;
 
     // Path traversal
     let traversal = invoke(
         &rt,
-        "inspect_external_project_ref",
+        "inspect_external_source_ref",
         json!({"source_ref": "../../etc/passwd"}),
     )
     .await?;
@@ -284,7 +283,7 @@ pub(crate) async fn project_intake_local_path_rejection() -> anyhow::Result<()> 
     // Home path
     let home = invoke(
         &rt,
-        "inspect_external_project_ref",
+        "inspect_external_source_ref",
         json!({"source_ref": "~/secret-project"}),
     )
     .await?;
@@ -296,7 +295,7 @@ pub(crate) async fn project_intake_local_path_rejection() -> anyhow::Result<()> 
     // Absolute sensitive path
     let abs = invoke(
         &rt,
-        "inspect_external_project_ref",
+        "inspect_external_source_ref",
         json!({"source_ref": "/etc/shadow"}),
     )
     .await?;
@@ -313,7 +312,7 @@ pub(crate) async fn project_intake_local_path_rejection() -> anyhow::Result<()> 
     )
     .await?;
     anyhow::ensure!(
-        ws_unsafe.output["kind"] == json!("project_intake_rejected"),
+        ws_unsafe.output["kind"] == json!("source_intake_rejected"),
         "workspace plan must reject unsafe local paths"
     );
     anyhow::ensure!(ws_unsafe.output["redaction_state"] == json!("unsafe_blocked"));
@@ -326,7 +325,7 @@ pub(crate) async fn project_intake_local_path_rejection() -> anyhow::Result<()> 
     )
     .await?;
     anyhow::ensure!(
-        ad_unsafe.output["kind"] == json!("project_intake_rejected"),
+        ad_unsafe.output["kind"] == json!("source_intake_rejected"),
         "adapter plan must reject unsafe local paths"
     );
 
@@ -334,8 +333,8 @@ pub(crate) async fn project_intake_local_path_rejection() -> anyhow::Result<()> 
 }
 
 /// Case 6: Adapter plan is plan-only, no execution.
-pub(crate) async fn project_intake_adapter_plan() -> anyhow::Result<()> {
-    let rt = load_project_intake_lab().await?;
+pub(crate) async fn source_intake_adapter_plan() -> anyhow::Result<()> {
+    let rt = load_source_intake_lab().await?;
 
     let plan = invoke(
         &rt,
@@ -344,7 +343,7 @@ pub(crate) async fn project_intake_adapter_plan() -> anyhow::Result<()> {
     )
     .await?;
 
-    anyhow::ensure!(plan.output["kind"] == json!("project_adapter_plan"));
+    anyhow::ensure!(plan.output["kind"] == json!("source_adapter_plan"));
     anyhow::ensure!(plan.output["plan_only"] == json!(true));
     anyhow::ensure!(plan.output["requires_user_approval"] == json!(true));
     anyhow::ensure!(plan.output["execution_performed"] == json!(false));
@@ -358,13 +357,13 @@ pub(crate) async fn project_intake_adapter_plan() -> anyhow::Result<()> {
 }
 
 /// Case 7: No forbidden namespace in any capability output.
-pub(crate) async fn project_intake_no_forbidden_namespace() -> anyhow::Result<()> {
-    let rt = load_project_intake_lab().await?;
+pub(crate) async fn source_intake_no_forbidden_namespace() -> anyhow::Result<()> {
+    let rt = load_source_intake_lab().await?;
 
     let caps = [
         "describe_intake_contract",
-        "inspect_external_project_ref",
-        "detect_project_stack_from_metadata",
+        "inspect_external_source_ref",
+        "detect_source_stack_from_metadata",
         "draft_workspace_plan",
         "draft_security_risk_summary",
         "list_candidate_entrypoints",
@@ -376,11 +375,10 @@ pub(crate) async fn project_intake_no_forbidden_namespace() -> anyhow::Result<()
     ];
 
     let forbidden = [
-        "platform.project.",
         "platform.workspace.",
         "platform.git.",
         "platform.npm.",
-        "platform.deploy.",
+        "platform.workload.",
         "platform.ide.",
     ];
 
@@ -399,17 +397,17 @@ pub(crate) async fn project_intake_no_forbidden_namespace() -> anyhow::Result<()
 }
 
 /// Case 8: No raw secrets in any capability.
-pub(crate) async fn project_intake_no_raw_secrets() -> anyhow::Result<()> {
-    let rt = load_project_intake_lab().await?;
+pub(crate) async fn source_intake_no_raw_secrets() -> anyhow::Result<()> {
+    let rt = load_source_intake_lab().await?;
 
     // inspect blocks raw secret
     let inspect = invoke(
         &rt,
-        "inspect_external_project_ref",
+        "inspect_external_source_ref",
         json!({"source_ref": "test", "api_key": "RawSecretExample1234567890abcdefABCDEF123456"}),
     )
     .await?;
-    anyhow::ensure!(inspect.output["kind"] == json!("project_intake_rejected"));
+    anyhow::ensure!(inspect.output["kind"] == json!("source_intake_rejected"));
     anyhow::ensure!(inspect.output["redaction_state"] == json!("unsafe_blocked"));
 
     // draft_workspace_plan blocks raw secret
@@ -419,7 +417,7 @@ pub(crate) async fn project_intake_no_raw_secrets() -> anyhow::Result<()> {
         json!({"source_ref": "test", "token": "Bearer abc123"}),
     )
     .await?;
-    anyhow::ensure!(ws.output["kind"] == json!("project_intake_rejected"));
+    anyhow::ensure!(ws.output["kind"] == json!("source_intake_rejected"));
 
     // draft_adapter_plan blocks raw secret
     let ad = invoke(
@@ -428,7 +426,7 @@ pub(crate) async fn project_intake_no_raw_secrets() -> anyhow::Result<()> {
         json!({"source_ref": "test", "secret": "RawSecretExample1234567890abcdefABCDEF123456"}),
     )
     .await?;
-    anyhow::ensure!(ad.output["kind"] == json!("project_intake_rejected"));
+    anyhow::ensure!(ad.output["kind"] == json!("source_intake_rejected"));
 
     // E5: generate_adapter_manifest_preview blocks raw secret
     let manifest = invoke(
@@ -437,7 +435,7 @@ pub(crate) async fn project_intake_no_raw_secrets() -> anyhow::Result<()> {
         json!({"source_ref": "test", "adapter_package_id": "thirdparty/adapter", "capability_name": "invoke", "api_key": "RawSecretExample1234567890abcdefABCDEF123456"}),
     )
     .await?;
-    anyhow::ensure!(manifest.output["kind"] == json!("project_intake_rejected"));
+    anyhow::ensure!(manifest.output["kind"] == json!("source_intake_rejected"));
 
     // E5: check_adapter_readiness blocks raw secret
     let readiness = invoke(
@@ -446,7 +444,7 @@ pub(crate) async fn project_intake_no_raw_secrets() -> anyhow::Result<()> {
         json!({"adapter_package_id": "thirdparty/adapter", "capability_name": "invoke", "secret": "RawSecretExample1234567890abcdefABCDEF123456"}),
     )
     .await?;
-    anyhow::ensure!(readiness.output["kind"] == json!("project_intake_rejected"));
+    anyhow::ensure!(readiness.output["kind"] == json!("source_intake_rejected"));
 
     Ok(())
 }
@@ -456,8 +454,8 @@ pub(crate) async fn project_intake_no_raw_secrets() -> anyhow::Result<()> {
 // ---------------------------------------------------------------------------
 
 /// Case 9 (E5): Adapter manifest preview produces preview without file write.
-pub(crate) async fn project_intake_adapter_manifest_preview_no_write() -> anyhow::Result<()> {
-    let rt = load_project_intake_lab().await?;
+pub(crate) async fn source_intake_adapter_manifest_preview_no_write() -> anyhow::Result<()> {
+    let rt = load_source_intake_lab().await?;
 
     let result = invoke(
         &rt,
@@ -492,8 +490,8 @@ pub(crate) async fn project_intake_adapter_manifest_preview_no_write() -> anyhow
 }
 
 /// Case 10 (E5): Rejects first-party adapter Package ID.
-pub(crate) async fn project_intake_rejects_first_party_adapter_id() -> anyhow::Result<()> {
-    let rt = load_project_intake_lab().await?;
+pub(crate) async fn source_intake_rejects_first_party_adapter_id() -> anyhow::Result<()> {
+    let rt = load_source_intake_lab().await?;
 
     let result = invoke(
         &rt,
@@ -506,15 +504,15 @@ pub(crate) async fn project_intake_rejects_first_party_adapter_id() -> anyhow::R
     )
     .await?;
 
-    anyhow::ensure!(result.output["kind"] == json!("project_intake_rejected"));
+    anyhow::ensure!(result.output["kind"] == json!("source_intake_rejected"));
     anyhow::ensure!(result.output["redaction_state"] == json!("unsafe_blocked"));
 
     Ok(())
 }
 
 /// Case 11 (E5): Rejects path traversal / unsafe chars in adapter package id.
-pub(crate) async fn project_intake_rejects_path_traversal_adapter_id() -> anyhow::Result<()> {
-    let rt = load_project_intake_lab().await?;
+pub(crate) async fn source_intake_rejects_path_traversal_adapter_id() -> anyhow::Result<()> {
+    let rt = load_source_intake_lab().await?;
 
     // Path traversal
     let traversal = invoke(
@@ -527,7 +525,7 @@ pub(crate) async fn project_intake_rejects_path_traversal_adapter_id() -> anyhow
         }),
     )
     .await?;
-    anyhow::ensure!(traversal.output["kind"] == json!("project_intake_rejected"));
+    anyhow::ensure!(traversal.output["kind"] == json!("source_intake_rejected"));
 
     // Unsafe chars
     let unsafe_chars = invoke(
@@ -540,14 +538,14 @@ pub(crate) async fn project_intake_rejects_path_traversal_adapter_id() -> anyhow
         }),
     )
     .await?;
-    anyhow::ensure!(unsafe_chars.output["kind"] == json!("project_intake_rejected"));
+    anyhow::ensure!(unsafe_chars.output["kind"] == json!("source_intake_rejected"));
 
     Ok(())
 }
 
 /// Case 12 (E5): Capability namespace mismatch rejected.
-pub(crate) async fn project_intake_capability_namespace_mismatch_rejected() -> anyhow::Result<()> {
-    let rt = load_project_intake_lab().await?;
+pub(crate) async fn source_intake_capability_namespace_mismatch_rejected() -> anyhow::Result<()> {
+    let rt = load_source_intake_lab().await?;
 
     let result = invoke(
         &rt,
@@ -560,15 +558,15 @@ pub(crate) async fn project_intake_capability_namespace_mismatch_rejected() -> a
     )
     .await?;
 
-    anyhow::ensure!(result.output["kind"] == json!("project_intake_rejected"));
+    anyhow::ensure!(result.output["kind"] == json!("source_intake_rejected"));
     anyhow::ensure!(result.output["redaction_state"] == json!("unsafe_blocked"));
 
     Ok(())
 }
 
 /// Case 13 (E5): Wrapper preview no execution, safe comments present.
-pub(crate) async fn project_intake_wrapper_preview_no_execution() -> anyhow::Result<()> {
-    let rt = load_project_intake_lab().await?;
+pub(crate) async fn source_intake_wrapper_preview_no_execution() -> anyhow::Result<()> {
+    let rt = load_source_intake_lab().await?;
 
     let ts_result = invoke(
         &rt,
@@ -625,8 +623,8 @@ pub(crate) async fn project_intake_wrapper_preview_no_execution() -> anyhow::Res
 }
 
 /// Case 14 (E5): Fixture preview is redacted — no raw secrets.
-pub(crate) async fn project_intake_fixture_preview_redacted() -> anyhow::Result<()> {
-    let rt = load_project_intake_lab().await?;
+pub(crate) async fn source_intake_fixture_preview_redacted() -> anyhow::Result<()> {
+    let rt = load_source_intake_lab().await?;
 
     let result = invoke(
         &rt,
@@ -664,8 +662,8 @@ pub(crate) async fn project_intake_fixture_preview_redacted() -> anyhow::Result<
 }
 
 /// Case 15 (E5): Readiness checklist passes for valid adapter.
-pub(crate) async fn project_intake_readiness_checklist_ok() -> anyhow::Result<()> {
-    let rt = load_project_intake_lab().await?;
+pub(crate) async fn source_intake_readiness_checklist_ok() -> anyhow::Result<()> {
+    let rt = load_source_intake_lab().await?;
 
     let result = invoke(
         &rt,
@@ -697,15 +695,14 @@ pub(crate) async fn project_intake_readiness_checklist_ok() -> anyhow::Result<()
 }
 
 /// Case 16 (E5): No forbidden namespace / raw secret in E5 capabilities.
-pub(crate) async fn project_intake_e5_no_forbidden_namespace_no_raw_secret() -> anyhow::Result<()> {
-    let rt = load_project_intake_lab().await?;
+pub(crate) async fn source_intake_e5_no_forbidden_namespace_no_raw_secret() -> anyhow::Result<()> {
+    let rt = load_source_intake_lab().await?;
 
     let forbidden = [
-        "platform.project.",
         "platform.workspace.",
         "platform.git.",
         "platform.npm.",
-        "platform.deploy.",
+        "platform.workload.",
         "platform.ide.",
     ];
 

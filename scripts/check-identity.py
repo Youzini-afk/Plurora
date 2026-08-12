@@ -218,18 +218,24 @@ RETIRED_COMPOSITION_REFERENCES = (
     "asset:" + "composition" + ":",
     "bundle:" + "composition" + ":",
 )
-COMPOSITION_MIGRATION_BRIEFS = {
-    "docs/roadmap/WORK_ASSEMBLY_REALIZATION.md",
-    "docs/roadmap/WORK_ASSEMBLY_REALIZATION.en.md",
-}
-
 RETIRED_PROJECT_REFERENCES = (
     literal("retired Project method namespace", "host", ".", "project"),
     regex("retired Project event namespace", r"host/", "project", r"(?:[./]|$)"),
     literal("retired Project descriptor", "Project", "Descriptor"),
     literal("retired Project registry", "Project", "Registry"),
 )
-PROJECT_MIGRATION_BRIEFS = COMPOSITION_MIGRATION_BRIEFS
+
+RETIRED_DEPLOYMENT_REFERENCES = (
+    literal("retired managed-lifecycle method namespace", "host", ".", "deployment"),
+    regex("retired managed-lifecycle event namespace", r"host/", "deployment", r"(?:[./]|$)"),
+    literal("retired managed revision", "Deployment", "Revision"),
+    literal("retired target DTO", "Target", "Deployment"),
+    literal("retired build DTO", "Build", "Deploy"),
+    literal("retired managed resource field", "deployment", "_id"),
+    literal("retired direct effect route", "/host/v1/", "deploy"),
+    literal("retired build-and-effect route", "/host/v1/build-", "deploy"),
+    literal("retired reserved namespace", "platform.", "deploy", "."),
+)
 
 
 def repository_paths() -> list[str]:
@@ -545,7 +551,7 @@ def check_forbidden_paths(paths: Iterable[str]) -> list[str]:
 def check_retired_composition_references(texts: Iterable[tuple[str, str]]) -> list[str]:
     errors: list[str] = []
     for relative, text in texts:
-        if relative in COMPOSITION_MIGRATION_BRIEFS or relative == "scripts/check-identity.py":
+        if relative == "scripts/check-identity.py":
             continue
         for reference in RETIRED_COMPOSITION_REFERENCES:
             offset = text.find(reference)
@@ -557,17 +563,23 @@ def check_retired_composition_references(texts: Iterable[tuple[str, str]]) -> li
     return errors
 
 
-def check_retired_project_references(texts: Iterable[tuple[str, str]]) -> list[str]:
+def check_retired_machine_references(texts: Iterable[tuple[str, str]]) -> list[str]:
     """Reject retired machine identities from implementation and generated contracts."""
     errors: list[str] = []
     source_roots = ("crates/", "clients/", "packages/", "profiles/", "examples/", "sdk/")
     schema_root = "docs/spec/v1/schemas/"
     for relative, text in texts:
-        if relative in PROJECT_MIGRATION_BRIEFS:
+        if relative == "scripts/check-identity.py":
             continue
         if not (relative.startswith(source_roots) or relative.startswith(schema_root)):
             continue
         for redline in RETIRED_PROJECT_REFERENCES:
+            match = redline.pattern.search(text)
+            if match:
+                errors.append(
+                    f"{redline.name}: {relative}:{line_number(text, match.start())}"
+                )
+        for redline in RETIRED_DEPLOYMENT_REFERENCES:
             match = redline.pattern.search(text)
             if match:
                 errors.append(
@@ -583,7 +595,7 @@ def main() -> int:
     errors.extend(check_forbidden_paths(paths))
     errors.extend(check_redlines(paths, texts))
     errors.extend(check_retired_composition_references(texts))
-    errors.extend(check_retired_project_references(texts))
+    errors.extend(check_retired_machine_references(texts))
     errors.extend(check_generated_contract())
     errors.extend(check_first_party_manifests())
     errors.extend(check_positive_markers())

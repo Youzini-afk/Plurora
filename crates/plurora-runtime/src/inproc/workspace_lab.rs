@@ -1,9 +1,9 @@
 //! Handler for `plurora/workspace-lab` capabilities.
 //!
-//! External Project Operating Plane Alpha Phase E2 + E3 —
+//! External Source Operating Plane —
 //! Workspace Action Policy Boundary + Managed Workspace Deterministic Proof.
 //!
-//! Workspace action policy boundary for external project workspaces.
+//! Workspace action policy boundary for external source workspaces.
 //! No real execution, no shell, no clone, no install, no run.
 //! Deny-by-default fake executor; all dangerous actions require approval.
 //!
@@ -32,14 +32,14 @@
 //!
 //! Safety:
 //! - Raw secret blocking (delegated to shared safety module)
-//! - No platform.project/workspace/git/npm/deploy namespace references in outputs
+//! - No platform-reserved source/workspace/git/npm/workload namespace references in outputs
 //! - No filesystem reads, no shell, no outbound, no execution
 //! - Deny-by-default: executor_invoked=false, execution_performed=false
 //! - Approval tokens are not honored in Alpha; proposal_required=true always
 //! - Patch target_files validated/redacted; raw secret blocking in patch content
 //! - Unsafe local paths still rejected
 //! - No forbidden platform-reserved namespace outputs
-//! - No new kernel workspace/project protocol
+//! - No new kernel Workspace or source protocol
 
 use serde_json::Value;
 
@@ -54,7 +54,7 @@ const PACKAGE_ID: &str = "plurora/workspace-lab";
 
 const ACTION_TAXONOMY: &[(&str, &str, bool, bool, bool, bool)] = &[
     // (action, risk_level, requires_approval, executes_code, network_required, filesystem_write_required)
-    ("clone_project", "high", true, false, true, true),
+    ("clone_source", "high", true, false, true, true),
     ("read_metadata", "low", false, false, false, false),
     ("install_dependencies", "critical", true, true, true, true),
     ("run_command", "critical", true, true, false, true),
@@ -63,11 +63,11 @@ const ACTION_TAXONOMY: &[(&str, &str, bool, bool, bool, bool)] = &[
     ("read_logs", "low", false, false, false, false),
     ("discover_entrypoints", "low", false, false, false, false),
     ("write_patch", "high", true, false, false, true),
-    ("deploy_plan", "critical", true, true, true, true),
+    ("workload_plan", "critical", true, true, true, true),
 ];
 
 const VALID_ACTIONS: &[&str] = &[
-    "clone_project",
+    "clone_source",
     "read_metadata",
     "install_dependencies",
     "run_command",
@@ -76,7 +76,7 @@ const VALID_ACTIONS: &[&str] = &[
     "read_logs",
     "discover_entrypoints",
     "write_patch",
-    "deploy_plan",
+    "workload_plan",
 ];
 
 // ---------------------------------------------------------------------------
@@ -85,11 +85,10 @@ const VALID_ACTIONS: &[&str] = &[
 
 /// Platform-reserved namespace tokens that must not appear in outputs.
 const FORBIDDEN_NAMESPACE_TOKENS: &[&str] = &[
-    "platform.project.",
     "platform.workspace.",
     "platform.git.",
     "platform.npm.",
-    "platform.deploy.",
+    "platform.workload.",
     "platform.ide.",
 ];
 
@@ -136,7 +135,7 @@ fn is_unsafe_local_path(path: &str) -> bool {
 // Stack detection helper (deterministic, metadata-only)
 // ---------------------------------------------------------------------------
 
-/// Detect project stack from metadata hints.
+/// Detect source stack from metadata hints.
 fn detect_stack(stack_hint: &str, metadata: &Value) -> &'static str {
     if !stack_hint.is_empty() {
         match stack_hint {
@@ -365,7 +364,7 @@ fn draft_workspace_creation(request: &InprocInvocation) -> anyhow::Result<Value>
 
     // Typical workspace creation needs: clone + read_metadata + install_dependencies + discover_entrypoints
     for action in &[
-        "clone_project",
+        "clone_source",
         "read_metadata",
         "install_dependencies",
         "discover_entrypoints",
@@ -1618,7 +1617,7 @@ mod tests {
     fn request_action_denied_by_default() {
         let req = make_request(
             "plurora/workspace-lab/request_workspace_action",
-            json!({"action": "clone_project", "workspace_ref": "ws-001"}),
+            json!({"action": "clone_source", "workspace_ref": "ws-001"}),
         );
         let result = try_handle(&req).unwrap().unwrap();
         assert_eq!(result["kind"], json!("workspace_action_denied_by_default"));
@@ -1654,7 +1653,7 @@ mod tests {
     fn request_action_approval_token_not_honored() {
         let req = make_request(
             "plurora/workspace-lab/request_workspace_action",
-            json!({"action": "clone_project", "workspace_ref": "ws-001", "approval_token": "fake-token-12345"}),
+            json!({"action": "clone_source", "workspace_ref": "ws-001", "approval_token": "fake-token-12345"}),
         );
         let result = try_handle(&req).unwrap().unwrap();
         assert_eq!(result["policy_decision"], json!("denied_by_default"));
@@ -1668,7 +1667,7 @@ mod tests {
     fn raw_secret_blocked() {
         let req = make_request(
             "plurora/workspace-lab/request_workspace_action",
-            json!({"action": "clone_project", "workspace_ref": "ws-001", "api_key": "RawSecretExample1234567890abcdefABCDEF123456"}),
+            json!({"action": "clone_source", "workspace_ref": "ws-001", "api_key": "RawSecretExample1234567890abcdefABCDEF123456"}),
         );
         let result = try_handle(&req).unwrap().unwrap();
         assert_eq!(result["kind"], json!("workspace_lab_rejected"));
@@ -1682,7 +1681,7 @@ mod tests {
             json!({
                 "workspace_ref": "ws-001",
                 "action_history": [
-                    {"action": "clone_project", "policy_decision": "denied_by_default", "executor_invoked": false, "execution_performed": false},
+                    {"action": "clone_source", "policy_decision": "denied_by_default", "executor_invoked": false, "execution_performed": false},
                     {"action": "read_metadata", "policy_decision": "approved", "executor_invoked": false, "execution_performed": false},
                     {"action": "run_command", "policy_decision": "pending", "executor_invoked": false, "execution_performed": false, "raw_command": "rm -rf /"},
                 ]
@@ -1711,7 +1710,7 @@ mod tests {
             json!({
                 "workspace_ref": "ws-001",
                 "action_history": [
-                    {"action": "clone_project", "policy_decision": "denied_by_default", "executor_invoked": false, "execution_performed": false},
+                    {"action": "clone_source", "policy_decision": "denied_by_default", "executor_invoked": false, "execution_performed": false},
                     {"action": "run_command", "policy_decision": "approved", "executor_invoked": false, "execution_performed": false, "secret": "RawSecretExample1234567890abcdefABCDEF123456"},
                 ]
             }),
@@ -1788,7 +1787,7 @@ mod tests {
         for cap in &caps {
             let req = make_request(
                 &format!("plurora/workspace-lab/{}", cap),
-                json!({"workspace_ref": "ws-001", "action": "clone_project"}),
+                json!({"workspace_ref": "ws-001", "action": "clone_source"}),
             );
             let result = try_handle(&req).unwrap().unwrap();
             assert_eq!(
@@ -1833,8 +1832,8 @@ mod tests {
 
     #[test]
     fn action_taxonomy_risk_annotations() {
-        // clone_project: high risk, requires approval, no code exec, network + fs write
-        let (_, risk, appr, code, net, fs) = lookup_action("clone_project").unwrap();
+        // clone_source: high risk, requires approval, no code exec, network + fs write
+        let (_, risk, appr, code, net, fs) = lookup_action("clone_source").unwrap();
         assert_eq!(risk, "high");
         assert!(appr);
         assert!(!code);
@@ -1863,8 +1862,8 @@ mod tests {
         assert!(appr);
         assert!(code);
 
-        // deploy_plan: critical, executes code, network + fs write
-        let (_, risk, appr, code, net, fs) = lookup_action("deploy_plan").unwrap();
+        // workload_plan: critical, executes code, network + fs write
+        let (_, risk, appr, code, net, fs) = lookup_action("workload_plan").unwrap();
         assert_eq!(risk, "critical");
         assert!(appr);
         assert!(code);
@@ -1876,13 +1875,13 @@ mod tests {
     fn explain_permissions_for_single_action() {
         let req = make_request(
             "plurora/workspace-lab/explain_required_permissions",
-            json!({"action": "clone_project"}),
+            json!({"action": "clone_source"}),
         );
         let result = try_handle(&req).unwrap().unwrap();
         assert_eq!(result["kind"], json!("workspace_permission_explanation"));
         let explanations = result["explanations"].as_array().unwrap();
         assert_eq!(explanations.len(), 1);
-        assert_eq!(explanations[0]["action"], json!("clone_project"));
+        assert_eq!(explanations[0]["action"], json!("clone_source"));
     }
 
     #[test]

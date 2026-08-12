@@ -2,7 +2,7 @@
 
 > [English](./POWERBOX_BINDING.en.md) · [中文](./POWERBOX_BINDING.md)
 
-本指南描述 Phase 5 已实现的跨 Installation Powerbox。它把 provider 的公开 Exposure 与 consumer 的 import Port 连接起来，但不把候选、偏好或 UI 变成执行权。Phase 6 已实现 Managed Realization 与 `host.realization.*`；Powerbox 仍不会隐式 plan、apply、deploy 或 rebind。
+本指南描述跨 Installation Powerbox。它把 provider 的公开 Exposure 与 consumer 的 import Port 连接起来，但不把候选、偏好或 UI 变成执行权。Powerbox 不会隐式 plan、apply Realization 或 rebind。
 
 ## 权威与隔离
 
@@ -15,7 +15,7 @@
 
 ## 公开方法与事件
 
-Phase 5 的公开方法全部属于 Host、状态为 `implemented`，请求/结果均有 typed schema：
+这些公开方法全部属于 Host、状态为 `implemented`，请求/结果均有 typed schema：
 
 ```text
 host.exposure.list
@@ -63,7 +63,7 @@ host/binding.expired
 
 Provider disclosure 分开呈现：Work/Installation 的 source、Component 的 trust class、claim 与 enforced boundary、artifact/behavior digest、protocol implementation evidence，以及可能过期的 `stale` 状态。第一方与第三方遵守同一规则；稳定顺序不使用 publisher priority。
 
-Preference hint 只能影响展示顺序，不是 authority；不能把候选写入 active Binding，也不能隐式 deploy、rebind 或扩大 scope。未知值保持可见并要求用户或显式 policy 决定。
+Preference hint 只能影响展示顺序，不是 authority；不能把候选写入 active Binding，也不能隐式 apply Realization、rebind 或扩大 scope。未知值保持可见并要求用户或显式 policy 决定。
 
 ## Runtime pin 与注入
 
@@ -85,11 +85,11 @@ plurora binding candidates|list|select|revoke
 
 Home/Library 负责发现与入口；Installation frame 提供 chooser 和 exact Run/Installation context。PWA/mobile 使用同一 Host API，Host cache 按 Host/Installation 隔离；关闭 tab、iframe 或 PWA 连接不会停止 Run，也不会 revoke Exposure/Binding。
 
-Surface 只有显式 allowlist 的公开 bridge；没有 Powerbox private bridge、root credential 或隐藏的 first-party route。Surface 不能直接选择 provider、读取 handle、执行 deploy 或创建 rebind。
+Surface 只有显式 allowlist 的公开 bridge；没有 Powerbox private bridge、root credential 或隐藏的 first-party route。Surface 不能直接选择 provider、读取 handle、apply Realization 或创建 rebind。
 
 ## 验证与边界
 
-Phase 5 的 6 个 conformance case 覆盖 method owner/status/typed DTO、action-before-effect、76-event registry 中对应 payload、无 private authority、effect-free candidates/no auto-select，以及 launch/runtime exact Run pin：
+6 个 Powerbox conformance case 覆盖 method owner/status/typed DTO、action-before-effect、76-event registry 中对应 payload、无 private authority、effect-free candidates/no auto-select，以及 launch/runtime exact Run pin：
 
 ```text
 powerbox.public_method_identity_owner_typed_dto
@@ -100,6 +100,6 @@ powerbox.candidates_effect_free_no_auto_select
 powerbox.launch_runtime_exact_run_pin
 ```
 
-当前公开合同为 99 methods、76 events、39 top-level、214 schemas；Phase 6 Realization 已实现且不改变 Powerbox 的 least-authority 边界。
+当前公开合同为 99 methods、76 events、39 top-level、214 schemas；Realization 已实现且不改变 Powerbox 的 least-authority 边界。
 
 相关文档：[`RUN_LIBRARY.md`](RUN_LIBRARY.md)、[`REALIZATION.md`](REALIZATION.md)、[`INSTALLATION_MODEL.md`](INSTALLATION_MODEL.md)、[`../architecture/HOST_RESOURCE_AUTHORITY.md`](../architecture/HOST_RESOURCE_AUTHORITY.md)、[`../spec/PUBLIC_CONTRACT.md`](../spec/PUBLIC_CONTRACT.md)。

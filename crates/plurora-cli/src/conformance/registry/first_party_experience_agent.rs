@@ -25,23 +25,23 @@ pub(super) fn first_party_foundation_labs_cases() -> Vec<ConformanceCase> {
             crate::conformance::first_party_play_creation::blank_play_creation_loop
         ),
         c!(
-            "deployment_hub.local_exec_default_deny_all",
-            ["deployment_hub", "exec", "permission"],
-            crate::conformance::first_party_labs::deployment_hub_local_exec_default_deny_all
+            "workload_hub.local_exec_default_deny_all",
+            ["workload_hub", "exec", "permission"],
+            crate::conformance::first_party_labs::workload_hub_local_exec_default_deny_all
         ),
         c!(
             "docker_runtime_lab.contract_and_plan",
-            ["deployment_hub", "docker", "first_party"],
+            ["workload_hub", "docker", "first_party"],
             crate::conformance::first_party_labs::docker_runtime_lab_contract_and_plan
         ),
         c!(
             "docker_runtime_lab.blocks_dangerous_spec",
-            ["deployment_hub", "docker", "first_party", "security"],
+            ["workload_hub", "docker", "first_party", "security"],
             crate::conformance::first_party_labs::docker_runtime_lab_blocks_dangerous_spec
         ),
         c!(
             "docker_runtime_lab.build_image_blocks_secret_and_non_dockerfile",
-            ["deployment_hub", "docker", "first_party", "security", "build"],
+            ["workload_hub", "docker", "first_party", "security", "build"],
             crate::conformance::first_party_labs::docker_runtime_lab_build_image_blocks_secret_and_non_dockerfile
         ),
     ]

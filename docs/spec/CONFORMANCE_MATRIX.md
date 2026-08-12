@@ -57,7 +57,7 @@ cargo run -p plurora-cli -- conformance --slowest 3
 
 ### End-to-end real-path conformance cases
 
-以下是 surface resolve 与 Run 入口边界覆盖。Run lifecycle 已由 Phase 4 独立 Run journal 提供；surface resolve 不应绕过显式 Run authority。
+以下是 surface resolve 与 Run 入口边界覆盖。Run lifecycle 由独立 Run journal 提供；surface resolve 不应绕过显式 Run authority。
 
 | 分组 | Case id | 覆盖 | 状态 |
 |---|---|---|---|
@@ -65,7 +65,7 @@ cargo run -p plurora-cli -- conformance --slowest 3
 | bundle rejection | `surface.resolve_unknown_fails` | unknown surface bundle fails closed | implemented |
 | bundle authority | `surface.resolve_admin_principal_required` | resolve_bundle 限 HostAdmin/HostDev | implemented |
 
-### Phase 5 Powerbox conformance cases
+### Powerbox conformance cases
 
 以下六个具名用例覆盖 Exposure/Binding 的公开方法、事件、authority、候选披露与 runtime pin；实现状态以代码 registry 与 schema exporter 为准：
 
@@ -78,7 +78,7 @@ cargo run -p plurora-cli -- conformance --slowest 3
 | `powerbox.candidates_effect_free_no_auto_select` | candidates effect-free、disclosure 完整、0/多候选不自动选择 | implemented |
 | `powerbox.launch_runtime_exact_run_pin` | Launch 与 Runtime 的 exact Run/context/node path pin 区分 | implemented |
 
-### Phase 6 Realization conformance cases
+### Realization conformance cases
 
 以下五个具名用例覆盖公开 Realization identity、authority、事件、effect-free plan、approval 与持久化 rollback 边界：
 
@@ -90,7 +90,7 @@ cargo run -p plurora-cli -- conformance --slowest 3
 | `realization.plan_effect_free_apply_exact_approval` | plan 无 target effect；apply 固定 plan digest、approval、revision 与 idempotency | implemented |
 | `realization.rollback_persisted_plan_no_workspace` | rollback 只读取持久化 plan/revision，不接受 live workspace、source URL、raw secret 或 stderr | implemented |
 
-### Phase 8 Modular Simulation conformance cases
+### Modular Simulation conformance cases
 
 以下七个具名用例覆盖第一个可继续创作的 Work kit 与非发布 promotion 流程：
 
@@ -280,7 +280,7 @@ Surface/static bundle 与 bridge 还覆盖以下稳定断言：
 | outbound | `host/outbound.stream.completed` 完成审计事件发出 | implemented |
 | outbound | `host/outbound.websocket.completed` 完成审计事件发出 | implemented |
 | outbound | HTTP/stream/WebSocket completion 挂接 terminal receipt；policy/executor 不一致会产生 failed receipt；timeout/cancel 不产生重复 stream terminal；所有 executor 禁用后仍可 historical replay | implemented |
-| deployment exec | deny-all start 与 fake stop 产生 denied/cancelled receipt；runtime 主动观察 live terminal；自然退出/超时、重复 denial、stop/status 竞态和重启 hydration 均保持唯一终态 receipt | implemented |
+| workload exec | deny-all start 与 fake stop 产生 denied/cancelled receipt；runtime 主动观察 live terminal；自然退出/超时、重复 denial、stop/status 竞态和重启 hydration 均保持唯一终态 receipt | implemented |
 | secret_ref | manifest `permissions.secret_refs` 声明：未声明 fail-closed，已声明经 host resolver 解析 | implemented |
 | subprocess_outbound | subprocess SDK reverse kernel call：principal 绑定、execute 调度、stream chunks 回传 | implemented |
 | sse_parser | outbound stream SSE parser basic smoke 与 partial chunk 归并 | implemented |

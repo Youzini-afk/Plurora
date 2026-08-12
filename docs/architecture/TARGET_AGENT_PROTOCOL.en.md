@@ -2,14 +2,14 @@
 
 > [English](./TARGET_AGENT_PROTOCOL.en.md) · [中文](./TARGET_AGENT_PROTOCOL.md)
 
-Status: **Phase 6 Candidate implementation**. A Target Agent is a remote execution adapter for the Host Control Plane. It is not a remote package, general SSH shell, second Host, or application identity provider. Identity, typed operations, artifacts, the Host-local Docker operation broker, and the authenticated reverse tunnel form one controlled boundary. Managed Realization now connects stable OperationalIntent/TargetInventory plans and apply/stop/rollback/reconcile to the same local/Agent typed-operation and receipt path. Automatic placement and target-edge ingress remain outside this contract.
+Status: **Implemented**. A Target Agent is a remote execution adapter for the Host Control Plane. It is not a remote package, general SSH shell, second Host, or application identity provider. Identity, typed operations, artifacts, the Host-local Docker operation broker, and the authenticated reverse tunnel form one controlled boundary. Managed Realization now connects stable OperationalIntent/TargetInventory plans and apply/stop/rollback/reconcile to the same local/Agent typed-operation and receipt path. Automatic placement and target-edge ingress remain outside this contract.
 
 ## Three remote boundaries
 
 | Boundary | Subject | Purpose | Trust |
 |---|---|---|---|
 | Remote Host client | Human device, Web/PWA, CLI | Control one Host | root or Installation-scoped device grant |
-| Remote Target Agent | Managed execution node | Execute deployment/verifier operations and report truth | target identity + operation authority |
+| Remote Target Agent | Managed execution node | Execute workload/verifier operations and report truth | target identity + operation authority |
 | Remote package entry | Capability-provider service | Serve package invoke/stream | workload identity + attenuated capability |
 
 They never share bearer credentials, lifecycle, or implicit authority.
@@ -75,9 +75,9 @@ The typed-worker control plane exposes these routes without adding a general com
 | Agent | `POST /target-agent/v1/operations/{operation_id}/receipt` | Accept a terminal receipt only when authority, execution owner, and request digest match |
 | Agent | `GET /target-agent/v1/operations/{operation_id}/artifacts/{digest}` | Stream only a digest explicitly authorized by that accepted/running operation |
 
-The Host `host_control_target_operations` journal and Agent SQLite ledger both use expected-sequence CAS. The Agent persists request/authority digests before acknowledging acceptance and persists the terminal receipt before posting it. A process lock protects one data directory, while a copied credential with another ledger cannot take over an already-bound `execution_id`. Executable types now include `artifact.materialize/release`, `health.probe`, declarative `verifier.run(artifact_integrity)`, and `deployment.apply/observe/drain/stop`; unknown types have no shell fallback. Downloads use a digest-derived partial path and enter the local CAS only after full SHA-256 and size verification.
+The Host `host_control_target_operations` journal and Agent SQLite ledger both use expected-sequence CAS. The Agent persists request/authority digests before acknowledging acceptance and persists the terminal receipt before posting it. A process lock protects one data directory, while a copied credential with another ledger cannot take over an already-bound `execution_id`. Executable types now include `artifact.materialize/release`, `health.probe`, declarative `verifier.run(artifact_integrity)`, and `workload.apply/observe/drain/stop`; unknown types have no shell fallback. Downloads use a digest-derived partial path and enter the local CAS only after full SHA-256 and size verification.
 
-Revoke fails closed for new work and new accepted/running transitions. The linearization boundary is the Host's durable acknowledgement of `Running`: a revoke/offline/stale epoch observed before it prevents execution; after it, the current idempotent step may finish or replay its receipt but cannot acquire new work. Revoke does not pretend to atomically roll back a target-local effect: `deployment.drain` performs a bounded graceful stop and retains the container, while `deployment.stop` removes it and force-removes only when explicitly requested.
+Revoke fails closed for new work and new accepted/running transitions. The linearization boundary is the Host's durable acknowledgement of `Running`: a revoke/offline/stale epoch observed before it prevents execution; after it, the current idempotent step may finish or replay its receipt but cannot acquire new work. Revoke does not pretend to atomically roll back a target-local effect: `workload.drain` performs a bounded graceful stop and retains the container, while `workload.stop` removes it and force-removes only when explicitly requested.
 
 Operation authority binds target, operation, step, Installation, effect, artifacts, lease/policy epochs, expiry, nonce, and request digest. Remote Agent authority is MACed with the epoch-scoped, domain-separated enrollment credential digest, and the Agent independently recomputes that MAC from the credential it received once. A local-driver journal record uses a stable domain-separated key confined to the Host and does not treat that key as a network identity. The native client disables redirects, requires HTTPS for a remote Host, never persists the credential in config or ledger, and reads it only from `PLURORA_TARGET_AGENT_CREDENTIAL`; loopback HTTP is confined to the same machine.
 
@@ -106,7 +106,7 @@ Current V1 keeps durable operation control out of the volatile traffic tunnel. I
 
 ## Typed operations
 
-Agents accept only public versioned policy-decidable operations: artifact materialize/release, deployment apply/observe/stop/drain, health probe, logs read/follow, actual port reserve/release, tunnel open/close, and declarative verifier run.
+Agents accept only public versioned policy-decidable operations: artifact materialize/release, workload apply/observe/stop/drain, health probe, logs read/follow, actual port reserve/release, tunnel open/close, and declarative verifier run.
 
 There is no `shell(command: string)`. Process execution, when needed, constrains program, args, cwd, env, network, mounts, resources, and output under both target policy and operation authority. Unknown operations and fields fail closed.
 

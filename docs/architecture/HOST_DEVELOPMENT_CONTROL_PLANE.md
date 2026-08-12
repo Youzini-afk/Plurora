@@ -2,7 +2,7 @@
 
 > [English](./HOST_DEVELOPMENT_CONTROL_PLANE.en.md) · [中文](./HOST_DEVELOPMENT_CONTROL_PLANE.md)
 
-状态：**Candidate 实现**。Host 开发控制平面把“为 managed Workspace 或 Installation 提出源码变更”与“执行 managed resources”严格分开。源码变更使用宪法对象 `Intent -> ChangeSet -> PolicyDecision -> ChangeCommit -> EffectReceipt`；资源规划与执行只通过 Phase 6 的 `host.realization.*`。没有 Project identity、任意 Host shell、Deployment facade 或第一方私有旁路。
+状态：**Implemented**。Host 开发控制平面把“为 managed Workspace 或 Installation 提出源码变更”与“执行 managed resources”严格分开。源码变更使用宪法对象 `Intent -> ChangeSet -> PolicyDecision -> ChangeCommit -> EffectReceipt`；资源规划与执行只通过 `host.realization.*`，没有任意 Host shell 或第一方私有旁路。
 
 `plurora/workspace-lab` 是普通、无执行权限的规划 Package。真实变更只能经受 Host 认证的 `/host/v1/development/:subject_kind/:subject_id/changes` API，subject 只允许 `workspace` 或 `installation`。Docker verification 作为持久化 Target operation 运行；验证成功产出不可变 artifact，不会隐式 apply Realization、写回 Workspace 或公开 route。
 
@@ -35,7 +35,7 @@ flowchart LR
 | `POST` | `.../:change_set_id/execute` | 异步暂存、验证并生成 immutable verified bundle |
 | `POST` | `.../:change_set_id/recover` | 显式对账中断的 Docker verification |
 
-旧 `.../deployment/preview|approve|activate|reconcile`、Installation deployment 与 build-deploy 路由已删除且没有 alias。需要 managed resources 时，客户端从 Installation 的 OperationalIntent 调用 effect-free `host.realization.plan`，展示稳定 plan digest 与风险，再用独立 approval 调用 `apply`。
+需要 managed resources 时，客户端从 Installation 的 OperationalIntent 调用 effect-free `host.realization.plan`，展示稳定 plan digest 与风险，再用独立 approval 调用 `apply`；development API 不提供并行的资源执行生命周期。
 
 ## Authority
 
@@ -87,7 +87,7 @@ linked-local 是用户可并发修改的目录。Host 不用 check-then-use 路�
 - arbitrary shell、install/test command 或 Host command runner；
 - 自动修改 linked-local/native Workspace；
 - 把 verification image 隐式用于 Realization；
-- Project、old Composition 或 Deployment identity/API；
+- 与 Work/Assembly/Installation/Realization 并行的机器身份或 API；
 - 绕过公开 Host API 的本地 CLI 或第一方 Package 写入路径。
 
 Realization 生命周期见 [`../guides/REALIZATION.md`](../guides/REALIZATION.md)，设备授权见 [`HOST_RESOURCE_AUTHORITY.md`](HOST_RESOURCE_AUTHORITY.md)。

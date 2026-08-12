@@ -78,5 +78,5 @@
 | `host/proxy.registered` | [`./schemas/events/host__proxy.registered.schema.json`](./schemas/events/host__proxy.registered.schema.json) | `plurora/runtime` | proxy route 已注册 | implemented |
 | `host/proxy.unregistered` | [`./schemas/events/host__proxy.unregistered.schema.json`](./schemas/events/host__proxy.unregistered.schema.json) | `plurora/runtime` | proxy route 已移除 | implemented |
 | `host/proxy.denied` | [`./schemas/events/host__proxy.denied.schema.json`](./schemas/events/host__proxy.denied.schema.json) | `plurora/runtime` | proxy 注册被拒绝 | implemented |
-| `host/deployment.reconciled` | [`./schemas/events/host__deployment.reconciled.schema.json`](./schemas/events/host__deployment.reconciled.schema.json) | `plurora/runtime` | 启动后部署状态 reconcile 汇总 | implemented |
-| `host/deployment.health` | [`./schemas/events/host__deployment.health.schema.json`](./schemas/events/host__deployment.health.schema.json) | `plurora/runtime` | host TCP 健康探测触发部署 ready 状态变化 | implemented |
+| `host/workload.reconciled` | [`./schemas/events/host__workload.reconciled.schema.json`](./schemas/events/host__workload.reconciled.schema.json) | `plurora/runtime` | 启动后底层 workload 状态 reconcile 汇总 | implemented |
+| `host/workload.health` | [`./schemas/events/host__workload.health.schema.json`](./schemas/events/host__workload.health.schema.json) | `plurora/runtime` | host TCP 健康探测触发底层 workload ready 状态变化 | implemented |

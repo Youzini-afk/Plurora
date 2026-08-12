@@ -88,4 +88,4 @@ Home 与 Installation Frame 只从公开 `host.installation.*` summary 读取 Ri
 
 ## 可核验边界
 
-Phase 7 conformance 覆盖：无协议 Capsule、portable coordinate 拒绝、闭源 Port 使用普通兼容性合同、保守 Rights、entitlement 脱敏且无 DRM method、dedicated entrypoint 与公开 backup schema。更深的 state/launch lifecycle、Realization Rights gate、Installation journal 与 Web 行为由对应 crate/service/TypeScript tests 覆盖。
+Foreign Work conformance 覆盖：无协议 Capsule、portable coordinate 拒绝、闭源 Port 使用普通兼容性合同、保守 Rights、entitlement 脱敏且无 DRM method、dedicated entrypoint 与公开 backup schema。更深的 state/launch lifecycle、Realization Rights gate、Installation journal 与 Web 行为由对应 crate/service/TypeScript tests 覆盖。

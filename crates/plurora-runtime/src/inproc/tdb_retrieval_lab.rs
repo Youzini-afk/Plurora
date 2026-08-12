@@ -164,7 +164,7 @@ fn explain_backend_fit() -> Value {
             "multimodal creator references",
             "agent workspace retrieval",
             "knowledge/memory package indexes",
-            "external project semantic indexing"
+            "external source semantic indexing"
         ],
         "not_fit_for": [
             "event log authority",

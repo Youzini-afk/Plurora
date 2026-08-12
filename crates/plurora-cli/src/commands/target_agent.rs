@@ -17,9 +17,9 @@ use plurora_service::{
     decode_target_tunnel_data, encode_target_tunnel_data, verify_target_operation_authority,
     ClaimTargetEnrollmentRequest, ClaimTargetEnrollmentResponse, DeclarativeVerifierDescriptor,
     NextTargetOperationResponse, TargetAgentHeartbeatRequest, TargetAgentHeartbeatResponse,
-    TargetDeploymentRef, TargetOperationProgressRequest, TargetOperationReceipt,
-    TargetOperationReceiptStatus, TargetOperationRecord, TargetOperationSpec,
-    TargetOperationStatusKind, TargetTunnelAgentMessage, TargetTunnelHostMessage, TargetTunnelOpen,
+    TargetOperationProgressRequest, TargetOperationReceipt, TargetOperationReceiptStatus,
+    TargetOperationRecord, TargetOperationSpec, TargetOperationStatusKind,
+    TargetTunnelAgentMessage, TargetTunnelHostMessage, TargetTunnelOpen, TargetWorkloadRef,
     TARGET_TUNNEL_DATA_CHUNK_BYTES, TARGET_TUNNEL_MAX_STREAMS,
 };
 use plurora_work::InstallationId;
@@ -136,9 +136,9 @@ fn parse_capabilities(values: Vec<String>) -> anyhow::Result<Vec<ExecutionTarget
             "artifact_transfer" => Ok(ExecutionTargetCapability::ArtifactTransfer),
             "declarative_verifier" => Ok(ExecutionTargetCapability::DeclarativeVerifier),
             "health_probe" => Ok(ExecutionTargetCapability::HealthProbe),
-            "deployment" => Ok(ExecutionTargetCapability::Deployment),
+            "workload" => Ok(ExecutionTargetCapability::Workload),
             _ => anyhow::bail!(
-                "native agent capability '{value}' is unsupported; use artifact_transfer, declarative_verifier, health_probe, or deployment"
+                "native agent capability '{value}' is unsupported; use artifact_transfer, declarative_verifier, health_probe, or workload"
             ),
         })
         .collect::<anyhow::Result<Vec<_>>>()?;
@@ -705,16 +705,16 @@ pub async fn run(data_dir: PathBuf, credential: String) -> anyhow::Result<()> {
     prepare_artifact_store(&data_dir).await?;
     if config
         .capabilities
-        .contains(&ExecutionTargetCapability::Deployment)
+        .contains(&ExecutionTargetCapability::Workload)
     {
-        plurora_runtime::validate_managed_target_deployment_runtime()
+        plurora_runtime::validate_managed_target_workload_runtime()
             .await
-            .context("deployment capability requires an available Docker runtime")?;
+            .context("workload capability requires an available Docker runtime")?;
     }
     let _tunnel_task = (config.reachability == ExecutionTargetReachability::ReverseTunnel
         && config
             .capabilities
-            .contains(&ExecutionTargetCapability::Deployment))
+            .contains(&ExecutionTargetCapability::Workload))
     .then(|| tokio::spawn(target_tunnel_supervisor(config.clone(), credential.clone())));
 
     let mut next_heartbeat = Instant::now();
@@ -1179,9 +1179,9 @@ async fn heartbeat(
         .count() as u64;
     let workload_count = if config
         .capabilities
-        .contains(&ExecutionTargetCapability::Deployment)
+        .contains(&ExecutionTargetCapability::Workload)
     {
-        plurora_runtime::count_managed_target_deployments(&config.target_id).await?
+        plurora_runtime::count_managed_target_workloads(&config.target_id).await?
     } else {
         0
     };
@@ -1339,7 +1339,7 @@ async fn handle_operation(
     {
         Ok(output) => (TargetOperationReceiptStatus::Succeeded, output, Vec::new()),
         Err(error) => {
-            let status = if plurora_runtime::is_managed_target_deployment_outcome_unknown(&error) {
+            let status = if plurora_runtime::is_managed_target_workload_outcome_unknown(&error) {
                 TargetOperationReceiptStatus::OutcomeUnknown
             } else {
                 TargetOperationReceiptStatus::Failed
@@ -1500,41 +1500,41 @@ async fn execute_operation(
             let released = release_artifact(data_dir, digest).await?;
             Ok(json!({ "digest": digest, "released": released }))
         }
-        TargetOperationSpec::DeploymentApply { deployment } => {
-            let reference = &deployment.deployment;
-            let applied = plurora_runtime::apply_managed_target_deployment(
-                &plurora_runtime::ManagedTargetDeploymentApply {
+        TargetOperationSpec::WorkloadApply { workload } => {
+            let reference = &workload.workload;
+            let applied = plurora_runtime::apply_managed_target_workload(
+                &plurora_runtime::ManagedTargetWorkloadApply {
                     target_id: operation.target_id.clone(),
                     installation_id: operation.installation_id.clone(),
-                    deployment_id: reference.deployment_id.clone(),
+                    workload_id: reference.workload_id.clone(),
                     route_id: reference.route_id.clone(),
                     port_lease_id: reference.port_lease_id.clone(),
-                    port_name: deployment.port_name.clone(),
-                    image: deployment.image.clone(),
-                    container_port: deployment.container_port,
-                    requested_host_port: deployment.requested_host_port,
-                    pull_if_missing: deployment.pull_if_missing,
+                    port_name: workload.port_name.clone(),
+                    image: workload.image.clone(),
+                    container_port: workload.container_port,
+                    requested_host_port: workload.requested_host_port,
+                    pull_if_missing: workload.pull_if_missing,
                     operation_id: operation.operation_id.clone(),
                 },
                 runtime_guard,
             )
             .await?;
-            if let Err(error) = plurora_runtime::wait_for_managed_target_deployment_readiness(
+            if let Err(error) = plurora_runtime::wait_for_managed_target_workload_readiness(
                 &applied,
-                deployment.health_path.as_deref(),
+                workload.health_path.as_deref(),
                 runtime_guard,
             )
             .await
             {
-                let cleanup = plurora_runtime::stop_managed_target_deployment(
-                    &managed_deployment_ref(operation, &deployment.deployment),
+                let cleanup = plurora_runtime::stop_managed_target_workload(
+                    &managed_workload_ref(operation, &workload.workload),
                     0,
                     true,
                     runtime_guard,
                 )
                 .await;
                 if cleanup.is_err() {
-                    return Err(plurora_runtime::managed_target_deployment_outcome_unknown(
+                    return Err(plurora_runtime::managed_target_workload_outcome_unknown(
                         "candidate readiness cleanup",
                     ));
                 }
@@ -1542,32 +1542,32 @@ async fn execute_operation(
             }
             Ok(serde_json::to_value(applied)?)
         }
-        TargetOperationSpec::DeploymentObserve { deployment } => {
-            let observed = plurora_runtime::observe_managed_target_deployment(
-                &managed_deployment_ref(operation, deployment),
+        TargetOperationSpec::WorkloadObserve { workload } => {
+            let observed = plurora_runtime::observe_managed_target_workload(
+                &managed_workload_ref(operation, workload),
                 runtime_guard,
             )
             .await?;
-            Ok(json!({ "deployment": observed }))
+            Ok(json!({ "workload": observed }))
         }
-        TargetOperationSpec::DeploymentDrain {
-            deployment,
+        TargetOperationSpec::WorkloadDrain {
+            workload,
             grace_seconds,
         } => Ok(serde_json::to_value(
-            plurora_runtime::drain_managed_target_deployment(
-                &managed_deployment_ref(operation, deployment),
+            plurora_runtime::drain_managed_target_workload(
+                &managed_workload_ref(operation, workload),
                 *grace_seconds,
                 runtime_guard,
             )
             .await?,
         )?),
-        TargetOperationSpec::DeploymentStop {
-            deployment,
+        TargetOperationSpec::WorkloadStop {
+            workload,
             grace_seconds,
             force_remove,
         } => Ok(serde_json::to_value(
-            plurora_runtime::stop_managed_target_deployment(
-                &managed_deployment_ref(operation, deployment),
+            plurora_runtime::stop_managed_target_workload(
+                &managed_workload_ref(operation, workload),
                 *grace_seconds,
                 *force_remove,
                 runtime_guard,
@@ -1649,16 +1649,16 @@ async fn execute_operation(
     }
 }
 
-fn managed_deployment_ref(
+fn managed_workload_ref(
     operation: &TargetOperationRecord,
-    deployment: &TargetDeploymentRef,
-) -> plurora_runtime::ManagedTargetDeploymentRef {
-    plurora_runtime::ManagedTargetDeploymentRef {
+    workload: &TargetWorkloadRef,
+) -> plurora_runtime::ManagedTargetWorkloadRef {
+    plurora_runtime::ManagedTargetWorkloadRef {
         target_id: operation.target_id.clone(),
         installation_id: operation.installation_id.clone(),
-        deployment_id: deployment.deployment_id.clone(),
-        route_id: deployment.route_id.clone(),
-        port_lease_id: deployment.port_lease_id.clone(),
+        workload_id: workload.workload_id.clone(),
+        route_id: workload.route_id.clone(),
+        port_lease_id: workload.port_lease_id.clone(),
     }
 }
 
@@ -2022,7 +2022,7 @@ mod tests {
             lease_epoch: 1,
             policy_epoch: 1,
             reachability: ExecutionTargetReachability::ReverseTunnel,
-            capabilities: vec![ExecutionTargetCapability::Deployment],
+            capabilities: vec![ExecutionTargetCapability::Workload],
             heartbeat_interval_seconds: 5,
         }
     }
@@ -2030,7 +2030,7 @@ mod tests {
     fn agent_config(endpoint: String) -> AgentConfig {
         AgentConfig {
             endpoint,
-            capabilities: vec![ExecutionTargetCapability::Deployment],
+            capabilities: vec![ExecutionTargetCapability::Workload],
             ..tunnel_config()
         }
     }
@@ -2146,7 +2146,7 @@ mod tests {
             let create_calls = AtomicUsize::new(0);
             let result = async {
                 guard.ensure_current().await.map_err(|_| {
-                    plurora_runtime::managed_target_deployment_outcome_unknown(
+                    plurora_runtime::managed_target_workload_outcome_unknown(
                         "fake pull fence confirmation",
                     )
                 })?;
@@ -2155,7 +2155,9 @@ mod tests {
             }
             .await;
             let error = result.expect_err("changed Host fence must stop the fake driver");
-            assert!(plurora_runtime::is_managed_target_deployment_outcome_unknown(&error));
+            assert!(plurora_runtime::is_managed_target_workload_outcome_unknown(
+                &error
+            ));
             assert_eq!(create_calls.load(Ordering::Acquire), 0);
 
             let current = ledger.load().await?;
@@ -2336,7 +2338,7 @@ mod tests {
     fn diagnostics_redact_raw_secrets_beyond_the_agent_credential() {
         assert_eq!(
             safe_diagnostic(
-                "deployment failed with sk-Abcdefghijklmnopqrstuvwxyz123456",
+                "workload failed with sk-Abcdefghijklmnopqrstuvwxyz123456",
                 "unrelated-credential"
             ),
             "operation failed; diagnostic redacted"

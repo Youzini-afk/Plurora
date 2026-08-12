@@ -1087,7 +1087,7 @@ export class PluroraProtocolClient {
     } catch (err: unknown) {
       if (isFetchTransportError(err)) {
         throw new Error(
-          "Cannot reach the Plurora host RPC. Check that the host is still running, the access token is valid, and the deployment did not time out while resolving the install plan.",
+          "Cannot reach the Plurora host RPC. Check that the host is still running, the access token is valid, and Realization planning did not time out while resolving the install plan.",
         );
       }
       throw err;

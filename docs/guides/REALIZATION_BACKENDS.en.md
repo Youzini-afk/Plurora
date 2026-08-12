@@ -1,8 +1,8 @@
 # Runtime adapters for the Realization executor
 
-> [English](./DEPLOYMENT_RUNTIME.en.md) · [中文](./DEPLOYMENT_RUNTIME.md)
+> [English](./REALIZATION_BACKENDS.en.md) · [中文](./REALIZATION_BACKENDS.md)
 
-This page documents the low-level Target, exec, port, and proxy adapters used by the Phase 6 `ServiceRealizationExecutor`. The public managed lifecycle is defined by [`REALIZATION.md`](REALIZATION.en.md) and `host.realization.*`; these adapters are not a second Deployment API, revision, or authority model.
+This page documents the low-level Target, exec, port, and proxy adapters used by `ServiceRealizationExecutor`. The public managed lifecycle is defined by [`REALIZATION.md`](REALIZATION.en.md) and `host.realization.*`; these adapters are not a second managed lifecycle, revision, or authority model.
 
 ## Boundary
 
@@ -10,9 +10,9 @@ This page documents the low-level Target, exec, port, and proxy adapters used by
 - The pure planner compiles a content-addressed `RealizationPlan` from `TargetInventorySnapshot`.
 - `host.realization.apply` invokes the executor only after exact approval, precondition, and authority checks.
 - The executor translates plan actions into typed `TargetOperationSpec` values and records `RealizedResource` plus `RealizationEffectReceipt` results.
-- `host.exec.*`, `host.port.*`, and `host.proxy.*` are low-level HostAdmin/HostDev adapters. Ordinary devices no longer have the old `deploy` scope and cannot use these methods to bypass Realization.
+- `host.exec.*`, `host.port.*`, and `host.proxy.*` are low-level HostAdmin/HostDev adapters. Ordinary devices cannot use these methods to bypass Realization.
 
-The old `/host/v1/deploy`, `/build-deploy*`, Installation deployment-history/recover/rollback routes, and Development deployment preview/approve/activate/reconcile routes are retired with no alias or fallback. Web and CLI use only `host.realization.*`.
+Web and CLI use only `host.realization.*`; the low-level adapters expose no parallel managed API to ordinary devices.
 
 ## One path for local and Target Agent execution
 
@@ -49,7 +49,7 @@ Host startup order is:
 3. hydrate Installation, Powerbox, Realization, and Run authority journals;
 4. let Realization perform effect-free observation or consume durable effect checkpoints for Applying/Stopping records.
 
-Public readiness reports durable, active, and degraded Realization counts. It no longer treats an old deployment projection as managed truth.
+Public readiness reports durable, active, and degraded Realization counts and treats only the Realization projection as managed truth.
 
 An uncertain target result becomes `outcome_unknown`; resources/receipts that cannot be established safely become `recovery_required`. The Host never infers success from a bound port, process presence, or route name.
 

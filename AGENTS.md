@@ -1,31 +1,14 @@
 # Plurora Agent Instructions
 
-## Active implementation program
+## Repository model
 
-The repository is currently executing the destructive Work / Assembly / Installation / Run / Realization program.
-
-Before changing any file, read the complete execution brief:
-
-- Chinese: [`docs/roadmap/WORK_ASSEMBLY_REALIZATION.md`](docs/roadmap/WORK_ASSEMBLY_REALIZATION.md)
-- English: [`docs/roadmap/WORK_ASSEMBLY_REALIZATION.en.md`](docs/roadmap/WORK_ASSEMBLY_REALIZATION.en.md)
-
-Then read every prerequisite listed in section 0 of that brief. The brief defines the target boundary; source code and generated artifacts define the current implementation state.
-
-Do not stop after summarizing or rewriting the plan. Begin the next incomplete Phase and carry it to a complete Phase boundary.
-
-## Git workflow
-
-- The intended implementation branch is `feature/work-assembly-realization`.
-- When the environment allows branch creation, create it from the latest clean `main` before Phase 1.
-- When the agent environment forbids creating branches, the task must be started with that branch already selected; do not silently implement the program on `main`.
-- Each Phase ends with a clean worktree, one reviewable commit, and a push before the next Phase begins.
-- Do not amend or rewrite completed Phase commits. Fix a failed Phase with an explicit follow-up commit.
-- Observe GitHub CI for the pushed commit. Do not begin the next Phase while the current Phase CI is failing.
+- Read the architecture, specification, guide, product, and status documents that own the area being changed. One-time roadmap documents are not durable contracts.
+- Source registries and generators define machine-readable contracts; architecture and specification documents define durable ownership and invariants.
+- Keep changes within the requested product or subsystem boundary.
 
 ## Non-negotiable boundaries
 
-- This is a pre-release destructive refactor. Do not retain compatibility aliases, readers, fallback directories, duplicate RPCs, or migration code for Project, old Composition, or Deployment identities.
-- Destructive contracts do not permit destructive user-file behavior. Preserve path containment, symlink defenses, and the rule that linked-local sources are never deleted.
+- Contract changes do not permit destructive user-file behavior. Preserve path containment, symlink defenses, and the rule that linked-local sources are never deleted.
 - Do not modify YdlTavern, release configuration, marketplace/payment/DRM systems, or unrelated products.
 - Work, Assembly, Game, Library, and Realization are not Constitutional Substrate concepts.
 - First-party Packages, Shells, and agents have no private API, publisher priority, hidden authority, ambient root shell, or secret bypass.
@@ -35,7 +18,7 @@ Do not stop after summarizing or rewriting the plan. Begin the next incomplete P
 
 ## Validation discipline
 
-Run bounded checks locally as specified by the active Phase, including where relevant:
+Run checks proportional to the affected area, including where relevant:
 
 ```text
 cargo fmt --check
@@ -48,22 +31,10 @@ git diff --check
 generated-output cleanliness checks
 ```
 
-Full workspace Rust tests, complete conformance, Docker, Windows backup/restore, Desktop sidecar smoke, and Host operations acceptance belong in GitHub CI unless the task explicitly changes that policy.
+Full workspace Rust tests, complete conformance, Docker, Windows backup/restore, Desktop sidecar smoke, and Host operations acceptance normally belong in CI unless the task explicitly requires local execution.
 
-## Phase report
+## Git workflow
 
-At each Phase boundary report:
-
-```text
-Phase and commit SHA
-User capability and architectural boundary completed
-Retired identity or debt removed
-Bounded local checks
-GitHub CI run and conclusion
-Any deviation from the execution brief and its reason
-Input preconditions for the next Phase
-```
-
-## Completion
-
-Phase 9 removes the temporary execution brief and this active-program instruction. Durable semantics move into architecture, specification, guide, product, and status documents. Replace this file with general repository instructions only when they remain useful after the program; otherwise delete it.
+- Preserve unrelated user changes and do not rewrite published history.
+- Keep commits reviewable and report the checks actually run, any environment block, and remaining risk.
+- Do not merge or push unless the user request or active repository workflow authorizes it.

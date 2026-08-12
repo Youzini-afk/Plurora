@@ -6,197 +6,197 @@ macro_rules! c {
     };
 }
 
-pub(super) fn project_intake_lab_external_project_operating_plane_alpha_e1_cases(
+pub(super) fn source_intake_lab_external_source_operating_plane_alpha_e1_cases(
 ) -> Vec<ConformanceCase> {
     vec![
-        // --- project-intake-lab (External Project Operating Plane Alpha E1) ---
+        // --- source-intake-lab (External Source Operating Plane Alpha E1) ---
         c!(
-            "project_intake.contract_shape",
+            "source_intake.contract_shape",
             [
                 "first_party",
-                "external_project",
-                "project_intake",
+                "external_source",
+                "source_intake",
                 "no_execution"
             ],
-            crate::conformance::project_intake_lab::project_intake_contract
+            crate::conformance::source_intake_lab::source_intake_contract
         ),
         c!(
-            "project_intake.source_classification",
+            "source_intake.source_classification",
             [
                 "first_party",
-                "external_project",
-                "project_intake",
+                "external_source",
+                "source_intake",
                 "no_execution"
             ],
-            crate::conformance::project_intake_lab::project_intake_source_classification
+            crate::conformance::source_intake_lab::source_intake_source_classification
         ),
         c!(
-            "project_intake.stack_detection_npm_lifecycle",
+            "source_intake.stack_detection_npm_lifecycle",
             [
                 "first_party",
-                "external_project",
-                "project_intake",
+                "external_source",
+                "source_intake",
                 "no_execution"
             ],
-            crate::conformance::project_intake_lab::project_intake_stack_detection
+            crate::conformance::source_intake_lab::source_intake_stack_detection
         ),
         c!(
-            "project_intake.workspace_plan_no_execution",
+            "source_intake.workspace_plan_no_execution",
             [
                 "first_party",
-                "external_project",
-                "project_intake",
+                "external_source",
+                "source_intake",
                 "no_execution"
             ],
-            crate::conformance::project_intake_lab::project_intake_workspace_plan
+            crate::conformance::source_intake_lab::source_intake_workspace_plan
         ),
         c!(
-            "project_intake.local_path_rejection",
+            "source_intake.local_path_rejection",
             [
                 "first_party",
-                "external_project",
-                "project_intake",
+                "external_source",
+                "source_intake",
                 "no_execution",
                 "secret"
             ],
-            crate::conformance::project_intake_lab::project_intake_local_path_rejection
+            crate::conformance::source_intake_lab::source_intake_local_path_rejection
         ),
         c!(
-            "project_intake.adapter_plan_no_execution",
+            "source_intake.adapter_plan_no_execution",
             [
                 "first_party",
-                "external_project",
-                "project_intake",
+                "external_source",
+                "source_intake",
                 "no_execution"
             ],
-            crate::conformance::project_intake_lab::project_intake_adapter_plan
+            crate::conformance::source_intake_lab::source_intake_adapter_plan
         ),
         c!(
-            "project_intake.no_forbidden_namespace",
+            "source_intake.no_forbidden_namespace",
             [
                 "first_party",
-                "external_project",
-                "project_intake",
+                "external_source",
+                "source_intake",
                 "no_execution",
                 "protocol"
             ],
-            crate::conformance::project_intake_lab::project_intake_no_forbidden_namespace
+            crate::conformance::source_intake_lab::source_intake_no_forbidden_namespace
         ),
         c!(
-            "project_intake.no_raw_secrets",
+            "source_intake.no_raw_secrets",
             [
                 "first_party",
-                "external_project",
-                "project_intake",
+                "external_source",
+                "source_intake",
                 "no_execution",
                 "secret"
             ],
-            crate::conformance::project_intake_lab::project_intake_no_raw_secrets
+            crate::conformance::source_intake_lab::source_intake_no_raw_secrets
         ),
     ]
 }
 
-pub(super) fn project_intake_lab_e5_external_project_operating_plane_alpha_e5_adapte_cases(
+pub(super) fn source_intake_lab_e5_external_source_operating_plane_alpha_e5_adapte_cases(
 ) -> Vec<ConformanceCase> {
     vec![
-    // --- project-intake-lab E5 (External Project Operating Plane Alpha E5: Adapter/Wrapper Generation Proof) ---
-    c!(
-        "project_intake.adapter_manifest_preview_no_write",
+        // --- source-intake-lab E5 (External Source Operating Plane Alpha E5: Adapter/Wrapper Generation Proof) ---
+        c!(
+            "source_intake.adapter_manifest_preview_no_write",
+            [
+                "first_party",
+                "external_source",
+                "source_intake",
+                "no_execution"
+            ],
+            crate::conformance::source_intake_lab::source_intake_adapter_manifest_preview_no_write
+        ),
+        c!(
+            "source_intake.rejects_first_party_adapter_id",
+            [
+                "first_party",
+                "external_source",
+                "source_intake",
+                "no_execution",
+                "secret"
+            ],
+            crate::conformance::source_intake_lab::source_intake_rejects_first_party_adapter_id
+        ),
+        c!(
+            "source_intake.rejects_path_traversal_adapter_id",
+            [
+                "first_party",
+                "external_source",
+                "source_intake",
+                "no_execution"
+            ],
+            crate::conformance::source_intake_lab::source_intake_rejects_path_traversal_adapter_id
+        ),
+        c!(
+        "source_intake.capability_namespace_mismatch_rejected",
         [
             "first_party",
-            "external_project",
-            "project_intake",
-            "no_execution"
-        ],
-        crate::conformance::project_intake_lab::project_intake_adapter_manifest_preview_no_write
-    ),
-    c!(
-        "project_intake.rejects_first_party_adapter_id",
-        [
-            "first_party",
-            "external_project",
-            "project_intake",
-            "no_execution",
-            "secret"
-        ],
-        crate::conformance::project_intake_lab::project_intake_rejects_first_party_adapter_id
-    ),
-    c!(
-        "project_intake.rejects_path_traversal_adapter_id",
-        [
-            "first_party",
-            "external_project",
-            "project_intake",
-            "no_execution"
-        ],
-        crate::conformance::project_intake_lab::project_intake_rejects_path_traversal_adapter_id
-    ),
-    c!(
-        "project_intake.capability_namespace_mismatch_rejected",
-        [
-            "first_party",
-            "external_project",
-            "project_intake",
+            "external_source",
+            "source_intake",
             "no_execution",
             "protocol"
         ],
-        crate::conformance::project_intake_lab::project_intake_capability_namespace_mismatch_rejected
+        crate::conformance::source_intake_lab::source_intake_capability_namespace_mismatch_rejected
     ),
-    c!(
-        "project_intake.wrapper_preview_no_execution",
+        c!(
+            "source_intake.wrapper_preview_no_execution",
+            [
+                "first_party",
+                "external_source",
+                "source_intake",
+                "no_execution"
+            ],
+            crate::conformance::source_intake_lab::source_intake_wrapper_preview_no_execution
+        ),
+        c!(
+            "source_intake.fixture_preview_redacted",
+            [
+                "first_party",
+                "external_source",
+                "source_intake",
+                "no_execution",
+                "secret"
+            ],
+            crate::conformance::source_intake_lab::source_intake_fixture_preview_redacted
+        ),
+        c!(
+            "source_intake.readiness_checklist_ok",
+            [
+                "first_party",
+                "external_source",
+                "source_intake",
+                "no_execution"
+            ],
+            crate::conformance::source_intake_lab::source_intake_readiness_checklist_ok
+        ),
+        c!(
+        "source_intake.e5_no_forbidden_namespace_no_raw_secret",
         [
             "first_party",
-            "external_project",
-            "project_intake",
-            "no_execution"
-        ],
-        crate::conformance::project_intake_lab::project_intake_wrapper_preview_no_execution
-    ),
-    c!(
-        "project_intake.fixture_preview_redacted",
-        [
-            "first_party",
-            "external_project",
-            "project_intake",
-            "no_execution",
-            "secret"
-        ],
-        crate::conformance::project_intake_lab::project_intake_fixture_preview_redacted
-    ),
-    c!(
-        "project_intake.readiness_checklist_ok",
-        [
-            "first_party",
-            "external_project",
-            "project_intake",
-            "no_execution"
-        ],
-        crate::conformance::project_intake_lab::project_intake_readiness_checklist_ok
-    ),
-    c!(
-        "project_intake.e5_no_forbidden_namespace_no_raw_secret",
-        [
-            "first_party",
-            "external_project",
-            "project_intake",
+            "external_source",
+            "source_intake",
             "no_execution",
             "secret",
             "protocol"
         ],
-        crate::conformance::project_intake_lab::project_intake_e5_no_forbidden_namespace_no_raw_secret
+        crate::conformance::source_intake_lab::source_intake_e5_no_forbidden_namespace_no_raw_secret
     ),
     ]
 }
 
-pub(super) fn workspace_lab_external_project_operating_plane_alpha_e2_cases() -> Vec<ConformanceCase>
+pub(super) fn workspace_lab_external_source_operating_plane_alpha_e2_cases() -> Vec<ConformanceCase>
 {
     vec![
-        // --- workspace-lab (External Project Operating Plane Alpha E2) ---
+        // --- workspace-lab (External Source Operating Plane Alpha E2) ---
         c!(
             "workspace_lab.contract_shape",
             [
                 "first_party",
-                "external_project",
+                "external_source",
                 "workspace_lab",
                 "policy",
                 "no_execution"
@@ -207,7 +207,7 @@ pub(super) fn workspace_lab_external_project_operating_plane_alpha_e2_cases() ->
             "workspace_lab.action_taxonomy_deny_default",
             [
                 "first_party",
-                "external_project",
+                "external_source",
                 "workspace_lab",
                 "policy",
                 "no_execution"
@@ -218,7 +218,7 @@ pub(super) fn workspace_lab_external_project_operating_plane_alpha_e2_cases() ->
             "workspace_lab.policy_mismatch_fail_closed",
             [
                 "first_party",
-                "external_project",
+                "external_source",
                 "workspace_lab",
                 "policy",
                 "no_execution"
@@ -229,7 +229,7 @@ pub(super) fn workspace_lab_external_project_operating_plane_alpha_e2_cases() ->
             "workspace_lab.raw_secret_blocked",
             [
                 "first_party",
-                "external_project",
+                "external_source",
                 "workspace_lab",
                 "policy",
                 "no_execution",
@@ -241,7 +241,7 @@ pub(super) fn workspace_lab_external_project_operating_plane_alpha_e2_cases() ->
             "workspace_lab.audit_redacted",
             [
                 "first_party",
-                "external_project",
+                "external_source",
                 "workspace_lab",
                 "policy",
                 "no_execution"
@@ -252,7 +252,7 @@ pub(super) fn workspace_lab_external_project_operating_plane_alpha_e2_cases() ->
             "workspace_lab.no_forbidden_namespace",
             [
                 "first_party",
-                "external_project",
+                "external_source",
                 "workspace_lab",
                 "policy",
                 "no_execution",
@@ -264,7 +264,7 @@ pub(super) fn workspace_lab_external_project_operating_plane_alpha_e2_cases() ->
             "workspace_lab.no_execution",
             [
                 "first_party",
-                "external_project",
+                "external_source",
                 "workspace_lab",
                 "policy",
                 "no_execution"
@@ -274,15 +274,15 @@ pub(super) fn workspace_lab_external_project_operating_plane_alpha_e2_cases() ->
     ]
 }
 
-pub(super) fn workspace_lab_e3_external_project_operating_plane_alpha_e3_managed_wor_cases(
+pub(super) fn workspace_lab_e3_external_source_operating_plane_alpha_e3_managed_wor_cases(
 ) -> Vec<ConformanceCase> {
     vec![
-        // --- workspace-lab E3 (External Project Operating Plane Alpha E3: Managed Workspace Deterministic Proof) ---
+        // --- workspace-lab E3 (External Source Operating Plane Alpha E3: Managed Workspace Deterministic Proof) ---
         c!(
             "workspace_lab.fixture_workspace_creation",
             [
                 "first_party",
-                "external_project",
+                "external_source",
                 "workspace_lab",
                 "managed_workspace",
                 "no_execution",
@@ -294,7 +294,7 @@ pub(super) fn workspace_lab_e3_external_project_operating_plane_alpha_e3_managed
             "workspace_lab.inspect_read_no_filesystem",
             [
                 "first_party",
-                "external_project",
+                "external_source",
                 "workspace_lab",
                 "managed_workspace",
                 "no_execution",
@@ -306,7 +306,7 @@ pub(super) fn workspace_lab_e3_external_project_operating_plane_alpha_e3_managed
             "workspace_lab.run_plan_requires_approval",
             [
                 "first_party",
-                "external_project",
+                "external_source",
                 "workspace_lab",
                 "managed_workspace",
                 "no_execution",
@@ -318,7 +318,7 @@ pub(super) fn workspace_lab_e3_external_project_operating_plane_alpha_e3_managed
             "workspace_lab.fixture_process_result_redacted",
             [
                 "first_party",
-                "external_project",
+                "external_source",
                 "workspace_lab",
                 "managed_workspace",
                 "no_execution",
@@ -330,7 +330,7 @@ pub(super) fn workspace_lab_e3_external_project_operating_plane_alpha_e3_managed
             "workspace_lab.entrypoint_discovery",
             [
                 "first_party",
-                "external_project",
+                "external_source",
                 "workspace_lab",
                 "managed_workspace",
                 "no_execution",
@@ -342,7 +342,7 @@ pub(super) fn workspace_lab_e3_external_project_operating_plane_alpha_e3_managed
             "workspace_lab.patch_draft_proposal",
             [
                 "first_party",
-                "external_project",
+                "external_source",
                 "workspace_lab",
                 "managed_workspace",
                 "no_execution",
@@ -354,7 +354,7 @@ pub(super) fn workspace_lab_e3_external_project_operating_plane_alpha_e3_managed
             "workspace_lab.e3_raw_secret_no_forbidden_namespace",
             [
                 "first_party",
-                "external_project",
+                "external_source",
                 "workspace_lab",
                 "managed_workspace",
                 "no_execution",

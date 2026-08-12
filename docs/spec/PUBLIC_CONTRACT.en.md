@@ -175,7 +175,7 @@ Git installation is not a transport primitive; it belongs in the ordinary first-
 |---|---:|---|
 | `host.run.list` | implemented | `observe` authority; filter by visible Installation and optional status, returning Host Run journal projections. |
 | `host.run.get` | implemented | `observe` authority; requires exact Installation and Run selectors and returns Run identity, revision, entrypoint, node instances, and health. |
-| `host.run.start` | implemented | `run` authority plus exact Installation; validates the expected Installation revision and entrypoint, then Host-generates RunId after preflight. Activates only an installed, verified, unique local Component matching the AssemblyLock; missing, ambiguous, unsupported-backend, or Realization-required cases return structured `gaps` without implicit build/deploy. |
+| `host.run.start` | implemented | `run` authority plus exact Installation; validates the expected Installation revision and entrypoint, then Host-generates RunId after preflight. Activates only an installed, verified, unique local Component matching the AssemblyLock; missing, ambiguous, unsupported-backend, or Realization-required cases return structured `gaps` without implicit build/apply. |
 | `host.run.stop` | implemented | `run` authority plus an exact Installation and the requested Run child; the registry verifies I/R ownership, requires the expected Run revision and an idempotency key, stops that Run's activation context, emits a terminal event, and does not unload global Packages. |
 | `host.run.status` | implemented | `observe` plus exact Installation; returns the current Installation revision, active-Run overview, and optional zero-effect entrypoint preflight gaps. It grants no authority, and start revalidates it. |
 
@@ -239,7 +239,7 @@ The full registry is [`v1/EVENT_KIND_REGISTRY.md`](v1/EVENT_KIND_REGISTRY.en.md)
 | Exec | 6 | `host/exec.request`, `.started`, `.completed`, `.failed`, `.stopped`, `.denied` |
 | Port | 3 | `host/port.leased`, `.released`, `.denied` |
 | Proxy | 3 | `host/proxy.registered`, `.unregistered`, `.denied` |
-| Deployment | 2 | `host/deployment.reconciled`, `host/deployment.health` |
+| Workload adapter | 2 | `host/workload.reconciled`, `host/workload.health` |
 | error | 1 | `runtime/error` |
 
 Package-owned event kinds must start with the exact writer Package ID followed by `/`. Registered platform-owned kinds may be written only by `plurora/runtime`; Packages cannot impersonate them or another Package namespace.

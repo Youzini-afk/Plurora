@@ -14,7 +14,7 @@ use plurora_core::{
     EVENT_REALIZATION_ROLLED_BACK, EVENT_REALIZATION_STOPPED, PLATFORM_RUNTIME_ID,
 };
 use plurora_runtime::{
-    is_managed_target_deployment_outcome_unknown, load_rights_declaration, rights_policy_outcome,
+    is_managed_target_workload_outcome_unknown, load_rights_declaration, rights_policy_outcome,
     EventStore, ExecutionTarget, ExecutionTargetReachability, ExecutionTargetRegistry,
     ExecutionTargetStatusKind, InstallationControl, ObjectStore, RealizationApplyRequest,
     RealizationAuthoritySubject, RealizationBackendSelection, RealizationControl,
@@ -1049,7 +1049,7 @@ impl RealizationRegistry {
                         partial.resources.clone(),
                         self.persist_receipts(partial.receipts.clone()).await?,
                     )
-                } else if is_managed_target_deployment_outcome_unknown(&error)
+                } else if is_managed_target_workload_outcome_unknown(&error)
                     || error.to_string().contains("outcome_unknown")
                 {
                     (
@@ -1378,7 +1378,7 @@ impl RealizationRegistry {
                         partial.resources.clone(),
                         self.persist_receipts(partial.receipts.clone()).await?,
                     )
-                } else if is_managed_target_deployment_outcome_unknown(&error)
+                } else if is_managed_target_workload_outcome_unknown(&error)
                     || error.to_string().contains("outcome_unknown")
                 {
                     (

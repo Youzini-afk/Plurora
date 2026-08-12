@@ -6394,145 +6394,6 @@ pub enum DependencySource {
     #[serde(rename = "local")]
     Local { path: ::std::string::String },
 }
-///`DeploymentHealthEventPayload`
-///
-/// <details><summary>JSON schema</summary>
-///
-/// ```json
-///{
-///  "title": "DeploymentHealthEventPayload",
-///  "type": "object",
-///  "required": [
-///    "failure_count",
-///    "previous_ready",
-///    "probe",
-///    "ready",
-///    "reason",
-///    "route_id"
-///  ],
-///  "properties": {
-///    "failure_count": {
-///      "type": "integer",
-///      "format": "uint32",
-///      "minimum": 0.0
-///    },
-///    "port_lease_id": {
-///      "type": [
-///        "string",
-///        "null"
-///      ]
-///    },
-///    "previous_ready": {
-///      "type": "boolean"
-///    },
-///    "probe": {
-///      "$ref": "#/definitions/DeploymentHealthProbe"
-///    },
-///    "ready": {
-///      "type": "boolean"
-///    },
-///    "reason": {
-///      "type": "string"
-///    },
-///    "route_id": {
-///      "type": "string"
-///    }
-///  },
-///  "$schema": "https://json-schema.org/draft/2020-12/schema"
-///}
-/// ```
-/// </details>
-#[allow(clippy::large_enum_variant)]
-#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
-pub struct DeploymentHealthEventPayload {
-    pub failure_count: u32,
-    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
-    pub port_lease_id: ::std::option::Option<::std::string::String>,
-    pub previous_ready: bool,
-    pub probe: DeploymentHealthProbe,
-    pub ready: bool,
-    pub reason: ::std::string::String,
-    pub route_id: ::std::string::String,
-}
-///`DeploymentHealthProbe`
-///
-/// <details><summary>JSON schema</summary>
-///
-/// ```json
-///{
-///  "title": "DeploymentHealthProbe",
-///  "type": "object",
-///  "required": [
-///    "kind"
-///  ],
-///  "properties": {
-///    "kind": {
-///      "type": "string"
-///    }
-///  }
-///}
-/// ```
-/// </details>
-#[allow(clippy::large_enum_variant)]
-#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
-pub struct DeploymentHealthProbe {
-    pub kind: ::std::string::String,
-}
-///`DeploymentReconcileSummary`
-///
-/// <details><summary>JSON schema</summary>
-///
-/// ```json
-///{
-///  "title": "DeploymentReconcileSummary",
-///  "type": "object",
-///  "required": [
-///    "execs_failed",
-///    "leases_promoted",
-///    "leases_released",
-///    "routes_promoted",
-///    "routes_removed"
-///  ],
-///  "properties": {
-///    "execs_failed": {
-///      "type": "integer",
-///      "format": "uint",
-///      "minimum": 0.0
-///    },
-///    "leases_promoted": {
-///      "type": "integer",
-///      "format": "uint",
-///      "minimum": 0.0
-///    },
-///    "leases_released": {
-///      "type": "integer",
-///      "format": "uint",
-///      "minimum": 0.0
-///    },
-///    "routes_promoted": {
-///      "type": "integer",
-///      "format": "uint",
-///      "minimum": 0.0
-///    },
-///    "routes_removed": {
-///      "type": "integer",
-///      "format": "uint",
-///      "minimum": 0.0
-///    }
-///  },
-///  "$schema": "https://json-schema.org/draft/2020-12/schema"
-///}
-/// ```
-/// </details>
-#[allow(clippy::large_enum_variant)]
-#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
-pub struct DeploymentReconcileSummary {
-    pub execs_failed: u32,
-    pub leases_promoted: u32,
-    pub leases_released: u32,
-    pub routes_promoted: u32,
-    pub routes_removed: u32,
-}
 ///`EffectClass`
 ///
 /// <details><summary>JSON schema</summary>
@@ -8596,7 +8457,7 @@ pub struct ExecutionTarget {
 ///    "artifact_transfer",
 ///    "declarative_verifier",
 ///    "health_probe",
-///    "deployment",
+///    "workload",
 ///    "authenticated_tunnel"
 ///  ]
 ///}
@@ -8630,8 +8491,8 @@ pub enum ExecutionTargetCapability {
     DeclarativeVerifier,
     #[serde(rename = "health_probe")]
     HealthProbe,
-    #[serde(rename = "deployment")]
-    Deployment,
+    #[serde(rename = "workload")]
+    Workload,
     #[serde(rename = "authenticated_tunnel")]
     AuthenticatedTunnel,
 }
@@ -8645,7 +8506,7 @@ impl ::std::fmt::Display for ExecutionTargetCapability {
             Self::ArtifactTransfer => f.write_str("artifact_transfer"),
             Self::DeclarativeVerifier => f.write_str("declarative_verifier"),
             Self::HealthProbe => f.write_str("health_probe"),
-            Self::Deployment => f.write_str("deployment"),
+            Self::Workload => f.write_str("workload"),
             Self::AuthenticatedTunnel => f.write_str("authenticated_tunnel"),
         }
     }
@@ -8661,7 +8522,7 @@ impl ::std::str::FromStr for ExecutionTargetCapability {
             "artifact_transfer" => Ok(Self::ArtifactTransfer),
             "declarative_verifier" => Ok(Self::DeclarativeVerifier),
             "health_probe" => Ok(Self::HealthProbe),
-            "deployment" => Ok(Self::Deployment),
+            "workload" => Ok(Self::Workload),
             "authenticated_tunnel" => Ok(Self::AuthenticatedTunnel),
             _ => Err("invalid value".into()),
         }
@@ -31670,6 +31531,90 @@ impl ::std::convert::TryFrom<::std::string::String> for WorkRevisionSchema {
         value.parse()
     }
 }
+///`WorkloadHealthEventPayload`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "WorkloadHealthEventPayload",
+///  "type": "object",
+///  "required": [
+///    "failure_count",
+///    "previous_ready",
+///    "probe",
+///    "ready",
+///    "reason",
+///    "route_id"
+///  ],
+///  "properties": {
+///    "failure_count": {
+///      "type": "integer",
+///      "format": "uint32",
+///      "minimum": 0.0
+///    },
+///    "port_lease_id": {
+///      "type": [
+///        "string",
+///        "null"
+///      ]
+///    },
+///    "previous_ready": {
+///      "type": "boolean"
+///    },
+///    "probe": {
+///      "$ref": "#/definitions/WorkloadHealthProbe"
+///    },
+///    "ready": {
+///      "type": "boolean"
+///    },
+///    "reason": {
+///      "type": "string"
+///    },
+///    "route_id": {
+///      "type": "string"
+///    }
+///  },
+///  "$schema": "https://json-schema.org/draft/2020-12/schema"
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct WorkloadHealthEventPayload {
+    pub failure_count: u32,
+    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    pub port_lease_id: ::std::option::Option<::std::string::String>,
+    pub previous_ready: bool,
+    pub probe: WorkloadHealthProbe,
+    pub ready: bool,
+    pub reason: ::std::string::String,
+    pub route_id: ::std::string::String,
+}
+///`WorkloadHealthProbe`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "WorkloadHealthProbe",
+///  "type": "object",
+///  "required": [
+///    "kind"
+///  ],
+///  "properties": {
+///    "kind": {
+///      "type": "string"
+///    }
+///  }
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct WorkloadHealthProbe {
+    pub kind: ::std::string::String,
+}
 ///`WorkloadImports`
 ///
 /// <details><summary>JSON schema</summary>
@@ -31804,6 +31749,61 @@ pub struct WorkloadIntent {
     pub resources: ResourceRequirements,
     pub restart_policy: RestartPolicy,
     pub workload_id: ::std::string::String,
+}
+///`WorkloadReconcileSummary`
+///
+/// <details><summary>JSON schema</summary>
+///
+/// ```json
+///{
+///  "title": "WorkloadReconcileSummary",
+///  "type": "object",
+///  "required": [
+///    "execs_failed",
+///    "leases_promoted",
+///    "leases_released",
+///    "routes_promoted",
+///    "routes_removed"
+///  ],
+///  "properties": {
+///    "execs_failed": {
+///      "type": "integer",
+///      "format": "uint",
+///      "minimum": 0.0
+///    },
+///    "leases_promoted": {
+///      "type": "integer",
+///      "format": "uint",
+///      "minimum": 0.0
+///    },
+///    "leases_released": {
+///      "type": "integer",
+///      "format": "uint",
+///      "minimum": 0.0
+///    },
+///    "routes_promoted": {
+///      "type": "integer",
+///      "format": "uint",
+///      "minimum": 0.0
+///    },
+///    "routes_removed": {
+///      "type": "integer",
+///      "format": "uint",
+///      "minimum": 0.0
+///    }
+///  },
+///  "$schema": "https://json-schema.org/draft/2020-12/schema"
+///}
+/// ```
+/// </details>
+#[allow(clippy::large_enum_variant)]
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, PartialEq)]
+pub struct WorkloadReconcileSummary {
+    pub execs_failed: u32,
+    pub leases_promoted: u32,
+    pub leases_released: u32,
+    pub routes_promoted: u32,
+    pub routes_removed: u32,
 }
 ///`WorkspaceId`
 ///

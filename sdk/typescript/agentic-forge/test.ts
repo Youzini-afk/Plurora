@@ -6,6 +6,8 @@
 
 import { runAgenticForgeSelfTest } from "./index.js";
 
+declare const process: { exitCode?: number };
+
 const result = runAgenticForgeSelfTest();
 
 console.log("=== Agentic Forge SDK Self-Test ===");
@@ -18,8 +20,8 @@ if (result.failures.length > 0) {
     console.log(`  ✗ ${f}`);
   }
   console.log("\n--- TEST FAILED ---");
-  process.exit(1);
+  process.exitCode = 1;
 } else {
   console.log("\n--- ALL TESTS PASSED ---");
-  process.exit(0);
+  process.exitCode = 0;
 }

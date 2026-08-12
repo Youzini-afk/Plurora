@@ -33,17 +33,16 @@ use crate::host_access::{
     HostAccessScope,
 };
 use crate::target_agent::{
-    CreateTargetOperationRequest, DeclarativeVerifierDescriptor, TargetDeploymentDescriptor,
-    TargetDeploymentRef, TargetOperationRecord, TargetOperationSpec, TargetOperationStatusKind,
+    CreateTargetOperationRequest, DeclarativeVerifierDescriptor, TargetOperationRecord,
+    TargetOperationSpec, TargetOperationStatusKind, TargetWorkloadDescriptor, TargetWorkloadRef,
 };
 use crate::{
-    call_host_protocol, deployment_effect_context, drain_previous_revision,
-    ensure_installation_exists, now_millis, persist_revision_activation,
-    require_identity_installation, require_identity_target, required_string,
-    restore_proxy_route_if_candidate_active, service_public_url_for_route, value_field, AppState,
-    BuildDeployInstallationGuard, DeploymentActionResponse, DeploymentAuthorityLease,
-    DeploymentOperation, DeploymentRevision, DeploymentSourceKind, HostBuildDeployResponse,
-    ServiceError,
+    call_host_protocol, drain_previous_revision, ensure_installation_exists, now_millis,
+    persist_revision_activation, require_identity_installation, require_identity_target,
+    required_string, restore_proxy_route_if_candidate_active, service_public_url_for_route,
+    value_field, workload_effect_context, AppState, BuildWorkloadInstallationGuard,
+    HostBuildWorkloadResponse, ServiceError, WorkloadActionResponse, WorkloadAuthorityLease,
+    WorkloadOperation, WorkloadRevision, WorkloadSourceKind,
 };
 
 const DEVELOPMENT_JOURNAL_PREFIX: &str = "host/control/v1/development.";
@@ -69,10 +68,9 @@ const DEVELOPMENT_BUNDLE_ARTIFACT_TYPE_URI: &str =
 const DEVELOPMENT_RESULT_ARTIFACT_TYPE_URI: &str = "urn:plurora:artifact:development-result:v1";
 const DEVELOPMENT_BUILD_CONTEXT_ARTIFACT_TYPE_URI: &str =
     "urn:plurora:artifact:docker-build-context:v1";
-const DEVELOPMENT_DEPLOYMENT_AUTHORITY_TYPE_URI: &str =
-    "urn:plurora:artifact:deployment-authority:v1";
-const DEVELOPMENT_DEPLOYMENT_PREVIEW_TYPE_URI: &str = "urn:plurora:artifact:deployment-preview:v1";
-const DEVELOPMENT_DEPLOYMENT_OPERATION_TIMEOUT: std::time::Duration =
+const DEVELOPMENT_WORKLOAD_AUTHORITY_TYPE_URI: &str = "urn:plurora:artifact:workload-authority:v1";
+const DEVELOPMENT_WORKLOAD_PREVIEW_TYPE_URI: &str = "urn:plurora:artifact:workload-preview:v1";
+const DEVELOPMENT_WORKLOAD_OPERATION_TIMEOUT: std::time::Duration =
     std::time::Duration::from_secs(15 * 60);
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -225,12 +223,12 @@ pub struct DevelopmentVerificationResult {
     pub log_tail: Option<String>,
     pub artifact_ref: ArtifactDescriptor,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub deployment_artifact_ref: Option<ArtifactDescriptor>,
+    pub workload_artifact_ref: Option<ArtifactDescriptor>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
-pub struct DevelopmentDeploymentPreviewRequest {
+pub struct DevelopmentWorkloadPreviewRequest {
     pub target_id: String,
     pub container_port: u16,
     pub port_name: String,
@@ -245,7 +243,7 @@ pub struct DevelopmentDeploymentPreviewRequest {
 
 #[derive(Debug, Clone, Deserialize)]
 #[serde(deny_unknown_fields)]
-pub struct DevelopmentDeploymentApprovalRequest {
+pub struct DevelopmentWorkloadApprovalRequest {
     pub approved: bool,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub reason: Option<String>,
@@ -253,7 +251,7 @@ pub struct DevelopmentDeploymentApprovalRequest {
 
 #[derive(Debug, Clone, Copy, Deserialize, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
-pub enum DevelopmentDeploymentStatus {
+pub enum DevelopmentWorkloadStatus {
     Preparing,
     Building,
     Previewing,
@@ -266,7 +264,7 @@ pub enum DevelopmentDeploymentStatus {
     Failed,
 }
 
-impl DevelopmentDeploymentStatus {
+impl DevelopmentWorkloadStatus {
     fn executing(self) -> bool {
         matches!(
             self,
@@ -276,26 +274,26 @@ impl DevelopmentDeploymentStatus {
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq)]
-pub struct DevelopmentDeploymentPreview {
+pub struct DevelopmentWorkloadPreview {
     pub route_id: String,
     pub public_url: String,
     pub port_lease_id: String,
-    pub deployment: TargetDeploymentRef,
+    pub workload: TargetWorkloadRef,
     pub image: String,
     pub image_id: String,
     pub container_id: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub container_name: Option<String>,
     pub build_operation_id: String,
-    pub deployment_operation_id: String,
+    pub workload_operation_id: String,
     pub ready_at_ms: u128,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
-pub struct DevelopmentDeploymentRecord {
+pub struct DevelopmentWorkloadRecord {
     pub schema_version: u16,
-    pub deployment_id: String,
-    pub status: DevelopmentDeploymentStatus,
+    pub workload_id: String,
+    pub status: DevelopmentWorkloadStatus,
     pub target_id: String,
     pub workspace_id: WorkspaceId,
     pub source_tree_digest: String,
@@ -315,15 +313,15 @@ pub struct DevelopmentDeploymentRecord {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub preview_port_lease_id: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub target_deployment_id: Option<String>,
+    pub target_workload_id: Option<String>,
     pub build_id: String,
     pub build_descriptor_hash: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub build_operation_id: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub deployment_operation_id: Option<String>,
+    pub workload_operation_id: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub preview: Option<DevelopmentDeploymentPreview>,
+    pub preview: Option<DevelopmentWorkloadPreview>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub preview_ref: Option<ArtifactDescriptor>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -382,7 +380,7 @@ pub struct DevelopmentChangeRecord {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub commit: Option<ChangeCommit>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub deployment: Option<DevelopmentDeploymentRecord>,
+    pub workload: Option<DevelopmentWorkloadRecord>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub error: Option<String>,
     pub created_at_ms: u128,
@@ -1374,11 +1372,11 @@ where
     Ok(Json(recovered))
 }
 
-async fn create_deployment_preview<S>(
+async fn create_workload_preview<S>(
     State(state): State<AppState<S>>,
     Extension(identity): Extension<HostAccessIdentity>,
     Path((subject_kind, subject_id, change_set_id)): Path<(String, String, String)>,
-    Json(request): Json<DevelopmentDeploymentPreviewRequest>,
+    Json(request): Json<DevelopmentWorkloadPreviewRequest>,
 ) -> Result<(StatusCode, Json<DevelopmentChangeRecord>), ServiceError>
 where
     S: EventStore,
@@ -1387,7 +1385,7 @@ where
     let subject = parse_development_subject(&subject_kind, &subject_id)?;
     require_identity_subject(&identity, &subject)?;
     require_identity_target(&identity, &request.target_id)?;
-    validate_deployment_preview_request(&request)?;
+    validate_workload_preview_request(&request)?;
 
     let change_lock = state.development.lock_for(&change_set_id);
     let _change_guard = change_lock.lock().await;
@@ -1395,12 +1393,12 @@ where
     let mut record = change_for_subject(&state, &subject, &change_set_id)?;
     let installation_id = require_target_installation(&record)?.clone();
     require_identity_installation(&identity, installation_id.as_str())?;
-    if !development_change_allows_deployment(record.status)
+    if !development_change_allows_workload(record.status)
         || record.workspace_ownership != DevelopmentWorkspaceOwnership::Managed
     {
         return Err(ServiceError::with_status(
             StatusCode::CONFLICT,
-            "deployment preview requires a verified managed workspace change",
+            "workload preview requires a verified managed workspace change",
         ));
     }
 
@@ -1413,7 +1411,7 @@ where
         DevelopmentVerificationPlan::StaticValidation => {
             return Err(ServiceError::with_status(
                 StatusCode::CONFLICT,
-                "deployment preview requires Docker build verification",
+                "workload preview requires Docker build verification",
             ));
         }
     };
@@ -1429,15 +1427,15 @@ where
             "verified development change has no verification result",
         )
     })?;
-    let build_context_ref = validate_deployment_verification_provenance(
+    let build_context_ref = validate_workload_verification_provenance(
         &record,
         &verification,
         &dockerfile,
         network_mode,
         &source_tree_digest,
     )?;
-    verify_deployment_artifact_content(state.runtime.as_ref(), &verification.artifact_ref).await?;
-    verify_deployment_artifact_content(state.runtime.as_ref(), &build_context_ref).await?;
+    verify_workload_artifact_content(state.runtime.as_ref(), &verification.artifact_ref).await?;
+    verify_workload_artifact_content(state.runtime.as_ref(), &build_context_ref).await?;
 
     state
         .build_jobs
@@ -1450,32 +1448,32 @@ where
     {
         return Err(ServiceError::with_status(
             StatusCode::CONFLICT,
-            "deployment route is owned by another installation",
+            "workload route is owned by another installation",
         ));
     }
 
-    let request_digest = deployment_preview_request_digest(
+    let request_digest = workload_preview_request_digest(
         &record,
         &request,
         &verification.artifact_ref,
         &build_context_ref,
     )
     .map_err(|error| {
-        internal_development_error("failed to bind deployment preview request", error)
+        internal_development_error("failed to bind workload preview request", error)
     })?;
-    if let Some(existing) = record.deployment.as_ref() {
+    if let Some(existing) = record.workload.as_ref() {
         if existing.request_digest == request_digest {
             return Ok((StatusCode::OK, Json(record)));
         }
         return Err(ServiceError::with_status(
             StatusCode::CONFLICT,
-            "this development change already has a different deployment request",
+            "this development change already has a different workload request",
         ));
     }
 
-    let deployment_suffix = uuid::Uuid::new_v4().simple().to_string();
-    let deployment_id = format!("dep-{deployment_suffix}");
-    let preview_route_id = format!("preview-{deployment_suffix}");
+    let workload_suffix = uuid::Uuid::new_v4().simple().to_string();
+    let workload_id = format!("dep-{workload_suffix}");
+    let preview_route_id = format!("preview-{workload_suffix}");
     if state
         .runtime
         .config()
@@ -1486,11 +1484,11 @@ where
     {
         return Err(ServiceError::with_status(
             StatusCode::CONFLICT,
-            "generated deployment preview route already exists",
+            "generated workload preview route already exists",
         ));
     }
-    let build_id = format!("verified-{deployment_suffix}");
-    let build_descriptor_hash = deployment_build_descriptor_hash(
+    let build_id = format!("verified-{workload_suffix}");
+    let build_descriptor_hash = workload_build_descriptor_hash(
         &installation_id,
         &build_context_ref,
         &source_tree_digest,
@@ -1498,31 +1496,31 @@ where
         network_mode,
         &build_id,
     );
-    let authority = DeploymentAuthorityLease::from_identity(
-        format!("dop-{deployment_suffix}"),
+    let authority = WorkloadAuthorityLease::from_identity(
+        format!("dop-{workload_suffix}"),
         request.target_id.clone(),
         &identity,
     );
-    deployment_effect_context(
+    workload_effect_context(
         &state,
         Some(&authority),
         &installation_id,
-        "host_development_deployment_prepare",
+        "host_development_workload_prepare",
     )
     .await
     .map_err(|error| {
-        tracing::warn!(installation_id = %installation_id, change_set_id, error = %error, "deployment authority validation failed");
+        tracing::warn!(installation_id = %installation_id, change_set_id, error = %error, "workload authority validation failed");
         ServiceError::with_status(
             StatusCode::FORBIDDEN,
-            "deployment authority is no longer valid for the selected installation and target",
+            "workload authority is no longer valid for the selected installation and target",
         )
     })?;
     let authority_ref = commit_json_artifact(
         state.runtime.as_ref(),
-        DEVELOPMENT_DEPLOYMENT_AUTHORITY_TYPE_URI,
+        DEVELOPMENT_WORKLOAD_AUTHORITY_TYPE_URI,
         &json!({
             "schema_version": 1,
-            "deployment_id": deployment_id,
+            "workload_id": workload_id,
             "installation_id": installation_id,
             "change_set_id": change_set_id,
             "target_id": request.target_id,
@@ -1550,33 +1548,33 @@ where
             ),
             ("change_set_id".to_string(), json!(change_set_id)),
             ("target_id".to_string(), json!(request.target_id)),
-            ("deployment_id".to_string(), json!(deployment_id)),
+            ("workload_id".to_string(), json!(workload_id)),
         ]),
     )
     .await
-    .map_err(|error| internal_development_error("failed to persist deployment authority", error))?;
+    .map_err(|error| internal_development_error("failed to persist workload authority", error))?;
 
     let permit = state
         .build_jobs
         .acquire_installation_operation(&installation_id)
         .await
         .map_err(|error| ServiceError::with_status(StatusCode::CONFLICT, error.to_string()))?;
-    let installation_guard = BuildDeployInstallationGuard {
+    let installation_guard = BuildWorkloadInstallationGuard {
         registry: state.build_jobs.clone(),
         installation_id: installation_id.clone(),
     };
     let now = now_millis();
     record.revision += 1;
     record.updated_at_ms = now;
-    record.deployment = Some(DevelopmentDeploymentRecord {
+    record.workload = Some(DevelopmentWorkloadRecord {
         schema_version: 1,
-        deployment_id: deployment_id.clone(),
-        status: DevelopmentDeploymentStatus::Preparing,
+        workload_id: workload_id.clone(),
+        status: DevelopmentWorkloadStatus::Preparing,
         target_id: request.target_id.clone(),
         workspace_id: record.subject.workspace_id().cloned().ok_or_else(|| {
             ServiceError::with_status(
                 StatusCode::CONFLICT,
-                "deployment preview requires a workspace subject",
+                "workload preview requires a workspace subject",
             )
         })?,
         source_tree_digest,
@@ -1592,11 +1590,11 @@ where
         health_path: request.health_path,
         preview_route_id,
         preview_port_lease_id: None,
-        target_deployment_id: None,
+        target_workload_id: None,
         build_id,
         build_descriptor_hash,
         build_operation_id: None,
-        deployment_operation_id: None,
+        workload_operation_id: None,
         preview: None,
         preview_ref: None,
         approval_decision: None,
@@ -1615,7 +1613,7 @@ where
             drop(installation_guard);
             drop(permit);
             return Err(development_persistence_error(
-                "failed to persist deployment preview start",
+                "failed to persist workload preview start",
                 error,
             ));
         }
@@ -1627,25 +1625,24 @@ where
     tokio::spawn(async move {
         let _permit = permit;
         let _installation_guard = installation_guard;
-        if let Err(error) =
-            run_deployment_preview(&task_state, &task_change_set_id, &authority).await
+        if let Err(error) = run_workload_preview(&task_state, &task_change_set_id, &authority).await
         {
             tracing::warn!(
                 installation_id = %task_installation_id,
                 change_set_id = %task_change_set_id,
                 error = %error,
-                "development deployment preview failed"
+                "development workload preview failed"
             );
             let mut retry_delay = std::time::Duration::from_millis(100);
             loop {
-                match complete_deployment_preview_failure(&task_state, &task_change_set_id).await {
+                match complete_workload_preview_failure(&task_state, &task_change_set_id).await {
                     Ok(()) => break,
                     Err(persist_error) => {
                         tracing::warn!(
                             installation_id = %task_installation_id,
                             change_set_id = %task_change_set_id,
                             error = %persist_error,
-                            "failed to persist deployment preview failure; retrying while Host lease remains active"
+                            "failed to persist workload preview failure; retrying while Host lease remains active"
                         );
                         if verify_development_host_lease(
                             task_state.runtime.store().as_ref(),
@@ -1669,11 +1666,11 @@ where
     Ok((StatusCode::ACCEPTED, Json(record)))
 }
 
-async fn approve_deployment<S>(
+async fn approve_workload<S>(
     State(state): State<AppState<S>>,
     Extension(identity): Extension<HostAccessIdentity>,
     Path((subject_kind, subject_id, change_set_id)): Path<(String, String, String)>,
-    Json(request): Json<DevelopmentDeploymentApprovalRequest>,
+    Json(request): Json<DevelopmentWorkloadApprovalRequest>,
 ) -> Result<Json<DevelopmentChangeRecord>, ServiceError>
 where
     S: EventStore,
@@ -1682,7 +1679,7 @@ where
     let subject = parse_development_subject(&subject_kind, &subject_id)?;
     require_identity_subject(&identity, &subject)?;
     if let Some(reason) = request.reason.as_deref() {
-        validate_short_text(reason, "deployment approval reason", 2048)?;
+        validate_short_text(reason, "workload approval reason", 2048)?;
     }
 
     let record = {
@@ -1693,34 +1690,34 @@ where
     };
     let installation_id = require_target_installation(&record)?.clone();
     require_identity_installation(&identity, installation_id.as_str())?;
-    let deployment = record.deployment.clone().ok_or_else(|| {
+    let workload = record.workload.clone().ok_or_else(|| {
         ServiceError::with_status(
             StatusCode::CONFLICT,
-            "development change has no deployment preview",
+            "development change has no workload preview",
         )
     })?;
-    require_identity_target(&identity, &deployment.target_id)?;
-    match (deployment.status, request.approved) {
-        (DevelopmentDeploymentStatus::Approved, true)
-        | (DevelopmentDeploymentStatus::Rejected, false) => return Ok(Json(record)),
-        (DevelopmentDeploymentStatus::PreviewReady, _) => {}
+    require_identity_target(&identity, &workload.target_id)?;
+    match (workload.status, request.approved) {
+        (DevelopmentWorkloadStatus::Approved, true)
+        | (DevelopmentWorkloadStatus::Rejected, false) => return Ok(Json(record)),
+        (DevelopmentWorkloadStatus::PreviewReady, _) => {}
         _ => {
             return Err(ServiceError::with_status(
                 StatusCode::CONFLICT,
-                "deployment can only be approved or rejected from preview-ready state",
+                "workload can only be approved or rejected from preview-ready state",
             ));
         }
     }
-    let preview_ref = deployment.preview_ref.clone().ok_or_else(|| {
+    let preview_ref = workload.preview_ref.clone().ok_or_else(|| {
         ServiceError::with_status(
             StatusCode::CONFLICT,
-            "deployment preview has no durable evidence",
+            "workload preview has no durable evidence",
         )
     })?;
-    if deployment.preview.is_none() {
+    if workload.preview.is_none() {
         return Err(ServiceError::with_status(
             StatusCode::CONFLICT,
-            "deployment preview has no ready candidate",
+            "workload preview has no ready candidate",
         ));
     }
 
@@ -1734,7 +1731,7 @@ where
             .map_err(|error| ServiceError::with_status(StatusCode::CONFLICT, error.to_string()))?;
         Some((
             permit,
-            BuildDeployInstallationGuard {
+            BuildWorkloadInstallationGuard {
                 registry: state.build_jobs.clone(),
                 installation_id: installation_id.clone(),
             },
@@ -1748,16 +1745,13 @@ where
     let decision = PolicyDecision {
         id: format!("decision-{}", uuid::Uuid::new_v4().simple()),
         decision_type_uri: plurora_core::POLICY_DECISION_TYPE_URI.to_string(),
-        change_set_id: format!(
-            "{}:deployment:{}",
-            record.change_set.id, deployment.deployment_id
-        ),
+        change_set_id: format!("{}:workload:{}", record.change_set.id, workload.workload_id),
         outcome,
         principal: PrincipalIdentity::HostAdmin,
         reason: request.reason,
         evaluated_authority: vec![
-            "host.installation.deploy".to_string(),
-            format!("host.target.{}", deployment.target_id),
+            "host.installation.workload".to_string(),
+            format!("host.target.{}", workload.target_id),
         ],
         decided_at: Utc::now(),
         policy_ref: None,
@@ -1768,62 +1762,62 @@ where
         &decision,
         vec![
             preview_ref.digest.clone(),
-            deployment.verification_ref.digest.clone(),
-            deployment.build_context_ref.digest.clone(),
-            deployment.authority_ref.digest.clone(),
+            workload.verification_ref.digest.clone(),
+            workload.build_context_ref.digest.clone(),
+            workload.authority_ref.digest.clone(),
         ],
         BTreeMap::from([
-            ("role".to_string(), json!("explicit_deployment_approval")),
+            ("role".to_string(), json!("explicit_workload_approval")),
             (
                 "installation_id".to_string(),
                 json!(installation_id.as_str()),
             ),
             ("change_set_id".to_string(), json!(change_set_id)),
-            ("deployment_id".to_string(), json!(deployment.deployment_id)),
-            ("target_id".to_string(), json!(deployment.target_id)),
+            ("workload_id".to_string(), json!(workload.workload_id)),
+            ("target_id".to_string(), json!(workload.target_id)),
         ]),
     )
     .await
     .map_err(|error| {
-        internal_development_error("failed to store deployment approval decision", error)
+        internal_development_error("failed to store workload approval decision", error)
     })?;
-    let mut updated = update_deployment_record(&state, &change_set_id, |current| {
+    let mut updated = update_workload_record(&state, &change_set_id, |current| {
         anyhow::ensure!(
-            current.deployment_id == deployment.deployment_id
-                && current.status == DevelopmentDeploymentStatus::PreviewReady,
-            "deployment preview changed before approval persistence"
+            current.workload_id == workload.workload_id
+                && current.status == DevelopmentWorkloadStatus::PreviewReady,
+            "workload preview changed before approval persistence"
         );
         current.approval_decision = Some(decision);
         current.approval_ref = Some(approval_ref);
         current.status = if request.approved {
-            DevelopmentDeploymentStatus::Approved
+            DevelopmentWorkloadStatus::Approved
         } else {
-            DevelopmentDeploymentStatus::Rejected
+            DevelopmentWorkloadStatus::Rejected
         };
         current.error = None;
         Ok(())
     })
     .await
     .map_err(|error| {
-        development_persistence_error("failed to persist deployment approval decision", error)
+        development_persistence_error("failed to persist workload approval decision", error)
     })?;
 
     if !request.approved {
         let cleanup_complete =
-            match stop_completed_preview_candidate(&state, &installation_id, &deployment).await {
-                Ok(true) => cleanup_preview_host_resources(&state, &deployment)
+            match stop_completed_preview_candidate(&state, &installation_id, &workload).await {
+                Ok(true) => cleanup_preview_host_resources(&state, &workload)
                     .await
                     .unwrap_or(false),
                 Ok(false) | Err(_) => false,
             };
         if !cleanup_complete {
-            updated = update_deployment_record(&state, &change_set_id, |current| {
-                if current.deployment_id == deployment.deployment_id
-                    && current.status == DevelopmentDeploymentStatus::Rejected
+            updated = update_workload_record(&state, &change_set_id, |current| {
+                if current.workload_id == workload.workload_id
+                    && current.status == DevelopmentWorkloadStatus::Rejected
                 {
-                    current.status = DevelopmentDeploymentStatus::RecoveryRequired;
+                    current.status = DevelopmentWorkloadStatus::RecoveryRequired;
                     current.error = Some(
-                        "rejected deployment cleanup requires explicit reconciliation; details redacted"
+                        "rejected workload cleanup requires explicit reconciliation; details redacted"
                             .to_string(),
                     );
                 }
@@ -1832,7 +1826,7 @@ where
             .await
             .map_err(|error| {
                 development_persistence_error(
-                    "failed to persist rejected deployment cleanup state",
+                    "failed to persist rejected workload cleanup state",
                     error,
                 )
             })?;
@@ -1842,7 +1836,7 @@ where
     Ok(Json(updated))
 }
 
-async fn activate_deployment<S>(
+async fn activate_workload<S>(
     State(state): State<AppState<S>>,
     Extension(identity): Extension<HostAccessIdentity>,
     Path((subject_kind, subject_id, change_set_id)): Path<(String, String, String)>,
@@ -1861,111 +1855,109 @@ where
     };
     let installation_id = require_target_installation(&record)?.clone();
     require_identity_installation(&identity, installation_id.as_str())?;
-    let deployment = record.deployment.clone().ok_or_else(|| {
+    let workload = record.workload.clone().ok_or_else(|| {
         ServiceError::with_status(
             StatusCode::CONFLICT,
-            "development change has no deployment preview",
+            "development change has no workload preview",
         )
     })?;
-    require_identity_target(&identity, &deployment.target_id)?;
-    if deployment.status == DevelopmentDeploymentStatus::Active {
+    require_identity_target(&identity, &workload.target_id)?;
+    if workload.status == DevelopmentWorkloadStatus::Active {
         return Ok(Json(record));
     }
-    if deployment.status != DevelopmentDeploymentStatus::Approved
-        || deployment
+    if workload.status != DevelopmentWorkloadStatus::Approved
+        || workload
             .approval_decision
             .as_ref()
             .is_none_or(|decision| decision.outcome != PolicyDecisionOutcome::Allowed)
     {
         return Err(ServiceError::with_status(
             StatusCode::CONFLICT,
-            "deployment requires an explicit approval before activation",
+            "workload requires an explicit approval before activation",
         ));
     }
-    let preview = deployment.preview.clone().ok_or_else(|| {
-        ServiceError::with_status(StatusCode::CONFLICT, "deployment has no preview candidate")
+    let preview = workload.preview.clone().ok_or_else(|| {
+        ServiceError::with_status(StatusCode::CONFLICT, "workload has no preview candidate")
     })?;
-    let preview_ref = deployment.preview_ref.clone().ok_or_else(|| {
+    let preview_ref = workload.preview_ref.clone().ok_or_else(|| {
         ServiceError::with_status(
             StatusCode::CONFLICT,
-            "deployment preview has no durable evidence",
+            "workload preview has no durable evidence",
         )
     })?;
-    let approval_ref = deployment.approval_ref.clone().ok_or_else(|| {
+    let approval_ref = workload.approval_ref.clone().ok_or_else(|| {
         ServiceError::with_status(
             StatusCode::CONFLICT,
-            "deployment approval has no durable evidence",
+            "workload approval has no durable evidence",
         )
     })?;
-    verify_deployment_artifact_content(state.runtime.as_ref(), &deployment.verification_ref)
-        .await?;
-    verify_deployment_artifact_content(state.runtime.as_ref(), &deployment.build_context_ref)
-        .await?;
-    let (evidence_deployment_id, evidence_preview, evidence_authority_ref) =
+    verify_workload_artifact_content(state.runtime.as_ref(), &workload.verification_ref).await?;
+    verify_workload_artifact_content(state.runtime.as_ref(), &workload.build_context_ref).await?;
+    let (evidence_workload_id, evidence_preview, evidence_authority_ref) =
         read_verified_preview_evidence(
             state.runtime.as_ref(),
             &preview_ref,
             &installation_id,
             &change_set_id,
-            &deployment.target_id,
-            &deployment.source_tree_digest,
-            &deployment.verification_ref,
-            &deployment.build_context_ref,
+            &workload.target_id,
+            &workload.source_tree_digest,
+            &workload.verification_ref,
+            &workload.build_context_ref,
         )
         .await
         .map_err(|error| {
-            tracing::warn!(installation_id = %installation_id, change_set_id, error = %error, "deployment preview artifact validation failed");
+            tracing::warn!(installation_id = %installation_id, change_set_id, error = %error, "workload preview artifact validation failed");
             ServiceError::with_status(
                 StatusCode::CONFLICT,
-                "deployment preview evidence is incomplete or inconsistent",
+                "workload preview evidence is incomplete or inconsistent",
             )
         })?;
-    let evidence_decision = read_verified_deployment_approval(
+    let evidence_decision = read_verified_workload_approval(
         state.runtime.as_ref(),
         &approval_ref,
         &preview_ref,
-        &deployment.verification_ref,
-        &deployment.build_context_ref,
+        &workload.verification_ref,
+        &workload.build_context_ref,
         &evidence_authority_ref,
         &installation_id,
         &change_set_id,
-        &evidence_deployment_id,
-        &deployment.target_id,
+        &evidence_workload_id,
+        &workload.target_id,
     )
     .await
     .map_err(|error| {
-        tracing::warn!(installation_id = %installation_id, change_set_id, error = %error, "deployment approval artifact validation failed");
+        tracing::warn!(installation_id = %installation_id, change_set_id, error = %error, "workload approval artifact validation failed");
         ServiceError::with_status(
             StatusCode::CONFLICT,
-            "deployment approval evidence is incomplete or inconsistent",
+            "workload approval evidence is incomplete or inconsistent",
         )
     })?;
-    if evidence_deployment_id != deployment.deployment_id
+    if evidence_workload_id != workload.workload_id
         || evidence_preview != preview
-        || evidence_authority_ref != deployment.authority_ref
-        || deployment.approval_decision.as_ref() != Some(&evidence_decision)
+        || evidence_authority_ref != workload.authority_ref
+        || workload.approval_decision.as_ref() != Some(&evidence_decision)
     {
         return Err(ServiceError::with_status(
             StatusCode::CONFLICT,
-            "deployment approval is not bound to the ready preview candidate",
+            "workload approval is not bound to the ready preview candidate",
         ));
     }
-    validate_preview_target_operations(&state, &installation_id, &deployment, &preview).map_err(
+    validate_preview_target_operations(&state, &installation_id, &workload, &preview).map_err(
         |error| {
-            tracing::warn!(installation_id = %installation_id, change_set_id, error = %error, "deployment preview evidence validation failed");
+            tracing::warn!(installation_id = %installation_id, change_set_id, error = %error, "workload preview evidence validation failed");
             ServiceError::with_status(
                 StatusCode::CONFLICT,
-                "deployment preview evidence is incomplete or inconsistent",
+                "workload preview evidence is incomplete or inconsistent",
             )
         },
     )?;
-    ensure_preview_route_ready(&state, &deployment, &preview)
+    ensure_preview_route_ready(&state, &workload, &preview)
         .await
         .map_err(|error| {
-            tracing::warn!(installation_id = %installation_id, change_set_id, error = %error, "deployment preview readiness validation failed");
+            tracing::warn!(installation_id = %installation_id, change_set_id, error = %error, "workload preview readiness validation failed");
             ServiceError::with_status(
                 StatusCode::CONFLICT,
-                "deployment preview is no longer ready",
+                "workload preview is no longer ready",
             )
         })?;
 
@@ -1974,74 +1966,71 @@ where
         .acquire_installation_operation(&installation_id)
         .await
         .map_err(|error| ServiceError::with_status(StatusCode::CONFLICT, error.to_string()))?;
-    let _installation_guard = BuildDeployInstallationGuard {
+    let _installation_guard = BuildWorkloadInstallationGuard {
         registry: state.build_jobs.clone(),
         installation_id: installation_id.clone(),
     };
     let _permit = permit;
     state
         .build_jobs
-        .ensure_route_available_for_installation(&deployment.route_id, &installation_id)
+        .ensure_route_available_for_installation(&workload.route_id, &installation_id)
         .map_err(|error| ServiceError::with_status(StatusCode::CONFLICT, error.to_string()))?;
     if state
         .target_agents
-        .installation_for_operation_route(&deployment.route_id)
+        .installation_for_operation_route(&workload.route_id)
         .is_some_and(|owner| owner != installation_id)
     {
         return Err(ServiceError::with_status(
             StatusCode::CONFLICT,
-            "deployment route is owned by another installation",
+            "workload route is owned by another installation",
         ));
     }
-    let authority = DeploymentAuthorityLease::from_identity(
+    let authority = WorkloadAuthorityLease::from_identity(
         format!("dop-{}", uuid::Uuid::new_v4().simple()),
-        deployment.target_id.clone(),
+        workload.target_id.clone(),
         &identity,
     );
-    let activation_context = deployment_effect_context(
+    let activation_context = workload_effect_context(
         &state,
         Some(&authority),
         &installation_id,
-        "host_development_deployment_activate",
+        "host_development_workload_activate",
     )
     .await
     .map_err(|error| {
-        tracing::warn!(installation_id = %installation_id, change_set_id, error = %error, "deployment activation authority validation failed");
+        tracing::warn!(installation_id = %installation_id, change_set_id, error = %error, "workload activation authority validation failed");
         ServiceError::with_status(
             StatusCode::FORBIDDEN,
-            "deployment authority is no longer valid for the selected installation and target",
+            "workload authority is no longer valid for the selected installation and target",
         )
     })?;
-    ensure_preview_route_ready(&state, &deployment, &preview)
+    ensure_preview_route_ready(&state, &workload, &preview)
         .await
         .map_err(|_| {
-            ServiceError::with_status(
-                StatusCode::CONFLICT,
-                "deployment preview is no longer ready",
-            )
+            ServiceError::with_status(StatusCode::CONFLICT, "workload preview is no longer ready")
         })?;
     let previous_revision = state.build_jobs.active_revision(&installation_id);
     let previous_route = state
         .runtime
         .config()
         .proxy_route_registry
-        .status(&deployment.route_id)
+        .status(&workload.route_id)
         .await
         .filter(|route| route.status != plurora_runtime::ProxyRouteStatusKind::Removed);
-    update_deployment_record(&state, &change_set_id, |current| {
+    update_workload_record(&state, &change_set_id, |current| {
         anyhow::ensure!(
-            current.deployment_id == deployment.deployment_id
-                && current.status == DevelopmentDeploymentStatus::Approved
+            current.workload_id == workload.workload_id
+                && current.status == DevelopmentWorkloadStatus::Approved
                 && current.approval_ref.as_ref() == Some(&approval_ref),
-            "deployment approval changed before activation"
+            "workload approval changed before activation"
         );
-        current.status = DevelopmentDeploymentStatus::Activating;
+        current.status = DevelopmentWorkloadStatus::Activating;
         current.error = None;
         Ok(())
     })
     .await
     .map_err(|error| {
-        development_persistence_error("failed to persist deployment activation start", error)
+        development_persistence_error("failed to persist workload activation start", error)
     })?;
 
     let mut revision_committed = false;
@@ -2052,25 +2041,25 @@ where
                 &activation_context,
                 "host.proxy.register",
                 json!({
-                    "route_id": deployment.route_id,
+                    "route_id": workload.route_id,
                     "protocol": "http",
-                    "access": deployment.route_access,
+                    "access": workload.route_access,
                     "upstream": {
                         "port_lease_id": preview.port_lease_id,
-                        "port_name": deployment.port_name,
+                        "port_name": workload.port_name,
                     },
                 }),
             )
             .await
             .and_then(|value| value_field(value, "route", "host.proxy.register"))?;
-            let route_id = required_string(&route, "id", "deployment activation route")?;
+            let route_id = required_string(&route, "id", "workload activation route")?;
             anyhow::ensure!(
-                route_id == deployment.route_id,
-                "deployment route identity changed during activation"
+                route_id == workload.route_id,
+                "workload route identity changed during activation"
             );
             let fallback_public_url =
-                required_string(&route, "public_url", "deployment activation route")?;
-            ensure_preview_route_ready(&state, &deployment, &preview).await?;
+                required_string(&route, "public_url", "workload activation route")?;
+            ensure_preview_route_ready(&state, &workload, &preview).await?;
             anyhow::ensure!(
                 state
                     .runtime
@@ -2079,87 +2068,89 @@ where
                     .set_ready_if_active_with_lease(&route_id, &preview.port_lease_id, true)
                     .await
                     .is_some(),
-                "deployment route changed before readiness promotion"
+                "workload route changed before readiness promotion"
             );
             let public_url = service_public_url_for_route(
                 &state,
                 &route_id,
                 &fallback_public_url,
-                deployment.route_access,
+                workload.route_access,
             );
-            let receipt = HostBuildDeployResponse {
-                workspace_id: record.subject.workspace_id().cloned().ok_or_else(|| {
-                    anyhow::anyhow!("verified deployment has no workspace subject")
-                })?,
-                route_id: route_id.clone(),
-                public_url,
-                route_access: deployment.route_access,
-                port_lease_id: preview.port_lease_id.clone(),
-                container_id: preview.container_id.clone(),
-                container_name: preview.container_name.clone(),
-                image: preview.image_id.clone(),
-                build_id: deployment.build_id.clone(),
-                source_commit: deployment.source_tree_digest.clone(),
-                build_descriptor_hash: deployment.build_descriptor_hash.clone(),
-                strategy: "verified_artifact".to_string(),
-                runtime_env: Vec::new(),
-                runtime_mounts: Vec::new(),
-                warnings: Vec::new(),
-            };
-            let revision = DeploymentRevision {
-                revision_id: format!(
-                    "drv-{}-{}",
-                    now_millis(),
-                    &uuid::Uuid::new_v4().simple().to_string()[..12]
-                ),
-                installation_id: installation_id.clone(),
-                workspace_id: record.subject.workspace_id().cloned().ok_or_else(|| {
-                    anyhow::anyhow!("verified deployment has no workspace subject")
-                })?,
-                job_id: None,
-                operation: DeploymentOperation::VerifiedActivate,
-                parent_revision_id: previous_revision
-                    .as_ref()
-                    .map(|revision| revision.revision_id.clone()),
-                created_at_ms: now_millis(),
-                target_id: deployment.target_id.clone(),
-                source_kind: DeploymentSourceKind::VerifiedArtifact,
-                source_url: format!("artifact:{}", deployment.build_context_ref.digest),
-                ref_name: change_set_id.clone(),
-                dockerfile: Some(deployment.dockerfile.clone()),
-                container_port: deployment.container_port,
-                port_name: deployment.port_name.clone(),
-                route_id,
-                route_access: deployment.route_access,
-                health_path: deployment.health_path.clone(),
-                image: preview.image_id.clone(),
-                build_id: deployment.build_id.clone(),
-                source_commit: deployment.source_tree_digest.clone(),
-                build_descriptor_hash: deployment.build_descriptor_hash.clone(),
-                strategy: "verified_artifact".to_string(),
-                runtime_env: Vec::new(),
-                verified_change_set_id: Some(change_set_id.clone()),
-                verification_ref: Some(deployment.verification_ref.clone()),
-                build_context_ref: Some(deployment.build_context_ref.clone()),
-                preview_ref: Some(preview_ref.clone()),
-                approval_ref: Some(approval_ref.clone()),
-                verified_build_network_mode: Some(development_target_network_mode(
-                    deployment.network_mode,
-                )),
-                target_deployment: Some(preview.deployment.clone()),
-                recoverable: true,
-                recovery_blockers: Vec::new(),
-                receipt,
-            };
+            let receipt =
+                HostBuildWorkloadResponse {
+                    workspace_id: record.subject.workspace_id().cloned().ok_or_else(|| {
+                        anyhow::anyhow!("verified workload has no workspace subject")
+                    })?,
+                    route_id: route_id.clone(),
+                    public_url,
+                    route_access: workload.route_access,
+                    port_lease_id: preview.port_lease_id.clone(),
+                    container_id: preview.container_id.clone(),
+                    container_name: preview.container_name.clone(),
+                    image: preview.image_id.clone(),
+                    build_id: workload.build_id.clone(),
+                    source_commit: workload.source_tree_digest.clone(),
+                    build_descriptor_hash: workload.build_descriptor_hash.clone(),
+                    strategy: "verified_artifact".to_string(),
+                    runtime_env: Vec::new(),
+                    runtime_mounts: Vec::new(),
+                    warnings: Vec::new(),
+                };
+            let revision =
+                WorkloadRevision {
+                    revision_id: format!(
+                        "drv-{}-{}",
+                        now_millis(),
+                        &uuid::Uuid::new_v4().simple().to_string()[..12]
+                    ),
+                    installation_id: installation_id.clone(),
+                    workspace_id: record.subject.workspace_id().cloned().ok_or_else(|| {
+                        anyhow::anyhow!("verified workload has no workspace subject")
+                    })?,
+                    job_id: None,
+                    operation: WorkloadOperation::VerifiedActivate,
+                    parent_revision_id: previous_revision
+                        .as_ref()
+                        .map(|revision| revision.revision_id.clone()),
+                    created_at_ms: now_millis(),
+                    target_id: workload.target_id.clone(),
+                    source_kind: WorkloadSourceKind::VerifiedArtifact,
+                    source_url: format!("artifact:{}", workload.build_context_ref.digest),
+                    ref_name: change_set_id.clone(),
+                    dockerfile: Some(workload.dockerfile.clone()),
+                    container_port: workload.container_port,
+                    port_name: workload.port_name.clone(),
+                    route_id,
+                    route_access: workload.route_access,
+                    health_path: workload.health_path.clone(),
+                    image: preview.image_id.clone(),
+                    build_id: workload.build_id.clone(),
+                    source_commit: workload.source_tree_digest.clone(),
+                    build_descriptor_hash: workload.build_descriptor_hash.clone(),
+                    strategy: "verified_artifact".to_string(),
+                    runtime_env: Vec::new(),
+                    verified_change_set_id: Some(change_set_id.clone()),
+                    verification_ref: Some(workload.verification_ref.clone()),
+                    build_context_ref: Some(workload.build_context_ref.clone()),
+                    preview_ref: Some(preview_ref.clone()),
+                    approval_ref: Some(approval_ref.clone()),
+                    verified_build_network_mode: Some(development_target_network_mode(
+                        workload.network_mode,
+                    )),
+                    target_workload: Some(preview.workload.clone()),
+                    recoverable: true,
+                    recovery_blockers: Vec::new(),
+                    receipt,
+                };
             persist_revision_activation(&state, &revision, None, Some(authority.clone())).await?;
             revision_committed = true;
-            let updated = update_deployment_record(&state, &change_set_id, |current| {
+            let updated = update_workload_record(&state, &change_set_id, |current| {
                 anyhow::ensure!(
-                    current.deployment_id == deployment.deployment_id
-                        && current.status == DevelopmentDeploymentStatus::Activating,
-                    "deployment changed before activation persistence"
+                    current.workload_id == workload.workload_id
+                        && current.status == DevelopmentWorkloadStatus::Activating,
+                    "workload changed before activation persistence"
                 );
-                current.status = DevelopmentDeploymentStatus::Active;
+                current.status = DevelopmentWorkloadStatus::Active;
                 current.activation_revision_id = Some(revision.revision_id.clone());
                 current.previous_revision_id = previous_revision
                     .as_ref()
@@ -2176,33 +2167,33 @@ where
         Ok((updated, revision)) => {
             if let Some(previous) = previous_revision.as_ref() {
                 for warning in drain_previous_revision(&state, previous, &revision.route_id).await {
-                    tracing::warn!(installation_id = %installation_id, revision_id = %previous.revision_id, warning, "previous deployment revision cleanup incomplete");
+                    tracing::warn!(installation_id = %installation_id, revision_id = %previous.revision_id, warning, "previous workload revision cleanup incomplete");
                 }
             }
             Ok(Json(updated))
         }
         Err(error) => {
-            tracing::warn!(installation_id = %installation_id, change_set_id, error = %error, revision_committed, "development deployment activation failed");
+            tracing::warn!(installation_id = %installation_id, change_set_id, error = %error, revision_committed, "development workload activation failed");
             if revision_committed {
                 if let Some(active) =
                     state
                         .build_jobs
                         .active_revision(&installation_id)
                         .filter(|active| {
-                            active.operation == DeploymentOperation::VerifiedActivate
+                            active.operation == WorkloadOperation::VerifiedActivate
                                 && active.verified_change_set_id.as_deref()
                                     == Some(change_set_id.as_str())
-                                && active.target_deployment.as_ref() == Some(&preview.deployment)
+                                && active.target_workload.as_ref() == Some(&preview.workload)
                                 && active.receipt.port_lease_id == preview.port_lease_id
                         })
                 {
-                    match update_deployment_record(&state, &change_set_id, |current| {
+                    match update_workload_record(&state, &change_set_id, |current| {
                         anyhow::ensure!(
-                            current.deployment_id == deployment.deployment_id
-                                && current.status == DevelopmentDeploymentStatus::Activating,
-                            "deployment changed after durable activation"
+                            current.workload_id == workload.workload_id
+                                && current.status == DevelopmentWorkloadStatus::Activating,
+                            "workload changed after durable activation"
                         );
-                        current.status = DevelopmentDeploymentStatus::Active;
+                        current.status = DevelopmentWorkloadStatus::Active;
                         current.activation_revision_id = Some(active.revision_id.clone());
                         current.previous_revision_id = previous_revision
                             .as_ref()
@@ -2218,7 +2209,7 @@ where
                                     drain_previous_revision(&state, previous, &active.route_id)
                                         .await
                                 {
-                                    tracing::warn!(installation_id = %installation_id, revision_id = %previous.revision_id, warning, "previous deployment revision cleanup incomplete");
+                                    tracing::warn!(installation_id = %installation_id, revision_id = %previous.revision_id, warning, "previous workload revision cleanup incomplete");
                                 }
                             }
                             return Ok(Json(updated));
@@ -2229,27 +2220,27 @@ where
                     }
                 }
             } else {
-                let compensated = compensate_deployment_activation_route(
+                let compensated = compensate_workload_activation_route(
                     &state,
-                    &deployment,
+                    &workload,
                     &preview,
                     previous_route.as_ref(),
                 )
                 .await;
-                if let Err(persist_error) = update_deployment_record(
+                if let Err(persist_error) = update_workload_record(
                     &state,
                     &change_set_id,
                     |current| {
-                        if current.deployment_id == deployment.deployment_id
-                            && current.status == DevelopmentDeploymentStatus::Activating
+                        if current.workload_id == workload.workload_id
+                            && current.status == DevelopmentWorkloadStatus::Activating
                         {
                             current.status = if compensated {
-                                DevelopmentDeploymentStatus::Approved
+                                DevelopmentWorkloadStatus::Approved
                             } else {
-                                DevelopmentDeploymentStatus::RecoveryRequired
+                                DevelopmentWorkloadStatus::RecoveryRequired
                             };
                             current.error = (!compensated).then(|| {
-                                "deployment activation requires explicit reconciliation; details redacted"
+                                "workload activation requires explicit reconciliation; details redacted"
                                     .to_string()
                             });
                         }
@@ -2258,18 +2249,18 @@ where
                 )
                 .await
                 {
-                    tracing::warn!(installation_id = %installation_id, change_set_id, error = %persist_error, "failed to persist deployment activation compensation state");
+                    tracing::warn!(installation_id = %installation_id, change_set_id, error = %persist_error, "failed to persist workload activation compensation state");
                 }
             }
             Err(ServiceError::with_status(
                 StatusCode::INTERNAL_SERVER_ERROR,
-                "deployment activation failed; details redacted",
+                "workload activation failed; details redacted",
             ))
         }
     }
 }
 
-async fn reconcile_deployment<S>(
+async fn reconcile_workload<S>(
     State(state): State<AppState<S>>,
     Extension(identity): Extension<HostAccessIdentity>,
     Path((subject_kind, subject_id, change_set_id)): Path<(String, String, String)>,
@@ -2284,37 +2275,37 @@ where
     let initial = change_for_subject(&state, &subject, &change_set_id)?;
     let installation_id = require_target_installation(&initial)?.clone();
     require_identity_installation(&identity, installation_id.as_str())?;
-    let initial_deployment = initial.deployment.as_ref().ok_or_else(|| {
+    let initial_workload = initial.workload.as_ref().ok_or_else(|| {
         ServiceError::with_status(
             StatusCode::CONFLICT,
-            "development change has no deployment to reconcile",
+            "development change has no workload to reconcile",
         )
     })?;
-    require_identity_target(&identity, &initial_deployment.target_id)?;
-    if initial_deployment.status != DevelopmentDeploymentStatus::RecoveryRequired {
+    require_identity_target(&identity, &initial_workload.target_id)?;
+    if initial_workload.status != DevelopmentWorkloadStatus::RecoveryRequired {
         if matches!(
-            initial_deployment.status,
-            DevelopmentDeploymentStatus::Approved
-                | DevelopmentDeploymentStatus::Rejected
-                | DevelopmentDeploymentStatus::Active
-                | DevelopmentDeploymentStatus::Failed
+            initial_workload.status,
+            DevelopmentWorkloadStatus::Approved
+                | DevelopmentWorkloadStatus::Rejected
+                | DevelopmentWorkloadStatus::Active
+                | DevelopmentWorkloadStatus::Failed
         ) {
             return Ok(Json(initial));
         }
         return Err(ServiceError::with_status(
             StatusCode::CONFLICT,
-            "development deployment does not require reconciliation",
+            "development workload does not require reconciliation",
         ));
     }
-    let initial_deployment_id = initial_deployment.deployment_id.clone();
-    let initial_target_id = initial_deployment.target_id.clone();
+    let initial_workload_id = initial_workload.workload_id.clone();
+    let initial_target_id = initial_workload.target_id.clone();
 
     let permit = state
         .build_jobs
         .acquire_installation_operation(&installation_id)
         .await
         .map_err(|error| ServiceError::with_status(StatusCode::CONFLICT, error.to_string()))?;
-    let _installation_guard = BuildDeployInstallationGuard {
+    let _installation_guard = BuildWorkloadInstallationGuard {
         registry: state.build_jobs.clone(),
         installation_id: installation_id.clone(),
     };
@@ -2322,68 +2313,66 @@ where
 
     refresh_development_subject(&state, &subject).await?;
     let record = change_for_subject(&state, &subject, &change_set_id)?;
-    let deployment = record.deployment.clone().ok_or_else(|| {
+    let workload = record.workload.clone().ok_or_else(|| {
         ServiceError::with_status(
             StatusCode::CONFLICT,
-            "development deployment disappeared during reconciliation",
+            "development workload disappeared during reconciliation",
         )
     })?;
-    if deployment.deployment_id != initial_deployment_id
-        || deployment.target_id != initial_target_id
-    {
+    if workload.workload_id != initial_workload_id || workload.target_id != initial_target_id {
         return Err(ServiceError::with_status(
             StatusCode::CONFLICT,
-            "development deployment changed before reconciliation began",
+            "development workload changed before reconciliation began",
         ));
     }
-    if deployment.status != DevelopmentDeploymentStatus::RecoveryRequired {
+    if workload.status != DevelopmentWorkloadStatus::RecoveryRequired {
         if matches!(
-            deployment.status,
-            DevelopmentDeploymentStatus::Approved
-                | DevelopmentDeploymentStatus::Rejected
-                | DevelopmentDeploymentStatus::Active
-                | DevelopmentDeploymentStatus::Failed
+            workload.status,
+            DevelopmentWorkloadStatus::Approved
+                | DevelopmentWorkloadStatus::Rejected
+                | DevelopmentWorkloadStatus::Active
+                | DevelopmentWorkloadStatus::Failed
         ) {
             return Ok(Json(record));
         }
         return Err(ServiceError::with_status(
             StatusCode::CONFLICT,
-            "development deployment changed before reconciliation began",
+            "development workload changed before reconciliation began",
         ));
     }
 
-    let authority = DeploymentAuthorityLease::from_identity(
+    let authority = WorkloadAuthorityLease::from_identity(
         format!("dop-{}", uuid::Uuid::new_v4().simple()),
-        deployment.target_id.clone(),
+        workload.target_id.clone(),
         &identity,
     );
-    deployment_effect_context(
+    workload_effect_context(
         &state,
         Some(&authority),
         &installation_id,
-        "host_development_deployment_reconcile",
+        "host_development_workload_reconcile",
     )
     .await
     .map_err(|error| {
-        tracing::warn!(installation_id = %installation_id, change_set_id, error = %error, "deployment reconciliation authority validation failed");
+        tracing::warn!(installation_id = %installation_id, change_set_id, error = %error, "workload reconciliation authority validation failed");
         ServiceError::with_status(
             StatusCode::FORBIDDEN,
-            "deployment reconciliation authority is no longer valid",
+            "workload reconciliation authority is no longer valid",
         )
     })?;
 
     let active_revision = state.build_jobs.active_revision(&installation_id);
     if let Some(active) = active_revision
         .as_ref()
-        .filter(|active| verified_activation_matches_deployment(active, &record, &deployment))
+        .filter(|active| verified_activation_matches_workload(active, &record, &workload))
     {
-        let updated = update_deployment_record(&state, &change_set_id, |current| {
+        let updated = update_workload_record(&state, &change_set_id, |current| {
             anyhow::ensure!(
-                current.deployment_id == deployment.deployment_id
-                    && current.status == DevelopmentDeploymentStatus::RecoveryRequired,
-                "deployment changed before durable activation adoption"
+                current.workload_id == workload.workload_id
+                    && current.status == DevelopmentWorkloadStatus::RecoveryRequired,
+                "workload changed before durable activation adoption"
             );
-            current.status = DevelopmentDeploymentStatus::Active;
+            current.status = DevelopmentWorkloadStatus::Active;
             current.activation_revision_id = Some(active.revision_id.clone());
             current.previous_revision_id = active.parent_revision_id.clone();
             current.error = None;
@@ -2391,10 +2380,7 @@ where
         })
         .await
         .map_err(|error| {
-            development_persistence_error(
-                "failed to adopt the durable deployment activation",
-                error,
-            )
+            development_persistence_error("failed to adopt the durable workload activation", error)
         })?;
         if let Some(previous) = active
             .parent_revision_id
@@ -2402,14 +2388,14 @@ where
             .and_then(|revision_id| state.build_jobs.revision(&installation_id, revision_id))
         {
             for warning in drain_previous_revision(&state, &previous, &active.route_id).await {
-                tracing::warn!(installation_id = %installation_id, revision_id = %previous.revision_id, warning, "previous deployment revision cleanup incomplete after reconciliation");
+                tracing::warn!(installation_id = %installation_id, revision_id = %previous.revision_id, warning, "previous workload revision cleanup incomplete after reconciliation");
             }
         }
         return Ok(Json(updated));
     }
     if active_revision
         .as_ref()
-        .is_some_and(|active| durable_revision_claims_deployment_candidate(active, &deployment))
+        .is_some_and(|active| durable_revision_claims_workload_candidate(active, &workload))
     {
         return Err(ServiceError::with_status(
             StatusCode::CONFLICT,
@@ -2417,20 +2403,20 @@ where
         ));
     }
 
-    if deployment
+    if workload
         .approval_decision
         .as_ref()
         .is_some_and(|decision| decision.outcome == PolicyDecisionOutcome::Allowed)
     {
-        let preview = deployment.preview.as_ref().ok_or_else(|| {
+        let preview = workload.preview.as_ref().ok_or_else(|| {
             ServiceError::with_status(
                 StatusCode::CONFLICT,
-                "approved deployment reconciliation has no candidate receipt",
+                "approved workload reconciliation has no candidate receipt",
             )
         })?;
         let previous_route = active_revision
             .as_ref()
-            .filter(|previous| previous.route_id == deployment.route_id)
+            .filter(|previous| previous.route_id == workload.route_id)
             .map(|previous| {
                 (
                     previous.receipt.port_lease_id.as_str(),
@@ -2441,69 +2427,69 @@ where
             });
         if !compensate_route_alias_to(
             &state,
-            &deployment.route_id,
+            &workload.route_id,
             &preview.port_lease_id,
             previous_route,
-            "host_development_deployment_reconcile_activation",
+            "host_development_workload_reconcile_activation",
         )
         .await
         {
             return Err(ServiceError::with_status(
                 StatusCode::CONFLICT,
-                "deployment activation route still requires reconciliation",
+                "workload activation route still requires reconciliation",
             ));
         }
     }
 
-    if deployment.preview_port_lease_id.is_none()
-        && unrecorded_preview_port_lease_may_exist(&state, &deployment).await
+    if workload.preview_port_lease_id.is_none()
+        && unrecorded_preview_port_lease_may_exist(&state, &workload).await
     {
         return Err(ServiceError::with_status(
             StatusCode::CONFLICT,
-            "deployment port allocation has no durable identity; inspect unclaimed target leases before retrying reconciliation",
+            "workload port allocation has no durable identity; inspect unclaimed target leases before retrying reconciliation",
         ));
     }
 
-    if !stop_preview_candidate_for_reconciliation(&state, &installation_id, &deployment).await?
-        || !cleanup_preview_host_resources(&state, &deployment)
+    if !stop_preview_candidate_for_reconciliation(&state, &installation_id, &workload).await?
+        || !cleanup_preview_host_resources(&state, &workload)
             .await
             .map_err(|error| {
-                tracing::warn!(installation_id = %installation_id, change_set_id, error = %error, "deployment reconciliation cleanup failed");
+                tracing::warn!(installation_id = %installation_id, change_set_id, error = %error, "workload reconciliation cleanup failed");
                 ServiceError::with_status(
                     StatusCode::CONFLICT,
-                    "deployment candidate cleanup still requires reconciliation",
+                    "workload candidate cleanup still requires reconciliation",
                 )
             })?
     {
         return Err(ServiceError::with_status(
             StatusCode::CONFLICT,
-            "deployment candidate cleanup still requires reconciliation",
+            "workload candidate cleanup still requires reconciliation",
         ));
     }
 
-    let rejected = deployment
+    let rejected = workload
         .approval_decision
         .as_ref()
         .is_some_and(|decision| decision.outcome == PolicyDecisionOutcome::Denied);
-    let updated = update_deployment_record(&state, &change_set_id, |current| {
+    let updated = update_workload_record(&state, &change_set_id, |current| {
         anyhow::ensure!(
-            current.deployment_id == deployment.deployment_id
-                && current.status == DevelopmentDeploymentStatus::RecoveryRequired,
-            "deployment changed before reconciliation persistence"
+            current.workload_id == workload.workload_id
+                && current.status == DevelopmentWorkloadStatus::RecoveryRequired,
+            "workload changed before reconciliation persistence"
         );
         current.status = if rejected {
-            DevelopmentDeploymentStatus::Rejected
+            DevelopmentWorkloadStatus::Rejected
         } else {
-            DevelopmentDeploymentStatus::Failed
+            DevelopmentWorkloadStatus::Failed
         };
         current.error = (!rejected).then(|| {
-            "deployment candidate was conservatively cleaned after reconciliation".to_string()
+            "workload candidate was conservatively cleaned after reconciliation".to_string()
         });
         Ok(())
     })
     .await
     .map_err(|error| {
-        development_persistence_error("failed to persist deployment reconciliation", error)
+        development_persistence_error("failed to persist workload reconciliation", error)
     })?;
     Ok(Json(updated))
 }
@@ -2517,101 +2503,93 @@ fn development_target_network_mode(
     }
 }
 
-fn verified_activation_matches_deployment(
-    active: &DeploymentRevision,
+fn verified_activation_matches_workload(
+    active: &WorkloadRevision,
     record: &DevelopmentChangeRecord,
-    deployment: &DevelopmentDeploymentRecord,
+    workload: &DevelopmentWorkloadRecord,
 ) -> bool {
     let (
         Some(preview),
         Some(preview_ref),
         Some(approval_ref),
         Some(port_lease_id),
-        Some(target_deployment_id),
+        Some(target_workload_id),
     ) = (
-        deployment.preview.as_ref(),
-        deployment.preview_ref.as_ref(),
-        deployment.approval_ref.as_ref(),
-        deployment.preview_port_lease_id.as_deref(),
-        deployment.target_deployment_id.as_deref(),
+        workload.preview.as_ref(),
+        workload.preview_ref.as_ref(),
+        workload.approval_ref.as_ref(),
+        workload.preview_port_lease_id.as_deref(),
+        workload.target_workload_id.as_deref(),
     )
     else {
         return false;
     };
-    deployment
-        .approval_decision
-        .as_ref()
-        .is_some_and(|decision| {
-            decision.outcome == PolicyDecisionOutcome::Allowed
-                && decision.principal == PrincipalIdentity::HostAdmin
-                && decision.change_set_id
-                    == format!(
-                        "{}:deployment:{}",
-                        record.change_set.id, deployment.deployment_id
-                    )
-        })
-        && preview.route_id == deployment.preview_route_id
+    workload.approval_decision.as_ref().is_some_and(|decision| {
+        decision.outcome == PolicyDecisionOutcome::Allowed
+            && decision.principal == PrincipalIdentity::HostAdmin
+            && decision.change_set_id
+                == format!("{}:workload:{}", record.change_set.id, workload.workload_id)
+    }) && preview.route_id == workload.preview_route_id
         && preview.port_lease_id == port_lease_id
-        && preview.deployment.deployment_id == target_deployment_id
-        && preview.deployment.route_id == deployment.preview_route_id
-        && preview.deployment.port_lease_id == port_lease_id
-        && deployment.build_operation_id.as_deref() == Some(preview.build_operation_id.as_str())
-        && deployment.deployment_operation_id.as_deref()
-            == Some(preview.deployment_operation_id.as_str())
+        && preview.workload.workload_id == target_workload_id
+        && preview.workload.route_id == workload.preview_route_id
+        && preview.workload.port_lease_id == port_lease_id
+        && workload.build_operation_id.as_deref() == Some(preview.build_operation_id.as_str())
+        && workload.workload_operation_id.as_deref() == Some(preview.workload_operation_id.as_str())
         && record.target_installation_id.as_ref() == Some(&active.installation_id)
         && record.subject.workspace_id() == Some(&active.workspace_id)
         && active.job_id.is_none()
-        && active.operation == DeploymentOperation::VerifiedActivate
-        && active.source_kind == DeploymentSourceKind::VerifiedArtifact
+        && active.operation == WorkloadOperation::VerifiedActivate
+        && active.source_kind == WorkloadSourceKind::VerifiedArtifact
         && active.verified_change_set_id.as_deref() == Some(record.change_set.id.as_str())
-        && active.source_url == format!("artifact:{}", deployment.build_context_ref.digest)
+        && active.source_url == format!("artifact:{}", workload.build_context_ref.digest)
         && active.ref_name == record.change_set.id
-        && active.target_id == deployment.target_id
-        && active.target_deployment.as_ref() == Some(&preview.deployment)
-        && active.verification_ref.as_ref() == Some(&deployment.verification_ref)
-        && active.build_context_ref.as_ref() == Some(&deployment.build_context_ref)
+        && active.target_id == workload.target_id
+        && active.target_workload.as_ref() == Some(&preview.workload)
+        && active.verification_ref.as_ref() == Some(&workload.verification_ref)
+        && active.build_context_ref.as_ref() == Some(&workload.build_context_ref)
         && active.preview_ref.as_ref() == Some(preview_ref)
         && active.approval_ref.as_ref() == Some(approval_ref)
         && active.verified_build_network_mode
-            == Some(development_target_network_mode(deployment.network_mode))
-        && active.source_commit == deployment.source_tree_digest
-        && active.dockerfile.as_deref() == Some(deployment.dockerfile.as_str())
-        && active.container_port == deployment.container_port
-        && active.port_name == deployment.port_name
-        && active.route_id == deployment.route_id
-        && active.route_access == deployment.route_access
-        && active.health_path == deployment.health_path
+            == Some(development_target_network_mode(workload.network_mode))
+        && active.source_commit == workload.source_tree_digest
+        && active.dockerfile.as_deref() == Some(workload.dockerfile.as_str())
+        && active.container_port == workload.container_port
+        && active.port_name == workload.port_name
+        && active.route_id == workload.route_id
+        && active.route_access == workload.route_access
+        && active.health_path == workload.health_path
         && active.image == preview.image_id
-        && active.build_id == deployment.build_id
-        && active.build_descriptor_hash == deployment.build_descriptor_hash
+        && active.build_id == workload.build_id
+        && active.build_descriptor_hash == workload.build_descriptor_hash
         && active.strategy == "verified_artifact"
         && active.runtime_env.is_empty()
         && active.recoverable
         && active.recovery_blockers.is_empty()
-        && active.receipt.route_id == deployment.route_id
-        && active.receipt.route_access == deployment.route_access
+        && active.receipt.route_id == workload.route_id
+        && active.receipt.route_access == workload.route_access
         && active.receipt.port_lease_id == preview.port_lease_id
         && active.receipt.container_id == preview.container_id
         && active.receipt.container_name == preview.container_name
         && active.receipt.image == preview.image_id
-        && active.receipt.build_id == deployment.build_id
-        && active.receipt.source_commit == deployment.source_tree_digest
-        && active.receipt.build_descriptor_hash == deployment.build_descriptor_hash
+        && active.receipt.build_id == workload.build_id
+        && active.receipt.source_commit == workload.source_tree_digest
+        && active.receipt.build_descriptor_hash == workload.build_descriptor_hash
         && active.receipt.strategy == "verified_artifact"
         && active.receipt.runtime_env.is_empty()
         && active.receipt.runtime_mounts.is_empty()
         && active.receipt.warnings.is_empty()
 }
 
-fn durable_revision_claims_deployment_candidate(
-    active: &DeploymentRevision,
-    deployment: &DevelopmentDeploymentRecord,
+fn durable_revision_claims_workload_candidate(
+    active: &WorkloadRevision,
+    workload: &DevelopmentWorkloadRecord,
 ) -> bool {
-    let Some(preview) = deployment.preview.as_ref() else {
+    let Some(preview) = workload.preview.as_ref() else {
         return false;
     };
-    active.target_id == deployment.target_id
-        && (active.target_deployment.as_ref() == Some(&preview.deployment)
+    active.target_id == workload.target_id
+        && (active.target_workload.as_ref() == Some(&preview.workload)
             || active.receipt.port_lease_id == preview.port_lease_id
             || active.receipt.container_id == preview.container_id)
 }
@@ -2619,8 +2597,8 @@ fn durable_revision_claims_deployment_candidate(
 fn validate_preview_target_operations<S>(
     state: &AppState<S>,
     installation_id: &InstallationId,
-    deployment: &DevelopmentDeploymentRecord,
-    preview: &DevelopmentDeploymentPreview,
+    workload: &DevelopmentWorkloadRecord,
+    preview: &DevelopmentWorkloadPreview,
 ) -> anyhow::Result<()>
 where
     S: EventStore,
@@ -2631,23 +2609,23 @@ where
         .ok_or_else(|| anyhow::anyhow!("target build operation disappeared"))?;
     require_succeeded_target_operation(build.clone(), "target Docker build")?;
     anyhow::ensure!(
-        build.target_id == deployment.target_id && build.installation_id == *installation_id,
+        build.target_id == workload.target_id && build.installation_id == *installation_id,
         "target build operation belongs to another installation or target"
     );
     let build_receipt = require_target_image_build_receipt(
         &build,
-        plurora_runtime::ManagedTargetImageDisposition::RetainForDeployment,
+        plurora_runtime::ManagedTargetImageDisposition::RetainForWorkload,
     )?;
     let expected_verifier = DeclarativeVerifierDescriptor::DockerBuild {
-        digest: deployment.build_context_ref.digest.clone(),
-        expected_size_bytes: Some(deployment.build_context_ref.size_bytes),
-        dockerfile: deployment.dockerfile.clone(),
-        network_mode: development_target_network_mode(deployment.network_mode),
-        disposition: plurora_runtime::ManagedTargetImageDisposition::RetainForDeployment,
-        build_id: deployment.build_id.clone(),
-        workspace_id: deployment.workspace_id.clone(),
-        source_tree_digest: deployment.source_tree_digest.clone(),
-        build_descriptor_hash: deployment.build_descriptor_hash.clone(),
+        digest: workload.build_context_ref.digest.clone(),
+        expected_size_bytes: Some(workload.build_context_ref.size_bytes),
+        dockerfile: workload.dockerfile.clone(),
+        network_mode: development_target_network_mode(workload.network_mode),
+        disposition: plurora_runtime::ManagedTargetImageDisposition::RetainForWorkload,
+        build_id: workload.build_id.clone(),
+        workspace_id: workload.workspace_id.clone(),
+        source_tree_digest: workload.source_tree_digest.clone(),
+        build_descriptor_hash: workload.build_descriptor_hash.clone(),
     };
     anyhow::ensure!(
         build.spec
@@ -2658,9 +2636,9 @@ where
     );
     anyhow::ensure!(
         build_receipt.image_id == preview.image_id
-            && build_receipt.context_digest == deployment.build_context_ref.digest
-            && build_receipt.source_tree_digest == deployment.source_tree_digest
-            && build_receipt.build_descriptor_hash == deployment.build_descriptor_hash
+            && build_receipt.context_digest == workload.build_context_ref.digest
+            && build_receipt.source_tree_digest == workload.source_tree_digest
+            && build_receipt.build_descriptor_hash == workload.build_descriptor_hash
             && !build_receipt.image_removed
             && build_receipt.image_retained,
         "target build receipt does not match preview provenance"
@@ -2668,25 +2646,25 @@ where
 
     let apply = state
         .target_agents
-        .operation(&preview.deployment_operation_id)
-        .ok_or_else(|| anyhow::anyhow!("target deployment operation disappeared"))?;
-    require_succeeded_target_operation(apply.clone(), "target deployment apply")?;
+        .operation(&preview.workload_operation_id)
+        .ok_or_else(|| anyhow::anyhow!("target workload operation disappeared"))?;
+    require_succeeded_target_operation(apply.clone(), "target workload apply")?;
     anyhow::ensure!(
-        apply.target_id == deployment.target_id
+        apply.target_id == workload.target_id
             && apply.installation_id == *installation_id
             && apply.spec
-                == TargetOperationSpec::DeploymentApply {
-                    deployment: TargetDeploymentDescriptor {
-                        deployment: preview.deployment.clone(),
-                        port_name: deployment.port_name.clone(),
+                == TargetOperationSpec::WorkloadApply {
+                    workload: TargetWorkloadDescriptor {
+                        workload: preview.workload.clone(),
+                        port_name: workload.port_name.clone(),
                         image: preview.image_id.clone(),
-                        container_port: deployment.container_port,
+                        container_port: workload.container_port,
                         requested_host_port: None,
                         pull_if_missing: false,
-                        health_path: deployment.health_path.clone(),
+                        health_path: workload.health_path.clone(),
                     },
                 },
-        "target deployment operation does not match the preview candidate"
+        "target workload operation does not match the preview candidate"
     );
     let apply_output = &apply
         .receipt
@@ -2695,19 +2673,19 @@ where
         .output;
     anyhow::ensure!(
         apply_output.get("running").and_then(Value::as_bool) == Some(true)
-            && required_string(apply_output, "container_id", "target deployment receipt")?
+            && required_string(apply_output, "container_id", "target workload receipt")?
                 == preview.container_id
-            && required_string(apply_output, "image_id", "target deployment receipt")?
+            && required_string(apply_output, "image_id", "target workload receipt")?
                 == preview.image_id,
-        "target deployment receipt does not match the preview candidate"
+        "target workload receipt does not match the preview candidate"
     );
     Ok(())
 }
 
 async fn ensure_preview_route_ready<S>(
     state: &AppState<S>,
-    deployment: &DevelopmentDeploymentRecord,
-    preview: &DevelopmentDeploymentPreview,
+    workload: &DevelopmentWorkloadRecord,
+    preview: &DevelopmentWorkloadPreview,
 ) -> anyhow::Result<()>
 where
     S: EventStore,
@@ -2718,24 +2696,24 @@ where
         .proxy_route_registry
         .status(&preview.route_id)
         .await
-        .ok_or_else(|| anyhow::anyhow!("deployment preview route disappeared"))?;
+        .ok_or_else(|| anyhow::anyhow!("workload preview route disappeared"))?;
     anyhow::ensure!(
-        preview.route_id == deployment.preview_route_id
-            && preview.port_lease_id == preview.deployment.port_lease_id
-            && preview.route_id == preview.deployment.route_id
+        preview.route_id == workload.preview_route_id
+            && preview.port_lease_id == preview.workload.port_lease_id
+            && preview.route_id == preview.workload.route_id
             && route.status == plurora_runtime::ProxyRouteStatusKind::Active
             && route.ready
             && route.upstream.port_lease_id == preview.port_lease_id
-            && route.upstream.port_name == deployment.port_name,
-        "deployment preview route is not ready for the recorded candidate"
+            && route.upstream.port_name == workload.port_name,
+        "workload preview route is not ready for the recorded candidate"
     );
     Ok(())
 }
 
-async fn compensate_deployment_activation_route<S>(
+async fn compensate_workload_activation_route<S>(
     state: &AppState<S>,
-    deployment: &DevelopmentDeploymentRecord,
-    preview: &DevelopmentDeploymentPreview,
+    workload: &DevelopmentWorkloadRecord,
+    preview: &DevelopmentWorkloadPreview,
     previous_route: Option<&plurora_runtime::ProxyRouteRecord>,
 ) -> bool
 where
@@ -2743,10 +2721,10 @@ where
 {
     compensate_route_alias(
         state,
-        &deployment.route_id,
+        &workload.route_id,
         &preview.port_lease_id,
         previous_route,
-        "host_development_deployment_activation_rollback",
+        "host_development_workload_activation_rollback",
     )
     .await
 }
@@ -2879,24 +2857,24 @@ where
 
 pub(crate) async fn activate_verified_persisted_revision<S>(
     state: &AppState<S>,
-    previous: Option<&DeploymentRevision>,
-    target: &DeploymentRevision,
-    operation: DeploymentOperation,
-    authority: &DeploymentAuthorityLease,
-) -> Result<DeploymentActionResponse, ServiceError>
+    previous: Option<&WorkloadRevision>,
+    target: &WorkloadRevision,
+    operation: WorkloadOperation,
+    authority: &WorkloadAuthorityLease,
+) -> Result<WorkloadActionResponse, ServiceError>
 where
     S: EventStore,
 {
     let invalid_revision = || {
         ServiceError::with_status(
             StatusCode::CONFLICT,
-            "verified deployment revision has incomplete or inconsistent provenance",
+            "verified workload revision has incomplete or inconsistent provenance",
         )
     };
     if authority.target_id != target.target_id
         || !matches!(
             operation,
-            DeploymentOperation::Recover | DeploymentOperation::Rollback
+            WorkloadOperation::Recover | WorkloadOperation::Rollback
         )
         || target.strategy != "verified_artifact"
         || !target.runtime_env.is_empty()
@@ -2921,7 +2899,7 @@ where
     let network_mode = target
         .verified_build_network_mode
         .ok_or_else(invalid_revision)?;
-    let expected_descriptor_hash = deployment_build_descriptor_hash(
+    let expected_descriptor_hash = workload_build_descriptor_hash(
         &target.installation_id,
         &build_context_ref,
         &target.source_commit,
@@ -2967,9 +2945,9 @@ where
         return Err(invalid_revision());
     }
     for descriptor in [&verification_ref, &build_context_ref] {
-        verify_deployment_artifact_content(state.runtime.as_ref(), descriptor).await?;
+        verify_workload_artifact_content(state.runtime.as_ref(), descriptor).await?;
     }
-    let (evidence_deployment_id, _evidence_preview, evidence_authority_ref) =
+    let (evidence_workload_id, _evidence_preview, evidence_authority_ref) =
         read_verified_preview_evidence(
             state.runtime.as_ref(),
             &preview_ref,
@@ -2982,10 +2960,10 @@ where
         )
         .await
         .map_err(|error| {
-            tracing::warn!(installation_id = %target.installation_id, revision_id = %target.revision_id, error = %error, "verified deployment preview evidence validation failed");
+            tracing::warn!(installation_id = %target.installation_id, revision_id = %target.revision_id, error = %error, "verified workload preview evidence validation failed");
             invalid_revision()
         })?;
-    read_verified_deployment_approval(
+    read_verified_workload_approval(
         state.runtime.as_ref(),
         &approval_ref,
         &preview_ref,
@@ -2994,26 +2972,26 @@ where
         &evidence_authority_ref,
         &target.installation_id,
         &change_set_id,
-        &evidence_deployment_id,
+        &evidence_workload_id,
         &target.target_id,
     )
     .await
     .map_err(|error| {
-        tracing::warn!(installation_id = %target.installation_id, revision_id = %target.revision_id, error = %error, "verified deployment approval evidence validation failed");
+        tracing::warn!(installation_id = %target.installation_id, revision_id = %target.revision_id, error = %error, "verified workload approval evidence validation failed");
         invalid_revision()
     })?;
-    let replay_context = deployment_effect_context(
+    let replay_context = workload_effect_context(
         state,
         Some(authority),
         &target.installation_id,
-        "host_verified_deployment_replay",
+        "host_verified_workload_replay",
     )
     .await
     .map_err(|error| {
-        tracing::warn!(installation_id = %target.installation_id, revision_id = %target.revision_id, error = %error, "verified deployment replay authority validation failed");
+        tracing::warn!(installation_id = %target.installation_id, revision_id = %target.revision_id, error = %error, "verified workload replay authority validation failed");
         ServiceError::with_status(
             StatusCode::FORBIDDEN,
-            "deployment authority is no longer valid for the revision target",
+            "workload authority is no longer valid for the revision target",
         )
     })?;
     state
@@ -3027,7 +3005,7 @@ where
     {
         return Err(ServiceError::with_status(
             StatusCode::CONFLICT,
-            "deployment route is owned by another installation",
+            "workload route is owned by another installation",
         ));
     }
 
@@ -3043,8 +3021,7 @@ where
                     expected_size_bytes: Some(build_context_ref.size_bytes),
                     dockerfile: dockerfile.clone(),
                     network_mode,
-                    disposition:
-                        plurora_runtime::ManagedTargetImageDisposition::RetainForDeployment,
+                    disposition: plurora_runtime::ManagedTargetImageDisposition::RetainForWorkload,
                     build_id: target.build_id.clone(),
                     workspace_id: target.workspace_id.clone(),
                     source_tree_digest: target.source_commit.clone(),
@@ -3061,15 +3038,15 @@ where
         .await
         .and_then(|operation| require_succeeded_target_operation(operation, "target Docker build"))
         .map_err(|error| {
-            tracing::warn!(installation_id = %target.installation_id, revision_id = %target.revision_id, error = %error, "verified deployment artifact rebuild failed");
+            tracing::warn!(installation_id = %target.installation_id, revision_id = %target.revision_id, error = %error, "verified workload artifact rebuild failed");
             ServiceError::with_status(
                 StatusCode::CONFLICT,
-                "verified deployment artifact could not be rebuilt on the selected target",
+                "verified workload artifact could not be rebuilt on the selected target",
             )
         })?;
     let build_receipt = require_target_image_build_receipt(
         &build_operation,
-        plurora_runtime::ManagedTargetImageDisposition::RetainForDeployment,
+        plurora_runtime::ManagedTargetImageDisposition::RetainForWorkload,
     )?;
     let image_id = build_receipt.image_id.clone();
     let output_matches = build_receipt.context_digest == build_context_ref.digest
@@ -3096,8 +3073,8 @@ where
     .and_then(|value| value_field(value, "lease", "host.port.lease"))?;
     let port_lease_id = required_string(&lease, "id", "verified replay port lease")?;
     let management_route_id = format!("replay-{replay_suffix}");
-    let target_deployment = TargetDeploymentRef {
-        deployment_id: format!("replay-{replay_suffix}"),
+    let target_workload = TargetWorkloadRef {
+        workload_id: format!("replay-{replay_suffix}"),
         route_id: management_route_id.clone(),
         port_lease_id: port_lease_id.clone(),
     };
@@ -3127,10 +3104,10 @@ where
     });
     if let Err(error) = management_route {
         tracing::warn!(installation_id = %target.installation_id, revision_id = %target.revision_id, error = %error, "verified replay management route registration failed");
-        let _ = cleanup_target_host_resources(state, &target_deployment, &target.route_id).await;
+        let _ = cleanup_target_host_resources(state, &target_workload, &target.route_id).await;
         return Err(ServiceError::with_status(
             StatusCode::INTERNAL_SERVER_ERROR,
-            "deployment replay preparation failed; details redacted",
+            "workload replay preparation failed; details redacted",
         ));
     }
 
@@ -3139,9 +3116,9 @@ where
         &target.target_id,
         CreateTargetOperationRequest {
             installation_id: target.installation_id.clone(),
-            spec: TargetOperationSpec::DeploymentApply {
-                deployment: TargetDeploymentDescriptor {
-                    deployment: target_deployment.clone(),
+            spec: TargetOperationSpec::WorkloadApply {
+                workload: TargetWorkloadDescriptor {
+                    workload: target_workload.clone(),
                     port_name: target.port_name.clone(),
                     image: image_id.clone(),
                     container_port: target.container_port,
@@ -3159,11 +3136,10 @@ where
         Ok(operation) => operation,
         Err(error) => {
             tracing::warn!(installation_id = %target.installation_id, revision_id = %target.revision_id, error = %error.error, "verified replay candidate submission failed");
-            let _ =
-                cleanup_target_host_resources(state, &target_deployment, &target.route_id).await;
+            let _ = cleanup_target_host_resources(state, &target_workload, &target.route_id).await;
             return Err(ServiceError::with_status(
                 StatusCode::INTERNAL_SERVER_ERROR,
-                "deployment replay candidate failed; details redacted",
+                "workload replay candidate failed; details redacted",
             ));
         }
     };
@@ -3176,24 +3152,24 @@ where
             tracing::warn!(installation_id = %target.installation_id, revision_id = %target.revision_id, error = %error, "verified replay candidate outcome is unknown");
             return Err(ServiceError::with_status(
                 StatusCode::CONFLICT,
-                "deployment replay candidate requires reconciliation; details redacted",
+                "workload replay candidate requires reconciliation; details redacted",
             ));
         }
     };
     let apply_operation = match require_succeeded_target_operation(
         apply_operation,
-        "target deployment apply",
+        "target workload apply",
     ) {
         Ok(operation) => operation,
         Err(error) => {
             tracing::warn!(installation_id = %target.installation_id, revision_id = %target.revision_id, error = %error, "verified replay candidate did not start");
             if !target_operation_outcome_is_uncertain(state, &apply_operation_id) {
-                let _ = cleanup_target_host_resources(state, &target_deployment, &target.route_id)
-                    .await;
+                let _ =
+                    cleanup_target_host_resources(state, &target_workload, &target.route_id).await;
             }
             return Err(ServiceError::with_status(
                 StatusCode::CONFLICT,
-                "deployment replay candidate did not become ready",
+                "workload replay candidate did not become ready",
             ));
         }
     };
@@ -3206,7 +3182,7 @@ where
         let container_id = required_string(
             apply_output,
             "container_id",
-            "target deployment apply receipt",
+            "target workload apply receipt",
         )?;
         let container_name = apply_output
             .get("container_name")
@@ -3215,11 +3191,11 @@ where
             .map(str::to_string);
         anyhow::ensure!(
             apply_output.get("running").and_then(Value::as_bool) == Some(true)
-                && required_string(apply_output, "image_id", "target deployment apply receipt")?
+                && required_string(apply_output, "image_id", "target workload apply receipt")?
                     == image_id,
-            "target deployment receipt does not match the replay candidate"
+            "target workload receipt does not match the replay candidate"
         );
-        ensure_target_management_route_ready(state, &target_deployment, &target.port_name).await?;
+        ensure_target_management_route_ready(state, &target_workload, &target.port_name).await?;
         Ok::<_, anyhow::Error>((container_id, container_name))
     }
     .await;
@@ -3231,14 +3207,14 @@ where
                 state,
                 &target.installation_id,
                 &target.target_id,
-                &target_deployment,
+                &target_workload,
                 &target.route_id,
                 None,
             )
             .await;
             return Err(ServiceError::with_status(
                 StatusCode::CONFLICT,
-                "deployment replay candidate did not become ready",
+                "workload replay candidate did not become ready",
             ));
         }
     };
@@ -3268,12 +3244,9 @@ where
         .await
         .and_then(|value| value_field(value, "route", "host.proxy.register"))?;
         let route_id = required_string(&route, "id", "verified replay route")?;
-        anyhow::ensure!(
-            route_id == target.route_id,
-            "deployment replay route changed"
-        );
+        anyhow::ensure!(route_id == target.route_id, "workload replay route changed");
         let fallback_public_url = required_string(&route, "public_url", "verified replay route")?;
-        ensure_target_management_route_ready(state, &target_deployment, &target.port_name).await?;
+        ensure_target_management_route_ready(state, &target_workload, &target.port_name).await?;
         anyhow::ensure!(
             state
                 .runtime
@@ -3282,7 +3255,7 @@ where
                 .set_ready_if_active_with_lease(&route_id, &port_lease_id, true)
                 .await
                 .is_some(),
-            "deployment replay route changed before readiness promotion"
+            "workload replay route changed before readiness promotion"
         );
         Ok::<_, anyhow::Error>((route_id, fallback_public_url))
     }
@@ -3290,25 +3263,25 @@ where
     let (route_id, fallback_public_url) = match route_switch {
         Ok(route) => route,
         Err(error) => {
-            tracing::warn!(installation_id = %target.installation_id, revision_id = %target.revision_id, error = %error, "verified deployment replay route switch failed");
+            tracing::warn!(installation_id = %target.installation_id, revision_id = %target.revision_id, error = %error, "verified workload replay route switch failed");
             let _ = compensate_verified_replay_candidate(
                 state,
                 &target.installation_id,
                 &target.target_id,
-                &target_deployment,
+                &target_workload,
                 &target.route_id,
                 previous_route.as_ref(),
             )
             .await;
             return Err(ServiceError::with_status(
                 StatusCode::INTERNAL_SERVER_ERROR,
-                "deployment replay activation failed; details redacted",
+                "workload replay activation failed; details redacted",
             ));
         }
     };
     let public_url =
         service_public_url_for_route(state, &route_id, &fallback_public_url, target.route_access);
-    let receipt = HostBuildDeployResponse {
+    let receipt = HostBuildWorkloadResponse {
         workspace_id: target.workspace_id.clone(),
         route_id: route_id.clone(),
         public_url,
@@ -3325,7 +3298,7 @@ where
         runtime_mounts: Vec::new(),
         warnings: Vec::new(),
     };
-    let revision = DeploymentRevision {
+    let revision = WorkloadRevision {
         revision_id: format!(
             "drv-{}-{}",
             now_millis(),
@@ -3338,7 +3311,7 @@ where
         parent_revision_id: previous.map(|revision| revision.revision_id.clone()),
         created_at_ms: now_millis(),
         target_id: target.target_id.clone(),
-        source_kind: DeploymentSourceKind::VerifiedArtifact,
+        source_kind: WorkloadSourceKind::VerifiedArtifact,
         source_url: target.source_url.clone(),
         ref_name: target.ref_name.clone(),
         dockerfile: Some(dockerfile),
@@ -3359,7 +3332,7 @@ where
         preview_ref: Some(preview_ref),
         approval_ref: Some(approval_ref),
         verified_build_network_mode: Some(network_mode),
-        target_deployment: Some(target_deployment.clone()),
+        target_workload: Some(target_workload.clone()),
         recoverable: true,
         recovery_blockers: Vec::new(),
         receipt,
@@ -3367,26 +3340,26 @@ where
     if let Err(error) =
         persist_revision_activation(state, &revision, None, Some(authority.clone())).await
     {
-        tracing::warn!(installation_id = %target.installation_id, revision_id = %target.revision_id, error = %error, "verified deployment replay journal commit failed");
+        tracing::warn!(installation_id = %target.installation_id, revision_id = %target.revision_id, error = %error, "verified workload replay journal commit failed");
         let _ = compensate_verified_replay_candidate(
             state,
             &target.installation_id,
             &target.target_id,
-            &target_deployment,
+            &target_workload,
             &target.route_id,
             previous_route.as_ref(),
         )
         .await;
         return Err(ServiceError::with_status(
             StatusCode::INTERNAL_SERVER_ERROR,
-            "deployment replay journal commit failed; details redacted",
+            "workload replay journal commit failed; details redacted",
         ));
     }
     let warnings = match previous {
         Some(previous) => drain_previous_revision(state, previous, &revision.route_id).await,
         None => Vec::new(),
     };
-    Ok(DeploymentActionResponse {
+    Ok(WorkloadActionResponse {
         operation,
         previous_revision_id: previous.map(|revision| revision.revision_id.clone()),
         revision,
@@ -3405,7 +3378,7 @@ fn target_development_network_mode(
 
 async fn ensure_target_management_route_ready<S>(
     state: &AppState<S>,
-    deployment: &TargetDeploymentRef,
+    workload: &TargetWorkloadRef,
     port_name: &str,
 ) -> anyhow::Result<()>
 where
@@ -3415,15 +3388,15 @@ where
         .runtime
         .config()
         .proxy_route_registry
-        .status(&deployment.route_id)
+        .status(&workload.route_id)
         .await
-        .ok_or_else(|| anyhow::anyhow!("target deployment management route disappeared"))?;
+        .ok_or_else(|| anyhow::anyhow!("target workload management route disappeared"))?;
     anyhow::ensure!(
         route.status == plurora_runtime::ProxyRouteStatusKind::Active
             && route.ready
-            && route.upstream.port_lease_id == deployment.port_lease_id
+            && route.upstream.port_lease_id == workload.port_lease_id
             && route.upstream.port_name == port_name,
-        "target deployment management route is not ready"
+        "target workload management route is not ready"
     );
     Ok(())
 }
@@ -3432,7 +3405,7 @@ async fn compensate_verified_replay_candidate<S>(
     state: &AppState<S>,
     installation_id: &InstallationId,
     target_id: &str,
-    deployment: &TargetDeploymentRef,
+    workload: &TargetWorkloadRef,
     production_route_id: &str,
     previous_route: Option<&plurora_runtime::ProxyRouteRecord>,
 ) -> bool
@@ -3442,9 +3415,9 @@ where
     let route_restored = compensate_route_alias(
         state,
         production_route_id,
-        &deployment.port_lease_id,
+        &workload.port_lease_id,
         previous_route,
-        "host_verified_deployment_replay_rollback",
+        "host_verified_workload_replay_rollback",
     )
     .await;
     let stop = crate::target_agent::submit_host_operation(
@@ -3452,12 +3425,12 @@ where
         target_id,
         CreateTargetOperationRequest {
             installation_id: installation_id.clone(),
-            spec: TargetOperationSpec::DeploymentStop {
-                deployment: deployment.clone(),
+            spec: TargetOperationSpec::WorkloadStop {
+                workload: workload.clone(),
                 grace_seconds: 0,
                 force_remove: true,
             },
-            idempotency_key: Some(format!("{}:compensate", deployment.deployment_id)),
+            idempotency_key: Some(format!("{}:compensate", workload.workload_id)),
             expires_in_seconds: Some(15 * 60),
         },
     )
@@ -3469,7 +3442,7 @@ where
         Err(_) => false,
     };
     let host_cleaned = if stopped {
-        cleanup_target_host_resources(state, deployment, production_route_id).await
+        cleanup_target_host_resources(state, workload, production_route_id).await
     } else {
         false
     };
@@ -3478,28 +3451,28 @@ where
 
 async fn cleanup_target_host_resources<S>(
     state: &AppState<S>,
-    deployment: &TargetDeploymentRef,
+    workload: &TargetWorkloadRef,
     protected_route_id: &str,
 ) -> bool
 where
     S: EventStore,
 {
-    let context = ProtocolContext::host_dev("host_target_deployment_resource_cleanup");
-    if deployment.route_id != protected_route_id {
+    let context = ProtocolContext::host_dev("host_target_workload_resource_cleanup");
+    if workload.route_id != protected_route_id {
         if let Some(route) = state
             .runtime
             .config()
             .proxy_route_registry
-            .status(&deployment.route_id)
+            .status(&workload.route_id)
             .await
         {
             if route.status != plurora_runtime::ProxyRouteStatusKind::Removed
-                && route.upstream.port_lease_id == deployment.port_lease_id
+                && route.upstream.port_lease_id == workload.port_lease_id
                 && call_host_protocol(
                     state,
                     &context,
                     "host.proxy.unregister",
-                    json!({ "route_id": deployment.route_id }),
+                    json!({ "route_id": workload.route_id }),
                 )
                 .await
                 .is_err()
@@ -3517,7 +3490,7 @@ where
         .into_iter()
         .any(|route| {
             route.status != plurora_runtime::ProxyRouteStatusKind::Removed
-                && route.upstream.port_lease_id == deployment.port_lease_id
+                && route.upstream.port_lease_id == workload.port_lease_id
         })
     {
         return false;
@@ -3526,14 +3499,14 @@ where
         .runtime
         .config()
         .port_lease_registry
-        .status(&deployment.port_lease_id)
+        .status(&workload.port_lease_id)
         .await
         .is_some_and(|lease| lease.status != plurora_runtime::PortLeaseStatusKind::Released)
         && call_host_protocol(
             state,
             &context,
             "host.port.release",
-            json!({ "lease_id": deployment.port_lease_id }),
+            json!({ "lease_id": workload.port_lease_id }),
         )
         .await
         .is_err()
@@ -3544,30 +3517,30 @@ where
         .runtime
         .config()
         .port_lease_registry
-        .status(&deployment.port_lease_id)
+        .status(&workload.port_lease_id)
         .await
         .is_none_or(|lease| lease.status == plurora_runtime::PortLeaseStatusKind::Released)
 }
 
 pub(crate) async fn drain_target_revision<S>(
     state: &AppState<S>,
-    previous: &DeploymentRevision,
+    previous: &WorkloadRevision,
     active_route_id: &str,
 ) -> Vec<String>
 where
     S: EventStore,
 {
-    let Some(deployment) = previous.target_deployment.as_ref() else {
-        tracing::warn!(installation_id = %previous.installation_id, revision_id = %previous.revision_id, "verified deployment revision has no target deployment reference for cleanup");
-        return vec!["previous target deployment requires manual cleanup".to_string()];
+    let Some(workload) = previous.target_workload.as_ref() else {
+        tracing::warn!(installation_id = %previous.installation_id, revision_id = %previous.revision_id, "verified workload revision has no target workload reference for cleanup");
+        return vec!["previous target workload requires manual cleanup".to_string()];
     };
     let stop = crate::target_agent::submit_host_operation(
         state,
         &previous.target_id,
         CreateTargetOperationRequest {
             installation_id: previous.installation_id.clone(),
-            spec: TargetOperationSpec::DeploymentStop {
-                deployment: deployment.clone(),
+            spec: TargetOperationSpec::WorkloadStop {
+                workload: workload.clone(),
                 grace_seconds: 10,
                 force_remove: true,
             },
@@ -3581,31 +3554,31 @@ where
             match await_target_operation(state, &previous.target_id, operation).await {
                 Ok(operation) if operation.status == TargetOperationStatusKind::Succeeded => true,
                 Ok(operation) => {
-                    tracing::warn!(installation_id = %previous.installation_id, revision_id = %previous.revision_id, status = ?operation.status, "previous target deployment did not stop cleanly");
+                    tracing::warn!(installation_id = %previous.installation_id, revision_id = %previous.revision_id, status = ?operation.status, "previous target workload did not stop cleanly");
                     false
                 }
                 Err(error) => {
-                    tracing::warn!(installation_id = %previous.installation_id, revision_id = %previous.revision_id, error = %error, "previous target deployment stop outcome is unknown");
+                    tracing::warn!(installation_id = %previous.installation_id, revision_id = %previous.revision_id, error = %error, "previous target workload stop outcome is unknown");
                     false
                 }
             }
         }
         Err(error) => {
-            tracing::warn!(installation_id = %previous.installation_id, revision_id = %previous.revision_id, error = %error.error, "previous target deployment stop submission failed");
+            tracing::warn!(installation_id = %previous.installation_id, revision_id = %previous.revision_id, error = %error.error, "previous target workload stop submission failed");
             false
         }
     };
     if !stopped {
-        return vec!["previous target deployment cleanup was not confirmed".to_string()];
+        return vec!["previous target workload cleanup was not confirmed".to_string()];
     }
-    if !cleanup_target_host_resources(state, deployment, active_route_id).await {
-        return vec!["previous target deployment Host resources require cleanup".to_string()];
+    if !cleanup_target_host_resources(state, workload, active_route_id).await {
+        return vec!["previous target workload Host resources require cleanup".to_string()];
     }
     Vec::new()
 }
 
-fn validate_deployment_preview_request(
-    request: &DevelopmentDeploymentPreviewRequest,
+fn validate_workload_preview_request(
+    request: &DevelopmentWorkloadPreviewRequest,
 ) -> Result<(), ServiceError> {
     let valid_target = !request.target_id.is_empty()
         && request.target_id.len() <= 128
@@ -3641,28 +3614,25 @@ fn validate_deployment_preview_request(
     {
         return Err(ServiceError::with_status(
             StatusCode::BAD_REQUEST,
-            "deployment preview contains an invalid target, port, route, health path, or idempotency key",
+            "workload preview contains an invalid target, port, route, health path, or idempotency key",
         ));
     }
     Ok(())
 }
 
-fn validate_deployment_verification_provenance(
+fn validate_workload_verification_provenance(
     record: &DevelopmentChangeRecord,
     verification: &DevelopmentVerificationResult,
     dockerfile: &str,
     network_mode: DevelopmentNetworkMode,
     source_tree_digest: &str,
 ) -> Result<ArtifactDescriptor, ServiceError> {
-    let context = verification
-        .deployment_artifact_ref
-        .clone()
-        .ok_or_else(|| {
-            ServiceError::with_status(
-                StatusCode::CONFLICT,
-                "Docker verification predates deployable artifact provenance",
-            )
-        })?;
+    let context = verification.workload_artifact_ref.clone().ok_or_else(|| {
+        ServiceError::with_status(
+            StatusCode::CONFLICT,
+            "Docker verification predates workloadable artifact provenance",
+        )
+    })?;
     let valid = verification.succeeded
         && verification.kind == "docker_build"
         && verification.network_mode == network_mode
@@ -3716,7 +3686,7 @@ fn validate_deployment_verification_provenance(
     Ok(context)
 }
 
-async fn verify_deployment_artifact_content<S>(
+async fn verify_workload_artifact_content<S>(
     runtime: &Runtime<S>,
     descriptor: &ArtifactDescriptor,
 ) -> Result<(), ServiceError>
@@ -3728,12 +3698,12 @@ where
         .verify(&descriptor.digest)
         .await
         .map_err(|error| {
-            internal_development_error("verified deployment artifact is unavailable", error)
+            internal_development_error("verified workload artifact is unavailable", error)
         })?;
     if info.size_bytes != descriptor.size_bytes {
         return Err(ServiceError::with_status(
             StatusCode::CONFLICT,
-            "verified deployment artifact descriptor does not match stored content",
+            "verified workload artifact descriptor does not match stored content",
         ));
     }
     Ok(())
@@ -3748,12 +3718,12 @@ async fn read_verified_preview_evidence<S>(
     source_tree_digest: &str,
     verification_ref: &ArtifactDescriptor,
     build_context_ref: &ArtifactDescriptor,
-) -> anyhow::Result<(String, DevelopmentDeploymentPreview, ArtifactDescriptor)>
+) -> anyhow::Result<(String, DevelopmentWorkloadPreview, ArtifactDescriptor)>
 where
     S: EventStore,
 {
     anyhow::ensure!(
-        preview_ref.artifact_type_uri == DEVELOPMENT_DEPLOYMENT_PREVIEW_TYPE_URI
+        preview_ref.artifact_type_uri == DEVELOPMENT_WORKLOAD_PREVIEW_TYPE_URI
             && preview_ref.media_type == "application/json"
             && preview_ref.references.contains(&verification_ref.digest)
             && preview_ref.references.contains(&build_context_ref.digest)
@@ -3777,11 +3747,11 @@ where
                 .get("source_tree_digest")
                 .and_then(Value::as_str)
                 == Some(source_tree_digest),
-        "deployment preview descriptor is not bound to the verified change"
+        "workload preview descriptor is not bound to the verified change"
     );
-    verify_deployment_artifact_content(runtime, preview_ref)
+    verify_workload_artifact_content(runtime, preview_ref)
         .await
-        .map_err(|_| anyhow::anyhow!("deployment preview content verification failed"))?;
+        .map_err(|_| anyhow::anyhow!("workload preview content verification failed"))?;
     let payload: Value =
         serde_json::from_slice(&runtime.object_store().get(&preview_ref.digest).await?)?;
     anyhow::ensure!(
@@ -3791,40 +3761,42 @@ where
             && payload.get("change_set_id").and_then(Value::as_str) == Some(change_set_id)
             && payload.get("source_tree_digest").and_then(Value::as_str)
                 == Some(source_tree_digest),
-        "deployment preview payload is not bound to the verified change"
+        "workload preview payload is not bound to the verified change"
     );
-    let deployment_id = payload
-        .get("deployment_id")
+    let workload_id = payload
+        .get("workload_id")
         .and_then(Value::as_str)
         .filter(|value| !value.is_empty())
-        .ok_or_else(|| anyhow::anyhow!("deployment preview payload has no deployment id"))?
+        .ok_or_else(|| anyhow::anyhow!("workload preview payload has no workload id"))?
         .to_string();
     let stored_verification: ArtifactDescriptor = serde_json::from_value(
         payload
             .get("verification_ref")
             .cloned()
-            .ok_or_else(|| anyhow::anyhow!("deployment preview has no verification reference"))?,
+            .ok_or_else(|| anyhow::anyhow!("workload preview has no verification reference"))?,
     )?;
-    let stored_context: ArtifactDescriptor =
-        serde_json::from_value(payload.get("build_context_ref").cloned().ok_or_else(|| {
-            anyhow::anyhow!("deployment preview has no build context reference")
-        })?)?;
+    let stored_context: ArtifactDescriptor = serde_json::from_value(
+        payload
+            .get("build_context_ref")
+            .cloned()
+            .ok_or_else(|| anyhow::anyhow!("workload preview has no build context reference"))?,
+    )?;
     let authority_ref: ArtifactDescriptor = serde_json::from_value(
         payload
             .get("authority_ref")
             .cloned()
-            .ok_or_else(|| anyhow::anyhow!("deployment preview has no authority reference"))?,
+            .ok_or_else(|| anyhow::anyhow!("workload preview has no authority reference"))?,
     )?;
-    let preview: DevelopmentDeploymentPreview = serde_json::from_value(
+    let preview: DevelopmentWorkloadPreview = serde_json::from_value(
         payload
             .get("preview")
             .cloned()
-            .ok_or_else(|| anyhow::anyhow!("deployment preview payload has no candidate"))?,
+            .ok_or_else(|| anyhow::anyhow!("workload preview payload has no candidate"))?,
     )?;
     anyhow::ensure!(
         stored_verification == *verification_ref
             && stored_context == *build_context_ref
-            && authority_ref.artifact_type_uri == DEVELOPMENT_DEPLOYMENT_AUTHORITY_TYPE_URI
+            && authority_ref.artifact_type_uri == DEVELOPMENT_WORKLOAD_AUTHORITY_TYPE_URI
             && authority_ref.media_type == "application/json"
             && authority_ref
                 .annotations
@@ -3842,15 +3814,15 @@ where
                 .and_then(Value::as_str)
                 == Some(target_id)
             && preview_ref.references.contains(&authority_ref.digest),
-        "deployment preview evidence chain is inconsistent"
+        "workload preview evidence chain is inconsistent"
     );
-    verify_deployment_artifact_content(runtime, &authority_ref)
+    verify_workload_artifact_content(runtime, &authority_ref)
         .await
-        .map_err(|_| anyhow::anyhow!("deployment authority content verification failed"))?;
-    Ok((deployment_id, preview, authority_ref))
+        .map_err(|_| anyhow::anyhow!("workload authority content verification failed"))?;
+    Ok((workload_id, preview, authority_ref))
 }
 
-async fn read_verified_deployment_approval<S>(
+async fn read_verified_workload_approval<S>(
     runtime: &Runtime<S>,
     approval_ref: &ArtifactDescriptor,
     preview_ref: &ArtifactDescriptor,
@@ -3859,7 +3831,7 @@ async fn read_verified_deployment_approval<S>(
     authority_ref: &ArtifactDescriptor,
     installation_id: &InstallationId,
     change_set_id: &str,
-    deployment_id: &str,
+    workload_id: &str,
     target_id: &str,
 ) -> anyhow::Result<PolicyDecision>
 where
@@ -3873,7 +3845,7 @@ where
             && approval_ref.references.contains(&build_context_ref.digest)
             && approval_ref.references.contains(&authority_ref.digest)
             && approval_ref.annotations.get("role").and_then(Value::as_str)
-                == Some("explicit_deployment_approval")
+                == Some("explicit_workload_approval")
             && approval_ref
                 .annotations
                 .get("installation_id")
@@ -3886,39 +3858,39 @@ where
                 == Some(change_set_id)
             && approval_ref
                 .annotations
-                .get("deployment_id")
+                .get("workload_id")
                 .and_then(Value::as_str)
-                == Some(deployment_id)
+                == Some(workload_id)
             && approval_ref
                 .annotations
                 .get("target_id")
                 .and_then(Value::as_str)
                 == Some(target_id),
-        "deployment approval descriptor is not bound to the preview"
+        "workload approval descriptor is not bound to the preview"
     );
-    verify_deployment_artifact_content(runtime, approval_ref)
+    verify_workload_artifact_content(runtime, approval_ref)
         .await
-        .map_err(|_| anyhow::anyhow!("deployment approval content verification failed"))?;
+        .map_err(|_| anyhow::anyhow!("workload approval content verification failed"))?;
     let decision: PolicyDecision =
         serde_json::from_slice(&runtime.object_store().get(&approval_ref.digest).await?)?;
     anyhow::ensure!(
         decision.outcome == PolicyDecisionOutcome::Allowed
             && decision.principal == PrincipalIdentity::HostAdmin
-            && decision.change_set_id == format!("{change_set_id}:deployment:{deployment_id}")
+            && decision.change_set_id == format!("{change_set_id}:workload:{workload_id}")
             && decision
                 .evaluated_authority
-                .contains(&"host.installation.deploy".to_string())
+                .contains(&"host.installation.workload".to_string())
             && decision
                 .evaluated_authority
                 .contains(&format!("host.target.{target_id}")),
-        "deployment approval payload is not an explicit approval for the preview"
+        "workload approval payload is not an explicit approval for the preview"
     );
     Ok(decision)
 }
 
-fn deployment_preview_request_digest(
+fn workload_preview_request_digest(
     record: &DevelopmentChangeRecord,
-    request: &DevelopmentDeploymentPreviewRequest,
+    request: &DevelopmentWorkloadPreviewRequest,
     verification_ref: &ArtifactDescriptor,
     build_context_ref: &ArtifactDescriptor,
 ) -> anyhow::Result<String> {
@@ -3934,7 +3906,7 @@ fn deployment_preview_request_digest(
     Ok(format!("sha256:{:x}", Sha256::digest(bytes)))
 }
 
-fn deployment_build_descriptor_hash(
+fn workload_build_descriptor_hash(
     installation_id: &InstallationId,
     build_context_ref: &ArtifactDescriptor,
     source_tree_digest: &str,
@@ -3944,7 +3916,7 @@ fn deployment_build_descriptor_hash(
 ) -> String {
     let mut hasher = Sha256::new();
     for value in [
-        "plurora.verified-deployment-build.v1",
+        "plurora.verified-workload-build.v1",
         installation_id.as_str(),
         &build_context_ref.digest,
         source_tree_digest,
@@ -3958,14 +3930,14 @@ fn deployment_build_descriptor_hash(
     format!("sha256:{:x}", hasher.finalize())
 }
 
-async fn update_deployment_record<S, F>(
+async fn update_workload_record<S, F>(
     state: &AppState<S>,
     change_set_id: &str,
     mutate: F,
 ) -> anyhow::Result<DevelopmentChangeRecord>
 where
     S: EventStore,
-    F: FnOnce(&mut DevelopmentDeploymentRecord) -> anyhow::Result<()>,
+    F: FnOnce(&mut DevelopmentWorkloadRecord) -> anyhow::Result<()>,
 {
     verify_development_host_lease(state.runtime.store().as_ref(), state.development.as_ref())
         .await?;
@@ -3976,22 +3948,22 @@ where
         .get(change_set_id)
         .ok_or_else(|| anyhow::anyhow!("development change disappeared"))?;
     anyhow::ensure!(
-        development_change_allows_deployment(record.status),
-        "deployment parent change is no longer verified"
+        development_change_allows_workload(record.status),
+        "workload parent change is no longer verified"
     );
-    let deployment = record
-        .deployment
+    let workload = record
+        .workload
         .as_mut()
-        .ok_or_else(|| anyhow::anyhow!("development deployment disappeared"))?;
-    mutate(deployment)?;
-    deployment.updated_at_ms = now_millis();
+        .ok_or_else(|| anyhow::anyhow!("development workload disappeared"))?;
+    mutate(workload)?;
+    workload.updated_at_ms = now_millis();
     record.revision = record.revision.saturating_add(1);
     record.updated_at_ms = now_millis();
     persist_record(state, record.clone()).await?;
     Ok(record)
 }
 
-fn development_change_allows_deployment(status: DevelopmentChangeStatus) -> bool {
+fn development_change_allows_workload(status: DevelopmentChangeStatus) -> bool {
     status == DevelopmentChangeStatus::Verified
 }
 
@@ -4010,7 +3982,7 @@ where
             state,
             target_id,
             &operation.operation_id,
-            DEVELOPMENT_DEPLOYMENT_OPERATION_TIMEOUT,
+            DEVELOPMENT_WORKLOAD_OPERATION_TIMEOUT,
         )
         .await
     }
@@ -4054,53 +4026,53 @@ fn require_target_image_build_receipt(
     Ok(receipt)
 }
 
-async fn run_deployment_preview<S>(
+async fn run_workload_preview<S>(
     state: &AppState<S>,
     change_set_id: &str,
-    authority: &DeploymentAuthorityLease,
+    authority: &WorkloadAuthorityLease,
 ) -> anyhow::Result<()>
 where
     S: EventStore,
 {
-    let building = update_deployment_record(state, change_set_id, |deployment| {
+    let building = update_workload_record(state, change_set_id, |workload| {
         anyhow::ensure!(
             matches!(
-                deployment.status,
-                DevelopmentDeploymentStatus::Preparing | DevelopmentDeploymentStatus::Building
+                workload.status,
+                DevelopmentWorkloadStatus::Preparing | DevelopmentWorkloadStatus::Building
             ),
-            "deployment preview is not in its build phase"
+            "workload preview is not in its build phase"
         );
-        deployment.status = DevelopmentDeploymentStatus::Building;
-        deployment.error = None;
+        workload.status = DevelopmentWorkloadStatus::Building;
+        workload.error = None;
         Ok(())
     })
     .await?;
-    let deployment = building
-        .deployment
+    let workload = building
+        .workload
         .clone()
-        .ok_or_else(|| anyhow::anyhow!("development deployment disappeared"))?;
+        .ok_or_else(|| anyhow::anyhow!("development workload disappeared"))?;
     let installation_id = building
         .target_installation_id
         .clone()
-        .ok_or_else(|| anyhow::anyhow!("development deployment has no target installation"))?;
-    deployment_effect_context(
+        .ok_or_else(|| anyhow::anyhow!("development workload has no target installation"))?;
+    workload_effect_context(
         state,
         Some(authority),
         &installation_id,
-        "host_development_deployment_build",
+        "host_development_workload_build",
     )
     .await?;
     let build_operation = crate::target_agent::submit_host_operation(
         state,
-        &deployment.target_id,
+        &workload.target_id,
         CreateTargetOperationRequest {
             installation_id: installation_id.clone(),
             spec: TargetOperationSpec::VerifierRun {
                 verifier: DeclarativeVerifierDescriptor::DockerBuild {
-                    digest: deployment.build_context_ref.digest.clone(),
-                    expected_size_bytes: Some(deployment.build_context_ref.size_bytes),
-                    dockerfile: deployment.dockerfile.clone(),
-                    network_mode: match deployment.network_mode {
+                    digest: workload.build_context_ref.digest.clone(),
+                    expected_size_bytes: Some(workload.build_context_ref.size_bytes),
+                    dockerfile: workload.dockerfile.clone(),
+                    network_mode: match workload.network_mode {
                         DevelopmentNetworkMode::None => {
                             plurora_runtime::ManagedTargetBuildNetworkMode::None
                         }
@@ -4108,55 +4080,54 @@ where
                             plurora_runtime::ManagedTargetBuildNetworkMode::Bridge
                         }
                     },
-                    disposition:
-                        plurora_runtime::ManagedTargetImageDisposition::RetainForDeployment,
-                    build_id: deployment.build_id.clone(),
-                    workspace_id: deployment.workspace_id.clone(),
-                    source_tree_digest: deployment.source_tree_digest.clone(),
-                    build_descriptor_hash: deployment.build_descriptor_hash.clone(),
+                    disposition: plurora_runtime::ManagedTargetImageDisposition::RetainForWorkload,
+                    build_id: workload.build_id.clone(),
+                    workspace_id: workload.workspace_id.clone(),
+                    source_tree_digest: workload.source_tree_digest.clone(),
+                    build_descriptor_hash: workload.build_descriptor_hash.clone(),
                 },
             },
-            idempotency_key: Some(format!("{}:build", deployment.deployment_id)),
+            idempotency_key: Some(format!("{}:build", workload.workload_id)),
             expires_in_seconds: Some(15 * 60),
         },
     )
     .await
     .map_err(|error| error.error)?;
     let build_operation_id = build_operation.operation_id.clone();
-    update_deployment_record(state, change_set_id, |current| {
+    update_workload_record(state, change_set_id, |current| {
         anyhow::ensure!(
-            current.deployment_id == deployment.deployment_id,
-            "deployment preview identity changed"
+            current.workload_id == workload.workload_id,
+            "workload preview identity changed"
         );
         current.build_operation_id = Some(build_operation_id.clone());
         Ok(())
     })
     .await?;
     let build_operation = require_succeeded_target_operation(
-        await_target_operation(state, &deployment.target_id, build_operation).await?,
+        await_target_operation(state, &workload.target_id, build_operation).await?,
         "target Docker build",
     )?;
     let build_receipt = require_target_image_build_receipt(
         &build_operation,
-        plurora_runtime::ManagedTargetImageDisposition::RetainForDeployment,
+        plurora_runtime::ManagedTargetImageDisposition::RetainForWorkload,
     )?;
     let image = build_receipt.image.clone();
     let image_id = build_receipt.image_id.clone();
     anyhow::ensure!(
-        build_receipt.context_digest == deployment.build_context_ref.digest
-            && build_receipt.source_tree_digest == deployment.source_tree_digest
-            && build_receipt.build_descriptor_hash == deployment.build_descriptor_hash
-            && build_receipt.build_id == deployment.build_id
+        build_receipt.context_digest == workload.build_context_ref.digest
+            && build_receipt.source_tree_digest == workload.source_tree_digest
+            && build_receipt.build_descriptor_hash == workload.build_descriptor_hash
+            && build_receipt.build_id == workload.build_id
             && !build_receipt.image_removed
             && build_receipt.image_retained,
         "target Docker build receipt does not match the verified build descriptor"
     );
 
-    let port_context = deployment_effect_context(
+    let port_context = workload_effect_context(
         state,
         Some(authority),
         &installation_id,
-        "host_development_deployment_port_lease",
+        "host_development_workload_port_lease",
     )
     .await?;
     let lease = call_host_protocol(
@@ -4164,37 +4135,37 @@ where
         &port_context,
         "host.port.lease",
         json!({
-            "target_id": deployment.target_id,
-            "port_name": deployment.port_name,
+            "target_id": workload.target_id,
+            "port_name": workload.port_name,
             "protocol": "tcp",
         }),
     )
     .await
     .and_then(|value| value_field(value, "lease", "host.port.lease"))?;
-    let port_lease_id = required_string(&lease, "id", "deployment preview port lease")?;
-    let target_deployment_id = format!("preview-{}", deployment.deployment_id);
-    let previewing = update_deployment_record(state, change_set_id, |current| {
+    let port_lease_id = required_string(&lease, "id", "workload preview port lease")?;
+    let target_workload_id = format!("preview-{}", workload.workload_id);
+    let previewing = update_workload_record(state, change_set_id, |current| {
         anyhow::ensure!(
-            current.deployment_id == deployment.deployment_id
-                && current.status == DevelopmentDeploymentStatus::Building,
-            "deployment preview changed before candidate preparation"
+            current.workload_id == workload.workload_id
+                && current.status == DevelopmentWorkloadStatus::Building,
+            "workload preview changed before candidate preparation"
         );
-        current.status = DevelopmentDeploymentStatus::Previewing;
+        current.status = DevelopmentWorkloadStatus::Previewing;
         current.preview_port_lease_id = Some(port_lease_id.clone());
-        current.target_deployment_id = Some(target_deployment_id.clone());
+        current.target_workload_id = Some(target_workload_id.clone());
         Ok(())
     })
     .await?;
-    let deployment = previewing
-        .deployment
+    let workload = previewing
+        .workload
         .clone()
-        .ok_or_else(|| anyhow::anyhow!("development deployment disappeared"))?;
+        .ok_or_else(|| anyhow::anyhow!("development workload disappeared"))?;
 
-    let route_context = deployment_effect_context(
+    let route_context = workload_effect_context(
         state,
         Some(authority),
         &installation_id,
-        "host_development_deployment_preview_route",
+        "host_development_workload_preview_route",
     )
     .await?;
     let route = call_host_protocol(
@@ -4202,23 +4173,23 @@ where
         &route_context,
         "host.proxy.register",
         json!({
-            "route_id": deployment.preview_route_id,
+            "route_id": workload.preview_route_id,
             "protocol": "http",
             "access": ProxyRouteAccess::HostAuthenticated,
             "upstream": {
                 "port_lease_id": port_lease_id,
-                "port_name": deployment.port_name,
+                "port_name": workload.port_name,
             },
         }),
     )
     .await
     .and_then(|value| value_field(value, "route", "host.proxy.register"))?;
-    let registered_route_id = required_string(&route, "id", "deployment preview route")?;
+    let registered_route_id = required_string(&route, "id", "workload preview route")?;
     anyhow::ensure!(
-        registered_route_id == deployment.preview_route_id,
-        "deployment preview route identity changed during registration"
+        registered_route_id == workload.preview_route_id,
+        "workload preview route identity changed during registration"
     );
-    let fallback_public_url = required_string(&route, "public_url", "deployment preview route")?;
+    let fallback_public_url = required_string(&route, "public_url", "workload preview route")?;
     let public_url = service_public_url_for_route(
         state,
         &registered_route_id,
@@ -4226,54 +4197,54 @@ where
         ProxyRouteAccess::HostAuthenticated,
     );
 
-    deployment_effect_context(
+    workload_effect_context(
         state,
         Some(authority),
         &installation_id,
-        "host_development_deployment_candidate_apply",
+        "host_development_workload_candidate_apply",
     )
     .await?;
-    let target_deployment = TargetDeploymentRef {
-        deployment_id: target_deployment_id,
-        route_id: deployment.preview_route_id.clone(),
+    let target_workload = TargetWorkloadRef {
+        workload_id: target_workload_id,
+        route_id: workload.preview_route_id.clone(),
         port_lease_id: port_lease_id.clone(),
     };
     let apply_operation = crate::target_agent::submit_host_operation(
         state,
-        &deployment.target_id,
+        &workload.target_id,
         CreateTargetOperationRequest {
             installation_id: installation_id.clone(),
-            spec: TargetOperationSpec::DeploymentApply {
-                deployment: TargetDeploymentDescriptor {
-                    deployment: target_deployment.clone(),
-                    port_name: deployment.port_name.clone(),
+            spec: TargetOperationSpec::WorkloadApply {
+                workload: TargetWorkloadDescriptor {
+                    workload: target_workload.clone(),
+                    port_name: workload.port_name.clone(),
                     image: image_id.clone(),
-                    container_port: deployment.container_port,
+                    container_port: workload.container_port,
                     requested_host_port: None,
                     pull_if_missing: false,
-                    health_path: deployment.health_path.clone(),
+                    health_path: workload.health_path.clone(),
                 },
             },
-            idempotency_key: Some(format!("{}:apply", deployment.deployment_id)),
+            idempotency_key: Some(format!("{}:apply", workload.workload_id)),
             expires_in_seconds: Some(15 * 60),
         },
     )
     .await
     .map_err(|error| error.error)?;
-    let deployment_operation_id = apply_operation.operation_id.clone();
-    update_deployment_record(state, change_set_id, |current| {
+    let workload_operation_id = apply_operation.operation_id.clone();
+    update_workload_record(state, change_set_id, |current| {
         anyhow::ensure!(
-            current.deployment_id == deployment.deployment_id
-                && current.status == DevelopmentDeploymentStatus::Previewing,
-            "deployment preview changed before candidate receipt persistence"
+            current.workload_id == workload.workload_id
+                && current.status == DevelopmentWorkloadStatus::Previewing,
+            "workload preview changed before candidate receipt persistence"
         );
-        current.deployment_operation_id = Some(deployment_operation_id.clone());
+        current.workload_operation_id = Some(workload_operation_id.clone());
         Ok(())
     })
     .await?;
     let apply_operation = require_succeeded_target_operation(
-        await_target_operation(state, &deployment.target_id, apply_operation).await?,
-        "target deployment apply",
+        await_target_operation(state, &workload.target_id, apply_operation).await?,
+        "target workload apply",
     )?;
     let apply_output = &apply_operation
         .receipt
@@ -4282,12 +4253,12 @@ where
         .output;
     anyhow::ensure!(
         apply_output.get("running").and_then(Value::as_bool) == Some(true),
-        "target deployment receipt is not running"
+        "target workload receipt is not running"
     );
     let container_id = required_string(
         apply_output,
         "container_id",
-        "target deployment apply receipt",
+        "target workload apply receipt",
     )?;
     let container_name = apply_output
         .get("container_name")
@@ -4295,54 +4266,54 @@ where
         .filter(|value| !value.is_empty())
         .map(str::to_string);
     anyhow::ensure!(
-        required_string(apply_output, "image_id", "target deployment apply receipt")? == image_id,
-        "target deployment used a different image than the verified target build"
+        required_string(apply_output, "image_id", "target workload apply receipt")? == image_id,
+        "target workload used a different image than the verified target build"
     );
     let ready_route = state
         .runtime
         .config()
         .proxy_route_registry
-        .status(&deployment.preview_route_id)
+        .status(&workload.preview_route_id)
         .await
-        .ok_or_else(|| anyhow::anyhow!("deployment preview route disappeared"))?;
+        .ok_or_else(|| anyhow::anyhow!("workload preview route disappeared"))?;
     anyhow::ensure!(
         ready_route.status == plurora_runtime::ProxyRouteStatusKind::Active
             && ready_route.ready
             && ready_route.upstream.port_lease_id == port_lease_id,
-        "deployment preview route did not become ready"
+        "workload preview route did not become ready"
     );
 
-    let preview = DevelopmentDeploymentPreview {
+    let preview = DevelopmentWorkloadPreview {
         route_id: registered_route_id,
         public_url,
         port_lease_id,
-        deployment: target_deployment,
+        workload: target_workload,
         image,
         image_id,
         container_id,
         container_name,
         build_operation_id,
-        deployment_operation_id,
+        workload_operation_id,
         ready_at_ms: now_millis(),
     };
     let preview_ref = commit_json_artifact(
         state.runtime.as_ref(),
-        DEVELOPMENT_DEPLOYMENT_PREVIEW_TYPE_URI,
+        DEVELOPMENT_WORKLOAD_PREVIEW_TYPE_URI,
         &json!({
             "schema_version": 1,
             "installation_id": installation_id,
             "change_set_id": change_set_id,
-            "deployment_id": deployment.deployment_id,
-            "source_tree_digest": deployment.source_tree_digest,
-            "verification_ref": deployment.verification_ref,
-            "build_context_ref": deployment.build_context_ref,
-            "authority_ref": deployment.authority_ref,
+            "workload_id": workload.workload_id,
+            "source_tree_digest": workload.source_tree_digest,
+            "verification_ref": workload.verification_ref,
+            "build_context_ref": workload.build_context_ref,
+            "authority_ref": workload.authority_ref,
             "preview": preview,
         }),
         vec![
-            deployment.verification_ref.digest.clone(),
-            deployment.build_context_ref.digest.clone(),
-            deployment.authority_ref.digest.clone(),
+            workload.verification_ref.digest.clone(),
+            workload.build_context_ref.digest.clone(),
+            workload.authority_ref.digest.clone(),
         ],
         BTreeMap::from([
             (
@@ -4350,22 +4321,22 @@ where
                 json!(installation_id.as_str()),
             ),
             ("change_set_id".to_string(), json!(change_set_id)),
-            ("deployment_id".to_string(), json!(deployment.deployment_id)),
-            ("target_id".to_string(), json!(deployment.target_id)),
+            ("workload_id".to_string(), json!(workload.workload_id)),
+            ("target_id".to_string(), json!(workload.target_id)),
             (
                 "source_tree_digest".to_string(),
-                json!(deployment.source_tree_digest),
+                json!(workload.source_tree_digest),
             ),
         ]),
     )
     .await?;
-    update_deployment_record(state, change_set_id, |current| {
+    update_workload_record(state, change_set_id, |current| {
         anyhow::ensure!(
-            current.deployment_id == deployment.deployment_id
-                && current.status == DevelopmentDeploymentStatus::Previewing,
-            "deployment preview changed before readiness persistence"
+            current.workload_id == workload.workload_id
+                && current.status == DevelopmentWorkloadStatus::Previewing,
+            "workload preview changed before readiness persistence"
         );
-        current.status = DevelopmentDeploymentStatus::PreviewReady;
+        current.status = DevelopmentWorkloadStatus::PreviewReady;
         current.preview = Some(preview);
         current.preview_ref = Some(preview_ref);
         current.error = None;
@@ -4390,7 +4361,7 @@ where
 
 async fn unrecorded_preview_port_lease_may_exist<S>(
     state: &AppState<S>,
-    deployment: &DevelopmentDeploymentRecord,
+    workload: &DevelopmentWorkloadRecord,
 ) -> bool
 where
     S: EventStore,
@@ -4415,16 +4386,16 @@ where
     claimed_lease_ids.extend(
         state
             .target_agents
-            .operations_for_target(&deployment.target_id)
+            .operations_for_target(&workload.target_id)
             .into_iter()
             .filter_map(|operation| match operation.spec {
-                TargetOperationSpec::DeploymentApply { deployment } => {
-                    Some(deployment.deployment.port_lease_id)
+                TargetOperationSpec::WorkloadApply { workload } => {
+                    Some(workload.workload.port_lease_id)
                 }
-                TargetOperationSpec::DeploymentObserve { deployment }
-                | TargetOperationSpec::DeploymentDrain { deployment, .. }
-                | TargetOperationSpec::DeploymentStop { deployment, .. } => {
-                    Some(deployment.port_lease_id)
+                TargetOperationSpec::WorkloadObserve { workload }
+                | TargetOperationSpec::WorkloadDrain { workload, .. }
+                | TargetOperationSpec::WorkloadStop { workload, .. } => {
+                    Some(workload.port_lease_id)
                 }
                 _ => None,
             }),
@@ -4437,8 +4408,8 @@ where
         .await
         .into_iter()
         .any(|lease| {
-            lease.target_id == deployment.target_id
-                && lease.port_name == deployment.port_name
+            lease.target_id == workload.target_id
+                && lease.port_name == workload.port_name
                 && lease.protocol == plurora_runtime::PortProtocol::Tcp
                 && lease.bind == plurora_runtime::PortBindScope::LoopbackOnly
                 && lease.host == "127.0.0.1"
@@ -4450,51 +4421,49 @@ where
 async fn stop_preview_candidate_for_reconciliation<S>(
     state: &AppState<S>,
     installation_id: &InstallationId,
-    deployment: &DevelopmentDeploymentRecord,
+    workload: &DevelopmentWorkloadRecord,
 ) -> Result<bool, ServiceError>
 where
     S: EventStore,
 {
-    let (Some(target_deployment_id), Some(port_lease_id)) = (
-        deployment.target_deployment_id.as_ref(),
-        deployment.preview_port_lease_id.as_ref(),
+    let (Some(target_workload_id), Some(port_lease_id)) = (
+        workload.target_workload_id.as_ref(),
+        workload.preview_port_lease_id.as_ref(),
     ) else {
         return Ok(state
             .target_agents
-            .installation_for_operation_route(&deployment.preview_route_id)
+            .installation_for_operation_route(&workload.preview_route_id)
             .is_none());
     };
-    let target_deployment = TargetDeploymentRef {
-        deployment_id: target_deployment_id.clone(),
-        route_id: deployment.preview_route_id.clone(),
+    let target_workload = TargetWorkloadRef {
+        workload_id: target_workload_id.clone(),
+        route_id: workload.preview_route_id.clone(),
         port_lease_id: port_lease_id.clone(),
     };
     let latest_candidate_effect = state
         .target_agents
-        .operations_for_target(&deployment.target_id)
+        .operations_for_target(&workload.target_id)
         .into_iter()
         .filter(|operation| {
             if operation.installation_id != *installation_id {
                 return false;
             }
             match &operation.spec {
-                TargetOperationSpec::DeploymentApply { deployment } => {
-                    deployment.deployment == target_deployment
+                TargetOperationSpec::WorkloadApply { workload } => {
+                    workload.workload == target_workload
                 }
-                TargetOperationSpec::DeploymentStop { deployment, .. } => {
-                    *deployment == target_deployment
-                }
+                TargetOperationSpec::WorkloadStop { workload, .. } => *workload == target_workload,
                 _ => false,
             }
         })
         .last();
     if let Some(latest) = latest_candidate_effect {
         if latest.status == TargetOperationStatusKind::Succeeded
-            && matches!(latest.spec, TargetOperationSpec::DeploymentStop { .. })
+            && matches!(latest.spec, TargetOperationSpec::WorkloadStop { .. })
         {
             return Ok(true);
         }
-        if matches!(latest.spec, TargetOperationSpec::DeploymentApply { .. })
+        if matches!(latest.spec, TargetOperationSpec::WorkloadApply { .. })
             && matches!(
                 latest.status,
                 TargetOperationStatusKind::Failed
@@ -4507,17 +4476,17 @@ where
     }
     let stop = crate::target_agent::submit_host_operation(
         state,
-        &deployment.target_id,
+        &workload.target_id,
         CreateTargetOperationRequest {
             installation_id: installation_id.clone(),
-            spec: TargetOperationSpec::DeploymentStop {
-                deployment: target_deployment,
+            spec: TargetOperationSpec::WorkloadStop {
+                workload: target_workload,
                 grace_seconds: 0,
                 force_remove: true,
             },
             idempotency_key: Some(format!(
                 "{}:reconcile:{}",
-                deployment.deployment_id,
+                workload.workload_id,
                 &uuid::Uuid::new_v4().simple().to_string()[..12]
             )),
             expires_in_seconds: Some(15 * 60),
@@ -4525,19 +4494,19 @@ where
     )
     .await
     .map_err(|error| {
-        tracing::warn!(installation_id = %installation_id, deployment_id = %deployment.deployment_id, error = %error.error, "failed to submit deployment reconciliation stop");
+        tracing::warn!(installation_id = %installation_id, workload_id = %workload.workload_id, error = %error.error, "failed to submit workload reconciliation stop");
         ServiceError::with_status(
             StatusCode::CONFLICT,
-            "deployment target is not ready for candidate reconciliation",
+            "workload target is not ready for candidate reconciliation",
         )
     })?;
-    let stop = await_target_operation(state, &deployment.target_id, stop)
+    let stop = await_target_operation(state, &workload.target_id, stop)
         .await
         .map_err(|error| {
-            tracing::warn!(installation_id = %installation_id, deployment_id = %deployment.deployment_id, error = %error, "deployment reconciliation stop outcome is unresolved");
+            tracing::warn!(installation_id = %installation_id, workload_id = %workload.workload_id, error = %error, "workload reconciliation stop outcome is unresolved");
             ServiceError::with_status(
                 StatusCode::CONFLICT,
-                "deployment candidate stop outcome is still unresolved",
+                "workload candidate stop outcome is still unresolved",
             )
         })?;
     Ok(stop.status == TargetOperationStatusKind::Succeeded)
@@ -4546,15 +4515,15 @@ where
 async fn stop_completed_preview_candidate<S>(
     state: &AppState<S>,
     installation_id: &InstallationId,
-    deployment: &DevelopmentDeploymentRecord,
+    workload: &DevelopmentWorkloadRecord,
 ) -> anyhow::Result<bool>
 where
     S: EventStore,
 {
-    let Some(operation_id) = deployment.deployment_operation_id.as_deref() else {
+    let Some(operation_id) = workload.workload_operation_id.as_deref() else {
         return Ok(state
             .target_agents
-            .installation_for_operation_route(&deployment.preview_route_id)
+            .installation_for_operation_route(&workload.preview_route_id)
             .is_none());
     };
     let Some(operation) = state.target_agents.operation(operation_id) else {
@@ -4570,27 +4539,27 @@ where
         | TargetOperationStatusKind::Running
         | TargetOperationStatusKind::OutcomeUnknown => return Ok(false),
     }
-    let (Some(target_deployment_id), Some(port_lease_id)) = (
-        deployment.target_deployment_id.as_ref(),
-        deployment.preview_port_lease_id.as_ref(),
+    let (Some(target_workload_id), Some(port_lease_id)) = (
+        workload.target_workload_id.as_ref(),
+        workload.preview_port_lease_id.as_ref(),
     ) else {
         return Ok(false);
     };
     let cleanup = crate::target_agent::submit_host_operation(
         state,
-        &deployment.target_id,
+        &workload.target_id,
         CreateTargetOperationRequest {
             installation_id: installation_id.clone(),
-            spec: TargetOperationSpec::DeploymentStop {
-                deployment: TargetDeploymentRef {
-                    deployment_id: target_deployment_id.clone(),
-                    route_id: deployment.preview_route_id.clone(),
+            spec: TargetOperationSpec::WorkloadStop {
+                workload: TargetWorkloadRef {
+                    workload_id: target_workload_id.clone(),
+                    route_id: workload.preview_route_id.clone(),
                     port_lease_id: port_lease_id.clone(),
                 },
                 grace_seconds: 0,
                 force_remove: true,
             },
-            idempotency_key: Some(format!("{}:cleanup", deployment.deployment_id)),
+            idempotency_key: Some(format!("{}:cleanup", workload.workload_id)),
             expires_in_seconds: Some(15 * 60),
         },
     )
@@ -4598,7 +4567,7 @@ where
     let Ok(cleanup) = cleanup else {
         return Ok(false);
     };
-    let cleanup = match await_target_operation(state, &deployment.target_id, cleanup).await {
+    let cleanup = match await_target_operation(state, &workload.target_id, cleanup).await {
         Ok(cleanup) => cleanup,
         Err(_) => return Ok(false),
     };
@@ -4607,20 +4576,20 @@ where
 
 async fn cleanup_preview_host_resources<S>(
     state: &AppState<S>,
-    deployment: &DevelopmentDeploymentRecord,
+    workload: &DevelopmentWorkloadRecord,
 ) -> anyhow::Result<bool>
 where
     S: EventStore,
 {
-    let Some(port_lease_id) = deployment.preview_port_lease_id.as_deref() else {
+    let Some(port_lease_id) = workload.preview_port_lease_id.as_deref() else {
         return Ok(true);
     };
-    let context = ProtocolContext::host_dev("host_development_deployment_compensation");
+    let context = ProtocolContext::host_dev("host_development_workload_compensation");
     if let Some(route) = state
         .runtime
         .config()
         .proxy_route_registry
-        .status(&deployment.preview_route_id)
+        .status(&workload.preview_route_id)
         .await
     {
         if route.status != plurora_runtime::ProxyRouteStatusKind::Removed {
@@ -4631,14 +4600,14 @@ where
                 state,
                 &context,
                 "host.proxy.unregister",
-                json!({ "route_id": deployment.preview_route_id }),
+                json!({ "route_id": workload.preview_route_id }),
             )
             .await
             {
                 tracing::warn!(
-                    deployment_id = %deployment.deployment_id,
+                    workload_id = %workload.workload_id,
                     error = %error,
-                    "deployment preview route cleanup failed"
+                    "workload preview route cleanup failed"
                 );
             }
         }
@@ -4647,7 +4616,7 @@ where
         .runtime
         .config()
         .proxy_route_registry
-        .status(&deployment.preview_route_id)
+        .status(&workload.preview_route_id)
         .await
         .is_none_or(|route| route.status == plurora_runtime::ProxyRouteStatusKind::Removed);
     if !route_removed {
@@ -4671,9 +4640,9 @@ where
         .await
         {
             tracing::warn!(
-                deployment_id = %deployment.deployment_id,
+                workload_id = %workload.workload_id,
                 error = %error,
-                "deployment preview port cleanup failed"
+                "workload preview port cleanup failed"
             );
         }
     }
@@ -4686,7 +4655,7 @@ where
         .is_none_or(|lease| lease.status == plurora_runtime::PortLeaseStatusKind::Released))
 }
 
-async fn complete_deployment_preview_failure<S>(
+async fn complete_workload_preview_failure<S>(
     state: &AppState<S>,
     change_set_id: &str,
 ) -> anyhow::Result<()>
@@ -4699,18 +4668,18 @@ where
         .development
         .get(change_set_id)
         .ok_or_else(|| anyhow::anyhow!("development change disappeared"))?;
-    let Some(deployment) = record.deployment.clone() else {
-        anyhow::bail!("development deployment disappeared");
+    let Some(workload) = record.workload.clone() else {
+        anyhow::bail!("development workload disappeared");
     };
-    if !deployment.status.executing() {
+    if !workload.status.executing() {
         return Ok(());
     }
-    let operation_uncertain = deployment
+    let operation_uncertain = workload
         .build_operation_id
         .as_deref()
         .is_some_and(|id| target_operation_outcome_is_uncertain(state, id))
-        || deployment
-            .deployment_operation_id
+        || workload
+            .workload_operation_id
             .as_deref()
             .is_some_and(|id| target_operation_outcome_is_uncertain(state, id));
     let cleanup_complete = if operation_uncertain {
@@ -4719,26 +4688,26 @@ where
         stop_completed_preview_candidate(
             state,
             record.target_installation_id.as_ref().ok_or_else(|| {
-                anyhow::anyhow!("development deployment has no target installation")
+                anyhow::anyhow!("development workload has no target installation")
             })?,
-            &deployment,
+            &workload,
         )
         .await?
-            && cleanup_preview_host_resources(state, &deployment).await?
+            && cleanup_preview_host_resources(state, &workload).await?
     };
-    update_deployment_record(state, change_set_id, |current| {
+    update_workload_record(state, change_set_id, |current| {
         if !current.status.executing() {
             return Ok(());
         }
         if operation_uncertain || !cleanup_complete {
-            current.status = DevelopmentDeploymentStatus::RecoveryRequired;
+            current.status = DevelopmentWorkloadStatus::RecoveryRequired;
             current.error = Some(
-                "deployment preview outcome requires explicit reconciliation; details redacted"
+                "workload preview outcome requires explicit reconciliation; details redacted"
                     .to_string(),
             );
         } else {
-            current.status = DevelopmentDeploymentStatus::Failed;
-            current.error = Some("deployment preview failed; details redacted".to_string());
+            current.status = DevelopmentWorkloadStatus::Failed;
+            current.error = Some("workload preview failed; details redacted".to_string());
         }
         Ok(())
     })
@@ -5162,7 +5131,7 @@ where
         }
     }
 
-    let interrupted_deployments = {
+    let interrupted_workloads = {
         registry
             .changes
             .lock()
@@ -5171,37 +5140,37 @@ where
             .filter(|stored| {
                 stored
                     .record
-                    .deployment
+                    .workload
                     .as_ref()
-                    .is_some_and(|deployment| deployment.status.executing())
+                    .is_some_and(|workload| workload.status.executing())
             })
             .map(|stored| stored.record.change_set.id.clone())
             .collect::<Vec<_>>()
     };
-    for change_set_id in interrupted_deployments {
+    for change_set_id in interrupted_workloads {
         verify_development_host_lease(store.as_ref(), registry.as_ref()).await?;
         let Some(mut snapshot) = registry.snapshot(&change_set_id) else {
             continue;
         };
-        let Some(deployment) = snapshot.record.deployment.as_mut() else {
+        let Some(workload) = snapshot.record.workload.as_mut() else {
             continue;
         };
-        if !deployment.status.executing() {
+        if !workload.status.executing() {
             continue;
         }
-        deployment.status = DevelopmentDeploymentStatus::RecoveryRequired;
-        deployment.error = Some(
-            "host restarted during deployment preview; target operation reconciliation is required"
+        workload.status = DevelopmentWorkloadStatus::RecoveryRequired;
+        workload.error = Some(
+            "host restarted during workload preview; target operation reconciliation is required"
                 .to_string(),
         );
-        deployment.updated_at_ms = now_millis();
+        workload.updated_at_ms = now_millis();
         snapshot.record.revision = snapshot.record.revision.saturating_add(1);
         snapshot.record.updated_at_ms = now_millis();
         let expected_next = registry.subject_journal_next(&snapshot.record.subject);
         let event = append_development_journal_event(store.as_ref(), &snapshot, expected_next)
             .await?
             .ok_or_else(|| {
-                anyhow::anyhow!("development journal changed during deployment recovery")
+                anyhow::anyhow!("development journal changed during workload recovery")
             })?;
         registry.apply_journal_event(&event)?;
     }
@@ -5369,7 +5338,7 @@ where
         managed_promotion: None,
         recovery_kind: None,
         commit: None,
-        deployment: None,
+        workload: None,
         error: None,
         created_at_ms: timestamp_ms,
         updated_at_ms: timestamp_ms,
@@ -6102,7 +6071,7 @@ fn require_target_installation(
     record.target_installation_id.as_ref().ok_or_else(|| {
         ServiceError::with_status(
             StatusCode::CONFLICT,
-            "deployment actions require a target installation",
+            "workload actions require a target installation",
         )
     })
 }
@@ -6657,7 +6626,7 @@ where
                 image: None,
                 log_tail: None,
                 artifact_ref,
-                deployment_artifact_ref: None,
+                workload_artifact_ref: None,
             })
         }
         DevelopmentVerificationPlan::DockerBuild {
@@ -6696,8 +6665,8 @@ where
                 move || plurora_runtime::prepare_docker_build_context(&prepare_input)
             })
             .await
-            .context("deployable build context task failed")??;
-            let deployment_artifact_ref = state
+            .context("workloadable build context task failed")??;
+            let workload_artifact_ref = state
                 .runtime
                 .commit_artifact(ArtifactCommitRequest {
                     artifact_type_uri: DEVELOPMENT_BUILD_CONTEXT_ARTIFACT_TYPE_URI.to_string(),
@@ -6726,8 +6695,8 @@ where
                     installation_id: installation_id.clone(),
                     spec: TargetOperationSpec::VerifierRun {
                         verifier: DeclarativeVerifierDescriptor::DockerBuild {
-                            digest: deployment_artifact_ref.digest.clone(),
-                            expected_size_bytes: Some(deployment_artifact_ref.size_bytes),
+                            digest: workload_artifact_ref.digest.clone(),
+                            expected_size_bytes: Some(workload_artifact_ref.size_bytes),
                             dockerfile: dockerfile.clone(),
                             network_mode: development_target_network_mode(*network_mode),
                             disposition: plurora_runtime::ManagedTargetImageDisposition::RemoveAfterVerification,
@@ -6781,7 +6750,7 @@ where
                 "image_ref": image,
                 "image_removed": true,
                 "image_retained": false,
-                "deployment_artifact_ref": deployment_artifact_ref,
+                "workload_artifact_ref": workload_artifact_ref,
                 "diagnostic_log_digest": diagnostic_log_digest,
             });
             let artifact_ref = commit_json_artifact(
@@ -6790,7 +6759,7 @@ where
                 &payload,
                 vec![
                     record.change_set_ref.digest.clone(),
-                    deployment_artifact_ref.digest.clone(),
+                    workload_artifact_ref.digest.clone(),
                 ],
                 BTreeMap::from([("result_kind".to_string(), json!("docker_build"))]),
             )
@@ -6802,7 +6771,7 @@ where
                 image: None,
                 log_tail: None,
                 artifact_ref,
-                deployment_artifact_ref: Some(deployment_artifact_ref),
+                workload_artifact_ref: Some(workload_artifact_ref),
             })
         }
     }
@@ -6857,7 +6826,7 @@ where
         verification.artifact_ref.digest.clone(),
         bundle_ref.digest.clone(),
     ];
-    if let Some(artifact) = verification.deployment_artifact_ref.as_ref() {
+    if let Some(artifact) = verification.workload_artifact_ref.as_ref() {
         result_references.push(artifact.digest.clone());
     }
     let result_ref = commit_json_artifact(
@@ -6891,7 +6860,7 @@ where
         bundle_ref.clone(),
         result_ref.clone(),
     ];
-    if let Some(artifact) = verification.deployment_artifact_ref.clone() {
+    if let Some(artifact) = verification.workload_artifact_ref.clone() {
         output_refs.push(artifact);
     }
     let receipt = EffectReceipt {
@@ -7474,7 +7443,7 @@ mod tests {
             managed_promotion: None,
             recovery_kind: None,
             commit: None,
-            deployment: None,
+            workload: None,
             error: None,
             created_at_ms: 1,
             updated_at_ms: 1,
@@ -7482,10 +7451,10 @@ mod tests {
         }
     }
 
-    fn deployment(status: DevelopmentDeploymentStatus) -> DevelopmentDeploymentRecord {
-        DevelopmentDeploymentRecord {
+    fn workload(status: DevelopmentWorkloadStatus) -> DevelopmentWorkloadRecord {
+        DevelopmentWorkloadRecord {
             schema_version: 1,
-            deployment_id: "dep-0123456789abcdef".to_string(),
+            workload_id: "dep-0123456789abcdef".to_string(),
             status,
             target_id: "local".to_string(),
             workspace_id: WorkspaceId::parse("22222222-2222-4222-8222-222222222222").unwrap(),
@@ -7502,11 +7471,11 @@ mod tests {
             health_path: Some("/healthz".to_string()),
             preview_route_id: "preview-0123456789abcdef".to_string(),
             preview_port_lease_id: None,
-            target_deployment_id: None,
+            target_workload_id: None,
             build_id: "verified-0123456789abcdef".to_string(),
             build_descriptor_hash: format!("sha256:{}", "5".repeat(64)),
             build_operation_id: None,
-            deployment_operation_id: None,
+            workload_operation_id: None,
             preview: None,
             preview_ref: None,
             approval_decision: None,
@@ -7911,7 +7880,7 @@ mod tests {
     }
 
     #[test]
-    fn deployment_preview_requires_exact_verification_provenance() {
+    fn workload_preview_requires_exact_verification_provenance() {
         let mut record = record(DevelopmentChangeStatus::Verified);
         record.verification_plan = DevelopmentVerificationPlan::DockerBuild {
             dockerfile: "Dockerfile".to_string(),
@@ -7946,9 +7915,9 @@ mod tests {
             image: None,
             log_tail: None,
             artifact_ref: result,
-            deployment_artifact_ref: Some(context.clone()),
+            workload_artifact_ref: Some(context.clone()),
         };
-        assert!(validate_deployment_verification_provenance(
+        assert!(validate_workload_verification_provenance(
             &record,
             &verification,
             "Dockerfile",
@@ -7959,7 +7928,7 @@ mod tests {
 
         let mut tampered = verification;
         tampered
-            .deployment_artifact_ref
+            .workload_artifact_ref
             .as_mut()
             .unwrap()
             .annotations
@@ -7967,7 +7936,7 @@ mod tests {
                 "tree_digest".to_string(),
                 json!(format!("sha256:{}", "0".repeat(64))),
             );
-        assert!(validate_deployment_verification_provenance(
+        assert!(validate_workload_verification_provenance(
             &record,
             &tampered,
             "Dockerfile",
@@ -7978,8 +7947,8 @@ mod tests {
     }
 
     #[test]
-    fn deployment_preview_request_is_typed_and_label_safe() {
-        let mut request = DevelopmentDeploymentPreviewRequest {
+    fn workload_preview_request_is_typed_and_label_safe() {
+        let mut request = DevelopmentWorkloadPreviewRequest {
             target_id: "target-1".to_string(),
             container_port: 8080,
             port_name: "web".to_string(),
@@ -7988,14 +7957,14 @@ mod tests {
             health_path: Some("/healthz".to_string()),
             idempotency_key: Some("preview-1".to_string()),
         };
-        assert!(validate_deployment_preview_request(&request).is_ok());
+        assert!(validate_workload_preview_request(&request).is_ok());
         request.health_path = Some("//remote.example".to_string());
-        assert!(validate_deployment_preview_request(&request).is_err());
+        assert!(validate_workload_preview_request(&request).is_err());
     }
 
     #[test]
-    fn deployment_parent_requires_verified_bundle() {
-        assert!(development_change_allows_deployment(
+    fn workload_parent_requires_verified_bundle() {
+        assert!(development_change_allows_workload(
             DevelopmentChangeStatus::Verified
         ));
         for status in [
@@ -8009,7 +7978,7 @@ mod tests {
             DevelopmentChangeStatus::RecoveryRequired,
             DevelopmentChangeStatus::Failed,
         ] {
-            assert!(!development_change_allows_deployment(status));
+            assert!(!development_change_allows_workload(status));
         }
     }
 
@@ -8036,18 +8005,18 @@ mod tests {
     }
 
     #[test]
-    fn deployment_reconciliation_adopts_only_the_exact_durable_activation() {
+    fn workload_reconciliation_adopts_only_the_exact_durable_activation() {
         let mut record = record(DevelopmentChangeStatus::Verified);
-        let mut deployment = deployment(DevelopmentDeploymentStatus::RecoveryRequired);
+        let mut workload = workload(DevelopmentWorkloadStatus::RecoveryRequired);
         let preview_ref = artifact('7');
         let approval_ref = artifact('8');
-        let preview = DevelopmentDeploymentPreview {
-            route_id: deployment.preview_route_id.clone(),
+        let preview = DevelopmentWorkloadPreview {
+            route_id: workload.preview_route_id.clone(),
             public_url: "/p/preview/".to_string(),
             port_lease_id: "port-lease-1".to_string(),
-            deployment: TargetDeploymentRef {
-                deployment_id: "preview-deployment-1".to_string(),
-                route_id: deployment.preview_route_id.clone(),
+            workload: TargetWorkloadRef {
+                workload_id: "preview-workload-1".to_string(),
+                route_id: workload.preview_route_id.clone(),
                 port_lease_id: "port-lease-1".to_string(),
             },
             image: "plurora/verified:test".to_string(),
@@ -8055,102 +8024,93 @@ mod tests {
             container_id: "container-1".to_string(),
             container_name: Some("candidate-1".to_string()),
             build_operation_id: "operation-build".to_string(),
-            deployment_operation_id: "operation-apply".to_string(),
+            workload_operation_id: "operation-apply".to_string(),
             ready_at_ms: 1,
         };
-        deployment.preview_port_lease_id = Some(preview.port_lease_id.clone());
-        deployment.target_deployment_id = Some(preview.deployment.deployment_id.clone());
-        deployment.build_operation_id = Some(preview.build_operation_id.clone());
-        deployment.deployment_operation_id = Some(preview.deployment_operation_id.clone());
-        deployment.preview_ref = Some(preview_ref.clone());
-        deployment.approval_ref = Some(approval_ref.clone());
+        workload.preview_port_lease_id = Some(preview.port_lease_id.clone());
+        workload.target_workload_id = Some(preview.workload.workload_id.clone());
+        workload.build_operation_id = Some(preview.build_operation_id.clone());
+        workload.workload_operation_id = Some(preview.workload_operation_id.clone());
+        workload.preview_ref = Some(preview_ref.clone());
+        workload.approval_ref = Some(approval_ref.clone());
         let mut approval_decision = record.policy_decision.clone();
-        approval_decision.change_set_id = format!(
-            "{}:deployment:{}",
-            record.change_set.id, deployment.deployment_id
-        );
-        deployment.approval_decision = Some(approval_decision);
-        deployment.preview = Some(preview.clone());
-        record.deployment = Some(deployment.clone());
-        let mut active = DeploymentRevision {
+        approval_decision.change_set_id =
+            format!("{}:workload:{}", record.change_set.id, workload.workload_id);
+        workload.approval_decision = Some(approval_decision);
+        workload.preview = Some(preview.clone());
+        record.workload = Some(workload.clone());
+        let mut active = WorkloadRevision {
             revision_id: "revision-1".to_string(),
             installation_id: record.target_installation_id.clone().unwrap(),
-            workspace_id: deployment.workspace_id.clone(),
+            workspace_id: workload.workspace_id.clone(),
             job_id: None,
-            operation: DeploymentOperation::VerifiedActivate,
+            operation: WorkloadOperation::VerifiedActivate,
             parent_revision_id: None,
             created_at_ms: 1,
-            target_id: deployment.target_id.clone(),
-            source_kind: DeploymentSourceKind::VerifiedArtifact,
-            source_url: format!("artifact:{}", deployment.build_context_ref.digest),
+            target_id: workload.target_id.clone(),
+            source_kind: WorkloadSourceKind::VerifiedArtifact,
+            source_url: format!("artifact:{}", workload.build_context_ref.digest),
             ref_name: record.change_set.id.clone(),
-            dockerfile: Some(deployment.dockerfile.clone()),
-            container_port: deployment.container_port,
-            port_name: deployment.port_name.clone(),
-            route_id: deployment.route_id.clone(),
-            route_access: deployment.route_access,
-            health_path: deployment.health_path.clone(),
+            dockerfile: Some(workload.dockerfile.clone()),
+            container_port: workload.container_port,
+            port_name: workload.port_name.clone(),
+            route_id: workload.route_id.clone(),
+            route_access: workload.route_access,
+            health_path: workload.health_path.clone(),
             image: preview.image_id.clone(),
-            build_id: deployment.build_id.clone(),
-            source_commit: deployment.source_tree_digest.clone(),
-            build_descriptor_hash: deployment.build_descriptor_hash.clone(),
+            build_id: workload.build_id.clone(),
+            source_commit: workload.source_tree_digest.clone(),
+            build_descriptor_hash: workload.build_descriptor_hash.clone(),
             strategy: "verified_artifact".to_string(),
             runtime_env: Vec::new(),
             verified_change_set_id: Some(record.change_set.id.clone()),
-            verification_ref: Some(deployment.verification_ref.clone()),
-            build_context_ref: Some(deployment.build_context_ref.clone()),
+            verification_ref: Some(workload.verification_ref.clone()),
+            build_context_ref: Some(workload.build_context_ref.clone()),
             preview_ref: Some(preview_ref),
             approval_ref: Some(approval_ref),
             verified_build_network_mode: Some(development_target_network_mode(
-                deployment.network_mode,
+                workload.network_mode,
             )),
-            target_deployment: Some(preview.deployment.clone()),
+            target_workload: Some(preview.workload.clone()),
             recoverable: true,
             recovery_blockers: Vec::new(),
-            receipt: HostBuildDeployResponse {
-                workspace_id: deployment.workspace_id.clone(),
-                route_id: deployment.route_id.clone(),
+            receipt: HostBuildWorkloadResponse {
+                workspace_id: workload.workspace_id.clone(),
+                route_id: workload.route_id.clone(),
                 public_url: "/p/installation-web/".to_string(),
-                route_access: deployment.route_access,
+                route_access: workload.route_access,
                 port_lease_id: preview.port_lease_id.clone(),
                 container_id: preview.container_id.clone(),
                 container_name: preview.container_name.clone(),
                 image: preview.image_id,
-                build_id: deployment.build_id.clone(),
-                source_commit: deployment.source_tree_digest.clone(),
-                build_descriptor_hash: deployment.build_descriptor_hash.clone(),
+                build_id: workload.build_id.clone(),
+                source_commit: workload.source_tree_digest.clone(),
+                build_descriptor_hash: workload.build_descriptor_hash.clone(),
                 strategy: "verified_artifact".to_string(),
                 runtime_env: Vec::new(),
                 runtime_mounts: Vec::new(),
                 warnings: Vec::new(),
             },
         };
-        assert!(verified_activation_matches_deployment(
-            &active,
-            &record,
-            &deployment
+        assert!(verified_activation_matches_workload(
+            &active, &record, &workload
         ));
         active.approval_ref = Some(artifact('0'));
-        assert!(!verified_activation_matches_deployment(
-            &active,
-            &record,
-            &deployment
+        assert!(!verified_activation_matches_workload(
+            &active, &record, &workload
         ));
-        active.approval_ref = deployment.approval_ref.clone();
+        active.approval_ref = workload.approval_ref.clone();
         active.receipt.container_id = "another-container".to_string();
-        assert!(durable_revision_claims_deployment_candidate(
-            &active,
-            &deployment
+        assert!(durable_revision_claims_workload_candidate(
+            &active, &workload
         ));
-        assert!(!verified_activation_matches_deployment(
-            &active,
-            &record,
-            &deployment
+        assert!(!verified_activation_matches_workload(
+            &active, &record, &workload
         ));
     }
 
     #[tokio::test]
-    async fn deployment_reconciliation_does_not_guess_an_unrecorded_port_lease() {
+    async fn workload_reconciliation_does_not_guess_an_unrecorded_port_lease() {
         let store = Arc::new(InMemoryEventStore::default());
         let objects = Arc::new(plurora_runtime::InMemoryObjectStore::default());
         let installations =
@@ -8179,15 +8139,15 @@ mod tests {
             static_dir: None,
             access_token: None,
             app_base_domain: None,
-            build_jobs: crate::build_deploy_job_registry(),
+            build_jobs: crate::build_workload_job_registry(),
             development: development_registry(),
             host_access: crate::host_access_registry(),
             installations,
             target_agents: crate::target_agent_registry(),
         };
-        let deployment = deployment(DevelopmentDeploymentStatus::RecoveryRequired);
+        let workload = workload(DevelopmentWorkloadStatus::RecoveryRequired);
 
-        assert!(unrecorded_preview_port_lease_may_exist(&state, &deployment).await);
+        assert!(unrecorded_preview_port_lease_may_exist(&state, &workload).await);
         runtime
             .config()
             .proxy_route_registry
@@ -8201,7 +8161,7 @@ mod tests {
                 access: ProxyRouteAccess::HostAuthenticated,
             })
             .await;
-        assert!(!unrecorded_preview_port_lease_may_exist(&state, &deployment).await);
+        assert!(!unrecorded_preview_port_lease_may_exist(&state, &workload).await);
         runtime
             .config()
             .proxy_route_registry
@@ -8212,11 +8172,11 @@ mod tests {
             .port_lease_registry
             .release(&lease.id)
             .await;
-        assert!(!unrecorded_preview_port_lease_may_exist(&state, &deployment).await);
+        assert!(!unrecorded_preview_port_lease_may_exist(&state, &workload).await);
     }
 
     #[tokio::test]
-    async fn deployment_approval_evidence_binds_the_exact_preview() -> anyhow::Result<()> {
+    async fn workload_approval_evidence_binds_the_exact_preview() -> anyhow::Result<()> {
         let runtime = Arc::new(Runtime::new(
             Arc::new(InMemoryEventStore::default()),
             RuntimeConfig::default(),
@@ -8250,11 +8210,11 @@ mod tests {
             BTreeMap::new(),
         )
         .await?;
-        let deployment_id = "dep-0123456789abcdef";
+        let workload_id = "dep-0123456789abcdef";
         let authority_ref = commit_json_artifact(
             runtime.as_ref(),
-            DEVELOPMENT_DEPLOYMENT_AUTHORITY_TYPE_URI,
-            &json!({ "deployment_id": deployment_id }),
+            DEVELOPMENT_WORKLOAD_AUTHORITY_TYPE_URI,
+            &json!({ "workload_id": workload_id }),
             vec![verification_ref.digest.clone(), context_ref.digest.clone()],
             BTreeMap::from([
                 (
@@ -8263,16 +8223,16 @@ mod tests {
                 ),
                 ("change_set_id".to_string(), json!(change_set_id)),
                 ("target_id".to_string(), json!(target_id)),
-                ("deployment_id".to_string(), json!(deployment_id)),
+                ("workload_id".to_string(), json!(workload_id)),
             ]),
         )
         .await?;
-        let preview = DevelopmentDeploymentPreview {
+        let preview = DevelopmentWorkloadPreview {
             route_id: "preview-0123456789abcdef".to_string(),
             public_url: "/p/preview-0123456789abcdef/".to_string(),
             port_lease_id: "port-lease-000001".to_string(),
-            deployment: TargetDeploymentRef {
-                deployment_id: "preview-dep-0123456789abcdef".to_string(),
+            workload: TargetWorkloadRef {
+                workload_id: "preview-dep-0123456789abcdef".to_string(),
                 route_id: "preview-0123456789abcdef".to_string(),
                 port_lease_id: "port-lease-000001".to_string(),
             },
@@ -8281,17 +8241,17 @@ mod tests {
             container_id: "container-1".to_string(),
             container_name: Some("candidate-1".to_string()),
             build_operation_id: "operation-build".to_string(),
-            deployment_operation_id: "operation-apply".to_string(),
+            workload_operation_id: "operation-apply".to_string(),
             ready_at_ms: 1,
         };
         let preview_ref = commit_json_artifact(
             runtime.as_ref(),
-            DEVELOPMENT_DEPLOYMENT_PREVIEW_TYPE_URI,
+            DEVELOPMENT_WORKLOAD_PREVIEW_TYPE_URI,
             &json!({
                 "schema_version": 1,
                 "installation_id": installation_id,
                 "change_set_id": change_set_id,
-                "deployment_id": deployment_id,
+                "workload_id": workload_id,
                 "source_tree_digest": source_tree_digest,
                 "verification_ref": verification_ref,
                 "build_context_ref": context_ref,
@@ -8309,21 +8269,21 @@ mod tests {
                     json!(installation_id.as_str()),
                 ),
                 ("change_set_id".to_string(), json!(change_set_id)),
-                ("deployment_id".to_string(), json!(deployment_id)),
+                ("workload_id".to_string(), json!(workload_id)),
                 ("target_id".to_string(), json!(target_id)),
                 ("source_tree_digest".to_string(), json!(source_tree_digest)),
             ]),
         )
         .await?;
         let decision = PolicyDecision {
-            id: "decision-deployment-1".to_string(),
+            id: "decision-workload-1".to_string(),
             decision_type_uri: plurora_core::POLICY_DECISION_TYPE_URI.to_string(),
-            change_set_id: format!("{change_set_id}:deployment:{deployment_id}"),
+            change_set_id: format!("{change_set_id}:workload:{workload_id}"),
             outcome: PolicyDecisionOutcome::Allowed,
             principal: PrincipalIdentity::HostAdmin,
             reason: None,
             evaluated_authority: vec![
-                "host.installation.deploy".to_string(),
+                "host.installation.workload".to_string(),
                 format!("host.target.{target_id}"),
             ],
             decided_at: Utc::now(),
@@ -8340,19 +8300,19 @@ mod tests {
                 authority_ref.digest.clone(),
             ],
             BTreeMap::from([
-                ("role".to_string(), json!("explicit_deployment_approval")),
+                ("role".to_string(), json!("explicit_workload_approval")),
                 (
                     "installation_id".to_string(),
                     json!(installation_id.as_str()),
                 ),
                 ("change_set_id".to_string(), json!(change_set_id)),
-                ("deployment_id".to_string(), json!(deployment_id)),
+                ("workload_id".to_string(), json!(workload_id)),
                 ("target_id".to_string(), json!(target_id)),
             ]),
         )
         .await?;
 
-        let (stored_deployment_id, stored_preview, stored_authority) =
+        let (stored_workload_id, stored_preview, stored_authority) =
             read_verified_preview_evidence(
                 runtime.as_ref(),
                 &preview_ref,
@@ -8364,11 +8324,11 @@ mod tests {
                 &context_ref,
             )
             .await?;
-        assert_eq!(stored_deployment_id, deployment_id);
+        assert_eq!(stored_workload_id, workload_id);
         assert_eq!(stored_preview, preview);
         assert_eq!(stored_authority, authority_ref);
         assert_eq!(
-            read_verified_deployment_approval(
+            read_verified_workload_approval(
                 runtime.as_ref(),
                 &approval_ref,
                 &preview_ref,
@@ -8377,7 +8337,7 @@ mod tests {
                 &authority_ref,
                 &installation_id,
                 change_set_id,
-                deployment_id,
+                workload_id,
                 target_id,
             )
             .await?,
@@ -8388,7 +8348,7 @@ mod tests {
         detached
             .references
             .retain(|digest| digest != &preview_ref.digest);
-        assert!(read_verified_deployment_approval(
+        assert!(read_verified_workload_approval(
             runtime.as_ref(),
             &detached,
             &preview_ref,
@@ -8397,7 +8357,7 @@ mod tests {
             &authority_ref,
             &installation_id,
             change_set_id,
-            deployment_id,
+            workload_id,
             target_id,
         )
         .await
@@ -8540,7 +8500,7 @@ mod tests {
     {
         let store = Arc::new(InMemoryEventStore::default());
         let mut record = record(DevelopmentChangeStatus::Verified);
-        record.deployment = Some(deployment(DevelopmentDeploymentStatus::Previewing));
+        record.workload = Some(workload(DevelopmentWorkloadStatus::Previewing));
         let snapshot = DevelopmentChangeSnapshot {
             record,
             request_fingerprint: "sha256:request".to_string(),
@@ -8555,8 +8515,8 @@ mod tests {
         let restored = registry.get("chg-0123456789abcdef").unwrap();
         assert_eq!(restored.status, DevelopmentChangeStatus::Verified);
         assert_eq!(
-            restored.deployment.unwrap().status,
-            DevelopmentDeploymentStatus::RecoveryRequired
+            restored.workload.unwrap().status,
+            DevelopmentWorkloadStatus::RecoveryRequired
         );
         assert_eq!(
             store
@@ -8667,7 +8627,7 @@ mod tests {
             static_dir: None,
             access_token: Some("development-token".to_string()),
             app_base_domain: None,
-            build_jobs: crate::build_deploy_job_registry(),
+            build_jobs: crate::build_workload_job_registry(),
             development: development_registry(),
             host_access: crate::host_access_registry(),
             installations,

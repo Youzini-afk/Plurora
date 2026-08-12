@@ -1,6 +1,6 @@
 //! Local exec / port / proxy target primitives.
 //!
-//! Phase 1 is intentionally fail-closed and in-memory only: no OS process
+//! This layer is intentionally fail-closed and in-memory only: no OS process
 //! launch, no host proxying, and no raw secret material is stored here.
 
 use std::collections::{BTreeMap, HashMap, HashSet};
@@ -218,14 +218,14 @@ pub struct ManagedContainerReport {
 }
 
 #[async_trait]
-pub trait DeploymentReconcileSource: Send + Sync + 'static {
+pub trait WorkloadReconcileSource: Send + Sync + 'static {
     async fn list_managed(&self) -> anyhow::Result<Vec<ManagedContainerReport>>;
 }
 
 pub struct EmptyReconcileSource;
 
 #[async_trait]
-impl DeploymentReconcileSource for EmptyReconcileSource {
+impl WorkloadReconcileSource for EmptyReconcileSource {
     async fn list_managed(&self) -> anyhow::Result<Vec<ManagedContainerReport>> {
         Ok(Vec::new())
     }
@@ -761,9 +761,8 @@ impl LocalExecExecutor for LiveLocalExecExecutor {
 
         let mut child_guard = state.child.lock().await;
         if let Some(child) = child_guard.as_mut() {
-            // Phase 3b uses tokio Child::start_kill for test-friendly behavior.
-            // A later hardening pass can replace this with Unix process-group
-            // termination for descendants.
+            // Use tokio Child::start_kill for test-friendly behavior. Unix
+            // process-group termination for descendants remains a hardening item.
             let _ = child.start_kill();
             let _ = child.wait().await;
             *child_guard = None;
@@ -1253,7 +1252,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn local_target_supports_verified_artifact_deployment() {
+    async fn local_target_supports_verified_artifact_workload() {
         let target = ExecutionTargetRegistry::new()
             .status("local")
             .await
@@ -1261,7 +1260,7 @@ mod tests {
         for capability in [
             ExecutionTargetCapability::ArtifactTransfer,
             ExecutionTargetCapability::DeclarativeVerifier,
-            ExecutionTargetCapability::Deployment,
+            ExecutionTargetCapability::Workload,
         ] {
             assert!(target.declared_capabilities.contains(&capability));
             assert!(target.capabilities.contains(&capability));
@@ -1467,7 +1466,7 @@ pub enum ExecutionTargetCapability {
     ArtifactTransfer,
     DeclarativeVerifier,
     HealthProbe,
-    Deployment,
+    Workload,
     AuthenticatedTunnel,
 }
 
@@ -1545,7 +1544,7 @@ impl ExecutionTargetRegistry {
             ExecutionTargetCapability::ArtifactTransfer,
             ExecutionTargetCapability::DeclarativeVerifier,
             ExecutionTargetCapability::HealthProbe,
-            ExecutionTargetCapability::Deployment,
+            ExecutionTargetCapability::Workload,
         ];
         let target = ExecutionTarget {
             id: "local".to_string(),

@@ -36,21 +36,21 @@
         "routes_promoted",
         "routes_removed"
       ],
-      "title": "DeploymentReconcileSummary",
+      "title": "WorkloadReconcileSummary",
       "type": "object"
     }
   },
-  "$id": "urn:plurora:schema:event:host/deployment.reconciled:v1",
+  "$id": "urn:plurora:schema:event:host/workload.reconciled:v1",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "description": "Payload schema for event kind host/deployment.reconciled.",
+  "description": "Payload schema for event kind host/workload.reconciled.",
   "properties": {
     "kind": {
-      "const": "host/deployment.reconciled"
+      "const": "host/workload.reconciled"
     },
     "payload": {
       "$ref": "#/$defs/Payload"
     }
   },
-  "title": "host/deployment.reconciled",
+  "title": "host/workload.reconciled",
   "type": "object"
 }

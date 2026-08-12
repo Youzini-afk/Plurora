@@ -1,4 +1,4 @@
-//! Public Run protocol conformance for the Phase 4 Installation/Run boundary.
+//! Public Run protocol conformance for the Installation/Run boundary.
 //!
 //! These vectors intentionally call the public `host.run.*` methods.  The
 //! lifecycle driver below is a deterministic Host fixture, while the
@@ -455,7 +455,7 @@ pub(crate) async fn preflight_gaps_do_not_create_run() -> anyhow::Result<()> {
     anyhow::ensure!(harness.driver.stops.load(Ordering::SeqCst) == 0);
     let events = harness.fixture.store.list_all().await?;
     anyhow::ensure!(!events.iter().any(|event| {
-        event.kind.contains("deploy")
+        event.kind.contains("workload")
             || event.kind.contains("target")
             || event.session_id == RUN_SESSION
     }));
@@ -881,7 +881,7 @@ pub(crate) fn run_cases() -> Vec<super::runner::ConformanceCase> {
             status_is_effect_free
         ),
         case!(
-            "run.preflight_gaps_no_run_or_deploy",
+            "run.preflight_gaps_no_run_or_workload",
             [
                 "protocol",
                 "run",

@@ -16,7 +16,7 @@ provides:
     output_schema: {}
     streaming: false
     side_effects: []
-  - id: plurora/blank-experience/project
+  - id: plurora/blank-experience/render
     version: 0.1.0
     input_schema: {}
     output_schema: {}
@@ -37,7 +37,7 @@ contributes:
       slot: play_renderer
       title: Blank Play Surface
       description: Placeholder renderer descriptor for the blank experience.
-      capability_id: plurora/blank-experience/project
+      capability_id: plurora/blank-experience/render
 permissions:
   capabilities:
     invoke: []

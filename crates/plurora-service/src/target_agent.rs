@@ -30,10 +30,10 @@ pub(crate) use operation::{
 };
 pub use operation::{
     verify_target_operation_authority, CreateTargetOperationRequest, CreateTargetOperationResponse,
-    DeclarativeVerifierDescriptor, NextTargetOperationResponse, TargetDeploymentDescriptor,
-    TargetDeploymentRef, TargetOperationAuthority, TargetOperationEffect,
-    TargetOperationProgressRequest, TargetOperationReceipt, TargetOperationReceiptStatus,
-    TargetOperationRecord, TargetOperationSpec, TargetOperationStatusKind,
+    DeclarativeVerifierDescriptor, NextTargetOperationResponse, TargetOperationAuthority,
+    TargetOperationEffect, TargetOperationProgressRequest, TargetOperationReceipt,
+    TargetOperationReceiptStatus, TargetOperationRecord, TargetOperationSpec,
+    TargetOperationStatusKind, TargetWorkloadDescriptor, TargetWorkloadRef,
 };
 pub use tunnel::{
     decode_target_tunnel_data, encode_target_tunnel_data, TargetTunnelAgentMessage,
@@ -433,7 +433,7 @@ where
         || live_target.policy_epoch != agent.target.policy_epoch
         || !live_target
             .capabilities
-            .contains(&ExecutionTargetCapability::Deployment)
+            .contains(&ExecutionTargetCapability::Workload)
         || state.target_agents.tunnels.claimed(&live_target.id)
     {
         return Err(ServiceError::with_status(
@@ -564,9 +564,8 @@ where
         TargetHeartbeatError::Unauthorized => target_unauthorized(),
         TargetHeartbeatError::Internal(error) => target_internal_error(error),
     })?;
-    if let Err(error) = operation::reconcile_target_deployment_projections(&state, &target.id).await
-    {
-        tracing::warn!(target_id = %target.id, error = %error, "target deployment projection could not refresh after heartbeat");
+    if let Err(error) = operation::reconcile_target_workload_projections(&state, &target.id).await {
+        tracing::warn!(target_id = %target.id, error = %error, "target workload projection could not refresh after heartbeat");
     }
     Ok(Json(TargetAgentHeartbeatResponse {
         target,
@@ -618,9 +617,8 @@ where
     .await
     .map_err(target_conflict_error)?;
     state.target_agents.tunnels.disconnect(&target.id);
-    if let Err(error) = operation::reconcile_target_deployment_projections(&state, &target.id).await
-    {
-        tracing::warn!(target_id = %target.id, error = %error, "target deployment projection could not fence revoked target routes");
+    if let Err(error) = operation::reconcile_target_workload_projections(&state, &target.id).await {
+        tracing::warn!(target_id = %target.id, error = %error, "target workload projection could not fence revoked target routes");
     }
     Ok(Json(target))
 }
@@ -684,7 +682,7 @@ fn validate_capabilities(capabilities: &[ExecutionTargetCapability]) -> Result<(
         ExecutionTargetCapability::ArtifactTransfer,
         ExecutionTargetCapability::DeclarativeVerifier,
         ExecutionTargetCapability::HealthProbe,
-        ExecutionTargetCapability::Deployment,
+        ExecutionTargetCapability::Workload,
     ];
     if unique.is_empty()
         || unique.len() != capabilities.len()
@@ -1067,14 +1065,14 @@ where
     Ok(loaded)
 }
 
-pub async fn reconcile_target_deployment_control_plane<S>(
+pub async fn reconcile_target_workload_control_plane<S>(
     state: &AppState<S>,
 ) -> anyhow::Result<usize>
 where
     S: EventStore,
 {
     operation::recover_local_operations_after_restart(state).await?;
-    operation::reconcile_all_target_deployment_projections(state).await
+    operation::reconcile_all_target_workload_projections(state).await
 }
 
 fn enrollment_target(enrollment: &StoredEnrollment) -> ExecutionTarget {

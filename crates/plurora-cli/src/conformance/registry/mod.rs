@@ -3,9 +3,9 @@
 use crate::conformance::runner::{CaseFn, ConformanceCase};
 
 mod core_runtime;
-mod external_project_install;
 mod first_party_experience_agent;
 mod outbound_model_streaming;
+mod source_intake_install;
 mod storage_tdb;
 mod subprocess_packages;
 
@@ -70,16 +70,17 @@ pub(super) fn build_cases() -> Vec<ConformanceCase> {
     cases.extend(first_party_experience_agent::experience_observability_beta_3_cases());
     cases.extend(first_party_experience_agent::memory_lab_beta_4_cases());
     cases.extend(first_party_experience_agent::creator_loop_beta_5_cases());
-    cases.extend(external_project_install::project_intake_lab_external_project_operating_plane_alpha_e1_cases());
-    cases.extend(external_project_install::project_intake_lab_e5_external_project_operating_plane_alpha_e5_adapte_cases());
     cases.extend(
-        external_project_install::workspace_lab_external_project_operating_plane_alpha_e2_cases(),
+        source_intake_install::source_intake_lab_external_source_operating_plane_alpha_e1_cases(),
     );
-    cases.extend(external_project_install::workspace_lab_e3_external_project_operating_plane_alpha_e3_managed_wor_cases());
-    cases
-        .extend(external_project_install::integrity_lab_package_installation_foundation_i3_cases());
-    cases.extend(external_project_install::secret_store_lab_round_10a_1_phase_b_cases());
-    cases.extend(external_project_install::installation_scoped_secret_cases());
+    cases.extend(source_intake_install::source_intake_lab_e5_external_source_operating_plane_alpha_e5_adapte_cases());
+    cases.extend(
+        source_intake_install::workspace_lab_external_source_operating_plane_alpha_e2_cases(),
+    );
+    cases.extend(source_intake_install::workspace_lab_e3_external_source_operating_plane_alpha_e3_managed_wor_cases());
+    cases.extend(source_intake_install::integrity_lab_package_installation_foundation_i3_cases());
+    cases.extend(source_intake_install::secret_store_lab_round_10a_1_phase_b_cases());
+    cases.extend(source_intake_install::installation_scoped_secret_cases());
     cases.extend(first_party_experience_agent::sharing_lab_beta_6_cases());
     cases.extend(storage_tdb::storage_backend_neutrality_s1_cases());
     cases.extend(storage_tdb::storage_backend_neutrality_s1_postgresql_opt_in_cases());
@@ -89,9 +90,8 @@ pub(super) fn build_cases() -> Vec<ConformanceCase> {
         storage_tdb::storage_lab_s4_projection_index_materialization_contract_proof_cases(),
     );
     cases.extend(storage_tdb::storage_lab_s5_retrieval_vector_multimodal_provider_contract_cases());
-    cases
-        .extend(external_project_install::git_tools_lab_package_installation_foundation_i2_cases());
-    cases.extend(external_project_install::install_lab_package_installation_foundation_i4_cases());
+    cases.extend(source_intake_install::git_tools_lab_package_installation_foundation_i2_cases());
+    cases.extend(source_intake_install::install_lab_package_installation_foundation_i4_cases());
     cases.extend(storage_tdb::real_tdb_rust_adapter_subprocess_proof_cases());
     cases
 }

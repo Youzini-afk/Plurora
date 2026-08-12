@@ -330,7 +330,7 @@ fn describe_backend_classes(request: &InprocInvocation) -> anyhow::Result<Value>
                         "remote",
                     ],
                     "future",
-                    "Future PostgreSQL event store for server/team deployments",
+                    "Future PostgreSQL event store for server/team workloads",
                 ),
                 "package_state_event_sourced" => (
                     vec!["read_package_state", "write_package_state", "prefix_query"],

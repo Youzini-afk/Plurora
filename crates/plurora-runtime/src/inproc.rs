@@ -22,7 +22,7 @@ mod common;
 mod context_lab;
 mod docker_runtime_lab;
 pub use docker_runtime_lab::{
-    prepare_docker_build_context, DockerDeploymentReconcileSource, PreparedDockerBuildContext,
+    prepare_docker_build_context, DockerWorkloadReconcileSource, PreparedDockerBuildContext,
 };
 mod experience_observability_lab;
 mod experience_runtime_lab;
@@ -41,11 +41,11 @@ mod persona_lab;
 mod pi_agent_runtime_lab;
 mod playable_creation_board;
 mod playable_seed;
-mod project_intake_lab;
 mod projection_lab;
 pub mod safety;
 mod secret_store_lab;
 mod sharing_lab;
+mod source_intake_lab;
 mod storage_lab;
 mod tdb_retrieval_lab;
 mod text_transform_lab;
@@ -428,7 +428,7 @@ async fn dispatch_first_party(mut request: InprocInvocation) -> anyhow::Result<V
         "plurora/sharing-lab" => sharing_lab::try_handle(&request),
         "plurora/storage-lab" => storage_lab::try_handle(&request),
         "plurora/tdb-retrieval-lab" => tdb_retrieval_lab::try_handle(&request),
-        "plurora/project-intake-lab" => project_intake_lab::try_handle(&request),
+        "plurora/source-intake-lab" => source_intake_lab::try_handle(&request),
         "plurora/workspace-lab" => workspace_lab::try_handle(&request),
         "plurora/git-tools-lab" => git_tools_lab::try_handle(&request),
         "plurora/integrity-lab" => integrity_lab::try_handle(&request),

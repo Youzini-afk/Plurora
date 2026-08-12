@@ -11,9 +11,9 @@ The lower platform expands possibility; the official distribution makes a cohere
 The official distribution is responsible for:
 
 - making first installation, launch, and local use direct;
-- managing content, components, projects, data, identities, authority, and Hosts;
+- managing content, components, Works, data, identities, authority, and Hosts;
 - providing reliable everyday operation, diagnostics, updates, backup, recovery, and migration;
-- letting creators begin from templates and grow into composition, debugging, extension, and publication;
+- letting creators begin from templates and grow into Assembly authoring, debugging, extension, and publication;
 - exposing real state and control to advanced users without forcing everyone to learn internal architecture first;
 - using public boundaries throughout so third-party distributions can reorganize the same platform capabilities.
 
@@ -62,11 +62,11 @@ Every step needs explicit state, cancellation where meaningful, failure explanat
 create or import
 → run locally
 → observe state and events
-→ modify content, composition, or components
+→ modify content, Assemblies, or components
 → use human or AI assistance
 → debug and test
 → package
-→ share or deploy
+→ share or realize
 → publish updates and migrations
 ```
 
@@ -84,15 +84,15 @@ The current Web/Desktop distribution organizes itself around Home, Settings, Ins
 
 A third-party distribution may have no Home, no Library, or a completely different root object and navigation model. It needs only to obey the public contracts and authority boundaries it adopts.
 
-## Phase 5 Powerbox UX
+## Powerbox UX
 
 Home/Library discovers Works and Installations; the Installation frame provides the Powerbox chooser. The chooser first shows the binding phase, then the exact Exposure, audience, expiry, and both PortContracts (protocol, interface, version, Profiles, interaction, effects, transport, and multiplicity). Provider Work/Installation source, Component trust/claims/boundaries/evidence, artifact/behavior digests, and stale state are shown in separate sections.
 
-First-party and third-party providers follow identical disclosure rules and deterministic ordering; publisher identity never selects a candidate. Zero or multiple candidates require a user or explicit policy decision, while a preference is only an ordering hint. The UI never guesses unknown values, implicitly deploys/rebinds, or displays runtime handles, credentials, or private intent. Visible candidates are capped at 256; overflow is a structured diagnostic rather than silent truncation.
+First-party and third-party providers follow identical disclosure rules and deterministic ordering; publisher identity never selects a candidate. Zero or multiple candidates require a user or explicit policy decision, while a preference is only an ordering hint. The UI never guesses unknown values, implicitly applies/rebinds, or displays runtime handles, credentials, or private intent. Visible candidates are capped at 256; overflow is a structured diagnostic rather than silent truncation.
 
 PWA/mobile and Desktop reuse the same Host API with Host/Installation cache isolation. Closing a tab, iframe, or PWA connection does not stop a Run or revoke an Exposure/Binding. Surfaces have only a public allowlisted bridge; there is no private Powerbox bridge or first-party bypass.
 
-## Phase 6 Realization UX
+## Realization UX
 
 The Installation frame shows a Realization workbench only when Work declares OperationalIntent. Plan and Apply are visibly separate: Plan discloses the exact Target, actions, preconditions, required authority, and every risk; Apply remains unavailable until every risk is acknowledged. Status, history, Stop, and Reconcile display real `RealizationRevision` facts rather than presenting UI state as Host truth.
 
@@ -112,7 +112,7 @@ Local defaults, discovery, sensible authority suggestions, and clear recovery re
 
 ### Disclose depth progressively
 
-A user moves from use, light modification, and composition into component and protocol authoring within one product. Depth comes from expandable capability rather than a separate hidden system.
+A user moves from use, light modification, and Assembly authoring into component and protocol authoring within one product. Depth comes from expandable capability rather than a separate hidden system.
 
 ### Make authority understandable
 
@@ -153,4 +153,4 @@ A product is not better merely because it has more features. Ask whether:
 - work survives replacement of components, clients, or Hosts;
 - new capability preserves public boundaries and third-party space.
 
-Current implementation is recorded in [`../ALPHA_STATUS.md`](../ALPHA_STATUS.en.md): Exposure, Binding, and Powerbox are Phase 5 implemented, while Managed Realization and deployment compilation are Phase 6 implemented. Construction direction is in [`../roadmap/NEXT_STEPS.md`](../roadmap/NEXT_STEPS.en.md).
+Current implementation is recorded in [`../ALPHA_STATUS.md`](../ALPHA_STATUS.en.md): Exposure, Binding, Powerbox, and Managed Realization are implemented. Construction direction is in [`../roadmap/NEXT_STEPS.md`](../roadmap/NEXT_STEPS.en.md).

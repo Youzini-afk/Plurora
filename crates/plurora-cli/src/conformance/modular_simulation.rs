@@ -1,4 +1,4 @@
-//! Phase 8 conformance for the modular simulation Work kit.
+//! Conformance for the modular simulation Work kit.
 
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -301,37 +301,48 @@ pub(crate) fn modular_simulation_cases() -> Vec<super::runner::ConformanceCase> 
     vec![
         case!(
             "modular_simulation.work_kit_materializes",
-            ["phase8", "work", "assembly", "portability"],
+            ["modular_simulation", "work", "assembly", "portability"],
             work_kit_materializes_as_portable_closure
         ),
         case!(
             "modular_simulation.reducer_and_portable_save",
-            ["phase8", "runtime", "state", "portability"],
+            ["modular_simulation", "runtime", "state", "portability"],
             deterministic_reducer_and_portable_save
         ),
         case!(
             "modular_simulation.optional_ai_no_ambient_provider",
-            ["phase8", "powerbox", "binding", "negative"],
+            ["modular_simulation", "powerbox", "binding", "negative"],
             optional_ai_has_no_ambient_provider
         ),
         case!(
             "modular_simulation.renderer_static_surface",
-            ["phase8", "surface", "web"],
+            ["modular_simulation", "surface", "web"],
             renderer_is_static_surface_only
         ),
         case!(
             "modular_simulation.community_replacement_no_priority",
-            ["phase8", "replacement", "third_party", "negative"],
+            [
+                "modular_simulation",
+                "replacement",
+                "third_party",
+                "negative"
+            ],
             community_replacement_has_no_publisher_priority
         ),
         case!(
             "modular_simulation.promotion_candidate_no_publish",
-            ["phase8", "promotion", "agent", "no_effect"],
+            ["modular_simulation", "promotion", "agent", "no_effect"],
             promotion_candidate_is_not_persisted_or_published
         ),
         case!(
             "modular_simulation.fork_and_state_migration",
-            ["phase8", "fork", "state", "migration", "realization"],
+            [
+                "modular_simulation",
+                "fork",
+                "state",
+                "migration",
+                "realization"
+            ],
             fork_intent_and_state_migration_are_explicit
         ),
     ]

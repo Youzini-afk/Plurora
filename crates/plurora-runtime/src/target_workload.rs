@@ -35,24 +35,24 @@ const MAX_BUILD_CONTEXT_BYTES: usize = 256 * 1024 * 1024;
 const MAX_BUILD_CONTEXT_FILES: u64 = 25_000;
 
 #[derive(Debug, Error)]
-#[error("managed target deployment outcome is unknown after {stage}")]
-pub struct ManagedTargetDeploymentOutcomeUnknown {
+#[error("managed target workload outcome is unknown after {stage}")]
+pub struct ManagedTargetWorkloadOutcomeUnknown {
     stage: &'static str,
 }
 
-pub fn is_managed_target_deployment_outcome_unknown(error: &anyhow::Error) -> bool {
+pub fn is_managed_target_workload_outcome_unknown(error: &anyhow::Error) -> bool {
     error.chain().any(|cause| {
         cause
-            .downcast_ref::<ManagedTargetDeploymentOutcomeUnknown>()
+            .downcast_ref::<ManagedTargetWorkloadOutcomeUnknown>()
             .is_some()
     })
 }
 
 fn outcome_unknown(stage: &'static str) -> anyhow::Error {
-    ManagedTargetDeploymentOutcomeUnknown { stage }.into()
+    ManagedTargetWorkloadOutcomeUnknown { stage }.into()
 }
 
-pub fn managed_target_deployment_outcome_unknown(stage: &'static str) -> anyhow::Error {
+pub fn managed_target_workload_outcome_unknown(stage: &'static str) -> anyhow::Error {
     outcome_unknown(stage)
 }
 
@@ -103,10 +103,10 @@ mod docker_container_id {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct ManagedTargetDeploymentApply {
+pub struct ManagedTargetWorkloadApply {
     pub target_id: String,
     pub installation_id: InstallationId,
-    pub deployment_id: String,
+    pub workload_id: String,
     pub route_id: String,
     pub port_lease_id: String,
     pub port_name: String,
@@ -127,14 +127,14 @@ pub enum ManagedTargetBuildNetworkMode {
 #[derive(Debug, Clone, Copy, Deserialize, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum ManagedTargetImageDisposition {
-    RetainForDeployment,
+    RetainForWorkload,
     RemoveAfterVerification,
 }
 
 impl ManagedTargetImageDisposition {
     fn as_str(self) -> &'static str {
         match self {
-            Self::RetainForDeployment => "retain_for_deployment",
+            Self::RetainForWorkload => "retain_for_workload",
             Self::RemoveAfterVerification => "remove_after_verification",
         }
     }
@@ -280,22 +280,22 @@ impl ManagedTargetImageLabelSource for ManagedTargetImageBuildReceipt {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct ManagedTargetDeploymentRef {
+pub struct ManagedTargetWorkloadRef {
     pub target_id: String,
     pub installation_id: InstallationId,
-    pub deployment_id: String,
+    pub workload_id: String,
     pub route_id: String,
     pub port_lease_id: String,
 }
 
 #[derive(Debug, Clone, Serialize, PartialEq, Eq)]
-pub struct ManagedTargetDeploymentObservation {
+pub struct ManagedTargetWorkloadObservation {
     #[serde(skip_serializing)]
     pub target_id: String,
     #[serde(skip_serializing)]
     pub installation_id: InstallationId,
     #[serde(skip_serializing)]
-    pub deployment_id: String,
+    pub workload_id: String,
     #[serde(skip_serializing)]
     pub route_id: String,
     #[serde(skip_serializing)]
@@ -318,22 +318,22 @@ pub struct ManagedTargetDeploymentObservation {
 }
 
 #[derive(Debug, Clone, Serialize, PartialEq, Eq)]
-pub struct ManagedTargetDeploymentDrainReceipt {
-    pub deployment: Option<ManagedTargetDeploymentObservation>,
+pub struct ManagedTargetWorkloadDrainReceipt {
+    pub workload: Option<ManagedTargetWorkloadObservation>,
     pub stopped: bool,
     pub grace_seconds: u16,
     pub container_retained: bool,
 }
 
 #[derive(Debug, Clone, Serialize, PartialEq, Eq)]
-pub struct ManagedTargetDeploymentStopReceipt {
+pub struct ManagedTargetWorkloadStopReceipt {
     pub stopped: bool,
     pub removed: bool,
     pub force_remove: bool,
     pub grace_seconds: u16,
 }
 
-pub async fn validate_managed_target_deployment_runtime() -> anyhow::Result<()> {
+pub async fn validate_managed_target_workload_runtime() -> anyhow::Result<()> {
     docker().await.map(|_| ())
 }
 
@@ -486,7 +486,7 @@ where
     B: ManagedTargetImageBackend + ?Sized,
     S: ManagedTargetImageLabelSource + ?Sized,
 {
-    if source.disposition() == ManagedTargetImageDisposition::RetainForDeployment {
+    if source.disposition() == ManagedTargetImageDisposition::RetainForWorkload {
         return match certainty {
             ManagedTargetImageBuildFailureCertainty::DaemonTerminal => Err(error),
             ManagedTargetImageBuildFailureCertainty::Ambiguous
@@ -533,7 +533,7 @@ pub async fn finalize_managed_target_image_build(
     guard: &(dyn ManagedTargetEffectGuard + Send + Sync),
 ) -> anyhow::Result<ManagedTargetImageBuildReceipt> {
     match receipt.disposition {
-        ManagedTargetImageDisposition::RetainForDeployment => {
+        ManagedTargetImageDisposition::RetainForWorkload => {
             validate_image_build_receipt_state(&receipt, false)?;
             ensure_effect_guard(guard).await?;
             Ok(receipt)
@@ -572,14 +572,14 @@ pub async fn remove_managed_target_image(
     Ok(receipt)
 }
 
-pub async fn wait_for_managed_target_deployment_readiness(
-    deployment: &ManagedTargetDeploymentObservation,
+pub async fn wait_for_managed_target_workload_readiness(
+    workload: &ManagedTargetWorkloadObservation,
     health_path: Option<&str>,
     guard: &(dyn ManagedTargetEffectGuard + Send + Sync),
 ) -> anyhow::Result<()> {
     anyhow::ensure!(
-        deployment.running && deployment.bind_host == BIND_HOST && deployment.host_port > 0,
-        "managed target deployment is not a running loopback candidate"
+        workload.running && workload.bind_host == BIND_HOST && workload.host_port > 0,
+        "managed target workload is not a running loopback candidate"
     );
     if let Some(path) = health_path {
         validate_health_path(path)?;
@@ -587,8 +587,8 @@ pub async fn wait_for_managed_target_deployment_readiness(
     let deadline = tokio::time::Instant::now() + READINESS_TIMEOUT;
     loop {
         ensure_effect_guard(guard).await?;
-        let probe = probe_managed_target_deployment(deployment.host_port, health_path).await;
-        ensure_effect_guard_after(guard, "deployment readiness fence confirmation").await?;
+        let probe = probe_managed_target_workload(workload.host_port, health_path).await;
+        ensure_effect_guard_after(guard, "workload readiness fence confirmation").await?;
         match probe {
             Ok(()) => return Ok(()),
             Err(error) if tokio::time::Instant::now() >= deadline => {
@@ -599,33 +599,33 @@ pub async fn wait_for_managed_target_deployment_readiness(
     }
 }
 
-pub async fn apply_managed_target_deployment(
-    request: &ManagedTargetDeploymentApply,
+pub async fn apply_managed_target_workload(
+    request: &ManagedTargetWorkloadApply,
     guard: &(dyn ManagedTargetEffectGuard + Send + Sync),
-) -> anyhow::Result<ManagedTargetDeploymentObservation> {
+) -> anyhow::Result<ManagedTargetWorkloadObservation> {
     validate_apply_request(request)?;
-    let docker = guarded_docker(guard, "docker deployment runtime fence confirmation").await?;
-    apply_managed_target_deployment_with_backend(
-        &DockerManagedTargetDeploymentBackend { docker: &docker },
+    let docker = guarded_docker(guard, "docker workload runtime fence confirmation").await?;
+    apply_managed_target_workload_with_backend(
+        &DockerManagedTargetWorkloadBackend { docker: &docker },
         request,
         guard,
     )
     .await
 }
 
-async fn apply_managed_target_deployment_with_backend<B>(
+async fn apply_managed_target_workload_with_backend<B>(
     backend: &B,
-    request: &ManagedTargetDeploymentApply,
+    request: &ManagedTargetWorkloadApply,
     guard: &(dyn ManagedTargetEffectGuard + Send + Sync),
-) -> anyhow::Result<ManagedTargetDeploymentObservation>
+) -> anyhow::Result<ManagedTargetWorkloadObservation>
 where
-    B: ManagedTargetDeploymentBackend + ?Sized,
+    B: ManagedTargetWorkloadBackend + ?Sized,
 {
     if let Some(observation) = guarded_find(
         backend,
         &request.reference(),
         guard,
-        "docker deployment lookup fence confirmation",
+        "docker workload lookup fence confirmation",
     )
     .await?
     {
@@ -634,7 +634,7 @@ where
                 && observation.port_name == request.port_name
                 && observation.image == request.image
                 && observation.container_port == request.container_port,
-            "existing managed deployment conflicts with the requested operation"
+            "existing managed workload conflicts with the requested operation"
         );
         if !observation.running {
             ensure_effect_guard(guard).await?;
@@ -747,38 +747,38 @@ where
         backend,
         &request.reference(),
         guard,
-        "docker deployment verification lookup fence confirmation",
+        "docker workload verification lookup fence confirmation",
     )
     .await
     .map_err(|_| outcome_unknown("docker container start verification"))?;
     let observation =
         observation.ok_or_else(|| outcome_unknown("docker container start verification"))?;
     validate_requested_host_port(request, &observation)?;
-    ensure_effect_guard_after(guard, "docker deployment receipt fence confirmation").await?;
+    ensure_effect_guard_after(guard, "docker workload receipt fence confirmation").await?;
     Ok(observation)
 }
 
-pub async fn observe_managed_target_deployment(
-    reference: &ManagedTargetDeploymentRef,
+pub async fn observe_managed_target_workload(
+    reference: &ManagedTargetWorkloadRef,
     guard: &(dyn ManagedTargetEffectGuard + Send + Sync),
-) -> anyhow::Result<Option<ManagedTargetDeploymentObservation>> {
+) -> anyhow::Result<Option<ManagedTargetWorkloadObservation>> {
     validate_reference(reference)?;
     let docker = guarded_docker(guard, "docker observation runtime fence confirmation").await?;
-    observe_managed_target_deployment_with_backend(
-        &DockerManagedTargetDeploymentBackend { docker: &docker },
+    observe_managed_target_workload_with_backend(
+        &DockerManagedTargetWorkloadBackend { docker: &docker },
         reference,
         guard,
     )
     .await
 }
 
-async fn observe_managed_target_deployment_with_backend<B>(
+async fn observe_managed_target_workload_with_backend<B>(
     backend: &B,
-    reference: &ManagedTargetDeploymentRef,
+    reference: &ManagedTargetWorkloadRef,
     guard: &(dyn ManagedTargetEffectGuard + Send + Sync),
-) -> anyhow::Result<Option<ManagedTargetDeploymentObservation>>
+) -> anyhow::Result<Option<ManagedTargetWorkloadObservation>>
 where
-    B: ManagedTargetDeploymentBackend + ?Sized,
+    B: ManagedTargetWorkloadBackend + ?Sized,
 {
     guarded_find(
         backend,
@@ -789,16 +789,16 @@ where
     .await
 }
 
-pub async fn drain_managed_target_deployment(
-    reference: &ManagedTargetDeploymentRef,
+pub async fn drain_managed_target_workload(
+    reference: &ManagedTargetWorkloadRef,
     grace_seconds: u16,
     guard: &(dyn ManagedTargetEffectGuard + Send + Sync),
-) -> anyhow::Result<ManagedTargetDeploymentDrainReceipt> {
+) -> anyhow::Result<ManagedTargetWorkloadDrainReceipt> {
     validate_reference(reference)?;
-    anyhow::ensure!(grace_seconds <= 300, "deployment grace period is too large");
+    anyhow::ensure!(grace_seconds <= 300, "workload grace period is too large");
     let docker = guarded_docker(guard, "docker drain runtime fence confirmation").await?;
-    drain_managed_target_deployment_with_backend(
-        &DockerManagedTargetDeploymentBackend { docker: &docker },
+    drain_managed_target_workload_with_backend(
+        &DockerManagedTargetWorkloadBackend { docker: &docker },
         reference,
         grace_seconds,
         guard,
@@ -806,14 +806,14 @@ pub async fn drain_managed_target_deployment(
     .await
 }
 
-async fn drain_managed_target_deployment_with_backend<B>(
+async fn drain_managed_target_workload_with_backend<B>(
     backend: &B,
-    reference: &ManagedTargetDeploymentRef,
+    reference: &ManagedTargetWorkloadRef,
     grace_seconds: u16,
     guard: &(dyn ManagedTargetEffectGuard + Send + Sync),
-) -> anyhow::Result<ManagedTargetDeploymentDrainReceipt>
+) -> anyhow::Result<ManagedTargetWorkloadDrainReceipt>
 where
-    B: ManagedTargetDeploymentBackend + ?Sized,
+    B: ManagedTargetWorkloadBackend + ?Sized,
 {
     let Some(observation) = guarded_find(
         backend,
@@ -824,8 +824,8 @@ where
     .await?
     else {
         ensure_effect_guard(guard).await?;
-        return Ok(ManagedTargetDeploymentDrainReceipt {
-            deployment: None,
+        return Ok(ManagedTargetWorkloadDrainReceipt {
+            workload: None,
             stopped: true,
             grace_seconds,
             container_retained: false,
@@ -863,25 +863,25 @@ where
         _ => return Err(outcome_unknown("docker container drain verification")),
     };
     ensure_effect_guard_after(guard, "docker container drain receipt fence confirmation").await?;
-    Ok(ManagedTargetDeploymentDrainReceipt {
-        deployment: Some(after),
+    Ok(ManagedTargetWorkloadDrainReceipt {
+        workload: Some(after),
         stopped: true,
         grace_seconds,
         container_retained: true,
     })
 }
 
-pub async fn stop_managed_target_deployment(
-    reference: &ManagedTargetDeploymentRef,
+pub async fn stop_managed_target_workload(
+    reference: &ManagedTargetWorkloadRef,
     grace_seconds: u16,
     force_remove: bool,
     guard: &(dyn ManagedTargetEffectGuard + Send + Sync),
-) -> anyhow::Result<ManagedTargetDeploymentStopReceipt> {
+) -> anyhow::Result<ManagedTargetWorkloadStopReceipt> {
     validate_reference(reference)?;
-    anyhow::ensure!(grace_seconds <= 300, "deployment grace period is too large");
+    anyhow::ensure!(grace_seconds <= 300, "workload grace period is too large");
     let docker = guarded_docker(guard, "docker stop runtime fence confirmation").await?;
-    stop_managed_target_deployment_with_backend(
-        &DockerManagedTargetDeploymentBackend { docker: &docker },
+    stop_managed_target_workload_with_backend(
+        &DockerManagedTargetWorkloadBackend { docker: &docker },
         reference,
         grace_seconds,
         force_remove,
@@ -890,15 +890,15 @@ pub async fn stop_managed_target_deployment(
     .await
 }
 
-async fn stop_managed_target_deployment_with_backend<B>(
+async fn stop_managed_target_workload_with_backend<B>(
     backend: &B,
-    reference: &ManagedTargetDeploymentRef,
+    reference: &ManagedTargetWorkloadRef,
     grace_seconds: u16,
     force_remove: bool,
     guard: &(dyn ManagedTargetEffectGuard + Send + Sync),
-) -> anyhow::Result<ManagedTargetDeploymentStopReceipt>
+) -> anyhow::Result<ManagedTargetWorkloadStopReceipt>
 where
-    B: ManagedTargetDeploymentBackend + ?Sized,
+    B: ManagedTargetWorkloadBackend + ?Sized,
 {
     let Some(observation) = guarded_find(
         backend,
@@ -909,7 +909,7 @@ where
     .await?
     else {
         ensure_effect_guard(guard).await?;
-        return Ok(ManagedTargetDeploymentStopReceipt {
+        return Ok(ManagedTargetWorkloadStopReceipt {
             stopped: true,
             removed: true,
             force_remove,
@@ -957,7 +957,7 @@ where
         }
     }
     ensure_effect_guard_after(guard, "docker container stop receipt fence confirmation").await?;
-    Ok(ManagedTargetDeploymentStopReceipt {
+    Ok(ManagedTargetWorkloadStopReceipt {
         stopped: true,
         removed: true,
         force_remove,
@@ -965,7 +965,7 @@ where
     })
 }
 
-pub async fn count_managed_target_deployments(target_id: &str) -> anyhow::Result<u64> {
+pub async fn count_managed_target_workloads(target_id: &str) -> anyhow::Result<u64> {
     validate_label_value("target_id", target_id)?;
     let docker = docker().await?;
     let filters = HashMap::from([(
@@ -982,7 +982,7 @@ pub async fn count_managed_target_deployments(target_id: &str) -> anyhow::Result
     let containers =
         tokio::time::timeout(DOCKER_EFFECT_TIMEOUT, docker.list_containers(Some(options)))
             .await
-            .context("docker managed deployment list timed out")??;
+            .context("docker managed workload list timed out")??;
     Ok(u64::try_from(containers.len()).unwrap_or(u64::MAX))
 }
 
@@ -1023,13 +1023,13 @@ pub async fn open_managed_target_tunnel_stream(
             .context("docker target tunnel lookup timed out")??;
     anyhow::ensure!(
         containers.len() == 1,
-        "target tunnel lease does not resolve to exactly one managed deployment"
+        "target tunnel lease does not resolve to exactly one managed workload"
     );
     let container = &containers[0];
     let labels = container
         .labels
         .as_ref()
-        .context("target tunnel deployment has no ownership labels")?;
+        .context("target tunnel workload has no ownership labels")?;
     for (key, expected) in [
         ("managed-by", "plurora"),
         ("plurora.target_driver", DRIVER_ID),
@@ -1040,16 +1040,16 @@ pub async fn open_managed_target_tunnel_stream(
     ] {
         anyhow::ensure!(
             labels.get(key).map(String::as_str) == Some(expected),
-            "target tunnel deployment ownership label mismatch"
+            "target tunnel workload ownership label mismatch"
         );
     }
     anyhow::ensure!(
         matches!(container.state, Some(ContainerSummaryStateEnum::RUNNING)),
-        "target tunnel deployment is not running"
+        "target tunnel workload is not running"
     );
     let container_port = labels
         .get("plurora.container_port")
-        .context("target tunnel deployment has no container port label")?
+        .context("target tunnel workload has no container port label")?
         .parse::<u16>()?;
     let matching_port = container
         .ports
@@ -1057,7 +1057,7 @@ pub async fn open_managed_target_tunnel_stream(
         .into_iter()
         .flatten()
         .find(|port| port.private_port == container_port && port.public_port == Some(host_port))
-        .context("target tunnel port is not published by the managed deployment")?;
+        .context("target tunnel port is not published by the managed workload")?;
     anyhow::ensure!(
         matching_port.ip.as_deref() == Some(BIND_HOST),
         "target tunnel port is not loopback-only"
@@ -1071,12 +1071,12 @@ pub async fn open_managed_target_tunnel_stream(
     .context("target tunnel loopback connect failed")
 }
 
-impl ManagedTargetDeploymentApply {
-    fn reference(&self) -> ManagedTargetDeploymentRef {
-        ManagedTargetDeploymentRef {
+impl ManagedTargetWorkloadApply {
+    fn reference(&self) -> ManagedTargetWorkloadRef {
+        ManagedTargetWorkloadRef {
             target_id: self.target_id.clone(),
             installation_id: self.installation_id.clone(),
-            deployment_id: self.deployment_id.clone(),
+            workload_id: self.workload_id.clone(),
             route_id: self.route_id.clone(),
             port_lease_id: self.port_lease_id.clone(),
         }
@@ -1101,11 +1101,11 @@ async fn guarded_docker(
 }
 
 #[async_trait::async_trait]
-trait ManagedTargetDeploymentBackend: Send + Sync {
+trait ManagedTargetWorkloadBackend: Send + Sync {
     async fn find(
         &self,
-        reference: &ManagedTargetDeploymentRef,
-    ) -> anyhow::Result<Option<ManagedTargetDeploymentObservation>>;
+        reference: &ManagedTargetWorkloadRef,
+    ) -> anyhow::Result<Option<ManagedTargetWorkloadObservation>>;
 
     async fn pull_image(&self, image: &str) -> anyhow::Result<()>;
 
@@ -1113,7 +1113,7 @@ trait ManagedTargetDeploymentBackend: Send + Sync {
 
     async fn create_container(
         &self,
-        request: &ManagedTargetDeploymentApply,
+        request: &ManagedTargetWorkloadApply,
         image_id: &str,
     ) -> anyhow::Result<String>;
 
@@ -1126,27 +1126,27 @@ trait ManagedTargetDeploymentBackend: Send + Sync {
 
 async fn guarded_find<B>(
     backend: &B,
-    reference: &ManagedTargetDeploymentRef,
+    reference: &ManagedTargetWorkloadRef,
     guard: &(dyn ManagedTargetEffectGuard + Send + Sync),
     stage: &'static str,
-) -> anyhow::Result<Option<ManagedTargetDeploymentObservation>>
+) -> anyhow::Result<Option<ManagedTargetWorkloadObservation>>
 where
-    B: ManagedTargetDeploymentBackend + ?Sized,
+    B: ManagedTargetWorkloadBackend + ?Sized,
 {
     guarded_docker_call(guard, stage, backend.find(reference)).await?
 }
 
-struct DockerManagedTargetDeploymentBackend<'a> {
+struct DockerManagedTargetWorkloadBackend<'a> {
     docker: &'a Docker,
 }
 
 #[async_trait::async_trait]
-impl ManagedTargetDeploymentBackend for DockerManagedTargetDeploymentBackend<'_> {
+impl ManagedTargetWorkloadBackend for DockerManagedTargetWorkloadBackend<'_> {
     async fn find(
         &self,
-        reference: &ManagedTargetDeploymentRef,
-    ) -> anyhow::Result<Option<ManagedTargetDeploymentObservation>> {
-        Ok(find_target_deployment(self.docker, reference)
+        reference: &ManagedTargetWorkloadRef,
+    ) -> anyhow::Result<Option<ManagedTargetWorkloadObservation>> {
+        Ok(find_target_workload(self.docker, reference)
             .await?
             .map(|(_, observation)| observation))
     }
@@ -1179,7 +1179,7 @@ impl ManagedTargetDeploymentBackend for DockerManagedTargetDeploymentBackend<'_>
 
     async fn create_container(
         &self,
-        request: &ManagedTargetDeploymentApply,
+        request: &ManagedTargetWorkloadApply,
         image_id: &str,
     ) -> anyhow::Result<String> {
         let container_port_key = format!("{}/tcp", request.container_port);
@@ -1198,7 +1198,7 @@ impl ManagedTargetDeploymentBackend for DockerManagedTargetDeploymentBackend<'_>
         );
         let config = ContainerCreateBody {
             image: Some(image_id.to_string()),
-            labels: Some(deployment_labels(request)),
+            labels: Some(workload_labels(request)),
             exposed_ports: Some(vec![container_port_key]),
             env: None,
             host_config: Some(HostConfig {
@@ -1213,10 +1213,10 @@ impl ManagedTargetDeploymentBackend for DockerManagedTargetDeploymentBackend<'_>
             network_disabled: Some(false),
             ..Default::default()
         };
-        let container_name = deployment_container_name(
+        let container_name = workload_container_name(
             &request.target_id,
             request.installation_id.as_str(),
-            &request.deployment_id,
+            &request.workload_id,
         );
         let options = CreateContainerOptionsBuilder::default()
             .name(&container_name)
@@ -1719,7 +1719,7 @@ fn validate_image_build_receipt_state(
     );
     if final_state {
         let disposition_matches = match receipt.disposition {
-            ManagedTargetImageDisposition::RetainForDeployment => {
+            ManagedTargetImageDisposition::RetainForWorkload => {
                 !receipt.image_removed && receipt.image_retained
             }
             ManagedTargetImageDisposition::RemoveAfterVerification => {
@@ -1887,10 +1887,7 @@ fn validate_health_path(path: &str) -> anyhow::Result<()> {
     Ok(())
 }
 
-async fn probe_managed_target_deployment(
-    port: u16,
-    health_path: Option<&str>,
-) -> anyhow::Result<()> {
+async fn probe_managed_target_workload(port: u16, health_path: Option<&str>) -> anyhow::Result<()> {
     tokio::time::timeout(
         READINESS_CONNECT_TIMEOUT,
         tokio::net::TcpStream::connect((BIND_HOST, port)),
@@ -1919,7 +1916,7 @@ async fn probe_managed_target_deployment(
     Ok(())
 }
 
-fn validate_apply_request(request: &ManagedTargetDeploymentApply) -> anyhow::Result<()> {
+fn validate_apply_request(request: &ManagedTargetWorkloadApply) -> anyhow::Result<()> {
     validate_reference(&request.reference())?;
     validate_label_value("port_name", &request.port_name)?;
     validate_label_value("operation_id", &request.operation_id)?;
@@ -1933,20 +1930,20 @@ fn validate_apply_request(request: &ManagedTargetDeploymentApply) -> anyhow::Res
     );
     anyhow::ensure!(
         valid_image_reference(&request.image),
-        "deployment image reference is invalid"
+        "workload image reference is invalid"
     );
     Ok(())
 }
 
 fn validate_requested_host_port(
-    request: &ManagedTargetDeploymentApply,
-    observation: &ManagedTargetDeploymentObservation,
+    request: &ManagedTargetWorkloadApply,
+    observation: &ManagedTargetWorkloadObservation,
 ) -> anyhow::Result<()> {
     anyhow::ensure!(
         request
             .requested_host_port
             .is_none_or(|port| observation.host_port == port),
-        "managed deployment actual port conflicts with the request"
+        "managed workload actual port conflicts with the request"
     );
     Ok(())
 }
@@ -1957,7 +1954,7 @@ fn valid_image_reference(image: &str) -> bool {
         || image.contains("://")
         || crate::scan_effect_value_for_raw_secrets(
             &serde_json::json!({ "image": image }),
-            "deployment",
+            "workload",
         )
         .has_findings()
         || !image
@@ -1978,11 +1975,11 @@ fn valid_image_reference(image: &str) -> bool {
             .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
 }
 
-fn validate_reference(reference: &ManagedTargetDeploymentRef) -> anyhow::Result<()> {
+fn validate_reference(reference: &ManagedTargetWorkloadRef) -> anyhow::Result<()> {
     for (name, value) in [
         ("target_id", reference.target_id.as_str()),
         ("installation_id", reference.installation_id.as_str()),
-        ("deployment_id", reference.deployment_id.as_str()),
+        ("workload_id", reference.workload_id.as_str()),
         ("route_id", reference.route_id.as_str()),
         ("port_lease_id", reference.port_lease_id.as_str()),
     ] {
@@ -1998,12 +1995,12 @@ fn validate_label_value(name: &str, value: &str) -> anyhow::Result<()> {
             && value
                 .bytes()
                 .all(|byte| byte.is_ascii_alphanumeric() || b"-._:/".contains(&byte)),
-        "deployment {name} is invalid"
+        "workload {name} is invalid"
     );
     Ok(())
 }
 
-fn deployment_labels(request: &ManagedTargetDeploymentApply) -> HashMap<String, String> {
+fn workload_labels(request: &ManagedTargetWorkloadApply) -> HashMap<String, String> {
     HashMap::from([
         ("managed-by".to_string(), "plurora".to_string()),
         ("plurora.target_driver".to_string(), DRIVER_ID.to_string()),
@@ -2013,8 +2010,8 @@ fn deployment_labels(request: &ManagedTargetDeploymentApply) -> HashMap<String, 
             request.installation_id.to_string(),
         ),
         (
-            "plurora.deployment_id".to_string(),
-            request.deployment_id.clone(),
+            "plurora.workload_id".to_string(),
+            request.workload_id.clone(),
         ),
         ("plurora.route_id".to_string(), request.route_id.clone()),
         (
@@ -2028,26 +2025,22 @@ fn deployment_labels(request: &ManagedTargetDeploymentApply) -> HashMap<String, 
             request.container_port.to_string(),
         ),
         (
-            "plurora.deployment_operation_id".to_string(),
+            "plurora.workload_operation_id".to_string(),
             request.operation_id.clone(),
         ),
     ])
 }
 
-fn deployment_container_name(
-    target_id: &str,
-    installation_id: &str,
-    deployment_id: &str,
-) -> String {
+fn workload_container_name(target_id: &str, installation_id: &str, workload_id: &str) -> String {
     let digest =
-        Sha256::digest(format!("{target_id}\0{installation_id}\0{deployment_id}").as_bytes());
+        Sha256::digest(format!("{target_id}\0{installation_id}\0{workload_id}").as_bytes());
     format!("plurora-target-{}", &format!("{digest:x}")[..24])
 }
 
-async fn find_target_deployment(
+async fn find_target_workload(
     docker: &Docker,
-    reference: &ManagedTargetDeploymentRef,
-) -> anyhow::Result<Option<(ContainerSummary, ManagedTargetDeploymentObservation)>> {
+    reference: &ManagedTargetWorkloadRef,
+) -> anyhow::Result<Option<(ContainerSummary, ManagedTargetWorkloadObservation)>> {
     find_target_container(docker, reference)
         .await?
         .map(|container| {
@@ -2059,7 +2052,7 @@ async fn find_target_deployment(
 
 async fn find_target_container(
     docker: &Docker,
-    reference: &ManagedTargetDeploymentRef,
+    reference: &ManagedTargetWorkloadRef,
 ) -> anyhow::Result<Option<ContainerSummary>> {
     validate_reference(reference)?;
     let filters = HashMap::from([(
@@ -2068,7 +2061,7 @@ async fn find_target_container(
             format!("plurora.target_driver={DRIVER_ID}"),
             format!("plurora.target_id={}", reference.target_id),
             format!("plurora.installation_id={}", reference.installation_id),
-            format!("plurora.deployment_id={}", reference.deployment_id),
+            format!("plurora.workload_id={}", reference.workload_id),
         ],
     )]);
     let options = ListContainersOptionsBuilder::default()
@@ -2078,10 +2071,10 @@ async fn find_target_container(
     let containers =
         tokio::time::timeout(DOCKER_EFFECT_TIMEOUT, docker.list_containers(Some(options)))
             .await
-            .context("docker deployment lookup timed out")??;
+            .context("docker workload lookup timed out")??;
     anyhow::ensure!(
         containers.len() <= 1,
-        "multiple containers claim one target deployment identity"
+        "multiple containers claim one target workload identity"
     );
     let container = containers.into_iter().next();
     if let Some(container) = &container {
@@ -2091,14 +2084,14 @@ async fn find_target_container(
 }
 
 fn observation_from_summary(
-    reference: &ManagedTargetDeploymentRef,
+    reference: &ManagedTargetWorkloadRef,
     container: &ContainerSummary,
-) -> anyhow::Result<ManagedTargetDeploymentObservation> {
+) -> anyhow::Result<ManagedTargetWorkloadObservation> {
     let labels = validated_ownership_labels(reference, container)?;
     let labels = &labels;
     let container_port = labels
         .get("plurora.container_port")
-        .context("managed deployment has no container port label")?
+        .context("managed workload has no container port label")?
         .parse::<u16>()?;
     let port = container
         .ports
@@ -2106,39 +2099,39 @@ fn observation_from_summary(
         .into_iter()
         .flatten()
         .find(|port| port.private_port == container_port)
-        .context("managed deployment has no published port")?;
+        .context("managed workload has no published port")?;
     let host_port = port
         .public_port
-        .context("managed deployment has no actual host port")?;
-    anyhow::ensure!(host_port > 0, "managed deployment actual host port is zero");
+        .context("managed workload has no actual host port")?;
+    anyhow::ensure!(host_port > 0, "managed workload actual host port is zero");
     let bind_host = port.ip.clone().unwrap_or_default();
     anyhow::ensure!(
         bind_host == BIND_HOST,
-        "managed deployment port is not loopback-only"
+        "managed workload port is not loopback-only"
     );
-    Ok(ManagedTargetDeploymentObservation {
+    Ok(ManagedTargetWorkloadObservation {
         target_id: reference.target_id.clone(),
         installation_id: reference.installation_id.clone(),
-        deployment_id: reference.deployment_id.clone(),
+        workload_id: reference.workload_id.clone(),
         route_id: reference.route_id.clone(),
         port_lease_id: reference.port_lease_id.clone(),
         port_name: labels
             .get("plurora.port_name")
-            .context("managed deployment has no port name label")?
+            .context("managed workload has no port name label")?
             .clone(),
         container_id: container
             .id
             .clone()
-            .context("managed deployment has no container id")?,
+            .context("managed workload has no container id")?,
         container_name: container
             .names
             .as_ref()
             .and_then(|names| names.first())
             .map(|name| name.trim_start_matches('/').to_string())
-            .context("managed deployment has no container name")?,
+            .context("managed workload has no container name")?,
         image: labels
             .get("plurora.image_ref")
-            .context("managed deployment has no image reference label")?
+            .context("managed workload has no image reference label")?
             .clone(),
         image_id: container.image_id.clone(),
         container_port,
@@ -2150,20 +2143,20 @@ fn observation_from_summary(
             .map(|state| state.to_string())
             .unwrap_or_else(|| "unknown".to_string()),
         owner_operation_id: labels
-            .get("plurora.deployment_operation_id")
-            .context("managed deployment has no operation label")?
+            .get("plurora.workload_operation_id")
+            .context("managed workload has no operation label")?
             .clone(),
     })
 }
 
 fn validated_ownership_labels<'a>(
-    reference: &ManagedTargetDeploymentRef,
+    reference: &ManagedTargetWorkloadRef,
     container: &'a ContainerSummary,
 ) -> anyhow::Result<&'a HashMap<String, String>> {
     let labels = container
         .labels
         .as_ref()
-        .context("managed deployment has no ownership labels")?;
+        .context("managed workload has no ownership labels")?;
     for (key, expected) in [
         ("managed-by", "plurora"),
         ("plurora.target_driver", DRIVER_ID),
@@ -2172,13 +2165,13 @@ fn validated_ownership_labels<'a>(
             "plurora.installation_id",
             reference.installation_id.as_str(),
         ),
-        ("plurora.deployment_id", reference.deployment_id.as_str()),
+        ("plurora.workload_id", reference.workload_id.as_str()),
         ("plurora.route_id", reference.route_id.as_str()),
         ("plurora.port_lease_id", reference.port_lease_id.as_str()),
     ] {
         anyhow::ensure!(
             labels.get(key).map(String::as_str) == Some(expected),
-            "managed deployment ownership label mismatch"
+            "managed workload ownership label mismatch"
         );
     }
     Ok(labels)
@@ -2239,24 +2232,24 @@ mod tests {
     }
 
     #[derive(Debug)]
-    struct FakeManagedTargetDeploymentState {
-        observation: Option<ManagedTargetDeploymentObservation>,
+    struct FakeManagedTargetWorkloadState {
+        observation: Option<ManagedTargetWorkloadObservation>,
         actions: Vec<String>,
         revoke_after: HashSet<String>,
     }
 
-    struct FakeManagedTargetDeploymentBackend {
-        state: std::sync::Mutex<FakeManagedTargetDeploymentState>,
+    struct FakeManagedTargetWorkloadBackend {
+        state: std::sync::Mutex<FakeManagedTargetWorkloadState>,
         guard: SwitchEffectGuard,
     }
 
-    impl FakeManagedTargetDeploymentBackend {
+    impl FakeManagedTargetWorkloadBackend {
         fn new(
-            observation: Option<ManagedTargetDeploymentObservation>,
+            observation: Option<ManagedTargetWorkloadObservation>,
             revoke_after: impl IntoIterator<Item = &'static str>,
         ) -> Self {
             Self {
-                state: std::sync::Mutex::new(FakeManagedTargetDeploymentState {
+                state: std::sync::Mutex::new(FakeManagedTargetWorkloadState {
                     observation,
                     actions: Vec::new(),
                     revoke_after: revoke_after.into_iter().map(str::to_string).collect(),
@@ -2282,11 +2275,11 @@ mod tests {
     }
 
     #[async_trait::async_trait]
-    impl ManagedTargetDeploymentBackend for FakeManagedTargetDeploymentBackend {
+    impl ManagedTargetWorkloadBackend for FakeManagedTargetWorkloadBackend {
         async fn find(
             &self,
-            _reference: &ManagedTargetDeploymentRef,
-        ) -> anyhow::Result<Option<ManagedTargetDeploymentObservation>> {
+            _reference: &ManagedTargetWorkloadRef,
+        ) -> anyhow::Result<Option<ManagedTargetWorkloadObservation>> {
             self.action("find");
             Ok(self.state.lock().unwrap().observation.clone())
         }
@@ -2303,13 +2296,13 @@ mod tests {
 
         async fn create_container(
             &self,
-            request: &ManagedTargetDeploymentApply,
+            request: &ManagedTargetWorkloadApply,
             _image_id: &str,
         ) -> anyhow::Result<String> {
             self.action("create");
             let container_id = "container-1".to_string();
             self.state.lock().unwrap().observation =
-                Some(deployment_observation(request, &container_id, false));
+                Some(workload_observation(request, &container_id, false));
             Ok(container_id)
         }
 
@@ -2346,11 +2339,11 @@ mod tests {
         }
     }
 
-    fn deployment_request(pull_if_missing: bool) -> ManagedTargetDeploymentApply {
-        ManagedTargetDeploymentApply {
+    fn workload_request(pull_if_missing: bool) -> ManagedTargetWorkloadApply {
+        ManagedTargetWorkloadApply {
             target_id: "target-1".to_string(),
             installation_id: InstallationId::parse(INSTALLATION_ID).unwrap(),
-            deployment_id: "deployment-1".to_string(),
+            workload_id: "workload-1".to_string(),
             route_id: "route-1".to_string(),
             port_lease_id: "lease-1".to_string(),
             port_name: "http".to_string(),
@@ -2362,15 +2355,15 @@ mod tests {
         }
     }
 
-    fn deployment_observation(
-        request: &ManagedTargetDeploymentApply,
+    fn workload_observation(
+        request: &ManagedTargetWorkloadApply,
         container_id: &str,
         running: bool,
-    ) -> ManagedTargetDeploymentObservation {
-        ManagedTargetDeploymentObservation {
+    ) -> ManagedTargetWorkloadObservation {
+        ManagedTargetWorkloadObservation {
             target_id: request.target_id.clone(),
             installation_id: request.installation_id.clone(),
-            deployment_id: request.deployment_id.clone(),
+            workload_id: request.workload_id.clone(),
             route_id: request.route_id.clone(),
             port_lease_id: request.port_lease_id.clone(),
             port_name: request.port_name.clone(),
@@ -2388,19 +2381,19 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn deployment_effect_fence_stops_after_pull_create_and_start() {
+    async fn workload_effect_fence_stops_after_pull_create_and_start() {
         for (revoke_after, expected_actions) in [
             ("pull", vec!["find", "pull"]),
             ("create", vec!["find", "inspect_image", "create"]),
             ("start", vec!["find", "inspect_image", "create", "start"]),
         ] {
-            let request = deployment_request(revoke_after == "pull");
-            let backend = FakeManagedTargetDeploymentBackend::new(None, [revoke_after]);
+            let request = workload_request(revoke_after == "pull");
+            let backend = FakeManagedTargetWorkloadBackend::new(None, [revoke_after]);
             let error =
-                apply_managed_target_deployment_with_backend(&backend, &request, &backend.guard)
+                apply_managed_target_workload_with_backend(&backend, &request, &backend.guard)
                     .await
                     .unwrap_err();
-            assert!(is_managed_target_deployment_outcome_unknown(&error));
+            assert!(is_managed_target_workload_outcome_unknown(&error));
             assert_eq!(backend.actions(), expected_actions);
         }
     }
@@ -2422,28 +2415,27 @@ mod tests {
             next_effects.fetch_add(1, std::sync::atomic::Ordering::AcqRel);
         }
         let error = result.unwrap_err();
-        assert!(is_managed_target_deployment_outcome_unknown(&error));
+        assert!(is_managed_target_workload_outcome_unknown(&error));
         assert_eq!(connect_guard.checks(), 2);
         assert_eq!(next_effects.load(std::sync::atomic::Ordering::Acquire), 0);
 
-        let request = deployment_request(false);
-        let backend = FakeManagedTargetDeploymentBackend::new(None, ["find"]);
-        let error =
-            apply_managed_target_deployment_with_backend(&backend, &request, &backend.guard)
-                .await
-                .unwrap_err();
-        assert!(is_managed_target_deployment_outcome_unknown(&error));
+        let request = workload_request(false);
+        let backend = FakeManagedTargetWorkloadBackend::new(None, ["find"]);
+        let error = apply_managed_target_workload_with_backend(&backend, &request, &backend.guard)
+            .await
+            .unwrap_err();
+        assert!(is_managed_target_workload_outcome_unknown(&error));
         assert_eq!(backend.actions(), vec!["find"]);
         assert_eq!(backend.guard.checks(), 2);
     }
 
     #[tokio::test]
-    async fn deployment_observation_guards_the_find_on_both_sides() {
-        let request = deployment_request(false);
-        let observation = deployment_observation(&request, "container-1", true);
-        let backend = FakeManagedTargetDeploymentBackend::new(Some(observation.clone()), []);
+    async fn workload_observation_guards_the_find_on_both_sides() {
+        let request = workload_request(false);
+        let observation = workload_observation(&request, "container-1", true);
+        let backend = FakeManagedTargetWorkloadBackend::new(Some(observation.clone()), []);
         assert_eq!(
-            observe_managed_target_deployment_with_backend(
+            observe_managed_target_workload_with_backend(
                 &backend,
                 &request.reference(),
                 &backend.guard,
@@ -2455,24 +2447,24 @@ mod tests {
         assert_eq!(backend.actions(), vec!["find"]);
         assert_eq!(backend.guard.checks(), 2);
 
-        let revoked = FakeManagedTargetDeploymentBackend::new(None, ["find"]);
-        let error = observe_managed_target_deployment_with_backend(
+        let revoked = FakeManagedTargetWorkloadBackend::new(None, ["find"]);
+        let error = observe_managed_target_workload_with_backend(
             &revoked,
             &request.reference(),
             &revoked.guard,
         )
         .await
         .unwrap_err();
-        assert!(is_managed_target_deployment_outcome_unknown(&error));
+        assert!(is_managed_target_workload_outcome_unknown(&error));
         assert_eq!(revoked.actions(), vec!["find"]);
         assert_eq!(revoked.guard.checks(), 2);
     }
 
     #[tokio::test]
     async fn successful_apply_and_stop_guard_every_find_and_mutation() {
-        let request = deployment_request(false);
-        let apply_backend = FakeManagedTargetDeploymentBackend::new(None, []);
-        let applied = apply_managed_target_deployment_with_backend(
+        let request = workload_request(false);
+        let apply_backend = FakeManagedTargetWorkloadBackend::new(None, []);
+        let applied = apply_managed_target_workload_with_backend(
             &apply_backend,
             &request,
             &apply_backend.guard,
@@ -2486,8 +2478,8 @@ mod tests {
         );
         assert_eq!(apply_backend.guard.checks(), 11);
 
-        let stop_backend = FakeManagedTargetDeploymentBackend::new(Some(applied), []);
-        let stopped = stop_managed_target_deployment_with_backend(
+        let stop_backend = FakeManagedTargetWorkloadBackend::new(Some(applied), []);
+        let stopped = stop_managed_target_workload_with_backend(
             &stop_backend,
             &request.reference(),
             0,
@@ -2502,13 +2494,13 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn deployment_effect_fence_stops_between_stop_and_remove() {
-        let request = deployment_request(false);
-        let backend = FakeManagedTargetDeploymentBackend::new(
-            Some(deployment_observation(&request, "container-1", true)),
+    async fn workload_effect_fence_stops_between_stop_and_remove() {
+        let request = workload_request(false);
+        let backend = FakeManagedTargetWorkloadBackend::new(
+            Some(workload_observation(&request, "container-1", true)),
             ["stop"],
         );
-        let error = stop_managed_target_deployment_with_backend(
+        let error = stop_managed_target_workload_with_backend(
             &backend,
             &request.reference(),
             0,
@@ -2517,14 +2509,14 @@ mod tests {
         )
         .await
         .unwrap_err();
-        assert!(is_managed_target_deployment_outcome_unknown(&error));
+        assert!(is_managed_target_workload_outcome_unknown(&error));
         assert_eq!(backend.actions(), vec!["find", "stop"]);
 
-        let backend = FakeManagedTargetDeploymentBackend::new(
-            Some(deployment_observation(&request, "container-1", false)),
+        let backend = FakeManagedTargetWorkloadBackend::new(
+            Some(workload_observation(&request, "container-1", false)),
             ["remove"],
         );
-        let error = stop_managed_target_deployment_with_backend(
+        let error = stop_managed_target_workload_with_backend(
             &backend,
             &request.reference(),
             0,
@@ -2533,27 +2525,27 @@ mod tests {
         )
         .await
         .unwrap_err();
-        assert!(is_managed_target_deployment_outcome_unknown(&error));
+        assert!(is_managed_target_workload_outcome_unknown(&error));
         assert_eq!(backend.actions(), vec!["find", "remove"]);
     }
 
     #[test]
     fn container_identity_is_deterministic_and_not_caller_controlled() {
-        let first = deployment_container_name("target-1", INSTALLATION_ID, "deployment-1");
+        let first = workload_container_name("target-1", INSTALLATION_ID, "workload-1");
         assert_eq!(
             first,
-            deployment_container_name("target-1", INSTALLATION_ID, "deployment-1")
+            workload_container_name("target-1", INSTALLATION_ID, "workload-1")
         );
         assert_ne!(
             first,
-            deployment_container_name("target-2", INSTALLATION_ID, "deployment-1")
+            workload_container_name("target-2", INSTALLATION_ID, "workload-1")
         );
         assert_ne!(
             first,
-            deployment_container_name(
+            workload_container_name(
                 "target-1",
                 "33333333-3333-4333-8333-333333333333",
-                "deployment-1"
+                "workload-1"
             )
         );
         assert!(first.starts_with("plurora-target-"));
@@ -2562,10 +2554,10 @@ mod tests {
 
     #[test]
     fn apply_validation_rejects_address_and_command_shaped_images() {
-        let mut request = ManagedTargetDeploymentApply {
+        let mut request = ManagedTargetWorkloadApply {
             target_id: "target-1".to_string(),
             installation_id: InstallationId::parse(INSTALLATION_ID).unwrap(),
-            deployment_id: "deployment-1".to_string(),
+            workload_id: "workload-1".to_string(),
             route_id: "route-1".to_string(),
             port_lease_id: "lease-1".to_string(),
             port_name: "http".to_string(),
@@ -2590,8 +2582,8 @@ mod tests {
     #[test]
     fn ambiguous_effect_errors_are_distinguishable() {
         let error = outcome_unknown("test effect");
-        assert!(is_managed_target_deployment_outcome_unknown(&error));
-        assert!(!is_managed_target_deployment_outcome_unknown(
+        assert!(is_managed_target_workload_outcome_unknown(&error));
+        assert!(!is_managed_target_workload_outcome_unknown(
             &anyhow::anyhow!("known failure")
         ));
     }
@@ -2646,9 +2638,9 @@ mod tests {
 
     #[tokio::test]
     #[ignore]
-    async fn verified_build_context_deploys_on_local_and_agent_targets_smoke() -> anyhow::Result<()>
-    {
-        if std::env::var("PLURORA_TARGET_DEPLOYMENT_SMOKE")
+    async fn verified_build_context_workloads_on_local_and_agent_targets_smoke(
+    ) -> anyhow::Result<()> {
+        if std::env::var("PLURORA_TARGET_WORKLOAD_SMOKE")
             .ok()
             .as_deref()
             != Some("1")
@@ -2680,7 +2672,7 @@ mod tests {
                         build_id: build_id.clone(),
                         dockerfile: "Dockerfile".to_string(),
                         network_mode: ManagedTargetBuildNetworkMode::None,
-                        disposition: ManagedTargetImageDisposition::RetainForDeployment,
+                        disposition: ManagedTargetImageDisposition::RetainForWorkload,
                         source_tree_digest: format!("sha256:{}", "a".repeat(64)),
                         build_descriptor_hash: format!("sha256:{}", "b".repeat(64)),
                         context_digest: context_digest.clone(),
@@ -2692,15 +2684,15 @@ mod tests {
                 &TestEffectGuard,
             )
             .await?;
-            let deployment_id = format!("deployment-{target_suffix}-{suffix}");
+            let workload_id = format!("workload-{target_suffix}-{suffix}");
             let route_id = format!("route-{target_suffix}-{suffix}");
             let lease_id = format!("lease-{target_suffix}-{suffix}");
             let operation_id = format!("operation-{target_suffix}-{suffix}");
-            let applied = apply_managed_target_deployment(
-                &ManagedTargetDeploymentApply {
+            let applied = apply_managed_target_workload(
+                &ManagedTargetWorkloadApply {
                     target_id: target_id.to_string(),
                     installation_id: installation_id.clone(),
-                    deployment_id: deployment_id.clone(),
+                    workload_id: workload_id.clone(),
                     route_id: route_id.clone(),
                     port_lease_id: lease_id.clone(),
                     port_name: "http".to_string(),
@@ -2714,20 +2706,20 @@ mod tests {
             )
             .await?;
             let preview_result = async {
-                wait_for_managed_target_deployment_readiness(&applied, Some("/"), &TestEffectGuard)
+                wait_for_managed_target_workload_readiness(&applied, Some("/"), &TestEffectGuard)
                     .await?;
                 anyhow::ensure!(
                     applied.image_id.as_deref() == Some(build.image_id.as_str()),
-                    "smoke deployment did not use the verified built image"
+                    "smoke workload did not use the verified built image"
                 );
                 Ok::<_, anyhow::Error>(())
             }
             .await;
-            let stopped = stop_managed_target_deployment(
-                &ManagedTargetDeploymentRef {
+            let stopped = stop_managed_target_workload(
+                &ManagedTargetWorkloadRef {
                     target_id: target_id.to_string(),
                     installation_id,
-                    deployment_id,
+                    workload_id,
                     route_id,
                     port_lease_id: lease_id,
                 },
@@ -2773,8 +2765,8 @@ mod tests {
                 "verification image removal was not confirmed"
             );
             anyhow::ensure!(
-                count_managed_target_deployments(target_id).await? == 0,
-                "smoke deployment cleanup was incomplete"
+                count_managed_target_workloads(target_id).await? == 0,
+                "smoke workload cleanup was incomplete"
             );
         }
         Ok(())
@@ -2782,10 +2774,10 @@ mod tests {
 
     #[test]
     fn receipt_encodes_container_identity_as_a_typed_non_secret_reference() {
-        let observation = ManagedTargetDeploymentObservation {
+        let observation = ManagedTargetWorkloadObservation {
             target_id: "target-1".to_string(),
             installation_id: InstallationId::parse(INSTALLATION_ID).unwrap(),
-            deployment_id: "deployment-1".to_string(),
+            workload_id: "workload-1".to_string(),
             route_id: "route-1".to_string(),
             port_lease_id: "lease-1".to_string(),
             port_name: "http".to_string(),
@@ -3056,7 +3048,7 @@ mod tests {
 
     #[test]
     fn image_disposition_receipt_requires_exact_labels_and_final_state() {
-        let retained = image_build_receipt(ManagedTargetImageDisposition::RetainForDeployment);
+        let retained = image_build_receipt(ManagedTargetImageDisposition::RetainForWorkload);
         validate_managed_target_image_build_receipt(&retained).unwrap();
         let labels = managed_image_labels(&retained);
         validate_built_image_ownership_labels(&retained, &retained.image_id, &labels).unwrap();
@@ -3066,7 +3058,7 @@ mod tests {
         let error =
             validate_built_image_ownership_labels(&retained, &retained.image_id, &wrong_target)
                 .unwrap_err();
-        assert!(!is_managed_target_deployment_outcome_unknown(&error));
+        assert!(!is_managed_target_workload_outcome_unknown(&error));
 
         let mut removed =
             image_build_receipt(ManagedTargetImageDisposition::RemoveAfterVerification);
@@ -3160,7 +3152,7 @@ mod tests {
         )
         .await
         .unwrap_err();
-        assert!(is_managed_target_deployment_outcome_unknown(&error));
+        assert!(is_managed_target_workload_outcome_unknown(&error));
         assert!(!backend.contains_image(&first_id));
         assert!(backend.contains_image(&rebuilt_id));
 
@@ -3203,7 +3195,7 @@ mod tests {
         .await
         .unwrap_err();
 
-        assert!(is_managed_target_deployment_outcome_unknown(&error));
+        assert!(is_managed_target_workload_outcome_unknown(&error));
         assert_eq!(backend.list_calls(), 1);
         assert!(backend.removed_ids().is_empty());
     }
@@ -3222,7 +3214,7 @@ mod tests {
         )
         .await
         .unwrap_err();
-        assert!(is_managed_target_deployment_outcome_unknown(&error));
+        assert!(is_managed_target_workload_outcome_unknown(&error));
 
         let recheck_failure = FakeManagedTargetImageBackend::default();
         recheck_failure.fail_list_call(2);
@@ -3235,7 +3227,7 @@ mod tests {
         )
         .await
         .unwrap_err();
-        assert!(is_managed_target_deployment_outcome_unknown(&error));
+        assert!(is_managed_target_workload_outcome_unknown(&error));
     }
 
     #[tokio::test]
@@ -3255,7 +3247,7 @@ mod tests {
         )
         .await
         .unwrap_err();
-        assert!(!is_managed_target_deployment_outcome_unknown(&error));
+        assert!(!is_managed_target_workload_outcome_unknown(&error));
         assert!(!inspect_failure.contains_image(&image_id));
         assert_eq!(inspect_failure.removed_ids(), vec![image_id.clone()]);
 
@@ -3271,7 +3263,7 @@ mod tests {
         )
         .await
         .unwrap_err();
-        assert!(is_managed_target_deployment_outcome_unknown(&error));
+        assert!(is_managed_target_workload_outcome_unknown(&error));
         assert!(!ambiguous_build.contains_image(&image_id));
         assert_eq!(ambiguous_build.removed_ids(), vec![image_id.clone()]);
 
@@ -3283,12 +3275,12 @@ mod tests {
         retained.fail_inspect_call(1);
         let error = build_managed_target_image_with_backend(
             &retained,
-            image_build_request(ManagedTargetImageDisposition::RetainForDeployment),
+            image_build_request(ManagedTargetImageDisposition::RetainForWorkload),
             &TestEffectGuard,
         )
         .await
         .unwrap_err();
-        assert!(is_managed_target_deployment_outcome_unknown(&error));
+        assert!(is_managed_target_workload_outcome_unknown(&error));
         assert!(retained.contains_image(&image_id));
         assert!(retained.removed_ids().is_empty());
     }
@@ -3304,7 +3296,7 @@ mod tests {
         )
         .await
         .unwrap_err();
-        assert!(is_managed_target_deployment_outcome_unknown(&error));
+        assert!(is_managed_target_workload_outcome_unknown(&error));
         assert!(empty_ambiguous.removed_ids().is_empty());
         assert_eq!(empty_ambiguous.list_calls(), 2);
 
@@ -3317,7 +3309,7 @@ mod tests {
         )
         .await
         .unwrap_err();
-        assert!(!is_managed_target_deployment_outcome_unknown(&error));
+        assert!(!is_managed_target_workload_outcome_unknown(&error));
         assert!(empty_terminal.removed_ids().is_empty());
         assert_eq!(empty_terminal.list_calls(), 2);
 
@@ -3331,7 +3323,7 @@ mod tests {
         )
         .await
         .unwrap_err();
-        assert!(is_managed_target_deployment_outcome_unknown(&error));
+        assert!(is_managed_target_workload_outcome_unknown(&error));
 
         let retained_id = format!("sha256:{}", "a".repeat(64));
         for failure in [
@@ -3342,13 +3334,13 @@ mod tests {
             retained.configure_build(Some(retained_id.clone()), failure);
             let error = build_managed_target_image_with_backend(
                 &retained,
-                image_build_request(ManagedTargetImageDisposition::RetainForDeployment),
+                image_build_request(ManagedTargetImageDisposition::RetainForWorkload),
                 &TestEffectGuard,
             )
             .await
             .unwrap_err();
             assert_eq!(
-                is_managed_target_deployment_outcome_unknown(&error),
+                is_managed_target_workload_outcome_unknown(&error),
                 failure == FakeManagedTargetImageBuildFailure::Ambiguous
             );
             assert!(retained.contains_image(&retained_id));
@@ -3375,7 +3367,7 @@ mod tests {
         )
         .await
         .unwrap_err();
-        assert!(is_managed_target_deployment_outcome_unknown(&error));
+        assert!(is_managed_target_workload_outcome_unknown(&error));
         assert_eq!(inspect_guard.checks(), 4);
 
         let remove_failure = FakeManagedTargetImageBackend::default();
@@ -3390,7 +3382,7 @@ mod tests {
         )
         .await
         .unwrap_err();
-        assert!(is_managed_target_deployment_outcome_unknown(&error));
+        assert!(is_managed_target_workload_outcome_unknown(&error));
 
         let final_confirmation_failure = FakeManagedTargetImageBackend::default();
         final_confirmation_failure.insert_image(receipt.image_id.clone(), [], labels);
@@ -3404,7 +3396,7 @@ mod tests {
         )
         .await
         .unwrap_err();
-        assert!(is_managed_target_deployment_outcome_unknown(&error));
+        assert!(is_managed_target_workload_outcome_unknown(&error));
     }
 
     #[tokio::test]
@@ -3429,7 +3421,7 @@ mod tests {
         .await
         .unwrap_err();
 
-        assert!(is_managed_target_deployment_outcome_unknown(&error));
+        assert!(is_managed_target_workload_outcome_unknown(&error));
         assert_eq!(backend.removed_ids().len(), 1);
         assert_eq!(
             usize::from(backend.contains_image(&first_id))

@@ -2,14 +2,14 @@
 
 > [English](./TARGET_AGENT_PROTOCOL.en.md) · [中文](./TARGET_AGENT_PROTOCOL.md)
 
-状态：**Phase 6 Candidate 实现**。Target Agent 是 Host Control Plane 的远程执行适配器，不是 remote package、通用 SSH shell、第二个 Host 或被执行应用的身份系统。身份、类型化 operation、artifact、Host-local Docker operation broker 与 authenticated reverse tunnel 已形成同一受控边界。Managed Realization 已把 OperationalIntent/TargetInventory 的稳定 plan、apply/stop/rollback/reconcile 接到 local 与 Agent 的同一 typed operation/receipt 路径；自动调度与 target-edge ingress 不在当前合同内。
+状态：**Implemented**。Target Agent 是 Host Control Plane 的远程执行适配器，不是 remote package、通用 SSH shell、第二个 Host 或被执行应用的身份系统。身份、类型化 operation、artifact、Host-local Docker operation broker 与 authenticated reverse tunnel 已形成同一受控边界。Managed Realization 已把 OperationalIntent/TargetInventory 的稳定 plan、apply/stop/rollback/reconcile 接到 local 与 Agent 的同一 typed operation/receipt 路径；自动调度与 target-edge ingress 不在当前合同内。
 
 ## 三种远程边界
 
 | 边界 | 主体 | 目的 | 凭据/信任 |
 |---|---|---|---|
 | 远程 Host 客户端 | 人的设备、Web/PWA、CLI | 控制一个 Host | root 或 Installation-scoped device grant |
-| Remote Target Agent | 受管执行节点 | 执行部署/验证操作并报告事实 | 独立 target identity + operation authority |
+| Remote Target Agent | 受管执行节点 | 执行workload/验证操作并报告事实 | 独立 target identity + operation authority |
 | Remote package entry | 能力提供者服务 | 响应 package invoke/stream | package/workload identity + attenuated capability |
 
 三者不能共享 bearer token、生命周期或隐式权限。尤其不能用 Host device token 当 agent credential，也不能把 target exec 注册成 package invoke。
@@ -80,9 +80,9 @@ Typed-worker 控制面暴露以下路由；它们不提供通用命令：
 | Agent | `POST /target-agent/v1/operations/{operation_id}/receipt` | 只接受与 authority、execution owner 和 request digest 一致的终态回执 |
 | Agent | `GET /target-agent/v1/operations/{operation_id}/artifacts/{digest}` | 只流式读取该 accepted/running operation 明确授权的 digest |
 
-Host 的 `host_control_target_operations` journal 与 Agent 的 SQLite ledger 都使用 expected-sequence CAS。Agent 在回复 accepted 前持久化 request/authority digest，在提交回执前持久化 terminal receipt；同一 data directory 有进程锁，复制 credential 到另一 ledger 也不能夺取已经绑定的 `execution_id`。当前可执行类型是 `artifact.materialize/release`、`health.probe`、声明式 `verifier.run(artifact_integrity)` 与 `deployment.apply/observe/drain/stop`；未知类型没有 shell fallback。下载先进入 digest 派生的 partial 文件，完整 SHA-256/size 校验后才原子落入本地 CAS，失败 partial 会删除。
+Host 的 `host_control_target_operations` journal 与 Agent 的 SQLite ledger 都使用 expected-sequence CAS。Agent 在回复 accepted 前持久化 request/authority digest，在提交回执前持久化 terminal receipt；同一 data directory 有进程锁，复制 credential 到另一 ledger 也不能夺取已经绑定的 `execution_id`。当前可执行类型是 `artifact.materialize/release`、`health.probe`、声明式 `verifier.run(artifact_integrity)` 与 `workload.apply/observe/drain/stop`；未知类型没有 shell fallback。下载先进入 digest 派生的 partial 文件，完整 SHA-256/size 校验后才原子落入本地 CAS，失败 partial 会删除。
 
-Revoke 对新工作和新的 accepted/running 转换 fail closed。线性化边界是 Host 已持久确认 `Running`：该边界前观察到 revoke/offline/stale epoch 就不执行；边界后的当前幂等 step 可完成或重放 receipt，但不能取得新 operation。Revoke 不伪装成对 target-local effect 的原子回滚；`deployment.drain` 执行有界优雅停止并保留容器，`deployment.stop` 删除容器，只有显式 `force_remove` 才允许强制删除。
+Revoke 对新工作和新的 accepted/running 转换 fail closed。线性化边界是 Host 已持久确认 `Running`：该边界前观察到 revoke/offline/stale epoch 就不执行；边界后的当前幂等 step 可完成或重放 receipt，但不能取得新 operation。Revoke 不伪装成对 target-local effect 的原子回滚；`workload.drain` 执行有界优雅停止并保留容器，`workload.stop` 删除容器，只有显式 `force_remove` 才允许强制删除。
 
 Operation authority 绑定 target/operation/step/Installation/effect/artifact/lease epoch/policy epoch/expiry/nonce/request digest。远程 Agent authority 用 enrollment credential 的 domain-separated digest 作为 epoch-scoped HMAC key，并由 Agent 以一次性获得的 credential 独立复算；local driver 的 journal record 使用仅限 Host 内部、稳定且 domain-separated 的 local key，不把它当作跨网络身份。原生客户端禁用 redirect，远程 Host 强制 HTTPS，credential 不写入配置或 ledger，只从 `PLURORA_TARGET_AGENT_CREDENTIAL` 注入；loopback HTTP 仅用于同机边界。
 
@@ -114,7 +114,7 @@ ArtifactRequest / ArtifactChunk / ArtifactReceipt
 Agent 只接受公开、版本化、策略可判定的操作类型：
 
 - `artifact.materialize` / `artifact.release`；
-- `deployment.apply` / `deployment.observe` / `deployment.stop` / `deployment.drain`；
+- `workload.apply` / `workload.observe` / `workload.stop` / `workload.drain`；
 - `health.probe`；
 - `logs.read` / `logs.follow`；
 - `port.reserve` / `port.release`；
@@ -206,7 +206,7 @@ Host 在内部使用有并发上限的一次性 loopback bridge credential 复�
 | 网络分区双方继续运行 | Agent 只接受未过期 authority；Host 不发第二个同 epoch owner |
 | target 被 revoke | 拒绝新操作；按 policy drain/保留现有 workload |
 | artifact digest 不符 | 删除 partial，对该 step terminal fail 并审计 |
-| tunnel 中断 | route 暂时 unready；deployment intent 保留，允许重连 |
+| tunnel 中断 | route 暂时 unready；Realization intent 保留，允许重连 |
 | 协议版本不兼容 | target Incompatible，不降级执行未知语义 |
 
 ## 能力层级

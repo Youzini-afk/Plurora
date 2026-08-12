@@ -1,8 +1,8 @@
 # Realization 执行器的 Runtime adapter
 
-> [English](./DEPLOYMENT_RUNTIME.en.md) · [中文](./DEPLOYMENT_RUNTIME.md)
+> [English](./REALIZATION_BACKENDS.en.md) · [中文](./REALIZATION_BACKENDS.md)
 
-本页记录 Phase 6 `ServiceRealizationExecutor` 使用的低层 Target、exec、port 与 proxy adapter。公开 managed lifecycle 由 [`REALIZATION.md`](REALIZATION.md) 和 `host.realization.*` 定义；本页的 adapter 不是另一套 Deployment API、revision 或 authority。
+本页记录 `ServiceRealizationExecutor` 使用的低层 Target、exec、port 与 proxy adapter。公开 managed lifecycle 由 [`REALIZATION.md`](REALIZATION.md) 和 `host.realization.*` 定义；本页的 adapter 不是另一套 managed lifecycle、revision 或 authority。
 
 ## 边界
 
@@ -10,9 +10,9 @@
 - Pure planner 用 `TargetInventorySnapshot` 编译 content-addressed `RealizationPlan`。
 - `host.realization.apply` 在 exact approval、precondition 与 authority 下调用 executor。
 - Executor 把 plan action 翻译为 typed `TargetOperationSpec`，并将结果写成 `RealizedResource` 与 `RealizationEffectReceipt`。
-- `host.exec.*`、`host.port.*` 与 `host.proxy.*` 是 HostAdmin/HostDev 的低层 adapter；普通 device 不再拥有旧 `deploy` scope，也不能用这些方法绕过 Realization。
+- `host.exec.*`、`host.port.*` 与 `host.proxy.*` 是 HostAdmin/HostDev 的低层 adapter；普通 device 不能用这些方法绕过 Realization。
 
-旧 `/host/v1/deploy`、`/build-deploy*`、Installation deployment history/recover/rollback 路由和 Development deployment preview/approve/activate/reconcile 路由已经退休，不存在 alias 或 fallback。Web 与 CLI 只调用 `host.realization.*`。
+Web 与 CLI 只调用 `host.realization.*`；低层 adapter 没有面向普通 device 的并行 managed API。
 
 ## Local 与 Target Agent 同一路径
 
@@ -49,7 +49,7 @@ Host 启动顺序是：
 3. hydrate Installation、Powerbox、Realization、Run authority journals；
 4. Realization 对 Applying/Stopping 记录执行 effect-free observation 或消费 durable effect checkpoint。
 
-公开 readiness 返回 durable/active/degraded Realization 数量。它不再读取旧 deployment projection 作为 managed truth。
+公开 readiness 返回 durable/active/degraded Realization 数量，并只把 Realization projection 视为 managed truth。
 
 如果 target result 不确定，executor 返回 `outcome_unknown`；如果资源/receipt 无法安全确认，Realization 进入 `recovery_required`。Host 不以端口占用、进程存在或 route 名称推断成功。
 

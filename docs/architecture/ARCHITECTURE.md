@@ -48,9 +48,9 @@ Host Control Plane / Runtime Fabric 与上述层正交：
 - 组件实例的最小生命周期与健康状态；
 - 协议、版本和 Profile 协商。
 
-基底不拥有 Project、Home、Play、Forge、Assistant、模型、agent、记忆、世界、文档、部署产品或具体 secret store。
+基底不拥有 Library、Home、Play、Forge、Assistant、模型、agent、记忆、世界、文档、资源编排产品或具体 secret store。
 
-现有 `plurora-core` / `plurora-runtime` 中仍混合了一部分 Host、协议和 Shell 语义；拆分必须保持数据安全与公开合同精确性，但不会为已退休的 Project、old Composition 或 Deployment identity 保留兼容 alias。
+现有 `plurora-core` / `plurora-runtime` 中仍混合了一部分 Host、协议和 Shell 语义；后续拆分必须保持数据安全、公开合同精确性与单一机器身份。
 
 ### Protocol Commons
 
@@ -162,9 +162,9 @@ Contract V1 是当前可运行、可生成 SDK、由 conformance 守护的公开
 
 `clients/web` 是 React 19 + Tailwind v4 + Vite 的官方平台 Shell，并可作为 PWA 安装。它通过 HTTP `POST /rpc`、SSE 与 `/host/v1/*` 使用公开平台和 Host 边界，不读取 SQLite，也不导入 runtime 私有状态。
 
-Phase 5 的 Powerbox chooser 通过 `host.exposure.*` 与 `host.binding.*` 显示 exact provider/consumer Port、audience、lease、trust 与 evidence；它只使用 Host public relay，不持有 private intent 或 runtime handle。Surface bridge 仍是显式 allowlist，没有 Powerbox private bridge。
+Powerbox chooser 通过 `host.exposure.*` 与 `host.binding.*` 显示 exact provider/consumer Port、audience、lease、trust 与 evidence；它只使用 Host public relay，不持有 private intent 或 runtime handle。Surface bridge 仍是显式 allowlist，没有 Powerbox private bridge。
 
-Phase 6 的 Realization workbench 通过 `host.realization.*` 先显示 effect-free plan、stable digest、preconditions 与风险，再执行 approval-bound apply/stop/rollback/reconcile。Run start、Binding select 与关闭 UI 都不会隐式触发 Realization effect。
+Realization workbench 通过 `host.realization.*` 先显示 effect-free plan、stable digest、preconditions 与风险，再执行 approval-bound apply/stop/rollback/reconcile。Run start、Binding select 与关闭 UI 都不会隐式触发 Realization effect。
 
 ### SurfaceHost
 

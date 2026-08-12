@@ -325,8 +325,7 @@ pub(super) async fn serve_target_tunnel<S>(
         }
     });
     let streams: HostStreams = Arc::new(AsyncMutex::new(HashMap::new()));
-    if let Err(error) = operation::reconcile_target_deployment_projections(&state, &target_id).await
-    {
+    if let Err(error) = operation::reconcile_target_workload_projections(&state, &target_id).await {
         tracing::warn!(target_id = %target_id, error = %error, "target tunnel connected but route projection remained unavailable");
     }
     let mut live_check = tokio::time::interval(LIVE_CHECK_INTERVAL);
@@ -386,7 +385,7 @@ pub(super) async fn serve_target_tunnel<S>(
         .tunnels
         .begin_close(&target_id, &connection_id)
     {
-        operation::mark_target_deployment_routes_unready(&state, &target_id).await;
+        operation::mark_target_workload_routes_unready(&state, &target_id).await;
         state
             .target_agents
             .tunnels
@@ -425,7 +424,7 @@ where
                 && target.policy_epoch == agent.target.policy_epoch
                 && target
                     .capabilities
-                    .contains(&ExecutionTargetCapability::Deployment)
+                    .contains(&ExecutionTargetCapability::Workload)
         })
 }
 
@@ -681,7 +680,7 @@ mod tests {
     use crate::{
         acquire_development_host_lease, app_with_state, development_registry, host_access_registry,
         release_development_host_lease, spawn_development_host_lease_heartbeat, AppState,
-        BuildDeployJobRegistry,
+        BuildWorkloadJobRegistry,
     };
 
     #[derive(Debug, Clone)]
@@ -1099,7 +1098,7 @@ mod tests {
         Ok(result.installation.record.installation_id)
     }
 
-    async fn apply_remote_test_deployment(
+    async fn apply_remote_test_workload(
         client: &reqwest::Client,
         base_url: &str,
         host_token: &str,
@@ -1118,10 +1117,10 @@ mod tests {
             .json(&json!({
                 "installation_id": installation_id,
                 "spec": {
-                    "kind": "deployment_apply",
-                    "deployment": {
-                        "deployment": {
-                            "deployment_id": format!("deployment-{route_id}"),
+                    "kind": "workload_apply",
+                    "workload": {
+                        "workload": {
+                            "workload_id": format!("workload-{route_id}"),
                             "route_id": route_id,
                             "port_lease_id": port_lease_id
                         },
@@ -1139,7 +1138,7 @@ mod tests {
             .await?;
         anyhow::ensure!(
             created.status() == StatusCode::CREATED,
-            "deployment operation creation failed: {}",
+            "workload operation creation failed: {}",
             created.text().await.unwrap_or_default()
         );
         let created: Value = created.json().await?;
@@ -1158,7 +1157,7 @@ mod tests {
                 .operation
                 .as_ref()
                 .is_some_and(|queued| queued.operation_id == operation.operation_id),
-            "agent did not receive the created deployment operation"
+            "agent did not receive the created workload operation"
         );
 
         for status in [
@@ -1218,7 +1217,7 @@ mod tests {
         let completed: TargetOperationRecord = completed.json().await?;
         anyhow::ensure!(
             completed.status == TargetOperationStatusKind::Succeeded,
-            "deployment operation did not succeed"
+            "workload operation did not succeed"
         );
         Ok(())
     }
@@ -1276,7 +1275,7 @@ mod tests {
         const TARGET_ID: &str = "remote-ci";
         const HTTP_ROUTE: &str = "remote-http";
         const WS_ROUTE: &str = "remote-ws";
-        const HOST_TOKEN: &str = "phase4-host-token";
+        const HOST_TOKEN: &str = "target-agent-host-token";
 
         let observations = Arc::new(AsyncMutex::new(RemoteUpstreamObservations::default()));
         let upstream = Router::new()
@@ -1363,7 +1362,7 @@ mod tests {
             static_dir: None,
             access_token: Some(HOST_TOKEN.to_string()),
             app_base_domain: Some("apps.example.test".to_string()),
-            build_jobs: Arc::new(BuildDeployJobRegistry::default()),
+            build_jobs: Arc::new(BuildWorkloadJobRegistry::default()),
             development,
             host_access: host_access_registry(),
             installations,
@@ -1389,9 +1388,9 @@ mod tests {
             ))
             .bearer_auth(HOST_TOKEN)
             .json(&json!({
-                "display_name": "CI remote deployment target",
+                "display_name": "CI remote workload target",
                 "reachability": "reverse_tunnel",
-                "allowed_capabilities": ["deployment"],
+                "allowed_capabilities": ["workload"],
                 "labels": {},
                 "expires_in_seconds": 60
             }))
@@ -1411,7 +1410,7 @@ mod tests {
             .json(&ClaimTargetEnrollmentRequest {
                 enrollment_token: enrollment_token.to_string(),
                 protocol_versions: vec!["target-agent.v1".to_string()],
-                declared_capabilities: vec![ExecutionTargetCapability::Deployment],
+                declared_capabilities: vec![ExecutionTargetCapability::Workload],
             })
             .send()
             .await?;
@@ -1422,7 +1421,7 @@ mod tests {
         );
         let claim: ClaimTargetEnrollmentResponse = claim.json().await?;
 
-        apply_remote_test_deployment(
+        apply_remote_test_workload(
             &client,
             &base_url,
             HOST_TOKEN,
@@ -1436,7 +1435,7 @@ mod tests {
             &"1".repeat(32),
         )
         .await?;
-        apply_remote_test_deployment(
+        apply_remote_test_workload(
             &client,
             &base_url,
             HOST_TOKEN,
@@ -1546,7 +1545,7 @@ mod tests {
                 .into_client_request()?;
         ws_request.headers_mut().insert(
             header::AUTHORIZATION,
-            HeaderValue::from_static("Bearer phase4-host-token"),
+            HeaderValue::from_static("Bearer target-agent-host-token"),
         );
         ws_request.headers_mut().insert(
             header::COOKIE,

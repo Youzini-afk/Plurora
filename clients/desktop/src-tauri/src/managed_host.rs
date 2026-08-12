@@ -24,7 +24,7 @@ const FIRST_PARTY_MANIFESTS: [(&str, &str); 7] = [
     ("integrity-lab", "integrity-lab/manifest.yaml"),
     ("install-lab", "install-lab/manifest.yaml"),
     ("docker-runtime-lab", "docker-runtime-lab/manifest.yaml"),
-    ("project-intake-lab", "project-intake-lab/manifest.yaml"),
+    ("source-intake-lab", "source-intake-lab/manifest.yaml"),
     ("secret-store-lab", "secret-store-lab/manifest.yaml"),
     ("workspace-lab", "workspace-lab/manifest.yaml"),
 ];

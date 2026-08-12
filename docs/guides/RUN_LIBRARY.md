@@ -2,7 +2,7 @@
 
 > [English](./RUN_LIBRARY.en.md) · [中文](./RUN_LIBRARY.md)
 
-本指南描述 Phase 4 Run 生命周期、Phase 5 Powerbox 与官方 Library 入口。Run 是 Host 上一次实际执行的 durable 事实；Installation 是采用记录，Work/Assembly 是便携定义。打开 Library 条目或 Installation 详情不会隐式创建 Run、构建源码或部署机器资源。
+本指南描述 Run 生命周期、Powerbox 与官方 Library 入口。Run 是 Host 上一次实际执行的 durable 事实；Installation 是采用记录，Work/Assembly 是便携定义。打开 Library 条目或 Installation 详情不会隐式创建 Run、构建源码或apply Realization。
 
 ## 对象与所有权
 
@@ -54,14 +54,14 @@ Start/stop 的相同幂等键与相同 fingerprint 会重放 durable 结果；fi
 
 `host.run.status` 与 `host.run.start` 共用同一套入口检查；status 只读，start 在 effect 前重验。start 只会激活当前 Installation 锁定的、已安装且已验证的本地 Package Component。实现必须与 AssemblyLock 的 artifact digest、behavior digest、trust class 和 entry kind 精确匹配，并且只能有一个 ready Package 匹配；没有 publisher priority 或模糊选择。
 
-本 Phase 的 Run-bound 激活会为这些已经 ready 的本地实现建立 Run context、节点实例记录，以及精确的 Installation 与 Package 生命周期租约；它不会加载、构建或部署 Package，也不会为每个 Run 另起一个 Package 进程。共享 Package 的进程和 capability 仍由 Runtime 全局拥有；任一 Run 持有租约时 Package 不能被 unload/restart，Run stop 只释放该 Run 的 context 与租约。
+Run-bound 激活会为这些已经 ready 的本地实现建立 Run context、节点实例记录，以及精确的 Installation 与 Package 生命周期租约；它不会加载、构建或 apply Package，也不会为每个 Run 另起一个 Package 进程。共享 Package 的进程和 capability 仍由 Runtime 全局拥有；任一 Run 持有租约时 Package 不能被 unload/restart，Run stop 只释放该 Run 的 context 与租约。
 
 如果不能安全启动，结果保持 `run: null`，返回结构化 `gaps[]`。每项包含稳定的 `reason_code`，可选 `node_id` / `port_id`，以及可执行的 `next_step`：
 
 - `artifact_missing`：锁定的 Component 未安装、未 ready 或 digest/behavior/trust 不匹配；安装并验证 exact Package。
 - `binding_ambiguous`：有多个等同匹配的本地 Package；卸载多余实现或显式整理锁定结果，不按 publisher 选择。
-- `binding_unavailable`：required Launch/Runtime import 没有固定可用绑定；本 Phase 停在明确 gap，Phase 5 通过 Exposure/Binding 选择补齐，不能篡改 Lock 绕过。
-- `unsupported_backend`：WASM、remote、`contract: none`/Foreign Capsule、非 JSON-RPC subprocess 等执行形态在本 Phase 没有 Run driver；改用受支持的本地实现。
+- `binding_unavailable`：required Launch/Runtime import 没有固定可用绑定；通过 Exposure/Binding 选择补齐，不能篡改 Lock 绕过。
+- `unsupported_backend`：WASM、remote、`contract: none`/Foreign Capsule、非 JSON-RPC subprocess 等执行形态没有可用 Run driver；改用受支持的本地实现。
 - `target_unsatisfied`：entrypoint/Port 无法满足，或 Work 带有需要机器资源的 OperationalIntent；按照 gap 的 next step 准备所需 Realization。
 
 这些 gap 是诊断与下一步，不是隐式授权。Run start 不 build 源码、不创建 public route、不执行 managed Realization，也不隐式调用 `host.realization.apply`。缺少 managed Realization 时必须停在 gap，由用户通过独立 plan/approval/apply 流程处理。
@@ -77,7 +77,7 @@ Start/stop 的相同幂等键与相同 fingerprint 会重放 durable 结果；fi
 - stop effect 已发生但 terminal journal commit 无法确认时，重放收敛为 `interrupted` + `outcome_unknown`，不会把 Stopping 猜成成功。
 - Powerbox chooser 通过 `host.exposure.*` / `host.binding.*` 显示 explicit phase、exact Exposure/audience/expiry、两端 PortContract、provider source/trust/claims/boundaries/evidence、candidate digest/stale 状态；0 或多个候选都要求明确选择，preference 只是排序 hint。
 - Runtime 只注入选中 Port 的最小 handle；同一 Component 多 Port 可共享 activation，不同 Component 或 node path 隔离。provider stop、revoke、expiry 或 version drift 会取消 Binding；不跨 Installation 共享 state/secret。
-- Exposure 与跨 Installation Binding 已在 Phase 5 实现；Managed Realization 的 plan/apply 与 `host.realization.*` 已在 Phase 6 实现，但 Run 生命周期仍与其分离，详见 [`REALIZATION.md`](REALIZATION.md)。
+- Exposure、跨 Installation Binding 与 Managed Realization 均已实现，但 Run 生命周期仍与其分离，详见 [`REALIZATION.md`](REALIZATION.md)。
 
 ## 相关契约
 

@@ -2,7 +2,7 @@
 //!
 //! Provides deterministic SHA-256 hashing plus GPG detached signature
 //! verification for package installation.  Sequoia is LGPL-2.0-or-later, which
-//! is compatible with AGPL-3.0 deployments; `crypto-rust` keeps the backend
+//! is compatible with AGPL-3.0 workloads; `crypto-rust` keeps the backend
 //! pure Rust and avoids system OpenSSL/nettle/botan dependencies.
 
 use std::collections::BTreeMap;

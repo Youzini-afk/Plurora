@@ -78,8 +78,8 @@ where
         })?;
         let platform_method = resolved.method;
         let gate = ensure_global_host_catalog_access(context, platform_method).and_then(|()| {
-            if is_deployment_hub_method(platform_method) {
-                ensure_deployment_hub_control_allowed(context, platform_method)
+            if is_workload_hub_method(platform_method) {
+                ensure_workload_hub_control_allowed(context, platform_method)
             } else {
                 Ok(())
             }
@@ -227,8 +227,8 @@ where
         params: Value,
     ) -> anyhow::Result<Value> {
         ensure_global_host_catalog_access(context, platform_method)?;
-        if is_deployment_hub_method(platform_method) {
-            ensure_deployment_hub_control_allowed(context, platform_method)?;
+        if is_workload_hub_method(platform_method) {
+            ensure_workload_hub_control_allowed(context, platform_method)?;
         }
         match platform_method {
             // Host domain
@@ -366,7 +366,7 @@ where
                 self.dispatch_realization_reconcile(context, params).await
             }
 
-            // Deployment Hub Phase 1 primitives
+            // Workload Host primitives
             PlatformMethod::TargetList => self.dispatch_target_list(context).await,
             PlatformMethod::TargetStatus => self.dispatch_target_status(context, &params).await,
             PlatformMethod::TargetRegister => self.dispatch_target_register(context, params).await,
@@ -454,7 +454,7 @@ where
     }
 }
 
-fn is_deployment_hub_method(method: PlatformMethod) -> bool {
+fn is_workload_hub_method(method: PlatformMethod) -> bool {
     matches!(
         method,
         PlatformMethod::TargetList
@@ -654,7 +654,7 @@ fn host_action_for_method(method: PlatformMethod) -> &'static str {
     }
 }
 
-fn ensure_deployment_hub_control_allowed(
+fn ensure_workload_hub_control_allowed(
     context: &ProtocolContext,
     method: PlatformMethod,
 ) -> anyhow::Result<()> {
@@ -677,7 +677,7 @@ fn ensure_deployment_hub_control_allowed(
     if context.is_host_device() {
         anyhow::ensure!(
             context.allows_host_action(action),
-            "permission denied: deployment hub method requires authenticated Host action '{action}'"
+            "permission denied: workload hub method requires authenticated Host action '{action}'"
         );
         return Ok(());
     }
@@ -686,7 +686,7 @@ fn ensure_deployment_hub_control_allowed(
             context.principal,
             ProtocolPrincipal::HostAdmin | ProtocolPrincipal::HostDev
         ),
-        "permission denied: deployment hub method requires authenticated Host action '{action}'"
+        "permission denied: workload hub method requires authenticated Host action '{action}'"
     );
     Ok(())
 }

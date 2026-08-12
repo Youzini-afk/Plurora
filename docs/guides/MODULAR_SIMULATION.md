@@ -32,7 +32,7 @@ plurora work promote-component examples/works/modular-simulation \
   --assembly-id example/modular-simulation-core \
   --json
 
-plurora conformance --tag phase8
+plurora conformance --tag modular_simulation
 ```
 
 Forge profiles 自动加载模拟、renderer 与本地 advisor Package。要使用 advisor，仍需把 `example/modular-simulation-ai-advisor` 作为普通 Work 安装/运行，创建其 Exposure，再为 consumer 的 `ai-advisor` Port 显式选择 Binding。安装基础 Work 后，Library 的 Play 操作仍先执行 Run preflight；本地 artifact、exact Component pin 或必需 Binding 缺失时会显示结构化 gap，不会触发部署。`request_ai_move` 即使看到已加载的兼容 capability，也只能使用为当前 Run/Port 选择并重新验证的 Binding。

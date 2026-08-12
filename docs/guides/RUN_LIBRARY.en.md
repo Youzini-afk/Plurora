@@ -2,7 +2,7 @@
 
 > [English](./RUN_LIBRARY.en.md) · [中文](./RUN_LIBRARY.md)
 
-This guide describes the Phase 4 Run lifecycle and the official Library entry point. A Run is one durable execution fact on a Host. An Installation is an adoption record, while Work and Assembly are portable definitions. Opening a Library item or Installation detail never implicitly creates a Run, builds source, or deploys machine resources.
+This guide describes the Run lifecycle, Powerbox, and the official Library entry point. A Run is one durable execution fact on a Host. An Installation is an adoption record, while Work and Assembly are portable definitions. Opening a Library item or Installation detail never implicitly creates a Run, builds source, or applies a Realization.
 
 ## Objects and ownership
 
@@ -52,14 +52,14 @@ The same idempotency key and fingerprint replay the durable result; a different 
 
 `host.run.status` and `host.run.start` share the same entrypoint checks. Status is read-only; start repeats the check before an effect. Start activates only a locally installed and verified Package Component pinned by the current Installation's AssemblyLock. Artifact digest, behavior digest, trust class, and entry kind must match exactly, and exactly one ready Package may match. Publisher identity is never a tie-breaker.
 
-In this Phase, Run-bound activation creates a Run context, node-instance records, and exact Installation and Package lifecycle leases over those already-ready local implementations. It does not load, build, or deploy a Package, and it does not start a separate Package process for each Run. The Runtime continues to own shared Package processes and capabilities globally. A Package cannot be unloaded or restarted while any Run lease remains; Run stop releases only that Run's context and leases.
+Run-bound activation creates a Run context, node-instance records, and exact Installation and Package lifecycle leases over those already-ready local implementations. It does not load, build, or apply a Package, and it does not start a separate Package process for each Run. The Runtime continues to own shared Package processes and capabilities globally. A Package cannot be unloaded or restarted while any Run lease remains; Run stop releases only that Run's context and leases.
 
 When activation is unsafe, the result keeps `run: null` and returns structured `gaps[]`. Each gap has a stable `reason_code`, optional `node_id` / `port_id`, and an actionable `next_step`:
 
 - `artifact_missing`: the locked Component is not installed/ready, or its artifact, behavior, or trust does not match; install and verify the exact Package.
 - `binding_ambiguous`: multiple equally matching local Packages exist; remove the duplicate or make the locked selection explicit instead of choosing by publisher.
-- `binding_unavailable`: a required Launch/Runtime import has no fixed usable binding. This Phase stops at an explicit gap; Phase 5 supplies Exposure/Binding selection rather than mutating the Lock as a bypass.
-- `unsupported_backend`: WASM, remote, `contract: none`/Foreign Capsule, and unsupported subprocess forms have no Run driver in this Phase; use a supported local implementation.
+- `binding_unavailable`: a required Launch/Runtime import has no fixed usable binding. Exposure/Binding selection resolves the explicit gap rather than mutating the Lock as a bypass.
+- `unsupported_backend`: WASM, remote, `contract: none`/Foreign Capsule, and unsupported subprocess forms have no available Run driver; use a supported local implementation.
 - `target_unsatisfied`: an entrypoint/Port cannot be satisfied, or the Work carries an OperationalIntent requiring machine resources; follow the gap's next step to prepare the required Realization.
 
 Gaps are diagnostics and next steps, not implicit authority. Run start does not build source, create a public route, execute a managed Realization, or implicitly call `host.realization.apply`. A missing managed Realization remains a gap resolved through a separate plan/approval/apply flow.
@@ -75,7 +75,7 @@ The official Library reads visible Work, Installation, Run, Rights, and current 
 - If the stop effect happened but its terminal journal commit cannot be confirmed, replay converges to `interrupted` + `outcome_unknown` rather than guessing that Stopping succeeded.
 - The Powerbox chooser uses `host.exposure.*` / `host.binding.*` to disclose the explicit phase, exact Exposure/audience/expiry, both PortContracts, provider source/trust/claims/boundaries/evidence, and candidate digest/stale state. Zero or multiple candidates require an explicit choice; preferences are ordering hints only.
 - Runtime injects the selected Port's least-authority handle. Multiple Ports on one Component may share activation, while a different Component or node path is isolated. Provider stop, revoke, expiry, or version drift cancels the Binding; state and secrets never cross Installations.
-- Exposure and cross-Installation Binding are implemented in Phase 5. Managed Realization plan/apply and `host.realization.*` are implemented in Phase 6, but remain lifecycle-separated from Run; see [`REALIZATION.md`](REALIZATION.en.md).
+- Exposure, cross-Installation Binding, and Managed Realization are implemented, but remain lifecycle-separated from Run; see [`REALIZATION.md`](REALIZATION.en.md).
 
 ## Related contracts
 

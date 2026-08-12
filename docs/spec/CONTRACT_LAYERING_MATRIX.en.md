@@ -89,7 +89,7 @@ A mixed classification does not create a private API. It identifies where implem
 | Projection | 1 | `C` |
 | Change proposal | 5 | `C` |
 | Outbound / WebSocket | 8 | `H` / `X` |
-| Exec / port / proxy / deployment | 14 | `H` |
+| Exec / port / proxy / workload | 14 | `H` |
 | Runtime error | 1 | `S` |
 
 The owner is semantic. Persistence still uses one `EventEnvelope` and one EventStore boundary.

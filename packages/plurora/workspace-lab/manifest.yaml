@@ -2,7 +2,7 @@ schema_version: 1
 id: plurora/workspace-lab
 version: 0.1.0
 display_name: Plurora Workspace Lab
-description: Deterministic planning and policy boundary for external project workspaces — describe contracts, explain permissions, and produce auditable action and patch proposals. This ordinary package never executes, reads, or writes a workspace; an approved proposal may be submitted separately to the access-token-protected Host development API.
+description: Deterministic planning and policy boundary for external source workspaces — describe contracts, explain permissions, and produce auditable action and patch proposals. This ordinary package never executes, reads, or writes a workspace; an approved proposal may be submitted separately to the access-token-protected Host development API.
 license: AGPL-3.0-only
 entry:
   kind: rust_inproc

@@ -49,9 +49,9 @@ The substrate owns only mechanisms that cannot safely be reimplemented by an ord
 - minimal component-instance lifecycle and health;
 - protocol, version, and profile negotiation.
 
-The substrate does not own Project, Home, Play, Forge, Assistant, models, agents, memory, worlds, documents, deployment products, or a concrete secret store.
+The substrate does not own Library, Home, Play, Forge, Assistant, models, agents, memory, worlds, documents, resource-orchestration products, or a concrete secret store.
 
-The current `plurora-core` and `plurora-runtime` still mix some Host, protocol, and shell semantics. Separation preserves data safety and exact public contracts, but retains no compatibility alias for retired Project, old Composition, or Deployment identities.
+The current `plurora-core` and `plurora-runtime` still mix some Host, protocol, and shell semantics. Further separation must preserve data safety, exact public contracts, and one machine identity for each concept.
 
 ### Protocol Commons
 
@@ -163,9 +163,9 @@ Current clients and third-party integrations use these exact v1 identities. New 
 
 `clients/web` is the official React 19 + Tailwind v4 + Vite platform shell and can be installed as a PWA. It uses the public platform and Host boundaries through HTTP `POST /rpc`, SSE, and `/host/v1/*`; it does not read SQLite or import private runtime state.
 
-The Phase 5 Powerbox chooser uses `host.exposure.*` and `host.binding.*` to disclose exact provider/consumer Ports, audience, leases, trust, and evidence. It uses only the Host public relay and never holds private intent or runtime handles. The Surface bridge remains explicitly allowlisted; there is no private Powerbox bridge.
+The Powerbox chooser uses `host.exposure.*` and `host.binding.*` to disclose exact provider/consumer Ports, audience, leases, trust, and evidence. It uses only the Host public relay and never holds private intent or runtime handles. The Surface bridge remains explicitly allowlisted; there is no private Powerbox bridge.
 
-The Phase 6 Realization workbench uses `host.realization.*` to present an effect-free plan, stable digest, preconditions, and risks before approval-bound apply/stop/rollback/reconcile. Run start, Binding selection, and UI closure never trigger implicit Realization effects.
+The Realization workbench uses `host.realization.*` to present an effect-free plan, stable digest, preconditions, and risks before approval-bound apply/stop/rollback/reconcile. Run start, Binding selection, and UI closure never trigger implicit Realization effects.
 
 ### SurfaceHost
 

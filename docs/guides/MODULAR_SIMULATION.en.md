@@ -32,10 +32,10 @@ plurora work promote-component examples/works/modular-simulation \
   --assembly-id example/modular-simulation-core \
   --json
 
-plurora conformance --tag phase8
+plurora conformance --tag modular_simulation
 ```
 
-Forge profiles autoload the simulation, renderer, and local adviser Packages. To use the adviser, install/run `example/modular-simulation-ai-advisor` as an ordinary Work, create its Exposure, and explicitly select a Binding for the consumer's `ai-advisor` Port. After the base Work is installed, Library Play still performs Run preflight first. Missing local artifacts, exact Component pins, or required Bindings produce structured gaps and never trigger deployment. Even when a compatible capability is loaded, `request_ai_move` can use only the Binding selected and revalidated for the current Run and Port.
+Forge profiles autoload the simulation, renderer, and local adviser Packages. To use the adviser, install/run `example/modular-simulation-ai-advisor` as an ordinary Work, create its Exposure, and explicitly select a Binding for the consumer's `ai-advisor` Port. After the base Work is installed, Library Play still performs Run preflight first. Missing local artifacts, exact Component pins, or required Bindings produce structured gaps and never trigger Realization apply. Even when a compatible capability is loaded, `request_ai_move` can use only the Binding selected and revalidated for the current Run and Port.
 
 ## State, forks, and replacement
 

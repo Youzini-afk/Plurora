@@ -236,8 +236,8 @@ pub(crate) async fn host_serve(
     } else {
         let mut runtime_config = RuntimeConfig::default();
         runtime_config.object_store = Arc::new(FilesystemObjectStore::new(object_root));
-        runtime_config.deployment_reconcile_source =
-            Arc::new(plurora_runtime::DockerDeploymentReconcileSource);
+        runtime_config.workload_reconcile_source =
+            Arc::new(plurora_runtime::DockerWorkloadReconcileSource);
         let runtime_journal = prepare_host_event_journal(
             &runtime_root,
             RUNTIME_PUBLIC_JOURNAL_FILE,
@@ -432,7 +432,7 @@ pub fn runtime_config_from_profile(profile: &HostProfile) -> Result<RuntimeConfi
     validate_local_exec_profile(&profile.local_exec)?;
 
     let mut config = RuntimeConfig::default();
-    config.deployment_reconcile_source = Arc::new(plurora_runtime::DockerDeploymentReconcileSource);
+    config.workload_reconcile_source = Arc::new(plurora_runtime::DockerWorkloadReconcileSource);
     // Y1: Wire outbound.execute profile into RuntimeConfig
     let exec = &profile.outbound.execute;
     config.outbound_execute_policy = OutboundExecutePolicyConfig {
@@ -1142,7 +1142,7 @@ where
     .await
     .context("failed to hydrate durable target agent control plane")?;
     println!("  target agent journal events loaded: {target_agent_events}");
-    let build_jobs = plurora_service::build_deploy_job_registry();
+    let build_jobs = plurora_service::build_workload_job_registry();
     let state = plurora_service::AppState {
         runtime: runtime.clone(),
         static_dir: static_dir.clone(),
@@ -1158,7 +1158,7 @@ where
         &state,
     )));
     runtime
-        .hydrate_deployment_from_events()
+        .hydrate_workload_from_events()
         .await
         .context("failed to rehydrate managed Realization backend state")?;
     match plurora_service::reconcile_realization_backends(&state).await {

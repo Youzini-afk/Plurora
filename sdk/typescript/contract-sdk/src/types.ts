@@ -697,28 +697,6 @@ export type DependencySource = {
   "path": string;
 };
 
-export interface DeploymentHealthEventPayload {
-  "failure_count": number;
-  "port_lease_id"?: null | string;
-  "previous_ready": boolean;
-  "probe": DeploymentHealthProbe;
-  "ready": boolean;
-  "reason": string;
-  "route_id": string;
-}
-
-export interface DeploymentHealthProbe {
-  "kind": string;
-}
-
-export interface DeploymentReconcileSummary {
-  "execs_failed": number;
-  "leases_promoted": number;
-  "leases_released": number;
-  "routes_promoted": number;
-  "routes_removed": number;
-}
-
 export type EffectClass = "pure" | "deterministic_stateful" | "recorded_nondeterministic" | "external_effecting" | "realtime_best_effort";
 
 export interface EffectReceipt {
@@ -897,7 +875,7 @@ export interface ExecutionTarget {
   "status": ExecutionTargetStatusKind;
 }
 
-export type ExecutionTargetCapability = "local_exec" | "port_lease" | "http_proxy_upstream" | "websocket_proxy_upstream" | "artifact_transfer" | "declarative_verifier" | "health_probe" | "deployment" | "authenticated_tunnel";
+export type ExecutionTargetCapability = "local_exec" | "port_lease" | "http_proxy_upstream" | "websocket_proxy_upstream" | "artifact_transfer" | "declarative_verifier" | "health_probe" | "workload" | "authenticated_tunnel";
 
 export interface ExecutionTargetObservedSummary {
   "artifact_count"?: number;
@@ -3653,6 +3631,20 @@ export interface WorkRevision {
   "work_id": WorkId;
 }
 
+export interface WorkloadHealthEventPayload {
+  "failure_count": number;
+  "port_lease_id"?: null | string;
+  "previous_ready": boolean;
+  "probe": WorkloadHealthProbe;
+  "ready": boolean;
+  "reason": string;
+  "route_id": string;
+}
+
+export interface WorkloadHealthProbe {
+  "kind": string;
+}
+
 export interface WorkloadImports {
   "filesystem"?: Array<FilesystemImport>;
   "network"?: Array<NetworkImport>;
@@ -3669,6 +3661,14 @@ export interface WorkloadIntent {
   "resources"?: ResourceRequirements;
   "restart_policy": RestartPolicy;
   "workload_id": string;
+}
+
+export interface WorkloadReconcileSummary {
+  "execs_failed": number;
+  "leases_promoted": number;
+  "leases_released": number;
+  "routes_promoted": number;
+  "routes_removed": number;
 }
 
 export type WorkspaceId = string;

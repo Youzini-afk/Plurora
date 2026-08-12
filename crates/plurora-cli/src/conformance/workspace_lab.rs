@@ -1,5 +1,5 @@
 //! Conformance tests for `plurora/workspace-lab`
-//! (External Project Operating Plane Alpha Phase E2 + E3).
+//! (External Source Operating Plane).
 //!
 //! E2 covers:
 //! 1. Contract shape (5→12 capabilities, 3 surfaces, ordinary package, deny-by-default, 10 action taxonomy)
@@ -7,7 +7,7 @@
 //! 3. Policy mismatch fail-closed (policy "allow" for approval-required action → denied)
 //! 4. Raw secret blocked (raw API key / Bearer token in input → rejected)
 //! 5. Audit redacted (no raw env/logs/commands/secrets in audit summary)
-//! 6. No forbidden namespace (no platform.project/workspace/git/npm/deploy/ide in any output)
+//! 6. No forbidden namespace (no platform-reserved source/workspace/git/npm/workload/ide in any output)
 //! 7. No execution performed (executor_invoked=false, execution_performed=false always)
 //!
 //! E3 covers:
@@ -145,11 +145,10 @@ pub(crate) async fn workspace_lab_contract() -> anyhow::Result<()> {
     // No forbidden namespace
     let output_str = serde_json::to_string(&contract.output).unwrap();
     for token in &[
-        "platform.project.",
         "platform.workspace.",
         "platform.git.",
         "platform.npm.",
-        "platform.deploy.",
+        "platform.workload.",
         "platform.ide.",
     ] {
         anyhow::ensure!(
@@ -167,12 +166,12 @@ pub(crate) async fn workspace_lab_contract() -> anyhow::Result<()> {
 pub(crate) async fn workspace_lab_action_deny_default() -> anyhow::Result<()> {
     let rt = load_workspace_lab().await?;
 
-    // Test dangerous actions: clone_project, install_dependencies, run_command, deploy_plan
+    // Test dangerous actions: clone_source, install_dependencies, run_command, workload_plan
     for action in &[
-        "clone_project",
+        "clone_source",
         "install_dependencies",
         "run_command",
-        "deploy_plan",
+        "workload_plan",
     ] {
         let result = invoke(
             &rt,
@@ -206,7 +205,7 @@ pub(crate) async fn workspace_lab_action_deny_default() -> anyhow::Result<()> {
     let with_token = invoke(
         &rt,
         "request_workspace_action",
-        json!({"action": "clone_project", "workspace_ref": "ws-test", "approval_token": "pretend-token"}),
+        json!({"action": "clone_source", "workspace_ref": "ws-test", "approval_token": "pretend-token"}),
     )
     .await?;
     anyhow::ensure!(
@@ -289,7 +288,7 @@ pub(crate) async fn workspace_lab_raw_secret_blocked() -> anyhow::Result<()> {
     let with_secret = invoke(
         &rt,
         "request_workspace_action",
-        json!({"action": "clone_project", "workspace_ref": "ws-test", "api_key": "RawSecretExample1234567890abcdefABCDEF123456"}),
+        json!({"action": "clone_source", "workspace_ref": "ws-test", "api_key": "RawSecretExample1234567890abcdefABCDEF123456"}),
     )
     .await?;
     anyhow::ensure!(
@@ -362,7 +361,7 @@ pub(crate) async fn workspace_lab_audit_redacted() -> anyhow::Result<()> {
         json!({
             "workspace_ref": "ws-audit",
             "action_history": [
-                {"action": "clone_project", "policy_decision": "denied_by_default", "executor_invoked": false, "execution_performed": false},
+                {"action": "clone_source", "policy_decision": "denied_by_default", "executor_invoked": false, "execution_performed": false},
                 {"action": "read_metadata", "policy_decision": "approved", "executor_invoked": false, "execution_performed": false},
                 {"action": "run_command", "policy_decision": "pending", "executor_invoked": false, "execution_performed": false, "raw_command": "rm -rf /", "raw_env": "SECRET=abc", "raw_log": "password=xyz"},
             ]
@@ -435,11 +434,10 @@ pub(crate) async fn workspace_lab_no_forbidden_namespace() -> anyhow::Result<()>
     ];
 
     let forbidden = [
-        "platform.project.",
         "platform.workspace.",
         "platform.git.",
         "platform.npm.",
-        "platform.deploy.",
+        "platform.workload.",
         "platform.ide.",
     ];
 
@@ -447,7 +445,7 @@ pub(crate) async fn workspace_lab_no_forbidden_namespace() -> anyhow::Result<()>
         let result = invoke(
             &rt,
             cap,
-            json!({"workspace_ref": "ws-test", "action": "clone_project"}),
+            json!({"workspace_ref": "ws-test", "action": "clone_source"}),
         )
         .await?;
         let output_str = serde_json::to_string(&result.output).unwrap();
@@ -946,11 +944,10 @@ pub(crate) async fn workspace_lab_e3_raw_secret_no_forbidden_namespace() -> anyh
     ];
 
     let forbidden = [
-        "platform.project.",
         "platform.workspace.",
         "platform.git.",
         "platform.npm.",
-        "platform.deploy.",
+        "platform.workload.",
         "platform.ide.",
     ];
 

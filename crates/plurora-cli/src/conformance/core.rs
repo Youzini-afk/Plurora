@@ -617,7 +617,7 @@ pub(crate) async fn host_profile_autoload() -> anyhow::Result<()> {
 
 pub(crate) async fn asset_put_get_list() -> anyhow::Result<()> {
     let (store, runtime) = runtime();
-    let sentinel = format!("phase4-large-content-sentinel:{}", "x".repeat(1024 * 1024));
+    let sentinel = format!("large-content-sentinel:{}", "x".repeat(1024 * 1024));
     let record_value = runtime
         .call_protocol(
             &ProtocolContext::host_dev("conformance"),

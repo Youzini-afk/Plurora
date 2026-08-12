@@ -22,7 +22,7 @@ pub mod secret;
 pub mod secret_store;
 pub mod storage;
 pub mod subprocess;
-pub mod target_deployment;
+pub mod target_workload;
 pub mod tavern;
 
 pub use assembly_runtime::AssemblyRuntimeDriver;
@@ -72,7 +72,7 @@ pub use inproc::{
     compute_external_git_workspace_tree_hash, compute_external_workspace_tree_hash,
     invoke_capability_from_inproc, invoke_capability_from_inproc_port,
     invoke_manifest_granted_capability_from_inproc, prepare_docker_build_context, ComponentEnv,
-    DockerDeploymentReconcileSource, InprocInvocation, InprocPackage, InprocPackageCatalog,
+    DockerWorkloadReconcileSource, InprocInvocation, InprocPackage, InprocPackageCatalog,
     PreparedDockerBuildContext, WorkspaceTreeHash,
 };
 pub use installation_control::{
@@ -153,13 +153,12 @@ pub use runtime::{
     AppendEventRequest, ArtifactCommitRequest, AssetContentEncoding, AssetGetParams,
     AssetGetResponse, AssetPutRequest, AuditPackageParams, BranchRecord, CancelSignal,
     CapabilityReexecutionResult, DeclaredAuthority, DenyAllLocalExecExecutor,
-    DenyAllOutboundExecutor, DenyAllWebSocketExecutor, DeploymentHealthEventPayload,
-    DeploymentHealthProbe, DeploymentReconcileSource, DeploymentReconcileSummary,
-    EffectReplayResult, EmptyReconcileSource, EventListRequest, ExactArtifactUpload, ExecCommand,
-    ExecId, ExecLifecyclePolicy, ExecRegistry, ExecResourceLimits, ExecStatus, ExecStatusKind,
-    ExecutionTarget, ExecutionTargetCapability, ExecutionTargetId, ExecutionTargetObservedSummary,
-    ExecutionTargetReachability, ExecutionTargetRegistry, ExecutionTargetStatusKind, ExecutorKind,
-    FakeLocalExecExecutor, FakeOutboundExecutor, FakeWebSocketExecutor, FrameDirection, FrameKind,
+    DenyAllOutboundExecutor, DenyAllWebSocketExecutor, EffectReplayResult, EmptyReconcileSource,
+    EventListRequest, ExactArtifactUpload, ExecCommand, ExecId, ExecLifecyclePolicy, ExecRegistry,
+    ExecResourceLimits, ExecStatus, ExecStatusKind, ExecutionTarget, ExecutionTargetCapability,
+    ExecutionTargetId, ExecutionTargetObservedSummary, ExecutionTargetReachability,
+    ExecutionTargetRegistry, ExecutionTargetStatusKind, ExecutorKind, FakeLocalExecExecutor,
+    FakeOutboundExecutor, FakeWebSocketExecutor, FrameDirection, FrameKind,
     InstallationStateArtifactGetParams, InstallationStateArtifactGetResponse,
     LiveHttpOutboundExecutor, LiveHttpOutboundExecutorConfig, LiveLocalExecExecutor,
     LiveLocalExecExecutorConfig, LiveWebSocketExecutor, LiveWebSocketExecutorConfig,
@@ -181,10 +180,11 @@ pub use runtime::{
     RuntimeConfig, SecretHeaderSpec, SendStatus, SseEvent, SseParser, StaticHeader, StreamEmitter,
     StreamFormat, StreamRegistry, StreamStartStatus, TighteningSuggestion, UnusedAuthority,
     UsedAuthority, WebSocketEvent, WebSocketExecutor, WebSocketFramePayload,
-    WorldBundleAuditReport, WorldBundleExportRequest, WorldBundleImportResult,
-    WorldBundleReceiptReplay, WorldBundleReplayResult, WorldJournalSelection,
-    ACTIVE_INSTALLATION_SCOPE, EFFECT_RECEIPT_MEDIA_TYPE, EFFECT_VALUE_MEDIA_TYPE,
-    GENERIC_BLOB_ARTIFACT_TYPE_URI, STATIC_HEADER_ALLOWLIST,
+    WorkloadHealthEventPayload, WorkloadHealthProbe, WorkloadReconcileSource,
+    WorkloadReconcileSummary, WorldBundleAuditReport, WorldBundleExportRequest,
+    WorldBundleImportResult, WorldBundleReceiptReplay, WorldBundleReplayResult,
+    WorldJournalSelection, ACTIVE_INSTALLATION_SCOPE, EFFECT_RECEIPT_MEDIA_TYPE,
+    EFFECT_VALUE_MEDIA_TYPE, GENERIC_BLOB_ARTIFACT_TYPE_URI, STATIC_HEADER_ALLOWLIST,
 };
 pub use schema::validate_json_schema_subset;
 pub use secret::{
@@ -192,17 +192,17 @@ pub use secret::{
     HostSecretResolver, SecretResolverConfig, StoreSecretResolver,
 };
 pub use subprocess::{dispatch_reverse_platform_frame, SubprocessLogLine, SubprocessSupervisor};
-pub use target_deployment::{
-    apply_managed_target_deployment, build_managed_target_image, count_managed_target_deployments,
-    drain_managed_target_deployment, finalize_managed_target_image_build,
-    is_managed_target_deployment_outcome_unknown, managed_target_deployment_outcome_unknown,
-    observe_managed_target_deployment, open_managed_target_tunnel_stream,
-    remove_managed_target_image, stop_managed_target_deployment,
-    validate_managed_target_deployment_runtime, validate_managed_target_image_build_receipt,
-    wait_for_managed_target_deployment_readiness, ManagedTargetBuildNetworkMode,
-    ManagedTargetDeploymentApply, ManagedTargetDeploymentDrainReceipt,
-    ManagedTargetDeploymentObservation, ManagedTargetDeploymentOutcomeUnknown,
-    ManagedTargetDeploymentRef, ManagedTargetDeploymentStopReceipt, ManagedTargetEffectGuard,
-    ManagedTargetImageBuild, ManagedTargetImageBuildReceipt, ManagedTargetImageDisposition,
+pub use target_workload::{
+    apply_managed_target_workload, build_managed_target_image, count_managed_target_workloads,
+    drain_managed_target_workload, finalize_managed_target_image_build,
+    is_managed_target_workload_outcome_unknown, managed_target_workload_outcome_unknown,
+    observe_managed_target_workload, open_managed_target_tunnel_stream,
+    remove_managed_target_image, stop_managed_target_workload,
+    validate_managed_target_image_build_receipt, validate_managed_target_workload_runtime,
+    wait_for_managed_target_workload_readiness, ManagedTargetBuildNetworkMode,
+    ManagedTargetEffectGuard, ManagedTargetImageBuild, ManagedTargetImageBuildReceipt,
+    ManagedTargetImageDisposition, ManagedTargetWorkloadApply, ManagedTargetWorkloadDrainReceipt,
+    ManagedTargetWorkloadObservation, ManagedTargetWorkloadOutcomeUnknown,
+    ManagedTargetWorkloadRef, ManagedTargetWorkloadStopReceipt,
 };
 pub use tavern::TAVERN_COMPAT_DEFERRED;

@@ -175,7 +175,7 @@ Git 安装不是 transport primitive；它属于普通第一方 capability Packa
 |---|---:|---|
 | `host.run.list` | implemented | `observe` authority；按可见 Installation 与可选状态过滤，列出 Host Run journal projections。 |
 | `host.run.get` | implemented | `observe` authority；要求 exact Installation 与 Run selector，返回 Run identity、revision、entrypoint、节点实例和 health。 |
-| `host.run.start` | implemented | `run` authority + exact Installation；校验 expected Installation revision 与 entrypoint，Host 在 preflight 通过后生成 RunId。只激活已安装、已验证且唯一匹配 AssemblyLock 的本地 Component；缺失、歧义、unsupported backend 或需要 Realization 时返回结构化 `gaps`，不隐式 build/deploy。 |
+| `host.run.start` | implemented | `run` authority + exact Installation；校验 expected Installation revision 与 entrypoint，Host 在 preflight 通过后生成 RunId。只激活已安装、已验证且唯一匹配 AssemblyLock 的本地 Component；缺失、歧义、unsupported backend 或需要 Realization 时返回结构化 `gaps`，不隐式 build/apply。 |
 | `host.run.stop` | implemented | `run` authority + exact Installation 与请求中的 Run child；registry 验证 I/R 归属，要求 expected Run revision 与幂等键，停止该 Run 的激活上下文并写入 terminal event，不卸载全局 Package。 |
 | `host.run.status` | implemented | `observe` + exact Installation；返回当前 Installation revision、active Run 概况，以及可选 entrypoint 的零副作用 preflight gaps；结果不授予 authority，start 会重验。 |
 
@@ -239,7 +239,7 @@ Git 安装不是 transport primitive；它属于普通第一方 capability Packa
 | Exec | 6 | `host/exec.request`、`.started`、`.completed`、`.failed`、`.stopped`、`.denied` |
 | Port | 3 | `host/port.leased`、`.released`、`.denied` |
 | Proxy | 3 | `host/proxy.registered`、`.unregistered`、`.denied` |
-| Deployment | 2 | `host/deployment.reconciled`、`host/deployment.health` |
+| Workload adapter | 2 | `host/workload.reconciled`、`host/workload.health` |
 | error | 1 | `runtime/error` |
 
 Package-owned event kind 必须以精确 writer Package ID 加 `/` 开头。Registry 中的平台事件只能由 `plurora/runtime` 写入；Package 不能冒充平台事件或其他 Package namespace。

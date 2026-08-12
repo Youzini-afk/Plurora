@@ -19,19 +19,19 @@ use super::partial_execution_error;
 use super::{RealizationExecution, RealizationExecutionDriver, RealizationObservation};
 use crate::target_agent::{submit_host_operation, wait_for_host_operation};
 use crate::{
-    AppState, BuildDeployJobRegistry, DevelopmentRegistry, HostAccessRegistry,
+    AppState, BuildWorkloadJobRegistry, DevelopmentRegistry, HostAccessRegistry,
     InstallationRegistry, TargetAgentRegistry,
 };
 use crate::{
-    CreateTargetOperationRequest, DeclarativeVerifierDescriptor, TargetDeploymentDescriptor,
-    TargetDeploymentRef, TargetOperationReceiptStatus, TargetOperationRecord, TargetOperationSpec,
-    TargetOperationStatusKind,
+    CreateTargetOperationRequest, DeclarativeVerifierDescriptor, TargetOperationReceiptStatus,
+    TargetOperationRecord, TargetOperationSpec, TargetOperationStatusKind,
+    TargetWorkloadDescriptor, TargetWorkloadRef,
 };
 
 #[derive(Debug, Clone)]
 pub struct RealizationBackendReconcileSummary {
     pub target_workloads_projected: usize,
-    pub runtime: plurora_runtime::DeploymentReconcileSummary,
+    pub runtime: plurora_runtime::WorkloadReconcileSummary,
 }
 
 pub async fn reconcile_realization_backends<S>(
@@ -41,8 +41,8 @@ where
     S: EventStore,
 {
     let target_workloads_projected =
-        crate::target_agent::reconcile_target_deployment_control_plane(state).await?;
-    let runtime = state.runtime.reconcile_deployment().await?;
+        crate::target_agent::reconcile_target_workload_control_plane(state).await?;
+    let runtime = state.runtime.reconcile_workload().await?;
     Ok(RealizationBackendReconcileSummary {
         target_workloads_projected,
         runtime,
@@ -106,7 +106,7 @@ where
 
 async fn cleanup_realization_route<S>(
     runtime: &Runtime<S>,
-    reference: &TargetDeploymentRef,
+    reference: &TargetWorkloadRef,
 ) -> anyhow::Result<()>
 where
     S: EventStore,
@@ -152,7 +152,7 @@ where
     S: EventStore,
 {
     runtime: Weak<Runtime<S>>,
-    build_jobs: Arc<BuildDeployJobRegistry>,
+    build_jobs: Arc<BuildWorkloadJobRegistry>,
     development: Arc<DevelopmentRegistry>,
     host_access: Arc<HostAccessRegistry>,
     installations: Arc<InstallationRegistry>,
@@ -226,7 +226,7 @@ where
             .await?
         };
         if authority.refresh_current_for(subject).await.is_err() {
-            return Err(plurora_runtime::managed_target_deployment_outcome_unknown(
+            return Err(plurora_runtime::managed_target_workload_outcome_unknown(
                 "Realization authority changed during target effect",
             ));
         }
@@ -243,17 +243,17 @@ where
         route_access: plurora_runtime::ProxyRouteAccess,
         authority: &RealizationMutationAuthority,
         subject: &RealizationAuthoritySubject,
-    ) -> anyhow::Result<TargetDeploymentRef> {
+    ) -> anyhow::Result<TargetWorkloadRef> {
         authority.refresh_current_for(subject).await?;
         let lease = lease_realization_port(state.runtime.as_ref(), target_id, port_name).await?;
-        let provisional = TargetDeploymentRef {
-            deployment_id: route_id.to_string(),
+        let provisional = TargetWorkloadRef {
+            workload_id: route_id.to_string(),
             route_id: route_id.to_string(),
             port_lease_id: lease.lease.id.clone(),
         };
         if authority.refresh_current_for(subject).await.is_err() {
             if self.cleanup_route(state, &provisional).await.is_err() {
-                return Err(plurora_runtime::managed_target_deployment_outcome_unknown(
+                return Err(plurora_runtime::managed_target_workload_outcome_unknown(
                     "Realization authority changed while durable route cleanup was incomplete",
                 ));
             }
@@ -273,15 +273,15 @@ where
             Ok(route) => route,
             Err(error) => {
                 if self.cleanup_route(state, &provisional).await.is_err() {
-                    return Err(plurora_runtime::managed_target_deployment_outcome_unknown(
+                    return Err(plurora_runtime::managed_target_workload_outcome_unknown(
                         "Proxy registration failed while durable route cleanup was incomplete",
                     ));
                 }
                 return Err(error);
             }
         };
-        Ok(TargetDeploymentRef {
-            deployment_id: route_id.to_string(),
+        Ok(TargetWorkloadRef {
+            workload_id: route_id.to_string(),
             route_id: route.route.id,
             port_lease_id: lease.lease.id,
         })
@@ -290,7 +290,7 @@ where
     async fn cleanup_route(
         &self,
         state: &AppState<S>,
-        reference: &TargetDeploymentRef,
+        reference: &TargetWorkloadRef,
     ) -> anyhow::Result<()> {
         cleanup_realization_route(state.runtime.as_ref(), reference).await
     }
@@ -318,7 +318,7 @@ where
                                 expected_size_bytes: Some(selection.build_context_ref.size_bytes),
                                 dockerfile: selection.dockerfile.clone(),
                                 network_mode: selection.network_mode,
-                                disposition: plurora_runtime::ManagedTargetImageDisposition::RetainForDeployment,
+                                disposition: plurora_runtime::ManagedTargetImageDisposition::RetainForWorkload,
                                 build_id: realization_build_id(
                                     &realization.realization_id,
                                     &selection.workload_id,
@@ -369,7 +369,7 @@ where
         realization: &RealizationRevision,
         target_id: &str,
         workload_id: &str,
-        reference: &TargetDeploymentRef,
+        reference: &TargetWorkloadRef,
         authority: &RealizationMutationAuthority,
         subject: &RealizationAuthoritySubject,
     ) -> anyhow::Result<RealizationEffectReceipt> {
@@ -378,8 +378,8 @@ where
                 state,
                 target_id,
                 &realization.installation_id,
-                TargetOperationSpec::DeploymentStop {
-                    deployment: reference.clone(),
+                TargetOperationSpec::WorkloadStop {
+                    workload: reference.clone(),
                     grace_seconds: 0,
                     force_remove: true,
                 },
@@ -469,8 +469,8 @@ where
                 }
                 Err(error) => return Err(error),
             };
-            let deployment = TargetDeploymentDescriptor {
-                deployment: reference.clone(),
+            let workload = TargetWorkloadDescriptor {
+                workload: reference.clone(),
                 port_name: port_name.to_string(),
                 image: image.clone(),
                 container_port,
@@ -483,7 +483,7 @@ where
                     &state,
                     target_id,
                     &realization.installation_id,
-                    TargetOperationSpec::DeploymentApply { deployment },
+                    TargetOperationSpec::WorkloadApply { workload },
                     format!(
                         "realization:{}:launch:{workload_id}",
                         realization.realization_id
@@ -650,8 +650,8 @@ where
                     &state,
                     target_id,
                     &realization.installation_id,
-                    TargetOperationSpec::DeploymentStop {
-                        deployment: reference.clone(),
+                    TargetOperationSpec::WorkloadStop {
+                        workload: reference.clone(),
                         grace_seconds: 10,
                         force_remove: true,
                     },
@@ -692,8 +692,8 @@ where
                 target_id,
                 CreateTargetOperationRequest {
                     installation_id: realization.installation_id.clone(),
-                    spec: TargetOperationSpec::DeploymentObserve {
-                        deployment: reference,
+                    spec: TargetOperationSpec::WorkloadObserve {
+                        workload: reference,
                     },
                     idempotency_key: Some(format!(
                         "realization:{}:observe:{}:{}",
@@ -757,16 +757,16 @@ where
 fn provisional_resource(
     workload_id: &str,
     target_id: &str,
-    reference: &TargetDeploymentRef,
+    reference: &TargetWorkloadRef,
     image: &str,
 ) -> RealizedResource {
     RealizedResource {
         resource_id: workload_id.to_string(),
         resource_type: "managed_workload".to_string(),
         target_id: target_id.to_string(),
-        backend_id: reference.deployment_id.clone(),
+        backend_id: reference.workload_id.clone(),
         properties: BTreeMap::from([
-            ("deployment_id".to_string(), json!(reference.deployment_id)),
+            ("workload_id".to_string(), json!(reference.workload_id)),
             ("route_id".to_string(), json!(reference.route_id)),
             ("port_lease_id".to_string(), json!(reference.port_lease_id)),
             ("image".to_string(), json!(image)),
@@ -779,7 +779,7 @@ fn active_resource(
     workload_id: &str,
     target_id: &str,
     operation_id: &str,
-    reference: &TargetDeploymentRef,
+    reference: &TargetWorkloadRef,
     image: &str,
     host_port: u16,
 ) -> RealizedResource {
@@ -795,7 +795,7 @@ fn ensure_operation_succeeded(operation: &TargetOperationRecord) -> anyhow::Resu
     match operation.status {
         TargetOperationStatusKind::Succeeded => Ok(()),
         TargetOperationStatusKind::OutcomeUnknown => Err(
-            plurora_runtime::managed_target_deployment_outcome_unknown("Target operation"),
+            plurora_runtime::managed_target_workload_outcome_unknown("Target operation"),
         ),
         _ => Err(anyhow!("target_unsatisfied: Target operation failed")),
     }
@@ -837,7 +837,7 @@ fn effect_receipt(
     })
 }
 
-fn resource_ref(resource: &RealizedResource) -> anyhow::Result<TargetDeploymentRef> {
+fn resource_ref(resource: &RealizedResource) -> anyhow::Result<TargetWorkloadRef> {
     let string = |key: &str| {
         resource
             .properties
@@ -846,8 +846,8 @@ fn resource_ref(resource: &RealizedResource) -> anyhow::Result<TargetDeploymentR
             .map(str::to_string)
             .ok_or_else(|| anyhow!("recovery_required: realized resource is missing {key}"))
     };
-    Ok(TargetDeploymentRef {
-        deployment_id: string("deployment_id")?,
+    Ok(TargetWorkloadRef {
+        workload_id: string("workload_id")?,
         route_id: string("route_id")?,
         port_lease_id: string("port_lease_id")?,
     })
@@ -877,14 +877,14 @@ mod tests {
             plurora_runtime::ProxyRouteAccess::HostAuthenticated,
         )
         .await?;
-        let reference = TargetDeploymentRef {
-            deployment_id: "realization-restart-route".to_string(),
+        let reference = TargetWorkloadRef {
+            workload_id: "realization-restart-route".to_string(),
             route_id: route.route.id.clone(),
             port_lease_id: lease.lease.id.clone(),
         };
 
         let restarted = Runtime::new(store.clone(), RuntimeConfig::default());
-        restarted.hydrate_deployment_from_events().await?;
+        restarted.hydrate_workload_from_events().await?;
         assert!(restarted
             .config()
             .port_lease_registry
@@ -908,7 +908,7 @@ mod tests {
 
         cleanup_realization_route(&restarted, &reference).await?;
         let stopped = Runtime::new(store.clone(), RuntimeConfig::default());
-        stopped.hydrate_deployment_from_events().await?;
+        stopped.hydrate_workload_from_events().await?;
         assert!(stopped
             .config()
             .port_lease_registry
@@ -948,8 +948,8 @@ mod tests {
             "web",
             "local",
             "operation-1",
-            &TargetDeploymentRef {
-                deployment_id: "deployment-1".to_string(),
+            &TargetWorkloadRef {
+                workload_id: "workload-1".to_string(),
                 route_id: "acceptance-route".to_string(),
                 port_lease_id: "lease-1".to_string(),
             },

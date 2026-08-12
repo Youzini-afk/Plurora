@@ -742,13 +742,13 @@ pub(crate) async fn work_source_digest_is_deterministic() -> anyhow::Result<()> 
 }
 
 pub(crate) async fn component_identity_independent_of_package_envelope() -> anyhow::Result<()> {
-    let declaration = phase7_component_declaration();
-    let first = plurora_core::package_envelope_for_manifest(&phase7_manifest(
+    let declaration = foreign_work_component_declaration();
+    let first = plurora_core::package_envelope_for_manifest(&foreign_work_manifest(
         "vendor/one",
         plurora_core::ContractMode::V1,
         Some(declaration.clone()),
     ))?;
-    let second = plurora_core::package_envelope_for_manifest(&phase7_manifest(
+    let second = plurora_core::package_envelope_for_manifest(&foreign_work_manifest(
         "vendor/two",
         plurora_core::ContractMode::V1,
         Some(declaration),
@@ -830,7 +830,7 @@ pub(crate) async fn component_replacement_preserves_content_roots() -> anyhow::R
 }
 
 pub(crate) async fn contract_none_is_foreign_capsule() -> anyhow::Result<()> {
-    let manifest = phase7_manifest("vendor/foreign", plurora_core::ContractMode::None, None);
+    let manifest = foreign_work_manifest("vendor/foreign", plurora_core::ContractMode::None, None);
     let runtime = plurora_runtime::Runtime::new(
         std::sync::Arc::new(plurora_runtime::InMemoryEventStore::default()),
         plurora_runtime::RuntimeConfig::default(),
@@ -858,7 +858,7 @@ pub(crate) async fn contract_none_is_foreign_capsule() -> anyhow::Result<()> {
     Ok(())
 }
 
-fn phase7_component_declaration() -> plurora_core::ComponentDeclaration {
+fn foreign_work_component_declaration() -> plurora_core::ComponentDeclaration {
     plurora_core::ComponentDeclaration {
         id: "org.example/reference-component".to_string(),
         version: "1.0.0".to_string(),
@@ -875,7 +875,7 @@ fn phase7_component_declaration() -> plurora_core::ComponentDeclaration {
     }
 }
 
-fn phase7_manifest(
+fn foreign_work_manifest(
     package_id: &str,
     contract: plurora_core::ContractMode,
     component: Option<plurora_core::ComponentDeclaration>,
@@ -890,7 +890,7 @@ fn phase7_manifest(
         license: None,
         entry: plurora_core::EntryDescriptor {
             kind: plurora_core::PackageEntry::RustInproc {
-                crate_ref: "phase7_reference".to_string(),
+                crate_ref: "foreign_work_reference".to_string(),
                 symbol: "register".to_string(),
                 abi_version: 1,
             },

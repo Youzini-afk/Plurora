@@ -6,7 +6,7 @@ Plurora does not move forward by expanding around one product, example, or workf
 
 These directions progress in parallel. Phase numbers would create a false linear order. Every concrete task should belong to a clear user lifecycle, architecture layer, and long-term responsibility.
 
-The candidate line now has its Work, Assembly, Installation, Run, Exposure/Binding, and Target-compiled Realization foundations implemented. The next boundary is Foreign Work, Rights/Transparency, closed-source entrypoints, and opaque-state backup. The destructive model, Public Contract reset, Codex execution rules, phase commits, and final acceptance scenarios are specified in [`WORK_ASSEMBLY_REALIZATION.md`](WORK_ASSEMBLY_REALIZATION.en.md). That document is a temporary development plan, not an automatic Stable platform ontology; Phase 9 deletes it and moves durable conclusions into formal documentation.
+Work, Assembly, Installation, Run, Exposure/Binding, Target-compiled Realization, Foreign Work, Rights/Transparency, opaque-state backup, and the modular creation loop now form one operational line. Current priorities shift to complete official-product lifecycles, a continuous creator path, real WASM/remote-component execution boundaries, and long-term data governance. Finished one-time implementation stages remain only in Git history.
 
 ## Most important current work
 
@@ -35,7 +35,7 @@ template / import
 → modify content, Assemblies, components, or protocols
 → human / AI assistance
 → debug and test
-→ package, share, deploy
+→ package, share, realize
 → update and migrate
 ```
 
@@ -45,7 +45,7 @@ Near-term priorities include:
 - consistent TypeScript, Rust, and future WASM SDK experience;
 - local development mode, hot reload, source maps, logs, and error location;
 - visible authority, protocol bindings, effects, and artifact provenance;
-- understandable composition and dependency-conflict diagnostics;
+- understandable Assembly composition and dependency-conflict diagnostics;
 - AI tools that work through ordinary capabilities, explicit scope, and reviewable changes rather than a generic root shell;
 - a stable path from local work to a shareable artifact.
 
@@ -139,7 +139,7 @@ These may continue to be built, but none defines Plurora's only direction:
 - Docker and the Realization executor;
 - the official Web or Desktop shell;
 - one protocol profile;
-- one demonstration, fixture, or external project.
+- one demonstration, fixture, or external source.
 
 They are products, protocols, Host capabilities, or use cases on the platform. Importance does not grant ownership of every other direction.
 

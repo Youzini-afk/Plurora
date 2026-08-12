@@ -85,8 +85,8 @@ pub const EVENT_PORT_DENIED: &str = "host/port.denied";
 pub const EVENT_PROXY_REGISTERED: &str = "host/proxy.registered";
 pub const EVENT_PROXY_UNREGISTERED: &str = "host/proxy.unregistered";
 pub const EVENT_PROXY_DENIED: &str = "host/proxy.denied";
-pub const EVENT_DEPLOYMENT_RECONCILED: &str = "host/deployment.reconciled";
-pub const EVENT_DEPLOYMENT_HEALTH: &str = "host/deployment.health";
+pub const EVENT_WORKLOAD_RECONCILED: &str = "host/workload.reconciled";
+pub const EVENT_WORKLOAD_HEALTH: &str = "host/workload.health";
 
 /// Event kinds emitted exclusively by the Plurora runtime.
 ///
@@ -167,8 +167,8 @@ pub const PLATFORM_EVENT_KINDS: &[&str] = &[
     EVENT_PROXY_REGISTERED,
     EVENT_PROXY_UNREGISTERED,
     EVENT_PROXY_DENIED,
-    EVENT_DEPLOYMENT_RECONCILED,
-    EVENT_DEPLOYMENT_HEALTH,
+    EVENT_WORKLOAD_RECONCILED,
+    EVENT_WORKLOAD_HEALTH,
 ];
 
 pub fn is_platform_event_kind(kind: &str) -> bool {

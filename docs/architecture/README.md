@@ -23,7 +23,7 @@
 - [`HOST_DEVELOPMENT_CONTROL_PLANE.md`](HOST_DEVELOPMENT_CONTROL_PLANE.md) — 受控源码变更、验证、promotion 与恢复
 - [`HOST_REMOTE_ACCESS.md`](HOST_REMOTE_ACCESS.md) — root / 设备身份、scope、HTTPS pairing 与应用路由暴露
 - [`HOST_RESOURCE_AUTHORITY.md`](HOST_RESOURCE_AUTHORITY.md) — Work / Workspace / Installation / Run 等 Host 资源权威、认证上下文与审计
-- [`DURABLE_DEPLOYMENT_CONTROLLER.md`](DURABLE_DEPLOYMENT_CONTROLLER.md) — desired/observed state、幂等 operation、安全激活与恢复
+- [`REALIZATION_CONTROLLER.md`](REALIZATION_CONTROLLER.md) — desired/observed state、幂等 operation、安全激活与恢复
 - [`TARGET_AGENT_PROTOCOL.md`](TARGET_AGENT_PROTOCOL.md) — remote target 身份、类型化操作、artifact/secret 与 tunnel 边界
 - [`OPERATIONS_DATA_RELEASE.md`](OPERATIONS_DATA_RELEASE.md) — 数据迁移、备份、健康、诊断、升级和供应链
 

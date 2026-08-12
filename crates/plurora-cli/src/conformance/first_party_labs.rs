@@ -235,7 +235,7 @@ pub(crate) async fn docker_runtime_lab_build_image_blocks_secret_and_non_dockerf
     Ok(())
 }
 
-pub(crate) async fn deployment_hub_local_exec_default_deny_all() -> anyhow::Result<()> {
+pub(crate) async fn workload_hub_local_exec_default_deny_all() -> anyhow::Result<()> {
     let store = std::sync::Arc::new(plurora_runtime::InMemoryEventStore::default());
     let runtime = plurora_runtime::Runtime::new(store.clone(), RuntimeConfig::default());
     let response = runtime

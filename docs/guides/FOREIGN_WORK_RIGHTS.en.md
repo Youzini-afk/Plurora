@@ -42,7 +42,7 @@ Rights do not mint capabilities, widen Host grants, or constitute a legal ruling
 
 ## Run and entitlement
 
-A foreign launch is an ordinary Work entrypoint. Run preflight reads the exact Work revision, launch requirement, Installation revision, and current Rights. A missing binding, mismatched target kind, denied Right, or failed entitlement produces a structured gap/error and never an implicit deployment.
+A foreign launch is an ordinary Work entrypoint. Run preflight reads the exact Work revision, launch requirement, Installation revision, and current Rights. A missing binding, mismatched target kind, denied Right, or failed entitlement produces a structured gap/error and never an implicit Realization apply.
 
 Entitlement is an ordinary `capability.invoke`: the binding names a provider Package, capability, and optional version, and the Host accepts only the adapter's allow decision plus an optional launch target. There is no `drm.*` API, copied ownership database, or hidden first-party path. Adapter input, credentials, local coordinates, child stderr, and command details do not enter Debug output, public Installation payloads, or errors.
 
@@ -88,4 +88,4 @@ Home and Installation Frame read Rights/Transparency only from the public `host.
 
 ## Verifiable boundary
 
-Phase 7 conformance covers a Capsule without protocols, rejection of portable coordinates, closed-source Ports using the ordinary compatibility contract, conservative Rights, redacted entitlement with no DRM method, and dedicated entrypoint plus public backup schemas. Deeper state/launch lifecycles, Realization Rights gates, Installation journaling, and Web behavior are covered by their crate, service, and TypeScript tests.
+Foreign Work conformance covers a Capsule without protocols, rejection of portable coordinates, closed-source Ports using the ordinary compatibility contract, conservative Rights, redacted entitlement with no DRM method, and dedicated entrypoint plus public backup schemas. Deeper state/launch lifecycles, Realization Rights gates, Installation journaling, and Web behavior are covered by their crate, service, and TypeScript tests.

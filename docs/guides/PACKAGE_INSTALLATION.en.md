@@ -28,12 +28,12 @@ plurora installation update <installation-id> \
 plurora installation remove <installation-id> \
   --state keep --idempotency-key remove-my-work
 
-# Phase 5 Powerbox
+# Powerbox
 plurora exposure list|create|revoke
 plurora binding candidates|list|select|revoke
 ```
 
-Installation `ready` still does not mean running; CLI and Web must call explicit `host.run.start` to create a Run. Opening detail never starts one, and an unavailable local implementation returns structured gaps. `host.run.stop` stops only that Run and does not unload global Packages. Exposure/Binding CLI operates only on Phase 5 Host-journal records and never implicitly deploys, rebinds, or shares state/secrets.
+Installation `ready` still does not mean running; CLI and Web must call explicit `host.run.start` to create a Run. Opening detail never starts one, and an unavailable local implementation returns structured gaps. `host.run.stop` stops only that Run and does not unload global Packages. Exposure/Binding CLI operates only on Host-journal records and never implicitly applies a Realization, rebinds, or shares state/secrets.
 
 ## Accepted sources
 

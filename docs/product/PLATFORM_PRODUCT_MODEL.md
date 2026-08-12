@@ -62,11 +62,11 @@
 创建或导入
 → 本地运行
 → 观察状态与事件
-→ 修改内容、composition 或组件
+→ 修改内容、Assembly 或组件
 → 使用人类或 AI 工具辅助
 → 调试与测试
 → 打包
-→ 分享或部署
+→ 分享或 Realization
 → 发布更新与迁移
 ```
 
@@ -84,15 +84,15 @@
 
 第三方发行版可以没有 Home、没有 Library，或采用完全不同的根对象和导航。它只要遵守采用的公开合同与权限边界即可。
 
-## Phase 5 Powerbox UX
+## Powerbox UX
 
 Home/Library 负责 Work 与 Installation 的发现，Installation frame 提供 Powerbox chooser。Chooser 必须先显示 binding phase，再显示 exact Exposure、audience、expiry，以及 consumer/provider 两端 PortContract（protocol、interface、version、profiles、interaction、effects、transport、multiplicity）。Provider Work/Installation source、Component trust/claim/boundaries/evidence、artifact/behavior digest 与 stale 状态分栏展示。
 
-第一方与第三方 provider 使用相同披露规则，候选按稳定顺序展示，不按 publisher 选择。0 个或多个候选都要求用户或显式 policy 选择；preference 只能作为排序 hint。UI 不猜 unknown，不隐式 deploy/rebind，也不显示 runtime handle、credential 或 private intent。可见候选最多 256，超限显示结构化诊断而不是静默截断。
+第一方与第三方 provider 使用相同披露规则，候选按稳定顺序展示，不按 publisher 选择。0 个或多个候选都要求用户或显式 policy 选择；preference 只能作为排序 hint。UI 不猜 unknown，不隐式 apply/rebind，也不显示 runtime handle、credential 或 private intent。可见候选最多 256，超限显示结构化诊断而不是静默截断。
 
 PWA/mobile 与 Desktop 复用同一 Host API；Host/Installation cache 隔离，关闭 tab、iframe 或 PWA 连接不会停止 Run，也不会撤销 Exposure/Binding。Surface 只有公开 allowlist bridge，没有 Powerbox private bridge 或第一方旁路。
 
-## Phase 6 Realization UX
+## Realization UX
 
 Installation frame 只在 Work 声明 OperationalIntent 时显示 Realization workbench。Plan 与 Apply 必须是两个可区分步骤：Plan 显示 exact Target、actions、preconditions、required authority 和每项 risk；用户逐项确认后才允许 Apply。Status、history、Stop 与 Reconcile 都显示真实 `RealizationRevision`，不把 UI 临时状态伪装为 Host truth。
 
@@ -153,4 +153,4 @@ Work 是便携逻辑作品，Installation 是某台 Host 对 exact Work/Lock 的
 - 更换组件、客户端或 Host 时是否保留工作；
 - 新功能是否保持公开边界和第三方空间。
 
-具体当前状态见 [`../ALPHA_STATUS.md`](../ALPHA_STATUS.md)：Exposure、Binding 与 Powerbox 为 Phase 5 implemented，Managed Realization 与部署编译为 Phase 6 implemented；建设方向见 [`../roadmap/NEXT_STEPS.md`](../roadmap/NEXT_STEPS.md)。
+具体当前状态见 [`../ALPHA_STATUS.md`](../ALPHA_STATUS.md)：Exposure、Binding、Powerbox 与 Managed Realization 均已实现；建设方向见 [`../roadmap/NEXT_STEPS.md`](../roadmap/NEXT_STEPS.md)。

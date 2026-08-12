@@ -1,4 +1,4 @@
-//! Phase 7 Foreign Work, Rights, transparency, and opaque-state vectors.
+//! Foreign Work, Rights, transparency, and opaque-state vectors.
 //!
 //! Stateful backup and launch lifecycle tests live beside the production
 //! Installation and Runtime implementations. These cases keep the portable
@@ -283,39 +283,27 @@ pub(crate) fn foreign_work_cases() -> Vec<super::runner::ConformanceCase> {
     vec![
         case!(
             "foreign_work.capsule_without_protocols_and_no_portable_path",
-            ["phase7", "foreign_work", "portable", "negative"],
+            ["foreign_work", "portable", "negative"],
             open_without_protocols_is_still_a_capsule_and_paths_are_rejected
         ),
         case!(
             "foreign_work.closed_protocol_ordinary_binding_contract",
-            ["phase7", "foreign_work", "binding", "protocol"],
+            ["foreign_work", "binding", "protocol"],
             closed_foreign_protocol_port_uses_the_ordinary_binding_contract
         ),
         case!(
             "foreign_work.rights_conservative_copy_export",
-            ["phase7", "foreign_work", "rights", "negative"],
+            ["foreign_work", "rights", "negative"],
             absent_denied_and_entitled_rights_are_conservative
         ),
         case!(
             "foreign_work.entitlement_adapter_redacted_no_drm",
-            [
-                "phase7",
-                "foreign_work",
-                "entitlement",
-                "privacy",
-                "negative"
-            ],
+            ["foreign_work", "entitlement", "privacy", "negative"],
             entitlement_is_an_ordinary_redacted_adapter_without_drm_api
         ),
         case!(
             "foreign_work.dedicated_backup_public_no_coordinates",
-            [
-                "phase7",
-                "foreign_work",
-                "backup",
-                "dedicated_server",
-                "contract"
-            ],
+            ["foreign_work", "backup", "dedicated_server", "contract"],
             dedicated_server_and_backup_are_public_but_coordinates_are_not
         ),
     ]

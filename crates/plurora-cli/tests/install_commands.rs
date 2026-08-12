@@ -16,7 +16,7 @@ use plurora_runtime::{
     INSTALLATION_STATE_SNAPSHOT_SCHEMA,
 };
 use plurora_service::{
-    acquire_development_host_lease, build_deploy_job_registry, development_registry,
+    acquire_development_host_lease, build_workload_job_registry, development_registry,
     host_access_registry, release_development_host_lease, spawn_development_host_lease_heartbeat,
     target_agent_registry, AppState, DevelopmentHostLease, InstallationRegistry,
 };
@@ -523,7 +523,7 @@ async fn start_host(data_dir: &Path) -> anyhow::Result<TestHost> {
         static_dir: None,
         access_token: Some(TEST_ROOT_TOKEN.to_string()),
         app_base_domain: None,
-        build_jobs: build_deploy_job_registry(),
+        build_jobs: build_workload_job_registry(),
         development,
         host_access: host_access_registry(),
         installations,

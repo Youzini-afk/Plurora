@@ -85,54 +85,54 @@ pub(super) fn core_cases() -> Vec<ConformanceCase> {
             crate::conformance::audit::package_audit_report
         ),
         c!(
-            "deployment_hub.requires_host_principal",
-            ["runtime", "deployment_hub", "permission"],
-            crate::conformance::protocol::deployment_hub_requires_host_principal
+            "workload_hub.requires_host_principal",
+            ["runtime", "workload_hub", "permission"],
+            crate::conformance::protocol::workload_hub_requires_host_principal
         ),
         c!(
-            "deployment_hub.port_lease_loopback",
-            ["runtime", "deployment_hub", "port"],
-            crate::conformance::protocol::deployment_hub_port_lease_loopback
+            "workload_hub.port_lease_loopback",
+            ["runtime", "workload_hub", "port"],
+            crate::conformance::protocol::workload_hub_port_lease_loopback
         ),
         c!(
-            "deployment_hub.proxy_requires_matching_lease_port",
-            ["runtime", "deployment_hub", "proxy"],
-            crate::conformance::protocol::deployment_hub_proxy_requires_matching_lease_port
+            "workload_hub.proxy_requires_matching_lease_port",
+            ["runtime", "workload_hub", "proxy"],
+            crate::conformance::protocol::workload_hub_proxy_requires_matching_lease_port
         ),
         c!(
-            "deployment_hub.exec_stop_receipt",
-            ["runtime", "deployment_hub", "exec", "receipt"],
-            crate::conformance::protocol::deployment_hub_exec_stop_receipt
+            "workload_hub.exec_stop_receipt",
+            ["runtime", "workload_hub", "exec", "receipt"],
+            crate::conformance::protocol::workload_hub_exec_stop_receipt
         ),
         c!(
-            "deployment_hub.exec_terminal_is_observed_once",
-            ["runtime", "deployment_hub", "exec", "receipt", "rehydrate"],
-            crate::conformance::protocol::deployment_hub_exec_terminal_is_observed_once
+            "workload_hub.exec_terminal_is_observed_once",
+            ["runtime", "workload_hub", "exec", "receipt", "rehydrate"],
+            crate::conformance::protocol::workload_hub_exec_terminal_is_observed_once
         ),
         c!(
-            "deployment_hub.exec_denial_is_deduplicated",
-            ["runtime", "deployment_hub", "exec", "receipt", "rehydrate"],
-            crate::conformance::protocol::deployment_hub_exec_denial_is_deduplicated
+            "workload_hub.exec_denial_is_deduplicated",
+            ["runtime", "workload_hub", "exec", "receipt", "rehydrate"],
+            crate::conformance::protocol::workload_hub_exec_denial_is_deduplicated
         ),
         c!(
-            "deployment.sqlite_rehydrate",
-            ["deployment", "deployment_hub", "sqlite", "slow"],
-            crate::conformance::protocol::deployment_sqlite_rehydrate
+            "workload.sqlite_rehydrate",
+            ["workload", "workload_hub", "sqlite", "slow"],
+            crate::conformance::protocol::workload_sqlite_rehydrate
         ),
         c!(
-            "deployment.reconcile_empty_cleans_stale",
-            ["deployment", "deployment_hub", "reconcile"],
-            crate::conformance::protocol::deployment_reconcile_empty_cleans_stale
+            "workload.reconcile_empty_cleans_stale",
+            ["workload", "workload_hub", "reconcile"],
+            crate::conformance::protocol::workload_reconcile_empty_cleans_stale
         ),
         c!(
-            "deployment.reconcile_promotes_live_container",
-            ["deployment", "deployment_hub", "reconcile"],
-            crate::conformance::protocol::deployment_reconcile_promotes_live_container
+            "workload.reconcile_promotes_live_container",
+            ["workload", "workload_hub", "reconcile"],
+            crate::conformance::protocol::workload_reconcile_promotes_live_container
         ),
         c!(
-            "deployment.reconcile_exec_always_failed",
-            ["deployment", "deployment_hub", "reconcile"],
-            crate::conformance::protocol::deployment_reconcile_exec_always_failed
+            "workload.reconcile_exec_always_failed",
+            ["workload", "workload_hub", "reconcile"],
+            crate::conformance::protocol::workload_reconcile_exec_always_failed
         ),
         c!(
             "capability.ambiguous_provider_denied",
@@ -559,17 +559,17 @@ pub(super) fn work_cases() -> Vec<ConformanceCase> {
         ),
         c!(
             "assembly.component_identity_independent_of_package_envelope",
-            ["work", "assembly", "phase7"],
+            ["work", "assembly", "foreign_work"],
             crate::conformance::generated::component_identity_independent_of_package_envelope
         ),
         c!(
             "assembly.component_replacement_preserves_content_roots",
-            ["work", "assembly", "phase7"],
+            ["work", "assembly", "foreign_work"],
             crate::conformance::generated::component_replacement_preserves_content_roots
         ),
         c!(
             "work.contract_none_is_foreign_capsule",
-            ["work", "assembly", "phase7"],
+            ["work", "assembly", "foreign_work"],
             crate::conformance::generated::contract_none_is_foreign_capsule
         ),
         c!(

@@ -2,17 +2,17 @@
 
 > [English](./OPERATIONS_DATA_RELEASE.en.md) · [中文](./OPERATIONS_DATA_RELEASE.md)
 
-状态：**运行安全基线已实现，剩余加固项继续受本文约束**。本文定义 Plurora Host 承载真实项目和远程 target 时必须满足的数据、健康、诊断、升级和发行底线。
+状态：**运行安全基线已实现，剩余加固项继续受本文约束**。本文定义 Plurora Host 承载真实 Work 和远程 Target 时必须满足的数据、健康、诊断、升级和发行底线。
 
 ## 当前实现状态
 
 已经实现：
 
 - Install Lab 的 store schema 不匹配不再删除数据；旧 store 被原子移动到带版本和随机后缀的保留目录，新 store 再初始化当前 marker。
-- `plurora host backup` 对位于 data dir 内、使用相对路径的 SQLite Host profile 创建离线目录快照。命令先取得持久 Host 控制面租约，排除显式 `cache`，使用 SQLite online backup API，并为所有文件写 SHA-256 manifest；原始 secret、key、objects、projects、profiles、journals 均在同一租约边界内复制。
+- `plurora host backup` 对位于 data dir 内、使用相对路径的 SQLite Host profile 创建离线目录快照。命令先取得持久 Host 控制面租约，排除显式 `cache`，使用 SQLite online backup API，并为所有文件写 SHA-256 manifest；原始 secret、key、objects、installations、profiles、journals 均在同一租约边界内复制。
 - `plurora host restore` 只接受不存在的新 data dir；它拒绝路径穿越、符号链接、重复项和 checksum/schema 不一致，在 staging 中完成验证与 SQLite integrity check 后才原子切换。
-- `/livez`、`/health`、`/healthz` 是兼容 liveness；`/readyz` 返回无资源标识的结构化状态。event store 或 Host 控制面租约失败返回 `503/unready`，单个 durable deployment 不健康返回 `200/degraded`。
-- `host.diagnostics` 现在包含 Host 版本和 runtime 聚合计数，不额外公开 project/route/lease 标识。
+- `/livez`、`/health`、`/healthz` 是兼容 liveness；`/readyz` 返回无资源标识的结构化状态。event store 或 Host 控制面租约失败返回 `503/unready`，单个 durable Realization 不健康返回 `200/degraded`。
+- `host.diagnostics` 现在包含 Host 版本和 runtime 聚合计数，不额外公开 Work、Installation、route 或 lease 标识。
 - tag release 显式复用完整 CI workflow，严格验证 tag/commit/Cargo/npm/Tauri 版本一致，再执行平台构建。每个平台产出 SHA-256 清单、SPDX SBOM，并通过 GitHub OIDC/Sigstore artifact attestation 记录 provenance 和 SBOM；只有 build job 获得发行权限。
 
 仍未完成：通用 migration ledger、PostgreSQL backup reference、独立 `backup inspect/verify` 命令、authenticated `/host/v1/status` 与 diagnostics export、object/secret 主动 probe、统一 HTTP continuous health policy、干净 runner installer 启动 smoke、Actions/toolchain 的 reviewed SHA 固定，以及平台 signing/notarization。发行保持 draft，未配置签名时不得描述为已签名。
@@ -26,9 +26,9 @@
 | Event journal / Host control journals | 权威、只追加 | 必须；保持 sequence/CAS 语义 |
 | Object store | 可能被 journal/descriptor 引用 | 与引用它的 journal 同一备份集合 |
 | Secret store + key | 不可重建的敏感权威数据 | 成对加密备份；严格权限 |
-| Project descriptor/state/managed workspace | 用户/项目承重数据 | 必须或由项目 policy 显式排除 |
+| Installation record/state/managed workspace | 用户承重数据 | 必须或由 Installation policy 显式排除 |
 | Profiles/lockfiles/keys | 运行与供应链配置 | 必须；保留权限和版本 |
-| Deployment intents/revisions/receipts | 恢复和回滚事实源 | 必须；与 event journal 一致 |
+| Realization intents/revisions/receipts | 恢复和回滚事实源 | 必须；与 event journal 一致 |
 | Download/build cache | 可重建缓存 | 可排除；必须明确标记为 cache |
 | Package/content store | 条件可重建 | 只有证明有来源时才允许自动重建 |
 
@@ -106,7 +106,7 @@ readiness 至少检查：
 - event store 读写/CAS 基础检查；
 - object store 可读写并能验证临时对象；
 - secret store 状态可判定（不读取 secret 值）；
-- deployment controller 不处于 migration/recovery fatal 状态；
+- Realization controller 不处于 migration/recovery fatal 状态；
 - profile 与 contract registry 已加载。
 
 可选能力失败导致 `degraded`，必需能力失败导致 not-ready。详细原因需要认证，避免公开泄露路径、backend 或项目信息。
@@ -118,7 +118,7 @@ readiness 至少检查：
 - HTTP 默认只把 2xx 视为成功；3xx/4xx 必须由 policy 显式允许；
 - startup readiness 和持续 health 使用同一 policy 解析器；
 - probe 只观察，不直接启动 replacement；
-- 状态变化写审计事件，并由 Deployment Controller 的 restart policy 决定操作；
+- 状态变化写审计事件，并由 Realization Controller 的 restart policy 决定操作；
 - probe 日志和响应 body 有严格大小/脱敏限制。
 
 ## 可观测性
@@ -126,15 +126,15 @@ readiness 至少检查：
 最小结构化信号：
 
 - 请求 correlation、principal/grant ref、canonical method、policy decision ref；
-- deployment operation/step/target/generation/lease epoch；
-- build/deploy queue latency、operation duration、retry/cancel/rollback；
+- Realization operation/step/target/generation/lease epoch；
+- build/apply queue latency、operation duration、retry/cancel/rollback；
 - target heartbeat、offline/reconnect、tunnel bytes/errors；
 - route readiness transition 和 probe failures；
 - journal append/CAS failure、object verification failure、backup/migration result。
 
 指标不含 project 名、secret、token、完整 URL query 或源码内容。高基数 resource id 只进入受控 trace/log，不作为默认 metric label。
 
-诊断 bundle 包含版本、配置形状（脱敏）、component status、最近受限日志、journal heads、deployment summaries 和 integrity results；生成与下载都写审计。
+诊断 bundle 包含版本、配置形状（脱敏）、component status、最近受限日志、journal heads、Realization summaries 和 integrity results；生成与下载都写审计。
 
 ## 支持的 Host 拓扑
 

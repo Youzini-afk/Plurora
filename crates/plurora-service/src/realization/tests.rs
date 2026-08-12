@@ -112,7 +112,7 @@ impl RealizationExecutionDriver for FakeDriver {
             .next_apply_outcome_unknown
             .swap(false, Ordering::SeqCst)
         {
-            return Err(plurora_runtime::managed_target_deployment_outcome_unknown(
+            return Err(plurora_runtime::managed_target_workload_outcome_unknown(
                 "fake target effect",
             ));
         }

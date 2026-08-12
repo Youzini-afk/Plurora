@@ -5,7 +5,7 @@ use crate::DEFAULT_CONTRACT_PROFILE;
 use chrono::Utc;
 use plurora_core::{ArtifactDescriptor, EffectScope, EffectTerminalStatus};
 
-const DEPLOYMENT_HUB_SESSION_ID: &str = "host_deployment_hub";
+const WORKLOAD_HUB_SESSION_ID: &str = "host_workload_hub";
 
 impl<S> Runtime<S>
 where
@@ -85,7 +85,7 @@ where
         let request: crate::runtime::LocalExecStartRequest = serde_json::from_value(params)?;
         Self::ensure_target_authority(context, &request.target_id)?;
         let effect_context = exec_effect_context(context, &request);
-        self.append_deployment_hub_event(
+        self.append_workload_hub_event(
             context,
             plurora_core::EVENT_EXEC_REQUEST,
             json!({
@@ -117,7 +117,7 @@ where
                         EffectTerminalStatus::Failed,
                     )
                     .await?;
-                self.append_deployment_hub_event(
+                self.append_workload_hub_event(
                     context,
                     plurora_core::EVENT_EXEC_FAILED,
                     json!({
@@ -159,7 +159,7 @@ where
                         terminal_status,
                     )
                     .await?;
-                self.append_deployment_hub_event(
+                self.append_workload_hub_event(
                     context,
                     exec_terminal_event_kind(terminal_status),
                     json!({
@@ -179,7 +179,7 @@ where
                 .exec_registry
                 .record_effect_context(exec_id.clone(), effect_context.clone())
                 .await;
-            self.append_deployment_hub_event(
+            self.append_workload_hub_event(
                 context,
                 plurora_core::EVENT_EXEC_STARTED,
                 json!({
@@ -269,7 +269,7 @@ where
                         EffectTerminalStatus::Failed,
                     )
                     .await?;
-                self.append_deployment_hub_event(
+                self.append_workload_hub_event(
                     context,
                     plurora_core::EVENT_EXEC_FAILED,
                     json!({
@@ -307,7 +307,7 @@ where
                     .exec_registry
                     .record_operation_receipt(operation_key, receipt.clone())
                     .await;
-                self.append_deployment_hub_event(
+                self.append_workload_hub_event(
                     context,
                     plurora_core::EVENT_EXEC_DENIED,
                     json!({
@@ -401,7 +401,7 @@ where
                         EffectTerminalStatus::Failed,
                     )
                     .await?;
-                self.append_deployment_hub_event(
+                self.append_workload_hub_event(
                     context,
                     plurora_core::EVENT_EXEC_FAILED,
                     json!({
@@ -438,7 +438,7 @@ where
                         .exec_registry
                         .record_operation_receipt(operation_key, receipt.clone())
                         .await;
-                    self.append_deployment_hub_event(
+                    self.append_workload_hub_event(
                         context,
                         plurora_core::EVENT_EXEC_DENIED,
                         json!({
@@ -639,7 +639,7 @@ where
             let receipt = self
                 .record_exec_effect(effect_context, effect_kind, status, terminal_status)
                 .await?;
-            self.append_deployment_hub_event(
+            self.append_workload_hub_event(
                 protocol_context,
                 exec_terminal_event_kind(terminal_status),
                 json!({
@@ -743,7 +743,7 @@ where
         let request: crate::runtime::PortLeaseRequest = serde_json::from_value(params)?;
         Self::ensure_target_authority(context, &request.target_id)?;
         let response = self.config.port_lease_registry.lease(request).await;
-        self.append_deployment_hub_event(
+        self.append_workload_hub_event(
             context,
             plurora_core::EVENT_PORT_LEASED,
             json!({
@@ -780,7 +780,7 @@ where
             .release(&lease_id)
             .await
             .ok_or_else(|| anyhow::anyhow!("port lease '{lease_id}' not found"))?;
-        self.append_deployment_hub_event(
+        self.append_workload_hub_event(
             context,
             plurora_core::EVENT_PORT_RELEASED,
             json!({
@@ -841,7 +841,7 @@ where
             lease.as_ref().map(|lease| lease.status),
             Some(crate::runtime::PortLeaseStatusKind::Active)
         ) {
-            self.append_deployment_hub_event(
+            self.append_workload_hub_event(
                 context,
                 plurora_core::EVENT_PROXY_DENIED,
                 json!({
@@ -855,7 +855,7 @@ where
         let lease = lease.expect("active lease checked above");
         Self::ensure_target_authority(context, &lease.target_id)?;
         if request.upstream.port_name != lease.port_name {
-            self.append_deployment_hub_event(
+            self.append_workload_hub_event(
                 context,
                 plurora_core::EVENT_PROXY_DENIED,
                 json!({
@@ -872,7 +872,7 @@ where
         }
 
         let response = self.config.proxy_route_registry.register(request).await;
-        self.append_deployment_hub_event(
+        self.append_workload_hub_event(
             context,
             plurora_core::EVENT_PROXY_REGISTERED,
             json!({
@@ -916,7 +916,7 @@ where
             .unregister(&route_id)
             .await
             .ok_or_else(|| anyhow::anyhow!("proxy route '{route_id}' not found"))?;
-        self.append_deployment_hub_event(
+        self.append_workload_hub_event(
             context,
             plurora_core::EVENT_PROXY_UNREGISTERED,
             json!({
@@ -972,7 +972,7 @@ where
         Ok(serde_json::to_value(visible)?)
     }
 
-    async fn append_deployment_hub_event(
+    async fn append_workload_hub_event(
         &self,
         context: &ProtocolContext,
         kind: &'static str,
@@ -981,33 +981,33 @@ where
         let session_id = if let Some(session_id) = context.session_id.as_deref() {
             session_id.to_string()
         } else {
-            self.ensure_deployment_hub_session().await?
+            self.ensure_workload_hub_session().await?
         };
         self.append_platform_event(&session_id, kind, payload)
             .await?;
         Ok(())
     }
 
-    async fn ensure_deployment_hub_session(&self) -> anyhow::Result<String> {
+    async fn ensure_workload_hub_session(&self) -> anyhow::Result<String> {
         {
             let sessions = self.sessions.read().await;
             if matches!(
                 sessions
-                    .get(DEPLOYMENT_HUB_SESSION_ID)
+                    .get(WORKLOAD_HUB_SESSION_ID)
                     .map(|session| &session.status),
                 Some(plurora_core::SessionStatus::Open)
             ) {
-                return Ok(DEPLOYMENT_HUB_SESSION_ID.to_string());
+                return Ok(WORKLOAD_HUB_SESSION_ID.to_string());
             }
         }
 
         let now = chrono::Utc::now();
         let mut sessions = self.sessions.write().await;
         sessions.insert(
-            DEPLOYMENT_HUB_SESSION_ID.to_string(),
+            WORKLOAD_HUB_SESSION_ID.to_string(),
             plurora_core::SessionRecord {
-                id: DEPLOYMENT_HUB_SESSION_ID.to_string(),
-                labels: vec!["platform_runtime".to_string(), "deployment_hub".to_string()],
+                id: WORKLOAD_HUB_SESSION_ID.to_string(),
+                labels: vec!["platform_runtime".to_string(), "workload_hub".to_string()],
                 active_package_set: Vec::new(),
                 principal_scope: None,
                 status: plurora_core::SessionStatus::Open,
@@ -1016,7 +1016,7 @@ where
                 metadata: json!({"synthetic": true}),
             },
         );
-        Ok(DEPLOYMENT_HUB_SESSION_ID.to_string())
+        Ok(WORKLOAD_HUB_SESSION_ID.to_string())
     }
 }
 

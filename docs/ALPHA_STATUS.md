@@ -8,10 +8,10 @@
 
 ## 概要
 
-- **Conformance：** 483 个具名 CLI conformance 外加 crate / service 单元测试持续通过；214 个 v1 schema（99 methods + 76 events + 39 top-level）通过校验；Phase 8 新增 7 个 `modular-simulation` 具名 case。
+- **Conformance：** 483 个具名 CLI conformance 外加 crate / service 单元测试持续通过；214 个 v1 schema（99 methods + 76 events + 39 top-level）通过校验；其中 7 个具名 case 覆盖 `modular-simulation`。
 - **章程纪律：** 内核对内容无意见；第一方 Package 没有特权；公开协议是唯一入口；入口形态平等；能力句柄、bindings 注入、Path A / Path B、conformance kit 与生成 SDK 已落地；可信路径阻断 raw secret，全部走 manifest 声明的 `secret_ref`；权限授权可重新水化；网络声明带审计与脱敏；通用流式与取消生命周期；外发执行有边界，默认全拒；公开 HTTPS 出站走同样的 host policy / 审计 / 脱敏边界；一元、SSE/NDJSON/raw 流和 WebSocket 三个原语都有完成审计事件。
 - **代码健康：** CLI、运行时各域行为、协议分发、in-process 处理器、事件存储——都已按域拆分，不再继续往单文件里堆。
-- **人测底座：** Work source 可安全 pack 为内容寻址 WorkRevision、AssemblyRevision 与 AssemblyLock；Install Lab 产出 Installation candidate，`host.installation.*` 以 durable journal、幂等键和 revision CAS 创建、更新与移除 Installation；Workspace 与 Installation 分离，linked-local source 永不删除。RunRegistry、`host.run.*` 与 Run lifecycle events 已以独立 durable journal 落地；Library 通过显式 Run action 展示启动、状态和停止，打开详情不会隐式运行。Phase 5 ExposureRegistry、Powerbox candidate disclosure、lease/revoke、runtime handle injection 与失效闭环已落地。Phase 6 实现 OperationalIntent/TargetInventory pure planner、`host.realization.*`、Docker/Agent executor、approval、receipt、effect checkpoint、restart recovery、stop/rollback/reconcile 以及 Web/CLI Realization 操作面。Phase 7 实现 ForeignCapsule 六类本机 launch binding、Rights/Transparency disclosure、普通 entitlement adapter、opaque state backup/export 分权与 dedicated-server/cross-Host Rights gate。Phase 8 交付可运行的 `modular-simulation` Work kit、portable save、静态 renderer、可选 AI Port、server fork、第三方 Component 替换和只生成 candidate 的子图提升流程；Surface bridge 继续使用 allowlist、stream ownership、诊断脱敏、secret 输入清理与 CSP/CORS。
+- **人测底座：** Work source 可安全 pack 为内容寻址 WorkRevision、AssemblyRevision 与 AssemblyLock；Install Lab 产出 Installation candidate，`host.installation.*` 以 durable journal、幂等键和 revision CAS 创建、更新与移除 Installation；Workspace 与 Installation 分离，linked-local source 永不删除。RunRegistry、`host.run.*` 与 Run lifecycle events 已以独立 durable journal 落地；Library 通过显式 Run action 展示启动、状态和停止，打开详情不会隐式运行。ExposureRegistry、Powerbox candidate disclosure、lease/revoke、runtime handle injection 与失效闭环已落地。OperationalIntent/TargetInventory pure planner、`host.realization.*`、Docker/Agent executor、approval、receipt、effect checkpoint、restart recovery、stop/rollback/reconcile 以及 Web/CLI Realization 操作面均已实现。ForeignCapsule 六类本机 launch binding、Rights/Transparency disclosure、普通 entitlement adapter、opaque state backup/export 分权与 dedicated-server/cross-Host Rights gate 已实现。可运行的 `modular-simulation` Work kit 提供 portable save、静态 renderer、可选 AI Port、server fork、第三方 Component 替换和只生成 candidate 的子图提升流程；Surface bridge 继续使用 allowlist、stream ownership、诊断脱敏、secret 输入清理与 CSP/CORS。
 
 当前已经形成较大的可运行面，但平台和官方产品都不等于“完成”。后续建设同时关注开放性、多样性、先进执行与协议能力、长期数据演化，以及普通用户和创作者的完整体验。
 
@@ -22,7 +22,7 @@
 - Experimental SHA-256 ObjectStore 与 ArtifactDescriptor 已落地：内存/文件系统 CAS、读取后校验、stream、较早 FNV asset record 的幂等转换；asset 事件只保存 descriptor/ref，不再保存正文。
 - Experimental EffectReceipt 与 Change primitive 已落地：capability/outbound/stream/WebSocket/exec terminal path 生成内容寻址 receipt；历史 replay 不调用 executor；capability re-execute 创建新 branch 与 parent-linked receipt；当前 `change.proposal.*` facade 把 approval-gated operation 映射为 Intent/ChangeSet/PolicyDecision/Commit evidence。
 - Experimental Protocol Commons 注册表已落地：`host.info` 发布 Change、Shell Default、World Bundle、Work 与 Assembly 五个描述符；显式协议/Profile 协商先于 dispatch；不支持的 major 以结构化原因拒绝；protocol、implementation 与 package conformance 使用独立可执行报告。
-- `plurora-work` 已提供内容无关的便携 Work / Assembly / Port / State Slot、Rights / Transparency、Operational Intent / Target Inventory、Installation / Run / Exposure 与 Realization wire 模型，并实现安全 source reader、Package/Foreign/content 归一化、capability-to-Port 投影、带 digest memoization 的递归 resolver、普通 Component Adapter 与有界结构化诊断。`plurora work init|check|pack|inspect` 将 source 与完整 AssemblyLock 闭包内容寻址；旧 Composition 机器身份已移除。
+- `plurora-work` 已提供内容无关的便携 Work / Assembly / Port / State Slot、Rights / Transparency、Operational Intent / Target Inventory、Installation / Run / Exposure 与 Realization wire 模型，并实现安全 source reader、Package/Foreign/content 归一化、capability-to-Port 投影、带 digest memoization 的递归 resolver、普通 Component Adapter 与有界结构化诊断。`plurora work init|check|pack|inspect` 将 source 与完整 AssemblyLock 闭包内容寻址。
 - Host Installation lifecycle 已替换旧实例模型：EventStore journal 是唯一 mutable authority，`installation.json` 只是可重建 projection；create/update/remove 支持幂等重放、revision CAS、显式 state keep/delete、state snapshot 与失败回滚。数据布局分为 `objects/`、`installations/`、`workspaces/` 与 `runtime/`，启动不读取旧目录。
 - Package envelope 与 component identity 已分离：显式 component/behavior digest 在重新打包后保持稳定；runtime 与 effect evidence 携带 component trust/边界数据；AssemblyLock 分离 component/profile/content pin；`contract:none` 明确报告为不可移植 Foreign Capsule。
 - Experimental World Bundle 已落地，并由 `plurora/playable-creation-board` 的跨 Host conformance fixture 覆盖：canonical archive descriptor 保留原始 v1 envelope 与完整 SHA-256 closure；全新 SQLite/filesystem Host 保持 object、lineage 与 receipt；historical replay 不调用 executor；替代实现生成 child branch/head；headless CLI 无需 Web Shell 状态即可读取同一 archive。
@@ -70,7 +70,7 @@
 - 会话 fork / 分支沿革，可从事件日志重新水化。
 - 通用 projection 注册表：通过 `kind_prefix` 与 `writer_package_id` 过滤事件来重建，写入 `projection/updated`。包持有的 projection 执行留待后续。
 - Installation 控制面：EventStore journal、可重建 projection、ObjectStore artifact 校验、显式 state action、restart rehydrate，以及 `plurora installation list/info/create/update/remove` 已落地。
-- Realization 执行面：`host.target.*`、`host.exec.*`、`host.port.*`、`host.proxy.*` 作为 HostAdmin/HostDev adapter；普通 device 的旧 `deploy` scope 已删除。`host.realization.*` 以 OperationalIntent、TargetInventory 与 stable plan digest 管理 OCI/Docker build、Target Agent apply/observe/stop、loopback port 与 proxy route；local 与 enrolled Agent 使用同一 typed operation/receipt。旧 deploy/build-deploy/Installation deployment/Development deployment 路由已退休，无 alias。Rollback 只读取持久化 plan，不读 live workspace。
+- Realization 执行面：`host.target.*`、`host.exec.*`、`host.port.*`、`host.proxy.*` 只作为 HostAdmin/HostDev adapter；普通 device 通过 `realization.plan` / `realization.apply` 和 exact resources 获权。`host.realization.*` 以 OperationalIntent、TargetInventory 与 stable plan digest 管理 OCI/Docker build、Target Agent apply/observe/stop、loopback port 与 proxy route；local 与 enrolled Agent 使用同一 typed operation/receipt。Rollback 只读取持久化 plan，不读 live workspace。
 - Surface 贡献：带版本、slot、激活方式、所需权限、审批策略、metadata 的描述符。Slot 包括 `experience_entry`、`home_card`、`quick_action`、`workshop_card`、`play_renderer`、`forge_panel`、`asset_editor`、`assistant_action`。`quick_action`、`workshop_card` 与带 `metadata.shell_schema_version: 1` 的 `home_card` 是结构化 shell descriptor：Web shell 只读取受限文本、icon hint、排序和同包 target，由平台渲染；不加载包 JS、不解析 HTML、不 mount iframe。复杂项目 surface 继续走 `surface_bundle` + sandbox iframe。通过 `shell.contribution.list` 与 `.describe` 发现。
 - Surface bundle：`surface_bundle` 是清单里的静态浏览器 bundle 入口，不是可执行 package entry；bundle 按 Package source 解析，原始路径要求 Host 身份。opaque-origin sandbox 获得绑定 grant/bundle root 的五分钟 `/surface-assets/<lease>/...` 只读句柄，不携带 Host credential。
 - 提案生命周期：`change.proposal.create|get|list|approve|reject|apply`。当前 `apply` 只跑通用操作 `asset.put` 与 `projection.rebuild`。更广泛的事务和回滚留待后续。
@@ -169,14 +169,14 @@ Work pack 与 Installation create 分离：pack 只产生不可变 artifact；cr
 - `modular-simulation` —— 第一个适合继续创作的 Work kit。确定性殖民地 reducer、portable save/migration、静态 play/inspector Surface、独立普通 provider Work 提供的可选 Powerbox AI Port、本地 Run 与 remote-server Work fork；不包含通用 3D 引擎。
 - `experience-observability-lab` —— 包持有的可观测性：会话健康、能力包健康、agent 运行健康、提案因果链、cost / latency 摘要、失败面包屑、guardrail 摘要。
 - `memory-lab` —— 长期记忆与知识：记录、检索、检索追踪、提案审批门控的更新、修正、forget / redaction、按分支视图、provenance。
-- `sharing-lab` —— 分享与分发：composition bundle 导入导出、分支 / 会话 bundle 清单、包集 lockfile、兼容性报告、AI 披露元数据、只读分享清单、异步 fork 计划。不带市场、计费、签名网络。
+- `sharing-lab` —— 分享与分发：Assembly bundle 导入导出、分支 / 会话 bundle 清单、包集 lockfile、兼容性报告、AI 披露元数据、只读分享清单、异步 fork 计划。不带市场、计费、签名网络。
 - `playable-seed`、`blank-experience` —— 参考与最小体验。
 
-**存储与外部项目**
+**存储与外部来源**
 
 - `storage-lab` —— 存储 / 数据契约预览：分层模型、backend class 候选、包级状态库、文档 CRUD 预览、blob 内容寻址契约证明、projection 物化、检索 / 向量 / 多模态 provider 契约。
 - `tdb-retrieval-lab` —— TDB 作为检索 / 多模态 provider 的契约；不是事件日志权威。
-- `project-intake-lab` —— 外部项目分类、栈检测、npm 生命周期风险、工作区计划、adapter 计划、wrapper / fixture / readiness 预览。不出网、不动文件系统。
+- `source-intake-lab` —— 外部来源分类、栈检测、npm 生命周期风险、工作区计划、adapter 计划、wrapper / fixture / readiness 预览。不出网、不动文件系统。
 - `workspace-lab` —— 工作区行动策略边界，10 项行动 taxonomy，deny-by-default 假执行器，确定性 fixture 工作区。
 
 **第三方替换证明**
@@ -270,7 +270,7 @@ Forge profile (`profiles/forge-alpha.yaml`) 会自动加载这些包以及示例
 - `--fail-fast` 首个失败即停；
 - `--slowest <N>` 显示最慢 N 个。
 
-每个用例有 tag（runtime / event / capability / package / subprocess / first_party / network / outbound / stream / agentic / experience / memory / sharing / secret / composition / replacement / surface / protocol / permission / hook / host / asset / projection / substrate / storage / live / external_project / project_intake / workspace_lab / retrieval 等）。详见 [`performance/CONFORMANCE_FEEDBACK.md`](performance/CONFORMANCE_FEEDBACK.md)。
+每个用例有 tag（runtime / event / capability / package / subprocess / first_party / network / outbound / stream / agentic / experience / memory / sharing / secret / assembly / replacement / surface / protocol / permission / hook / host / asset / projection / substrate / storage / live / external_source / source_intake / workspace_lab / retrieval 等）。详见 [`performance/CONFORMANCE_FEEDBACK.md`](performance/CONFORMANCE_FEEDBACK.md)。
 
 外加 `cargo test --workspace` 下的 crate 与 service 单测，以及 `npm run check --prefix clients/web` / `npm run build --prefix clients/web` 检查 Web shell。
 

@@ -43,7 +43,7 @@ develop.execute
 access_manage
 ```
 
-The old `deploy` scope was removed in Phase 6. An ordinary device planning or executing managed resources needs `realization.plan` or `realization.apply`, respectively, together with exact Installation, Target, and Realization selectors. Low-level target/exec/port/proxy adapters do not inherit those scopes.
+An ordinary device planning or executing managed resources needs `realization.plan` or `realization.apply`, respectively, together with exact Installation, Target, and Realization selectors. Low-level target/exec/port/proxy adapters do not inherit those scopes.
 
 Web invitations select only `observe` by default. Unknown HTTP paths, unknown RPC methods, and broad administration fail closed. New grants must be subsets of caller authority, and only root can delegate `access_manage`.
 
@@ -89,7 +89,7 @@ plurora host access --access-token "$PLURORA_HTTP_ACCESS_TOKEN" revoke <grant-id
 
 A sandboxed surface has an opaque origin and cannot carry Host Cookies or Bearer tokens. `host.surface.bundle.resolve` exchanges a protected Package bundle for a random, five-minute, read-only `/surface-assets/<lease>/...` URL bound to the grant and bundle root. The lease is not an RPC credential and expires on revoke or grant expiry.
 
-Exposure defines endpoints and access policy. Realization compiles OperationalIntent into a persisted resource plan and executes it through typed Target operations. The low-level `host.proxy.*` adapter remains `host_authenticated` by default; only a user-approved `public` policy in the plan enables a public vhost. No old deployment-route alias remains.
+Exposure defines endpoints and access policy. Realization compiles OperationalIntent into a persisted resource plan and executes it through typed Target operations. The low-level `host.proxy.*` adapter remains `host_authenticated` by default; only a user-approved `public` policy in the plan enables a public vhost.
 
 Public applications own internet-input validation, application identity, CSRF, rate limiting, and content security. Host grants are not application user accounts.
 

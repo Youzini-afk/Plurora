@@ -89,7 +89,7 @@ Mixed classification 不会创建私有 API；它只指出实现还可继续拆�
 | Projection | 1 | `C` |
 | Change proposal | 5 | `C` |
 | Outbound / WebSocket | 8 | `H` / `X` |
-| Exec / port / proxy / deployment | 14 | `H` |
+| Exec / port / proxy / workload | 14 | `H` |
 | Runtime error | 1 | `S` |
 
 Owner 是语义归属；持久化仍统一使用 `EventEnvelope` 与 EventStore 边界。

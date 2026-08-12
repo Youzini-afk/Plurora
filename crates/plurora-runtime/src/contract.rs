@@ -155,7 +155,7 @@ pub fn contract_layers() -> Vec<ContractLayerInfo> {
         ContractLayerInfo {
             id: ContractOwnerLayer::Host,
             description:
-                "Host-local installation, execution, ports, proxies, secrets, deployment, and diagnostics"
+                "Host-local installation, execution, ports, proxies, secrets, workload, and diagnostics"
                     .to_string(),
             maturity: ContractMaturity::Candidate,
         },

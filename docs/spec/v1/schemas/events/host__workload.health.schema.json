@@ -1,16 +1,5 @@
 {
   "$defs": {
-    "DeploymentHealthProbe": {
-      "properties": {
-        "kind": {
-          "type": "string"
-        }
-      },
-      "required": [
-        "kind"
-      ],
-      "type": "object"
-    },
     "Payload": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "properties": {
@@ -29,7 +18,7 @@
           "type": "boolean"
         },
         "probe": {
-          "$ref": "#/$defs/DeploymentHealthProbe"
+          "$ref": "#/$defs/WorkloadHealthProbe"
         },
         "ready": {
           "type": "boolean"
@@ -49,21 +38,32 @@
         "reason",
         "route_id"
       ],
-      "title": "DeploymentHealthEventPayload",
+      "title": "WorkloadHealthEventPayload",
+      "type": "object"
+    },
+    "WorkloadHealthProbe": {
+      "properties": {
+        "kind": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind"
+      ],
       "type": "object"
     }
   },
-  "$id": "urn:plurora:schema:event:host/deployment.health:v1",
+  "$id": "urn:plurora:schema:event:host/workload.health:v1",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "description": "Payload schema for event kind host/deployment.health.",
+  "description": "Payload schema for event kind host/workload.health.",
   "properties": {
     "kind": {
-      "const": "host/deployment.health"
+      "const": "host/workload.health"
     },
     "payload": {
       "$ref": "#/$defs/Payload"
     }
   },
-  "title": "host/deployment.health",
+  "title": "host/workload.health",
   "type": "object"
 }

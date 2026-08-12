@@ -31,7 +31,7 @@ develop.execute
 access_manage
 ```
 
-旧 `deploy` scope 已在 Phase 6 删除。底层 target/exec/port/proxy adapter 不是普通设备的部署权限；它们只对 HostAdmin/HostDev 或显式 `access_manage` 管理边界开放。Managed lifecycle 只通过 `realization.plan` / `realization.apply`。
+底层 target/exec/port/proxy adapter 不是普通设备的 Realization 权限；它们只对 HostAdmin/HostDev 或显式 `access_manage` 管理边界开放。Managed lifecycle 只通过 `realization.plan` / `realization.apply`。
 
 Exposure/Binding 与 Realization 方法使用这些 action：
 

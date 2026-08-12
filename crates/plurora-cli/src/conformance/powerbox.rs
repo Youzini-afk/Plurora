@@ -1,4 +1,4 @@
-//! Phase 5 public Exposure/Binding contract vectors.
+//! Public Exposure/Binding contract vectors.
 //!
 //! Stateful lifecycle and concurrency vectors live beside the production
 //! `PowerboxRegistry`; these registry cases guard the public method/event wire
@@ -328,32 +328,38 @@ pub(crate) fn powerbox_cases() -> Vec<super::runner::ConformanceCase> {
     vec![
         case!(
             "powerbox.public_method_identity_owner_typed_dto",
-            ["phase5", "protocol", "exposure", "binding", "contract"],
+            ["powerbox", "protocol", "exposure", "binding", "contract"],
             method_identity_owner_status_and_typed_dtos
         ),
         case!(
             "powerbox.public_method_actions_no_effect_on_denial",
-            ["phase5", "protocol", "authority", "permission", "no_effect"],
+            [
+                "powerbox",
+                "protocol",
+                "authority",
+                "permission",
+                "no_effect"
+            ],
             every_method_enforces_its_public_action_before_controller_effects
         ),
         case!(
             "powerbox.public_event_identity_payload",
-            ["phase5", "protocol", "event", "exposure", "binding"],
+            ["powerbox", "protocol", "event", "exposure", "binding"],
             event_identity_and_public_payload_schema
         ),
         case!(
             "powerbox.public_wire_no_private_authority",
-            ["phase5", "protocol", "authority", "privacy", "negative"],
+            ["powerbox", "protocol", "authority", "privacy", "negative"],
             public_contract_contains_no_private_authority_or_handle
         ),
         case!(
             "powerbox.candidates_effect_free_no_auto_select",
-            ["phase5", "protocol", "binding", "no_effect", "negative"],
+            ["powerbox", "protocol", "binding", "no_effect", "negative"],
             candidates_are_effect_free_and_never_encode_selection
         ),
         case!(
             "powerbox.launch_runtime_exact_run_pin",
-            ["phase5", "protocol", "binding", "run", "cas"],
+            ["powerbox", "protocol", "binding", "run", "cas"],
             launch_and_runtime_wire_pins_are_structurally_distinct
         ),
     ]

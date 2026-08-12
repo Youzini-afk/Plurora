@@ -27,26 +27,26 @@ const OPERATION_STEP_ID: &str = "execute";
 pub enum TargetOperationEffect {
     ArtifactMaterialize,
     ArtifactRelease,
-    DeploymentApply,
-    DeploymentObserve,
-    DeploymentDrain,
-    DeploymentStop,
+    WorkloadApply,
+    WorkloadObserve,
+    WorkloadDrain,
+    WorkloadStop,
     HealthProbe,
     VerifierRun,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq)]
 #[serde(deny_unknown_fields)]
-pub struct TargetDeploymentRef {
-    pub deployment_id: String,
+pub struct TargetWorkloadRef {
+    pub workload_id: String,
     pub route_id: String,
     pub port_lease_id: String,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq)]
 #[serde(deny_unknown_fields)]
-pub struct TargetDeploymentDescriptor {
-    pub deployment: TargetDeploymentRef,
+pub struct TargetWorkloadDescriptor {
+    pub workload: TargetWorkloadRef,
     pub port_name: String,
     pub image: String,
     pub container_port: u16,
@@ -91,18 +91,18 @@ pub enum TargetOperationSpec {
     ArtifactRelease {
         digest: String,
     },
-    DeploymentApply {
-        deployment: TargetDeploymentDescriptor,
+    WorkloadApply {
+        workload: TargetWorkloadDescriptor,
     },
-    DeploymentObserve {
-        deployment: TargetDeploymentRef,
+    WorkloadObserve {
+        workload: TargetWorkloadRef,
     },
-    DeploymentDrain {
-        deployment: TargetDeploymentRef,
+    WorkloadDrain {
+        workload: TargetWorkloadRef,
         grace_seconds: u16,
     },
-    DeploymentStop {
-        deployment: TargetDeploymentRef,
+    WorkloadStop {
+        workload: TargetWorkloadRef,
         grace_seconds: u16,
         #[serde(default)]
         force_remove: bool,
@@ -118,10 +118,10 @@ impl TargetOperationSpec {
         match self {
             Self::ArtifactMaterialize { .. } => TargetOperationEffect::ArtifactMaterialize,
             Self::ArtifactRelease { .. } => TargetOperationEffect::ArtifactRelease,
-            Self::DeploymentApply { .. } => TargetOperationEffect::DeploymentApply,
-            Self::DeploymentObserve { .. } => TargetOperationEffect::DeploymentObserve,
-            Self::DeploymentDrain { .. } => TargetOperationEffect::DeploymentDrain,
-            Self::DeploymentStop { .. } => TargetOperationEffect::DeploymentStop,
+            Self::WorkloadApply { .. } => TargetOperationEffect::WorkloadApply,
+            Self::WorkloadObserve { .. } => TargetOperationEffect::WorkloadObserve,
+            Self::WorkloadDrain { .. } => TargetOperationEffect::WorkloadDrain,
+            Self::WorkloadStop { .. } => TargetOperationEffect::WorkloadStop,
             Self::HealthProbe => TargetOperationEffect::HealthProbe,
             Self::VerifierRun { .. } => TargetOperationEffect::VerifierRun,
         }
@@ -132,10 +132,10 @@ impl TargetOperationSpec {
             Self::ArtifactMaterialize { digest, .. } | Self::ArtifactRelease { digest } => {
                 vec![digest.clone()]
             }
-            Self::DeploymentApply { .. }
-            | Self::DeploymentObserve { .. }
-            | Self::DeploymentDrain { .. }
-            | Self::DeploymentStop { .. }
+            Self::WorkloadApply { .. }
+            | Self::WorkloadObserve { .. }
+            | Self::WorkloadDrain { .. }
+            | Self::WorkloadStop { .. }
             | Self::HealthProbe => Vec::new(),
             Self::VerifierRun { verifier } => match verifier {
                 DeclarativeVerifierDescriptor::ArtifactIntegrity { digest, .. }
@@ -176,22 +176,22 @@ impl TargetOperationSpec {
             validate_sha256_digest(&digest)?;
         }
         match self {
-            Self::DeploymentApply { deployment } => validate_deployment_descriptor(deployment)?,
-            Self::DeploymentObserve { deployment } => validate_deployment_ref(deployment)?,
-            Self::DeploymentDrain {
-                deployment,
+            Self::WorkloadApply { workload } => validate_workload_descriptor(workload)?,
+            Self::WorkloadObserve { workload } => validate_workload_ref(workload)?,
+            Self::WorkloadDrain {
+                workload,
                 grace_seconds,
             }
-            | Self::DeploymentStop {
-                deployment,
+            | Self::WorkloadStop {
+                workload,
                 grace_seconds,
                 ..
             } => {
-                validate_deployment_ref(deployment)?;
+                validate_workload_ref(workload)?;
                 if *grace_seconds > 300 {
                     return Err(ServiceError::with_status(
                         StatusCode::BAD_REQUEST,
-                        "deployment grace_seconds must be <= 300",
+                        "workload grace_seconds must be <= 300",
                     ));
                 }
             }
@@ -459,8 +459,8 @@ impl TargetAgentRegistry {
             .operations
             .values()
             .filter(|operation| {
-                operation_deployment_ref(&operation.spec)
-                    .is_some_and(|deployment| deployment.route_id == route_id)
+                operation_workload_ref(&operation.spec)
+                    .is_some_and(|workload| workload.route_id == route_id)
             })
             .map(|operation| operation.installation_id.clone())
             .collect::<Vec<_>>();
@@ -1034,11 +1034,11 @@ fn validate_sha256_digest(digest: &str) -> Result<(), ServiceError> {
     }
 }
 
-fn validate_deployment_ref(deployment: &TargetDeploymentRef) -> Result<(), ServiceError> {
+fn validate_workload_ref(workload: &TargetWorkloadRef) -> Result<(), ServiceError> {
     if [
-        deployment.deployment_id.as_str(),
-        deployment.route_id.as_str(),
-        deployment.port_lease_id.as_str(),
+        workload.workload_id.as_str(),
+        workload.route_id.as_str(),
+        workload.port_lease_id.as_str(),
     ]
     .into_iter()
     .any(|value| {
@@ -1050,31 +1050,29 @@ fn validate_deployment_ref(deployment: &TargetDeploymentRef) -> Result<(), Servi
     }) {
         return Err(ServiceError::with_status(
             StatusCode::BAD_REQUEST,
-            "deployment identity fields must be label-safe ASCII",
+            "workload identity fields must be label-safe ASCII",
         ));
     }
     Ok(())
 }
 
-fn validate_deployment_descriptor(
-    deployment: &TargetDeploymentDescriptor,
-) -> Result<(), ServiceError> {
-    validate_deployment_ref(&deployment.deployment)?;
-    if deployment.port_name.is_empty()
-        || deployment.port_name.len() > 64
-        || !deployment
+fn validate_workload_descriptor(workload: &TargetWorkloadDescriptor) -> Result<(), ServiceError> {
+    validate_workload_ref(&workload.workload)?;
+    if workload.port_name.is_empty()
+        || workload.port_name.len() > 64
+        || !workload
             .port_name
             .bytes()
             .all(|byte| byte.is_ascii_alphanumeric() || b"-._".contains(&byte))
-        || !valid_deployment_image_reference(&deployment.image)
+        || !valid_workload_image_reference(&workload.image)
         || scan_effect_value_for_raw_secrets(
-            &json!({ "image": deployment.image.as_str() }),
+            &json!({ "image": workload.image.as_str() }),
             "operation.spec",
         )
         .has_findings()
-        || deployment.container_port == 0
-        || deployment.requested_host_port == Some(0)
-        || deployment.health_path.as_deref().is_some_and(|path| {
+        || workload.container_port == 0
+        || workload.requested_host_port == Some(0)
+        || workload.health_path.as_deref().is_some_and(|path| {
             !path.starts_with('/')
                 || path.starts_with("//")
                 || path.len() > 256
@@ -1084,13 +1082,13 @@ fn validate_deployment_descriptor(
     {
         return Err(ServiceError::with_status(
             StatusCode::BAD_REQUEST,
-            "deployment descriptor contains an invalid image, port, or port name",
+            "workload descriptor contains an invalid image, port, or port name",
         ));
     }
     Ok(())
 }
 
-fn valid_deployment_image_reference(image: &str) -> bool {
+fn valid_workload_image_reference(image: &str) -> bool {
     if image.is_empty()
         || image.len() > 512
         || image.contains("://")
@@ -1106,12 +1104,12 @@ fn valid_deployment_image_reference(image: &str) -> bool {
     !name.is_empty() && !name.contains('@') && is_sha256_digest(digest)
 }
 
-fn operation_deployment_ref(spec: &TargetOperationSpec) -> Option<&TargetDeploymentRef> {
+fn operation_workload_ref(spec: &TargetOperationSpec) -> Option<&TargetWorkloadRef> {
     match spec {
-        TargetOperationSpec::DeploymentApply { deployment } => Some(&deployment.deployment),
-        TargetOperationSpec::DeploymentObserve { deployment }
-        | TargetOperationSpec::DeploymentDrain { deployment, .. }
-        | TargetOperationSpec::DeploymentStop { deployment, .. } => Some(deployment),
+        TargetOperationSpec::WorkloadApply { workload } => Some(&workload.workload),
+        TargetOperationSpec::WorkloadObserve { workload }
+        | TargetOperationSpec::WorkloadDrain { workload, .. }
+        | TargetOperationSpec::WorkloadStop { workload, .. } => Some(workload),
         _ => None,
     }
 }
@@ -1158,10 +1156,10 @@ fn required_capabilities(spec: &TargetOperationSpec) -> &'static [ExecutionTarge
         | TargetOperationSpec::ArtifactRelease { .. } => {
             &[ExecutionTargetCapability::ArtifactTransfer]
         }
-        TargetOperationSpec::DeploymentApply { .. }
-        | TargetOperationSpec::DeploymentObserve { .. }
-        | TargetOperationSpec::DeploymentDrain { .. }
-        | TargetOperationSpec::DeploymentStop { .. } => &[ExecutionTargetCapability::Deployment],
+        TargetOperationSpec::WorkloadApply { .. }
+        | TargetOperationSpec::WorkloadObserve { .. }
+        | TargetOperationSpec::WorkloadDrain { .. }
+        | TargetOperationSpec::WorkloadStop { .. } => &[ExecutionTargetCapability::Workload],
         TargetOperationSpec::HealthProbe => &[ExecutionTargetCapability::HealthProbe],
         TargetOperationSpec::VerifierRun { .. } => &[
             ExecutionTargetCapability::ArtifactTransfer,
@@ -1170,7 +1168,7 @@ fn required_capabilities(spec: &TargetOperationSpec) -> &'static [ExecutionTarge
     }
 }
 
-async fn validate_deployment_topology<S>(
+async fn validate_workload_topology<S>(
     state: &AppState<S>,
     target_id: &str,
     request: &CreateTargetOperationRequest,
@@ -1178,16 +1176,14 @@ async fn validate_deployment_topology<S>(
 where
     S: EventStore,
 {
-    let Some(deployment) = operation_deployment_ref(&request.spec) else {
+    let Some(workload) = operation_workload_ref(&request.spec) else {
         return Ok(());
     };
     for owner in [
-        state
-            .build_jobs
-            .installation_for_route(&deployment.route_id),
+        state.build_jobs.installation_for_route(&workload.route_id),
         state
             .target_agents
-            .installation_for_operation_route(&deployment.route_id),
+            .installation_for_operation_route(&workload.route_id),
     ]
     .into_iter()
     .flatten()
@@ -1195,7 +1191,7 @@ where
         if owner != request.installation_id {
             return Err(ServiceError::with_status(
                 StatusCode::CONFLICT,
-                "deployment route is owned by another installation",
+                "workload route is owned by another installation",
             ));
         }
     }
@@ -1204,46 +1200,46 @@ where
         .runtime
         .config()
         .port_lease_registry
-        .status(&deployment.port_lease_id)
+        .status(&workload.port_lease_id)
         .await
         .ok_or_else(|| {
             ServiceError::with_status(
                 StatusCode::CONFLICT,
-                "deployment operation requires an existing target port lease",
+                "workload operation requires an existing target port lease",
             )
         })?;
     let route = state
         .runtime
         .config()
         .proxy_route_registry
-        .status(&deployment.route_id)
+        .status(&workload.route_id)
         .await
         .ok_or_else(|| {
             ServiceError::with_status(
                 StatusCode::CONFLICT,
-                "deployment operation requires an existing proxy route",
+                "workload operation requires an existing proxy route",
             )
         })?;
     if lease.target_id != target_id
         || lease.host != "127.0.0.1"
         || lease.bind != plurora_runtime::PortBindScope::LoopbackOnly
         || lease.protocol != plurora_runtime::PortProtocol::Tcp
-        || route.upstream.port_lease_id != deployment.port_lease_id
+        || route.upstream.port_lease_id != workload.port_lease_id
         || route.upstream.port_name != lease.port_name
     {
         return Err(ServiceError::with_status(
             StatusCode::CONFLICT,
-            "deployment route and port lease ownership do not match the target",
+            "workload route and port lease ownership do not match the target",
         ));
     }
-    if let TargetOperationSpec::DeploymentApply { deployment } = &request.spec {
+    if let TargetOperationSpec::WorkloadApply { workload } = &request.spec {
         if lease.status == plurora_runtime::PortLeaseStatusKind::Released
             || route.status == plurora_runtime::ProxyRouteStatusKind::Removed
-            || deployment.port_name != lease.port_name
+            || workload.port_name != lease.port_name
         {
             return Err(ServiceError::with_status(
                 StatusCode::CONFLICT,
-                "deployment apply requires a live matching route and port lease",
+                "workload apply requires a live matching route and port lease",
             ));
         }
     }
@@ -1506,7 +1502,7 @@ where
             "installation is not registered",
         ));
     }
-    validate_deployment_topology(state, target_id, &request).await?;
+    validate_workload_topology(state, target_id, &request).await?;
     sync_target_agent_journal(
         state.runtime.store().as_ref(),
         state.target_agents.as_ref(),
@@ -1544,18 +1540,18 @@ where
     if driver == TargetDriverKind::Local
         && matches!(
             &request.spec,
-            TargetOperationSpec::DeploymentApply { .. }
-                | TargetOperationSpec::DeploymentObserve { .. }
-                | TargetOperationSpec::DeploymentDrain { .. }
-                | TargetOperationSpec::DeploymentStop { .. }
+            TargetOperationSpec::WorkloadApply { .. }
+                | TargetOperationSpec::WorkloadObserve { .. }
+                | TargetOperationSpec::WorkloadDrain { .. }
+                | TargetOperationSpec::WorkloadStop { .. }
         )
-        && plurora_runtime::validate_managed_target_deployment_runtime()
+        && plurora_runtime::validate_managed_target_workload_runtime()
             .await
             .is_err()
     {
         return Err(ServiceError::with_status(
             StatusCode::CONFLICT,
-            "local target deployment runtime is unavailable",
+            "local target workload runtime is unavailable",
         ));
     }
 
@@ -1973,7 +1969,7 @@ where
         .map_err(target_internal_error)?
         .is_some()
         {
-            installation_deployment_operation(&state, &next)
+            installation_workload_operation(&state, &next)
                 .await
                 .map_err(target_internal_error)?;
             return Ok(Json(next));
@@ -2333,10 +2329,10 @@ where
         .await
     {
         Ok(output) => (TargetOperationReceiptStatus::Succeeded, output, Vec::new()),
-        Err(error) if plurora_runtime::is_managed_target_deployment_outcome_unknown(&error) => (
+        Err(error) if plurora_runtime::is_managed_target_workload_outcome_unknown(&error) => (
             TargetOperationReceiptStatus::OutcomeUnknown,
             Value::Null,
-            vec!["local target deployment outcome is unknown".to_string()],
+            vec!["local target workload outcome is unknown".to_string()],
         ),
         Err(_) => (
             TargetOperationReceiptStatus::Failed,
@@ -2498,48 +2494,48 @@ where
             "released": false,
             "retained_by_host": true
         })),
-        TargetOperationSpec::DeploymentApply { deployment } => {
-            let reference = &deployment.deployment;
+        TargetOperationSpec::WorkloadApply { workload } => {
+            let reference = &workload.workload;
             execution_fence.ensure_current(state).await?;
-            let applied = plurora_runtime::apply_managed_target_deployment(
-                &plurora_runtime::ManagedTargetDeploymentApply {
+            let applied = plurora_runtime::apply_managed_target_workload(
+                &plurora_runtime::ManagedTargetWorkloadApply {
                     target_id: operation.target_id.clone(),
                     installation_id: operation.installation_id.clone(),
-                    deployment_id: reference.deployment_id.clone(),
+                    workload_id: reference.workload_id.clone(),
                     route_id: reference.route_id.clone(),
                     port_lease_id: reference.port_lease_id.clone(),
-                    port_name: deployment.port_name.clone(),
-                    image: deployment.image.clone(),
-                    container_port: deployment.container_port,
-                    requested_host_port: deployment.requested_host_port,
-                    pull_if_missing: deployment.pull_if_missing,
+                    port_name: workload.port_name.clone(),
+                    image: workload.image.clone(),
+                    container_port: workload.container_port,
+                    requested_host_port: workload.requested_host_port,
+                    pull_if_missing: workload.pull_if_missing,
                     operation_id: operation.operation_id.clone(),
                 },
                 &runtime_guard,
             )
             .await?;
             execution_fence.ensure_current(state).await?;
-            if let Err(error) = plurora_runtime::wait_for_managed_target_deployment_readiness(
+            if let Err(error) = plurora_runtime::wait_for_managed_target_workload_readiness(
                 &applied,
-                deployment.health_path.as_deref(),
+                workload.health_path.as_deref(),
                 &runtime_guard,
             )
             .await
             {
                 if execution_fence.ensure_current(state).await.is_err() {
-                    return Err(plurora_runtime::managed_target_deployment_outcome_unknown(
+                    return Err(plurora_runtime::managed_target_workload_outcome_unknown(
                         "candidate readiness after executor fencing",
                     ));
                 }
-                let cleanup = plurora_runtime::stop_managed_target_deployment(
-                    &managed_deployment_ref(operation, &deployment.deployment),
+                let cleanup = plurora_runtime::stop_managed_target_workload(
+                    &managed_workload_ref(operation, &workload.workload),
                     0,
                     true,
                     &runtime_guard,
                 )
                 .await;
                 if cleanup.is_err() {
-                    return Err(plurora_runtime::managed_target_deployment_outcome_unknown(
+                    return Err(plurora_runtime::managed_target_workload_outcome_unknown(
                         "candidate readiness cleanup",
                     ));
                 }
@@ -2547,38 +2543,38 @@ where
             }
             Ok(serde_json::to_value(applied)?)
         }
-        TargetOperationSpec::DeploymentObserve { deployment } => {
+        TargetOperationSpec::WorkloadObserve { workload } => {
             execution_fence.ensure_current(state).await?;
-            let observed = plurora_runtime::observe_managed_target_deployment(
-                &managed_deployment_ref(operation, deployment),
+            let observed = plurora_runtime::observe_managed_target_workload(
+                &managed_workload_ref(operation, workload),
                 &runtime_guard,
             )
             .await?;
-            Ok(json!({ "deployment": observed }))
+            Ok(json!({ "workload": observed }))
         }
-        TargetOperationSpec::DeploymentDrain {
-            deployment,
+        TargetOperationSpec::WorkloadDrain {
+            workload,
             grace_seconds,
         } => {
             execution_fence.ensure_current(state).await?;
             Ok(serde_json::to_value(
-                plurora_runtime::drain_managed_target_deployment(
-                    &managed_deployment_ref(operation, deployment),
+                plurora_runtime::drain_managed_target_workload(
+                    &managed_workload_ref(operation, workload),
                     *grace_seconds,
                     &runtime_guard,
                 )
                 .await?,
             )?)
         }
-        TargetOperationSpec::DeploymentStop {
-            deployment,
+        TargetOperationSpec::WorkloadStop {
+            workload,
             grace_seconds,
             force_remove,
         } => {
             execution_fence.ensure_current(state).await?;
             Ok(serde_json::to_value(
-                plurora_runtime::stop_managed_target_deployment(
-                    &managed_deployment_ref(operation, deployment),
+                plurora_runtime::stop_managed_target_workload(
+                    &managed_workload_ref(operation, workload),
                     *grace_seconds,
                     *force_remove,
                     &runtime_guard,
@@ -2653,20 +2649,20 @@ where
     }
 }
 
-fn managed_deployment_ref(
+fn managed_workload_ref(
     operation: &TargetOperationRecord,
-    deployment: &TargetDeploymentRef,
-) -> plurora_runtime::ManagedTargetDeploymentRef {
-    plurora_runtime::ManagedTargetDeploymentRef {
+    workload: &TargetWorkloadRef,
+) -> plurora_runtime::ManagedTargetWorkloadRef {
+    plurora_runtime::ManagedTargetWorkloadRef {
         target_id: operation.target_id.clone(),
         installation_id: operation.installation_id.clone(),
-        deployment_id: deployment.deployment_id.clone(),
-        route_id: deployment.route_id.clone(),
-        port_lease_id: deployment.port_lease_id.clone(),
+        workload_id: workload.workload_id.clone(),
+        route_id: workload.route_id.clone(),
+        port_lease_id: workload.port_lease_id.clone(),
     }
 }
 
-async fn installation_deployment_operation<S>(
+async fn installation_workload_operation<S>(
     state: &AppState<S>,
     operation: &TargetOperationRecord,
 ) -> anyhow::Result<bool>
@@ -2689,19 +2685,19 @@ where
         return Ok(false);
     };
     match &operation.spec {
-        TargetOperationSpec::DeploymentApply { deployment } => {
-            installation_running_deployment(
+        TargetOperationSpec::WorkloadApply { workload } => {
+            installation_running_workload(
                 state,
                 operation,
-                &deployment.deployment,
-                &deployment.port_name,
+                &workload.workload,
+                &workload.port_name,
                 &receipt.output,
             )
             .await?;
         }
-        TargetOperationSpec::DeploymentObserve { deployment } => {
-            let Some(observation) = receipt.output.get("deployment") else {
-                anyhow::bail!("deployment observation receipt has no deployment field");
+        TargetOperationSpec::WorkloadObserve { workload } => {
+            let Some(observation) = receipt.output.get("workload") else {
+                anyhow::bail!("workload observation receipt has no workload field");
             };
             if observation.is_null()
                 || !observation
@@ -2709,31 +2705,31 @@ where
                     .and_then(Value::as_bool)
                     .unwrap_or(false)
             {
-                installation_stopped_deployment(state, deployment).await?;
+                installation_stopped_workload(state, workload).await?;
             } else {
-                let lease = required_deployment_lease(state, deployment).await?;
-                installation_running_deployment(
+                let lease = required_workload_lease(state, workload).await?;
+                installation_running_workload(
                     state,
                     operation,
-                    deployment,
+                    workload,
                     &lease.port_name,
                     observation,
                 )
                 .await?;
             }
         }
-        TargetOperationSpec::DeploymentDrain { deployment, .. }
-        | TargetOperationSpec::DeploymentStop { deployment, .. } => {
-            installation_stopped_deployment(state, deployment).await?;
+        TargetOperationSpec::WorkloadDrain { workload, .. }
+        | TargetOperationSpec::WorkloadStop { workload, .. } => {
+            installation_stopped_workload(state, workload).await?;
         }
         _ => return Ok(false),
     }
     Ok(true)
 }
 
-async fn required_deployment_lease<S>(
+async fn required_workload_lease<S>(
     state: &AppState<S>,
-    deployment: &TargetDeploymentRef,
+    workload: &TargetWorkloadRef,
 ) -> anyhow::Result<plurora_runtime::PortLeaseRecord>
 where
     S: EventStore,
@@ -2742,15 +2738,15 @@ where
         .runtime
         .config()
         .port_lease_registry
-        .status(&deployment.port_lease_id)
+        .status(&workload.port_lease_id)
         .await
-        .context("target deployment port lease disappeared")
+        .context("target workload port lease disappeared")
 }
 
-async fn installation_running_deployment<S>(
+async fn installation_running_workload<S>(
     state: &AppState<S>,
     operation: &TargetOperationRecord,
-    deployment: &TargetDeploymentRef,
+    workload: &TargetWorkloadRef,
     port_name: &str,
     observation: &Value,
 ) -> anyhow::Result<()>
@@ -2760,23 +2756,23 @@ where
     anyhow::ensure!(
         observation.get("bind_host").and_then(Value::as_str) == Some("127.0.0.1")
             && observation.get("running").and_then(Value::as_bool) == Some(true),
-        "target deployment receipt is not a running loopback observation"
+        "target workload receipt is not a running loopback observation"
     );
     let host_port = observation
         .get("host_port")
         .and_then(Value::as_u64)
         .and_then(|port| u16::try_from(port).ok())
         .filter(|port| *port > 0)
-        .context("target deployment receipt has no actual host port")?;
-    let lease = required_deployment_lease(state, deployment).await?;
+        .context("target workload receipt has no actual host port")?;
+    let lease = required_workload_lease(state, workload).await?;
     let route = state
         .runtime
         .config()
         .proxy_route_registry
-        .status(&deployment.route_id)
+        .status(&workload.route_id)
         .await
-        .context("target deployment proxy route disappeared")?;
-    if route.upstream.port_lease_id != deployment.port_lease_id {
+        .context("target workload proxy route disappeared")?;
+    if route.upstream.port_lease_id != workload.port_lease_id {
         // A later candidate may have atomically moved the durable route to a
         // different lease. Historical receipts must not move it back.
         return Ok(());
@@ -2788,7 +2784,7 @@ where
             && lease.bind == plurora_runtime::PortBindScope::LoopbackOnly
             && lease.protocol == plurora_runtime::PortProtocol::Tcp
             && route.upstream.port_name == port_name,
-        "target deployment receipt conflicts with its Host route or lease"
+        "target workload receipt conflicts with its Host route or lease"
     );
     if lease.status == plurora_runtime::PortLeaseStatusKind::Released
         || route.status == plurora_runtime::ProxyRouteStatusKind::Removed
@@ -2800,13 +2796,13 @@ where
         .config()
         .port_lease_registry
         .bind_actual_port(
-            &deployment.port_lease_id,
+            &workload.port_lease_id,
             &operation.target_id,
             port_name,
             host_port,
         )
         .await
-        .context("target deployment actual port could not bind its Host lease")?;
+        .context("target workload actual port could not bind its Host lease")?;
     let target_available = state
         .runtime
         .config()
@@ -2816,13 +2812,13 @@ where
         .is_some_and(|target| target.status == ExecutionTargetStatusKind::Available);
     for alias in state.runtime.config().proxy_route_registry.list().await {
         if alias.status == plurora_runtime::ProxyRouteStatusKind::Removed
-            || alias.upstream.port_lease_id != deployment.port_lease_id
+            || alias.upstream.port_lease_id != workload.port_lease_id
         {
             continue;
         }
         anyhow::ensure!(
             alias.upstream.port_name == port_name,
-            "target deployment route alias conflicts with its Host lease"
+            "target workload route alias conflicts with its Host lease"
         );
         state
             .runtime
@@ -2830,27 +2826,27 @@ where
             .proxy_route_registry
             .set_status(&alias.id, plurora_runtime::ProxyRouteStatusKind::Active)
             .await
-            .context("target deployment route alias disappeared during promotion")?;
+            .context("target workload route alias disappeared during promotion")?;
         state
             .runtime
             .config()
             .proxy_route_registry
-            .set_ready_if_active_with_lease(&alias.id, &deployment.port_lease_id, target_available)
+            .set_ready_if_active_with_lease(&alias.id, &workload.port_lease_id, target_available)
             .await
-            .context("target deployment route alias changed during promotion")?;
+            .context("target workload route alias changed during promotion")?;
     }
     Ok(())
 }
 
-async fn installation_stopped_deployment<S>(
+async fn installation_stopped_workload<S>(
     state: &AppState<S>,
-    deployment: &TargetDeploymentRef,
+    workload: &TargetWorkloadRef,
 ) -> anyhow::Result<()>
 where
     S: EventStore,
 {
     for route in state.runtime.config().proxy_route_registry.list().await {
-        if route.upstream.port_lease_id == deployment.port_lease_id
+        if route.upstream.port_lease_id == workload.port_lease_id
             && route.status != plurora_runtime::ProxyRouteStatusKind::Removed
         {
             let _ = state
@@ -2871,7 +2867,7 @@ where
         .runtime
         .config()
         .port_lease_registry
-        .status(&deployment.port_lease_id)
+        .status(&workload.port_lease_id)
         .await
     {
         if lease.status != plurora_runtime::PortLeaseStatusKind::Released {
@@ -2880,7 +2876,7 @@ where
                 .config()
                 .port_lease_registry
                 .set_status(
-                    &deployment.port_lease_id,
+                    &workload.port_lease_id,
                     plurora_runtime::PortLeaseStatusKind::Reserved,
                 )
                 .await;
@@ -2889,7 +2885,7 @@ where
     Ok(())
 }
 
-pub(super) async fn reconcile_target_deployment_projections<S>(
+pub(super) async fn reconcile_target_workload_projections<S>(
     state: &AppState<S>,
     target_id: &str,
 ) -> anyhow::Result<usize>
@@ -2901,14 +2897,14 @@ where
         .target_agents
         .terminal_operations_for_target(target_id)
     {
-        if installation_deployment_operation(state, &operation).await? {
+        if installation_workload_operation(state, &operation).await? {
             projected = projected.saturating_add(1);
         }
     }
     Ok(projected)
 }
 
-pub(super) async fn reconcile_all_target_deployment_projections<S>(
+pub(super) async fn reconcile_all_target_workload_projections<S>(
     state: &AppState<S>,
 ) -> anyhow::Result<usize>
 where
@@ -2917,12 +2913,12 @@ where
     let mut projected = 0usize;
     for target_id in state.target_agents.operation_target_ids() {
         projected = projected
-            .saturating_add(reconcile_target_deployment_projections(state, &target_id).await?);
+            .saturating_add(reconcile_target_workload_projections(state, &target_id).await?);
     }
     Ok(projected)
 }
 
-pub(super) async fn mark_target_deployment_routes_unready<S>(
+pub(super) async fn mark_target_workload_routes_unready<S>(
     state: &AppState<S>,
     target_id: &str,
 ) -> usize
@@ -3012,7 +3008,7 @@ where
         .is_some()
         {
             execution_fence.host_lease.ensure_durable_owner().await?;
-            installation_deployment_operation(state, &next).await?;
+            installation_workload_operation(state, &next).await?;
             return Ok(next);
         }
     }
@@ -3371,7 +3367,7 @@ mod tests {
             static_dir: None,
             access_token: None,
             app_base_domain: None,
-            build_jobs: Arc::new(crate::BuildDeployJobRegistry::default()),
+            build_jobs: Arc::new(crate::BuildWorkloadJobRegistry::default()),
             development: crate::development_registry(),
             host_access: crate::host_access_registry(),
             installations,
@@ -4198,7 +4194,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn deployment_receipt_installations_actual_port_and_route_readiness() -> anyhow::Result<()>
+    async fn workload_receipt_installations_actual_port_and_route_readiness() -> anyhow::Result<()>
     {
         let store = Arc::new(InMemoryEventStore::default());
         let objects = Arc::new(plurora_runtime::InMemoryObjectStore::default());
@@ -4216,7 +4212,7 @@ mod tests {
             static_dir: None,
             access_token: None,
             app_base_domain: None,
-            build_jobs: Arc::new(crate::BuildDeployJobRegistry::default()),
+            build_jobs: Arc::new(crate::BuildWorkloadJobRegistry::default()),
             development: crate::development_registry(),
             host_access: crate::host_access_registry(),
             installations,
@@ -4259,9 +4255,9 @@ mod tests {
                 access: plurora_runtime::ProxyRouteAccess::Public,
             })
             .await;
-        let deployment = TargetDeploymentDescriptor {
-            deployment: TargetDeploymentRef {
-                deployment_id: "deployment-1".to_string(),
+        let workload = TargetWorkloadDescriptor {
+            workload: TargetWorkloadRef {
+                workload_id: "workload-1".to_string(),
                 route_id: "route-1".to_string(),
                 port_lease_id: lease.id.clone(),
             },
@@ -4274,16 +4270,16 @@ mod tests {
         };
         let create = CreateTargetOperationRequest {
             installation_id: InstallationId::parse("11111111-1111-4111-8111-111111111111")?,
-            spec: TargetOperationSpec::DeploymentApply {
-                deployment: deployment.clone(),
+            spec: TargetOperationSpec::WorkloadApply {
+                workload: workload.clone(),
             },
             idempotency_key: None,
             expires_in_seconds: Some(120),
         };
-        assert!(validate_deployment_topology(&state, "local", &create)
+        assert!(validate_workload_topology(&state, "local", &create)
             .await
             .is_ok());
-        assert!(validate_deployment_topology(&state, "remote-1", &create)
+        assert!(validate_workload_topology(&state, "remote-1", &create)
             .await
             .is_err());
 
@@ -4301,7 +4297,7 @@ mod tests {
                 operation_id: "operation-1".to_string(),
                 step_id: OPERATION_STEP_ID.to_string(),
                 installation_id: InstallationId::parse("11111111-1111-4111-8111-111111111111")?,
-                effect: TargetOperationEffect::DeploymentApply,
+                effect: TargetOperationEffect::WorkloadApply,
                 artifact_digests: Vec::new(),
                 lease_epoch: 1,
                 policy_epoch: 1,
@@ -4331,7 +4327,7 @@ mod tests {
             created_at_ms: now_ms,
             updated_at_ms: now_ms,
         };
-        assert!(installation_deployment_operation(&state, &operation).await?);
+        assert!(installation_workload_operation(&state, &operation).await?);
         assert_eq!(
             runtime
                 .config()
@@ -4354,12 +4350,12 @@ mod tests {
             .await
             .is_some_and(|route| route.ready));
 
-        operation.spec = TargetOperationSpec::DeploymentDrain {
-            deployment: deployment.deployment,
+        operation.spec = TargetOperationSpec::WorkloadDrain {
+            workload: workload.workload,
             grace_seconds: 10,
         };
-        operation.authority.effect = TargetOperationEffect::DeploymentDrain;
-        assert!(installation_deployment_operation(&state, &operation).await?);
+        operation.authority.effect = TargetOperationEffect::WorkloadDrain;
+        assert!(installation_workload_operation(&state, &operation).await?);
         assert_eq!(
             runtime
                 .config()
@@ -4401,9 +4397,9 @@ mod tests {
             state.runtime.config().target_registry.as_ref(),
             "remote-1".to_string(),
             CreateTargetEnrollmentRequest {
-                display_name: "remote deployment target".to_string(),
+                display_name: "remote workload target".to_string(),
                 reachability: ExecutionTargetReachability::ReverseTunnel,
-                allowed_capabilities: vec![ExecutionTargetCapability::Deployment],
+                allowed_capabilities: vec![ExecutionTargetCapability::Workload],
                 labels: BTreeMap::new(),
                 expires_in_seconds: Some(120),
             },
@@ -4450,9 +4446,9 @@ mod tests {
                 access: plurora_runtime::ProxyRouteAccess::HostAuthenticated,
             })
             .await;
-        let deployment = TargetDeploymentDescriptor {
-            deployment: TargetDeploymentRef {
-                deployment_id: "deployment-replay".to_string(),
+        let workload = TargetWorkloadDescriptor {
+            workload: TargetWorkloadRef {
+                workload_id: "workload-replay".to_string(),
                 route_id: "route-replay".to_string(),
                 port_lease_id: lease.id.clone(),
             },
@@ -4476,8 +4472,8 @@ mod tests {
             target.clone(),
             CreateTargetOperationRequest {
                 installation_id: installation_id.clone(),
-                spec: TargetOperationSpec::DeploymentApply {
-                    deployment: deployment.clone(),
+                spec: TargetOperationSpec::WorkloadApply {
+                    workload: workload.clone(),
                 },
                 idempotency_key: Some("projection-apply".to_string()),
                 expires_in_seconds: Some(120),
@@ -4549,8 +4545,8 @@ mod tests {
             target.clone(),
             CreateTargetOperationRequest {
                 installation_id,
-                spec: TargetOperationSpec::DeploymentStop {
-                    deployment: deployment.deployment.clone(),
+                spec: TargetOperationSpec::WorkloadStop {
+                    workload: workload.workload.clone(),
                     grace_seconds: 0,
                     force_remove: true,
                 },
@@ -4789,7 +4785,7 @@ mod tests {
             installations: state.installations.clone(),
             target_agents: restored_registry,
         };
-        reconcile_target_deployment_projections(&restored_state, "remote-1").await?;
+        reconcile_target_workload_projections(&restored_state, "remote-1").await?;
         assert!(restored_state
             .runtime
             .config()
@@ -4803,12 +4799,12 @@ mod tests {
     }
 
     #[test]
-    fn deployment_operation_binds_ownership_and_rejects_unknown_fields() -> anyhow::Result<()> {
+    fn workload_operation_binds_ownership_and_rejects_unknown_fields() -> anyhow::Result<()> {
         let installation_id = InstallationId::parse("11111111-1111-4111-8111-111111111111")?;
-        let spec = TargetOperationSpec::DeploymentApply {
-            deployment: TargetDeploymentDescriptor {
-                deployment: TargetDeploymentRef {
-                    deployment_id: "deployment-1".to_string(),
+        let spec = TargetOperationSpec::WorkloadApply {
+            workload: TargetWorkloadDescriptor {
+                workload: TargetWorkloadRef {
+                    workload_id: "workload-1".to_string(),
                     route_id: "route-1".to_string(),
                     port_lease_id: "lease-1".to_string(),
                 },
@@ -4821,23 +4817,23 @@ mod tests {
             },
         };
         assert!(spec.validate().is_ok());
-        assert_eq!(spec.effect(), TargetOperationEffect::DeploymentApply);
+        assert_eq!(spec.effect(), TargetOperationEffect::WorkloadApply);
         assert!(spec.artifact_digests().is_empty());
 
         let mut changed = spec.clone();
-        let TargetOperationSpec::DeploymentApply { deployment } = &mut changed else {
+        let TargetOperationSpec::WorkloadApply { workload } = &mut changed else {
             unreachable!()
         };
-        deployment.deployment.route_id = "route-2".to_string();
+        workload.workload.route_id = "route-2".to_string();
         assert_ne!(
             operation_request_digest("remote-1", &installation_id, &spec)?,
             operation_request_digest("remote-1", &installation_id, &changed)?
         );
 
         assert!(serde_json::from_value::<TargetOperationSpec>(json!({
-            "kind": "deployment_stop",
-            "deployment": {
-                "deployment_id": "deployment-1",
+            "kind": "workload_stop",
+            "workload": {
+                "workload_id": "workload-1",
                 "route_id": "route-1",
                 "port_lease_id": "lease-1"
             },
@@ -4847,10 +4843,10 @@ mod tests {
         }))
         .is_err());
         let mut raw_secret_spec = spec.clone();
-        let TargetOperationSpec::DeploymentApply { deployment } = &mut raw_secret_spec else {
+        let TargetOperationSpec::WorkloadApply { workload } = &mut raw_secret_spec else {
             unreachable!()
         };
-        deployment.image = "sk-Abcdefghijklmnopqrstuvwxyz123456".to_string();
+        workload.image = "sk-Abcdefghijklmnopqrstuvwxyz123456".to_string();
         assert!(validate_create_request(
             "remote-1",
             &CreateTargetOperationRequest {
@@ -4915,7 +4911,7 @@ mod tests {
         else {
             unreachable!()
         };
-        *disposition = plurora_runtime::ManagedTargetImageDisposition::RetainForDeployment;
+        *disposition = plurora_runtime::ManagedTargetImageDisposition::RetainForWorkload;
         assert_ne!(
             operation_request_digest("remote-1", &installation_id, &spec)?,
             operation_request_digest("remote-1", &installation_id, &changed_disposition)?

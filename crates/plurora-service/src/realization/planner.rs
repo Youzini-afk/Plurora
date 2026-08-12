@@ -132,7 +132,7 @@ pub(super) fn target_inventory(target: &ExecutionTarget) -> TargetInventorySnaps
         .collect::<Vec<_>>();
     if target
         .capabilities
-        .contains(&ExecutionTargetCapability::Deployment)
+        .contains(&ExecutionTargetCapability::Workload)
     {
         for execution_class in ["oci-container.v1", "docker-build.v1"] {
             capabilities.push(TargetCapabilityRecord {
@@ -191,7 +191,7 @@ fn execution_target_capability_id(capability: ExecutionTargetCapability) -> &'st
         ExecutionTargetCapability::ArtifactTransfer => "plurora.target/artifact-transfer",
         ExecutionTargetCapability::DeclarativeVerifier => "plurora.target/declarative-verifier",
         ExecutionTargetCapability::HealthProbe => "plurora.target/health-probe",
-        ExecutionTargetCapability::Deployment => "plurora.target/managed-workload",
+        ExecutionTargetCapability::Workload => "plurora.target/managed-workload",
         ExecutionTargetCapability::AuthenticatedTunnel => "plurora.target/authenticated-tunnel",
     }
 }

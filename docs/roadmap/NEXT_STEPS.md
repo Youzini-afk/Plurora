@@ -6,7 +6,7 @@ Plurora 的下一步不是围绕某个单一产品、示例或工作流扩张，
 
 这些方向并行推进，不用阶段编号制造虚假的线性顺序。每一项具体工作都应落在清楚的用户生命周期、架构层和长期责任中。
 
-当前已完成这条候选主线的 Work、Assembly、Installation、Run、Exposure/Binding 与 Target-compiled Realization 基础。下一项边界是 Foreign Work、Rights/Transparency、闭源入口与 opaque-state backup。具体破坏性模型、公开合同重置、Codex 执行规则、分阶段提交和最终验收见 [`WORK_ASSEMBLY_REALIZATION.md`](WORK_ASSEMBLY_REALIZATION.md)。该文件是开发期临时实施计划，不自动成为 Stable 平台本体；Phase 9 完成后删除并把长期结论归入正式文档。
+Work、Assembly、Installation、Run、Exposure/Binding、Target-compiled Realization、Foreign Work、Rights/Transparency、opaque-state backup 与模块化创作闭环已经形成一条可运行主线。当前优先级转向官方产品生命周期、创作者连续路径、WASM/remote component 的真实执行边界，以及长期数据治理；已经完成的一次性实施分期只保留在 Git 历史中。
 
 ## 当前最重要的工作
 
@@ -35,7 +35,7 @@ Plurora 的下一步不是围绕某个单一产品、示例或工作流扩张，
 → 修改内容、Assembly、组件或协议
 → 人类 / AI 辅助
 → 调试与测试
-→ 打包、分享、部署
+→ 打包、分享、Realization
 → 更新与迁移
 ```
 
@@ -45,7 +45,7 @@ Plurora 的下一步不是围绕某个单一产品、示例或工作流扩张，
 - TypeScript、Rust 与未来 WASM SDK 的一致体验；
 - 本地开发模式、热更新、source map、日志和错误定位；
 - 可视化查看 authority、protocol binding、effect 和 artifact provenance；
-- composition 与依赖冲突的可理解诊断；
+- Assembly 组合与依赖冲突的可理解诊断；
 - AI 工具通过普通能力、明确作用域和可审阅变更工作，而不是获得通用 root shell；
 - 从本地作品到可分享工件的稳定打包路径。
 

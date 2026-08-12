@@ -197,7 +197,7 @@ mode for legibility on bark backgrounds.
 | Settings — Storage | storage-area summary + event store kind |
 | Settings — Host Access | `/host/v1/access*` identity, pairing, grant, and revoke APIs |
 | Installation tab | `host.installation.get` + `host.run.get/status`; Run controls use explicit `host.run.*` |
-| Powerbox | `host.exposure.*` + `host.binding.*` (Phase 5 public chooser) |
+| Powerbox | `host.exposure.*` + `host.binding.*` public chooser |
 | Realization | `host.realization.plan/apply/get/list/stop/rollback/reconcile`; shown only when Work declares OperationalIntent |
 | Install Modal | `host.installation.create` with a typed Installation DTO |
 | Failure Modal | `host.package.list/status/logs` redacted failure summaries |
@@ -237,8 +237,8 @@ starting a Run, or selecting a Binding as implicit apply/stop.
 
 Local Docker and enrolled Target Agents execute through the same typed Host
 Realization contract. Raw Target/exec/port/proxy adapters are not surfaced as a
-second lifecycle, and the retired deploy/build-deploy/Installation-deployment
-routes have no Web fallback.
+second lifecycle, and the shell has no fallback managed-resource path outside
+`host.realization.*`.
 
 ### Powerbox chooser
 
@@ -248,7 +248,7 @@ provider Work/Installation source, Component trust/claims/boundaries/evidence,
 and candidate digest/stale state. Zero or multiple candidates require an
 explicit user or policy choice; preferences are ordering hints only. The shell
 never displays runtime handles, credentials, or private intent, and it never
-implicitly deploys or rebinds. Candidate visibility is bounded at 256 with a
+implicitly applies or rebinds. Candidate visibility is bounded at 256 with a
 structured overflow diagnostic.
 
 `host.exposure.create|revoke` and `host.binding.select|revoke` use typed public

@@ -1129,7 +1129,7 @@ export function runAgenticForgeSelfTest(): SelfTestResult {
   assert(INFERENCE_FAILURE_KINDS.length === 9, "9 inference failure kinds");
 
   // Run inference node — deterministic → candidate_seed
-  const infResult = runInferenceNode("run_inf", "node_1", "deterministic", "analyze composition");
+  const infResult = runInferenceNode("run_inf", "node_1", "deterministic", "analyze assembly");
   assert(infResult.kind === "agentic_forge_inference_node_result", "inference node result kind");
   assert(infResult.node_result.output_action === "candidate_seed", "deterministic → candidate_seed");
   assert(infResult.node_result.target_branch_unchanged === true, "inference: target unchanged");

@@ -1,4 +1,4 @@
-//! Phase 6 public Realization contract vectors.
+//! Public Realization contract vectors.
 //!
 //! Stateful planner/executor/recovery tests live with the production service
 //! registry. These cases lock the public method, event, authority, approval,
@@ -287,33 +287,27 @@ pub(crate) fn realization_cases() -> Vec<super::runner::ConformanceCase> {
     vec![
         case!(
             "realization.public_method_identity_owner_typed_dto",
-            ["phase6", "protocol", "realization", "contract"],
+            ["realization", "protocol", "contract"],
             method_identity_owner_status_and_typed_dtos
         ),
         case!(
             "realization.public_actions_no_effect_on_denial",
-            [
-                "phase6",
-                "protocol",
-                "realization",
-                "authority",
-                "no_effect"
-            ],
+            ["protocol", "realization", "authority", "no_effect"],
             methods_fail_before_controller_without_public_action
         ),
         case!(
             "realization.public_event_identity_payload",
-            ["phase6", "protocol", "realization", "event"],
+            ["realization", "protocol", "event"],
             event_identity_and_public_payload_schema
         ),
         case!(
             "realization.plan_effect_free_apply_exact_approval",
-            ["phase6", "realization", "plan", "approval", "no_effect"],
+            ["realization", "plan", "approval", "no_effect"],
             plan_is_effect_free_and_apply_binds_exact_approval
         ),
         case!(
             "realization.rollback_persisted_plan_no_workspace",
-            ["phase6", "realization", "rollback", "replay", "negative"],
+            ["realization", "rollback", "replay", "negative"],
             rollback_wire_replays_persisted_plan_without_workspace
         ),
     ]

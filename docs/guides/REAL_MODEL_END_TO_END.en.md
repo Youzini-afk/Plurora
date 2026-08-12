@@ -24,7 +24,7 @@ Host executor resolves secret at the last moment
 terminal EffectReceipt + redacted audit
 ```
 
-Web Installation detail does not automatically create a Run. Real calls must run inside the context created by an explicit successful `host.run.start`, which activates only an installed, verified, uniquely matching local implementation. Missing, ambiguous, unsupported-backend, or machine-resource requirements return structured gaps instead of implicit build/deploy. Closing a tab does not stop the Run; explicit `host.run.stop` stops only that Run.
+Web Installation detail does not automatically create a Run. Real calls must run inside the context created by an explicit successful `host.run.start`, which activates only an installed, verified, uniquely matching local implementation. Missing, ambiguous, unsupported-backend, or machine-resource requirements return structured gaps instead of implicit build/apply. Closing a tab does not stop the Run; explicit `host.run.stop` stops only that Run.
 
 ## Configure secrets
 

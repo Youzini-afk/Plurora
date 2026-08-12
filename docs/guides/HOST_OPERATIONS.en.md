@@ -8,7 +8,7 @@ This runbook covers the current operational baseline for a local SQLite Host. Po
 
 - `GET /livez`: process and HTTP-reactor liveness with body `ok`.
 - `GET /health` and `GET /healthz`: compatibility liveness aliases.
-- `GET /readyz`: public, redacted structured readiness. An event-store or Host control-plane lease failure returns HTTP 503. If the Host can accept control requests but a durable deployment is unhealthy, it returns HTTP 200 with `status: "degraded"`.
+- `GET /readyz`: public, redacted structured readiness. An event-store or Host control-plane lease failure returns HTTP 503. If the Host can accept control requests but a durable Realization is unhealthy, it returns HTTP 200 with `status: "degraded"`.
 
 Do not use liveness to decide whether mutations are safe. Orchestrators should use the `/readyz` HTTP status and `ready` field.
 
@@ -39,7 +39,7 @@ plurora host restore \
   --data-dir /srv/plurora-restored
 ```
 
-Restore validates the manifest, paths, file types, sizes, SHA-256 digests, profile-to-SQLite reference, and SQLite integrity in a sibling staging directory. It atomically renames staging only after every check succeeds. Start the Host with the restored data directory and its profile, confirm `/readyz`, then verify critical projects, secret references, and deployment history. Keep the old data directory until acceptance is complete.
+Restore validates the manifest, paths, file types, sizes, SHA-256 digests, profile-to-SQLite reference, and SQLite integrity in a sibling staging directory. It atomically renames staging only after every check succeeds. Start the Host with the restored data directory and its profile, confirm `/readyz`, then verify critical Works, secret references, and Realization history. Keep the old data directory until acceptance is complete.
 
 ## Verify a release
 

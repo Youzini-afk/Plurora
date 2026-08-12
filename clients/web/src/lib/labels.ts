@@ -1360,7 +1360,7 @@ export const labels = {
     accessTicketExpires: (time) => `invitation expires ${time}`,
     accessCancelTicket: "Cancel",
     accessScopeObserve: "Observe",
-    accessScopeObserveBody: "Read Host, installation, deployment, and diagnostic state.",
+    accessScopeObserveBody: "Read Host, Installation, Realization, and diagnostic state.",
     accessScopeInstallationOperate: "Operate installations",
     accessScopeInstallationOperateBody: "Start, stop, open, and fork installation sessions.",
     accessScopeBindingManage: "Manage Bindings",

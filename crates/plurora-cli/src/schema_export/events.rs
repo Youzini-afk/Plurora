@@ -257,12 +257,12 @@ pub(crate) fn event_schemas() -> Vec<(&'static str, Value)> {
         (EVENT_PROXY_UNREGISTERED, json!({"type":"object"})),
         (EVENT_PROXY_DENIED, json!({"type":"object"})),
         (
-            EVENT_DEPLOYMENT_RECONCILED,
-            schema_value::<DeploymentReconcileSummary>(),
+            EVENT_WORKLOAD_RECONCILED,
+            schema_value::<WorkloadReconcileSummary>(),
         ),
         (
-            EVENT_DEPLOYMENT_HEALTH,
-            schema_value::<DeploymentHealthEventPayload>(),
+            EVENT_WORKLOAD_HEALTH,
+            schema_value::<WorkloadHealthEventPayload>(),
         ),
     ]
 }

@@ -55,7 +55,7 @@ pub fn try_handle(request: &mut InprocInvocation) -> Option<anyhow::Result<Value
         "suggest" => Some(suggest()),
         "draft_branch_change" => Some(draft_branch_change(request)),
         "create_seed" => Some(create_seed(request)),
-        "project" => Some(project(request)),
+        "render" => Some(render(request)),
         "content_address" => Some(content_address(request)),
         "provenance_graph" => Some(provenance_graph(request)),
         "state_snapshot" => Some(state_snapshot(request)),
@@ -208,7 +208,7 @@ fn create_seed(request: &InprocInvocation) -> anyhow::Result<Value> {
     }))
 }
 
-fn project(request: &InprocInvocation) -> anyhow::Result<Value> {
+fn render(request: &InprocInvocation) -> anyhow::Result<Value> {
     Ok(serde_json::json!({
         "kind": "blank_experience_projection",
         "state": request.input,

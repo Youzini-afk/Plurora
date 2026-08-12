@@ -1,8 +1,8 @@
 # Durable Realization Controller
 
-> [English](./DURABLE_DEPLOYMENT_CONTROLLER.en.md) · [中文](./DURABLE_DEPLOYMENT_CONTROLLER.md)
+> [English](./REALIZATION_CONTROLLER.en.md) · [中文](./REALIZATION_CONTROLLER.md)
 
-Status: **Phase 6 Candidate implementation**. This page describes the durable controller behind `host.realization.*`. It is Host-owned mutable authority, not Constitutional Substrate and not a Project, old Composition, or Deployment identity. Old build-deploy, Installation-deployment, and ChangeSet-deployment routes were removed with no aliases; target/exec/port/proxy remain low-level Host adapters only.
+Status: **Implemented**. This page describes the durable controller behind `host.realization.*`. It is Host-owned mutable authority rather than Constitutional Substrate; target/exec/port/proxy remain low-level Host adapters only.
 
 ## Invariants
 
@@ -99,7 +99,7 @@ Host routes default to `host_authenticated`; only an explicitly planned and appr
 | `host.realization.apply/stop/reconcile` | `realization.apply` | Installation + Target + Realization |
 | `host.realization.rollback` | `realization.apply` | Installation + Target + current + historic Realization |
 
-The seven public events are planned/applying/active/stopped/failed/rolled_back/reconciled. Private checkpoints, grant basis, and effect continuation are not public. Old `host.deployment.*` methods do not exist and have no compatibility aliases.
+The seven public events are planned/applying/active/stopped/failed/rolled_back/reconciled. Private checkpoints, grant basis, and effect continuation are not public.
 
 ## Completion gate
 

@@ -97,7 +97,7 @@ jobs:
       - name: Verified artifact target preview smoke
         run: |
           docker pull nginx:1.27-alpine
-          PLURORA_TARGET_DEPLOYMENT_SMOKE=1 cargo test -p plurora-runtime verified_build_context_deploys_on_local_and_agent_targets_smoke -- --ignored --nocapture
+          PLURORA_TARGET_WORKLOAD_SMOKE=1 cargo test -p plurora-runtime verified_build_context_workloads_on_local_and_agent_targets_smoke -- --ignored --nocapture
 
       - name: cargo test plurora-service
         run: cargo test -p plurora-service --lib

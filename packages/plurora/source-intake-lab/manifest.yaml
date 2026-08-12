@@ -1,0 +1,132 @@
+schema_version: 1
+id: plurora/source-intake-lab
+version: 0.1.0
+display_name: Plurora Source Intake Lab
+description: Static source intake for external source refs — inspect, classify, detect stack, draft workspace plans, summarize security risks, list candidate entrypoints, and draft adapter plans without clone/install/run/network. Deterministic, no-execution, ordinary package capability with no privileged platform access.
+license: AGPL-3.0-only
+entry:
+  kind: rust_inproc
+  crate_ref: plurora-foundation
+  symbol: register
+  abi_version: 1
+provides:
+  - id: plurora/source-intake-lab/describe_intake_contract
+    version: 0.1.0
+    input_schema: {}
+    output_schema: {}
+    streaming: false
+    side_effects: []
+  - id: plurora/source-intake-lab/inspect_external_source_ref
+    version: 0.1.0
+    input_schema: {}
+    output_schema: {}
+    streaming: false
+    side_effects: []
+  - id: plurora/source-intake-lab/detect_source_stack_from_metadata
+    version: 0.1.0
+    input_schema: {}
+    output_schema: {}
+    streaming: false
+    side_effects: []
+  - id: plurora/source-intake-lab/draft_workspace_plan
+    version: 0.1.0
+    input_schema: {}
+    output_schema: {}
+    streaming: false
+    side_effects: []
+  - id: plurora/source-intake-lab/draft_security_risk_summary
+    version: 0.1.0
+    input_schema: {}
+    output_schema: {}
+    streaming: false
+    side_effects: []
+  - id: plurora/source-intake-lab/list_candidate_entrypoints
+    version: 0.1.0
+    input_schema: {}
+    output_schema: {}
+    streaming: false
+    side_effects: []
+  - id: plurora/source-intake-lab/draft_adapter_plan
+    version: 0.1.0
+    input_schema: {}
+    output_schema: {}
+    streaming: false
+    side_effects: []
+  - id: plurora/source-intake-lab/generate_adapter_manifest_preview
+    version: 0.1.0
+    input_schema: {}
+    output_schema: {}
+    streaming: false
+    side_effects: []
+  - id: plurora/source-intake-lab/generate_subprocess_wrapper_preview
+    version: 0.1.0
+    input_schema: {}
+    output_schema: {}
+    streaming: false
+    side_effects: []
+  - id: plurora/source-intake-lab/generate_adapter_fixture_preview
+    version: 0.1.0
+    input_schema: {}
+    output_schema: {}
+    streaming: false
+    side_effects: []
+  - id: plurora/source-intake-lab/check_adapter_readiness
+    version: 0.1.0
+    input_schema: {}
+    output_schema: {}
+    streaming: false
+    side_effects: []
+consumes: []
+contributes:
+  schemas: []
+  hooks: []
+  extension_points: []
+  surfaces:
+    - id: plurora/source-intake-lab/forge-panel
+      slot: forge_panel
+      title: Source Intake Lab
+      description: Inspect external source refs, detect stack, draft workspace plans, summarize risks, list entrypoints, and draft adapter plans.
+      capability_id: plurora/source-intake-lab/describe_intake_contract
+    - id: plurora/source-intake-lab/assistant-action
+      slot: assistant_action
+      title: Draft Intake Action
+      description: Draft approval-gated workspace plan or adapter plan for an external source.
+      capability_id: plurora/source-intake-lab/draft_workspace_plan
+      approval_policy: user_approval
+    - id: plurora/source-intake-lab/home-card
+      slot: home_card
+      title: Source Intake Lab
+      description: Static source intake without clone, install, run, or network access.
+      capability_id: plurora/source-intake-lab/describe_intake_contract
+      metadata:
+        shell_schema_version: 1
+        title:
+          en: source intake
+          zh-CN: 项目接入
+        description:
+          en: Inspect an external source reference before clone, install, run, or network access.
+          zh-CN: 在 clone、安装、运行或联网前检查外部项目引用。
+        icon_hint: folder
+        order: 20
+    - id: plurora/source-intake-lab/quick-action
+      slot: quick_action
+      title: Add external source
+      description: Draft an intake plan for an external source reference.
+      capability_id: plurora/source-intake-lab/draft_workspace_plan
+      metadata:
+        shell_schema_version: 1
+        title:
+          en: Add external source
+          zh-CN: 添加外部项目
+        description:
+          en: Draft an intake plan before execution.
+          zh-CN: 在执行前生成接入计划。
+        icon_hint: plus
+        order: 30
+permissions:
+  capabilities:
+    invoke: []
+sandbox_policy:
+  cpu_quota_ms_per_invoke: 5000
+  memory_mb: 128
+  wall_clock_ms: 30000

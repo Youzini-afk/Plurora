@@ -1,8 +1,8 @@
 # 可恢复 Realization 控制器
 
-> [English](./DURABLE_DEPLOYMENT_CONTROLLER.en.md) · [中文](./DURABLE_DEPLOYMENT_CONTROLLER.md)
+> [English](./REALIZATION_CONTROLLER.en.md) · [中文](./REALIZATION_CONTROLLER.md)
 
-状态：**Phase 6 Candidate 实现**。本页记录 `host.realization.*` 背后的 durable controller。它是 Host-owned mutable authority，不是 Constitutional Substrate，也不是 Project、old Composition 或 Deployment identity。旧 build-deploy、Installation-deployment 与 ChangeSet-deployment 路由已删除且没有 alias；target/exec/port/proxy 只保留为底层 Host adapter。
+状态：**Implemented**。本页记录 `host.realization.*` 背后的 durable controller。它是 Host-owned mutable authority，不是 Constitutional Substrate；target/exec/port/proxy 只保留为底层 Host adapter。
 
 ## 不变量
 
@@ -99,7 +99,7 @@ Host route 默认 `host_authenticated`；只有 plan/approval 明确选择 publi
 | `host.realization.apply/stop/reconcile` | `realization.apply` | Installation + Target + Realization |
 | `host.realization.rollback` | `realization.apply` | Installation + Target + current + historic Realization |
 
-公开事件是 `planned/applying/active/stopped/failed/rolled_back/reconciled` 七种。Private checkpoint、grant basis 与 effect continuation 不公开。旧 `host.deployment.*` 不存在，也没有 compatibility alias。
+公开事件是 `planned/applying/active/stopped/failed/rolled_back/reconciled` 七种。Private checkpoint、grant basis 与 effect continuation 不公开。
 
 ## Completion gate
 

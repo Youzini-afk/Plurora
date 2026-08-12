@@ -1901,74 +1901,6 @@ components:
         - kind
         - path
         type: object
-    DeploymentHealthEventPayload:
-      $schema: https://json-schema.org/draft/2020-12/schema
-      properties:
-        failure_count:
-          format: uint32
-          minimum: 0.0
-          type: integer
-        port_lease_id:
-          type:
-          - string
-          - 'null'
-        previous_ready:
-          type: boolean
-        probe:
-          $ref: '#/components/schemas/DeploymentHealthProbe'
-        ready:
-          type: boolean
-        reason:
-          type: string
-        route_id:
-          type: string
-      required:
-      - failure_count
-      - previous_ready
-      - probe
-      - ready
-      - reason
-      - route_id
-      title: DeploymentHealthEventPayload
-      type: object
-    DeploymentHealthProbe:
-      properties:
-        kind:
-          type: string
-      required:
-      - kind
-      type: object
-    DeploymentReconcileSummary:
-      $schema: https://json-schema.org/draft/2020-12/schema
-      properties:
-        execs_failed:
-          format: uint
-          minimum: 0.0
-          type: integer
-        leases_promoted:
-          format: uint
-          minimum: 0.0
-          type: integer
-        leases_released:
-          format: uint
-          minimum: 0.0
-          type: integer
-        routes_promoted:
-          format: uint
-          minimum: 0.0
-          type: integer
-        routes_removed:
-          format: uint
-          minimum: 0.0
-          type: integer
-      required:
-      - execs_failed
-      - leases_promoted
-      - leases_released
-      - routes_promoted
-      - routes_removed
-      title: DeploymentReconcileSummary
-      type: object
     EffectClass:
       enum:
       - pure
@@ -2539,7 +2471,7 @@ components:
       - artifact_transfer
       - declarative_verifier
       - health_probe
-      - deployment
+      - workload
       - authenticated_tunnel
       type: string
     ExecutionTargetObservedSummary:
@@ -9820,6 +9752,43 @@ components:
       - work_id
       title: WorkRevision
       type: object
+    WorkloadHealthEventPayload:
+      $schema: https://json-schema.org/draft/2020-12/schema
+      properties:
+        failure_count:
+          format: uint32
+          minimum: 0.0
+          type: integer
+        port_lease_id:
+          type:
+          - string
+          - 'null'
+        previous_ready:
+          type: boolean
+        probe:
+          $ref: '#/components/schemas/WorkloadHealthProbe'
+        ready:
+          type: boolean
+        reason:
+          type: string
+        route_id:
+          type: string
+      required:
+      - failure_count
+      - previous_ready
+      - probe
+      - ready
+      - reason
+      - route_id
+      title: WorkloadHealthEventPayload
+      type: object
+    WorkloadHealthProbe:
+      properties:
+        kind:
+          type: string
+      required:
+      - kind
+      type: object
     WorkloadImports:
       properties:
         filesystem:
@@ -9870,6 +9839,37 @@ components:
       - replicas
       - restart_policy
       - workload_id
+      type: object
+    WorkloadReconcileSummary:
+      $schema: https://json-schema.org/draft/2020-12/schema
+      properties:
+        execs_failed:
+          format: uint
+          minimum: 0.0
+          type: integer
+        leases_promoted:
+          format: uint
+          minimum: 0.0
+          type: integer
+        leases_released:
+          format: uint
+          minimum: 0.0
+          type: integer
+        routes_promoted:
+          format: uint
+          minimum: 0.0
+          type: integer
+        routes_removed:
+          format: uint
+          minimum: 0.0
+          type: integer
+      required:
+      - execs_failed
+      - leases_promoted
+      - leases_released
+      - routes_promoted
+      - routes_removed
+      title: WorkloadReconcileSummary
       type: object
     WorkspaceId:
       format: uuid

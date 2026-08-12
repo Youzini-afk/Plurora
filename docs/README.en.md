@@ -33,7 +33,7 @@ Then enter the relevant guide, spec, or roadmap as needed.
 
 ## Authoring, installation, and operation
 
-- [`guides/`](guides/README.en.md) — guides grouped by foundation, agent, model, inference, experience, memory, storage, external projects, and distribution
+- [`guides/`](guides/README.en.md) — guides grouped by foundation, agent, model, inference, experience, memory, storage, external sources, and distribution
 - [`guides/PACKAGE_AUTHORING_WALKTHROUGH.md`](guides/PACKAGE_AUTHORING_WALKTHROUGH.en.md) — first Package / Component
 - [`guides/CAPABILITY_HANDLES.md`](guides/CAPABILITY_HANDLES.en.md) — authority handles, attenuation, revocation, and effect audit
 - [`guides/CONFORMANCE_KIT.md`](guides/CONFORMANCE_KIT.en.md) — Contract V1 behavioral checks for third-party implementations

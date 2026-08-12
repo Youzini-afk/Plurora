@@ -7,7 +7,7 @@
       "../../../packages/plurora/git-tools-lab/manifest.yaml": "plurora-packages/git-tools-lab/manifest.yaml",
       "../../../packages/plurora/install-lab/manifest.yaml": "plurora-packages/install-lab/manifest.yaml",
       "../../../packages/plurora/integrity-lab/manifest.yaml": "plurora-packages/integrity-lab/manifest.yaml",
-      "../../../packages/plurora/project-intake-lab/manifest.yaml": "plurora-packages/project-intake-lab/manifest.yaml",
+      "../../../packages/plurora/source-intake-lab/manifest.yaml": "plurora-packages/source-intake-lab/manifest.yaml",
       "../../../packages/plurora/secret-store-lab/manifest.yaml": "plurora-packages/secret-store-lab/manifest.yaml",
       "../../../packages/plurora/workspace-lab/manifest.yaml": "plurora-packages/workspace-lab/manifest.yaml"
     }

@@ -84,15 +84,15 @@ pub use realization::{
 pub use runs::RunRegistry;
 pub use target_agent::{
     decode_target_tunnel_data, encode_target_tunnel_data, hydrate_target_agent_control_plane,
-    reconcile_target_deployment_control_plane, target_agent_registry,
+    reconcile_target_workload_control_plane, target_agent_registry,
     verify_target_operation_authority, ClaimTargetEnrollmentRequest, ClaimTargetEnrollmentResponse,
     CreateTargetOperationRequest, CreateTargetOperationResponse, DeclarativeVerifierDescriptor,
     NextTargetOperationResponse, TargetAgentHeartbeatRequest, TargetAgentHeartbeatResponse,
-    TargetAgentRegistry, TargetDeploymentDescriptor, TargetDeploymentRef, TargetOperationAuthority,
-    TargetOperationEffect, TargetOperationProgressRequest, TargetOperationReceipt,
-    TargetOperationReceiptStatus, TargetOperationRecord, TargetOperationSpec,
-    TargetOperationStatusKind, TargetTunnelAgentMessage, TargetTunnelHostMessage, TargetTunnelOpen,
-    TARGET_TUNNEL_DATA_CHUNK_BYTES, TARGET_TUNNEL_MAX_STREAMS,
+    TargetAgentRegistry, TargetOperationAuthority, TargetOperationEffect,
+    TargetOperationProgressRequest, TargetOperationReceipt, TargetOperationReceiptStatus,
+    TargetOperationRecord, TargetOperationSpec, TargetOperationStatusKind,
+    TargetTunnelAgentMessage, TargetTunnelHostMessage, TargetTunnelOpen, TargetWorkloadDescriptor,
+    TargetWorkloadRef, TARGET_TUNNEL_DATA_CHUNK_BYTES, TARGET_TUNNEL_MAX_STREAMS,
 };
 
 const PROXY_REQUEST_BODY_LIMIT_BYTES: usize = 64 * 1024 * 1024;
@@ -106,9 +106,9 @@ const TARGET_TUNNEL_BRIDGE_LIMIT: usize = 256;
 // This preserves Axum's existing Json extractor default while the target-operation
 // gate buffers and restores that one request body before the route handler sees it.
 const TARGET_OPERATION_JSON_BODY_LIMIT_BYTES: usize = 2 * 1024 * 1024;
-const DEPLOY_READINESS_TIMEOUT: Duration = Duration::from_secs(15);
-const DEPLOY_READINESS_INTERVAL: Duration = Duration::from_millis(500);
-const DEPLOY_READINESS_CONNECT_TIMEOUT: Duration = Duration::from_secs(1);
+const WORKLOAD_READINESS_TIMEOUT: Duration = Duration::from_secs(15);
+const WORKLOAD_READINESS_INTERVAL: Duration = Duration::from_millis(500);
+const WORKLOAD_READINESS_CONNECT_TIMEOUT: Duration = Duration::from_secs(1);
 const HEALTH_POLL_INTERVAL: Duration = Duration::from_secs(5);
 const HEALTH_PROBE_TIMEOUT: Duration = Duration::from_millis(1000);
 const HEALTH_FAILURE_THRESHOLD: u32 = 3;
@@ -117,28 +117,27 @@ const MAX_RUNTIME_ENV_ENTRIES: usize = 128;
 const MAX_RUNTIME_ENV_VALUE_LEN: usize = 8192;
 const MAX_RUNTIME_ENV_TOTAL_BYTES: usize = 64 * 1024;
 const MAX_RUNTIME_MOUNTS: usize = 32;
-const DEPLOYMENT_WORKSPACE_MAX_FILES: u64 = 100_000;
-const DEPLOYMENT_WORKSPACE_MAX_DIRECTORIES: u64 = 100_000;
-const DEPLOYMENT_WORKSPACE_MAX_BYTES: u64 = 1024 * 1024 * 1024;
-const DEPLOYMENT_GIT_DOWNLOAD_MAX_BYTES: u64 = 2 * 1024 * 1024 * 1024;
+const WORKLOAD_WORKSPACE_MAX_FILES: u64 = 100_000;
+const WORKLOAD_WORKSPACE_MAX_DIRECTORIES: u64 = 100_000;
+const WORKLOAD_WORKSPACE_MAX_BYTES: u64 = 1024 * 1024 * 1024;
+const WORKLOAD_GIT_DOWNLOAD_MAX_BYTES: u64 = 2 * 1024 * 1024 * 1024;
 const DOCKER_RUNTIME_PACKAGE_ID: &str = "plurora/docker-runtime-lab";
-const BUILD_DEPLOY_MAX_GLOBAL_ACTIVE: usize = 2;
-const BUILD_DEPLOY_MAX_PER_INSTALLATION_ACTIVE: usize = 1;
-const BUILD_DEPLOY_MAX_RETAINED_JOBS: usize = 128;
-const BUILD_DEPLOY_MAX_REVISIONS_PER_INSTALLATION: usize = 64;
-const BUILD_DEPLOY_LOG_RING: usize = 256;
-const BUILD_DEPLOY_WAIT_TIMEOUT: Duration = Duration::from_secs(30);
+const BUILD_WORKLOAD_MAX_GLOBAL_ACTIVE: usize = 2;
+const BUILD_WORKLOAD_MAX_PER_INSTALLATION_ACTIVE: usize = 1;
+const BUILD_WORKLOAD_MAX_RETAINED_JOBS: usize = 128;
+const BUILD_WORKLOAD_MAX_REVISIONS_PER_INSTALLATION: usize = 64;
+const BUILD_WORKLOAD_LOG_RING: usize = 256;
+const BUILD_WORKLOAD_WAIT_TIMEOUT: Duration = Duration::from_secs(30);
 const SURFACE_ASSET_LEASE_TTL_MS: i64 = 5 * 60 * 1_000;
 const SURFACE_ASSET_LEASE_LIMIT: usize = 1_024;
 const HOST_SESSION_COOKIE: &str = "plurora_host_session";
 const DESKTOP_BOOTSTRAP_PATH: &str = "/host/bootstrap";
 #[cfg(test)]
-const DEPLOYMENT_JOURNAL_PREFIX: &str = "host/control/v1/deployment.";
-const DEPLOYMENT_JOB_SNAPSHOT_EVENT: &str = "host/control/v1/deployment.job.snapshot";
-const DEPLOYMENT_REVISION_ACTIVATED_EVENT: &str = "host/control/v1/deployment.revision.activated";
-const DEPLOYMENT_DIRECT_ROUTE_OWNED_EVENT: &str = "host/control/v1/deployment.direct_route.owned";
-const DEPLOYMENT_DIRECT_ROUTE_RELEASED_EVENT: &str =
-    "host/control/v1/deployment.direct_route.released";
+const WORKLOAD_JOURNAL_PREFIX: &str = "host/control/v1/workload.";
+const WORKLOAD_JOB_SNAPSHOT_EVENT: &str = "host/control/v1/workload.job.snapshot";
+const WORKLOAD_REVISION_ACTIVATED_EVENT: &str = "host/control/v1/workload.revision.activated";
+const WORKLOAD_DIRECT_ROUTE_OWNED_EVENT: &str = "host/control/v1/workload.direct_route.owned";
+const WORKLOAD_DIRECT_ROUTE_RELEASED_EVENT: &str = "host/control/v1/workload.direct_route.released";
 
 #[derive(Debug, Clone)]
 struct SurfaceAssetLease {
@@ -149,10 +148,9 @@ struct SurfaceAssetLease {
 }
 
 static SURFACE_ASSET_LEASES: OnceLock<Mutex<HashMap<String, SurfaceAssetLease>>> = OnceLock::new();
-const DEPLOYMENT_REVISION_DEACTIVATED_EVENT: &str =
-    "host/control/v1/deployment.revision.deactivated";
-const DEPLOYMENT_JOURNAL_SESSION: &str = "host_control_deployments";
-const DEPLOYMENT_JOURNAL_WRITER: &str = "host/control-plane";
+const WORKLOAD_REVISION_DEACTIVATED_EVENT: &str = "host/control/v1/workload.revision.deactivated";
+const WORKLOAD_JOURNAL_SESSION: &str = "host_control_workloads";
+const WORKLOAD_JOURNAL_WRITER: &str = "host/control-plane";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum ProxyAccessMode {
@@ -577,7 +575,7 @@ where
     pub static_dir: Option<PathBuf>,
     pub access_token: Option<String>,
     pub app_base_domain: Option<String>,
-    pub build_jobs: Arc<BuildDeployJobRegistry>,
+    pub build_jobs: Arc<BuildWorkloadJobRegistry>,
     pub development: Arc<DevelopmentRegistry>,
     pub host_access: Arc<HostAccessRegistry>,
     pub installations: Arc<InstallationRegistry>,
@@ -680,7 +678,7 @@ fn ephemeral_app() -> EphemeralApp {
         static_dir: None,
         access_token: None,
         app_base_domain: None,
-        build_jobs: Arc::new(BuildDeployJobRegistry::default()),
+        build_jobs: Arc::new(BuildWorkloadJobRegistry::default()),
         development: development_registry(),
         host_access,
         installations,
@@ -1503,7 +1501,7 @@ fn required_host_scope_for_http(method: &Method, path: &str) -> Option<HostAcces
         return Some(HostAccessScope::AccessManage);
     }
     if path.starts_with("/host/v1/development/") && path.contains("/changes") {
-        if path.contains("/deployment/") {
+        if path.contains("/workload/") {
             return Some(HostAccessScope::AccessManage);
         }
         if method == Method::GET || path.ends_with("/changes") {
@@ -1698,7 +1696,7 @@ fn event_matches_query(event: &EventEnvelope, session_id: &str, query: &EventLis
 
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
-pub struct HostDeployRequest {
+pub struct HostWorkloadRequest {
     pub installation_id: InstallationId,
     pub image: String,
     pub container_port: u16,
@@ -1714,12 +1712,12 @@ pub struct HostDeployRequest {
 
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
-pub struct HostDeployStopRequest {
+pub struct HostWorkloadStopRequest {
     pub route_id: String,
 }
 
 #[derive(Debug, Serialize)]
-pub struct HostDeployResponse {
+pub struct HostWorkloadResponse {
     pub route_id: String,
     pub public_url: String,
     pub route_access: ProxyRouteAccess,
@@ -1729,7 +1727,7 @@ pub struct HostDeployResponse {
 }
 
 #[derive(Debug, Clone)]
-struct DeployBuiltImageResponse {
+struct WorkloadBuiltImageResponse {
     route_id: String,
     public_url: String,
     route_access: ProxyRouteAccess,
@@ -1739,7 +1737,7 @@ struct DeployBuiltImageResponse {
 }
 
 #[derive(Debug, Serialize)]
-pub struct HostDeployStopResponse {
+pub struct HostWorkloadStopResponse {
     pub route_id: String,
     pub stopped: bool,
     pub warnings: Vec<String>,
@@ -1747,7 +1745,7 @@ pub struct HostDeployStopResponse {
 
 #[derive(Debug, Clone, Deserialize)]
 #[serde(deny_unknown_fields)]
-pub struct HostBuildDeployRequest {
+pub struct HostBuildWorkloadRequest {
     pub installation_id: InstallationId,
     pub source_url: String,
     pub ref_name: String,
@@ -1857,7 +1855,7 @@ pub struct RuntimeMountSummary {
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
-pub enum BuildDeployJobState {
+pub enum BuildWorkloadJobState {
     Queued,
     Cloning,
     Building,
@@ -1869,63 +1867,63 @@ pub enum BuildDeployJobState {
     Cancelled,
 }
 
-impl BuildDeployJobState {
+impl BuildWorkloadJobState {
     fn terminal(self) -> bool {
         matches!(self, Self::Ready | Self::Failed | Self::Cancelled)
     }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct BuildDeployJobEvent {
+pub struct BuildWorkloadJobEvent {
     pub job_id: String,
     pub sequence: u64,
-    pub state: BuildDeployJobState,
+    pub state: BuildWorkloadJobState,
     pub message: String,
     pub timestamp_ms: u128,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct BuildDeployJobStatusResponse {
+pub struct BuildWorkloadJobStatusResponse {
     pub job_id: String,
     pub installation_id: InstallationId,
     pub route_id: String,
     pub build_id: Option<String>,
-    pub state: BuildDeployJobState,
+    pub state: BuildWorkloadJobState,
     pub created_at_ms: u128,
     pub updated_at_ms: u128,
-    pub result: Option<HostBuildDeployResponse>,
+    pub result: Option<HostBuildWorkloadResponse>,
     pub error: Option<String>,
     pub events_url: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub idempotency_key: Option<String>,
-    pub operation: DeploymentOperation,
+    pub operation: WorkloadOperation,
 }
 
 #[derive(Debug, Serialize)]
-pub struct BuildDeployJobSubmitResponse {
+pub struct BuildWorkloadJobSubmitResponse {
     pub job_id: String,
     pub status_url: String,
     pub events_url: String,
-    pub state: BuildDeployJobState,
+    pub state: BuildWorkloadJobState,
 }
 
 #[derive(Debug, Serialize)]
 #[serde(untagged)]
-pub enum BuildDeploySubmitOrStatusResponse {
-    Submitted(BuildDeployJobSubmitResponse),
-    Status(BuildDeployJobStatusResponse),
+pub enum BuildWorkloadSubmitOrStatusResponse {
+    Submitted(BuildWorkloadJobSubmitResponse),
+    Status(BuildWorkloadJobStatusResponse),
 }
 
 #[derive(Debug, Deserialize)]
-pub struct BuildDeploySubmitQuery {
+pub struct BuildWorkloadSubmitQuery {
     #[serde(default)]
     pub wait: bool,
 }
 
 #[derive(Debug, Serialize)]
-pub struct BuildDeployCancelResponse {
+pub struct BuildWorkloadCancelResponse {
     pub job_id: String,
-    pub state: BuildDeployJobState,
+    pub state: BuildWorkloadJobState,
     pub cancelled: bool,
 }
 
@@ -1937,7 +1935,7 @@ pub enum RuntimeEnvSourceKind {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct HostBuildDeployResponse {
+pub struct HostBuildWorkloadResponse {
     pub workspace_id: WorkspaceId,
     pub route_id: String,
     pub public_url: String,
@@ -1956,15 +1954,15 @@ pub struct HostBuildDeployResponse {
     pub warnings: Vec<String>,
 }
 
-struct BuildDeployOutcome {
-    response: HostBuildDeployResponse,
-    previous_revision: Option<DeploymentRevision>,
+struct BuildWorkloadOutcome {
+    response: HostBuildWorkloadResponse,
+    previous_revision: Option<WorkloadRevision>,
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
-pub enum DeploymentOperation {
-    BuildDeploy,
+pub enum WorkloadOperation {
+    BuildWorkload,
     VerifiedActivate,
     Recover,
     Rollback,
@@ -1972,14 +1970,14 @@ pub enum DeploymentOperation {
 
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
-pub enum DeploymentSourceKind {
+pub enum WorkloadSourceKind {
     #[default]
     GitClone,
     VerifiedArtifact,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-struct DeploymentAuthorityLease {
+struct WorkloadAuthorityLease {
     operation_id: String,
     #[serde(default = "default_local_target_id")]
     target_id: String,
@@ -1994,7 +1992,7 @@ struct DeploymentAuthorityLease {
     expires_at_ms: Option<i64>,
 }
 
-impl DeploymentAuthorityLease {
+impl WorkloadAuthorityLease {
     fn from_identity(
         operation_id: String,
         target_id: impl Into<String>,
@@ -2041,29 +2039,29 @@ impl DeploymentAuthorityLease {
         anyhow::ensure!(
             self.identity_kind == HostAccessIdentityKind::Root
                 || self.scopes.contains(&HostAccessScope::RealizationApply),
-            "deployment authority lease does not include realization.apply"
+            "workload authority lease does not include realization.apply"
         );
         anyhow::ensure!(
             self.allows_resource(
                 HostAccessResourceKind::Installation,
                 installation_id.as_str()
             ) && self.allows_resource(HostAccessResourceKind::Target, &self.target_id),
-            "deployment authority lease does not include the installation and target"
+            "workload authority lease does not include the installation and target"
         );
         if let Some(expires_at_ms) = self.expires_at_ms {
             anyhow::ensure!(
                 expires_at_ms > chrono::Utc::now().timestamp_millis(),
-                "deployment authority lease expired"
+                "workload authority lease expired"
             );
         }
         if self.identity_kind == HostAccessIdentityKind::Device {
             let grant_id = self
                 .grant_id
                 .as_deref()
-                .ok_or_else(|| anyhow::anyhow!("device deployment authority has no grant id"))?;
+                .ok_or_else(|| anyhow::anyhow!("device workload authority has no grant id"))?;
             anyhow::ensure!(
                 registry.grant_is_currently_active(grant_id),
-                "deployment authority grant is revoked or expired"
+                "workload authority grant is revoked or expired"
             );
         }
         Ok(())
@@ -2080,7 +2078,7 @@ impl DeploymentAuthorityLease {
             ProtocolContext::host_device(
                 self.grant_id
                     .clone()
-                    .expect("device deployment authority always carries a grant id"),
+                    .expect("device workload authority always carries a grant id"),
                 self.scopes
                     .iter()
                     .map(|scope| scope.as_str().to_string())
@@ -2126,18 +2124,18 @@ pub struct PersistedRuntimeEnvSpec {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct DeploymentRevision {
+pub struct WorkloadRevision {
     pub revision_id: String,
     pub installation_id: InstallationId,
     pub workspace_id: WorkspaceId,
     pub job_id: Option<String>,
-    pub operation: DeploymentOperation,
+    pub operation: WorkloadOperation,
     pub parent_revision_id: Option<String>,
     pub created_at_ms: u128,
     #[serde(default = "default_local_target_id")]
     pub target_id: String,
     #[serde(default)]
-    pub source_kind: DeploymentSourceKind,
+    pub source_kind: WorkloadSourceKind,
     pub source_url: String,
     pub ref_name: String,
     pub dockerfile: Option<String>,
@@ -2166,34 +2164,34 @@ pub struct DeploymentRevision {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub verified_build_network_mode: Option<plurora_runtime::ManagedTargetBuildNetworkMode>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub target_deployment: Option<TargetDeploymentRef>,
+    pub target_workload: Option<TargetWorkloadRef>,
     pub recoverable: bool,
     pub recovery_blockers: Vec<String>,
-    pub receipt: HostBuildDeployResponse,
+    pub receipt: HostBuildWorkloadResponse,
 }
 
 #[derive(Debug, Clone, Serialize)]
-pub struct InstallationDeploymentsResponse {
+pub struct InstallationWorkloadsResponse {
     pub installation_id: InstallationId,
     pub active_revision_id: Option<String>,
-    pub active_revision: Option<DeploymentRevision>,
+    pub active_revision: Option<WorkloadRevision>,
     pub recovery_required: bool,
     pub runtime_ready: bool,
-    pub jobs: Vec<BuildDeployJobStatusResponse>,
-    pub revisions: Vec<DeploymentRevision>,
+    pub jobs: Vec<BuildWorkloadJobStatusResponse>,
+    pub revisions: Vec<WorkloadRevision>,
 }
 
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
-pub struct DeploymentRollbackRequest {
+pub struct WorkloadRollbackRequest {
     pub revision_id: String,
 }
 
 #[derive(Debug, Serialize)]
-pub struct DeploymentActionResponse {
-    pub operation: DeploymentOperation,
+pub struct WorkloadActionResponse {
+    pub operation: WorkloadOperation,
     pub previous_revision_id: Option<String>,
-    pub revision: DeploymentRevision,
+    pub revision: WorkloadRevision,
     pub warnings: Vec<String>,
 }
 
@@ -2245,63 +2243,63 @@ struct HostDockerStartedContainer {
 }
 
 #[derive(Debug)]
-struct BuildDeployJobRecord {
+struct BuildWorkloadJobRecord {
     job_id: String,
     installation_id: InstallationId,
     route_id: String,
     build_id: Option<String>,
-    state: BuildDeployJobState,
+    state: BuildWorkloadJobState,
     created_at_ms: u128,
     updated_at_ms: u128,
-    result: Option<HostBuildDeployResponse>,
+    result: Option<HostBuildWorkloadResponse>,
     error: Option<String>,
-    events: VecDeque<BuildDeployJobEvent>,
+    events: VecDeque<BuildWorkloadJobEvent>,
     next_sequence: u64,
     cancel: Arc<AtomicBool>,
     idempotency_key: Option<String>,
     request_fingerprint: String,
-    operation: DeploymentOperation,
-    authority: DeploymentAuthorityLease,
+    operation: WorkloadOperation,
+    authority: WorkloadAuthorityLease,
 }
 
 #[derive(Debug, Default)]
-struct DeploymentProjection {
-    revisions: HashMap<InstallationId, Vec<DeploymentRevision>>,
+struct WorkloadProjection {
+    revisions: HashMap<InstallationId, Vec<WorkloadRevision>>,
     active_revisions: HashMap<InstallationId, String>,
-    direct_route_owners: HashMap<String, DeploymentDirectRouteOwned>,
+    direct_route_owners: HashMap<String, WorkloadDirectRouteOwned>,
 }
 
 #[derive(Debug)]
-struct CreateBuildDeployJobResult {
+struct CreateBuildWorkloadJobResult {
     job_id: String,
     created: bool,
-    state: BuildDeployJobState,
+    state: BuildWorkloadJobState,
     permit: Option<OwnedSemaphorePermit>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-struct DeploymentJobSnapshot {
-    status: BuildDeployJobStatusResponse,
-    event: Option<BuildDeployJobEvent>,
+struct WorkloadJobSnapshot {
+    status: BuildWorkloadJobStatusResponse,
+    event: Option<BuildWorkloadJobEvent>,
     #[serde(default)]
     request_fingerprint: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    authority: Option<DeploymentAuthorityLease>,
+    authority: Option<WorkloadAuthorityLease>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-struct DeploymentRevisionActivated {
-    revision: DeploymentRevision,
+struct WorkloadRevisionActivated {
+    revision: WorkloadRevision,
     #[serde(default)]
     enforce_parent: bool,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    job: Option<DeploymentJobSnapshot>,
+    job: Option<WorkloadJobSnapshot>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    authority: Option<DeploymentAuthorityLease>,
+    authority: Option<WorkloadAuthorityLease>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-struct DeploymentRevisionDeactivated {
+struct WorkloadRevisionDeactivated {
     installation_id: InstallationId,
     revision_id: String,
     route_id: String,
@@ -2310,7 +2308,7 @@ struct DeploymentRevisionDeactivated {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-struct DeploymentDirectRouteOwned {
+struct WorkloadDirectRouteOwned {
     route_id: String,
     installation_id: InstallationId,
     #[serde(default)]
@@ -2321,18 +2319,18 @@ struct DeploymentDirectRouteOwned {
     container_id: String,
     timestamp_ms: u128,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    authority: Option<DeploymentAuthorityLease>,
+    authority: Option<WorkloadAuthorityLease>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-struct DeploymentDirectRouteReleased {
+struct WorkloadDirectRouteReleased {
     route_id: String,
     installation_id: InstallationId,
     timestamp_ms: u128,
 }
 
 #[derive(Debug, Clone)]
-struct DurableDeploymentRoute {
+struct DurableWorkloadRoute {
     route_id: String,
     port_name: String,
     route_access: ProxyRouteAccess,
@@ -2340,62 +2338,62 @@ struct DurableDeploymentRoute {
 }
 
 #[derive(Debug)]
-pub struct BuildDeployJobRegistry {
-    jobs: Mutex<HashMap<String, BuildDeployJobRecord>>,
-    notifier: broadcast::Sender<BuildDeployJobEvent>,
+pub struct BuildWorkloadJobRegistry {
+    jobs: Mutex<HashMap<String, BuildWorkloadJobRecord>>,
+    notifier: broadcast::Sender<BuildWorkloadJobEvent>,
     global_sem: Arc<Semaphore>,
     installation_active: Mutex<HashSet<InstallationId>>,
-    deployment: Mutex<DeploymentProjection>,
+    workload: Mutex<WorkloadProjection>,
     journal_apply: Mutex<()>,
     journal_next_sequence: Mutex<EventSequence>,
 }
 
-struct BuildDeployInstallationGuard {
-    registry: Arc<BuildDeployJobRegistry>,
+struct BuildWorkloadInstallationGuard {
+    registry: Arc<BuildWorkloadJobRegistry>,
     installation_id: InstallationId,
 }
 
-impl Drop for BuildDeployInstallationGuard {
+impl Drop for BuildWorkloadInstallationGuard {
     fn drop(&mut self) {
         self.registry.release_installation(&self.installation_id);
     }
 }
 
-impl Default for BuildDeployJobRegistry {
+impl Default for BuildWorkloadJobRegistry {
     fn default() -> Self {
         let (notifier, _) = broadcast::channel(512);
         Self {
             jobs: Mutex::new(HashMap::new()),
             notifier,
-            global_sem: Arc::new(Semaphore::new(BUILD_DEPLOY_MAX_GLOBAL_ACTIVE)),
+            global_sem: Arc::new(Semaphore::new(BUILD_WORKLOAD_MAX_GLOBAL_ACTIVE)),
             installation_active: Mutex::new(HashSet::new()),
-            deployment: Mutex::new(DeploymentProjection::default()),
+            workload: Mutex::new(WorkloadProjection::default()),
             journal_apply: Mutex::new(()),
             journal_next_sequence: Mutex::new(0),
         }
     }
 }
 
-pub fn build_deploy_job_registry() -> Arc<BuildDeployJobRegistry> {
-    Arc::new(BuildDeployJobRegistry::default())
+pub fn build_workload_job_registry() -> Arc<BuildWorkloadJobRegistry> {
+    Arc::new(BuildWorkloadJobRegistry::default())
 }
 
-impl BuildDeployJobRegistry {
+impl BuildWorkloadJobRegistry {
     fn journal_next_sequence(&self) -> EventSequence {
         *self
             .journal_next_sequence
             .lock()
-            .expect("deployment journal tail lock poisoned")
+            .expect("workload journal tail lock poisoned")
     }
 
     fn apply_journal_event(&self, event: &EventEnvelope) -> anyhow::Result<()> {
         let _apply_guard = self
             .journal_apply
             .lock()
-            .expect("deployment journal apply lock poisoned");
+            .expect("workload journal apply lock poisoned");
         anyhow::ensure!(
-            event.session_id == DEPLOYMENT_JOURNAL_SESSION,
-            "deployment event was written to the wrong journal"
+            event.session_id == WORKLOAD_JOURNAL_SESSION,
+            "workload event was written to the wrong journal"
         );
         let expected = self.journal_next_sequence();
         if event.sequence < expected {
@@ -2403,23 +2401,20 @@ impl BuildDeployJobRegistry {
         }
         anyhow::ensure!(
             event.sequence == expected,
-            "deployment journal sequence is not contiguous"
+            "workload journal sequence is not contiguous"
         );
         match event.kind.as_str() {
-            DEPLOYMENT_JOB_SNAPSHOT_EVENT => {
+            WORKLOAD_JOB_SNAPSHOT_EVENT => {
                 self.restore_job_snapshot(
                     serde_json::from_value(event.payload.clone()).with_context(|| {
-                        format!("invalid durable deployment job snapshot {}", event.id)
+                        format!("invalid durable workload job snapshot {}", event.id)
                     })?,
                 );
             }
-            DEPLOYMENT_REVISION_ACTIVATED_EVENT => {
-                let activation: DeploymentRevisionActivated =
+            WORKLOAD_REVISION_ACTIVATED_EVENT => {
+                let activation: WorkloadRevisionActivated =
                     serde_json::from_value(event.payload.clone()).with_context(|| {
-                        format!(
-                            "invalid durable deployment revision activation {}",
-                            event.id
-                        )
+                        format!("invalid durable workload revision activation {}", event.id)
                     })?;
                 if activation.enforce_parent {
                     self.ensure_revision_parent(&activation.revision)?;
@@ -2429,52 +2424,52 @@ impl BuildDeployJobRegistry {
                     self.restore_job_snapshot(job);
                 }
             }
-            DEPLOYMENT_REVISION_DEACTIVATED_EVENT => {
-                let deactivation: DeploymentRevisionDeactivated =
+            WORKLOAD_REVISION_DEACTIVATED_EVENT => {
+                let deactivation: WorkloadRevisionDeactivated =
                     serde_json::from_value(event.payload.clone()).with_context(|| {
                         format!(
-                            "invalid durable deployment revision deactivation {}",
+                            "invalid durable workload revision deactivation {}",
                             event.id
                         )
                     })?;
                 self.deactivate_revision(&deactivation);
             }
-            DEPLOYMENT_DIRECT_ROUTE_OWNED_EVENT => {
-                let ownership: DeploymentDirectRouteOwned =
+            WORKLOAD_DIRECT_ROUTE_OWNED_EVENT => {
+                let ownership: WorkloadDirectRouteOwned =
                     serde_json::from_value(event.payload.clone()).with_context(|| {
                         format!("invalid durable direct route ownership {}", event.id)
                     })?;
                 self.register_direct_route_owner(ownership);
             }
-            DEPLOYMENT_DIRECT_ROUTE_RELEASED_EVENT => {
-                let release: DeploymentDirectRouteReleased =
+            WORKLOAD_DIRECT_ROUTE_RELEASED_EVENT => {
+                let release: WorkloadDirectRouteReleased =
                     serde_json::from_value(event.payload.clone()).with_context(|| {
                         format!("invalid durable direct route release {}", event.id)
                     })?;
-                let mut deployment = self.deployment.lock().expect("deployment lock poisoned");
-                if deployment
+                let mut workload = self.workload.lock().expect("workload lock poisoned");
+                if workload
                     .direct_route_owners
                     .get(&release.route_id)
                     .is_some_and(|ownership| ownership.installation_id == release.installation_id)
                 {
-                    deployment.direct_route_owners.remove(&release.route_id);
+                    workload.direct_route_owners.remove(&release.route_id);
                 }
             }
-            _ => anyhow::bail!("unexpected deployment journal event kind"),
+            _ => anyhow::bail!("unexpected workload journal event kind"),
         }
         *self
             .journal_next_sequence
             .lock()
-            .expect("deployment journal tail lock poisoned") = event.sequence.saturating_add(1);
+            .expect("workload journal tail lock poisoned") = event.sequence.saturating_add(1);
         Ok(())
     }
 
     fn create_job(
         &self,
-        request: &HostBuildDeployRequest,
+        request: &HostBuildWorkloadRequest,
         identity: &HostAccessIdentity,
-    ) -> anyhow::Result<CreateBuildDeployJobResult> {
-        let request_fingerprint = build_deploy_request_fingerprint(request);
+    ) -> anyhow::Result<CreateBuildWorkloadJobResult> {
+        let request_fingerprint = build_workload_request_fingerprint(request);
         if let Some(idempotency_key) = request.idempotency_key.as_deref() {
             let jobs = self.jobs.lock().expect("jobs lock poisoned");
             if let Some(existing) = jobs.values().find(|job| {
@@ -2483,10 +2478,10 @@ impl BuildDeployJobRegistry {
             }) {
                 if existing.request_fingerprint != request_fingerprint {
                     anyhow::bail!(
-                        "idempotency_key was already used for a different build-deploy request"
+                        "idempotency_key was already used for a different build-workload request"
                     );
                 }
-                return Ok(CreateBuildDeployJobResult {
+                return Ok(CreateBuildWorkloadJobResult {
                     job_id: existing.job_id.clone(),
                     created: false,
                     state: existing.state,
@@ -2498,7 +2493,7 @@ impl BuildDeployJobRegistry {
             .global_sem
             .clone()
             .try_acquire_owned()
-            .map_err(|_| anyhow::anyhow!("build-deploy global concurrency limit reached"))?;
+            .map_err(|_| anyhow::anyhow!("build-workload global concurrency limit reached"))?;
         {
             let mut active = self
                 .installation_active
@@ -2506,7 +2501,7 @@ impl BuildDeployJobRegistry {
                 .expect("installation lock poisoned");
             if active.contains(&request.installation_id) {
                 anyhow::bail!(
-                    "build-deploy installation concurrency limit reached (max {BUILD_DEPLOY_MAX_PER_INSTALLATION_ACTIVE})"
+                    "build-workload installation concurrency limit reached (max {BUILD_WORKLOAD_MAX_PER_INSTALLATION_ACTIVE})"
                 );
             }
             active.insert(request.installation_id.clone());
@@ -2517,16 +2512,16 @@ impl BuildDeployJobRegistry {
             &uuid::Uuid::new_v4().simple().to_string()[..8],
             sanitize_container_name(&request.route_id)
         );
-        let authority = DeploymentAuthorityLease::from_identity(job_id.clone(), "local", identity);
+        let authority = WorkloadAuthorityLease::from_identity(job_id.clone(), "local", identity);
         let mut jobs = self.jobs.lock().expect("jobs lock poisoned");
         jobs.insert(
             job_id.clone(),
-            BuildDeployJobRecord {
+            BuildWorkloadJobRecord {
                 job_id: job_id.clone(),
                 installation_id: request.installation_id.clone(),
                 route_id: request.route_id.clone(),
                 build_id: request.build_id.clone(),
-                state: BuildDeployJobState::Queued,
+                state: BuildWorkloadJobState::Queued,
                 created_at_ms: now,
                 updated_at_ms: now,
                 result: None,
@@ -2536,37 +2531,37 @@ impl BuildDeployJobRegistry {
                 cancel: Arc::new(AtomicBool::new(false)),
                 idempotency_key: request.idempotency_key.clone(),
                 request_fingerprint,
-                operation: DeploymentOperation::BuildDeploy,
+                operation: WorkloadOperation::BuildWorkload,
                 authority,
             },
         );
         drop(jobs);
-        self.push_event(&job_id, BuildDeployJobState::Queued, "job queued");
+        self.push_event(&job_id, BuildWorkloadJobState::Queued, "job queued");
         self.prune();
-        Ok(CreateBuildDeployJobResult {
+        Ok(CreateBuildWorkloadJobResult {
             job_id,
             created: true,
-            state: BuildDeployJobState::Queued,
+            state: BuildWorkloadJobState::Queued,
             permit: Some(permit),
         })
     }
 
-    fn status(&self, job_id: &str) -> Option<BuildDeployJobStatusResponse> {
+    fn status(&self, job_id: &str) -> Option<BuildWorkloadJobStatusResponse> {
         let jobs = self.jobs.lock().expect("jobs lock poisoned");
         let job = jobs.get(job_id)?;
         Some(job_status_response(job))
     }
 
-    fn events(&self, job_id: &str) -> Option<Vec<BuildDeployJobEvent>> {
+    fn events(&self, job_id: &str) -> Option<Vec<BuildWorkloadJobEvent>> {
         let jobs = self.jobs.lock().expect("jobs lock poisoned");
         Some(jobs.get(job_id)?.events.iter().cloned().collect())
     }
 
-    fn subscribe(&self) -> broadcast::Receiver<BuildDeployJobEvent> {
+    fn subscribe(&self) -> broadcast::Receiver<BuildWorkloadJobEvent> {
         self.notifier.subscribe()
     }
 
-    fn cancel(&self, job_id: &str) -> Option<(BuildDeployJobState, bool)> {
+    fn cancel(&self, job_id: &str) -> Option<(BuildWorkloadJobState, bool)> {
         let cancel = {
             let jobs = self.jobs.lock().expect("jobs lock poisoned");
             let job = jobs.get(job_id)?;
@@ -2576,7 +2571,7 @@ impl BuildDeployJobRegistry {
             job.cancel.clone()
         };
         cancel.store(true, Ordering::SeqCst);
-        self.push_event(job_id, BuildDeployJobState::Cancelled, "cancel requested");
+        self.push_event(job_id, BuildWorkloadJobState::Cancelled, "cancel requested");
         self.status(job_id).map(|status| (status.state, true))
     }
 
@@ -2588,7 +2583,7 @@ impl BuildDeployJobRegistry {
             .global_sem
             .clone()
             .try_acquire_owned()
-            .map_err(|_| anyhow::anyhow!("build-deploy global concurrency limit reached"))?;
+            .map_err(|_| anyhow::anyhow!("build-workload global concurrency limit reached"))?;
         let _ = installation_id;
         Ok(permit)
     }
@@ -2604,7 +2599,7 @@ impl BuildDeployJobRegistry {
             .expect("installation lock poisoned");
         if !active.insert(installation_id.clone()) {
             anyhow::bail!(
-                "deployment installation concurrency limit reached (max {BUILD_DEPLOY_MAX_PER_INSTALLATION_ACTIVE})"
+                "workload installation concurrency limit reached (max {BUILD_WORKLOAD_MAX_PER_INSTALLATION_ACTIVE})"
             );
         }
         Ok(permit)
@@ -2632,15 +2627,15 @@ impl BuildDeployJobRegistry {
             .map(|job| job.cancel.clone())
     }
 
-    fn transition(&self, job_id: &str, state: BuildDeployJobState, message: &str) {
+    fn transition(&self, job_id: &str, state: BuildWorkloadJobState, message: &str) {
         self.push_event(job_id, state, message);
     }
 
-    fn complete_ready(&self, job_id: &str, result: HostBuildDeployResponse) {
+    fn complete_ready(&self, job_id: &str, result: HostBuildWorkloadResponse) {
         let mut jobs = self.jobs.lock().expect("jobs lock poisoned");
         if let Some(job) = jobs.get_mut(job_id) {
             if job.state.terminal() {
-                if job.state == BuildDeployJobState::Ready {
+                if job.state == BuildWorkloadJobState::Ready {
                     job.build_id = Some(result.build_id.clone());
                     job.result = Some(result);
                 }
@@ -2650,10 +2645,10 @@ impl BuildDeployJobRegistry {
             job.result = Some(result);
         }
         drop(jobs);
-        self.push_event(job_id, BuildDeployJobState::Ready, "deployment ready");
+        self.push_event(job_id, BuildWorkloadJobState::Ready, "workload ready");
     }
 
-    fn complete_error(&self, job_id: &str, state: BuildDeployJobState, error: String) {
+    fn complete_error(&self, job_id: &str, state: BuildWorkloadJobState, error: String) {
         let redacted = redact_build_log(&error);
         let mut jobs = self.jobs.lock().expect("jobs lock poisoned");
         if let Some(job) = jobs.get_mut(job_id) {
@@ -2666,7 +2661,7 @@ impl BuildDeployJobRegistry {
         self.push_event(job_id, state, &redacted);
     }
 
-    fn push_event(&self, job_id: &str, state: BuildDeployJobState, message: &str) {
+    fn push_event(&self, job_id: &str, state: BuildWorkloadJobState, message: &str) {
         let mut jobs = self.jobs.lock().expect("jobs lock poisoned");
         let Some(job) = jobs.get_mut(job_id) else {
             return;
@@ -2674,7 +2669,7 @@ impl BuildDeployJobRegistry {
         if job.state.terminal() && state != job.state {
             return;
         }
-        let event = BuildDeployJobEvent {
+        let event = BuildWorkloadJobEvent {
             job_id: job_id.to_string(),
             sequence: job.next_sequence,
             state,
@@ -2685,7 +2680,7 @@ impl BuildDeployJobRegistry {
         job.state = state;
         job.updated_at_ms = event.timestamp_ms;
         job.events.push_back(event.clone());
-        while job.events.len() > BUILD_DEPLOY_LOG_RING {
+        while job.events.len() > BUILD_WORKLOAD_LOG_RING {
             job.events.pop_front();
         }
         drop(jobs);
@@ -2694,7 +2689,7 @@ impl BuildDeployJobRegistry {
 
     fn prune(&self) {
         let mut jobs = self.jobs.lock().expect("jobs lock poisoned");
-        if jobs.len() <= BUILD_DEPLOY_MAX_RETAINED_JOBS {
+        if jobs.len() <= BUILD_WORKLOAD_MAX_RETAINED_JOBS {
             return;
         }
         let mut terminal = jobs
@@ -2705,16 +2700,16 @@ impl BuildDeployJobRegistry {
         terminal.sort();
         for (_, id) in terminal
             .into_iter()
-            .take(jobs.len() - BUILD_DEPLOY_MAX_RETAINED_JOBS)
+            .take(jobs.len() - BUILD_WORKLOAD_MAX_RETAINED_JOBS)
         {
             jobs.remove(&id);
         }
     }
 
-    fn job_snapshot(&self, job_id: &str) -> Option<DeploymentJobSnapshot> {
+    fn job_snapshot(&self, job_id: &str) -> Option<WorkloadJobSnapshot> {
         let jobs = self.jobs.lock().expect("jobs lock poisoned");
         let job = jobs.get(job_id)?;
-        Some(DeploymentJobSnapshot {
+        Some(WorkloadJobSnapshot {
             status: job_status_response(job),
             event: job.events.back().cloned(),
             request_fingerprint: job.request_fingerprint.clone(),
@@ -2725,25 +2720,25 @@ impl BuildDeployJobRegistry {
     fn ready_snapshot(
         &self,
         job_id: &str,
-        result: &HostBuildDeployResponse,
-    ) -> Option<DeploymentJobSnapshot> {
+        result: &HostBuildWorkloadResponse,
+    ) -> Option<WorkloadJobSnapshot> {
         let jobs = self.jobs.lock().expect("jobs lock poisoned");
         let job = jobs.get(job_id)?;
         let timestamp_ms = now_millis();
-        let event = BuildDeployJobEvent {
+        let event = BuildWorkloadJobEvent {
             job_id: job_id.to_string(),
             sequence: job.next_sequence,
-            state: BuildDeployJobState::Ready,
-            message: "deployment ready".to_string(),
+            state: BuildWorkloadJobState::Ready,
+            message: "workload ready".to_string(),
             timestamp_ms,
         };
         let mut status = job_status_response(job);
-        status.state = BuildDeployJobState::Ready;
+        status.state = BuildWorkloadJobState::Ready;
         status.updated_at_ms = timestamp_ms;
         status.build_id = Some(result.build_id.clone());
         status.result = Some(result.clone());
         status.error = None;
-        Some(DeploymentJobSnapshot {
+        Some(WorkloadJobSnapshot {
             status,
             event: Some(event),
             request_fingerprint: job.request_fingerprint.clone(),
@@ -2751,17 +2746,17 @@ impl BuildDeployJobRegistry {
         })
     }
 
-    fn restore_job_snapshot(&self, snapshot: DeploymentJobSnapshot) {
+    fn restore_job_snapshot(&self, snapshot: WorkloadJobSnapshot) {
         let mut jobs = self.jobs.lock().expect("jobs lock poisoned");
         let mut restored_event = None;
         let request_fingerprint = snapshot.request_fingerprint;
-        let authority = snapshot.authority.unwrap_or_else(|| {
-            DeploymentAuthorityLease::unavailable(snapshot.status.job_id.clone())
-        });
+        let authority = snapshot
+            .authority
+            .unwrap_or_else(|| WorkloadAuthorityLease::unavailable(snapshot.status.job_id.clone()));
         let status = snapshot.status;
         let record = jobs
             .entry(status.job_id.clone())
-            .or_insert_with(|| BuildDeployJobRecord {
+            .or_insert_with(|| BuildWorkloadJobRecord {
                 job_id: status.job_id.clone(),
                 installation_id: status.installation_id.clone(),
                 route_id: status.route_id.clone(),
@@ -2800,7 +2795,7 @@ impl BuildDeployJobRegistry {
                 record.next_sequence = record.next_sequence.max(event.sequence + 1);
                 record.events.push_back(event.clone());
                 restored_event = Some(event);
-                while record.events.len() > BUILD_DEPLOY_LOG_RING {
+                while record.events.len() > BUILD_WORKLOAD_LOG_RING {
                     record.events.pop_front();
                 }
             }
@@ -2811,7 +2806,7 @@ impl BuildDeployJobRegistry {
         }
     }
 
-    fn job_authority(&self, job_id: &str) -> Option<DeploymentAuthorityLease> {
+    fn job_authority(&self, job_id: &str) -> Option<WorkloadAuthorityLease> {
         self.jobs
             .lock()
             .expect("jobs lock poisoned")
@@ -2830,17 +2825,17 @@ impl BuildDeployJobRegistry {
         for job_id in &ids {
             self.complete_error(
                 job_id,
-                BuildDeployJobState::Failed,
-                "host restarted before the deployment job completed".to_string(),
+                BuildWorkloadJobState::Failed,
+                "host restarted before the workload job completed".to_string(),
             );
         }
         ids
     }
 
-    fn register_revision(&self, revision: DeploymentRevision) {
-        let mut deployment = self.deployment.lock().expect("deployment lock poisoned");
-        deployment.direct_route_owners.remove(&revision.route_id);
-        let revisions = deployment
+    fn register_revision(&self, revision: WorkloadRevision) {
+        let mut workload = self.workload.lock().expect("workload lock poisoned");
+        workload.direct_route_owners.remove(&revision.route_id);
+        let revisions = workload
             .revisions
             .entry(revision.installation_id.clone())
             .or_default();
@@ -2849,34 +2844,34 @@ impl BuildDeployJobRegistry {
             .any(|existing| existing.revision_id == revision.revision_id)
         {
             revisions.push(revision.clone());
-            if revisions.len() > BUILD_DEPLOY_MAX_REVISIONS_PER_INSTALLATION {
-                let excess = revisions.len() - BUILD_DEPLOY_MAX_REVISIONS_PER_INSTALLATION;
+            if revisions.len() > BUILD_WORKLOAD_MAX_REVISIONS_PER_INSTALLATION {
+                let excess = revisions.len() - BUILD_WORKLOAD_MAX_REVISIONS_PER_INSTALLATION;
                 revisions.drain(..excess);
             }
         }
-        deployment.active_revisions.insert(
+        workload.active_revisions.insert(
             revision.installation_id.clone(),
             revision.revision_id.clone(),
         );
     }
 
-    fn deactivate_revision(&self, deactivation: &DeploymentRevisionDeactivated) {
-        let mut deployment = self.deployment.lock().expect("deployment lock poisoned");
-        if deployment
+    fn deactivate_revision(&self, deactivation: &WorkloadRevisionDeactivated) {
+        let mut workload = self.workload.lock().expect("workload lock poisoned");
+        if workload
             .active_revisions
             .get(&deactivation.installation_id)
             .is_some_and(|revision_id| revision_id == &deactivation.revision_id)
         {
-            deployment
+            workload
                 .active_revisions
                 .remove(&deactivation.installation_id);
         }
     }
 
-    fn active_revision(&self, installation_id: &InstallationId) -> Option<DeploymentRevision> {
-        let deployment = self.deployment.lock().expect("deployment lock poisoned");
-        let revision_id = deployment.active_revisions.get(installation_id)?;
-        deployment
+    fn active_revision(&self, installation_id: &InstallationId) -> Option<WorkloadRevision> {
+        let workload = self.workload.lock().expect("workload lock poisoned");
+        let revision_id = workload.active_revisions.get(installation_id)?;
+        workload
             .revisions
             .get(installation_id)?
             .iter()
@@ -2884,17 +2879,17 @@ impl BuildDeployJobRegistry {
             .cloned()
     }
 
-    fn ensure_revision_parent(&self, revision: &DeploymentRevision) -> anyhow::Result<()> {
+    fn ensure_revision_parent(&self, revision: &WorkloadRevision) -> anyhow::Result<()> {
         let current = self
-            .deployment
+            .workload
             .lock()
-            .expect("deployment lock poisoned")
+            .expect("workload lock poisoned")
             .active_revisions
             .get(&revision.installation_id)
             .cloned();
         anyhow::ensure!(
             current == revision.parent_revision_id,
-            "deployment activation parent is stale"
+            "workload activation parent is stale"
         );
         Ok(())
     }
@@ -2903,10 +2898,10 @@ impl BuildDeployJobRegistry {
         &self,
         installation_id: &InstallationId,
         revision_id: &str,
-    ) -> Option<DeploymentRevision> {
-        self.deployment
+    ) -> Option<WorkloadRevision> {
+        self.workload
             .lock()
-            .expect("deployment lock poisoned")
+            .expect("workload lock poisoned")
             .revisions
             .get(installation_id)?
             .iter()
@@ -2914,11 +2909,11 @@ impl BuildDeployJobRegistry {
             .cloned()
     }
 
-    fn revisions(&self, installation_id: &InstallationId) -> Vec<DeploymentRevision> {
+    fn revisions(&self, installation_id: &InstallationId) -> Vec<WorkloadRevision> {
         let mut revisions = self
-            .deployment
+            .workload
             .lock()
-            .expect("deployment lock poisoned")
+            .expect("workload lock poisoned")
             .revisions
             .get(installation_id)
             .cloned()
@@ -2930,7 +2925,7 @@ impl BuildDeployJobRegistry {
     fn jobs_for_installation(
         &self,
         installation_id: &InstallationId,
-    ) -> Vec<BuildDeployJobStatusResponse> {
+    ) -> Vec<BuildWorkloadJobStatusResponse> {
         let jobs = self.jobs.lock().expect("jobs lock poisoned");
         let mut statuses = jobs
             .values()
@@ -2941,13 +2936,13 @@ impl BuildDeployJobRegistry {
         statuses
     }
 
-    fn active_by_route(&self, route_id: &str) -> Option<DeploymentRevision> {
-        let deployment = self.deployment.lock().expect("deployment lock poisoned");
-        deployment
+    fn active_by_route(&self, route_id: &str) -> Option<WorkloadRevision> {
+        let workload = self.workload.lock().expect("workload lock poisoned");
+        workload
             .active_revisions
             .iter()
             .find_map(|(installation_id, revision_id)| {
-                deployment
+                workload
                     .revisions
                     .get(installation_id)?
                     .iter()
@@ -2959,14 +2954,14 @@ impl BuildDeployJobRegistry {
             })
     }
 
-    fn register_direct_route_owner(&self, ownership: DeploymentDirectRouteOwned) {
-        let mut deployment = self.deployment.lock().expect("deployment lock poisoned");
+    fn register_direct_route_owner(&self, ownership: WorkloadDirectRouteOwned) {
+        let mut workload = self.workload.lock().expect("workload lock poisoned");
         let replaced_active =
-            deployment
+            workload
                 .active_revisions
                 .iter()
                 .find_map(|(active_installation_id, revision_id)| {
-                    deployment
+                    workload
                         .revisions
                         .get(active_installation_id)
                         .and_then(|revisions| {
@@ -2980,20 +2975,20 @@ impl BuildDeployJobRegistry {
                         })
                 });
         if let Some(active_installation_id) = replaced_active {
-            deployment.active_revisions.remove(&active_installation_id);
+            workload.active_revisions.remove(&active_installation_id);
         }
-        deployment
+        workload
             .direct_route_owners
             .insert(ownership.route_id.clone(), ownership);
     }
 
     fn installation_for_route(&self, route_id: &str) -> Option<InstallationId> {
-        let deployment = self.deployment.lock().expect("deployment lock poisoned");
-        deployment
+        let workload = self.workload.lock().expect("workload lock poisoned");
+        workload
             .active_revisions
             .iter()
             .find_map(|(installation_id, revision_id)| {
-                deployment
+                workload
                     .revisions
                     .get(installation_id)?
                     .iter()
@@ -3004,7 +2999,7 @@ impl BuildDeployJobRegistry {
                     .then(|| installation_id.clone())
             })
             .or_else(|| {
-                deployment
+                workload
                     .direct_route_owners
                     .get(route_id)
                     .map(|ownership| ownership.installation_id.clone())
@@ -3019,24 +3014,24 @@ impl BuildDeployJobRegistry {
         if let Some(owner) = self.installation_for_route(route_id) {
             anyhow::ensure!(
                 &owner == installation_id,
-                "deployment route is owned by another installation"
+                "workload route is owned by another installation"
             );
         }
         Ok(())
     }
 
-    fn durable_routes(&self) -> Vec<DurableDeploymentRoute> {
-        let deployment = self.deployment.lock().expect("deployment lock poisoned");
-        let mut routes = deployment
+    fn durable_routes(&self) -> Vec<DurableWorkloadRoute> {
+        let workload = self.workload.lock().expect("workload lock poisoned");
+        let mut routes = workload
             .active_revisions
             .iter()
             .filter_map(|(installation_id, revision_id)| {
-                deployment
+                workload
                     .revisions
                     .get(installation_id)?
                     .iter()
                     .find(|revision| revision.revision_id == *revision_id)
-                    .map(|revision| DurableDeploymentRoute {
+                    .map(|revision| DurableWorkloadRoute {
                         route_id: revision.route_id.clone(),
                         port_name: revision.port_name.clone(),
                         route_access: revision.route_access,
@@ -3044,8 +3039,8 @@ impl BuildDeployJobRegistry {
                     })
             })
             .collect::<Vec<_>>();
-        routes.extend(deployment.direct_route_owners.values().map(|ownership| {
-            DurableDeploymentRoute {
+        routes.extend(workload.direct_route_owners.values().map(|ownership| {
+            DurableWorkloadRoute {
                 route_id: ownership.route_id.clone(),
                 port_name: ownership.port_name.clone(),
                 route_access: ownership.route_access,
@@ -3056,8 +3051,8 @@ impl BuildDeployJobRegistry {
     }
 }
 
-fn job_status_response(job: &BuildDeployJobRecord) -> BuildDeployJobStatusResponse {
-    BuildDeployJobStatusResponse {
+fn job_status_response(job: &BuildWorkloadJobRecord) -> BuildWorkloadJobStatusResponse {
+    BuildWorkloadJobStatusResponse {
         job_id: job.job_id.clone(),
         installation_id: job.installation_id.clone(),
         route_id: job.route_id.clone(),
@@ -3067,13 +3062,13 @@ fn job_status_response(job: &BuildDeployJobRecord) -> BuildDeployJobStatusRespon
         updated_at_ms: job.updated_at_ms,
         result: job.result.clone(),
         error: job.error.clone(),
-        events_url: format!("/host/v1/build-deploy/{}/events", job.job_id),
+        events_url: format!("/host/v1/build-workload/{}/events", job.job_id),
         idempotency_key: job.idempotency_key.clone(),
         operation: job.operation,
     }
 }
 
-async fn append_deployment_journal_event<S, T>(
+async fn append_workload_journal_event<S, T>(
     store: &S,
     expected_next_sequence: EventSequence,
     kind: &str,
@@ -3085,9 +3080,9 @@ where
 {
     store
         .append_with_sequence_if_next(
-            DEPLOYMENT_JOURNAL_SESSION.to_string(),
+            WORKLOAD_JOURNAL_SESSION.to_string(),
             expected_next_sequence,
-            DEPLOYMENT_JOURNAL_WRITER.to_string(),
+            WORKLOAD_JOURNAL_WRITER.to_string(),
             kind.to_string(),
             1,
             serde_json::to_value(payload)?,
@@ -3096,9 +3091,9 @@ where
         .await
 }
 
-async fn sync_deployment_journal<S>(
+async fn sync_workload_journal<S>(
     store: &S,
-    registry: &BuildDeployJobRegistry,
+    registry: &BuildWorkloadJobRegistry,
 ) -> anyhow::Result<usize>
 where
     S: EventStore,
@@ -3108,7 +3103,7 @@ where
         let next = registry.journal_next_sequence();
         let events = store
             .list_session_range(
-                &DEPLOYMENT_JOURNAL_SESSION.to_string(),
+                &WORKLOAD_JOURNAL_SESSION.to_string(),
                 next.checked_sub(1),
                 Some(1_000),
             )
@@ -3127,9 +3122,9 @@ where
     Ok(loaded)
 }
 
-async fn persist_deployment_journal_event<S, T, F>(
+async fn persist_workload_journal_event<S, T, F>(
     store: &S,
-    registry: &BuildDeployJobRegistry,
+    registry: &BuildWorkloadJobRegistry,
     kind: &str,
     payload: &T,
     validate: F,
@@ -3140,17 +3135,17 @@ where
     F: Fn() -> anyhow::Result<()>,
 {
     for _ in 0..8 {
-        sync_deployment_journal(store, registry).await?;
+        sync_workload_journal(store, registry).await?;
         validate()?;
         let expected_next = registry.journal_next_sequence();
         if let Some(event) =
-            append_deployment_journal_event(store, expected_next, kind, payload).await?
+            append_workload_journal_event(store, expected_next, kind, payload).await?
         {
             registry.apply_journal_event(&event)?;
             return Ok(event);
         }
     }
-    anyhow::bail!("deployment journal changed concurrently")
+    anyhow::bail!("workload journal changed concurrently")
 }
 
 async fn persist_job_snapshot<S>(state: &AppState<S>, job_id: &str) -> anyhow::Result<()>
@@ -3160,11 +3155,11 @@ where
     let snapshot = state
         .build_jobs
         .job_snapshot(job_id)
-        .ok_or_else(|| anyhow::anyhow!("build-deploy job disappeared before persistence"))?;
-    persist_deployment_journal_event(
+        .ok_or_else(|| anyhow::anyhow!("build-workload job disappeared before persistence"))?;
+    persist_workload_journal_event(
         state.runtime.store().as_ref(),
         state.build_jobs.as_ref(),
-        DEPLOYMENT_JOB_SNAPSHOT_EVENT,
+        WORKLOAD_JOB_SNAPSHOT_EVENT,
         &snapshot,
         || Ok(()),
     )
@@ -3174,23 +3169,23 @@ where
 
 async fn persist_revision_activation<S>(
     state: &AppState<S>,
-    revision: &DeploymentRevision,
-    job: Option<DeploymentJobSnapshot>,
-    authority: Option<DeploymentAuthorityLease>,
+    revision: &WorkloadRevision,
+    job: Option<WorkloadJobSnapshot>,
+    authority: Option<WorkloadAuthorityLease>,
 ) -> anyhow::Result<()>
 where
     S: EventStore,
 {
-    let activation = DeploymentRevisionActivated {
+    let activation = WorkloadRevisionActivated {
         revision: revision.clone(),
         enforce_parent: true,
         job,
         authority,
     };
-    persist_deployment_journal_event(
+    persist_workload_journal_event(
         state.runtime.store().as_ref(),
         state.build_jobs.as_ref(),
-        DEPLOYMENT_REVISION_ACTIVATED_EVENT,
+        WORKLOAD_REVISION_ACTIVATED_EVENT,
         &activation,
         || state.build_jobs.ensure_revision_parent(revision),
     )
@@ -3200,15 +3195,15 @@ where
 
 async fn persist_revision_deactivation<S>(
     state: &AppState<S>,
-    deactivation: &DeploymentRevisionDeactivated,
+    deactivation: &WorkloadRevisionDeactivated,
 ) -> anyhow::Result<()>
 where
     S: EventStore,
 {
-    persist_deployment_journal_event(
+    persist_workload_journal_event(
         state.runtime.store().as_ref(),
         state.build_jobs.as_ref(),
-        DEPLOYMENT_REVISION_DEACTIVATED_EVENT,
+        WORKLOAD_REVISION_DEACTIVATED_EVENT,
         deactivation,
         || Ok(()),
     )
@@ -3218,15 +3213,15 @@ where
 
 async fn persist_direct_route_ownership<S>(
     state: &AppState<S>,
-    ownership: &DeploymentDirectRouteOwned,
+    ownership: &WorkloadDirectRouteOwned,
 ) -> anyhow::Result<()>
 where
     S: EventStore,
 {
-    persist_deployment_journal_event(
+    persist_workload_journal_event(
         state.runtime.store().as_ref(),
         state.build_jobs.as_ref(),
-        DEPLOYMENT_DIRECT_ROUTE_OWNED_EVENT,
+        WORKLOAD_DIRECT_ROUTE_OWNED_EVENT,
         ownership,
         || Ok(()),
     )
@@ -3236,15 +3231,15 @@ where
 
 async fn persist_direct_route_release<S>(
     state: &AppState<S>,
-    release: &DeploymentDirectRouteReleased,
+    release: &WorkloadDirectRouteReleased,
 ) -> anyhow::Result<()>
 where
     S: EventStore,
 {
-    persist_deployment_journal_event(
+    persist_workload_journal_event(
         state.runtime.store().as_ref(),
         state.build_jobs.as_ref(),
-        DEPLOYMENT_DIRECT_ROUTE_RELEASED_EVENT,
+        WORKLOAD_DIRECT_ROUTE_RELEASED_EVENT,
         release,
         || Ok(()),
     )
@@ -3252,20 +3247,20 @@ where
     .map(|_| ())
 }
 
-pub async fn hydrate_deployment_control_plane<S>(
+pub async fn hydrate_workload_control_plane<S>(
     store: Arc<S>,
-    registry: Arc<BuildDeployJobRegistry>,
+    registry: Arc<BuildWorkloadJobRegistry>,
 ) -> anyhow::Result<usize>
 where
     S: EventStore,
 {
-    let loaded = sync_deployment_journal(store.as_ref(), registry.as_ref()).await?;
+    let loaded = sync_workload_journal(store.as_ref(), registry.as_ref()).await?;
     for job_id in registry.interrupt_incomplete_jobs() {
         if let Some(snapshot) = registry.job_snapshot(&job_id) {
-            persist_deployment_journal_event(
+            persist_workload_journal_event(
                 store.as_ref(),
                 registry.as_ref(),
-                DEPLOYMENT_JOB_SNAPSHOT_EVENT,
+                WORKLOAD_JOB_SNAPSHOT_EVENT,
                 &snapshot,
                 || Ok(()),
             )
@@ -3277,16 +3272,16 @@ where
 }
 
 #[derive(Debug)]
-pub struct DeploymentControlPlaneReconcileSummary {
+pub struct WorkloadControlPlaneReconcileSummary {
     pub durable_routes_restored: usize,
-    pub target_deployments_projected: usize,
+    pub target_workloads_projected: usize,
     pub orphan_candidates_found: usize,
-    pub runtime: plurora_runtime::DeploymentReconcileSummary,
+    pub runtime: plurora_runtime::WorkloadReconcileSummary,
 }
 
-pub async fn reconcile_deployment_control_plane<S>(
+pub async fn reconcile_workload_control_plane<S>(
     state: &AppState<S>,
-) -> anyhow::Result<DeploymentControlPlaneReconcileSummary>
+) -> anyhow::Result<WorkloadControlPlaneReconcileSummary>
 where
     S: EventStore,
 {
@@ -3295,14 +3290,14 @@ where
         state.development.as_ref(),
     )
     .await?;
-    let context = ProtocolContext::host_dev("host_deployment_startup_reconcile");
+    let context = ProtocolContext::host_dev("host_workload_startup_reconcile");
     let durable_routes = state.build_jobs.durable_routes();
     let mut durable_by_route = HashMap::new();
     for route in &durable_routes {
         if let Some(existing) = durable_by_route.insert(route.route_id.clone(), route.clone()) {
             anyhow::ensure!(
                 existing.port_lease_id == route.port_lease_id,
-                "multiple durable deployments claim the same route"
+                "multiple durable workloads claim the same route"
             );
         }
     }
@@ -3321,7 +3316,7 @@ where
         }) {
             anyhow::ensure!(
                 !route.port_name.is_empty(),
-                "durable deployment route is missing its port name"
+                "durable workload route is missing its port name"
             );
             call_host_protocol(
                 state,
@@ -3358,13 +3353,13 @@ where
     // containers. Materialize them before the generic Docker-broker reconcile so
     // its legacy local-container scan cannot remove their routes or leases.
     // If projection is uncertain, fail closed with the stale records intact.
-    let target_deployments_projected =
-        target_agent::reconcile_target_deployment_control_plane(state).await?;
+    let target_workloads_projected =
+        target_agent::reconcile_target_workload_control_plane(state).await?;
 
     let managed = state
         .runtime
         .config()
-        .deployment_reconcile_source
+        .workload_reconcile_source
         .list_managed()
         .await?;
     let mut seen = HashSet::new();
@@ -3381,7 +3376,7 @@ where
             continue;
         }
         if !durable_by_route.contains_key(&route_id) && container.operation_id.is_none() {
-            // Pre-Phase-2 direct deployments have no controller journal or operation label.
+            // Unowned direct workloads have no controller journal or operation label.
             // Preserve them instead of guessing that they are abandoned candidates.
             if !state
                 .runtime
@@ -3414,7 +3409,7 @@ where
             .await
             .is_some_and(|route| route.upstream.port_lease_id == port_lease_id);
         orphan_cleanup_warnings.extend(
-            cleanup_deployment_resources(
+            cleanup_workload_resources(
                 state,
                 &context,
                 &route_id,
@@ -3429,25 +3424,25 @@ where
         for warning in &orphan_cleanup_warnings {
             eprintln!("warning: startup orphan cleanup incomplete: {warning}");
         }
-        anyhow::bail!("deployment reconcile paused because orphan cleanup was not confirmed");
+        anyhow::bail!("workload reconcile paused because orphan cleanup was not confirmed");
     }
     anyhow::ensure!(
         !legacy_unowned_resource_found,
-        "deployment reconcile paused for a pre-Phase-2 container without durable route ownership"
+        "workload reconcile paused for a container without durable route ownership"
     );
 
-    let runtime = state.runtime.reconcile_deployment().await?;
-    Ok(DeploymentControlPlaneReconcileSummary {
+    let runtime = state.runtime.reconcile_workload().await?;
+    Ok(WorkloadControlPlaneReconcileSummary {
         durable_routes_restored,
-        target_deployments_projected,
+        target_workloads_projected,
         orphan_candidates_found,
         runtime,
     })
 }
 
-async fn deployment_effect_context<S>(
+async fn workload_effect_context<S>(
     state: &AppState<S>,
-    authority: Option<&DeploymentAuthorityLease>,
+    authority: Option<&WorkloadAuthorityLease>,
     installation_id: &InstallationId,
     transport: &str,
 ) -> anyhow::Result<ProtocolContext>
@@ -3490,16 +3485,16 @@ where
             state
                 .build_jobs
                 .job_authority(job_id)
-                .ok_or_else(|| anyhow::anyhow!("build-deploy authority lease disappeared"))
+                .ok_or_else(|| anyhow::anyhow!("build-workload authority lease disappeared"))
         })
         .transpose()?;
-    deployment_effect_context(state, authority.as_ref(), installation_id, transport).await
+    workload_effect_context(state, authority.as_ref(), installation_id, transport).await
 }
 
-async fn deployment_operation_effect_context<S>(
+async fn workload_operation_effect_context<S>(
     state: &AppState<S>,
     job_id: Option<&str>,
-    authority: Option<&DeploymentAuthorityLease>,
+    authority: Option<&WorkloadAuthorityLease>,
     installation_id: &InstallationId,
     transport: &str,
 ) -> anyhow::Result<ProtocolContext>
@@ -3507,7 +3502,7 @@ where
     S: EventStore,
 {
     if authority.is_some() {
-        deployment_effect_context(state, authority, installation_id, transport).await
+        workload_effect_context(state, authority, installation_id, transport).await
     } else {
         build_job_effect_context(state, job_id, installation_id, transport).await
     }
@@ -3548,15 +3543,15 @@ struct GitFetchTreeInvocation {
     staging_dir: PathBuf,
 }
 
-async fn deploy_installation<S>(
+async fn workload_installation<S>(
     State(state): State<AppState<S>>,
     Extension(identity): Extension<HostAccessIdentity>,
-    Json(request): Json<HostDeployRequest>,
-) -> anyhow::Result<Json<HostDeployResponse>, ServiceError>
+    Json(request): Json<HostWorkloadRequest>,
+) -> anyhow::Result<Json<HostWorkloadResponse>, ServiceError>
 where
     S: EventStore,
 {
-    validate_host_deploy_request(&request)?;
+    validate_host_workload_request(&request)?;
     require_identity_installation(&identity, request.installation_id.as_str())?;
     ensure_installation_effect_active(&state, &request.installation_id).await?;
     require_identity_target(&identity, "local")?;
@@ -3570,7 +3565,7 @@ where
         .build_jobs
         .ensure_route_available_for_installation(&request.route_id, &request.installation_id)
         .map_err(|error| ServiceError::with_status(StatusCode::CONFLICT, error.to_string()))?;
-    let authority = DeploymentAuthorityLease::from_identity(
+    let authority = WorkloadAuthorityLease::from_identity(
         format!("dop-{}", uuid::Uuid::new_v4().simple()),
         "local",
         &identity,
@@ -3582,7 +3577,7 @@ where
         .map_err(|error| ServiceError::with_status(StatusCode::CONFLICT, error.to_string()))?;
     let _installation_operation = (
         permit,
-        BuildDeployInstallationGuard {
+        BuildWorkloadInstallationGuard {
             registry: state.build_jobs.clone(),
             installation_id: request.installation_id.clone(),
         },
@@ -3594,11 +3589,11 @@ where
         .status(&request.route_id)
         .await
         .filter(|route| route.status == ProxyRouteStatusKind::Active);
-    let mut context = deployment_effect_context(
+    let mut context = workload_effect_context(
         &state,
         Some(&authority),
         &request.installation_id,
-        "host_deploy_prepare",
+        "host_workload_prepare",
     )
     .await?;
     let previous_container = if let Some(previous_route) = previous_route.as_ref() {
@@ -3624,7 +3619,7 @@ where
     {
         return Err(ServiceError::with_status(
             StatusCode::CONFLICT,
-            "existing route is not owned by a managed deployment",
+            "existing route is not owned by a managed workload",
         ));
     }
     let lease = match call_host_protocol(
@@ -3641,25 +3636,25 @@ where
     .and_then(|value| value_field(value, "lease", "host.port.lease"))
     {
         Ok(lease) => lease,
-        Err(error) => return Err(anyhow::anyhow!("deployment port lease failed: {error}").into()),
+        Err(error) => return Err(anyhow::anyhow!("workload port lease failed: {error}").into()),
     };
 
     let lease_id = required_string(&lease, "id", "port lease")?;
     let lease_port = required_u16(&lease, "port", "port lease")?;
     let port_lease_id = lease_id.clone();
 
-    context = match deployment_effect_context(
+    context = match workload_effect_context(
         &state,
         Some(&authority),
         &request.installation_id,
-        "host_deploy_candidate_start",
+        "host_workload_candidate_start",
     )
     .await
     {
         Ok(context) => context,
         Err(error) => {
-            let cleanup_context = ProtocolContext::host_dev("host_deploy_compensation");
-            rollback_deploy(
+            let cleanup_context = ProtocolContext::host_dev("host_workload_compensation");
+            rollback_workload(
                 &state,
                 &cleanup_context,
                 &request.route_id,
@@ -3693,9 +3688,9 @@ where
         Ok(output) => output,
         Err(error) => {
             // Protocol dispatch failed before the Docker provider returned an effect receipt.
-            rollback_deploy(
+            rollback_workload(
                 &state,
-                &ProtocolContext::host_dev("host_deploy_compensation"),
+                &ProtocolContext::host_dev("host_workload_compensation"),
                 &request.route_id,
                 false,
                 None,
@@ -3713,7 +3708,7 @@ where
                 &state,
                 &request.route_id,
                 &lease_id,
-                "host_deploy_unknown_start",
+                "host_workload_unknown_start",
             )
             .await;
             return Err(error.into());
@@ -3722,33 +3717,33 @@ where
     let container_name = optional_string(&start_output, "container_name");
 
     if let Err(error) =
-        wait_for_deployment_readiness(lease_port, request.health_path.as_deref()).await
+        wait_for_workload_readiness(lease_port, request.health_path.as_deref()).await
     {
-        rollback_deploy(
+        rollback_workload(
             &state,
-            &ProtocolContext::host_dev("host_deploy_compensation"),
+            &ProtocolContext::host_dev("host_workload_compensation"),
             &request.route_id,
             false,
             Some(&parsed_container_id),
             Some(&lease_id),
         )
         .await;
-        return Err(anyhow::anyhow!("deployment did not become ready in time: {error}").into());
+        return Err(anyhow::anyhow!("workload did not become ready in time: {error}").into());
     }
 
-    context = match deployment_effect_context(
+    context = match workload_effect_context(
         &state,
         Some(&authority),
         &request.installation_id,
-        "host_deploy_route_activation",
+        "host_workload_route_activation",
     )
     .await
     {
         Ok(context) => context,
         Err(error) => {
-            rollback_deploy(
+            rollback_workload(
                 &state,
-                &ProtocolContext::host_dev("host_deploy_compensation"),
+                &ProtocolContext::host_dev("host_workload_compensation"),
                 &request.route_id,
                 false,
                 Some(&parsed_container_id),
@@ -3777,7 +3772,7 @@ where
     {
         Ok(route) => route,
         Err(error) => {
-            rollback_deploy(
+            rollback_workload(
                 &state,
                 &context,
                 &request.route_id,
@@ -3795,9 +3790,9 @@ where
     ) {
         (Ok(route_id), Ok(public_url)) => (route_id, public_url),
         (Err(error), _) | (_, Err(error)) => {
-            rollback_deploy(
+            rollback_workload(
                 &state,
-                &ProtocolContext::host_dev("host_deploy_compensation"),
+                &ProtocolContext::host_dev("host_workload_compensation"),
                 &request.route_id,
                 true,
                 Some(&parsed_container_id),
@@ -3822,7 +3817,7 @@ where
         .await
         .is_none()
     {
-        rollback_deploy(
+        rollback_workload(
             &state,
             &context,
             &route_id,
@@ -3835,7 +3830,7 @@ where
     }
 
     {
-        let ownership = DeploymentDirectRouteOwned {
+        let ownership = WorkloadDirectRouteOwned {
             route_id: route_id.clone(),
             installation_id: request.installation_id.clone(),
             port_name: request.port_name.clone(),
@@ -3856,22 +3851,22 @@ where
                     &previous.upstream.port_name,
                     previous.access,
                     previous.ready,
-                    "host_deploy_journal_rollback",
+                    "host_workload_journal_rollback",
                 )
                 .await
                 {
                     Ok(true) | Ok(false) => unregister_candidate = false,
                     Err(restore_error) => {
                         eprintln!(
-                            "warning: failed to restore route after direct deployment journal failure: {restore_error}"
+                            "warning: failed to restore route after direct workload journal failure: {restore_error}"
                         );
                         unregister_candidate = true;
                     }
                 }
             }
-            rollback_deploy(
+            rollback_workload(
                 &state,
-                &ProtocolContext::host_dev("host_deploy_journal_rollback"),
+                &ProtocolContext::host_dev("host_workload_journal_rollback"),
                 &route_id,
                 unregister_candidate,
                 Some(&parsed_container_id),
@@ -3880,15 +3875,15 @@ where
             .await;
             return Err(ServiceError::with_status(
                 StatusCode::INTERNAL_SERVER_ERROR,
-                redacted_failure_message("direct deployment journal commit", &error),
+                redacted_failure_message("direct workload journal commit", &error),
             ));
         }
     }
 
     if let Some(previous) = previous_route.as_ref() {
-        rollback_deploy(
+        rollback_workload(
             &state,
-            &ProtocolContext::host_dev("host_deploy_previous_route_drain"),
+            &ProtocolContext::host_dev("host_workload_previous_route_drain"),
             &route_id,
             false,
             previous_container
@@ -3899,7 +3894,7 @@ where
         .await;
     }
 
-    Ok(Json(HostDeployResponse {
+    Ok(Json(HostWorkloadResponse {
         route_id,
         public_url,
         route_access: request.route_access,
@@ -3909,19 +3904,19 @@ where
     }))
 }
 
-async fn build_deploy_installation<S>(
+async fn build_workload_installation<S>(
     State(state): State<AppState<S>>,
     Extension(identity): Extension<HostAccessIdentity>,
-    Query(query): Query<BuildDeploySubmitQuery>,
-    Json(request): Json<HostBuildDeployRequest>,
-) -> anyhow::Result<Json<BuildDeploySubmitOrStatusResponse>, ServiceError>
+    Query(query): Query<BuildWorkloadSubmitQuery>,
+    Json(request): Json<HostBuildWorkloadRequest>,
+) -> anyhow::Result<Json<BuildWorkloadSubmitOrStatusResponse>, ServiceError>
 where
     S: EventStore,
 {
     require_identity_installation(&identity, request.installation_id.as_str())?;
     ensure_installation_effect_active(&state, &request.installation_id).await?;
     require_identity_target(&identity, "local")?;
-    validate_host_build_deploy_request(&request).map_err(redacted_build_deploy_error)?;
+    validate_host_build_workload_request(&request).map_err(redacted_build_workload_error)?;
     state
         .build_jobs
         .ensure_route_available_for_installation(&request.route_id, &request.installation_id)
@@ -3938,7 +3933,7 @@ where
             };
             ServiceError::with_status(status, message)
         })?;
-    let CreateBuildDeployJobResult {
+    let CreateBuildWorkloadJobResult {
         job_id,
         created,
         state: created_state,
@@ -3948,76 +3943,76 @@ where
         if let Err(error) = persist_job_snapshot(&state, &job_id).await {
             state.build_jobs.discard_job(&job_id);
             let public_error =
-                redacted_failure_message("deployment job intent journal commit", &error);
+                redacted_failure_message("workload job intent journal commit", &error);
             return Err(ServiceError::with_status(
                 StatusCode::INTERNAL_SERVER_ERROR,
                 public_error,
             ));
         }
-        let permit = permit.expect("new build-deploy job reserves global capacity");
+        let permit = permit.expect("new build-workload job reserves global capacity");
         let worker_state = state.clone();
         let worker_job_id = job_id.clone();
         tokio::spawn(async move {
-            run_build_deploy_job(worker_state, worker_job_id, request, permit).await;
+            run_build_workload_job(worker_state, worker_job_id, request, permit).await;
         });
     }
     if query.wait {
-        let status = wait_for_build_job(&state, &job_id, BUILD_DEPLOY_WAIT_TIMEOUT).await;
-        return Ok(Json(BuildDeploySubmitOrStatusResponse::Status(status)));
+        let status = wait_for_build_job(&state, &job_id, BUILD_WORKLOAD_WAIT_TIMEOUT).await;
+        return Ok(Json(BuildWorkloadSubmitOrStatusResponse::Status(status)));
     }
-    Ok(Json(BuildDeploySubmitOrStatusResponse::Submitted(
-        BuildDeployJobSubmitResponse {
-            status_url: format!("/host/v1/build-deploy/{job_id}"),
-            events_url: format!("/host/v1/build-deploy/{job_id}/events"),
+    Ok(Json(BuildWorkloadSubmitOrStatusResponse::Submitted(
+        BuildWorkloadJobSubmitResponse {
+            status_url: format!("/host/v1/build-workload/{job_id}"),
+            events_url: format!("/host/v1/build-workload/{job_id}/events"),
             state: created_state,
             job_id,
         },
     )))
 }
 
-async fn build_deploy_job_status<S>(
+async fn build_workload_job_status<S>(
     State(state): State<AppState<S>>,
     Extension(identity): Extension<HostAccessIdentity>,
     Path(job_id): Path<String>,
-) -> anyhow::Result<Json<BuildDeployJobStatusResponse>, ServiceError>
+) -> anyhow::Result<Json<BuildWorkloadJobStatusResponse>, ServiceError>
 where
     S: EventStore,
 {
     let status = state.build_jobs.status(&job_id).ok_or_else(|| {
-        ServiceError::with_status(StatusCode::NOT_FOUND, "build-deploy job not found")
+        ServiceError::with_status(StatusCode::NOT_FOUND, "build-workload job not found")
     })?;
     require_identity_installation(&identity, status.installation_id.as_str())?;
     Ok(Json(status))
 }
 
-async fn cancel_build_deploy_job<S>(
+async fn cancel_build_workload_job<S>(
     State(state): State<AppState<S>>,
     Extension(identity): Extension<HostAccessIdentity>,
     Path(job_id): Path<String>,
-) -> anyhow::Result<Json<BuildDeployCancelResponse>, ServiceError>
+) -> anyhow::Result<Json<BuildWorkloadCancelResponse>, ServiceError>
 where
     S: EventStore,
 {
     let status = state.build_jobs.status(&job_id).ok_or_else(|| {
-        ServiceError::with_status(StatusCode::NOT_FOUND, "build-deploy job not found")
+        ServiceError::with_status(StatusCode::NOT_FOUND, "build-workload job not found")
     })?;
     require_identity_installation(&identity, status.installation_id.as_str())?;
     let (state_value, cancelled) = state.build_jobs.cancel(&job_id).ok_or_else(|| {
-        ServiceError::with_status(StatusCode::NOT_FOUND, "build-deploy job not found")
+        ServiceError::with_status(StatusCode::NOT_FOUND, "build-workload job not found")
     })?;
     if cancelled {
         persist_job_snapshot(&state, &job_id)
             .await
-            .map_err(redacted_build_deploy_error)?;
+            .map_err(redacted_build_workload_error)?;
     }
-    Ok(Json(BuildDeployCancelResponse {
+    Ok(Json(BuildWorkloadCancelResponse {
         job_id,
         state: state_value,
         cancelled,
     }))
 }
 
-async fn build_deploy_job_events<S>(
+async fn build_workload_job_events<S>(
     State(state): State<AppState<S>>,
     Extension(identity): Extension<HostAccessIdentity>,
     Path(job_id): Path<String>,
@@ -4026,11 +4021,11 @@ where
     S: EventStore,
 {
     let status = state.build_jobs.status(&job_id).ok_or_else(|| {
-        ServiceError::with_status(StatusCode::NOT_FOUND, "build-deploy job not found")
+        ServiceError::with_status(StatusCode::NOT_FOUND, "build-workload job not found")
     })?;
     require_identity_installation(&identity, status.installation_id.as_str())?;
     let replay = state.build_jobs.events(&job_id).ok_or_else(|| {
-        ServiceError::with_status(StatusCode::NOT_FOUND, "build-deploy job not found")
+        ServiceError::with_status(StatusCode::NOT_FOUND, "build-workload job not found")
     })?;
     let rx = state.build_jobs.subscribe();
     let stream = futures::stream::unfold((replay, 0usize, rx), move |(replay, idx, mut rx)| {
@@ -4056,9 +4051,9 @@ where
     Ok(Sse::new(stream).keep_alive(KeepAlive::default()))
 }
 
-fn sse_json_event(event: &BuildDeployJobEvent) -> Result<SseEvent, Infallible> {
+fn sse_json_event(event: &BuildWorkloadJobEvent) -> Result<SseEvent, Infallible> {
     Ok(SseEvent::default()
-        .event("build_deploy")
+        .event("build_workload")
         .data(serde_json::to_string(event).unwrap_or_else(|_| "{}".to_string())))
 }
 
@@ -4066,7 +4061,7 @@ async fn wait_for_build_job<S>(
     state: &AppState<S>,
     job_id: &str,
     max_wait: Duration,
-) -> BuildDeployJobStatusResponse
+) -> BuildWorkloadJobStatusResponse
 where
     S: EventStore,
 {
@@ -4081,21 +4076,21 @@ where
     }
 }
 
-async fn run_build_deploy_job<S>(
+async fn run_build_workload_job<S>(
     state: AppState<S>,
     job_id: String,
-    request: HostBuildDeployRequest,
+    request: HostBuildWorkloadRequest,
     permit: OwnedSemaphorePermit,
 ) where
     S: EventStore,
 {
     let _permit = permit;
-    let _installation_guard = BuildDeployInstallationGuard {
+    let _installation_guard = BuildWorkloadInstallationGuard {
         registry: state.build_jobs.clone(),
         installation_id: request.installation_id.clone(),
     };
     let revision_request = request.clone();
-    let result = build_deploy_installation_minimal_with_job(&state, &job_id, request).await;
+    let result = build_workload_installation_minimal_with_job(&state, &job_id, request).await;
     match result {
         Ok(outcome) => {
             let mut result = outcome.response;
@@ -4108,15 +4103,15 @@ async fn run_build_deploy_job<S>(
                     &state,
                     &result,
                     outcome.previous_revision.as_ref(),
-                    "host_build_deploy_cancel_rollback",
+                    "host_build_workload_cancel_rollback",
                 )
                 .await;
                 if let Err(persist_error) = persist_job_snapshot(&state, &job_id).await {
-                    eprintln!("failed to persist cancelled build-deploy job: {persist_error}");
+                    eprintln!("failed to persist cancelled build-workload job: {persist_error}");
                 }
                 return;
             }
-            let revision = deployment_revision_from_build(
+            let revision = workload_revision_from_build(
                 &revision_request,
                 &result,
                 &job_id,
@@ -4134,13 +4129,15 @@ async fn run_build_deploy_job<S>(
                     &state,
                     &result,
                     outcome.previous_revision.as_ref(),
-                    "host_build_deploy_journal_rollback",
+                    "host_build_workload_journal_rollback",
                 )
                 .await;
-                let public_error = redacted_failure_message("deployment journal commit", &error);
-                state
-                    .build_jobs
-                    .complete_error(&job_id, BuildDeployJobState::Failed, public_error);
+                let public_error = redacted_failure_message("workload journal commit", &error);
+                state.build_jobs.complete_error(
+                    &job_id,
+                    BuildWorkloadJobState::Failed,
+                    public_error,
+                );
                 if let Err(persist_error) = persist_job_snapshot(&state, &job_id).await {
                     eprintln!("failed to persist journal rollback failure: {persist_error}");
                 }
@@ -4155,7 +4152,7 @@ async fn run_build_deploy_job<S>(
             state.build_jobs.complete_ready(&job_id, result);
             if cleanup_incomplete {
                 if let Err(error) = persist_job_snapshot(&state, &job_id).await {
-                    eprintln!("failed to persist deployment cleanup warnings: {error}");
+                    eprintln!("failed to persist workload cleanup warnings: {error}");
                 }
             }
         }
@@ -4165,27 +4162,27 @@ async fn run_build_deploy_job<S>(
                 .cancel_flag(&job_id)
                 .is_some_and(|flag| flag.load(Ordering::SeqCst))
             {
-                BuildDeployJobState::Cancelled
+                BuildWorkloadJobState::Cancelled
             } else {
-                BuildDeployJobState::Failed
+                BuildWorkloadJobState::Failed
             };
-            let public_error = redacted_failure_message("build-deploy", &error);
+            let public_error = redacted_failure_message("build-workload", &error);
             state
                 .build_jobs
                 .complete_error(&job_id, state_kind, public_error);
             if let Err(persist_error) = persist_job_snapshot(&state, &job_id).await {
-                eprintln!("failed to persist build-deploy terminal state: {persist_error}");
+                eprintln!("failed to persist build-workload terminal state: {persist_error}");
             }
         }
     }
 }
 
-fn deployment_revision_from_build(
-    request: &HostBuildDeployRequest,
-    result: &HostBuildDeployResponse,
+fn workload_revision_from_build(
+    request: &HostBuildWorkloadRequest,
+    result: &HostBuildWorkloadResponse,
     job_id: &str,
     parent_revision_id: Option<String>,
-) -> DeploymentRevision {
+) -> WorkloadRevision {
     let mut recovery_blockers = Vec::new();
     let mut runtime_env = Vec::new();
     for env in &request.runtime_env {
@@ -4209,7 +4206,7 @@ fn deployment_revision_from_build(
             "host mount paths are intentionally not persisted for automatic recovery".to_string(),
         );
     }
-    DeploymentRevision {
+    WorkloadRevision {
         revision_id: format!(
             "drv-{}-{}",
             now_millis(),
@@ -4218,11 +4215,11 @@ fn deployment_revision_from_build(
         installation_id: request.installation_id.clone(),
         workspace_id: result.workspace_id.clone(),
         job_id: Some(job_id.to_string()),
-        operation: DeploymentOperation::BuildDeploy,
+        operation: WorkloadOperation::BuildWorkload,
         parent_revision_id,
         created_at_ms: now_millis(),
         target_id: default_local_target_id(),
-        source_kind: DeploymentSourceKind::GitClone,
+        source_kind: WorkloadSourceKind::GitClone,
         source_url: request.source_url.clone(),
         ref_name: request.ref_name.clone(),
         dockerfile: request.dockerfile.clone(),
@@ -4243,21 +4240,21 @@ fn deployment_revision_from_build(
         preview_ref: None,
         approval_ref: None,
         verified_build_network_mode: None,
-        target_deployment: None,
+        target_workload: None,
         recoverable: recovery_blockers.is_empty(),
         recovery_blockers,
         receipt: result.clone(),
     }
 }
 
-pub async fn build_deploy_installation_minimal<S>(
+pub async fn build_workload_installation_minimal<S>(
     state: &AppState<S>,
-    request: HostBuildDeployRequest,
-) -> anyhow::Result<HostBuildDeployResponse>
+    request: HostBuildWorkloadRequest,
+) -> anyhow::Result<HostBuildWorkloadResponse>
 where
     S: EventStore,
 {
-    let mut outcome = build_deploy_installation_minimal_inner(state, None, request).await?;
+    let mut outcome = build_workload_installation_minimal_inner(state, None, request).await?;
     if let Some(previous) = outcome.previous_revision.as_ref() {
         let route_id = outcome.response.route_id.clone();
         let warnings = drain_previous_revision(state, previous, &route_id).await;
@@ -4266,29 +4263,29 @@ where
     Ok(outcome.response)
 }
 
-async fn build_deploy_installation_minimal_with_job<S>(
+async fn build_workload_installation_minimal_with_job<S>(
     state: &AppState<S>,
     job_id: &str,
-    request: HostBuildDeployRequest,
-) -> anyhow::Result<BuildDeployOutcome>
+    request: HostBuildWorkloadRequest,
+) -> anyhow::Result<BuildWorkloadOutcome>
 where
     S: EventStore,
 {
-    build_deploy_installation_minimal_inner(state, Some(job_id), request).await
+    build_workload_installation_minimal_inner(state, Some(job_id), request).await
 }
 
-async fn build_deploy_installation_minimal_inner<S>(
+async fn build_workload_installation_minimal_inner<S>(
     state: &AppState<S>,
     job_id: Option<&str>,
-    request: HostBuildDeployRequest,
-) -> anyhow::Result<BuildDeployOutcome>
+    request: HostBuildWorkloadRequest,
+) -> anyhow::Result<BuildWorkloadOutcome>
 where
     S: EventStore,
 {
     ensure_installation_effect_active(state, &request.installation_id)
         .await
         .map_err(|error| error.error)?;
-    validate_host_build_deploy_request(&request)?;
+    validate_host_build_workload_request(&request)?;
     state
         .build_jobs
         .ensure_route_available_for_installation(&request.route_id, &request.installation_id)?;
@@ -4297,7 +4294,7 @@ where
     job_transition(
         state,
         job_id,
-        BuildDeployJobState::Cloning,
+        BuildWorkloadJobState::Cloning,
         "cloning source",
     )
     .await;
@@ -4306,7 +4303,7 @@ where
         state,
         job_id,
         &request.installation_id,
-        "host_build_deploy_clone",
+        "host_build_workload_clone",
     )
     .await?
     .with_host_operation(
@@ -4362,7 +4359,7 @@ where
         .dockerfile
         .clone()
         .unwrap_or_else(|| "Dockerfile".to_string());
-    let build_descriptor_hash = build_deploy_descriptor_hash(&request, &build_id, &source_commit);
+    let build_descriptor_hash = build_workload_descriptor_hash(&request, &build_id, &source_commit);
     let resolved_env = resolve_runtime_env(state, &request).await?;
     let env_summary = resolved_env
         .iter()
@@ -4386,7 +4383,7 @@ where
     job_transition(
         state,
         job_id,
-        BuildDeployJobState::Building,
+        BuildWorkloadJobState::Building,
         "building image",
     )
     .await;
@@ -4394,7 +4391,7 @@ where
         state,
         job_id,
         &request.installation_id,
-        "host_build_deploy_image_build",
+        "host_build_workload_image_build",
     )
     .await?
     .with_host_operation(
@@ -4439,12 +4436,12 @@ where
     job_transition(
         state,
         job_id,
-        BuildDeployJobState::Starting,
+        BuildWorkloadJobState::Starting,
         "starting container",
     )
     .await;
 
-    let deploy = deploy_built_image(
+    let workload = workload_built_image(
         state,
         job_id,
         None,
@@ -4457,18 +4454,18 @@ where
     )
     .await
     .map_err(|error| {
-        anyhow::anyhow!("built image was not garbage-collected after deploy failure: {error}")
+        anyhow::anyhow!("built image was not garbage-collected after workload failure: {error}")
     })?;
 
-    Ok(BuildDeployOutcome {
-        response: HostBuildDeployResponse {
+    Ok(BuildWorkloadOutcome {
+        response: HostBuildWorkloadResponse {
             workspace_id: workspace_id.clone(),
-            route_id: deploy.route_id,
-            public_url: deploy.public_url,
-            route_access: deploy.route_access,
-            port_lease_id: deploy.port_lease_id,
-            container_id: deploy.container_id,
-            container_name: deploy.container_name,
+            route_id: workload.route_id,
+            public_url: workload.public_url,
+            route_access: workload.route_access,
+            port_lease_id: workload.port_lease_id,
+            container_id: workload.container_id,
+            container_name: workload.container_name,
             image: image.clone(),
             build_id,
             source_commit,
@@ -4492,7 +4489,7 @@ where
             .cancel_flag(job_id)
             .is_some_and(|flag| flag.load(Ordering::SeqCst))
         {
-            anyhow::bail!("build-deploy job cancelled");
+            anyhow::bail!("build-workload job cancelled");
         }
     }
     Ok(())
@@ -4501,7 +4498,7 @@ where
 async fn job_transition<S>(
     state: &AppState<S>,
     job_id: Option<&str>,
-    status: BuildDeployJobState,
+    status: BuildWorkloadJobState,
     message: &str,
 ) where
     S: EventStore,
@@ -4509,15 +4506,15 @@ async fn job_transition<S>(
     if let Some(job_id) = job_id {
         state.build_jobs.transition(job_id, status, message);
         if let Err(error) = persist_job_snapshot(state, job_id).await {
-            eprintln!("failed to persist build-deploy transition: {error}");
+            eprintln!("failed to persist build-workload transition: {error}");
         }
     }
 }
 
-async fn installation_deployments<S>(
+async fn installation_workloads<S>(
     State(state): State<AppState<S>>,
     Path(installation_id): Path<InstallationId>,
-) -> Json<InstallationDeploymentsResponse>
+) -> Json<InstallationWorkloadsResponse>
 where
     S: EventStore,
 {
@@ -4532,7 +4529,7 @@ where
             .is_some_and(|route| route.status == ProxyRouteStatusKind::Active && route.ready),
         None => false,
     };
-    Json(InstallationDeploymentsResponse {
+    Json(InstallationWorkloadsResponse {
         installation_id: installation_id.clone(),
         active_revision_id: active_revision
             .as_ref()
@@ -4545,11 +4542,11 @@ where
     })
 }
 
-async fn recover_installation_deployment<S>(
+async fn recover_installation_workload<S>(
     State(state): State<AppState<S>>,
     Extension(identity): Extension<HostAccessIdentity>,
     Path(installation_id): Path<InstallationId>,
-) -> anyhow::Result<Json<DeploymentActionResponse>, ServiceError>
+) -> anyhow::Result<Json<WorkloadActionResponse>, ServiceError>
 where
     S: EventStore,
 {
@@ -4561,11 +4558,11 @@ where
         .ok_or_else(|| {
             ServiceError::with_status(
                 StatusCode::NOT_FOUND,
-                "installation has no active deployment revision to recover",
+                "installation has no active workload revision to recover",
             )
         })?;
     require_identity_target(&identity, &expected_active.target_id)?;
-    let authority = DeploymentAuthorityLease::from_identity(
+    let authority = WorkloadAuthorityLease::from_identity(
         format!("dop-{}", uuid::Uuid::new_v4().simple()),
         expected_active.target_id.clone(),
         &identity,
@@ -4582,13 +4579,13 @@ where
             .ok_or_else(|| {
                 ServiceError::with_status(
                     StatusCode::NOT_FOUND,
-                    "installation has no active deployment revision to recover",
+                    "installation has no active workload revision to recover",
                 )
             })?;
         if active.target_id != authority.target_id {
             return Err(ServiceError::with_status(
                 StatusCode::CONFLICT,
-                "active deployment target changed before recovery began",
+                "active workload target changed before recovery began",
             ));
         }
         let runtime_ready = state
@@ -4601,14 +4598,14 @@ where
         if runtime_ready {
             return Err(ServiceError::with_status(
                 StatusCode::CONFLICT,
-                "active deployment is already ready",
+                "active workload is already ready",
             ));
         }
         activate_persisted_revision(
             &state,
             Some(&active),
             &active,
-            DeploymentOperation::Recover,
+            WorkloadOperation::Recover,
             &authority,
         )
         .await
@@ -4620,12 +4617,12 @@ where
     result
 }
 
-async fn rollback_installation_deployment<S>(
+async fn rollback_installation_workload<S>(
     State(state): State<AppState<S>>,
     Extension(identity): Extension<HostAccessIdentity>,
     Path(installation_id): Path<InstallationId>,
-    Json(request): Json<DeploymentRollbackRequest>,
-) -> anyhow::Result<Json<DeploymentActionResponse>, ServiceError>
+    Json(request): Json<WorkloadRollbackRequest>,
+) -> anyhow::Result<Json<WorkloadActionResponse>, ServiceError>
 where
     S: EventStore,
 {
@@ -4637,11 +4634,11 @@ where
         .ok_or_else(|| {
             ServiceError::with_status(
                 StatusCode::NOT_FOUND,
-                "deployment revision was not found for this installation",
+                "workload revision was not found for this installation",
             )
         })?;
     require_identity_target(&identity, &expected_target.target_id)?;
-    let authority = DeploymentAuthorityLease::from_identity(
+    let authority = WorkloadAuthorityLease::from_identity(
         format!("dop-{}", uuid::Uuid::new_v4().simple()),
         expected_target.target_id.clone(),
         &identity,
@@ -4659,13 +4656,13 @@ where
             .ok_or_else(|| {
                 ServiceError::with_status(
                     StatusCode::NOT_FOUND,
-                    "deployment revision was not found for this installation",
+                    "workload revision was not found for this installation",
                 )
             })?;
         if target.target_id != authority.target_id {
             return Err(ServiceError::with_status(
                 StatusCode::CONFLICT,
-                "deployment revision target changed before rollback began",
+                "workload revision target changed before rollback began",
             ));
         }
         if active
@@ -4674,14 +4671,14 @@ where
         {
             return Err(ServiceError::with_status(
                 StatusCode::CONFLICT,
-                "requested deployment revision is already active",
+                "requested workload revision is already active",
             ));
         }
         activate_persisted_revision(
             &state,
             active.as_ref(),
             &target,
-            DeploymentOperation::Rollback,
+            WorkloadOperation::Rollback,
             &authority,
         )
         .await
@@ -4695,11 +4692,11 @@ where
 
 async fn activate_persisted_revision<S>(
     state: &AppState<S>,
-    previous: Option<&DeploymentRevision>,
-    target: &DeploymentRevision,
-    operation: DeploymentOperation,
-    authority: &DeploymentAuthorityLease,
-) -> anyhow::Result<DeploymentActionResponse, ServiceError>
+    previous: Option<&WorkloadRevision>,
+    target: &WorkloadRevision,
+    operation: WorkloadOperation,
+    authority: &WorkloadAuthorityLease,
+) -> anyhow::Result<WorkloadActionResponse, ServiceError>
 where
     S: EventStore,
 {
@@ -4711,11 +4708,11 @@ where
         };
         return Err(ServiceError::with_status(
             StatusCode::CONFLICT,
-            format!("deployment revision is not recoverable: {blockers}"),
+            format!("workload revision is not recoverable: {blockers}"),
         ));
     }
 
-    if target.source_kind == DeploymentSourceKind::VerifiedArtifact {
+    if target.source_kind == WorkloadSourceKind::VerifiedArtifact {
         return development::activate_verified_persisted_revision(
             state, previous, target, operation, authority,
         )
@@ -4723,20 +4720,20 @@ where
     }
 
     let replay_request = build_replay_request(target);
-    validate_host_build_deploy_request(&replay_request).map_err(redacted_build_deploy_error)?;
-    deployment_effect_context(
+    validate_host_build_workload_request(&replay_request).map_err(redacted_build_workload_error)?;
+    workload_effect_context(
         state,
         Some(authority),
         &target.installation_id,
-        "host_deployment_replay_prepare",
+        "host_workload_replay_prepare",
     )
     .await
-    .map_err(redacted_build_deploy_error)?;
+    .map_err(redacted_build_workload_error)?;
     let resolved_env = resolve_runtime_env(state, &replay_request)
         .await
-        .map_err(redacted_build_deploy_error)?;
+        .map_err(redacted_build_workload_error)?;
 
-    let deploy = deploy_built_image(
+    let workload = workload_built_image(
         state,
         None,
         Some(authority),
@@ -4748,15 +4745,15 @@ where
         &[],
     )
     .await
-    .map_err(redacted_build_deploy_error)?;
-    let receipt = HostBuildDeployResponse {
+    .map_err(redacted_build_workload_error)?;
+    let receipt = HostBuildWorkloadResponse {
         workspace_id: target.workspace_id.clone(),
-        route_id: deploy.route_id,
-        public_url: deploy.public_url,
-        route_access: deploy.route_access,
-        port_lease_id: deploy.port_lease_id,
-        container_id: deploy.container_id,
-        container_name: deploy.container_name,
+        route_id: workload.route_id,
+        public_url: workload.public_url,
+        route_access: workload.route_access,
+        port_lease_id: workload.port_lease_id,
+        container_id: workload.container_id,
+        container_name: workload.container_name,
         image: target.image.clone(),
         build_id: target.build_id.clone(),
         source_commit: target.source_commit.clone(),
@@ -4772,7 +4769,7 @@ where
         runtime_mounts: Vec::new(),
         warnings: Vec::new(),
     };
-    let revision = deployment_revision_from_replay(previous, target, operation, receipt);
+    let revision = workload_revision_from_replay(previous, target, operation, receipt);
     if let Err(error) =
         persist_revision_activation(state, &revision, None, Some(authority.clone())).await
     {
@@ -4780,10 +4777,10 @@ where
             state,
             &revision.receipt,
             previous,
-            "host_deployment_replay_journal_rollback",
+            "host_workload_replay_journal_rollback",
         )
         .await;
-        let public_error = redacted_failure_message("deployment revision journal commit", &error);
+        let public_error = redacted_failure_message("workload revision journal commit", &error);
         return Err(ServiceError::with_status(
             StatusCode::INTERNAL_SERVER_ERROR,
             public_error,
@@ -4795,7 +4792,7 @@ where
         }
         None => Vec::new(),
     };
-    Ok(DeploymentActionResponse {
+    Ok(WorkloadActionResponse {
         operation,
         previous_revision_id: previous.map(|revision| revision.revision_id.clone()),
         revision,
@@ -4803,8 +4800,8 @@ where
     })
 }
 
-fn build_replay_request(revision: &DeploymentRevision) -> HostBuildDeployRequest {
-    HostBuildDeployRequest {
+fn build_replay_request(revision: &WorkloadRevision) -> HostBuildWorkloadRequest {
+    HostBuildWorkloadRequest {
         installation_id: revision.installation_id.clone(),
         source_url: revision.source_url.clone(),
         ref_name: revision.ref_name.clone(),
@@ -4832,13 +4829,13 @@ fn build_replay_request(revision: &DeploymentRevision) -> HostBuildDeployRequest
     }
 }
 
-fn deployment_revision_from_replay(
-    previous: Option<&DeploymentRevision>,
-    target: &DeploymentRevision,
-    operation: DeploymentOperation,
-    receipt: HostBuildDeployResponse,
-) -> DeploymentRevision {
-    DeploymentRevision {
+fn workload_revision_from_replay(
+    previous: Option<&WorkloadRevision>,
+    target: &WorkloadRevision,
+    operation: WorkloadOperation,
+    receipt: HostBuildWorkloadResponse,
+) -> WorkloadRevision {
+    WorkloadRevision {
         revision_id: format!(
             "drv-{}-{}",
             now_millis(),
@@ -4872,23 +4869,23 @@ fn deployment_revision_from_replay(
         preview_ref: target.preview_ref.clone(),
         approval_ref: target.approval_ref.clone(),
         verified_build_network_mode: target.verified_build_network_mode,
-        target_deployment: target.target_deployment.clone(),
+        target_workload: target.target_workload.clone(),
         recoverable: target.recoverable,
         recovery_blockers: target.recovery_blockers.clone(),
         receipt,
     }
 }
 
-struct DeploymentCleanupResult {
-    response: HostDeployStopResponse,
-    safe_to_redeploy: bool,
+struct WorkloadCleanupResult {
+    response: HostWorkloadStopResponse,
+    safe_to_reworkload: bool,
 }
 
-async fn stop_installation_deployment<S>(
+async fn stop_installation_workload<S>(
     State(state): State<AppState<S>>,
     Extension(identity): Extension<HostAccessIdentity>,
-    Json(request): Json<HostDeployStopRequest>,
-) -> Result<Json<HostDeployStopResponse>, ServiceError>
+    Json(request): Json<HostWorkloadStopRequest>,
+) -> Result<Json<HostWorkloadStopResponse>, ServiceError>
 where
     S: EventStore,
 {
@@ -4902,7 +4899,7 @@ where
     {
         return Err(ServiceError::with_status(
             StatusCode::FORBIDDEN,
-            "installation-scoped devices cannot stop an unowned deployment route",
+            "installation-scoped devices cannot stop an unowned workload route",
         ));
     }
     development::verify_host_control_plane_lease_if_installed(
@@ -4918,7 +4915,7 @@ where
             .map_err(|error| ServiceError::with_status(StatusCode::CONFLICT, error.to_string()))?;
         Some((
             permit,
-            BuildDeployInstallationGuard {
+            BuildWorkloadInstallationGuard {
                 registry: state.build_jobs.clone(),
                 installation_id: installation_id.clone(),
             },
@@ -4928,21 +4925,21 @@ where
     };
     let context = match route_installation.as_ref() {
         Some(installation_id) => {
-            let authority = DeploymentAuthorityLease::from_identity(
+            let authority = WorkloadAuthorityLease::from_identity(
                 format!("dop-{}", uuid::Uuid::new_v4().simple()),
                 "local",
                 &identity,
             );
-            deployment_effect_context(
+            workload_effect_context(
                 &state,
                 Some(&authority),
                 installation_id,
-                "host_deploy_stop",
+                "host_workload_stop",
             )
             .await?
         }
         None => identity
-            .protocol_context("host_deploy_stop")
+            .protocol_context("host_workload_stop")
             .with_host_operation(
                 "realization.apply",
                 vec![ProtocolResourceSelector {
@@ -4952,10 +4949,10 @@ where
                 }],
             ),
     };
-    let mut cleanup = stop_installation_deployment_inner(&state, &route_id, &context).await;
-    if cleanup.safe_to_redeploy {
+    let mut cleanup = stop_installation_workload_inner(&state, &route_id, &context).await;
+    if cleanup.safe_to_reworkload {
         if let Some(revision) = active {
-            let deactivation = DeploymentRevisionDeactivated {
+            let deactivation = WorkloadRevisionDeactivated {
                 installation_id: revision.installation_id,
                 revision_id: revision.revision_id,
                 route_id: revision.route_id,
@@ -4965,19 +4962,19 @@ where
             match persist_revision_deactivation(&state, &deactivation).await {
                 Ok(()) => {}
                 Err(error) => cleanup.response.warnings.push(redacted_failure_message(
-                    "deployment stop journal commit",
+                    "workload stop journal commit",
                     &error,
                 )),
             }
         } else if let Some(installation_id) = route_installation {
-            let release = DeploymentDirectRouteReleased {
+            let release = WorkloadDirectRouteReleased {
                 route_id: route_id.clone(),
                 installation_id,
                 timestamp_ms: now_millis(),
             };
             if let Err(error) = persist_direct_route_release(&state, &release).await {
                 cleanup.response.warnings.push(redacted_failure_message(
-                    "direct deployment stop journal commit",
+                    "direct workload stop journal commit",
                     &error,
                 ));
             }
@@ -4986,24 +4983,24 @@ where
     Ok(Json(cleanup.response))
 }
 
-async fn stop_installation_deployment_inner<S>(
+async fn stop_installation_workload_inner<S>(
     state: &AppState<S>,
     route_id: &str,
     context: &ProtocolContext,
-) -> DeploymentCleanupResult
+) -> WorkloadCleanupResult
 where
     S: EventStore,
 {
     let mut warnings = Vec::new();
     let route_id = route_id.trim().to_string();
     if !is_safe_route_token(&route_id) {
-        return DeploymentCleanupResult {
-            response: HostDeployStopResponse {
+        return WorkloadCleanupResult {
+            response: HostWorkloadStopResponse {
                 route_id,
                 stopped: false,
                 warnings: vec!["route_id must be label-safe".to_string()],
             },
-            safe_to_redeploy: false,
+            safe_to_reworkload: false,
         };
     }
 
@@ -5021,7 +5018,7 @@ where
         .map(|route| route.upstream.port_lease_id.clone());
 
     let mut container_ref = None;
-    let mut safe_to_redeploy = false;
+    let mut safe_to_reworkload = false;
     match invoke_docker_runtime_lab(
         state,
         context,
@@ -5039,7 +5036,7 @@ where
                             .as_ref()
                             .map(|container| container.port_lease_id.clone());
                     }
-                    safe_to_redeploy = container_ref.is_none();
+                    safe_to_reworkload = container_ref.is_none();
                 }
                 Err(error) => warnings.push(format!("managed container lookup failed: {error}")),
             }
@@ -5081,7 +5078,7 @@ where
                             .to_string(),
                     );
                 } else {
-                    safe_to_redeploy = true;
+                    safe_to_reworkload = true;
                 }
             }
             Err(error) => warnings.push(format!("container stop failed: {error}")),
@@ -5090,7 +5087,7 @@ where
         warnings.push("no managed container found for route".to_string());
     }
 
-    if safe_to_redeploy {
+    if safe_to_reworkload {
         if registered_route.is_some() {
             if let Err(error) = call_host_protocol(
                 state,
@@ -5101,7 +5098,7 @@ where
             .await
             {
                 warnings.push(format!("proxy unregister failed: {error}"));
-                safe_to_redeploy = false;
+                safe_to_reworkload = false;
             }
         }
         if let Some(lease_id) = port_lease_id.as_ref() {
@@ -5114,7 +5111,7 @@ where
             .await
             {
                 warnings.push(format!("port release failed: {error}"));
-                safe_to_redeploy = false;
+                safe_to_reworkload = false;
             }
         }
     } else {
@@ -5122,13 +5119,13 @@ where
             .push("route and port lease were preserved because cleanup is incomplete".to_string());
     }
 
-    DeploymentCleanupResult {
-        response: HostDeployStopResponse {
+    WorkloadCleanupResult {
+        response: HostWorkloadStopResponse {
             route_id,
             stopped,
             warnings,
         },
-        safe_to_redeploy,
+        safe_to_reworkload,
     }
 }
 
@@ -5148,7 +5145,7 @@ where
         .map_err(protocol_error_to_anyhow)
 }
 
-async fn start_build_deploy_container(
+async fn start_build_workload_container(
     request: HostDockerStartRequest<'_>,
 ) -> anyhow::Result<HostDockerStartedContainer> {
     let docker = Docker::connect_with_local_defaults()
@@ -5185,7 +5182,7 @@ async fn start_build_deploy_container(
             request.source_commit.to_string(),
         ),
         (
-            "plurora.deployment_operation_id".to_string(),
+            "plurora.workload_operation_id".to_string(),
             request.operation_id.to_string(),
         ),
     ]);
@@ -5221,7 +5218,7 @@ async fn start_build_deploy_container(
         ..Default::default()
     };
     let container_name = format!(
-        "plurora-build-deploy-{}-{}",
+        "plurora-build-workload-{}-{}",
         sanitize_container_name(request.route_id),
         request.host_port
     );
@@ -5242,32 +5239,32 @@ async fn start_build_deploy_container(
     })
 }
 
-async fn deploy_built_image<S>(
+async fn workload_built_image<S>(
     state: &AppState<S>,
     job_id: Option<&str>,
-    authority: Option<&DeploymentAuthorityLease>,
-    request: &HostBuildDeployRequest,
+    authority: Option<&WorkloadAuthorityLease>,
+    request: &HostBuildWorkloadRequest,
     image: &str,
     build_id: &str,
     source_commit: &str,
     env: &[ResolvedRuntimeEnv],
     mounts: &[ResolvedRuntimeMount],
-) -> anyhow::Result<DeployBuiltImageResponse>
+) -> anyhow::Result<WorkloadBuiltImageResponse>
 where
     S: EventStore,
 {
-    let cleanup_context = ProtocolContext::host_dev("host_build_deploy_compensation");
+    let cleanup_context = ProtocolContext::host_dev("host_build_workload_compensation");
     let operation_id = authority
         .map(|authority| authority.operation_id.clone())
         .or_else(|| job_id.map(str::to_string))
         .unwrap_or_else(|| format!("dop-{}", uuid::Uuid::new_v4().simple()));
     let mut container_id: Option<String> = None;
-    let mut context = deployment_operation_effect_context(
+    let mut context = workload_operation_effect_context(
         state,
         job_id,
         authority,
         &request.installation_id,
-        "host_build_deploy_port_lease",
+        "host_build_workload_port_lease",
     )
     .await?;
     let lease = match call_host_protocol(
@@ -5284,12 +5281,12 @@ where
     .and_then(|value| value_field(value, "lease", "host.port.lease"))
     {
         Ok(lease) => lease,
-        Err(error) => return Err(anyhow::anyhow!("deployment port lease failed: {error}")),
+        Err(error) => return Err(anyhow::anyhow!("workload port lease failed: {error}")),
     };
     let lease_id = required_string(&lease, "id", "port lease")?;
     let lease_port = required_u16(&lease, "port", "port lease")?;
     if let Err(error) = check_job_cancel(state, job_id) {
-        rollback_deploy(
+        rollback_workload(
             state,
             &cleanup_context,
             &request.route_id,
@@ -5301,16 +5298,16 @@ where
         return Err(error);
     }
 
-    if let Err(error) = deployment_operation_effect_context(
+    if let Err(error) = workload_operation_effect_context(
         state,
         job_id,
         authority,
         &request.installation_id,
-        "host_build_deploy_candidate_start",
+        "host_build_workload_candidate_start",
     )
     .await
     {
-        rollback_deploy(
+        rollback_workload(
             state,
             &cleanup_context,
             &request.route_id,
@@ -5321,7 +5318,7 @@ where
         .await;
         return Err(error);
     }
-    let started = match start_build_deploy_container(HostDockerStartRequest {
+    let started = match start_build_workload_container(HostDockerStartRequest {
         image,
         container_port: request.container_port,
         host_port: lease_port,
@@ -5342,7 +5339,7 @@ where
                 state,
                 &request.route_id,
                 &lease_id,
-                "host_build_deploy_unknown_start",
+                "host_build_workload_unknown_start",
             )
             .await;
             return Err(anyhow::anyhow!(
@@ -5354,7 +5351,7 @@ where
     container_id = Some(parsed_container_id.clone());
     let container_name = started.container_name.clone();
     if let Err(error) = check_job_cancel(state, job_id) {
-        rollback_deploy(
+        rollback_workload(
             state,
             &cleanup_context,
             &request.route_id,
@@ -5369,14 +5366,14 @@ where
     job_transition(
         state,
         job_id,
-        BuildDeployJobState::Probing,
+        BuildWorkloadJobState::Probing,
         "probing candidate readiness",
     )
     .await;
     if let Err(error) =
-        wait_for_deployment_readiness(lease_port, request.health_path.as_deref()).await
+        wait_for_workload_readiness(lease_port, request.health_path.as_deref()).await
     {
-        rollback_deploy(
+        rollback_workload(
             state,
             &cleanup_context,
             &request.route_id,
@@ -5386,11 +5383,11 @@ where
         )
         .await;
         return Err(anyhow::anyhow!(
-            "deployment did not become ready in time: {error}"
+            "workload did not become ready in time: {error}"
         ));
     }
     if let Err(error) = check_job_cancel(state, job_id) {
-        rollback_deploy(
+        rollback_workload(
             state,
             &cleanup_context,
             &request.route_id,
@@ -5405,22 +5402,22 @@ where
     job_transition(
         state,
         job_id,
-        BuildDeployJobState::RegisteringProxy,
+        BuildWorkloadJobState::RegisteringProxy,
         "activating candidate route",
     )
     .await;
-    context = match deployment_operation_effect_context(
+    context = match workload_operation_effect_context(
         state,
         job_id,
         authority,
         &request.installation_id,
-        "host_build_deploy_route_activation",
+        "host_build_workload_route_activation",
     )
     .await
     {
         Ok(context) => context,
         Err(error) => {
-            rollback_deploy(
+            rollback_workload(
                 state,
                 &cleanup_context,
                 &request.route_id,
@@ -5451,7 +5448,7 @@ where
     {
         Ok(route) => route,
         Err(error) => {
-            rollback_deploy(
+            rollback_workload(
                 state,
                 &cleanup_context,
                 &request.route_id,
@@ -5469,7 +5466,7 @@ where
     ) {
         (Ok(route_id), Ok(public_url)) => (route_id, public_url),
         (Err(error), _) | (_, Err(error)) => {
-            rollback_deploy(
+            rollback_workload(
                 state,
                 &cleanup_context,
                 &request.route_id,
@@ -5488,7 +5485,7 @@ where
         request.route_access,
     );
     if let Err(error) = check_job_cancel(state, job_id) {
-        rollback_deploy(
+        rollback_workload(
             state,
             &cleanup_context,
             &route_id,
@@ -5508,7 +5505,7 @@ where
         .await
         .is_none()
     {
-        rollback_deploy(
+        rollback_workload(
             state,
             &cleanup_context,
             &route_id,
@@ -5522,7 +5519,7 @@ where
         ));
     }
 
-    Ok(DeployBuiltImageResponse {
+    Ok(WorkloadBuiltImageResponse {
         route_id,
         public_url,
         route_access: request.route_access,
@@ -5534,7 +5531,7 @@ where
 
 async fn restore_previous_revision_route<S>(
     state: &AppState<S>,
-    previous: &DeploymentRevision,
+    previous: &WorkloadRevision,
     candidate_lease_id: &str,
     transport: &str,
 ) -> anyhow::Result<bool>
@@ -5610,8 +5607,8 @@ where
 
 async fn compensate_candidate_after_activation_failure<S>(
     state: &AppState<S>,
-    candidate: &HostBuildDeployResponse,
-    previous: Option<&DeploymentRevision>,
+    candidate: &HostBuildWorkloadResponse,
+    previous: Option<&WorkloadRevision>,
     transport: &str,
 ) where
     S: EventStore,
@@ -5628,11 +5625,11 @@ async fn compensate_candidate_after_activation_failure<S>(
                 unregister_candidate = false;
             }
             Err(error) => {
-                eprintln!("warning: failed to restore previous deployment route: {error}");
+                eprintln!("warning: failed to restore previous workload route: {error}");
             }
         }
     }
-    rollback_deploy(
+    rollback_workload(
         state,
         &context,
         &candidate.route_id,
@@ -5645,19 +5642,19 @@ async fn compensate_candidate_after_activation_failure<S>(
 
 async fn drain_previous_revision<S>(
     state: &AppState<S>,
-    previous: &DeploymentRevision,
+    previous: &WorkloadRevision,
     active_route_id: &str,
 ) -> Vec<String>
 where
     S: EventStore,
 {
-    if previous.target_deployment.is_some()
-        || previous.source_kind == DeploymentSourceKind::VerifiedArtifact
+    if previous.target_workload.is_some()
+        || previous.source_kind == WorkloadSourceKind::VerifiedArtifact
     {
         return development::drain_target_revision(state, previous, active_route_id).await;
     }
-    let context = ProtocolContext::host_dev("host_deployment_previous_revision_drain");
-    cleanup_deployment_resources(
+    let context = ProtocolContext::host_dev("host_workload_previous_revision_drain");
+    cleanup_workload_resources(
         state,
         &context,
         &previous.route_id,
@@ -5879,10 +5876,10 @@ fn build_workspace_clone_invocation(
             "remote_url": request.source_url,
             "ref_name": request.ref_name,
             "dest_dir": staging_dir.to_string_lossy(),
-            "max_files": DEPLOYMENT_WORKSPACE_MAX_FILES,
-            "max_directories": DEPLOYMENT_WORKSPACE_MAX_DIRECTORIES,
-            "max_total_bytes": DEPLOYMENT_WORKSPACE_MAX_BYTES,
-            "max_download_bytes": DEPLOYMENT_GIT_DOWNLOAD_MAX_BYTES,
+            "max_files": WORKLOAD_WORKSPACE_MAX_FILES,
+            "max_directories": WORKLOAD_WORKSPACE_MAX_DIRECTORIES,
+            "max_total_bytes": WORKLOAD_WORKSPACE_MAX_BYTES,
+            "max_download_bytes": WORKLOAD_GIT_DOWNLOAD_MAX_BYTES,
         }),
         workspace_dir,
         staging_dir,
@@ -6032,7 +6029,7 @@ fn validate_owned_workspace_child(
         .ok_or_else(|| anyhow::anyhow!("{label} has no installation parent"))?;
     let child_parent = std::fs::canonicalize(child_parent)?;
     if child_parent != installation_dir {
-        anyhow::bail!("{label} escaped the deployment installation root");
+        anyhow::bail!("{label} escaped the workload installation root");
     }
     let metadata = match std::fs::symlink_metadata(child) {
         Ok(metadata) => metadata,
@@ -6044,7 +6041,7 @@ fn validate_owned_workspace_child(
     }
     let canonical = std::fs::canonicalize(child)?;
     if canonical.parent() != Some(installation_dir) {
-        anyhow::bail!("{label} escaped the deployment installation root");
+        anyhow::bail!("{label} escaped the workload installation root");
     }
     Ok(true)
 }
@@ -6143,8 +6140,8 @@ fn replace_workspace_from_staging(
     Ok(())
 }
 
-async fn wait_for_deployment_readiness(port: u16, health_path: Option<&str>) -> anyhow::Result<()> {
-    let deadline = Instant::now() + DEPLOY_READINESS_TIMEOUT;
+async fn wait_for_workload_readiness(port: u16, health_path: Option<&str>) -> anyhow::Result<()> {
+    let deadline = Instant::now() + WORKLOAD_READINESS_TIMEOUT;
 
     loop {
         if let Err(error) = probe_loopback_port(port, health_path).await {
@@ -6152,7 +6149,7 @@ async fn wait_for_deployment_readiness(port: u16, health_path: Option<&str>) -> 
             if now >= deadline {
                 return Err(error.context("readiness deadline expired"));
             }
-            sleep(std::cmp::min(DEPLOY_READINESS_INTERVAL, deadline - now)).await;
+            sleep(std::cmp::min(WORKLOAD_READINESS_INTERVAL, deadline - now)).await;
         } else {
             return Ok(());
         }
@@ -6161,7 +6158,7 @@ async fn wait_for_deployment_readiness(port: u16, health_path: Option<&str>) -> 
 
 async fn probe_loopback_port(port: u16, health_path: Option<&str>) -> anyhow::Result<()> {
     timeout(
-        DEPLOY_READINESS_CONNECT_TIMEOUT,
+        WORKLOAD_READINESS_CONNECT_TIMEOUT,
         TcpStream::connect(("127.0.0.1", port)),
     )
     .await
@@ -6300,22 +6297,22 @@ where
                 .append_event_with_context(
                     &ProtocolContext::host_dev("health_supervisor"),
                     AppendEventRequest {
-                        session_id: deployment_health_session(&state, &mut health_session_id).await,
+                        session_id: workload_health_session(&state, &mut health_session_id).await,
                         writer_package_id: plurora_core::PLATFORM_RUNTIME_ID.to_string(),
-                        kind: plurora_core::EVENT_DEPLOYMENT_HEALTH.to_string(),
+                        kind: plurora_core::EVENT_WORKLOAD_HEALTH.to_string(),
                         payload,
                         metadata: serde_json::json!({}),
                     },
                 )
                 .await
             {
-                eprintln!("deployment health audit append failed: {error}");
+                eprintln!("workload health audit append failed: {error}");
             }
         }
     }
 }
 
-async fn deployment_health_session<S>(
+async fn workload_health_session<S>(
     state: &AppState<S>,
     cached: &mut Option<SessionId>,
 ) -> SessionId
@@ -6328,8 +6325,8 @@ where
     match state
         .runtime
         .open_session(OpenSessionRequest {
-            labels: vec!["host:deployment-health".to_string()],
-            metadata: serde_json::json!({"kind":"deployment_health"}),
+            labels: vec!["host:workload-health".to_string()],
+            metadata: serde_json::json!({"kind":"workload_health"}),
             ..OpenSessionRequest::default()
         })
         .await
@@ -6338,7 +6335,7 @@ where
             *cached = Some(session.id.clone());
             session.id
         }
-        Err(_) => "host_deployment_health".to_string(),
+        Err(_) => "host_workload_health".to_string(),
     }
 }
 
@@ -6386,7 +6383,7 @@ async fn probe_health_tcp(port: u16) -> anyhow::Result<()> {
     Ok(())
 }
 
-async fn rollback_deploy<S>(
+async fn rollback_workload<S>(
     state: &AppState<S>,
     context: &ProtocolContext,
     route_id: &str,
@@ -6396,7 +6393,7 @@ async fn rollback_deploy<S>(
 ) where
     S: EventStore,
 {
-    for warning in cleanup_deployment_resources(
+    for warning in cleanup_workload_resources(
         state,
         context,
         route_id,
@@ -6406,7 +6403,7 @@ async fn rollback_deploy<S>(
     )
     .await
     {
-        eprintln!("warning: deployment compensation incomplete: {warning}");
+        eprintln!("warning: workload compensation incomplete: {warning}");
     }
 }
 
@@ -6443,7 +6440,7 @@ async fn cleanup_candidate_after_unknown_start<S>(
             return;
         }
     };
-    rollback_deploy(
+    rollback_workload(
         state,
         &context,
         route_id,
@@ -6456,7 +6453,7 @@ async fn cleanup_candidate_after_unknown_start<S>(
     .await;
 }
 
-async fn cleanup_deployment_resources<S>(
+async fn cleanup_workload_resources<S>(
     state: &AppState<S>,
     context: &ProtocolContext,
     route_id: &str,
@@ -6534,7 +6531,7 @@ where
     warnings
 }
 
-fn validate_host_deploy_request(request: &HostDeployRequest) -> anyhow::Result<()> {
+fn validate_host_workload_request(request: &HostWorkloadRequest) -> anyhow::Result<()> {
     let image = request.image.trim();
     if !is_safe_docker_image(image) {
         anyhow::bail!("image must be a safe Docker image reference");
@@ -6556,9 +6553,9 @@ fn validate_host_deploy_request(request: &HostDeployRequest) -> anyhow::Result<(
     Ok(())
 }
 
-fn validate_host_build_deploy_request(request: &HostBuildDeployRequest) -> anyhow::Result<()> {
+fn validate_host_build_workload_request(request: &HostBuildWorkloadRequest) -> anyhow::Result<()> {
     if !request.approved {
-        anyhow::bail!("build-deploy requires approved: true");
+        anyhow::bail!("build-workload requires approved: true");
     }
     validate_workspace_clone_url(&request.source_url)?;
     validate_workspace_clone_ref(&request.ref_name)?;
@@ -6589,7 +6586,7 @@ fn validate_host_build_deploy_request(request: &HostBuildDeployRequest) -> anyho
     }
     validate_runtime_env_specs(&request.runtime_env)?;
     validate_runtime_mount_specs(&request.runtime_mounts)?;
-    validate_host_deploy_request(&HostDeployRequest {
+    validate_host_workload_request(&HostWorkloadRequest {
         installation_id: request.installation_id.clone(),
         image: "plurora/placeholder:build".to_string(),
         container_port: request.container_port,
@@ -6664,7 +6661,7 @@ fn validate_env_name(name: &str) -> anyhow::Result<()> {
 
 async fn resolve_runtime_env<S>(
     state: &AppState<S>,
-    request: &HostBuildDeployRequest,
+    request: &HostBuildWorkloadRequest,
 ) -> anyhow::Result<Vec<ResolvedRuntimeEnv>>
 where
     S: EventStore,
@@ -6817,7 +6814,7 @@ fn reject_dangerous_host_mount_source(path: &FsPath) -> anyhow::Result<()> {
 }
 
 fn resolve_runtime_mounts(
-    request: &HostBuildDeployRequest,
+    request: &HostBuildWorkloadRequest,
 ) -> anyhow::Result<Vec<ResolvedRuntimeMount>> {
     let mut resolved = Vec::with_capacity(request.runtime_mounts.len());
     for spec in &request.runtime_mounts {
@@ -6927,7 +6924,7 @@ fn generated_build_id(source_commit: &str) -> String {
     format!("build-{prefix}")
 }
 
-fn build_deploy_request_fingerprint(request: &HostBuildDeployRequest) -> String {
+fn build_workload_request_fingerprint(request: &HostBuildWorkloadRequest) -> String {
     let canonical = serde_json::json!({
         "version": 1,
         "installation_id": request.installation_id.as_str(),
@@ -6956,7 +6953,7 @@ fn build_deploy_request_fingerprint(request: &HostBuildDeployRequest) -> String 
             "reason_hash": privacy_preserving_sha256(&mount.reason),
         })).collect::<Vec<_>>(),
     });
-    let bytes = serde_json::to_vec(&canonical).expect("build-deploy request serializes");
+    let bytes = serde_json::to_vec(&canonical).expect("build-workload request serializes");
     privacy_preserving_sha256(&String::from_utf8_lossy(&bytes))
 }
 
@@ -6969,8 +6966,8 @@ fn privacy_preserving_sha256(value: &str) -> String {
     out
 }
 
-fn build_deploy_descriptor_hash(
-    request: &HostBuildDeployRequest,
+fn build_workload_descriptor_hash(
+    request: &HostBuildWorkloadRequest,
     build_id: &str,
     source_commit: &str,
 ) -> String {
@@ -7031,16 +7028,16 @@ fn require_built_image(output: &Value) -> anyhow::Result<String> {
 
 fn redacted_failure_message(context: &'static str, _error: &impl fmt::Display) -> String {
     tracing::warn!(
-        target: "plurora_service::build_deploy",
+        target: "plurora_service::build_workload",
         context,
         "operation failed; internal error details suppressed"
     );
     format!("{context} failed; details redacted")
 }
 
-fn redacted_build_deploy_error(error: anyhow::Error) -> ServiceError {
+fn redacted_build_workload_error(error: anyhow::Error) -> ServiceError {
     ServiceError::from(anyhow::anyhow!(redacted_failure_message(
-        "build-deploy",
+        "build-workload",
         &error
     )))
 }
@@ -7167,7 +7164,7 @@ fn find_managed_container_for_route(
     if running.len() == 1 {
         return Ok(running.pop());
     }
-    anyhow::bail!("multiple managed containers matched the deployment route and lease")
+    anyhow::bail!("multiple managed containers matched the workload route and lease")
 }
 
 fn value_field(value: Value, field: &str, context: &str) -> anyhow::Result<Value> {
@@ -7692,7 +7689,7 @@ where
     {
         Some(route) if route.status == ProxyRouteStatusKind::Active && route.ready => route,
         Some(route) if route.status == ProxyRouteStatusKind::Active => {
-            return Err((StatusCode::SERVICE_UNAVAILABLE, "deployment not ready").into_response())
+            return Err((StatusCode::SERVICE_UNAVAILABLE, "workload not ready").into_response())
         }
         _ => return Err((StatusCode::NOT_FOUND, "proxy route not found").into_response()),
     };
@@ -7743,7 +7740,7 @@ where
             || target.reachability != ExecutionTargetReachability::ReverseTunnel
             || !target
                 .capabilities
-                .contains(&ExecutionTargetCapability::Deployment)
+                .contains(&ExecutionTargetCapability::Workload)
             || !state.target_agents.tunnel_connected(&target.id)
         {
             return Err((
@@ -9239,7 +9236,7 @@ mod tests {
             static_dir: None,
             access_token: Some("object-root-token".to_string()),
             app_base_domain: None,
-            build_jobs: build_deploy_job_registry(),
+            build_jobs: build_workload_job_registry(),
             development: development_registry(),
             host_access: host_access_registry(),
             installations,
@@ -9409,7 +9406,7 @@ mod tests {
             static_dir: None,
             access_token: Some("installation-root-token".to_string()),
             app_base_domain: None,
-            build_jobs: build_deploy_job_registry(),
+            build_jobs: build_workload_job_registry(),
             development: development_registry(),
             host_access: access_registry,
             installations: installations.clone(),
@@ -9541,7 +9538,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn removed_installation_cannot_start_target_effects_and_deploy_alias_is_absent(
+    async fn removed_installation_cannot_start_target_effects_and_workload_alias_is_absent(
     ) -> anyhow::Result<()> {
         let store = Arc::new(InMemoryEventStore::default());
         let objects = Arc::new(plurora_runtime::InMemoryObjectStore::default());
@@ -9553,7 +9550,7 @@ mod tests {
             .await?
             .expect("created Installation")
             .revision;
-        let build_jobs = build_deploy_job_registry();
+        let build_jobs = build_workload_job_registry();
         let runtime = Arc::new(Runtime::new(
             store.clone(),
             RuntimeConfig {
@@ -9588,12 +9585,12 @@ mod tests {
             target_agents: target_agent_registry(),
         });
 
-        let deploy = app
+        let workload = app
             .clone()
             .oneshot(
                 Request::builder()
                     .method(Method::POST)
-                    .uri("/host/v1/deploy")
+                    .uri("/host/v1/workload")
                     .header(header::CONTENT_TYPE, "application/json")
                     .body(Body::from(
                         json!({
@@ -9601,13 +9598,13 @@ mod tests {
                             "image": "example.invalid/removed:latest",
                             "container_port": 8080,
                             "port_name": "http",
-                            "route_id": "removed-deploy"
+                            "route_id": "removed-workload"
                         })
                         .to_string(),
                     ))?,
             )
             .await?;
-        assert_eq!(deploy.status(), StatusCode::NOT_FOUND);
+        assert_eq!(workload.status(), StatusCode::NOT_FOUND);
 
         let target = app
             .oneshot(
@@ -9657,7 +9654,7 @@ mod tests {
 
         let retired_job_events = Request::builder()
             .method(Method::GET)
-            .uri("/host/v1/build-deploy/job-1/events?access_token=device-token")
+            .uri("/host/v1/build-workload/job-1/events?access_token=device-token")
             .body(Body::empty())?;
         assert!(presented_host_credentials(&retired_job_events)
             .event_query
@@ -9670,7 +9667,7 @@ mod tests {
                 .body(Body::empty())?,
             Request::builder()
                 .method(Method::POST)
-                .uri("/host/v1/build-deploy/job-1/events?access_token=leak")
+                .uri("/host/v1/build-workload/job-1/events?access_token=leak")
                 .body(Body::empty())?,
         ] {
             assert!(presented_host_credentials(&request).event_query.is_none());
@@ -9741,7 +9738,7 @@ mod tests {
         assert_eq!(
             required_host_scope_for_http(
                 &Method::POST,
-                "/host/v1/development/workspace/22222222-2222-4222-8222-222222222222/changes/change-1/deployment/preview"
+                "/host/v1/development/workspace/22222222-2222-4222-8222-222222222222/changes/change-1/workload/preview"
             ),
             Some(HostAccessScope::AccessManage)
         );
@@ -9749,13 +9746,13 @@ mod tests {
             assert_eq!(
                 required_host_scope_for_http(
                     &Method::POST,
-                    &format!("/host/v1/development/workspace/22222222-2222-4222-8222-222222222222/changes/change-1/deployment/{action}")
+                    &format!("/host/v1/development/workspace/22222222-2222-4222-8222-222222222222/changes/change-1/workload/{action}")
                 ),
                 Some(HostAccessScope::AccessManage)
             );
         }
         assert_eq!(
-            required_host_scope_for_http(&Method::POST, "/host/v1/deploy"),
+            required_host_scope_for_http(&Method::POST, "/host/v1/workload"),
             Some(HostAccessScope::AccessManage)
         );
         assert_eq!(
@@ -9844,10 +9841,10 @@ mod tests {
                 "remote_url":"https://example.com/org/repo.git",
                 "ref_name":"refs/heads/main",
                 "dest_dir": invocation.staging_dir.to_string_lossy(),
-                "max_files": DEPLOYMENT_WORKSPACE_MAX_FILES,
-                "max_directories": DEPLOYMENT_WORKSPACE_MAX_DIRECTORIES,
-                "max_total_bytes": DEPLOYMENT_WORKSPACE_MAX_BYTES,
-                "max_download_bytes": DEPLOYMENT_GIT_DOWNLOAD_MAX_BYTES,
+                "max_files": WORKLOAD_WORKSPACE_MAX_FILES,
+                "max_directories": WORKLOAD_WORKSPACE_MAX_DIRECTORIES,
+                "max_total_bytes": WORKLOAD_WORKSPACE_MAX_BYTES,
+                "max_download_bytes": WORKLOAD_GIT_DOWNLOAD_MAX_BYTES,
             })
         );
         Ok(())
@@ -9897,8 +9894,8 @@ mod tests {
         Ok(())
     }
 
-    fn valid_build_deploy_request() -> HostBuildDeployRequest {
-        HostBuildDeployRequest {
+    fn valid_build_workload_request() -> HostBuildWorkloadRequest {
+        HostBuildWorkloadRequest {
             installation_id: InstallationId::parse("11111111-1111-4111-8111-111111111111").unwrap(),
             source_url: "https://example.com/org/repo.git".to_string(),
             ref_name: "refs/heads/main".to_string(),
@@ -9919,53 +9916,53 @@ mod tests {
     }
 
     #[test]
-    fn build_deploy_request_validation_blocks_unapproved_and_unsafe() {
-        let mut request = valid_build_deploy_request();
-        assert!(validate_host_build_deploy_request(&request).is_ok());
+    fn build_workload_request_validation_blocks_unapproved_and_unsafe() {
+        let mut request = valid_build_workload_request();
+        assert!(validate_host_build_workload_request(&request).is_ok());
 
         request.approved = false;
-        assert!(validate_host_build_deploy_request(&request).is_err());
+        assert!(validate_host_build_workload_request(&request).is_err());
 
-        let mut request = valid_build_deploy_request();
+        let mut request = valid_build_workload_request();
         request.source_url = "file:///tmp/repo".to_string();
-        assert!(validate_host_build_deploy_request(&request).is_err());
+        assert!(validate_host_build_workload_request(&request).is_err());
 
-        let mut request = valid_build_deploy_request();
+        let mut request = valid_build_workload_request();
         request.dockerfile = Some("../Dockerfile".to_string());
-        assert!(validate_host_build_deploy_request(&request).is_err());
+        assert!(validate_host_build_workload_request(&request).is_err());
 
-        let mut request = valid_build_deploy_request();
+        let mut request = valid_build_workload_request();
         request.build_id = Some("../bad".to_string());
-        assert!(validate_host_build_deploy_request(&request).is_err());
+        assert!(validate_host_build_workload_request(&request).is_err());
 
-        let mut request = valid_build_deploy_request();
+        let mut request = valid_build_workload_request();
         request.strategy = Some("compose".to_string());
-        assert!(validate_host_build_deploy_request(&request).is_err());
+        assert!(validate_host_build_workload_request(&request).is_err());
 
-        let mut request = valid_build_deploy_request();
+        let mut request = valid_build_workload_request();
         request.strategy = Some("nixpacks".to_string());
-        assert!(validate_host_build_deploy_request(&request).is_ok());
+        assert!(validate_host_build_workload_request(&request).is_ok());
     }
 
     #[test]
-    fn build_deploy_runtime_env_validation_rejects_bad_specs() {
-        let mut request = valid_build_deploy_request();
+    fn build_workload_runtime_env_validation_rejects_bad_specs() {
+        let mut request = valid_build_workload_request();
         request.runtime_env = vec![RuntimeEnvSpec {
             name: "GOOD_NAME".to_string(),
             value: Some("ok".to_string()),
             secret_ref: None,
         }];
-        assert!(validate_host_build_deploy_request(&request).is_ok());
+        assert!(validate_host_build_workload_request(&request).is_ok());
 
-        let mut request = valid_build_deploy_request();
+        let mut request = valid_build_workload_request();
         request.runtime_env = vec![RuntimeEnvSpec {
             name: "1BAD".to_string(),
             value: Some("ok".to_string()),
             secret_ref: None,
         }];
-        assert!(validate_host_build_deploy_request(&request).is_err());
+        assert!(validate_host_build_workload_request(&request).is_err());
 
-        let mut request = valid_build_deploy_request();
+        let mut request = valid_build_workload_request();
         request.runtime_env = vec![
             RuntimeEnvSpec {
                 name: "DUP".to_string(),
@@ -9978,33 +9975,33 @@ mod tests {
                 secret_ref: None,
             },
         ];
-        assert!(validate_host_build_deploy_request(&request).is_err());
+        assert!(validate_host_build_workload_request(&request).is_err());
 
-        let mut request = valid_build_deploy_request();
+        let mut request = valid_build_workload_request();
         request.runtime_env = vec![RuntimeEnvSpec {
             name: "BOTH".to_string(),
             value: Some("plain".to_string()),
             secret_ref: Some("secret_ref:env:KEY".to_string()),
         }];
-        assert!(validate_host_build_deploy_request(&request).is_err());
+        assert!(validate_host_build_workload_request(&request).is_err());
 
-        let mut request = valid_build_deploy_request();
+        let mut request = valid_build_workload_request();
         request.runtime_env = vec![RuntimeEnvSpec {
             name: "NEITHER".to_string(),
             value: None,
             secret_ref: None,
         }];
-        assert!(validate_host_build_deploy_request(&request).is_err());
+        assert!(validate_host_build_workload_request(&request).is_err());
 
-        let mut request = valid_build_deploy_request();
+        let mut request = valid_build_workload_request();
         request.runtime_env = vec![RuntimeEnvSpec {
             name: "NUL".to_string(),
             value: Some("bad\0value".to_string()),
             secret_ref: None,
         }];
-        assert!(validate_host_build_deploy_request(&request).is_err());
+        assert!(validate_host_build_workload_request(&request).is_err());
 
-        let mut request = valid_build_deploy_request();
+        let mut request = valid_build_workload_request();
         request.runtime_env = (0..=MAX_RUNTIME_ENV_ENTRIES)
             .map(|idx| RuntimeEnvSpec {
                 name: format!("ENV_{idx}"),
@@ -10012,7 +10009,7 @@ mod tests {
                 secret_ref: None,
             })
             .collect();
-        assert!(validate_host_build_deploy_request(&request).is_err());
+        assert!(validate_host_build_workload_request(&request).is_err());
     }
 
     #[test]
@@ -10066,9 +10063,9 @@ mod tests {
         let tmp = tempfile::tempdir()?;
         let source = tmp.path().join("data");
         std::fs::create_dir(&source)?;
-        let mut request = valid_build_deploy_request();
+        let mut request = valid_build_workload_request();
         request.runtime_mounts = vec![approved_ro_mount(&source, "/data/app")];
-        validate_host_build_deploy_request(&request)?;
+        validate_host_build_workload_request(&request)?;
         let resolved = resolve_runtime_mounts(&request)?;
         assert_eq!(resolved.len(), 1);
         let debug = format!("{:?}", resolved[0]);
@@ -10094,32 +10091,32 @@ mod tests {
         let source = tmp.path().join("data");
         std::fs::create_dir(&source)?;
 
-        let mut request = valid_build_deploy_request();
+        let mut request = valid_build_workload_request();
         let mut mount = approved_ro_mount(&source, "/data/app");
         mount.approved = false;
         request.runtime_mounts = vec![mount];
-        assert!(validate_host_build_deploy_request(&request).is_err());
+        assert!(validate_host_build_workload_request(&request).is_err());
 
-        let mut request = valid_build_deploy_request();
+        let mut request = valid_build_workload_request();
         let mut mount = approved_ro_mount(&source, "/data/app");
         mount.mode = RuntimeMountMode::Rw;
         request.runtime_mounts = vec![mount];
-        assert!(validate_host_build_deploy_request(&request).is_err());
+        assert!(validate_host_build_workload_request(&request).is_err());
 
-        let mut request = valid_build_deploy_request();
+        let mut request = valid_build_workload_request();
         request.runtime_mounts = vec![approved_ro_mount(&source, "/etc/config")];
-        assert!(validate_host_build_deploy_request(&request).is_err());
+        assert!(validate_host_build_workload_request(&request).is_err());
 
-        let mut request = valid_build_deploy_request();
+        let mut request = valid_build_workload_request();
         request.runtime_mounts = vec![approved_ro_mount(FsPath::new("/"), "/data/root")];
-        assert!(validate_host_build_deploy_request(&request).is_err());
+        assert!(validate_host_build_workload_request(&request).is_err());
 
-        let mut request = valid_build_deploy_request();
+        let mut request = valid_build_workload_request();
         request.runtime_mounts = vec![
             approved_ro_mount(&source, "/data/app"),
             approved_ro_mount(&source, "/data/app"),
         ];
-        assert!(validate_host_build_deploy_request(&request).is_err());
+        assert!(validate_host_build_workload_request(&request).is_err());
         Ok(())
     }
 
@@ -10130,22 +10127,22 @@ mod tests {
         let tmp = tempfile::tempdir()?;
         let link = tmp.path().join("etc-link");
         symlink("/etc", &link)?;
-        let mut request = valid_build_deploy_request();
+        let mut request = valid_build_workload_request();
         request.runtime_mounts = vec![approved_ro_mount(&link, "/data/etc")];
-        assert!(validate_host_build_deploy_request(&request).is_err());
+        assert!(validate_host_build_workload_request(&request).is_err());
         Ok(())
     }
 
     #[test]
-    fn build_deploy_job_registry_cancel_terminal_and_redacts_logs() -> anyhow::Result<()> {
-        let registry = BuildDeployJobRegistry::default();
-        let request = valid_build_deploy_request();
+    fn build_workload_job_registry_cancel_terminal_and_redacts_logs() -> anyhow::Result<()> {
+        let registry = BuildWorkloadJobRegistry::default();
+        let request = valid_build_workload_request();
         let job_id = registry
             .create_job(&request, &HostAccessIdentity::root())?
             .job_id;
         registry.transition(
             &job_id,
-            BuildDeployJobState::Building,
+            BuildWorkloadJobState::Building,
             "building /tmp/secret_ref:env:TOKEN",
         );
         let events = registry.events(&job_id).unwrap();
@@ -10156,22 +10153,22 @@ mod tests {
             .any(|event| event.message.contains("secret_ref:env:TOKEN")));
 
         let (state, cancelled) = registry.cancel(&job_id).unwrap();
-        assert_eq!(state, BuildDeployJobState::Cancelled);
+        assert_eq!(state, BuildWorkloadJobState::Cancelled);
         assert!(cancelled);
         registry.complete_error(
             &job_id,
-            BuildDeployJobState::Failed,
+            BuildWorkloadJobState::Failed,
             "late failure".to_string(),
         );
         let status = registry.status(&job_id).unwrap();
-        assert_eq!(status.state, BuildDeployJobState::Cancelled);
+        assert_eq!(status.state, BuildWorkloadJobState::Cancelled);
         Ok(())
     }
 
     #[test]
-    fn build_deploy_job_registry_reuses_installation_idempotency_key() -> anyhow::Result<()> {
-        let registry = BuildDeployJobRegistry::default();
-        let mut request = valid_build_deploy_request();
+    fn build_workload_job_registry_reuses_installation_idempotency_key() -> anyhow::Result<()> {
+        let registry = BuildWorkloadJobRegistry::default();
+        let mut request = valid_build_workload_request();
         request.idempotency_key = Some("web-retry-001".to_string());
         let first = registry.create_job(&request, &HostAccessIdentity::root())?;
         let second = registry.create_job(&request, &HostAccessIdentity::root())?;
@@ -10184,19 +10181,19 @@ mod tests {
             .create_job(&changed, &HostAccessIdentity::root())
             .unwrap_err()
             .to_string()
-            .contains("different build-deploy request"));
+            .contains("different build-workload request"));
         Ok(())
     }
 
-    fn successful_build_result() -> HostBuildDeployResponse {
-        HostBuildDeployResponse {
+    fn successful_build_result() -> HostBuildWorkloadResponse {
+        HostBuildWorkloadResponse {
             workspace_id: WorkspaceId::parse("22222222-2222-4222-8222-222222222222").unwrap(),
             route_id: "route-build".to_string(),
             public_url: "/p/route-build/".to_string(),
             route_access: ProxyRouteAccess::HostAuthenticated,
             port_lease_id: "port-lease-000001".to_string(),
             container_id: "container-000001".to_string(),
-            container_name: Some("plurora-build-deploy-route-build-3000".to_string()),
+            container_name: Some("plurora-build-workload-route-build-3000".to_string()),
             image: "plurora/build:build-001".to_string(),
             build_id: "build-001".to_string(),
             source_commit: "0123456789abcdef0123456789abcdef01234567".to_string(),
@@ -10209,11 +10206,11 @@ mod tests {
     }
 
     #[test]
-    fn deployment_revision_persists_only_replay_safe_runtime_inputs() -> anyhow::Result<()> {
+    fn workload_revision_persists_only_replay_safe_runtime_inputs() -> anyhow::Result<()> {
         let tmp = tempfile::tempdir()?;
         let source = tmp.path().join("private-data");
         std::fs::create_dir(&source)?;
-        let mut request = valid_build_deploy_request();
+        let mut request = valid_build_workload_request();
         request.runtime_env = vec![
             RuntimeEnvSpec {
                 name: "DATABASE_URL".to_string(),
@@ -10228,7 +10225,7 @@ mod tests {
         ];
         request.runtime_mounts = vec![approved_ro_mount(&source, "/data/private")];
         let revision =
-            deployment_revision_from_build(&request, &successful_build_result(), "bdj-test", None);
+            workload_revision_from_build(&request, &successful_build_result(), "bdj-test", None);
         assert!(!revision.recoverable);
         assert_eq!(revision.runtime_env.len(), 1);
         let json = serde_json::to_string(&revision)?;
@@ -10239,10 +10236,10 @@ mod tests {
     }
 
     #[test]
-    fn legacy_deployment_revision_defaults_to_local_git_source() -> anyhow::Result<()> {
-        let request = valid_build_deploy_request();
+    fn legacy_workload_revision_defaults_to_local_git_source() -> anyhow::Result<()> {
+        let request = valid_build_workload_request();
         let revision =
-            deployment_revision_from_build(&request, &successful_build_result(), "bdj-test", None);
+            workload_revision_from_build(&request, &successful_build_result(), "bdj-test", None);
         let mut value = serde_json::to_value(revision)?;
         let object = value
             .as_object_mut()
@@ -10256,25 +10253,25 @@ mod tests {
             "preview_ref",
             "approval_ref",
             "verified_build_network_mode",
-            "target_deployment",
+            "target_workload",
         ] {
             object.remove(field);
         }
 
-        let restored: DeploymentRevision = serde_json::from_value(value)?;
+        let restored: WorkloadRevision = serde_json::from_value(value)?;
         assert_eq!(restored.target_id, "local");
-        assert_eq!(restored.source_kind, DeploymentSourceKind::GitClone);
-        assert!(restored.target_deployment.is_none());
+        assert_eq!(restored.source_kind, WorkloadSourceKind::GitClone);
+        assert!(restored.target_workload.is_none());
         Ok(())
     }
 
     #[test]
-    fn deployment_projection_retains_a_bounded_recent_revision_window() {
-        let registry = BuildDeployJobRegistry::default();
-        let request = valid_build_deploy_request();
+    fn workload_projection_retains_a_bounded_recent_revision_window() {
+        let registry = BuildWorkloadJobRegistry::default();
+        let request = valid_build_workload_request();
         let base =
-            deployment_revision_from_build(&request, &successful_build_result(), "bdj-test", None);
-        let total = BUILD_DEPLOY_MAX_REVISIONS_PER_INSTALLATION + 5;
+            workload_revision_from_build(&request, &successful_build_result(), "bdj-test", None);
+        let total = BUILD_WORKLOAD_MAX_REVISIONS_PER_INSTALLATION + 5;
         for index in 0..total {
             let mut revision = base.clone();
             revision.revision_id = format!("revision-{index:03}");
@@ -10283,7 +10280,10 @@ mod tests {
         }
 
         let revisions = registry.revisions(&request.installation_id);
-        assert_eq!(revisions.len(), BUILD_DEPLOY_MAX_REVISIONS_PER_INSTALLATION);
+        assert_eq!(
+            revisions.len(),
+            BUILD_WORKLOAD_MAX_REVISIONS_PER_INSTALLATION
+        );
         assert_eq!(
             revisions.first().unwrap().revision_id,
             format!("revision-{:03}", total - 1)
@@ -10299,25 +10299,25 @@ mod tests {
 
     #[test]
     fn replay_revision_can_reactivate_history_without_an_active_pointer() {
-        let request = valid_build_deploy_request();
+        let request = valid_build_workload_request();
         let target =
-            deployment_revision_from_build(&request, &successful_build_result(), "bdj-test", None);
-        let replay = deployment_revision_from_replay(
+            workload_revision_from_build(&request, &successful_build_result(), "bdj-test", None);
+        let replay = workload_revision_from_replay(
             None,
             &target,
-            DeploymentOperation::Rollback,
+            WorkloadOperation::Rollback,
             successful_build_result(),
         );
         assert_eq!(replay.parent_revision_id, None);
-        assert_eq!(replay.operation, DeploymentOperation::Rollback);
+        assert_eq!(replay.operation, WorkloadOperation::Rollback);
     }
 
     #[test]
-    fn deployment_activation_rejects_a_stale_parent_revision() {
-        let registry = BuildDeployJobRegistry::default();
-        let request = valid_build_deploy_request();
+    fn workload_activation_rejects_a_stale_parent_revision() {
+        let registry = BuildWorkloadJobRegistry::default();
+        let request = valid_build_workload_request();
         let base =
-            deployment_revision_from_build(&request, &successful_build_result(), "bdj-base", None);
+            workload_revision_from_build(&request, &successful_build_result(), "bdj-base", None);
         registry.register_revision(base.clone());
 
         let mut current = base.clone();
@@ -10333,9 +10333,9 @@ mod tests {
     }
 
     #[test]
-    fn deployment_authority_lease_expires_before_new_effects() {
-        let mut authority = DeploymentAuthorityLease::from_identity(
-            "deployment-expired".to_string(),
+    fn workload_authority_lease_expires_before_new_effects() {
+        let mut authority = WorkloadAuthorityLease::from_identity(
+            "workload-expired".to_string(),
             "local",
             &HostAccessIdentity::root(),
         );
@@ -10349,10 +10349,9 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn deployment_journal_hydrates_and_releases_direct_route_ownership() -> anyhow::Result<()>
-    {
+    async fn workload_journal_hydrates_and_releases_direct_route_ownership() -> anyhow::Result<()> {
         let store = Arc::new(InMemoryEventStore::default());
-        let ownership = DeploymentDirectRouteOwned {
+        let ownership = WorkloadDirectRouteOwned {
             route_id: "route-direct".to_string(),
             installation_id: InstallationId::parse("55555555-5555-4555-8555-555555555555")?,
             port_name: "web".to_string(),
@@ -10362,18 +10361,18 @@ mod tests {
             timestamp_ms: now_millis(),
             authority: None,
         };
-        assert!(append_deployment_journal_event(
+        assert!(append_workload_journal_event(
             store.as_ref(),
             0,
-            DEPLOYMENT_DIRECT_ROUTE_OWNED_EVENT,
+            WORKLOAD_DIRECT_ROUTE_OWNED_EVENT,
             &ownership,
         )
         .await?
         .is_some());
 
-        let registry = Arc::new(BuildDeployJobRegistry::default());
+        let registry = Arc::new(BuildWorkloadJobRegistry::default());
         assert_eq!(
-            hydrate_deployment_control_plane(store.clone(), registry.clone()).await?,
+            hydrate_workload_control_plane(store.clone(), registry.clone()).await?,
             1
         );
         assert_eq!(
@@ -10387,21 +10386,21 @@ mod tests {
             "port-lease-direct"
         );
 
-        let release = DeploymentDirectRouteReleased {
+        let release = WorkloadDirectRouteReleased {
             route_id: ownership.route_id,
             installation_id: ownership.installation_id,
             timestamp_ms: now_millis(),
         };
-        assert!(append_deployment_journal_event(
+        assert!(append_workload_journal_event(
             store.as_ref(),
             1,
-            DEPLOYMENT_DIRECT_ROUTE_RELEASED_EVENT,
+            WORKLOAD_DIRECT_ROUTE_RELEASED_EVENT,
             &release,
         )
         .await?
         .is_some());
         assert_eq!(
-            sync_deployment_journal(store.as_ref(), registry.as_ref()).await?,
+            sync_workload_journal(store.as_ref(), registry.as_ref()).await?,
             1
         );
         assert!(registry.installation_for_route("route-direct").is_none());
@@ -10409,32 +10408,32 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn deployment_journal_hydrates_revisions_and_interrupts_incomplete_jobs(
+    async fn workload_journal_hydrates_revisions_and_interrupts_incomplete_jobs(
     ) -> anyhow::Result<()> {
         let store = Arc::new(InMemoryEventStore::default());
-        let source_registry = Arc::new(BuildDeployJobRegistry::default());
-        let request = valid_build_deploy_request();
+        let source_registry = Arc::new(BuildWorkloadJobRegistry::default());
+        let request = valid_build_workload_request();
         let created = source_registry.create_job(&request, &HostAccessIdentity::root())?;
         let snapshot = source_registry.job_snapshot(&created.job_id).unwrap();
-        assert!(append_deployment_journal_event(
+        assert!(append_workload_journal_event(
             store.as_ref(),
             0,
-            DEPLOYMENT_JOB_SNAPSHOT_EVENT,
+            WORKLOAD_JOB_SNAPSHOT_EVENT,
             &snapshot,
         )
         .await?
         .is_some());
-        let revision = deployment_revision_from_build(
+        let revision = workload_revision_from_build(
             &request,
             &successful_build_result(),
             &created.job_id,
             None,
         );
-        assert!(append_deployment_journal_event(
+        assert!(append_workload_journal_event(
             store.as_ref(),
             1,
-            DEPLOYMENT_REVISION_ACTIVATED_EVENT,
-            &DeploymentRevisionActivated {
+            WORKLOAD_REVISION_ACTIVATED_EVENT,
+            &WorkloadRevisionActivated {
                 revision: revision.clone(),
                 enforce_parent: false,
                 job: None,
@@ -10444,9 +10443,9 @@ mod tests {
         .await?
         .is_some());
 
-        let hydrated = Arc::new(BuildDeployJobRegistry::default());
+        let hydrated = Arc::new(BuildWorkloadJobRegistry::default());
         assert_eq!(
-            hydrate_deployment_control_plane(store.clone(), hydrated.clone()).await?,
+            hydrate_workload_control_plane(store.clone(), hydrated.clone()).await?,
             2
         );
         assert_eq!(
@@ -10457,22 +10456,19 @@ mod tests {
             revision.revision_id
         );
         let status = hydrated.status(&created.job_id).unwrap();
-        assert_eq!(status.state, BuildDeployJobState::Failed);
+        assert_eq!(status.state, BuildWorkloadJobState::Failed);
         assert!(status.error.unwrap().contains("host restarted"));
         assert_eq!(
-            store
-                .list_kind_prefix(DEPLOYMENT_JOURNAL_PREFIX)
-                .await?
-                .len(),
+            store.list_kind_prefix(WORKLOAD_JOURNAL_PREFIX).await?.len(),
             3
         );
         Ok(())
     }
 
     #[test]
-    fn build_deploy_job_registry_enforces_installation_concurrency() -> anyhow::Result<()> {
-        let registry = BuildDeployJobRegistry::default();
-        let request = valid_build_deploy_request();
+    fn build_workload_job_registry_enforces_installation_concurrency() -> anyhow::Result<()> {
+        let registry = BuildWorkloadJobRegistry::default();
+        let request = valid_build_workload_request();
         registry
             .installation_active
             .lock()
@@ -10512,7 +10508,7 @@ mod tests {
     }
 
     #[test]
-    fn build_deploy_prefers_content_addressable_image_id() -> anyhow::Result<()> {
+    fn build_workload_prefers_content_addressable_image_id() -> anyhow::Result<()> {
         let image = require_built_image(&serde_json::json!({
             "docker_performed": true,
             "image_built": true,
@@ -10524,14 +10520,14 @@ mod tests {
     }
 
     #[test]
-    fn build_deploy_descriptor_hash_is_deterministic_and_sensitive() {
-        let request = valid_build_deploy_request();
-        let hash1 = build_deploy_descriptor_hash(
+    fn build_workload_descriptor_hash_is_deterministic_and_sensitive() {
+        let request = valid_build_workload_request();
+        let hash1 = build_workload_descriptor_hash(
             &request,
             "build-001",
             "0123456789abcdef0123456789abcdef01234567",
         );
-        let hash2 = build_deploy_descriptor_hash(
+        let hash2 = build_workload_descriptor_hash(
             &request,
             "build-001",
             "0123456789abcdef0123456789abcdef01234567",
@@ -10540,7 +10536,7 @@ mod tests {
         assert!(hash1.starts_with("sha256:"));
         assert_eq!(hash1.len(), "sha256:".len() + 64);
 
-        let changed = build_deploy_descriptor_hash(
+        let changed = build_workload_descriptor_hash(
             &request,
             "build-002",
             "0123456789abcdef0123456789abcdef01234567",
@@ -10549,7 +10545,7 @@ mod tests {
     }
 
     #[test]
-    fn build_deploy_build_id_generation_is_safe() {
+    fn build_workload_build_id_generation_is_safe() {
         assert_eq!(
             generated_build_id("0123456789abcdef0123456789abcdef01234567"),
             "build-0123456789ab"
@@ -10561,8 +10557,8 @@ mod tests {
     }
 
     #[test]
-    fn build_deploy_public_error_redacts_host_paths() {
-        let response = redacted_build_deploy_error(anyhow::anyhow!(
+    fn build_workload_public_error_redacts_host_paths() {
+        let response = redacted_build_workload_error(anyhow::anyhow!(
             "failed to read /tmp/plurora-secret-workspace/Dockerfile"
         ))
         .into_response();
@@ -10877,7 +10873,7 @@ mod tests {
             static_dir: None,
             access_token: None,
             app_base_domain: None,
-            build_jobs: build_deploy_job_registry(),
+            build_jobs: build_workload_job_registry(),
             development,
             host_access: host_access_registry(),
             installations,
@@ -10898,11 +10894,11 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn readyz_ignores_retired_deployment_projection() -> anyhow::Result<()> {
+    async fn readyz_ignores_retired_workload_projection() -> anyhow::Result<()> {
         let store = Arc::new(InMemoryEventStore::default());
         let (runtime, installations) = test_runtime(store, RuntimeConfig::default());
-        let build_jobs = build_deploy_job_registry();
-        build_jobs.register_direct_route_owner(DeploymentDirectRouteOwned {
+        let build_jobs = build_workload_job_registry();
+        build_jobs.register_direct_route_owner(WorkloadDirectRouteOwned {
             route_id: "private-route".to_string(),
             installation_id: InstallationId::parse("66666666-6666-4666-8666-666666666666")?,
             port_name: "http".to_string(),
@@ -10955,7 +10951,7 @@ mod tests {
             static_dir: Some(dir.path().to_path_buf()),
             access_token: None,
             app_base_domain: None,
-            build_jobs: Arc::new(BuildDeployJobRegistry::default()),
+            build_jobs: Arc::new(BuildWorkloadJobRegistry::default()),
             development: development_registry(),
             host_access: host_access_registry(),
             installations,
@@ -11050,7 +11046,7 @@ mod tests {
             static_dir: Some(dir.path().to_path_buf()),
             access_token: Some("secret-token".to_string()),
             app_base_domain: None,
-            build_jobs: Arc::new(BuildDeployJobRegistry::default()),
+            build_jobs: Arc::new(BuildWorkloadJobRegistry::default()),
             development: development_registry(),
             host_access: host_access_registry(),
             installations,
@@ -11209,7 +11205,7 @@ mod tests {
             static_dir: None,
             access_token: Some("root-authority-token".to_string()),
             app_base_domain: None,
-            build_jobs: Arc::new(BuildDeployJobRegistry::default()),
+            build_jobs: Arc::new(BuildWorkloadJobRegistry::default()),
             development: development_registry(),
             host_access: access_registry.clone(),
             installations,
@@ -11542,7 +11538,7 @@ mod tests {
                 static_dir: None,
                 access_token: Some("long-lived-host-token".to_string()),
                 app_base_domain: None,
-                build_jobs: Arc::new(BuildDeployJobRegistry::default()),
+                build_jobs: Arc::new(BuildWorkloadJobRegistry::default()),
                 development: development_registry(),
                 host_access: host_access_registry(),
                 installations,
@@ -11630,15 +11626,15 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn retired_host_deploy_route_is_not_an_authenticated_alias() -> anyhow::Result<()> {
+    async fn retired_host_workload_route_is_not_an_authenticated_alias() -> anyhow::Result<()> {
         let store = Arc::new(InMemoryEventStore::default());
         let (runtime, installations) = test_runtime(store, RuntimeConfig::default());
         let app = app_with_state(AppState {
             runtime,
             static_dir: None,
-            access_token: Some("deploy-token".to_string()),
+            access_token: Some("workload-token".to_string()),
             app_base_domain: None,
-            build_jobs: Arc::new(BuildDeployJobRegistry::default()),
+            build_jobs: Arc::new(BuildWorkloadJobRegistry::default()),
             development: development_registry(),
             host_access: host_access_registry(),
             installations,
@@ -11650,7 +11646,7 @@ mod tests {
             .oneshot(
                 Request::builder()
                     .method("POST")
-                    .uri("/host/v1/deploy")
+                    .uri("/host/v1/workload")
                     .header("content-type", "application/json")
                     .body(Body::from(
                         json!({
@@ -11670,8 +11666,8 @@ mod tests {
             .oneshot(
                 Request::builder()
                     .method("POST")
-                    .uri("/host/v1/deploy")
-                    .header("authorization", "Bearer deploy-token")
+                    .uri("/host/v1/workload")
+                    .header("authorization", "Bearer workload-token")
                     .header("content-type", "application/json")
                     .body(Body::from("{}"))?,
             )
@@ -11681,7 +11677,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn retired_host_deploy_route_has_no_port_or_proxy_effect() -> anyhow::Result<()> {
+    async fn retired_host_workload_route_has_no_port_or_proxy_effect() -> anyhow::Result<()> {
         let store = Arc::new(InMemoryEventStore::default());
         let (runtime, installations) = test_runtime(store, RuntimeConfig::default());
         let app = app_with_state(AppState {
@@ -11689,7 +11685,7 @@ mod tests {
             static_dir: None,
             access_token: None,
             app_base_domain: None,
-            build_jobs: Arc::new(BuildDeployJobRegistry::default()),
+            build_jobs: Arc::new(BuildWorkloadJobRegistry::default()),
             development: development_registry(),
             host_access: host_access_registry(),
             installations,
@@ -11701,7 +11697,7 @@ mod tests {
             .oneshot(
                 Request::builder()
                     .method("POST")
-                    .uri("/host/v1/deploy")
+                    .uri("/host/v1/workload")
                     .header("content-type", "application/json")
                     .body(Body::from(
                         json!({
@@ -11717,7 +11713,7 @@ mod tests {
             .await?;
         assert_eq!(response.status(), StatusCode::NOT_FOUND);
 
-        let context = ProtocolContext::host_dev("host_deploy_test");
+        let context = ProtocolContext::host_dev("host_workload_test");
         let leases = runtime
             .call_protocol(&context, "host.port.list", json!({}))
             .await
@@ -11749,7 +11745,7 @@ mod tests {
             static_dir: None,
             access_token: Some("event-token".to_string()),
             app_base_domain: None,
-            build_jobs: Arc::new(BuildDeployJobRegistry::default()),
+            build_jobs: Arc::new(BuildWorkloadJobRegistry::default()),
             development: development_registry(),
             host_access: host_access_registry(),
             installations,
@@ -11786,7 +11782,7 @@ mod tests {
             static_dir: None,
             access_token: Some("proxy-token".to_string()),
             app_base_domain: None,
-            build_jobs: Arc::new(BuildDeployJobRegistry::default()),
+            build_jobs: Arc::new(BuildWorkloadJobRegistry::default()),
             development: development_registry(),
             host_access: host_access_registry(),
             installations,
@@ -11814,7 +11810,7 @@ mod tests {
             static_dir: None,
             access_token: Some("proxy-token".to_string()),
             app_base_domain: None,
-            build_jobs: Arc::new(BuildDeployJobRegistry::default()),
+            build_jobs: Arc::new(BuildWorkloadJobRegistry::default()),
             development: development_registry(),
             host_access: host_access_registry(),
             installations,
@@ -11900,7 +11896,7 @@ mod tests {
             static_dir: None,
             access_token: None,
             app_base_domain: None,
-            build_jobs: Arc::new(BuildDeployJobRegistry::default()),
+            build_jobs: Arc::new(BuildWorkloadJobRegistry::default()),
             development: development_registry(),
             host_access: host_access_registry(),
             installations,
@@ -11917,7 +11913,7 @@ mod tests {
             .await?;
         assert_eq!(not_ready.status(), StatusCode::SERVICE_UNAVAILABLE);
         let body = to_bytes(not_ready.into_body(), usize::MAX).await?;
-        assert_eq!(&body[..], b"deployment not ready");
+        assert_eq!(&body[..], b"workload not ready");
 
         runtime
             .config()
@@ -12031,7 +12027,7 @@ mod tests {
             static_dir: None,
             access_token: Some("proxy-token".to_string()),
             app_base_domain: None,
-            build_jobs: Arc::new(BuildDeployJobRegistry::default()),
+            build_jobs: Arc::new(BuildWorkloadJobRegistry::default()),
             development: development_registry(),
             host_access: host_access_registry(),
             installations,
@@ -12173,7 +12169,7 @@ mod tests {
             static_dir: None,
             access_token: Some("proxy-token".to_string()),
             app_base_domain: Some("apps.example.test".to_string()),
-            build_jobs: Arc::new(BuildDeployJobRegistry::default()),
+            build_jobs: Arc::new(BuildWorkloadJobRegistry::default()),
             development: development_registry(),
             host_access: host_access_registry(),
             installations,
@@ -12251,7 +12247,7 @@ mod tests {
             static_dir: None,
             access_token: Some("proxy-token".to_string()),
             app_base_domain: Some("apps.example.test".to_string()),
-            build_jobs: Arc::new(BuildDeployJobRegistry::default()),
+            build_jobs: Arc::new(BuildWorkloadJobRegistry::default()),
             development: development_registry(),
             host_access: host_access_registry(),
             installations,
@@ -12301,7 +12297,7 @@ mod tests {
             static_dir: None,
             access_token: None,
             app_base_domain: Some("apps.example.test".to_string()),
-            build_jobs: Arc::new(BuildDeployJobRegistry::default()),
+            build_jobs: Arc::new(BuildWorkloadJobRegistry::default()),
             development: development_registry(),
             host_access: host_access_registry(),
             installations,
@@ -12398,7 +12394,7 @@ mod tests {
             static_dir: None,
             access_token: Some("proxy-token".to_string()),
             app_base_domain: None,
-            build_jobs: Arc::new(BuildDeployJobRegistry::default()),
+            build_jobs: Arc::new(BuildWorkloadJobRegistry::default()),
             development: development_registry(),
             host_access: host_access_registry(),
             installations,
@@ -12440,7 +12436,7 @@ mod tests {
             static_dir: None,
             access_token: Some("ws-token".to_string()),
             app_base_domain: None,
-            build_jobs: Arc::new(BuildDeployJobRegistry::default()),
+            build_jobs: Arc::new(BuildWorkloadJobRegistry::default()),
             development: development_registry(),
             host_access: host_access_registry(),
             installations,
@@ -12504,7 +12500,7 @@ mod tests {
             static_dir: None,
             access_token: None,
             app_base_domain: None,
-            build_jobs: Arc::new(BuildDeployJobRegistry::default()),
+            build_jobs: Arc::new(BuildWorkloadJobRegistry::default()),
             development: development_registry(),
             host_access: host_access_registry(),
             installations,
@@ -12642,7 +12638,7 @@ mod tests {
             static_dir: None,
             access_token: Some("ws-token".to_string()),
             app_base_domain: None,
-            build_jobs: Arc::new(BuildDeployJobRegistry::default()),
+            build_jobs: Arc::new(BuildWorkloadJobRegistry::default()),
             development: development_registry(),
             host_access: host_access_registry(),
             installations,
@@ -12728,7 +12724,7 @@ mod tests {
             static_dir: None,
             access_token: Some("bundle-token".to_string()),
             app_base_domain: None,
-            build_jobs: Arc::new(BuildDeployJobRegistry::default()),
+            build_jobs: Arc::new(BuildWorkloadJobRegistry::default()),
             development: development_registry(),
             host_access: access_registry.clone(),
             installations,
@@ -12879,7 +12875,7 @@ mod tests {
             static_dir: None,
             access_token: None,
             app_base_domain: None,
-            build_jobs: Arc::new(BuildDeployJobRegistry::default()),
+            build_jobs: Arc::new(BuildWorkloadJobRegistry::default()),
             development: development_registry(),
             host_access: host_access_registry(),
             installations,
@@ -12912,7 +12908,7 @@ mod tests {
             static_dir: Some(dir.path().to_path_buf()),
             access_token: Some("static-token".to_string()),
             app_base_domain: None,
-            build_jobs: Arc::new(BuildDeployJobRegistry::default()),
+            build_jobs: Arc::new(BuildWorkloadJobRegistry::default()),
             development: development_registry(),
             host_access: host_access_registry(),
             installations,
@@ -12950,7 +12946,7 @@ mod tests {
             static_dir: Some(dir.path().to_path_buf()),
             access_token: None,
             app_base_domain: None,
-            build_jobs: Arc::new(BuildDeployJobRegistry::default()),
+            build_jobs: Arc::new(BuildWorkloadJobRegistry::default()),
             development: development_registry(),
             host_access: host_access_registry(),
             installations,
@@ -13001,7 +12997,7 @@ mod tests {
             static_dir: Some(dir.path().to_path_buf()),
             access_token: None,
             app_base_domain: None,
-            build_jobs: Arc::new(BuildDeployJobRegistry::default()),
+            build_jobs: Arc::new(BuildWorkloadJobRegistry::default()),
             development: development_registry(),
             host_access: host_access_registry(),
             installations,

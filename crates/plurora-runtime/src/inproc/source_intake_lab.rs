@@ -1,14 +1,14 @@
-//! Handler for `plurora/project-intake-lab` capabilities.
+//! Handler for `plurora/source-intake-lab` capabilities.
 //!
-//! External Project Operating Plane Alpha Phase E1 + E5 — Project Intake Lab.
+//! External Source Operating Plane — Source Intake Lab.
 //!
-//! Static project intake for external project refs. No clone, no install,
+//! Static source intake for external source refs. No clone, no install,
 //! no run, no network, no filesystem access, no shell, no outbound.
 //!
 //! Capabilities:
 //! - describe_intake_contract: describe the intake lab contract
-//! - inspect_external_project_ref: classify source ref (git/npm/local/archive/unknown)
-//! - detect_project_stack_from_metadata: detect stack from metadata (node/rust/python/static/unknown)
+//! - inspect_external_source_ref: classify source ref (git/npm/local/archive/unknown)
+//! - detect_source_stack_from_metadata: detect stack from metadata (node/rust/python/static/unknown)
 //! - draft_workspace_plan: produce plan-only workspace plan
 //! - draft_security_risk_summary: produce security risk summary
 //! - list_candidate_entrypoints: list candidate entrypoints with risk annotations
@@ -21,7 +21,7 @@
 //! Safety:
 //! - Raw secret blocking (delegated to shared safety module)
 //! - Unsafe local path rejection (path traversal, home path, absolute sensitive paths)
-//! - No reserved external-project platform-reserved namespace references
+//! - No reserved external-source platform-reserved namespace references
 //! - No filesystem reads, no shell, no outbound, no execution
 
 use serde_json::Value;
@@ -29,7 +29,7 @@ use serde_json::Value;
 use super::safety;
 use super::InprocInvocation;
 
-const PACKAGE_ID: &str = "plurora/project-intake-lab";
+const PACKAGE_ID: &str = "plurora/source-intake-lab";
 
 // ---------------------------------------------------------------------------
 // Source kinds
@@ -100,7 +100,7 @@ fn is_unsafe_local_path(path: &str) -> bool {
 
 fn rejected_output(request: &InprocInvocation) -> Value {
     serde_json::json!({
-        "kind": "project_intake_rejected",
+        "kind": "source_intake_rejected",
         "redaction_state": "unsafe_blocked",
         "reason": "input contains raw-secret-like content; use secret_ref references instead",
         "inference_performed": false,
@@ -125,10 +125,10 @@ pub fn try_handle(request: &InprocInvocation) -> Option<anyhow::Result<Value>> {
     let id = request.capability_id.as_str();
     if id.ends_with("/describe_intake_contract") {
         Some(describe_intake_contract(request))
-    } else if id.ends_with("/inspect_external_project_ref") {
-        Some(inspect_external_project_ref(request))
-    } else if id.ends_with("/detect_project_stack_from_metadata") {
-        Some(detect_project_stack_from_metadata(request))
+    } else if id.ends_with("/inspect_external_source_ref") {
+        Some(inspect_external_source_ref(request))
+    } else if id.ends_with("/detect_source_stack_from_metadata") {
+        Some(detect_source_stack_from_metadata(request))
     } else if id.ends_with("/draft_workspace_plan") {
         Some(draft_workspace_plan(request))
     } else if id.ends_with("/draft_security_risk_summary") {
@@ -156,26 +156,26 @@ pub fn try_handle(request: &InprocInvocation) -> Option<anyhow::Result<Value>> {
 
 fn describe_intake_contract(request: &InprocInvocation) -> anyhow::Result<Value> {
     Ok(serde_json::json!({
-        "kind": "project_intake_contract",
+        "kind": "source_intake_contract",
         "package_id": request.provider_package_id,
         "package_kind": "ordinary",
         "capabilities": [
-            {"id": "plurora/project-intake-lab/describe_intake_contract", "purpose": "describe the project intake lab contract"},
-            {"id": "plurora/project-intake-lab/inspect_external_project_ref", "purpose": "classify an external project source ref without clone/install/run"},
-            {"id": "plurora/project-intake-lab/detect_project_stack_from_metadata", "purpose": "detect project stack from metadata files without filesystem access"},
-            {"id": "plurora/project-intake-lab/draft_workspace_plan", "purpose": "draft a plan-only workspace plan, no direct workspace creation"},
-            {"id": "plurora/project-intake-lab/draft_security_risk_summary", "purpose": "draft security risk summary from metadata, no filesystem scan"},
-            {"id": "plurora/project-intake-lab/list_candidate_entrypoints", "purpose": "list candidate entrypoints with risk annotations, no execution"},
-            {"id": "plurora/project-intake-lab/draft_adapter_plan", "purpose": "draft plan-only adapter plan, no direct adapter creation"},
-            {"id": "plurora/project-intake-lab/generate_adapter_manifest_preview", "purpose": "generate adapter package manifest preview without file write"},
-            {"id": "plurora/project-intake-lab/generate_subprocess_wrapper_preview", "purpose": "generate subprocess wrapper code preview without file write or execution"},
-            {"id": "plurora/project-intake-lab/generate_adapter_fixture_preview", "purpose": "generate adapter package fixture input/output sample, redacted"},
-            {"id": "plurora/project-intake-lab/check_adapter_readiness", "purpose": "produce readiness checklist for adapter package"},
+            {"id": "plurora/source-intake-lab/describe_intake_contract", "purpose": "describe the source intake lab contract"},
+            {"id": "plurora/source-intake-lab/inspect_external_source_ref", "purpose": "classify an external source ref without clone/install/run"},
+            {"id": "plurora/source-intake-lab/detect_source_stack_from_metadata", "purpose": "detect a source stack from metadata files without filesystem access"},
+            {"id": "plurora/source-intake-lab/draft_workspace_plan", "purpose": "draft a plan-only workspace plan, no direct workspace creation"},
+            {"id": "plurora/source-intake-lab/draft_security_risk_summary", "purpose": "draft security risk summary from metadata, no filesystem scan"},
+            {"id": "plurora/source-intake-lab/list_candidate_entrypoints", "purpose": "list candidate entrypoints with risk annotations, no execution"},
+            {"id": "plurora/source-intake-lab/draft_adapter_plan", "purpose": "draft plan-only adapter plan, no direct adapter creation"},
+            {"id": "plurora/source-intake-lab/generate_adapter_manifest_preview", "purpose": "generate adapter package manifest preview without file write"},
+            {"id": "plurora/source-intake-lab/generate_subprocess_wrapper_preview", "purpose": "generate subprocess wrapper code preview without file write or execution"},
+            {"id": "plurora/source-intake-lab/generate_adapter_fixture_preview", "purpose": "generate adapter package fixture input/output sample, redacted"},
+            {"id": "plurora/source-intake-lab/check_adapter_readiness", "purpose": "produce readiness checklist for adapter package"},
         ],
         "surfaces": {
-            "forge_panel": "plurora/project-intake-lab/forge-panel",
-            "assistant_action": "plurora/project-intake-lab/assistant-action",
-            "home_card": "plurora/project-intake-lab/home-card",
+            "forge_panel": "plurora/source-intake-lab/forge-panel",
+            "assistant_action": "plurora/source-intake-lab/assistant-action",
+            "home_card": "plurora/source-intake-lab/home-card",
         },
         "source_kinds": SOURCE_KINDS,
         "stack_kinds": STACK_KINDS,
@@ -183,7 +183,7 @@ fn describe_intake_contract(request: &InprocInvocation) -> anyhow::Result<Value>
         "npm_lifecycle_scripts": NPM_LIFECYCLE_SCRIPTS,
         "output_shapes": {
             "intake_contract": ["package_id", "package_kind", "capabilities", "surfaces", "source_kinds", "stack_kinds", "metadata_kinds", "npm_lifecycle_scripts"],
-            "project_ref_inspection": ["source_kind", "source_ref", "classification_confidence", "path_safety", "unsafe_path_reason", "warnings"],
+            "source_ref_inspection": ["source_kind", "source_ref", "classification_confidence", "path_safety", "unsafe_path_reason", "warnings"],
             "stack_detection": ["detected_stack", "metadata_signals", "confidence", "npm_lifecycle_risks"],
             "workspace_plan": ["plan_only", "requires_user_approval", "source_kind", "source_ref", "proposed_steps", "risk_notes"],
             "security_risk_summary": ["risk_level", "risk_factors", "npm_lifecycle_risks", "path_safety", "raw_secret_detected", "recommendations"],
@@ -205,7 +205,7 @@ fn describe_intake_contract(request: &InprocInvocation) -> anyhow::Result<Value>
     }))
 }
 
-fn inspect_external_project_ref(request: &InprocInvocation) -> anyhow::Result<Value> {
+fn inspect_external_source_ref(request: &InprocInvocation) -> anyhow::Result<Value> {
     if safety::contains_raw_secret(&request.input) {
         return Ok(rejected_output(request));
     }
@@ -259,7 +259,7 @@ fn inspect_external_project_ref(request: &InprocInvocation) -> anyhow::Result<Va
     };
 
     Ok(serde_json::json!({
-        "kind": "project_ref_inspection",
+        "kind": "source_ref_inspection",
         "source_kind": source_kind,
         "source_ref": if source_ref.is_empty() { Value::Null } else { serde_json::json!(source_ref) },
         "classification_confidence": classification_confidence,
@@ -277,7 +277,7 @@ fn inspect_external_project_ref(request: &InprocInvocation) -> anyhow::Result<Va
     }))
 }
 
-fn detect_project_stack_from_metadata(request: &InprocInvocation) -> anyhow::Result<Value> {
+fn detect_source_stack_from_metadata(request: &InprocInvocation) -> anyhow::Result<Value> {
     if safety::contains_raw_secret(&request.input) {
         return Ok(rejected_output(request));
     }
@@ -345,7 +345,7 @@ fn detect_project_stack_from_metadata(request: &InprocInvocation) -> anyhow::Res
     let confidence = if !signals.is_empty() { "medium" } else { "low" };
 
     Ok(serde_json::json!({
-        "kind": "project_stack_detection",
+        "kind": "source_stack_detection",
         "detected_stack": detected_stack,
         "metadata_signals": signals,
         "confidence": confidence,
@@ -382,7 +382,7 @@ fn draft_workspace_plan(request: &InprocInvocation) -> anyhow::Result<Value> {
     // Check local path safety
     if source_kind == "local" && is_unsafe_local_path(source_ref) {
         return Ok(serde_json::json!({
-            "kind": "project_intake_rejected",
+            "kind": "source_intake_rejected",
             "redaction_state": "unsafe_blocked",
             "reason": "unsafe local path in workspace plan: path traversal, home path, or absolute sensitive path",
             "inference_performed": false,
@@ -425,7 +425,7 @@ fn draft_workspace_plan(request: &InprocInvocation) -> anyhow::Result<Value> {
     }
 
     Ok(serde_json::json!({
-        "kind": "project_workspace_plan",
+        "kind": "source_workspace_plan",
         "plan_only": true,
         "requires_user_approval": true,
         "source_kind": source_kind,
@@ -552,7 +552,7 @@ fn draft_security_risk_summary(request: &InprocInvocation) -> anyhow::Result<Val
         };
 
     Ok(serde_json::json!({
-        "kind": "project_security_risk_summary",
+        "kind": "source_security_risk_summary",
         "risk_level": risk_level,
         "risk_factors": risk_factors,
         "npm_lifecycle_risks": npm_lifecycle_risks,
@@ -584,7 +584,7 @@ fn list_candidate_entrypoints(request: &InprocInvocation) -> anyhow::Result<Valu
 
     let mut entrypoints: Vec<Value> = Vec::new();
 
-    // Node project entrypoints
+    // Node source entrypoints
     if let Some(pkg) = metadata.get("package_json").and_then(Value::as_object) {
         if pkg.contains_key("bin") {
             entrypoints.push(serde_json::json!({
@@ -635,7 +635,7 @@ fn list_candidate_entrypoints(request: &InprocInvocation) -> anyhow::Result<Valu
         }
     }
 
-    // Rust project entrypoints
+    // Rust source entrypoints
     if metadata.contains_key("cargo_toml") {
         entrypoints.push(serde_json::json!({
             "label": "cargo build",
@@ -653,7 +653,7 @@ fn list_candidate_entrypoints(request: &InprocInvocation) -> anyhow::Result<Valu
         }));
     }
 
-    // Python project entrypoints
+    // Python source entrypoints
     if metadata.contains_key("pyproject") {
         entrypoints.push(serde_json::json!({
             "label": "pip install",
@@ -689,7 +689,7 @@ fn list_candidate_entrypoints(request: &InprocInvocation) -> anyhow::Result<Valu
     }
 
     Ok(serde_json::json!({
-        "kind": "project_candidate_entrypoints",
+        "kind": "source_candidate_entrypoints",
         "entrypoints": entrypoints,
         "inference_performed": false,
         "network_performed": false,
@@ -723,7 +723,7 @@ fn draft_adapter_plan(request: &InprocInvocation) -> anyhow::Result<Value> {
     // Check local path safety
     if source_kind == "local" && is_unsafe_local_path(source_ref) {
         return Ok(serde_json::json!({
-            "kind": "project_intake_rejected",
+            "kind": "source_intake_rejected",
             "redaction_state": "unsafe_blocked",
             "reason": "unsafe local path in adapter plan: path traversal, home path, or absolute sensitive path",
             "inference_performed": false,
@@ -744,12 +744,12 @@ fn draft_adapter_plan(request: &InprocInvocation) -> anyhow::Result<Value> {
         "git" | "npm" | "local" | "archive" => {
             proposed_capabilities.push(serde_json::json!({
                 "capability_kind": "invoke",
-                "purpose": "run a project command through the adapter",
+                "purpose": "run a source command through the adapter",
                 "requires_approval": true,
             }));
             proposed_capabilities.push(serde_json::json!({
                 "capability_kind": "inspect",
-                "purpose": "read project metadata through the adapter",
+                "purpose": "read source metadata through the adapter",
                 "requires_approval": false,
             }));
             if source_kind == "git" || source_kind == "npm" {
@@ -762,7 +762,7 @@ fn draft_adapter_plan(request: &InprocInvocation) -> anyhow::Result<Value> {
     }
 
     Ok(serde_json::json!({
-        "kind": "project_adapter_plan",
+        "kind": "source_adapter_plan",
         "plan_only": true,
         "requires_user_approval": true,
         "source_kind": source_kind,
@@ -789,11 +789,10 @@ fn draft_adapter_plan(request: &InprocInvocation) -> anyhow::Result<Value> {
 // ---------------------------------------------------------------------------
 
 const FORBIDDEN_NAMESPACE_TOKENS: &[&str] = &[
-    "platform.project.",
     "platform.workspace.",
     "platform.git.",
     "platform.npm.",
-    "platform.deploy.",
+    "platform.workload.",
     "platform.ide.",
 ];
 
@@ -882,7 +881,7 @@ fn generate_adapter_manifest_preview(request: &InprocInvocation) -> anyhow::Resu
     // Reject first-party adapter Package IDs
     if is_unsafe_adapter_package_id(adapter_package_id) {
         return Ok(serde_json::json!({
-            "kind": "project_intake_rejected",
+            "kind": "source_intake_rejected",
             "redaction_state": "unsafe_blocked",
             "reason": "adapter_package_id must not be plurora/ and must not contain path traversal or unsafe characters",
             "inference_performed": false,
@@ -899,7 +898,7 @@ fn generate_adapter_manifest_preview(request: &InprocInvocation) -> anyhow::Resu
     // Check capability namespace mismatch
     if is_capability_namespace_mismatch(adapter_package_id, capability_name) {
         return Ok(serde_json::json!({
-            "kind": "project_intake_rejected",
+            "kind": "source_intake_rejected",
             "redaction_state": "unsafe_blocked",
             "reason": "capability_name must belong to the adapter package namespace",
             "inference_performed": false,
@@ -920,7 +919,7 @@ fn generate_adapter_manifest_preview(request: &InprocInvocation) -> anyhow::Resu
         "id": adapter_package_id,
         "version": "0.1.0",
         "display_name": format!("Adapter for {}", source_ref),
-        "description": format!("Adapter/wrapper package for external project {} — generated preview, not written to filesystem", source_ref),
+        "description": format!("Adapter/wrapper package for external source {} — generated preview, not written to filesystem", source_ref),
         "entry": {
             "kind": entry_kind,
         },
@@ -956,7 +955,7 @@ fn generate_adapter_manifest_preview(request: &InprocInvocation) -> anyhow::Resu
     // Check for forbidden namespace in preview
     if contains_forbidden_namespace(&manifest_preview) {
         return Ok(serde_json::json!({
-            "kind": "project_intake_rejected",
+            "kind": "source_intake_rejected",
             "redaction_state": "unsafe_blocked",
             "reason": "adapter manifest preview contains forbidden platform-reserved namespace references",
             "inference_performed": false,
@@ -1022,7 +1021,7 @@ fn generate_subprocess_wrapper_preview(request: &InprocInvocation) -> anyhow::Re
     // Reject unsafe adapter package ids
     if is_unsafe_adapter_package_id(adapter_package_id) {
         return Ok(serde_json::json!({
-            "kind": "project_intake_rejected",
+            "kind": "source_intake_rejected",
             "redaction_state": "unsafe_blocked",
             "reason": "adapter_package_id must not be plurora/ and must not contain path traversal or unsafe characters",
             "inference_performed": false,
@@ -1051,14 +1050,14 @@ fn generate_subprocess_wrapper_preview(request: &InprocInvocation) -> anyhow::Re
     let wrapper_content = match language {
         "python" => format!(
             r#"# Adapter subprocess wrapper for {adapter_package_id}
-# SAFE COMMENT: external project invocation requires future policy-gated executor / explicit approval
+# SAFE COMMENT: external source invocation requires future policy-gated executor / explicit approval
 # This preview is generated for inspection only; do not execute without approval.
 
 import json
 import sys
 
 def handle_invoke(input_data):
-    # SAFE COMMENT: external project invocation requires future policy-gated executor / explicit approval
+    # SAFE COMMENT: external source invocation requires future policy-gated executor / explicit approval
     # No real execution is performed in this preview
     return {{"kind": "adapter_invoke_result", "command": "{command}", "source_ref": "{source_ref}", "execution_performed": False}}
 
@@ -1073,14 +1072,14 @@ if __name__ == "__main__":
         ),
         _ => format!(
             r#"// Adapter subprocess wrapper for {adapter_package_id}
-// SAFE COMMENT: external project invocation requires future policy-gated executor / explicit approval
+// SAFE COMMENT: external source invocation requires future policy-gated executor / explicit approval
 // This preview is generated for inspection only; do not execute without approval.
 
 import {{ SubprocessHandler }} from "@plurora/sdk/subprocess";
 
 const handler: SubprocessHandler = {{
   async {capability_name}(input: Record<string, unknown>) {{
-    // SAFE COMMENT: external project invocation requires future policy-gated executor / explicit approval
+    // SAFE COMMENT: external source invocation requires future policy-gated executor / explicit approval
     // No real execution is performed in this preview
     return {{
       kind: "adapter_invoke_result",
@@ -1101,7 +1100,7 @@ export default handler;
     };
 
     let safe_comments = vec![
-        "external project invocation requires future policy-gated executor / explicit approval",
+        "external source invocation requires future policy-gated executor / explicit approval",
     ];
 
     Ok(serde_json::json!({
@@ -1148,7 +1147,7 @@ fn generate_adapter_fixture_preview(request: &InprocInvocation) -> anyhow::Resul
     // Reject unsafe adapter package ids
     if is_unsafe_adapter_package_id(adapter_package_id) {
         return Ok(serde_json::json!({
-            "kind": "project_intake_rejected",
+            "kind": "source_intake_rejected",
             "redaction_state": "unsafe_blocked",
             "reason": "adapter_package_id must not be plurora/ and must not contain path traversal or unsafe characters",
             "inference_performed": false,
@@ -1301,7 +1300,7 @@ fn check_adapter_readiness(request: &InprocInvocation) -> anyhow::Result<Value> 
     checklist.push(serde_json::json!({
         "item": "no_forbidden_namespace",
         "status": no_forbidden_namespace,
-        "detail": if no_forbidden_namespace { "no forbidden platform-reserved namespace references in output" } else { "output must not contain reserved external-project platform-reserved namespace references" }
+        "detail": if no_forbidden_namespace { "no forbidden platform-reserved namespace references in output" } else { "output must not contain reserved external-source platform-reserved namespace references" }
     }));
 
     // needs approval for execution
@@ -1396,7 +1395,7 @@ mod tests {
     #[test]
     fn try_handle_matches_package_id() {
         let req = make_request(
-            "plurora/project-intake-lab/describe_intake_contract",
+            "plurora/source-intake-lab/describe_intake_contract",
             json!({}),
         );
         assert!(try_handle(&req).is_some());
@@ -1405,7 +1404,7 @@ mod tests {
     #[test]
     fn try_handle_rejects_wrong_package() {
         let req = InprocInvocation {
-            capability_id: "plurora/project-intake-lab/describe_intake_contract".to_string(),
+            capability_id: "plurora/source-intake-lab/describe_intake_contract".to_string(),
             provider_package_id: "plurora/other".to_string(),
             session_id: None,
             input: json!({}),
@@ -1416,7 +1415,7 @@ mod tests {
     #[test]
     fn describe_contract_has_all_surfaces() {
         let req = make_request(
-            "plurora/project-intake-lab/describe_intake_contract",
+            "plurora/source-intake-lab/describe_intake_contract",
             json!({}),
         );
         let result = try_handle(&req).unwrap().unwrap();
@@ -1429,7 +1428,7 @@ mod tests {
     #[test]
     fn describe_contract_lists_11_capabilities() {
         let req = make_request(
-            "plurora/project-intake-lab/describe_intake_contract",
+            "plurora/source-intake-lab/describe_intake_contract",
             json!({}),
         );
         let result = try_handle(&req).unwrap().unwrap();
@@ -1446,7 +1445,7 @@ mod tests {
     #[test]
     fn inspect_classifies_git() {
         let req = make_request(
-            "plurora/project-intake-lab/inspect_external_project_ref",
+            "plurora/source-intake-lab/inspect_external_source_ref",
             json!({"source_ref": "https://github.com/example/project.git"}),
         );
         let result = try_handle(&req).unwrap().unwrap();
@@ -1456,7 +1455,7 @@ mod tests {
     #[test]
     fn inspect_classifies_npm() {
         let req = make_request(
-            "plurora/project-intake-lab/inspect_external_project_ref",
+            "plurora/source-intake-lab/inspect_external_source_ref",
             json!({"source_ref": "npm:lodash"}),
         );
         let result = try_handle(&req).unwrap().unwrap();
@@ -1466,7 +1465,7 @@ mod tests {
     #[test]
     fn inspect_classifies_local() {
         let req = make_request(
-            "plurora/project-intake-lab/inspect_external_project_ref",
+            "plurora/source-intake-lab/inspect_external_source_ref",
             json!({"source_ref": "./my-project"}),
         );
         let result = try_handle(&req).unwrap().unwrap();
@@ -1477,7 +1476,7 @@ mod tests {
     #[test]
     fn inspect_rejects_unsafe_path_traversal() {
         let req = make_request(
-            "plurora/project-intake-lab/inspect_external_project_ref",
+            "plurora/source-intake-lab/inspect_external_source_ref",
             json!({"source_ref": "../../etc/passwd"}),
         );
         let result = try_handle(&req).unwrap().unwrap();
@@ -1487,7 +1486,7 @@ mod tests {
     #[test]
     fn inspect_rejects_home_path() {
         let req = make_request(
-            "plurora/project-intake-lab/inspect_external_project_ref",
+            "plurora/source-intake-lab/inspect_external_source_ref",
             json!({"source_ref": "~/secret-project"}),
         );
         let result = try_handle(&req).unwrap().unwrap();
@@ -1497,7 +1496,7 @@ mod tests {
     #[test]
     fn inspect_rejects_absolute_sensitive_path() {
         let req = make_request(
-            "plurora/project-intake-lab/inspect_external_project_ref",
+            "plurora/source-intake-lab/inspect_external_source_ref",
             json!({"source_ref": "/etc/shadow"}),
         );
         let result = try_handle(&req).unwrap().unwrap();
@@ -1507,7 +1506,7 @@ mod tests {
     #[test]
     fn detect_stack_node() {
         let req = make_request(
-            "plurora/project-intake-lab/detect_project_stack_from_metadata",
+            "plurora/source-intake-lab/detect_source_stack_from_metadata",
             json!({"metadata": {"package_json": {"name": "test", "scripts": {"start": "node index.js"}}}}),
         );
         let result = try_handle(&req).unwrap().unwrap();
@@ -1520,7 +1519,7 @@ mod tests {
     #[test]
     fn detect_stack_node_with_lifecycle_scripts() {
         let req = make_request(
-            "plurora/project-intake-lab/detect_project_stack_from_metadata",
+            "plurora/source-intake-lab/detect_source_stack_from_metadata",
             json!({"metadata": {"package_json": {"name": "test", "scripts": {"preinstall": "echo hi", "postinstall": "echo bye", "start": "node index.js"}}}}),
         );
         let result = try_handle(&req).unwrap().unwrap();
@@ -1536,7 +1535,7 @@ mod tests {
     #[test]
     fn detect_stack_rust() {
         let req = make_request(
-            "plurora/project-intake-lab/detect_project_stack_from_metadata",
+            "plurora/source-intake-lab/detect_source_stack_from_metadata",
             json!({"metadata": {"cargo_toml": {"name": "test"}}}),
         );
         let result = try_handle(&req).unwrap().unwrap();
@@ -1546,7 +1545,7 @@ mod tests {
     #[test]
     fn detect_stack_python() {
         let req = make_request(
-            "plurora/project-intake-lab/detect_project_stack_from_metadata",
+            "plurora/source-intake-lab/detect_source_stack_from_metadata",
             json!({"metadata": {"pyproject": {"name": "test"}}}),
         );
         let result = try_handle(&req).unwrap().unwrap();
@@ -1556,7 +1555,7 @@ mod tests {
     #[test]
     fn detect_stack_unknown() {
         let req = make_request(
-            "plurora/project-intake-lab/detect_project_stack_from_metadata",
+            "plurora/source-intake-lab/detect_source_stack_from_metadata",
             json!({"metadata": {}}),
         );
         let result = try_handle(&req).unwrap().unwrap();
@@ -1566,11 +1565,11 @@ mod tests {
     #[test]
     fn workspace_plan_is_plan_only() {
         let req = make_request(
-            "plurora/project-intake-lab/draft_workspace_plan",
+            "plurora/source-intake-lab/draft_workspace_plan",
             json!({"source_ref": "https://github.com/example/project.git", "source_kind": "git"}),
         );
         let result = try_handle(&req).unwrap().unwrap();
-        assert_eq!(result["kind"], json!("project_workspace_plan"));
+        assert_eq!(result["kind"], json!("source_workspace_plan"));
         assert_eq!(result["plan_only"], json!(true));
         assert_eq!(result["requires_user_approval"], json!(true));
     }
@@ -1578,22 +1577,22 @@ mod tests {
     #[test]
     fn workspace_plan_rejects_unsafe_local_path() {
         let req = make_request(
-            "plurora/project-intake-lab/draft_workspace_plan",
+            "plurora/source-intake-lab/draft_workspace_plan",
             json!({"source_ref": "~/secret-project", "source_kind": "local"}),
         );
         let result = try_handle(&req).unwrap().unwrap();
-        assert_eq!(result["kind"], json!("project_intake_rejected"));
+        assert_eq!(result["kind"], json!("source_intake_rejected"));
         assert_eq!(result["redaction_state"], json!("unsafe_blocked"));
     }
 
     #[test]
     fn adapter_plan_is_plan_only() {
         let req = make_request(
-            "plurora/project-intake-lab/draft_adapter_plan",
+            "plurora/source-intake-lab/draft_adapter_plan",
             json!({"source_ref": "./my-project", "source_kind": "local"}),
         );
         let result = try_handle(&req).unwrap().unwrap();
-        assert_eq!(result["kind"], json!("project_adapter_plan"));
+        assert_eq!(result["kind"], json!("source_adapter_plan"));
         assert_eq!(result["plan_only"], json!(true));
         assert_eq!(result["requires_user_approval"], json!(true));
     }
@@ -1601,28 +1600,27 @@ mod tests {
     #[test]
     fn raw_secret_blocked() {
         let req = make_request(
-            "plurora/project-intake-lab/inspect_external_project_ref",
+            "plurora/source-intake-lab/inspect_external_source_ref",
             json!({"source_ref": "test", "api_key": "RawSecretExample1234567890abcdefABCDEF123456"}),
         );
         let result = try_handle(&req).unwrap().unwrap();
-        assert_eq!(result["kind"], json!("project_intake_rejected"));
+        assert_eq!(result["kind"], json!("source_intake_rejected"));
         assert_eq!(result["redaction_state"], json!("unsafe_blocked"));
     }
 
     #[test]
     fn no_forbidden_namespace_in_contract() {
         let req = make_request(
-            "plurora/project-intake-lab/describe_intake_contract",
+            "plurora/source-intake-lab/describe_intake_contract",
             json!({}),
         );
         let result = try_handle(&req).unwrap().unwrap();
         let output_str = serde_json::to_string(&result).unwrap();
         for token in &[
-            "platform.project.",
             "platform.workspace.",
             "platform.git.",
             "platform.npm.",
-            "platform.deploy.",
+            "platform.workload.",
             "platform.ide.",
         ] {
             assert!(!output_str.contains(token), "must not contain {}", token);
@@ -1632,7 +1630,7 @@ mod tests {
     #[test]
     fn candidate_entrypoints_require_approval() {
         let req = make_request(
-            "plurora/project-intake-lab/list_candidate_entrypoints",
+            "plurora/source-intake-lab/list_candidate_entrypoints",
             json!({"metadata": {"package_json": {"name": "test", "main": "index.js", "scripts": {"start": "node index.js"}}}}),
         );
         let result = try_handle(&req).unwrap().unwrap();
@@ -1653,8 +1651,8 @@ mod tests {
     fn no_execution_performed() {
         let caps = [
             "describe_intake_contract",
-            "inspect_external_project_ref",
-            "detect_project_stack_from_metadata",
+            "inspect_external_source_ref",
+            "detect_source_stack_from_metadata",
             "draft_workspace_plan",
             "draft_security_risk_summary",
             "list_candidate_entrypoints",
@@ -1665,7 +1663,7 @@ mod tests {
             "check_adapter_readiness",
         ];
         for cap in &caps {
-            let req = make_request(&format!("plurora/project-intake-lab/{}", cap), json!({}));
+            let req = make_request(&format!("plurora/source-intake-lab/{}", cap), json!({}));
             let result = try_handle(&req).unwrap().unwrap();
             assert_eq!(
                 result["execution_performed"],
@@ -1733,7 +1731,7 @@ mod tests {
     #[test]
     fn generate_adapter_manifest_preview_basic() {
         let req = make_request(
-            "plurora/project-intake-lab/generate_adapter_manifest_preview",
+            "plurora/source-intake-lab/generate_adapter_manifest_preview",
             json!({
                 "source_ref": "./my-project",
                 "source_kind": "local",
@@ -1754,7 +1752,7 @@ mod tests {
     #[test]
     fn adapter_manifest_rejects_first_party_id() {
         let req = make_request(
-            "plurora/project-intake-lab/generate_adapter_manifest_preview",
+            "plurora/source-intake-lab/generate_adapter_manifest_preview",
             json!({
                 "source_ref": "./test",
                 "adapter_package_id": "plurora/fake-adapter",
@@ -1762,14 +1760,14 @@ mod tests {
             }),
         );
         let result = try_handle(&req).unwrap().unwrap();
-        assert_eq!(result["kind"], json!("project_intake_rejected"));
+        assert_eq!(result["kind"], json!("source_intake_rejected"));
         assert_eq!(result["redaction_state"], json!("unsafe_blocked"));
     }
 
     #[test]
     fn adapter_manifest_rejects_path_traversal_id() {
         let req = make_request(
-            "plurora/project-intake-lab/generate_adapter_manifest_preview",
+            "plurora/source-intake-lab/generate_adapter_manifest_preview",
             json!({
                 "source_ref": "./test",
                 "adapter_package_id": "thirdparty/../evil",
@@ -1777,13 +1775,13 @@ mod tests {
             }),
         );
         let result = try_handle(&req).unwrap().unwrap();
-        assert_eq!(result["kind"], json!("project_intake_rejected"));
+        assert_eq!(result["kind"], json!("source_intake_rejected"));
     }
 
     #[test]
     fn adapter_manifest_rejects_unsafe_chars_id() {
         let req = make_request(
-            "plurora/project-intake-lab/generate_adapter_manifest_preview",
+            "plurora/source-intake-lab/generate_adapter_manifest_preview",
             json!({
                 "source_ref": "./test",
                 "adapter_package_id": "thirdparty/evil;rm-rf",
@@ -1791,13 +1789,13 @@ mod tests {
             }),
         );
         let result = try_handle(&req).unwrap().unwrap();
-        assert_eq!(result["kind"], json!("project_intake_rejected"));
+        assert_eq!(result["kind"], json!("source_intake_rejected"));
     }
 
     #[test]
     fn adapter_manifest_rejects_capability_namespace_mismatch() {
         let req = make_request(
-            "plurora/project-intake-lab/generate_adapter_manifest_preview",
+            "plurora/source-intake-lab/generate_adapter_manifest_preview",
             json!({
                 "source_ref": "./test",
                 "adapter_package_id": "thirdparty/my-adapter",
@@ -1805,13 +1803,13 @@ mod tests {
             }),
         );
         let result = try_handle(&req).unwrap().unwrap();
-        assert_eq!(result["kind"], json!("project_intake_rejected"));
+        assert_eq!(result["kind"], json!("source_intake_rejected"));
     }
 
     #[test]
     fn subprocess_wrapper_preview_no_execution() {
         let req = make_request(
-            "plurora/project-intake-lab/generate_subprocess_wrapper_preview",
+            "plurora/source-intake-lab/generate_subprocess_wrapper_preview",
             json!({
                 "source_ref": "./my-project",
                 "source_kind": "local",
@@ -1838,7 +1836,7 @@ mod tests {
     #[test]
     fn subprocess_wrapper_python_preview() {
         let req = make_request(
-            "plurora/project-intake-lab/generate_subprocess_wrapper_preview",
+            "plurora/source-intake-lab/generate_subprocess_wrapper_preview",
             json!({
                 "source_ref": "./my-project",
                 "source_kind": "local",
@@ -1855,7 +1853,7 @@ mod tests {
     #[test]
     fn subprocess_wrapper_rejects_first_party_id() {
         let req = make_request(
-            "plurora/project-intake-lab/generate_subprocess_wrapper_preview",
+            "plurora/source-intake-lab/generate_subprocess_wrapper_preview",
             json!({
                 "source_ref": "./test",
                 "adapter_package_id": "plurora/evil",
@@ -1863,13 +1861,13 @@ mod tests {
             }),
         );
         let result = try_handle(&req).unwrap().unwrap();
-        assert_eq!(result["kind"], json!("project_intake_rejected"));
+        assert_eq!(result["kind"], json!("source_intake_rejected"));
     }
 
     #[test]
     fn fixture_preview_redacted() {
         let req = make_request(
-            "plurora/project-intake-lab/generate_adapter_fixture_preview",
+            "plurora/source-intake-lab/generate_adapter_fixture_preview",
             json!({
                 "adapter_package_id": "thirdparty/my-adapter",
                 "capability_name": "invoke"
@@ -1892,20 +1890,20 @@ mod tests {
     #[test]
     fn fixture_preview_rejects_first_party_id() {
         let req = make_request(
-            "plurora/project-intake-lab/generate_adapter_fixture_preview",
+            "plurora/source-intake-lab/generate_adapter_fixture_preview",
             json!({
                 "adapter_package_id": "plurora/evil",
                 "capability_name": "invoke"
             }),
         );
         let result = try_handle(&req).unwrap().unwrap();
-        assert_eq!(result["kind"], json!("project_intake_rejected"));
+        assert_eq!(result["kind"], json!("source_intake_rejected"));
     }
 
     #[test]
     fn check_adapter_readiness_ok() {
         let req = make_request(
-            "plurora/project-intake-lab/check_adapter_readiness",
+            "plurora/source-intake-lab/check_adapter_readiness",
             json!({
                 "adapter_package_id": "thirdparty/my-adapter",
                 "capability_name": "invoke",
@@ -1929,7 +1927,7 @@ mod tests {
     #[test]
     fn check_adapter_readiness_rejects_first_party_id() {
         let req = make_request(
-            "plurora/project-intake-lab/check_adapter_readiness",
+            "plurora/source-intake-lab/check_adapter_readiness",
             json!({
                 "adapter_package_id": "plurora/evil",
                 "capability_name": "invoke"
@@ -1944,7 +1942,7 @@ mod tests {
     #[test]
     fn check_adapter_readiness_rejects_raw_secret() {
         let req = make_request(
-            "plurora/project-intake-lab/check_adapter_readiness",
+            "plurora/source-intake-lab/check_adapter_readiness",
             json!({
                 "adapter_package_id": "thirdparty/my-adapter",
                 "capability_name": "invoke",
@@ -1952,13 +1950,13 @@ mod tests {
             }),
         );
         let result = try_handle(&req).unwrap().unwrap();
-        assert_eq!(result["kind"], json!("project_intake_rejected"));
+        assert_eq!(result["kind"], json!("source_intake_rejected"));
     }
 
     #[test]
     fn adapter_manifest_no_forbidden_namespace() {
         let req = make_request(
-            "plurora/project-intake-lab/generate_adapter_manifest_preview",
+            "plurora/source-intake-lab/generate_adapter_manifest_preview",
             json!({
                 "source_ref": "./test",
                 "adapter_package_id": "thirdparty/my-adapter",
@@ -1977,7 +1975,7 @@ mod tests {
     #[test]
     fn wrapper_no_forbidden_namespace() {
         let req = make_request(
-            "plurora/project-intake-lab/generate_subprocess_wrapper_preview",
+            "plurora/source-intake-lab/generate_subprocess_wrapper_preview",
             json!({
                 "source_ref": "./test",
                 "adapter_package_id": "thirdparty/my-adapter",
@@ -1994,7 +1992,7 @@ mod tests {
     #[test]
     fn fixture_no_forbidden_namespace() {
         let req = make_request(
-            "plurora/project-intake-lab/generate_adapter_fixture_preview",
+            "plurora/source-intake-lab/generate_adapter_fixture_preview",
             json!({
                 "adapter_package_id": "thirdparty/my-adapter",
                 "capability_name": "invoke"
@@ -2010,7 +2008,7 @@ mod tests {
     #[test]
     fn readiness_no_forbidden_namespace() {
         let req = make_request(
-            "plurora/project-intake-lab/check_adapter_readiness",
+            "plurora/source-intake-lab/check_adapter_readiness",
             json!({
                 "adapter_package_id": "thirdparty/my-adapter",
                 "capability_name": "invoke"

@@ -31,7 +31,7 @@
         "artifact_transfer",
         "declarative_verifier",
         "health_probe",
-        "deployment",
+        "workload",
         "authenticated_tunnel"
       ],
       "type": "string"

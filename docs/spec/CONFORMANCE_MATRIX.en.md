@@ -57,7 +57,7 @@ These cases cover the Installation journal, secret policy, and destructive no-al
 
 ### End-to-end real-path conformance cases
 
-These cases cover surface resolution and the Run entry boundary. Phase 4 now provides Run lifecycle through an independent Run journal; surface resolution must not bypass explicit Run authority.
+These cases cover surface resolution and the Run entry boundary. Run lifecycle is provided through an independent Run journal; surface resolution must not bypass explicit Run authority.
 
 | Group | Case id | Coverage | Status |
 |---|---|---|---|
@@ -65,7 +65,7 @@ These cases cover surface resolution and the Run entry boundary. Phase 4 now pro
 | bundle rejection | `surface.resolve_unknown_fails` | unknown surface bundle fails closed | implemented |
 | bundle authority | `surface.resolve_admin_principal_required` | resolve_bundle restricted to HostAdmin/HostDev | implemented |
 
-### Phase 5 Powerbox conformance cases
+### Powerbox conformance cases
 
 These six named cases cover the public Exposure/Binding methods and events, authority, candidate disclosure, and runtime pins. Implementation status is sourced from the code registry and schema exporter:
 
@@ -78,7 +78,7 @@ These six named cases cover the public Exposure/Binding methods and events, auth
 | `powerbox.candidates_effect_free_no_auto_select` | effect-free candidates, complete disclosure, and no auto-selection for zero/multiple candidates | implemented |
 | `powerbox.launch_runtime_exact_run_pin` | distinct exact Run/context/node-path pins for Launch and Runtime | implemented |
 
-### Phase 6 Realization conformance cases
+### Realization conformance cases
 
 These five named cases cover public Realization identity, authority, events, effect-free planning, approval, and persisted rollback boundaries:
 
@@ -90,7 +90,7 @@ These five named cases cover public Realization identity, authority, events, eff
 | `realization.plan_effect_free_apply_exact_approval` | plan has no target effect; apply pins plan digest, approval, revision, and idempotency | implemented |
 | `realization.rollback_persisted_plan_no_workspace` | rollback reads persisted plans/revisions only and accepts no live workspace, source URL, raw secret, or stderr | implemented |
 
-### Phase 8 Modular Simulation conformance cases
+### Modular Simulation conformance cases
 
 These seven named cases cover the first continued-creation Work kit and the non-publishing promotion flow:
 
@@ -280,7 +280,7 @@ Surface/static bundle and bridge coverage also includes these stable assertions:
 | outbound | `host/outbound.stream.completed` completion audit event emitted | implemented |
 | outbound | `host/outbound.websocket.completed` completion audit event emitted | implemented |
 | outbound | HTTP/stream/WebSocket completion attaches terminal receipts; invalid policy/executor pairings emit failed receipts; timeout/cancel do not produce duplicate stream terminals; historical replay works with every executor disabled | implemented |
-| deployment exec | deny-all start and fake stop produce denied/cancelled receipts; live terminal state is actively observed; natural exit/timeout, repeated denial, stop/status races, and restart hydration preserve one terminal receipt | implemented |
+| workload exec | deny-all start and fake stop produce denied/cancelled receipts; live terminal state is actively observed; natural exit/timeout, repeated denial, stop/status races, and restart hydration preserve one terminal receipt | implemented |
 | secret_ref | manifest `permissions.secret_refs` declaration: undeclared refs fail closed, declared refs resolve via host resolver | implemented |
 | subprocess_outbound | subprocess SDK reverse kernel call: principal binding, execute dispatch, stream chunks piped back | implemented |
 | sse_parser | outbound stream SSE parser basic smoke and partial chunk coalescing | implemented |

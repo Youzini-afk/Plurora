@@ -24,7 +24,7 @@ Host executor resolves secret at the last moment
 terminal EffectReceipt + redacted audit
 ```
 
-Web Installation detail 不会自动创建 Run。真实调用必须在显式 `host.run.start` 成功后的 Run context 中进行；Run 只激活已安装、已验证且唯一匹配的本地实现。缺失、歧义、unsupported backend 或需要机器资源时，start 返回结构化 gap，不隐式 build/deploy。关闭 tab 不会停止 Run；显式 `host.run.stop` 只停止该 Run。
+Web Installation detail 不会自动创建 Run。真实调用必须在显式 `host.run.start` 成功后的 Run context 中进行；Run 只激活已安装、已验证且唯一匹配的本地实现。缺失、歧义、unsupported backend 或需要机器资源时，start 返回结构化 gap，不隐式 build/apply。关闭 tab 不会停止 Run；显式 `host.run.stop` 只停止该 Run。
 
 ## 配置 secret
 

@@ -8,7 +8,7 @@
 
 - `GET /livez`：进程和 HTTP reactor liveness，正文为 `ok`。
 - `GET /health`、`GET /healthz`：兼容 liveness，与 `/livez` 相同。
-- `GET /readyz`：公开、脱敏的结构化 readiness。event store 或 Host 控制面租约失效时返回 HTTP 503；Host 可接管但某个 durable deployment 未就绪时返回 HTTP 200 且 `status: "degraded"`。
+- `GET /readyz`：公开、脱敏的结构化 readiness。event store 或 Host 控制面租约失效时返回 HTTP 503；Host 可接管但某个 durable Realization 未就绪时返回 HTTP 200 且 `status: "degraded"`。
 
 不要用 liveness 判断是否可以发送变更请求；编排器应以 `/readyz` 的 HTTP 状态和 `ready` 字段为准。
 

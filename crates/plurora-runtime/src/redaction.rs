@@ -270,7 +270,7 @@ mod tests {
     #[test]
     fn detects_raw_secret_embedded_in_diagnostic_text() {
         let value = json!({
-            "diagnostic": "deployment failed with sk-Abcdefghijklmnopqrstuvwxyz123456"
+            "diagnostic": "workload failed with sk-Abcdefghijklmnopqrstuvwxyz123456"
         });
         assert!(scan_effect_value_for_raw_secrets(&value, "receipt").has_findings());
     }

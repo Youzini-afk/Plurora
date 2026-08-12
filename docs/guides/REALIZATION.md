@@ -4,7 +4,7 @@
 
 Realization 是 Host 拥有的可变执行记录。`WorkRevision`、`AssemblyLock` 与 `OperationalIntent` 描述“要运行什么”；`TargetInventorySnapshot` 描述某个 Target 当前能做什么；纯 planner 把两者编译成 content-addressed `RealizationPlan`。Plan 本身不授予执行权，也不产生 Target effect。
 
-Phase 6 实现了 `host.realization.plan/apply/get/list/stop/rollback/reconcile`、七个公开生命周期事件、CLI 命令与 Installation frame 的 Realization workbench。Docker/OCI 是首个 backend，不是模型中的唯一长期执行形态。
+当前实现提供 `host.realization.plan/apply/get/list/stop/rollback/reconcile`、七个公开生命周期事件、CLI 命令与 Installation frame 的 Realization workbench。Docker/OCI 是首个 backend，不是模型中的唯一长期执行形态。
 
 ## 数据与所有权
 
@@ -53,7 +53,7 @@ historic Planned/Active → Applying replacement → RolledBack(active replaceme
 
 `stop` 只处理 `actual_resources` 中已记录的资源。它先写 stopping intent，调用 typed Target stop，保存 receipt checkpoint，最后提交 Stopped。关闭浏览器标签、离开 Installation frame 或读取状态都不会触发 stop。
 
-`rollback` 只读取 Host 已持久化的 historic `RealizationPlan` 与新的 exact approval。它不会读取 live workspace、重新打包源目录或沿旧 Deployment revision 猜测参数。Host 为 replacement 生成新 RealizationId，先 checkpoint replacement effect，再停止 parent，最后提交 `host/realization.rolled_back`。
+`rollback` 只读取 Host 已持久化的 historic `RealizationPlan` 与新的 exact approval。它不会读取 live workspace、重新打包源目录或从别的 mutable projection 猜测参数。Host 为 replacement 生成新 RealizationId，先 checkpoint replacement effect，再停止 parent，最后提交 `host/realization.rolled_back`。
 
 `reconcile` 是显式的 effect-free Target observation。它更新 observed resources、health 与 receipt，并区分 `outcome_unknown`、`recovery_required`、`target_unsatisfied` 等稳定 reason code；它不会隐式再次 apply。
 
@@ -78,7 +78,7 @@ Planner 只接受 OperationalIntent 允许、TargetInventory 明确提供的 exe
 | `host.realization.apply/stop/reconcile` | `realization.apply` | Installation + Target + Realization |
 | `host.realization.rollback` | `realization.apply` | Installation + Target + current Realization + historic Realization |
 
-省略 resource ID 不会产生 wildcard。Root credential 仍只用于 Host 维护；Plan、UI、Agent 输出或 approval artifact 都不等于执行 authority。旧 `deploy` device scope 已删除；raw Target/exec/port/proxy effects 只保留为 HostAdmin/HostDev adapter，不能替代 `host.realization.apply`。
+省略 resource ID 不会产生 wildcard。Root credential 仍只用于 Host 维护；Plan、UI、Agent 输出或 approval artifact 都不等于执行 authority。Raw Target/exec/port/proxy effects 只保留为 HostAdmin/HostDev adapter，不能替代 `host.realization.apply`。
 
 ## CLI 与 Web
 
@@ -98,12 +98,12 @@ plurora realization reconcile
 
 Installation frame 只在 Work 声明 OperationalIntent 时显示 Realization workbench。用户先选择 Target/backend 并执行 plan，检查 actions/preconditions/authority/risk，再逐项确认风险后 apply。UI 不把当前浏览器未持有的 plan body 猜回出来；旧 Planned revision 需要重新选择 exact Target 或使用 CLI。关闭 frame 不 stop Realization。
 
-## 与 Run、Binding 和后续 Phase 的边界
+## 与 Run、Binding 和其他能力的边界
 
 - `host.run.start` 仍不隐式 build 或 apply Realization；缺少 managed Realization 是结构化 gap。
 - Exposure/Binding 只授予选中 Port 的最小 runtime handle，不创建或迁移 managed resources。
 - Realization 不共享 cross-Installation state；StateSlot/backup/migration 仍按显式 owner 与 policy 工作。
-- Phase 7 负责 Foreign Work、Rights/Transparency、闭源入口和 opaque-state backup。
-- Phase 8 负责开发闭环与 companion agent；ChangeSet/Plan 仍不能绕过本页 authority/effect boundary。
+- Foreign Work、Rights/Transparency、闭源入口和 opaque-state backup 使用同一公开 authority/effect boundary。
+- 开发闭环与 companion agent 生成的 ChangeSet/Plan 仍不能绕过本页 authority/effect boundary。
 
 机器可读契约见 [`../spec/PUBLIC_CONTRACT.md`](../spec/PUBLIC_CONTRACT.md)、[`../spec/v1/EVENT_KIND_REGISTRY.md`](../spec/v1/EVENT_KIND_REGISTRY.md) 与 `docs/spec/v1/schemas/`。

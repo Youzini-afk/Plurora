@@ -2,7 +2,7 @@
 
 > [English](./POWERBOX_BINDING.en.md) · [中文](./POWERBOX_BINDING.md)
 
-This guide describes the Phase 5 cross-Installation Powerbox. It connects a provider's public Exposure to a consumer import Port without turning candidates, preferences, or UI into authority. Phase 6 implements Managed Realization and `host.realization.*`; Powerbox still never implicitly plans, applies, deploys, or rebinds.
+This guide describes the cross-Installation Powerbox. It connects a provider's public Exposure to a consumer import Port without turning candidates, preferences, or UI into authority. Powerbox never implicitly plans, applies a Realization, or rebinds.
 
 ## Authority and isolation
 
@@ -15,7 +15,7 @@ This guide describes the Phase 5 cross-Installation Powerbox. It connects a prov
 
 ## Public methods and events
 
-All Phase 5 methods are Host-owned and `implemented`, with typed request/result schemas:
+All of these methods are Host-owned and `implemented`, with typed request/result schemas:
 
 ```text
 host.exposure.list
@@ -63,7 +63,7 @@ The official Web chooser shows the explicit binding phase (authoring, installati
 
 Provider disclosure separates Work/Installation source, Component trust class, claims and enforced boundaries, artifact/behavior digests, protocol evidence, and stale state. First-party and third-party providers follow the same rules, and stable ordering never uses publisher priority.
 
-A preference hint can affect presentation order only; it is not authority. It cannot write an active Binding, implicitly deploy, rebind, or expand scope. Unknown values remain visible and require a user or explicit policy decision.
+A preference hint can affect presentation order only; it is not authority. It cannot write an active Binding, implicitly apply a Realization, rebind, or expand scope. Unknown values remain visible and require a user or explicit policy decision.
 
 ## Runtime pins and injection
 
@@ -85,11 +85,11 @@ plurora binding candidates|list|select|revoke
 
 Home/Library provides discovery and entry points; the Installation frame provides the chooser and exact Run/Installation context. PWA/mobile uses the same Host API, with caches isolated by Host and Installation. Closing a tab, iframe, or PWA connection does not stop a Run and does not revoke an Exposure or Binding.
 
-Surfaces have only an explicitly allowlisted public bridge. There is no private Powerbox bridge, root credential, or hidden first-party route. A surface cannot select a provider directly, read a handle, deploy, or create a rebind.
+Surfaces have only an explicitly allowlisted public bridge. There is no private Powerbox bridge, root credential, or hidden first-party route. A surface cannot select a provider directly, read a handle, apply a Realization, or create a rebind.
 
 ## Verification and boundary
 
-Six Phase 5 conformance cases cover method owner/status/typed DTOs, action-before-effect, the corresponding payloads in the 76-event registry, no private authority, effect-free candidates/no auto-select, and exact launch/runtime Run pins:
+Six Powerbox conformance cases cover method owner/status/typed DTOs, action-before-effect, the corresponding payloads in the 76-event registry, no private authority, effect-free candidates/no auto-select, and exact launch/runtime Run pins:
 
 ```text
 powerbox.public_method_identity_owner_typed_dto
@@ -100,6 +100,6 @@ powerbox.candidates_effect_free_no_auto_select
 powerbox.launch_runtime_exact_run_pin
 ```
 
-The current public contract is 99 methods, 76 events, 39 top-level schemas, and 214 schemas total. Phase 6 Realization is implemented without weakening Powerbox's least-authority boundary.
+The current public contract is 99 methods, 76 events, 39 top-level schemas, and 214 schemas total. Realization is implemented without weakening Powerbox's least-authority boundary.
 
 Related documents: [`RUN_LIBRARY.en.md`](RUN_LIBRARY.en.md), [`REALIZATION.en.md`](REALIZATION.en.md), [`INSTALLATION_MODEL.en.md`](INSTALLATION_MODEL.en.md), [`../architecture/HOST_RESOURCE_AUTHORITY.en.md`](../architecture/HOST_RESOURCE_AUTHORITY.en.md), and [`../spec/PUBLIC_CONTRACT.en.md`](../spec/PUBLIC_CONTRACT.en.md).

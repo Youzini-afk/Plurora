@@ -11,12 +11,12 @@ use plurora_core::{
 use plurora_runtime::{
     contract_method, negotiate_contract, protocol_descriptor, resolve_contract_method,
     ContractMaturity, ContractOwnerLayer, ContractSelection, ContractVersionRequirement,
-    DeploymentReconcileSource, EventStore, ExecStatus, ExecStatusKind, InMemoryEventStore,
-    LocalExecExecutor, LocalExecExecutorConfig, LocalExecLogsRequest, LocalExecLogsResponse,
-    LocalExecStartRequest, LocalExecStartResponse, LocalExecStatusRequest, LocalExecStatusResponse,
-    LocalExecStopRequest, LocalExecStopResponse, ManagedContainerReport, PlatformMethod,
-    PortLeaseStatusKind, ProtocolContext, ProtocolPrincipal, ProtocolSelection,
-    ProxyRouteStatusKind, Runtime, RuntimeConfig, SqliteEventStore, CHANGE_DEFAULT_PROFILE,
+    EventStore, ExecStatus, ExecStatusKind, InMemoryEventStore, LocalExecExecutor,
+    LocalExecExecutorConfig, LocalExecLogsRequest, LocalExecLogsResponse, LocalExecStartRequest,
+    LocalExecStartResponse, LocalExecStatusRequest, LocalExecStatusResponse, LocalExecStopRequest,
+    LocalExecStopResponse, ManagedContainerReport, PlatformMethod, PortLeaseStatusKind,
+    ProtocolContext, ProtocolPrincipal, ProtocolSelection, ProxyRouteStatusKind, Runtime,
+    RuntimeConfig, SqliteEventStore, WorkloadReconcileSource, CHANGE_DEFAULT_PROFILE,
     CHANGE_PROTOCOL_ID, CHANGE_PROTOCOL_VERSION, CONTRACT_LAYER_VERSION, DEFAULT_CONTRACT_PROFILE,
     PROTOCOL_COMMONS_REGISTRY_VERSION, SHELL_DEFAULT_PROFILE,
 };
@@ -376,7 +376,7 @@ pub(crate) async fn call_capability_in_process() -> anyhow::Result<()> {
     Ok(())
 }
 
-pub(crate) async fn deployment_hub_requires_host_principal() -> anyhow::Result<()> {
+pub(crate) async fn workload_hub_requires_host_principal() -> anyhow::Result<()> {
     let (_store, runtime) = runtime();
     let context = ProtocolContext {
         principal: ProtocolPrincipal::Anonymous,
@@ -395,7 +395,7 @@ pub(crate) async fn deployment_hub_requires_host_principal() -> anyhow::Result<(
             json!({"target_id":"local","port_name":"web"}),
         )
         .await;
-    let error = result.expect_err("anonymous deployment hub call must fail");
+    let error = result.expect_err("anonymous workload hub call must fail");
     anyhow::ensure!(
         error.code == "runtime/error/permission_denied",
         "unexpected error code: {}",
@@ -404,7 +404,7 @@ pub(crate) async fn deployment_hub_requires_host_principal() -> anyhow::Result<(
     Ok(())
 }
 
-pub(crate) async fn deployment_hub_port_lease_loopback() -> anyhow::Result<()> {
+pub(crate) async fn workload_hub_port_lease_loopback() -> anyhow::Result<()> {
     let (_store, runtime) = runtime();
     let value = runtime
         .call_protocol(
@@ -419,7 +419,7 @@ pub(crate) async fn deployment_hub_port_lease_loopback() -> anyhow::Result<()> {
     Ok(())
 }
 
-pub(crate) async fn deployment_hub_proxy_requires_matching_lease_port() -> anyhow::Result<()> {
+pub(crate) async fn workload_hub_proxy_requires_matching_lease_port() -> anyhow::Result<()> {
     let (_store, runtime) = runtime();
     let context = ProtocolContext::host_dev("conformance");
     let lease = runtime
@@ -448,9 +448,9 @@ pub(crate) async fn deployment_hub_proxy_requires_matching_lease_port() -> anyho
     Ok(())
 }
 
-pub(crate) async fn deployment_sqlite_rehydrate() -> anyhow::Result<()> {
+pub(crate) async fn workload_sqlite_rehydrate() -> anyhow::Result<()> {
     let path = std::env::temp_dir().join(format!(
-        "plurora-deployment-rehydrate-{}.db",
+        "plurora-workload-rehydrate-{}.db",
         std::process::id()
     ));
     if path.exists() {
@@ -513,7 +513,7 @@ pub(crate) async fn deployment_sqlite_rehydrate() -> anyhow::Result<()> {
     let proxy_route_registry = config.proxy_route_registry.clone();
     let exec_registry = config.exec_registry.clone();
     let hydrated = Runtime::new(reopened, config);
-    hydrated.hydrate_deployment_from_events().await?;
+    hydrated.hydrate_workload_from_events().await?;
 
     let restored_lease = port_lease_registry
         .status(&lease_id)
@@ -569,7 +569,7 @@ pub(crate) async fn deployment_sqlite_rehydrate() -> anyhow::Result<()> {
     Ok(())
 }
 
-pub(crate) async fn deployment_hub_exec_stop_receipt() -> anyhow::Result<()> {
+pub(crate) async fn workload_hub_exec_stop_receipt() -> anyhow::Result<()> {
     let store = Arc::new(InMemoryEventStore::default());
     let mut config = RuntimeConfig::default();
     config.local_exec_executor = LocalExecExecutorConfig::Fake;
@@ -688,7 +688,7 @@ impl LocalExecExecutor for AutoTerminalExecExecutor {
     }
 }
 
-pub(crate) async fn deployment_hub_exec_terminal_is_observed_once() -> anyhow::Result<()> {
+pub(crate) async fn workload_hub_exec_terminal_is_observed_once() -> anyhow::Result<()> {
     let store = Arc::new(InMemoryEventStore::default());
     let executor = Arc::new(AutoTerminalExecExecutor {
         status_polls: AtomicUsize::new(0),
@@ -750,7 +750,7 @@ pub(crate) async fn deployment_hub_exec_terminal_is_observed_once() -> anyhow::R
     let mut hydrated_config = RuntimeConfig::default();
     hydrated_config.object_store = object_store;
     let hydrated = Runtime::new(store.clone(), hydrated_config);
-    hydrated.hydrate_deployment_from_events().await?;
+    hydrated.hydrate_workload_from_events().await?;
     let status = hydrated
         .call_protocol(
             &context,
@@ -776,7 +776,7 @@ pub(crate) async fn deployment_hub_exec_terminal_is_observed_once() -> anyhow::R
     Ok(())
 }
 
-pub(crate) async fn deployment_hub_exec_denial_is_deduplicated() -> anyhow::Result<()> {
+pub(crate) async fn workload_hub_exec_denial_is_deduplicated() -> anyhow::Result<()> {
     let store = Arc::new(InMemoryEventStore::default());
     let runtime = Runtime::new(store.clone(), RuntimeConfig::default());
     let context = ProtocolContext::host_dev("conformance");
@@ -807,7 +807,7 @@ pub(crate) async fn deployment_hub_exec_denial_is_deduplicated() -> anyhow::Resu
 
     drop(runtime);
     let hydrated = Runtime::new(store.clone(), RuntimeConfig::default());
-    hydrated.hydrate_deployment_from_events().await?;
+    hydrated.hydrate_workload_from_events().await?;
     hydrated
         .call_protocol(
             &context,
@@ -829,7 +829,7 @@ pub(crate) async fn deployment_hub_exec_denial_is_deduplicated() -> anyhow::Resu
     Ok(())
 }
 
-pub(crate) async fn deployment_reconcile_empty_cleans_stale() -> anyhow::Result<()> {
+pub(crate) async fn workload_reconcile_empty_cleans_stale() -> anyhow::Result<()> {
     let (
         runtime,
         port_lease_registry,
@@ -838,9 +838,9 @@ pub(crate) async fn deployment_reconcile_empty_cleans_stale() -> anyhow::Result<
         lease_id,
         route_id,
         exec_id,
-    ) = hydrated_deployment_runtime(None).await?;
+    ) = hydrated_workload_runtime(None).await?;
 
-    let summary = runtime.reconcile_deployment().await?;
+    let summary = runtime.reconcile_workload().await?;
     anyhow::ensure!(summary.execs_failed == 1, "expected one failed exec");
     anyhow::ensure!(summary.routes_removed == 1, "expected one removed route");
     anyhow::ensure!(summary.leases_released == 1, "expected one released lease");
@@ -854,7 +854,7 @@ pub(crate) async fn deployment_reconcile_empty_cleans_stale() -> anyhow::Result<
     Ok(())
 }
 
-pub(crate) async fn deployment_reconcile_promotes_live_container() -> anyhow::Result<()> {
+pub(crate) async fn workload_reconcile_promotes_live_container() -> anyhow::Result<()> {
     let report = ManagedContainerReport {
         route_id: "proxy-route-000000".to_string(),
         port_lease_id: "port-lease-000000".to_string(),
@@ -871,9 +871,9 @@ pub(crate) async fn deployment_reconcile_promotes_live_container() -> anyhow::Re
         lease_id,
         route_id,
         _exec_id,
-    ) = hydrated_deployment_runtime(Some(vec![report])).await?;
+    ) = hydrated_workload_runtime(Some(vec![report])).await?;
 
-    let summary = runtime.reconcile_deployment().await?;
+    let summary = runtime.reconcile_workload().await?;
     anyhow::ensure!(summary.routes_promoted == 1, "expected one promoted route");
     anyhow::ensure!(summary.leases_promoted == 1, "expected one promoted lease");
 
@@ -885,7 +885,7 @@ pub(crate) async fn deployment_reconcile_promotes_live_container() -> anyhow::Re
     Ok(())
 }
 
-pub(crate) async fn deployment_reconcile_exec_always_failed() -> anyhow::Result<()> {
+pub(crate) async fn workload_reconcile_exec_always_failed() -> anyhow::Result<()> {
     let report = ManagedContainerReport {
         route_id: "proxy-route-000000".to_string(),
         port_lease_id: "port-lease-000000".to_string(),
@@ -902,9 +902,9 @@ pub(crate) async fn deployment_reconcile_exec_always_failed() -> anyhow::Result<
         _lease_id,
         _route_id,
         exec_id,
-    ) = hydrated_deployment_runtime(Some(vec![report])).await?;
+    ) = hydrated_workload_runtime(Some(vec![report])).await?;
 
-    let summary = runtime.reconcile_deployment().await?;
+    let summary = runtime.reconcile_workload().await?;
     anyhow::ensure!(summary.execs_failed == 1, "expected one failed exec");
     let exec = exec_registry.status(&exec_id).await.unwrap();
     anyhow::ensure!(exec.kind == ExecStatusKind::Failed);
@@ -916,13 +916,13 @@ struct FakeReconcileSource {
 }
 
 #[async_trait]
-impl DeploymentReconcileSource for FakeReconcileSource {
+impl WorkloadReconcileSource for FakeReconcileSource {
     async fn list_managed(&self) -> anyhow::Result<Vec<ManagedContainerReport>> {
         Ok(self.reports.clone())
     }
 }
 
-async fn hydrated_deployment_runtime(
+async fn hydrated_workload_runtime(
     reports: Option<Vec<ManagedContainerReport>>,
 ) -> anyhow::Result<(
     Runtime<SqliteEventStore>,
@@ -934,7 +934,7 @@ async fn hydrated_deployment_runtime(
     String,
 )> {
     let path = std::env::temp_dir().join(format!(
-        "plurora-deployment-reconcile-{}-{}.db",
+        "plurora-workload-reconcile-{}-{}.db",
         std::process::id(),
         reports.as_ref().map_or(0, Vec::len)
     ));
@@ -992,13 +992,13 @@ async fn hydrated_deployment_runtime(
     let reopened = Arc::new(SqliteEventStore::open(&path)?);
     let mut config = RuntimeConfig::default();
     if let Some(reports) = reports {
-        config.deployment_reconcile_source = Arc::new(FakeReconcileSource { reports });
+        config.workload_reconcile_source = Arc::new(FakeReconcileSource { reports });
     }
     let port_lease_registry = config.port_lease_registry.clone();
     let proxy_route_registry = config.proxy_route_registry.clone();
     let exec_registry = config.exec_registry.clone();
     let hydrated = Runtime::new(reopened, config);
-    hydrated.hydrate_deployment_from_events().await?;
+    hydrated.hydrate_workload_from_events().await?;
 
     Ok((
         hydrated,

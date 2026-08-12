@@ -154,7 +154,7 @@ export function resolveLibraryAffordances(input: LibraryAffordanceInput): Librar
     ...(!canRestart ? {
       reason_code: run ? authority.reason_code ?? "run_not_restartable" : "run_not_active",
       next_step: run ? authority.next_step ?? "Inspect the Run failure before restarting." : "Start the entrypoint to create a Run.",
-    } : { risk: "Creates a new Run attempt; it never deploys a missing managed Realization." }),
+    } : { risk: "Creates a new Run attempt; it never applies a missing managed Realization." }),
   });
 
   const backupRight = input.work_summary?.rights_declaration?.backup;

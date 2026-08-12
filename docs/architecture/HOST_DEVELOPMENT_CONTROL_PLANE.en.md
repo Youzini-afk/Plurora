@@ -2,7 +2,7 @@
 
 > [English](./HOST_DEVELOPMENT_CONTROL_PLANE.en.md) · [中文](./HOST_DEVELOPMENT_CONTROL_PLANE.md)
 
-Status: **Candidate implementation**. The Host development control plane separates proposing a source change for a managed Workspace or Installation from executing managed resources. Source changes use the constitutional `Intent -> ChangeSet -> PolicyDecision -> ChangeCommit -> EffectReceipt` sequence; resource planning and execution use Phase 6 `host.realization.*` only. There is no Project identity, arbitrary Host shell, Deployment facade, or first-party private bypass.
+Status: **Implemented**. The Host development control plane separates proposing a source change for a managed Workspace or Installation from executing managed resources. Source changes use the constitutional `Intent -> ChangeSet -> PolicyDecision -> ChangeCommit -> EffectReceipt` sequence; resource planning and execution use `host.realization.*` only. There is no arbitrary Host shell or first-party private bypass.
 
 `plurora/workspace-lab` remains an ordinary planning Package with no execution authority. Real changes enter through the Host-authenticated `/host/v1/development/:subject_kind/:subject_id/changes` API, whose subject is `workspace` or `installation`. Docker verification runs as a durable Target operation. Success produces immutable artifacts and never implicitly applies a Realization, writes back a Workspace, or publishes a route.
 
@@ -35,7 +35,7 @@ Approval and execution are separate requests. Approval binds the exact server-re
 | `POST` | `.../:change_set_id/execute` | Stage, verify, and produce an immutable verified bundle asynchronously |
 | `POST` | `.../:change_set_id/recover` | Explicitly reconcile interrupted Docker verification |
 
-The old `.../deployment/preview|approve|activate|reconcile`, Installation-deployment, and build-deploy routes are removed with no aliases. A client needing managed resources invokes effect-free `host.realization.plan` from the Installation's OperationalIntent, presents the stable plan digest and risks, then uses a separate approval for `apply`.
+A client needing managed resources invokes effect-free `host.realization.plan` from the Installation's OperationalIntent, presents the stable plan digest and risks, then uses a separate approval for `apply`; the development API exposes no parallel resource-execution lifecycle.
 
 ## Authority
 
@@ -87,7 +87,7 @@ A linked-local directory is user-owned and may change concurrently. The Host nei
 - arbitrary shell, install/test command, or Host command runner;
 - automatic mutation of linked-local/native Workspaces;
 - implicit use of a verification image in a Realization;
-- Project, old Composition, or Deployment identity/API;
+- a machine identity or API parallel to Work/Assembly/Installation/Realization;
 - local CLI or first-party Package mutation paths that bypass the public Host API.
 
 See [`../guides/REALIZATION.en.md`](../guides/REALIZATION.en.md) for the Realization lifecycle and [`HOST_RESOURCE_AUTHORITY.en.md`](HOST_RESOURCE_AUTHORITY.en.md) for device authority.

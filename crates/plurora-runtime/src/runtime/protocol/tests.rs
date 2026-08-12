@@ -1092,7 +1092,7 @@ permissions: {}
 }
 
 #[cfg(test)]
-mod deployment_hub_tests {
+mod workload_hub_tests {
     use std::sync::Arc;
 
     use crate::{InMemoryEventStore, ProtocolContext, ProtocolPrincipal, Runtime, RuntimeConfig};
@@ -1196,7 +1196,7 @@ mod deployment_hub_tests {
     }
 
     #[tokio::test]
-    async fn deployment_hub_methods_require_host_principal() {
+    async fn workload_hub_methods_require_host_principal() {
         let runtime = runtime();
         let context = ProtocolContext {
             principal: ProtocolPrincipal::Anonymous,
@@ -1216,7 +1216,7 @@ mod deployment_hub_tests {
             )
             .await;
 
-        let error = result.expect_err("anonymous deployment hub call must be denied");
+        let error = result.expect_err("anonymous workload hub call must be denied");
         assert_eq!(error.code, "runtime/error/permission_denied");
     }
 

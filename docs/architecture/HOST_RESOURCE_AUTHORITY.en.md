@@ -31,7 +31,7 @@ develop.execute
 access_manage
 ```
 
-The old `deploy` scope was removed in Phase 6. Low-level target/exec/port/proxy adapters are not ordinary-device deployment authority; they are confined to HostAdmin/HostDev or an explicit `access_manage` administration boundary. Managed lifecycle is exposed only through `realization.plan` / `realization.apply`.
+Low-level target/exec/port/proxy adapters are not ordinary-device Realization authority; they are confined to HostAdmin/HostDev or an explicit `access_manage` administration boundary. Managed lifecycle is exposed only through `realization.plan` / `realization.apply`.
 
 Exposure/Binding and Realization methods use these actions:
 

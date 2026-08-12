@@ -1,13 +1,13 @@
 schema_version: 1
 id: thirdparty/example-adapter
 version: 0.1.0
-display_name: Example External Project Adapter
-description: "Example adapter/wrapper package preview proving unadapted external projects can be wrapped as ordinary Plurora Packages. Generated from project-intake-lab adapter manifest preview — not written to filesystem, not auto-published, no network/filesystem/process permissions."
+display_name: Example External Source Adapter
+description: "Example adapter/wrapper package preview proving unadapted external sources can be wrapped as ordinary Plurora Packages. Generated from source-intake-lab adapter manifest preview — not written to filesystem, not auto-published, no network/filesystem/process permissions."
 entry:
   kind: subprocess
   command:
     - node
-    - examples/packages/external-project-adapter-preview/package.js
+    - examples/packages/source-adapter-preview/package.js
   transport: json_rpc_stdio
 provides:
   - id: thirdparty/example-adapter/invoke

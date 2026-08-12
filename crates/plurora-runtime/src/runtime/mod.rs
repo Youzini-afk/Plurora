@@ -7,11 +7,10 @@ use std::time::Duration;
 
 use plurora_core::{
     ArtifactDescriptor, AssetRecord, EventEnvelope, PackageId, SessionId, SessionRecord,
-    SessionStatus, EVENT_ASSET_PUT, EVENT_DEPLOYMENT_RECONCILED, EVENT_EXEC_COMPLETED,
-    EVENT_EXEC_DENIED, EVENT_EXEC_FAILED, EVENT_EXEC_STARTED, EVENT_EXEC_STOPPED,
-    EVENT_PERMISSION_GRANTED, EVENT_PERMISSION_REVOKED, EVENT_PORT_LEASED, EVENT_PORT_RELEASED,
-    EVENT_PROJECTION_UPDATED, EVENT_PROXY_REGISTERED, EVENT_PROXY_UNREGISTERED,
-    EVENT_SESSION_FORKED,
+    SessionStatus, EVENT_ASSET_PUT, EVENT_EXEC_COMPLETED, EVENT_EXEC_DENIED, EVENT_EXEC_FAILED,
+    EVENT_EXEC_STARTED, EVENT_EXEC_STOPPED, EVENT_PERMISSION_GRANTED, EVENT_PERMISSION_REVOKED,
+    EVENT_PORT_LEASED, EVENT_PORT_RELEASED, EVENT_PROJECTION_UPDATED, EVENT_PROXY_REGISTERED,
+    EVENT_PROXY_UNREGISTERED, EVENT_SESSION_FORKED, EVENT_WORKLOAD_RECONCILED,
 };
 use plurora_work::{InstallationId, InstallationStatus};
 use serde::{Deserialize, Serialize};
@@ -69,9 +68,9 @@ pub use self::effects::{EffectReplayResult, EFFECT_RECEIPT_MEDIA_TYPE, EFFECT_VA
 pub use self::events::{AppendEventRequest, EventListRequest};
 pub use self::handles::HandleTable;
 pub use self::local_exec::{
-    DenyAllLocalExecExecutor, DeploymentReconcileSource, EmptyReconcileSource, ExecCommand, ExecId,
-    ExecLifecyclePolicy, ExecRegistry, ExecResourceLimits, ExecStatus, ExecStatusKind,
-    ExecutionTarget, ExecutionTargetCapability, ExecutionTargetId, ExecutionTargetObservedSummary,
+    DenyAllLocalExecExecutor, EmptyReconcileSource, ExecCommand, ExecId, ExecLifecyclePolicy,
+    ExecRegistry, ExecResourceLimits, ExecStatus, ExecStatusKind, ExecutionTarget,
+    ExecutionTargetCapability, ExecutionTargetId, ExecutionTargetObservedSummary,
     ExecutionTargetReachability, ExecutionTargetRegistry, ExecutionTargetStatusKind,
     FakeLocalExecExecutor, LiveLocalExecExecutor, LiveLocalExecExecutorConfig, LocalExecExecutor,
     LocalExecExecutorConfig, LocalExecListResponse, LocalExecLogLine, LocalExecLogStream,
@@ -81,7 +80,7 @@ pub use self::local_exec::{
     PortLeaseRequest, PortLeaseResponse, PortLeaseStatusKind, PortProtocol, ProxyProtocol,
     ProxyRouteAccess, ProxyRouteId, ProxyRouteRecord, ProxyRouteRegisterRequest,
     ProxyRouteRegisterResponse, ProxyRouteRegistry, ProxyRouteStatusKind, ProxyRouteUpstream,
-    ReadinessProbe, ReadinessProbeKind,
+    ReadinessProbe, ReadinessProbeKind, WorkloadReconcileSource,
 };
 pub use self::network::{
     check_network_policy, NetworkPolicyDecision, OutboundExecuteCompletion, OutboundRequest,
@@ -152,7 +151,7 @@ pub struct RuntimeConfig {
     pub outbound_websocket_executor: Arc<dyn WebSocketExecutor>,
     /// Local exec executor. Defaults to DenyAll (fail-closed).
     pub local_exec_executor: LocalExecExecutorConfig,
-    /// In-memory local exec status registry for Phase 1 fake/deny dispatch.
+    /// In-memory local exec status registry for fake/deny dispatch.
     pub exec_registry: Arc<ExecRegistry>,
     /// In-memory execution target registry. Defaults with local/local-host.
     pub target_registry: Arc<ExecutionTargetRegistry>,
@@ -161,7 +160,7 @@ pub struct RuntimeConfig {
     /// In-memory placeholder proxy route registry.
     pub proxy_route_registry: Arc<ProxyRouteRegistry>,
     /// Restart reconciliation truth source. Defaults empty (fail-safe cleanup).
-    pub deployment_reconcile_source: Arc<dyn DeploymentReconcileSource>,
+    pub workload_reconcile_source: Arc<dyn WorkloadReconcileSource>,
     /// Development-mode surface bundle path overrides. Maps a surface_id prefix
     /// to a filesystem directory containing built bundles.
     pub surface_dev_paths: BTreeMap<String, String>,
@@ -208,7 +207,7 @@ impl fmt::Debug for RuntimeConfig {
             .field("target_registry", &"configured")
             .field("port_lease_registry", &"configured")
             .field("proxy_route_registry", &"configured")
-            .field("deployment_reconcile_source", &"configured")
+            .field("workload_reconcile_source", &"configured")
             .field("surface_dev_path_count", &self.surface_dev_paths.len())
             .field("package_root_count", &self.package_roots.len())
             .finish()
@@ -236,7 +235,7 @@ impl Default for RuntimeConfig {
             target_registry: Arc::new(ExecutionTargetRegistry::default()),
             port_lease_registry: Arc::new(PortLeaseRegistry::default()),
             proxy_route_registry: Arc::new(ProxyRouteRegistry::default()),
-            deployment_reconcile_source: Arc::new(EmptyReconcileSource),
+            workload_reconcile_source: Arc::new(EmptyReconcileSource),
             surface_dev_paths: BTreeMap::new(),
             package_roots: BTreeMap::new(),
         }
@@ -261,7 +260,7 @@ struct HydratedSubstrateState {
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize, schemars::JsonSchema, PartialEq, Eq)]
-pub struct DeploymentReconcileSummary {
+pub struct WorkloadReconcileSummary {
     pub execs_failed: usize,
     pub routes_promoted: usize,
     pub routes_removed: usize,
@@ -270,18 +269,18 @@ pub struct DeploymentReconcileSummary {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, schemars::JsonSchema, PartialEq, Eq)]
-pub struct DeploymentHealthEventPayload {
+pub struct WorkloadHealthEventPayload {
     pub route_id: ProxyRouteId,
     pub port_lease_id: Option<PortLeaseId>,
     pub previous_ready: bool,
     pub ready: bool,
     pub reason: String,
     pub failure_count: u32,
-    pub probe: DeploymentHealthProbe,
+    pub probe: WorkloadHealthProbe,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, schemars::JsonSchema, PartialEq, Eq)]
-pub struct DeploymentHealthProbe {
+pub struct WorkloadHealthProbe {
     pub kind: String,
 }
 
@@ -653,7 +652,7 @@ where
         self.grants.write().await.extend(state.grants);
     }
 
-    pub async fn hydrate_deployment_from_events(&self) -> anyhow::Result<()> {
+    pub async fn hydrate_workload_from_events(&self) -> anyhow::Result<()> {
         let events = self.store.list_all().await?;
         let mut port_leases: HashMap<PortLeaseId, PortLeaseRecord> = HashMap::new();
         let mut proxy_routes: HashMap<ProxyRouteId, ProxyRouteRecord> = HashMap::new();
@@ -799,12 +798,8 @@ where
         Ok(())
     }
 
-    pub async fn reconcile_deployment(&self) -> anyhow::Result<DeploymentReconcileSummary> {
-        let reports = self
-            .config
-            .deployment_reconcile_source
-            .list_managed()
-            .await?;
+    pub async fn reconcile_workload(&self) -> anyhow::Result<WorkloadReconcileSummary> {
+        let reports = self.config.workload_reconcile_source.list_managed().await?;
         let mut running_by_route: HashMap<String, Vec<ManagedContainerReport>> = HashMap::new();
         for report in reports.into_iter().filter(|report| report.running) {
             running_by_route
@@ -813,13 +808,13 @@ where
                 .push(report);
         }
 
-        let mut summary = DeploymentReconcileSummary {
+        let mut summary = WorkloadReconcileSummary {
             execs_failed: self
                 .config
                 .exec_registry
                 .reconcile_unknown_to_failed()
                 .await,
-            ..DeploymentReconcileSummary::default()
+            ..WorkloadReconcileSummary::default()
         };
 
         let routes = self.config.proxy_route_registry.list().await;
@@ -902,8 +897,8 @@ where
         }
 
         self.append_platform_event(
-            &"host_deployment_reconcile".to_string(),
-            EVENT_DEPLOYMENT_RECONCILED,
+            &"host_workload_reconcile".to_string(),
+            EVENT_WORKLOAD_RECONCILED,
             serde_json::to_value(&summary)?,
         )
         .await?;

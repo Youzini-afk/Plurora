@@ -37,7 +37,7 @@ autoload:
   - ../packages/plurora/memory-lab/manifest.yaml
   - ../packages/plurora/creator-loop-lab/manifest.yaml
   - ../packages/plurora/sharing-lab/manifest.yaml
-  - ../packages/plurora/project-intake-lab/manifest.yaml
+  - ../packages/plurora/source-intake-lab/manifest.yaml
   - ../packages/plurora/workspace-lab/manifest.yaml
   - ../packages/plurora/storage-lab/manifest.yaml
   - ../packages/plurora/tdb-retrieval-lab/manifest.yaml

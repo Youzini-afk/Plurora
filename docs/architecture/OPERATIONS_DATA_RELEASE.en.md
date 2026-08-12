@@ -2,17 +2,17 @@
 
 > [English](./OPERATIONS_DATA_RELEASE.en.md) · [中文](./OPERATIONS_DATA_RELEASE.md)
 
-Status: **The operational-safety baseline is implemented; remaining hardening stays governed by this contract**. This document defines the data, health, diagnostics, upgrade, and release baseline required while a Host carries real projects and remote targets.
+Status: **The operational-safety baseline is implemented; remaining hardening stays governed by this contract**. This document defines the data, health, diagnostics, upgrade, and release baseline required while a Host carries real Works and remote Targets.
 
 ## Current implementation status
 
 Implemented:
 
 - An Install Lab store schema mismatch no longer deletes data. The old store is atomically moved to a versioned, uniquely suffixed preservation directory before a fresh store receives the current marker.
-- `plurora host backup` creates an offline directory snapshot for a SQLite Host profile whose relative database path is inside the data directory. It first acquires the durable Host control-plane lease, excludes the explicit `cache`, uses SQLite's online backup API, and writes a SHA-256 manifest for secrets, keys, objects, projects, profiles, and journals copied under the same lease boundary.
+- `plurora host backup` creates an offline directory snapshot for a SQLite Host profile whose relative database path is inside the data directory. It first acquires the durable Host control-plane lease, excludes the explicit `cache`, uses SQLite's online backup API, and writes a SHA-256 manifest for secrets, keys, objects, installations, profiles, and journals copied under the same lease boundary.
 - `plurora host restore` only targets a nonexistent data directory. It rejects traversal, symlinks, duplicate entries, checksum/schema mismatches, verifies SQLite integrity in staging, and only then atomically publishes the restored directory.
-- `/livez`, `/health`, and `/healthz` are compatibility liveness endpoints. `/readyz` returns structured status without resource identifiers: event-store or Host control-plane lease failure is `503/unready`; an unhealthy durable deployment is `200/degraded`.
-- `host.diagnostics` includes the Host version and aggregate runtime counts without adding project, route, or lease identifiers.
+- `/livez`, `/health`, and `/healthz` are compatibility liveness endpoints. `/readyz` returns structured status without resource identifiers: event-store or Host control-plane lease failure is `503/unready`; an unhealthy durable Realization is `200/degraded`.
+- `host.diagnostics` includes the Host version and aggregate runtime counts without adding Work, Installation, route, or lease identifiers.
 - A tag release explicitly reuses the complete CI workflow, strictly validates tag/commit/Cargo/npm/Tauri version identity, and then runs platform builds. Each platform publishes SHA-256 checksums and an SPDX SBOM and records GitHub OIDC/Sigstore provenance and SBOM attestations. Only the build job receives release permissions.
 
 Still pending: a general migration ledger, PostgreSQL backup references, separate `backup inspect/verify` commands, authenticated `/host/v1/status` and diagnostics export, active object/secret probes, one continuous HTTP health-policy parser, clean-runner installer startup smoke, reviewed-SHA pinning for Actions/toolchains, and platform signing/notarization. Releases remain drafts and must not be represented as signed when signing is not configured.
@@ -26,9 +26,9 @@ Every data class declares its source of truth, rebuildability, consistency bound
 | Event and Host control journals | Authoritative, append-only | Required; preserve sequence/CAS semantics |
 | Object store | May be referenced by journals/descriptors | Same backup set as referencing journals |
 | Secret store and key | Sensitive and not reconstructible | Paired encrypted backup with strict permissions |
-| Project descriptor/state/managed workspace | User-bearing data | Required unless project policy excludes it |
+| Installation record/state/managed workspace | User-bearing data | Required unless Installation policy excludes it |
 | Profiles/lockfiles/keys | Runtime and supply-chain configuration | Required with permissions/version |
-| Deployment intents/revisions/receipts | Recovery and rollback truth | Required and journal-consistent |
+| Realization intents/revisions/receipts | Recovery and rollback truth | Required and journal-consistent |
 | Download/build cache | Reconstructible cache | Excludable only when explicitly classified |
 | Package/content store | Conditionally reconstructible | Reset only when every object has a proven source |
 
@@ -83,17 +83,17 @@ Expose `backup create/inspect/verify/restore`. Restore defaults to a stopped Hos
 
 Compatibility `/health` and `/healthz` map to a documented meaning instead of always succeeding.
 
-Readiness checks runtime hydration, event-store basic read/write/CAS, temporary object verification, secret-store status without secret reads, deployment-controller fatal state, profile, and contract registry. Optional failures are degraded; required failures are not-ready. Details require authentication.
+Readiness checks runtime hydration, event-store basic read/write/CAS, temporary object verification, secret-store status without secret reads, Realization-controller fatal state, profile, and contract registry. Optional failures are degraded; required failures are not-ready. Details require authentication.
 
-## Deployment health policy
+## Realization health policy
 
-A revision declares protocol, path, expected status range, interval, timeout, success/failure thresholds, and initial delay. HTTP defaults to 2xx only. Startup and continuous health share one parser. Probes observe and audit; only the Deployment Controller applies restart policy. Logs/bodies are bounded and redacted.
+A revision declares protocol, path, expected status range, interval, timeout, success/failure thresholds, and initial delay. HTTP defaults to 2xx only. Startup and continuous health share one parser. Probes observe and audit; only the Realization Controller applies restart policy. Logs/bodies are bounded and redacted.
 
 ## Observability
 
-Minimum structured signals cover request correlation and authority, canonical method and policy decision, deployment operation/step/target/generation/epoch, queue and operation latency, retries/cancels/rollbacks, target heartbeat/tunnel errors, route transitions, journal CAS errors, object verification, backup, and migration.
+Minimum structured signals cover request correlation and authority, canonical method and policy decision, Realization operation/step/target/generation/epoch, queue and operation latency, retries/cancels/rollbacks, target heartbeat/tunnel errors, route transitions, journal CAS errors, object verification, backup, and migration.
 
-Metrics exclude project names, secrets, tokens, full query strings, and source. High-cardinality resource IDs live only in controlled traces/logs. Diagnostic bundles contain redacted version/config shape, component status, bounded logs, journal heads, deployment summaries, and integrity results; creation and download are audited.
+Metrics exclude project names, secrets, tokens, full query strings, and source. High-cardinality resource IDs live only in controlled traces/logs. Diagnostic bundles contain redacted version/config shape, component status, bounded logs, journal heads, Realization summaries, and integrity results; creation and download are audited.
 
 ## Supported Host topology
 

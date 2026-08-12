@@ -31,7 +31,7 @@ use serde_json::Value;
 use super::safety;
 use super::InprocInvocation;
 use crate::object_store::sha256_digest;
-use crate::runtime::{DeploymentReconcileSource, ManagedContainerReport};
+use crate::runtime::{ManagedContainerReport, WorkloadReconcileSource};
 
 const PACKAGE_ID: &str = "plurora/docker-runtime-lab";
 const BIND_HOST: &str = "127.0.0.1";
@@ -39,10 +39,10 @@ const DEFAULT_TAIL: u32 = 200;
 const DEFAULT_MAX_BYTES: usize = 65_536;
 
 #[derive(Debug, Default)]
-pub struct DockerDeploymentReconcileSource;
+pub struct DockerWorkloadReconcileSource;
 
 #[async_trait::async_trait]
-impl DeploymentReconcileSource for DockerDeploymentReconcileSource {
+impl WorkloadReconcileSource for DockerWorkloadReconcileSource {
     async fn list_managed(&self) -> anyhow::Result<Vec<ManagedContainerReport>> {
         let output = list_managed_async().await.map_err(anyhow::Error::msg)?;
         Ok(output
@@ -626,10 +626,10 @@ async fn start_container_async(
     ]);
     if let Some(operation_id) = operation_id.as_ref() {
         if !valid_label_value(operation_id) {
-            return Err("deployment operation id must be label-safe".to_string());
+            return Err("workload operation id must be label-safe".to_string());
         }
         labels.insert(
-            "plurora.deployment_operation_id".to_string(),
+            "plurora.workload_operation_id".to_string(),
             operation_id.clone(),
         );
     }
@@ -1109,7 +1109,7 @@ fn managed_container_json(container: &ContainerSummary) -> Option<Value> {
     }
     let route_id = labels.get("plurora.route_id")?.clone();
     let port_lease_id = labels.get("plurora.port_lease_id")?.clone();
-    let operation_id = labels.get("plurora.deployment_operation_id").cloned();
+    let operation_id = labels.get("plurora.workload_operation_id").cloned();
     let running = matches!(container.state, Some(ContainerSummaryStateEnum::RUNNING));
     let host_port = container
         .ports
@@ -1348,7 +1348,7 @@ pub fn prepare_docker_build_context(input: &Value) -> anyhow::Result<PreparedDoc
     let spec = parse_build_image_request(input).map_err(anyhow::Error::msg)?;
     anyhow::ensure!(
         spec.strategy == BuildStrategy::Dockerfile,
-        "deployable build contexts only support dockerfile strategy"
+        "workloadable build contexts only support dockerfile strategy"
     );
     let prepared = prepare_build_context(&spec).map_err(anyhow::Error::msg)?;
     verified_context_digest(&spec, &prepared.context).map_err(anyhow::Error::msg)?;
@@ -1367,7 +1367,7 @@ fn prepare_docker_build_context_at(
     let spec = parse_build_image_request(input).map_err(anyhow::Error::msg)?;
     anyhow::ensure!(
         spec.strategy == BuildStrategy::Dockerfile,
-        "deployable build contexts only support dockerfile strategy"
+        "workloadable build contexts only support dockerfile strategy"
     );
     let prepared = prepare_build_context_at(&spec, data_dir).map_err(anyhow::Error::msg)?;
     verified_context_digest(&spec, &prepared.context).map_err(anyhow::Error::msg)?;
@@ -2485,7 +2485,7 @@ mod tests {
                     "port-lease-000001".to_string(),
                 ),
                 (
-                    "plurora.deployment_operation_id".to_string(),
+                    "plurora.workload_operation_id".to_string(),
                     "dop-000001".to_string(),
                 ),
             ])),

@@ -36,7 +36,7 @@ See [`docs/CHARTER.md`](docs/CHARTER.en.md) for the principles and [`docs/archit
 
 ## Platform and official product
 
-Plurora is more than a kernel and is not identical to the official Web/Desktop product. The current official distribution uses Library, Settings, Installation frames, Console, and contributed surfaces to provide a local managed Host, remote Hosts, installation, Runs, Phase 5 Powerbox, authority, and data management. Managed Realization/deployment compilation remains Phase 6 planned.
+Plurora is more than a kernel and is not identical to the official Web/Desktop product. The current official distribution uses Library, Settings, Installation frames, Console, and contributed surfaces to provide a local managed Host, remote Hosts, installation, Runs, Powerbox, Managed Realization, authority, and data management.
 
 Those are evolving default product choices rather than permanent ontology for the whole platform:
 
@@ -68,13 +68,13 @@ clients/web/           official React 19 + Tailwind v4 + Vite Web shell / PWA
 clients/desktop/       Tauri 2.x wrapper + managed Host sidecar
 
 packages/plurora/     first-party components and experiments via manifests
-profiles/              distribution / Host component and policy compositions
+profiles/              distribution / Host component and policy assemblies
 examples/              examples, fixtures, and third-party integration samples
 
 sdk/typescript/        TypeScript SDK and subprocess component tooling
 sdk/rust/              generated Rust contract SDK
 docs/                  charter, architecture, protocols, product, guides, status
-integrations/          external project and ecosystem integration research
+integrations/          external source and ecosystem integration research
 ```
 
 The directory layout describes the current implementation; crate names alone do not determine permanent architectural ownership.
