@@ -11,7 +11,7 @@ cargo test --workspace
 cargo run -p plurora-cli -- conformance
 ```
 
-The current matrix records implemented conformance coverage. Named CLI cases and crate/service unit tests support these results. Current CLI conformance total: **483**.
+The current matrix records implemented conformance coverage. Named CLI cases and crate/service unit tests support these results. Current CLI conformance total: **482**.
 
 ## Conformance Feedback Loop
 
@@ -429,6 +429,6 @@ Surface/static bundle and bridge coverage also includes these stable assertions:
 
 ## Named CLI cases
 
-`cargo run -p plurora-cli -- conformance --list` is the executable source of truth for named cases; it currently emits 483 case ids plus tags. This document keeps only coverage that changes architectural judgment instead of duplicating a complete list that drifts.
+`cargo run -p plurora-cli -- conformance --list` is the executable source of truth for named cases; it currently emits 482 case ids plus tags. This document keeps only coverage that changes architectural judgment instead of duplicating a complete list that drifts.
 
 The runner supports `--case`, `--tag`, `--fail-fast`, and `--slowest`. Every Host-required case must pass before the corresponding milestone is complete.

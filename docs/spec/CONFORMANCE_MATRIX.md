@@ -11,7 +11,7 @@ cargo test --workspace
 cargo run -p plurora-cli -- conformance
 ```
 
-当前矩阵记录已实现的 conformance 覆盖。具名 CLI 用例和 crate/service 单元测试共同支撑这些结果。当前 CLI conformance 总数：**483**。
+当前矩阵记录已实现的 conformance 覆盖。具名 CLI 用例和 crate/service 单元测试共同支撑这些结果。当前 CLI conformance 总数：**482**。
 
 ## Conformance Feedback Loop
 
@@ -420,6 +420,6 @@ Surface/static bundle 与 bridge 还覆盖以下稳定断言：
 
 ## CLI 具名用例
 
-`cargo run -p plurora-cli -- conformance --list` 是具名用例的可执行事实源；当前输出 483 个 case id 与 tags。本文只维护会影响架构判断的覆盖矩阵，不复制一份容易漂移的完整列表。
+`cargo run -p plurora-cli -- conformance --list` 是具名用例的可执行事实源；当前输出 482 个 case id 与 tags。本文只维护会影响架构判断的覆盖矩阵，不复制一份容易漂移的完整列表。
 
 运行器支持 `--case`、`--tag`、`--fail-fast` 与 `--slowest`。任何列为 Host 必需的用例都必须通过，对应里程碑才能宣布完成。

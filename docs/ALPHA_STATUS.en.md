@@ -8,7 +8,7 @@ For platform goals and principles, see [`CHARTER.md`](CHARTER.en.md) and [`archi
 
 ## Summary
 
-- **Conformance:** 483 named CLI conformance cases plus crate and service unit tests continue to pass; 214 v1 schemas validate (99 methods + 76 events + 39 top-level), including seven named `modular-simulation` cases.
+- **Conformance:** 482 named CLI conformance cases plus crate and service unit tests continue to pass; 214 v1 schemas validate (99 methods + 76 events + 39 top-level), including seven named `modular-simulation` cases.
 - **Charter discipline:** content-free kernel; no privilege for first-party Packages; public protocol only; equal entry forms; capability handles, binding injection, Path A / Path B, the conformance kit, and generated SDKs are implemented; trusted paths block raw secrets and use manifest-declared `secret_ref` everywhere; permission grants rehydrate; network permissions are audited and redacted; generic streaming and cancel lifecycle; outbound execution has a boundary, deny-all by default; public HTTPS outbound uses the same host-policy / audit / redaction boundary; unary outbound, SSE/NDJSON/raw streams, and WebSocket all emit completion audit events.
 - **Code health:** the CLI, runtime domain behavior, protocol dispatch, in-process handlers, and the event store are all split by domain. We're not stacking more onto single files.
 - **Human-testing substrate:** Work sources safely pack into content-addressed WorkRevision, AssemblyRevision, and AssemblyLock artifacts. Install Lab produces an Installation candidate, while `host.installation.*` creates, updates, and removes Installations through a durable journal, idempotency claims, and revision CAS. Workspaces and Installations are separate, and linked-local sources are never deleted. RunRegistry, `host.run.*`, and Run lifecycle events use an independent durable journal; Library actions explicitly start, inspect, and stop Runs, while opening detail never starts one. ExposureRegistry, Powerbox candidate disclosure, lease/revoke, runtime-handle injection, and invalidation are implemented. The OperationalIntent/TargetInventory pure planner, `host.realization.*`, Docker/Agent execution, approval, receipts, effect checkpoints, restart recovery, stop/rollback/reconcile, and Web/CLI Realization controls are implemented. All six ForeignCapsule local-launch binding forms, Rights/Transparency disclosure, ordinary entitlement adapters, separate opaque-state backup/export rights, and dedicated-server/cross-Host Rights gates are implemented. The runnable `modular-simulation` Work kit supplies portable saves, a static renderer, optional AI Port, server fork, third-party Component replacement, and a subgraph-promotion flow that emits candidates only. The Surface bridge retains allowlists, stream ownership, redacted diagnostics, secret-input cleanup, and CSP/CORS.
@@ -251,7 +251,7 @@ The platform user-facing chrome — Home, Settings, Installation flow, Installat
 
 ## Code organization
 
-- `crates/plurora-cli/src/main.rs` is a thin entry. CLI types live in `cli.rs`, commands under `commands/`, and package templates under `templates/`. The conformance runner and case registry are split: `conformance/runner.rs` owns `--list`, `--case`, `--tag`, `--fail-fast`, and `--slowest`; `conformance/registry/` registers the 483 `ConformanceCase { id, tags, run }` entries by domain.
+- `crates/plurora-cli/src/main.rs` is a thin entry. CLI types live in `cli.rs`, commands under `commands/`, and package templates under `templates/`. The conformance runner and case registry are split: `conformance/runner.rs` owns `--list`, `--case`, `--tag`, `--fail-fast`, and `--slowest`; `conformance/registry/` registers the 482 `ConformanceCase { id, tags, run }` entries by domain.
 - `crates/plurora-cli/src/schema_export/` owns v1 schema export; `src/bin/export-schemas.rs` is a thin entry. Generated files still come from the exporter only — SDKs and schemas are not hand-edited.
 - `crates/plurora-runtime/src/runtime/` splits runtime behavior into session, events, packages, capabilities, hooks, permissions, assets, branches, projections, and proposals. `runtime/protocol_dispatch.rs` is now the public router facade; concrete public-protocol handlers live under `runtime/protocol/` by domain. `runtime/mod.rs` keeps the public `Runtime<S>` API.
 - Protocol metadata and dispatch share a single source of truth (`PlatformMethod`), with a registry / dispatch consistency unit test.
@@ -262,7 +262,7 @@ These splits don't change behavior — they keep the codebase reviewable as more
 
 ## Conformance
 
-`cargo run -p plurora-cli -- conformance` runs 483 named CLI cases. Flags:
+`cargo run -p plurora-cli -- conformance` runs 482 named CLI cases. Flags:
 
 - `--list` — list ids and tags.
 - `--case <pattern>` — substring filter.
