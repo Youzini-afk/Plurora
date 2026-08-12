@@ -88,6 +88,9 @@ jobs:
       - name: cargo check workspace
         run: cargo check --workspace
 
+      - name: cargo test workspace all targets locked
+        run: cargo test --workspace --all-targets --locked
+
       - name: cargo test generated Rust SDK
         run: cargo test -p plurora-contract-sdk
 
