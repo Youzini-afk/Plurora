@@ -22,6 +22,7 @@ mod installation_secret;
 mod integrity_tools;
 mod live_model;
 mod memory_lab;
+mod modular_simulation;
 mod network;
 mod permissions;
 mod playable_creation_board;

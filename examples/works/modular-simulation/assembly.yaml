@@ -1,0 +1,48 @@
+schema: plurora.assembly-source.v1
+assembly:
+  id: example/modular-simulation-kit/main
+  nodes:
+    - id: simulation
+      component: packages/simulation/manifest.yaml
+      ports:
+        - port_id: ai-advisor
+          contract:
+            protocol_id: plurora.capability
+            interface_id: example/ai-advisor/suggest
+            version: ^1.0
+            profiles: []
+          interaction: plurora.interaction.capability-unary/v1
+          role:
+            kind: import
+            multiplicity: {min: 0, max: 1}
+            latest_binding_phase: runtime
+            availability: optional
+            accepted_effects: [pure, recorded_nondeterministic, external_effecting]
+          transport:
+            reliable: true
+    - id: renderer
+      component: packages/renderer/manifest.yaml
+  exposed_ports:
+    - id: input
+      direction: export
+      target: {node_id: simulation, port_id: apply_input}
+    - id: save
+      direction: export
+      target: {node_id: simulation, port_id: export_save}
+    - id: inspect
+      direction: export
+      target: {node_id: simulation, port_id: inspect_state}
+    - id: server
+      direction: export
+      target: {node_id: simulation, port_id: server_tick}
+    - id: ai-advisor
+      direction: import
+      target: {node_id: simulation, port_id: ai-advisor}
+  state_slots:
+    - id: save
+      owner: simulation
+      schema_ref: schemas/save-v1.json
+      scope: installation
+      portability: portable
+      migration_port: {node_id: simulation, port_id: migrate_save}
+      backup_policy: required

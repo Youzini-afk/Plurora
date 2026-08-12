@@ -1,0 +1,79 @@
+schema_version: 1
+id: plurora/modular-simulation
+version: 1.0.0
+display_name: Plurora Modular Simulation
+description: Deterministic state-rich colony simulation reducer with portable saves, an optional explicitly bound AI adviser, inspection, migration, and server tick capabilities.
+license: AGPL-3.0-only
+entry:
+  kind: rust_inproc
+  crate_ref: plurora-foundation
+  symbol: register
+  abi_version: 1
+provides:
+  - id: plurora/modular-simulation/describe_contract
+    version: 1.0.0
+    input_schema: {}
+    output_schema: {}
+    streaming: false
+    side_effects: []
+  - id: plurora/modular-simulation/create_state
+    version: 1.0.0
+    input_schema: {}
+    output_schema: {}
+    streaming: false
+    side_effects: []
+  - id: plurora/modular-simulation/apply_input
+    version: 1.0.0
+    input_schema: {}
+    output_schema: {}
+    streaming: false
+    side_effects: [deterministic_state_transition]
+  - id: plurora/modular-simulation/render_state
+    version: 1.0.0
+    input_schema: {}
+    output_schema: {}
+    streaming: false
+    side_effects: []
+  - id: plurora/modular-simulation/export_save
+    version: 1.0.0
+    input_schema: {}
+    output_schema: {}
+    streaming: false
+    side_effects: []
+  - id: plurora/modular-simulation/migrate_save
+    version: 1.0.0
+    input_schema: {}
+    output_schema: {}
+    streaming: false
+    side_effects: [deterministic_state_transition]
+  - id: plurora/modular-simulation/inspect_state
+    version: 1.0.0
+    input_schema: {}
+    output_schema: {}
+    streaming: false
+    side_effects: []
+  - id: plurora/modular-simulation/request_ai_move
+    version: 1.0.0
+    input_schema: {}
+    output_schema: {}
+    streaming: false
+    side_effects: [recorded_inference]
+  - id: plurora/modular-simulation/server_tick
+    version: 1.0.0
+    input_schema: {}
+    output_schema: {}
+    streaming: false
+    side_effects: [deterministic_state_transition]
+consumes: []
+contributes:
+  schemas: []
+  hooks: []
+  extension_points: []
+  surfaces: []
+permissions:
+  capabilities:
+    invoke: []
+sandbox_policy:
+  cpu_quota_ms_per_invoke: 5000
+  memory_mb: 128
+  wall_clock_ms: 30000

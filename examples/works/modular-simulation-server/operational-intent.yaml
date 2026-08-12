@@ -1,0 +1,30 @@
+schema: plurora.operational-intent.v1
+workloads:
+  - workload_id: simulation-server
+    node_id: simulation
+    execution_classes: [oci-container.v1]
+    resources:
+      cpu_millis: 250
+      memory_bytes: 134217728
+      storage_bytes: 268435456
+    imports: {}
+    replicas: {min: 1, max: 1}
+    restart_policy: on_failure
+    health_port: {node_id: simulation, port_id: inspect_state}
+endpoints:
+  - endpoint_id: simulation-api
+    port: {node_id: simulation, port_id: server_tick}
+    visibility: public
+    protocol_hint: plurora.capability
+state:
+  - state_slot_id: save
+    durability: durable
+    replication: 1
+    required_capabilities: [portable-volume.v1]
+placement: []
+update_policy:
+  strategy: rolling
+  max_unavailable: 0
+  health_timeout_seconds: 30
+annotations:
+  example.modular-simulation/optional_remote_server: true

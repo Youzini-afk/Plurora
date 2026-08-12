@@ -1,0 +1,10 @@
+schema: plurora.assembly-source.v1
+assembly:
+  id: example/modular-simulation-ai-advisor/main
+  nodes:
+    - id: advisor
+      component: packages/advisor/manifest.yaml
+  exposed_ports:
+    - id: suggest
+      direction: export
+      target: {node_id: advisor, port_id: suggest}

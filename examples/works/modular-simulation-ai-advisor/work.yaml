@@ -1,0 +1,14 @@
+schema: plurora.work-source.v1
+work:
+  id: example/modular-simulation-ai-advisor
+  title: Modular Simulation AI Adviser
+  description: Optional ordinary provider Work for the modular simulation ai-advisor Runtime Port.
+  assembly: assembly.yaml
+  entrypoints:
+    - id: provide
+      intent_uri: plurora.shell.default/provider
+      port_id: suggest
+  rights: rights.yaml
+  transparency: transparency.yaml
+  annotations:
+    example.modular-simulation/optional_provider: true

@@ -38,6 +38,7 @@ pub(super) fn build_cases() -> Vec<ConformanceCase> {
     cases.extend(super::powerbox::powerbox_cases());
     cases.extend(super::realization::realization_cases());
     cases.extend(super::foreign_work::foreign_work_cases());
+    cases.extend(super::modular_simulation::modular_simulation_cases());
     cases.extend(subprocess_packages::package_check_reload_cases());
     cases.extend(core_runtime::hooks_cases());
     cases.extend(subprocess_packages::generated_packages_cases());

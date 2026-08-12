@@ -8,10 +8,10 @@
 
 ## 概要
 
-- **Conformance：** 475 个具名 CLI conformance 外加 crate / service 单元测试持续通过；214 个 v1 schema（99 methods + 76 events + 39 top-level）通过校验；Phase 7 新增 5 个 Foreign Work 具名 case，`phase7` tag 合计覆盖 8 个 case。
+- **Conformance：** 483 个具名 CLI conformance 外加 crate / service 单元测试持续通过；214 个 v1 schema（99 methods + 76 events + 39 top-level）通过校验；Phase 8 新增 7 个 `modular-simulation` 具名 case。
 - **章程纪律：** 内核对内容无意见；第一方 Package 没有特权；公开协议是唯一入口；入口形态平等；能力句柄、bindings 注入、Path A / Path B、conformance kit 与生成 SDK 已落地；可信路径阻断 raw secret，全部走 manifest 声明的 `secret_ref`；权限授权可重新水化；网络声明带审计与脱敏；通用流式与取消生命周期；外发执行有边界，默认全拒；公开 HTTPS 出站走同样的 host policy / 审计 / 脱敏边界；一元、SSE/NDJSON/raw 流和 WebSocket 三个原语都有完成审计事件。
 - **代码健康：** CLI、运行时各域行为、协议分发、in-process 处理器、事件存储——都已按域拆分，不再继续往单文件里堆。
-- **人测底座：** Work source 可安全 pack 为内容寻址 WorkRevision、AssemblyRevision 与 AssemblyLock；Install Lab 产出 Installation candidate，`host.installation.*` 以 durable journal、幂等键和 revision CAS 创建、更新与移除 Installation；Workspace 与 Installation 分离，linked-local source 永不删除。RunRegistry、`host.run.*` 与 Run lifecycle events 已以独立 durable journal 落地；Library 通过显式 Run action 展示启动、状态和停止，打开详情不会隐式运行。Phase 5 ExposureRegistry、Powerbox candidate disclosure、lease/revoke、runtime handle injection 与失效闭环已落地。Phase 6 实现 OperationalIntent/TargetInventory pure planner、`host.realization.*`、Docker/Agent executor、approval、receipt、effect checkpoint、restart recovery、stop/rollback/reconcile 以及 Web/CLI Realization 操作面。Phase 7 实现 ForeignCapsule 六类本机 launch binding、Rights/Transparency disclosure、普通 entitlement adapter、opaque state backup/export 分权与 dedicated-server/cross-Host Rights gate；Surface bridge 继续使用 allowlist、stream ownership、诊断脱敏、secret 输入清理与 CSP/CORS。
+- **人测底座：** Work source 可安全 pack 为内容寻址 WorkRevision、AssemblyRevision 与 AssemblyLock；Install Lab 产出 Installation candidate，`host.installation.*` 以 durable journal、幂等键和 revision CAS 创建、更新与移除 Installation；Workspace 与 Installation 分离，linked-local source 永不删除。RunRegistry、`host.run.*` 与 Run lifecycle events 已以独立 durable journal 落地；Library 通过显式 Run action 展示启动、状态和停止，打开详情不会隐式运行。Phase 5 ExposureRegistry、Powerbox candidate disclosure、lease/revoke、runtime handle injection 与失效闭环已落地。Phase 6 实现 OperationalIntent/TargetInventory pure planner、`host.realization.*`、Docker/Agent executor、approval、receipt、effect checkpoint、restart recovery、stop/rollback/reconcile 以及 Web/CLI Realization 操作面。Phase 7 实现 ForeignCapsule 六类本机 launch binding、Rights/Transparency disclosure、普通 entitlement adapter、opaque state backup/export 分权与 dedicated-server/cross-Host Rights gate。Phase 8 交付可运行的 `modular-simulation` Work kit、portable save、静态 renderer、可选 AI Port、server fork、第三方 Component 替换和只生成 candidate 的子图提升流程；Surface bridge 继续使用 allowlist、stream ownership、诊断脱敏、secret 输入清理与 CSP/CORS。
 
 当前已经形成较大的可运行面，但平台和官方产品都不等于“完成”。后续建设同时关注开放性、多样性、先进执行与协议能力、长期数据演化，以及普通用户和创作者的完整体验。
 
@@ -80,6 +80,7 @@
 | 能力 | 状态 |
 |---|---|
 | `plurora work init/check/pack/inspect` | implemented |
+| `plurora work promote-component` 非持久化 candidate workflow | implemented |
 | Work / Assembly source、Package、Foreign 与 content-only 归一化 | implemented |
 | 递归 resolver、显式 Adapter、Port / Binding 诊断 | implemented |
 | AssemblyLock 与完整内容寻址闭包 | implemented |
@@ -104,6 +105,7 @@
 | ForeignCapsule portable normalization + Installation-local launch binding | implemented |
 | Rights / Transparency disclosure and effect-time policy gates | implemented |
 | opaque state backup / explicit export / restore input | implemented |
+| `modular-simulation` Work kit / local Run / portable save / server fork | implemented |
 
 Work pack 与 Installation create 分离：pack 只产生不可变 artifact；create/update/remove 才修改 Host journal。Workspace 位置是 Host-local 绑定，不进入便携 Work identity。
 
@@ -164,6 +166,7 @@ Work pack 与 Installation create 分离：pack 只产生不可变 artifact；cr
 
 - `experience-runtime-lab` —— 体验运行时契约：体验描述符、状态投影、checkpoint、recovery、Play / Forge / Assist surface 绑定。
 - `playable-creation-board` —— 第一个真实可玩的纵切片。包持有 board / module / constraint / marker 状态，14 个能力，4 个 surface。
+- `modular-simulation` —— 第一个适合继续创作的 Work kit。确定性殖民地 reducer、portable save/migration、静态 play/inspector Surface、独立普通 provider Work 提供的可选 Powerbox AI Port、本地 Run 与 remote-server Work fork；不包含通用 3D 引擎。
 - `experience-observability-lab` —— 包持有的可观测性：会话健康、能力包健康、agent 运行健康、提案因果链、cost / latency 摘要、失败面包屑、guardrail 摘要。
 - `memory-lab` —— 长期记忆与知识：记录、检索、检索追踪、提案审批门控的更新、修正、forget / redaction、按分支视图、provenance。
 - `sharing-lab` —— 分享与分发：composition bundle 导入导出、分支 / 会话 bundle 清单、包集 lockfile、兼容性报告、AI 披露元数据、只读分享清单、异步 fork 计划。不带市场、计费、签名网络。
@@ -178,7 +181,7 @@ Work pack 与 Installation create 分离：pack 只产生不可变 artifact；cr
 
 **第三方替换证明**
 
-- `thirdparty/playable-seed`、`thirdparty/agent-runtime`、`thirdparty/agentic-forge`、`thirdparty/memory-lab` —— 证明对应第一方 Package 都可被第三方替换，没有 publisher priority。
+- `thirdparty/playable-seed`、`thirdparty/agent-runtime`、`thirdparty/agentic-forge`、`thirdparty/memory-lab` 与 `community/modular-simulation` —— 证明对应第一方 Package 都可被第三方替换，没有 publisher priority。
 
 Forge profile (`profiles/forge-alpha.yaml`) 会自动加载这些包以及示例 fixture 包。
 
@@ -238,7 +241,7 @@ Forge profile (`profiles/forge-alpha.yaml`) 会自动加载这些包以及示例
 ## 创作流程
 
 - `plurora init-package` 生成 Python 或 TypeScript 子进程包脚手架。`--template` 控制 surface 描述符；`--language *-experience` 在不指定模板时仍生成旧版 4-surface 体验，兼容旧行为。
-- `plurora work init/check/pack/inspect` 提供本地 Work/Assembly 创作流程：安全读取 `work.yaml` / `assembly.yaml` 与 Package/Component source，校验递归 Port/Binding，生成内容寻址 WorkRevision、AssemblyRevision 与 authoring AssemblyLock。`pack` 只写 ObjectStore，不自动安装或运行。
+- `plurora work init/check/pack/inspect` 提供本地 Work/Assembly 创作流程：安全读取 `work.yaml` / `assembly.yaml` 与 Package/Component source，校验递归 Port/Binding，生成内容寻址 WorkRevision、AssemblyRevision 与 authoring AssemblyLock。`pack` 只写 ObjectStore，不自动安装或运行。`promote-component` 计算选中子图的外部 Port/state，输出 candidate nested Assembly 与 diagnostics，但不持久化或发布。
 - `plurora package check` 输出结构化诊断：入口类型、信任级别、能力数、按 slot 分组的 surface、权限摘要、沙箱策略；对无能力或无 surface 的包给出警告。
 - `plurora package conformance` 在本地验证生成的包。
 - `plurora package reload <manifest>` 把包加载进内存运行时、重启（仅子进程）、输出前后状态和日志数、再卸载。
@@ -248,7 +251,7 @@ Forge profile (`profiles/forge-alpha.yaml`) 会自动加载这些包以及示例
 
 ## 代码组织
 
-- `crates/plurora-cli/src/main.rs` 是薄入口。CLI 类型在 `cli.rs`，命令在 `commands/`，包模板在 `templates/`。conformance runner 与 case registry 已拆分：`conformance/runner.rs` 负责 `--list`、`--case`、`--tag`、`--fail-fast`、`--slowest`，`conformance/registry/` 按域注册 475 个 `ConformanceCase { id, tags, run }`。
+- `crates/plurora-cli/src/main.rs` 是薄入口。CLI 类型在 `cli.rs`，命令在 `commands/`，包模板在 `templates/`。conformance runner 与 case registry 已拆分：`conformance/runner.rs` 负责 `--list`、`--case`、`--tag`、`--fail-fast`、`--slowest`，`conformance/registry/` 按域注册 483 个 `ConformanceCase { id, tags, run }`。
 - `crates/plurora-cli/src/schema_export/` 负责 v1 schema 导出；`src/bin/export-schemas.rs` 只是薄入口。生成文件仍只来自 exporter，不手改 SDK 或 schema。
 - `crates/plurora-runtime/src/runtime/` 按 session、events、packages、capabilities、hooks、permissions、assets、branches、projections、proposals 分模块；`runtime/protocol_dispatch.rs` 只保留 public router，具体 public protocol 处理器在 `runtime/protocol/` 下按 domain 拆分。`runtime/mod.rs` 保持公开 `Runtime<S>` API。
 - 协议方法的元数据与分发共享 `PlatformMethod` 这一份事实来源，并有注册表 / 分发的一致性单测。
@@ -259,7 +262,7 @@ Forge profile (`profiles/forge-alpha.yaml`) 会自动加载这些包以及示例
 
 ## Conformance
 
-`cargo run -p plurora-cli -- conformance` 跑 475 个具名 CLI 用例。支持：
+`cargo run -p plurora-cli -- conformance` 跑 483 个具名 CLI 用例。支持：
 
 - `--list` 列出 id 与 tag；
 - `--case <pattern>` 子串过滤；

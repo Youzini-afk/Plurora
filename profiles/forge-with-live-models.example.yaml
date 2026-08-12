@@ -49,3 +49,6 @@ outbound:
 
 autoload:
   - ../packages/plurora/playable-creation-board/manifest.yaml
+  - ../packages/plurora/modular-simulation/manifest.yaml
+  - ../packages/plurora/modular-simulation-renderer/manifest.yaml
+  - ../examples/packages/modular-simulation-ai-advisor/manifest.yaml

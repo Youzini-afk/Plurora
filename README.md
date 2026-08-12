@@ -48,7 +48,7 @@ Plurora 不只是内核，也不等于官方 Web/Desktop。当前官方发行版
 
 ## 当前状态
 
-仓库处于 Foundation Alpha：公开 Contract V1、Rust Host/runtime、HTTP/RPC/SSE、Package 与 Component 生命周期、Web/PWA、Tauri Desktop、CLI、Work 打包、Installation 更新、Run 生命周期、权限、对象与工件、模型接入、受控开发、target 与 Realization 基础已经形成较大可运行面。
+仓库处于 Foundation Alpha：公开 Contract V1、Rust Host/runtime、HTTP/RPC/SSE、Package 与 Component 生命周期、Web/PWA、Tauri Desktop、CLI、Work 打包、Installation 更新、Run 生命周期、权限、对象与工件、模型接入、受控开发、target 与 Realization 基础以及 `modular-simulation` 创作 Work kit 已经形成较大可运行面。
 
 当前 Contract V1 通过 99 个精确的 owner-based method ID、76 个平台事件和 39 个顶层 schema（共 214 个 schema）分别表达 Substrate、Host、Protocol 与 Shell 职责。Exposure/Binding/Powerbox 与 managed Realization 均已实现；实现仍会在该公开边界之后继续拆分，但不会创建第一方私有路径或并行 wire identity。
 
@@ -106,6 +106,8 @@ cargo run -p plurora-cli -- conformance
 
 ```bash
 plurora work --help
+plurora work check examples/works/modular-simulation --json
+plurora work promote-component examples/works/modular-simulation --node simulation --assembly-id example/modular-simulation-core --json
 plurora installation list
 plurora installation info <installation-id>
 plurora installation create --help
@@ -135,6 +137,7 @@ cargo run -p plurora-cli -- play-create-demo
 | 接入公开协议 | [`docs/protocol/PUBLIC_PROTOCOL.md`](docs/protocol/PUBLIC_PROTOCOL.md) → [`docs/spec/PUBLIC_CONTRACT.md`](docs/spec/PUBLIC_CONTRACT.md) |
 | 看长期合同分层 | [`docs/architecture/CONSTITUTION_V2.md`](docs/architecture/CONSTITUTION_V2.md) → [`docs/spec/CONTRACT_LAYERING_MATRIX.md`](docs/spec/CONTRACT_LAYERING_MATRIX.md) |
 | 写第一个 Package / Component | [`docs/guides/PACKAGE_AUTHORING_WALKTHROUGH.md`](docs/guides/PACKAGE_AUTHORING_WALKTHROUGH.md) |
+| 从可运行 Work kit 继续创作、替换或提升组件 | [`docs/guides/MODULAR_SIMULATION.md`](docs/guides/MODULAR_SIMULATION.md) |
 | 打包 Work / 创建 Installation | [`docs/guides/PACKAGE_INSTALLATION.md`](docs/guides/PACKAGE_INSTALLATION.md) → [`docs/guides/INSTALLATION_MODEL.md`](docs/guides/INSTALLATION_MODEL.md) |
 | 使用 Library / 启动和停止 Run | [`docs/guides/RUN_LIBRARY.md`](docs/guides/RUN_LIBRARY.md) |
 | 使用 Powerbox / 连接跨 Installation Port | [`docs/guides/POWERBOX_BINDING.md`](docs/guides/POWERBOX_BINDING.md) |

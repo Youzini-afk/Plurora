@@ -1303,8 +1303,8 @@ mod tests {
 
     use super::*;
     use crate::{
-        HostSecretResolver, InMemoryEventStore, InMemoryObjectStore, InstallationControl,
-        InstallationView, InstallationWorkSummary, ObjectStore, RuntimeConfig,
+        CapabilityInvocationRequest, HostSecretResolver, InMemoryEventStore, InMemoryObjectStore,
+        InstallationControl, InstallationView, InstallationWorkSummary, ObjectStore, RuntimeConfig,
         SecretResolverConfig, FOREIGN_LAUNCH_BINDING_SCHEMA,
     };
 
@@ -1953,7 +1953,25 @@ mod tests {
         AssemblyRuntimeDriver<InMemoryEventStore>,
         RunStartRequest,
     )> {
-        let record = rust_record(package_id);
+        runnable_driver_with_manifest(manifest(
+            package_id,
+            PackageEntry::RustInproc {
+                crate_ref: "test".to_string(),
+                symbol: "register".to_string(),
+                abi_version: 1,
+            },
+        ))
+        .await
+    }
+
+    async fn runnable_driver_with_manifest(
+        manifest: PackageManifest,
+    ) -> anyhow::Result<(
+        Arc<Runtime<InMemoryEventStore>>,
+        AssemblyRuntimeDriver<InMemoryEventStore>,
+        RunStartRequest,
+    )> {
+        let record = PackageRecord::ready(manifest.clone())?;
         let artifacts = runnable_artifacts(&record);
         let installation_id = artifacts.installation.record.installation_id.clone();
         let revision = artifacts.installation.revision;
@@ -1965,7 +1983,7 @@ mod tests {
                 ..RuntimeConfig::default()
             },
         ));
-        runtime.load_package(record.manifest).await?;
+        runtime.load_package(manifest).await?;
         let driver = AssemblyRuntimeDriver::new(Arc::downgrade(&runtime));
         let request = RunStartRequest {
             installation_id,
@@ -1975,6 +1993,86 @@ mod tests {
             authority: None,
         };
         Ok((runtime, driver, request))
+    }
+
+    #[tokio::test]
+    async fn modular_simulation_package_runs_locally_with_explicit_state() -> anyhow::Result<()> {
+        let manifest: PackageManifest = serde_yaml::from_str(include_str!(
+            "../../../packages/plurora/modular-simulation/manifest.yaml"
+        ))?;
+        let package_id = manifest.id.clone();
+        let (runtime, driver, request) = runnable_driver_with_manifest(manifest).await?;
+
+        let inspection = driver
+            .inspect_status(&RunStatusRequest {
+                installation_id: request.installation_id.clone(),
+                entrypoint_id: Some(request.entrypoint_id.clone()),
+            })
+            .await?;
+        assert!(inspection.preflight.unwrap().gaps.is_empty());
+
+        let run_id = RunId::new();
+        let preparation = driver.prepare_start(&request).await?;
+        assert!(preparation.gaps.is_empty());
+        let mut activation = driver.activate(&run_id, preparation).await?;
+        let session_id = activation.context_id.clone().expect("local Run session");
+        assert_eq!(
+            runtime
+                .get_session(&session_id)
+                .await
+                .expect("local Run session exists")
+                .status,
+            SessionStatus::Open
+        );
+        assert_eq!(
+            runtime.packages().active_run_lease_count(&package_id).await,
+            1
+        );
+
+        let created = runtime
+            .invoke_capability(CapabilityInvocationRequest {
+                handle: None,
+                capability_id: Some(format!("{package_id}/create_state")),
+                caller_package_id: None,
+                provider_package_id: Some(package_id.clone()),
+                version: None,
+                session_id: Some(session_id.clone()),
+                input: serde_json::json!({"title": "Conformance Colony"}),
+            })
+            .await?
+            .output;
+        assert_eq!(created["state"]["schema"], "modular-simulation.save.v1");
+        let advanced = runtime
+            .invoke_capability(CapabilityInvocationRequest {
+                handle: None,
+                capability_id: Some(format!("{package_id}/apply_input")),
+                caller_package_id: None,
+                provider_package_id: Some(package_id.clone()),
+                version: None,
+                session_id: Some(session_id.clone()),
+                input: serde_json::json!({
+                    "state": created["state"].clone(),
+                    "action": {"kind": "advance"}
+                }),
+            })
+            .await?
+            .output;
+        assert_eq!(advanced["state"]["turn"], 1);
+
+        driver.stop(&run_id, &mut activation).await?;
+        assert_eq!(
+            runtime
+                .get_session(&session_id)
+                .await
+                .expect("stopped Run session remains inspectable")
+                .status,
+            SessionStatus::Closed
+        );
+        assert_eq!(
+            runtime.packages().active_run_lease_count(&package_id).await,
+            0
+        );
+        Ok(())
     }
 
     #[test]

@@ -7,6 +7,7 @@ pub mod lock;
 pub mod operational;
 pub mod package;
 pub mod port;
+pub mod promotion;
 pub mod realization;
 pub mod resolver;
 pub mod rights;
@@ -62,6 +63,11 @@ pub use port::{
     SelectedTransport, TransportPolicy, TransportRequirements, INTERACTION_ARTIFACT,
     INTERACTION_CAPABILITY_STREAM, INTERACTION_CAPABILITY_UNARY, INTERACTION_DUPLEX_STREAM,
     INTERACTION_ENDPOINT, INTERACTION_EVENT_STREAM, INTERACTION_SNAPSHOT, KNOWN_INTERACTION_MODELS,
+};
+pub use promotion::{
+    promote_assembly_subgraph, AssemblyPromotionCandidate, AssemblyPromotionDiagnostic,
+    AssemblyPromotionOutput, PromotedBoundaryPort, PromotionDiagnosticKind,
+    ASSEMBLY_PROMOTION_CANDIDATE_TYPE_URI,
 };
 pub use realization::{
     compile_realization_plan, BuildAction, EndpointAction, LaunchAction, NodePlacement,

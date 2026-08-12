@@ -14,12 +14,13 @@ use plurora_core::{
     PackageEntry, PackageManifest,
 };
 use plurora_work::{
-    parse_assembly_source, parse_work_source, project_package_manifest, resolve_assembly,
-    ArtifactModel, AssemblyBinding, AssemblyNode, AssemblyNodeSource, AssemblyPortExposure,
-    AssemblyRevision, BindingPhase, CanonicalArtifactObject, DiagnosticCode, DiagnosticReport,
-    ModelError, ModelResult, NodeEvidence, NodeEvidenceKey, OperationalIntent, PortEndpoint,
-    ResolverInput, ResolverOutput, RightsDeclaration, SourcePathRef, StateSlotDescriptor,
-    TransparencyDeclaration, WorkDiagnostic, WorkEntrypoint, WorkEntrypointTarget, WorkRevision,
+    parse_assembly_source, parse_work_source, project_package_manifest, promote_assembly_subgraph,
+    resolve_assembly, ArtifactModel, AssemblyBinding, AssemblyId, AssemblyNode, AssemblyNodeSource,
+    AssemblyPortExposure, AssemblyPromotionCandidate, AssemblyRevision, BindingPhase,
+    CanonicalArtifactObject, DiagnosticCode, DiagnosticReport, ModelError, ModelResult,
+    NodeEvidence, NodeEvidenceKey, NodeId, OperationalIntent, PortEndpoint, ResolverInput,
+    ResolverOutput, RightsDeclaration, SourcePathRef, StateSlotDescriptor, TransparencyDeclaration,
+    WorkDiagnostic, WorkEntrypoint, WorkEntrypointTarget, WorkRevision,
     MAX_SOURCE_DESCRIPTOR_BYTES,
 };
 use same_file::Handle;
@@ -81,6 +82,16 @@ pub enum WorkCommand {
         #[arg(long)]
         json: bool,
     },
+    /// Derive a reusable nested Assembly candidate from selected root nodes.
+    PromoteComponent {
+        path: PathBuf,
+        #[arg(long = "node", required = true)]
+        nodes: Vec<String>,
+        #[arg(long)]
+        assembly_id: String,
+        #[arg(long)]
+        json: bool,
+    },
 }
 
 #[derive(Debug, Serialize)]
@@ -128,6 +139,19 @@ struct ErrorReport {
     diagnostics: Vec<WorkDiagnostic>,
 }
 
+#[derive(Debug, Serialize)]
+struct PromoteComponentReport {
+    operation: &'static str,
+    ok: bool,
+    persisted: bool,
+    published: bool,
+    source_assembly: ArtifactDescriptor,
+    candidate_artifact: ArtifactDescriptor,
+    nested_assembly_artifact: ArtifactDescriptor,
+    candidate: AssemblyPromotionCandidate,
+    nested_assembly: AssemblyRevision,
+}
+
 pub(crate) async fn run(args: WorkArgs) -> anyhow::Result<()> {
     match args.command {
         WorkCommand::Init { path, id, json } => run_init(path, id, json),
@@ -138,7 +162,80 @@ pub(crate) async fn run(args: WorkArgs) -> anyhow::Result<()> {
             json,
         } => run_materialize("pack", path, data_dir, json).await,
         WorkCommand::Inspect { path, json } => run_materialize("inspect", path, None, json).await,
+        WorkCommand::PromoteComponent {
+            path,
+            nodes,
+            assembly_id,
+            json,
+        } => run_promote_component(path, nodes, assembly_id, json),
     }
+}
+
+fn run_promote_component(
+    path: PathBuf,
+    nodes: Vec<String>,
+    assembly_id: String,
+    json: bool,
+) -> anyhow::Result<()> {
+    let result = (|| {
+        let output = promote_work_path(&path, &nodes, &assembly_id)?;
+        let source_assembly = output.candidate.source_assembly.clone();
+        Ok(PromoteComponentReport {
+            operation: "promote_component",
+            ok: true,
+            persisted: false,
+            published: false,
+            source_assembly,
+            candidate_artifact: output.candidate_artifact.descriptor,
+            nested_assembly_artifact: output.nested_assembly_artifact.descriptor,
+            candidate: output.candidate,
+            nested_assembly: output.nested_assembly,
+        })
+    })();
+    match result {
+        Ok(report) => print_report(&report, json, || {
+            println!("Promotion candidate: {}", report.candidate_artifact.digest);
+            println!(
+                "Nested Assembly: {}",
+                report.nested_assembly_artifact.digest
+            );
+            println!(
+                "Selected nodes: {}; boundary Ports: {}; state slots: {}",
+                report.candidate.selected_nodes.len(),
+                report.candidate.boundary_ports.len(),
+                report.candidate.state_slot_ids.len()
+            );
+            println!("Persisted: false; published: false");
+        }),
+        Err(error) => emit_error("promote_component", &error, json),
+    }
+}
+
+/// Produce a deterministic, non-persisted promotion candidate through the
+/// same contained Work reader used by the public CLI command.
+pub(crate) fn promote_work_path(
+    path: &Path,
+    nodes: &[String],
+    assembly_id: &str,
+) -> ModelResult<plurora_work::AssemblyPromotionOutput> {
+    let materialized = materialize_work(path)?;
+    if !materialized.resolution.portable {
+        return Err(ModelError::new(
+            DiagnosticCode::PortUnresolved,
+            "Work has unresolved authoring-time requirements",
+        ));
+    }
+    let selected_nodes = nodes
+        .iter()
+        .cloned()
+        .map(NodeId::parse)
+        .collect::<ModelResult<Vec<_>>>()?;
+    promote_assembly_subgraph(
+        &materialized.root_assembly,
+        &materialized.assemblies,
+        &selected_nodes,
+        AssemblyId::parse(assembly_id)?,
+    )
 }
 
 fn run_init(path: PathBuf, id: String, json: bool) -> anyhow::Result<()> {
@@ -328,6 +425,7 @@ fn read_capability_file(directory: &CapabilityDir, name: &str) -> ModelResult<Ve
 struct MaterializedWork {
     work_object: CanonicalArtifactObject,
     root_assembly: ArtifactDescriptor,
+    assemblies: BTreeMap<String, AssemblyRevision>,
     resolution: ResolverOutput,
     objects: BTreeMap<String, MaterializedObject>,
 }
@@ -397,6 +495,25 @@ pub(crate) fn check_work_path(path: &Path) -> ModelResult<WorkReport> {
         ));
     }
     Ok(materialized.report("check", false))
+}
+
+/// Materialize and decode the canonical WorkRevision without persisting any
+/// object. This is used by conformance to inspect the same immutable model the
+/// CLI would hand to Installation control.
+pub(crate) fn materialize_work_revision(path: &Path) -> ModelResult<WorkRevision> {
+    let materialized = materialize_work(path)?;
+    if !materialized.resolution.portable {
+        return Err(ModelError::new(
+            DiagnosticCode::PortUnresolved,
+            "Work has unresolved authoring-time requirements",
+        ));
+    }
+    serde_json::from_slice(&materialized.work_object.bytes).map_err(|_| {
+        ModelError::new(
+            DiagnosticCode::WorkInvalid,
+            "Materialized Work object is invalid",
+        )
+    })
 }
 
 /// Materialize a Work through the same safe-open path used by `work pack`,
@@ -672,6 +789,7 @@ fn materialize_work(input: &Path) -> ModelResult<MaterializedWork> {
     Ok(MaterializedWork {
         work_object,
         root_assembly,
+        assemblies: context.assemblies,
         resolution,
         objects: context.objects,
     })

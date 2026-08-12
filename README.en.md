@@ -49,9 +49,9 @@ See [`docs/product/PLATFORM_PRODUCT_MODEL.md`](docs/product/PLATFORM_PRODUCT_MOD
 
 ## Current status
 
-The repository is in Foundation Alpha. Contract V1, the Rust Host/runtime, HTTP/RPC/SSE, Package and Component lifecycle, Web/PWA, Tauri Desktop, CLI, Work packing, Installation updates, Run lifecycle, authority, objects and artifacts, model integration, controlled development, targets, and Realization foundations already form a substantial operational surface.
+The repository is in Foundation Alpha. Contract V1, the Rust Host/runtime, HTTP/RPC/SSE, Package and Component lifecycle, Web/PWA, Tauri Desktop, CLI, Work packing, Installation updates, Run lifecycle, authority, objects and artifacts, model integration, controlled development, targets, Realization, and the `modular-simulation` authoring Work kit already form a substantial operational surface.
 
-The current Contract V1 exposes 92 exact owner-based method IDs, 69 platform events, and 39 top-level schemas (200 schemas total) across Substrate, Host, Protocol, and Shell responsibilities. Phase 5 Exposure/Binding/Powerbox is implemented. Implementation decomposition continues behind that public boundary without creating private first-party paths or parallel wire identities.
+The current Contract V1 exposes 99 exact owner-based method IDs, 76 platform events, and 39 top-level schemas (214 schemas total) across Substrate, Host, Protocol, and Shell responsibilities. Exposure/Binding/Powerbox, managed Realization, and Foreign Work controls are implemented. Implementation decomposition continues behind that public boundary without creating private first-party paths or parallel wire identities.
 
 See [`docs/ALPHA_STATUS.md`](docs/ALPHA_STATUS.en.md) for implemented, partial, and deferred state, and [`docs/roadmap/NEXT_STEPS.md`](docs/roadmap/NEXT_STEPS.en.md) for construction direction.
 
@@ -107,11 +107,15 @@ Inspect Work / Installation commands and manage an Installation through the publ
 
 ```bash
 plurora work --help
+plurora work check examples/works/modular-simulation --json
+plurora work promote-component examples/works/modular-simulation --node simulation --assembly-id example/modular-simulation-core --json
 plurora installation list
 plurora installation info <installation-id>
 plurora installation create --help
 plurora installation update --help
 plurora installation remove --help
+plurora realization plan --help
+plurora realization apply --help
 ```
 
 Run the blank play-creation example through public contracts:
@@ -134,9 +138,11 @@ Major documents are available in English and Simplified Chinese and link to the 
 | Use public contracts | [`docs/protocol/PUBLIC_PROTOCOL.md`](docs/protocol/PUBLIC_PROTOCOL.en.md) → [`docs/spec/PUBLIC_CONTRACT.md`](docs/spec/PUBLIC_CONTRACT.en.md) |
 | Review long-term contract layering | [`docs/architecture/CONSTITUTION_V2.md`](docs/architecture/CONSTITUTION_V2.en.md) → [`docs/spec/CONTRACT_LAYERING_MATRIX.md`](docs/spec/CONTRACT_LAYERING_MATRIX.en.md) |
 | Write a first Package / Component | [`docs/guides/PACKAGE_AUTHORING_WALKTHROUGH.md`](docs/guides/PACKAGE_AUTHORING_WALKTHROUGH.en.md) |
+| Continue from a runnable Work kit, replace, or promote a component | [`docs/guides/MODULAR_SIMULATION.md`](docs/guides/MODULAR_SIMULATION.en.md) |
 | Pack Work / create Installation | [`docs/guides/PACKAGE_INSTALLATION.md`](docs/guides/PACKAGE_INSTALLATION.en.md) → [`docs/guides/INSTALLATION_MODEL.md`](docs/guides/INSTALLATION_MODEL.en.md) |
 | Use Library / start and stop Runs | [`docs/guides/RUN_LIBRARY.md`](docs/guides/RUN_LIBRARY.en.md) |
 | Use Powerbox / connect cross-Installation Ports | [`docs/guides/POWERBOX_BINDING.md`](docs/guides/POWERBOX_BINDING.en.md) |
+| Compile and apply Work to a Target | [`docs/guides/REALIZATION.md`](docs/guides/REALIZATION.en.md) |
 | Manage API keys / secrets | [`docs/guides/SECRET_MANAGEMENT.md`](docs/guides/SECRET_MANAGEMENT.en.md) |
 | Build agent / model / experience components | [`docs/guides/AGENT_PACKAGE_AUTHORING.md`](docs/guides/AGENT_PACKAGE_AUTHORING.en.md), [`docs/guides/MODEL_PROVIDER_INTEGRATION.md`](docs/guides/MODEL_PROVIDER_INTEGRATION.en.md), [`docs/guides/EXPERIENCE_RUNTIME_AUTHORING.md`](docs/guides/EXPERIENCE_RUNTIME_AUTHORING.en.md) |
 | Host third-party Web surfaces | [`docs/guides/SURFACE_HOSTING.md`](docs/guides/SURFACE_HOSTING.en.md) |

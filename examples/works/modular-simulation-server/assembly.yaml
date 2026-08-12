@@ -1,0 +1,18 @@
+schema: plurora.assembly-source.v1
+assembly:
+  id: example/modular-simulation-server/main
+  nodes:
+    - id: simulation
+      component: packages/simulation/manifest.yaml
+  exposed_ports:
+    - id: server
+      direction: export
+      target: {node_id: simulation, port_id: server_tick}
+  state_slots:
+    - id: save
+      owner: simulation
+      schema_ref: schemas/save-v1.json
+      scope: installation
+      portability: portable
+      migration_port: {node_id: simulation, port_id: migrate_save}
+      backup_policy: required

@@ -1,0 +1,4 @@
+source_visibility: open
+reproducible_build_claim: claimed
+state_portability: portable
+telemetry_disclosures: []

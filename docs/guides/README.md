@@ -13,6 +13,7 @@
 - [`POWERBOX_BINDING.md`](POWERBOX_BINDING.md) — Exposure、Powerbox candidate disclosure、跨 Installation Binding 与 runtime pin
 - [`REALIZATION.md`](REALIZATION.md) — pure planner、TargetInventory、`host.realization.*`、effect checkpoint、Docker/Agent backend 与 rollback/reconcile
 - [`FOREIGN_WORK_RIGHTS.md`](FOREIGN_WORK_RIGHTS.md) — ForeignCapsule、本机 launch binding、Rights/Transparency、opaque state backup 与 entitlement 边界
+- [`MODULAR_SIMULATION.md`](MODULAR_SIMULATION.md) — 可继续创作的 simulation Work kit、portable save、替换、fork 与非发布 promotion candidate
 - [`DEPLOYMENT_RUNTIME.md`](DEPLOYMENT_RUNTIME.md) — Realization executor 使用的 target / exec / port / proxy 低层 adapter 与反向代理
 - [`HOST_OPERATIONS.md`](HOST_OPERATIONS.md) — Host liveness/readiness、SQLite 离线备份与原子恢复、release 校验
 - [`SECRET_MANAGEMENT.md`](SECRET_MANAGEMENT.md) — `secret_ref:env:` / `secret_ref:store:`、本地加密 secret store 与 API key 管理

@@ -1,0 +1,14 @@
+schema: plurora.work-source.v1
+work:
+  id: community/modular-simulation-kit
+  title: Community Modular Simulation Replacement
+  description: An ordinary third-party Component replacement using the same Port and portable-state contracts.
+  assembly: assembly.yaml
+  entrypoints:
+    - id: play
+      intent_uri: plurora.shell.default/play
+      port_id: input
+  rights: rights.yaml
+  transparency: transparency.yaml
+  annotations:
+    example.modular-simulation/replaces: plurora/modular-simulation

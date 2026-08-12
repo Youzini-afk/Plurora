@@ -1,0 +1,11 @@
+license_expression: AGPL-3.0-only
+install: allowed
+execute: allowed
+backup: allowed
+export_state: allowed
+copy_across_hosts: allowed
+redistribute_artifacts: allowed
+modify: allowed
+derive: allowed
+modding: allowed
+dedicated_server: allowed

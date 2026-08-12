@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:example:modular-simulation:save:v1",
+  "type": "object",
+  "required": ["schema", "revision", "turn", "title", "population", "resources", "cells"],
+  "properties": {
+    "schema": {"const": "modular-simulation.save.v1"},
+    "revision": {"type": "integer", "minimum": 0},
+    "turn": {"type": "integer", "minimum": 0},
+    "title": {"type": "string"},
+    "population": {"type": "integer", "minimum": 0},
+    "resources": {"type": "object"},
+    "cells": {"type": "array"},
+    "objectives": {"type": "array"},
+    "log": {"type": "array"}
+  }
+}

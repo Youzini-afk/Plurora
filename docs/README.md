@@ -39,6 +39,7 @@
 - [`guides/CONFORMANCE_KIT.md`](guides/CONFORMANCE_KIT.md) — 第三方实现的 Contract V1 行为检查
 - [`guides/PACKAGE_INSTALLATION.md`](guides/PACKAGE_INSTALLATION.md) — 安装、更新、lockfile、内容寻址 store 与同意提示
 - [`guides/INSTALLATION_MODEL.md`](guides/INSTALLATION_MODEL.md) — Work / Workspace / Installation 对象与生命周期边界
+- [`guides/MODULAR_SIMULATION.md`](guides/MODULAR_SIMULATION.md) — 可运行 simulation Work kit、fork、替换、state migration 与子图提升
 - [`guides/SECRET_MANAGEMENT.md`](guides/SECRET_MANAGEMENT.md) — `secret_ref`、本地加密 store 与 API key 管理
 - [`guides/REAL_MODEL_END_TO_END.md`](guides/REAL_MODEL_END_TO_END.md) — 真实 provider 端到端调用
 - [`guides/PATH_B_SELF_CONTAINED.md`](guides/PATH_B_SELF_CONTAINED.md) — `entry.contract: "none"` 自包含路径
@@ -60,6 +61,7 @@
 | 审阅长期合同边界 | [`architecture/CONSTITUTION_V2.md`](architecture/CONSTITUTION_V2.md) → [`spec/CONTRACT_LAYERING_MATRIX.md`](spec/CONTRACT_LAYERING_MATRIX.md) → [`spec/CONTRACT_REGISTRY.md`](spec/CONTRACT_REGISTRY.md) |
 | 接入公开协议 | [`protocol/PUBLIC_PROTOCOL.md`](protocol/PUBLIC_PROTOCOL.md) → [`spec/PUBLIC_CONTRACT.md`](spec/PUBLIC_CONTRACT.md) |
 | 写第一个 Package / Component | [`guides/PACKAGE_AUTHORING_WALKTHROUGH.md`](guides/PACKAGE_AUTHORING_WALKTHROUGH.md) |
+| 从可运行 Work kit 继续创作 | [`guides/MODULAR_SIMULATION.md`](guides/MODULAR_SIMULATION.md) |
 | 打包 Work / 创建 Installation | [`guides/PACKAGE_INSTALLATION.md`](guides/PACKAGE_INSTALLATION.md) → [`guides/INSTALLATION_MODEL.md`](guides/INSTALLATION_MODEL.md) |
 | 管理 API key / secret | [`guides/SECRET_MANAGEMENT.md`](guides/SECRET_MANAGEMENT.md) |
 | 跑真实模型调用 | [`guides/REAL_MODEL_END_TO_END.md`](guides/REAL_MODEL_END_TO_END.md) |

@@ -1,0 +1,29 @@
+schema_version: 1
+id: example/ai-advisor
+version: 1.0.0
+display_name: Modular Simulation AI Adviser
+description: Optional deterministic local adviser for the modular simulation Runtime Port; ordinary provider with no network or secret authority.
+license: AGPL-3.0-only
+entry:
+  kind: rust_inproc
+  crate_ref: example-modular-simulation
+  symbol: register
+  abi_version: 1
+provides:
+  - id: example/ai-advisor/suggest
+    version: 1.0.0
+    input_schema: {}
+    output_schema: {}
+    streaming: false
+    side_effects: [recorded_inference]
+consumes: []
+contributes:
+  schemas: []
+  hooks: []
+  extension_points: []
+  surfaces: []
+permissions: {}
+sandbox_policy:
+  cpu_quota_ms_per_invoke: 1000
+  memory_mb: 64
+  wall_clock_ms: 5000

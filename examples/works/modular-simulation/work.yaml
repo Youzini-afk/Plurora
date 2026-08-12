@@ -1,0 +1,19 @@
+schema: plurora.work-source.v1
+work:
+  id: example/modular-simulation-kit
+  title: Modular Simulation Work Kit
+  description: A playable 5x5 colony simulation with explicit input, portable save, optional AI, and inspector surfaces.
+  assembly: assembly.yaml
+  entrypoints:
+    - id: play
+      intent_uri: plurora.shell.default/play
+      surface_id: plurora/modular-simulation-renderer/play
+    - id: inspect
+      intent_uri: plurora.shell.default/inspect
+      surface_id: plurora/modular-simulation-renderer/inspector
+  content:
+    - packages/renderer/bundle.mjs
+  rights: rights.yaml
+  transparency: transparency.yaml
+  annotations:
+    example.modular-simulation/kit: true

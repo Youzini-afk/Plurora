@@ -11,7 +11,7 @@ cargo test --workspace
 cargo run -p plurora-cli -- conformance
 ```
 
-The current matrix records implemented conformance coverage. Named CLI cases and crate/service unit tests support these results. Current CLI conformance total: **470**.
+The current matrix records implemented conformance coverage. Named CLI cases and crate/service unit tests support these results. Current CLI conformance total: **483**.
 
 ## Conformance Feedback Loop
 
@@ -89,6 +89,20 @@ These five named cases cover public Realization identity, authority, events, eff
 | `realization.public_event_identity_payload` | registry identity and public payload schemas for seven Realization lifecycle events | implemented |
 | `realization.plan_effect_free_apply_exact_approval` | plan has no target effect; apply pins plan digest, approval, revision, and idempotency | implemented |
 | `realization.rollback_persisted_plan_no_workspace` | rollback reads persisted plans/revisions only and accepts no live workspace, source URL, raw secret, or stderr | implemented |
+
+### Phase 8 Modular Simulation conformance cases
+
+These seven named cases cover the first continued-creation Work kit and the non-publishing promotion flow:
+
+| Case id | Coverage | Status |
+|---|---|---|
+| `modular_simulation.work_kit_materializes` | the base Work's Components, five root Ports, and portable-save StateSlot form a complete closure | implemented |
+| `modular_simulation.reducer_and_portable_save` | deterministic reducer and canonical SHA-256 portable save | implemented |
+| `modular_simulation.optional_ai_no_ambient_provider` | AI returns a stable gap with zero inference when no explicit Runtime Binding exists | implemented |
+| `modular_simulation.renderer_static_surface` | play/inspector are contributed by a static `surface_bundle` | implemented |
+| `modular_simulation.community_replacement_no_priority` | first-party/community ambiguity rejects and explicit community selection works | implemented |
+| `modular_simulation.promotion_candidate_no_publish` | subgraph promotion emits nested Assembly/candidate/diagnostics without persistence or publication | implemented |
+| `modular_simulation.fork_and_state_migration` | the server Work fork retains OperationalIntent and explicitly migrates v0 saves to v1 | implemented |
 
 Surface/static bundle and bridge coverage also includes these stable assertions:
 
@@ -415,6 +429,6 @@ Surface/static bundle and bridge coverage also includes these stable assertions:
 
 ## Named CLI cases
 
-`cargo run -p plurora-cli -- conformance --list` is the executable source of truth for named cases; it currently emits 470 case ids plus tags. This document keeps only coverage that changes architectural judgment instead of duplicating a complete list that drifts.
+`cargo run -p plurora-cli -- conformance --list` is the executable source of truth for named cases; it currently emits 483 case ids plus tags. This document keeps only coverage that changes architectural judgment instead of duplicating a complete list that drifts.
 
 The runner supports `--case`, `--tag`, `--fail-fast`, and `--slowest`. Every Host-required case must pass before the corresponding milestone is complete.

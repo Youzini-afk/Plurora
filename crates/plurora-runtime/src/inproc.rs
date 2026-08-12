@@ -36,6 +36,7 @@ mod memory_lab;
 mod model_connector_lab;
 mod model_provider_lab;
 mod model_routing_lab;
+mod modular_simulation;
 mod persona_lab;
 mod pi_agent_runtime_lab;
 mod playable_creation_board;
@@ -309,6 +310,10 @@ impl InprocPackageCatalog {
             entry_key("example-thirdparty-agent-runtime", "register"),
             Arc::new(ThirdpartyAgentRuntimePackage),
         );
+        entries.insert(
+            entry_key("example-modular-simulation", "register"),
+            Arc::new(ModularSimulationPackage),
+        );
         Self {
             entries: Arc::new(entries),
         }
@@ -389,6 +394,11 @@ async fn dispatch_first_party(mut request: InprocInvocation) -> anyhow::Result<V
             return result;
         }
     }
+    if request.provider_package_id == "plurora/modular-simulation" {
+        if let Some(result) = modular_simulation::try_handle(&request).await {
+            return result;
+        }
+    }
 
     let specific_result = match request.provider_package_id.as_str() {
         "plurora/persona-lab" => persona_lab::try_handle(&request),
@@ -454,6 +464,18 @@ struct ThirdpartyAgentRuntimePackage;
 impl InprocPackage for ThirdpartyAgentRuntimePackage {
     async fn invoke(&self, request: InprocInvocation) -> anyhow::Result<Value> {
         if let Some(result) = thirdparty_agent_runtime::try_handle(&request) {
+            return result;
+        }
+        common::unhandled_capability(&request)
+    }
+}
+
+struct ModularSimulationPackage;
+
+#[async_trait]
+impl InprocPackage for ModularSimulationPackage {
+    async fn invoke(&self, request: InprocInvocation) -> anyhow::Result<Value> {
+        if let Some(result) = modular_simulation::try_handle(&request).await {
             return result;
         }
         common::unhandled_capability(&request)

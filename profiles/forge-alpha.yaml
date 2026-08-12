@@ -31,6 +31,9 @@ autoload:
   - ../packages/plurora/blank-experience/manifest.yaml
   - ../packages/plurora/playable-seed/manifest.yaml
   - ../packages/plurora/playable-creation-board/manifest.yaml
+  - ../packages/plurora/modular-simulation/manifest.yaml
+  - ../packages/plurora/modular-simulation-renderer/manifest.yaml
+  - ../examples/packages/modular-simulation-ai-advisor/manifest.yaml
   - ../packages/plurora/experience-observability-lab/manifest.yaml
   - ../packages/plurora/memory-lab/manifest.yaml
   - ../packages/plurora/sharing-lab/manifest.yaml

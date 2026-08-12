@@ -723,6 +723,35 @@ mod tests {
             Cli::try_parse_from(["plurora", "work", "init", "example", "--id", "example/work"])
                 .unwrap();
         assert!(matches!(cli.command, Command::Work(_)));
+        let cli = Cli::try_parse_from([
+            "plurora",
+            "work",
+            "promote-component",
+            "example",
+            "--node",
+            "simulation",
+            "--node",
+            "save",
+            "--assembly-id",
+            "example/promoted-simulation",
+            "--json",
+        ])
+        .unwrap();
+        let Command::Work(crate::commands::work::WorkArgs {
+            command:
+                crate::commands::work::WorkCommand::PromoteComponent {
+                    nodes,
+                    assembly_id,
+                    json,
+                    ..
+                },
+        }) = cli.command
+        else {
+            panic!("expected Work promote-component command");
+        };
+        assert_eq!(nodes, vec!["simulation", "save"]);
+        assert_eq!(assembly_id, "example/promoted-simulation");
+        assert!(json);
     }
 
     #[test]

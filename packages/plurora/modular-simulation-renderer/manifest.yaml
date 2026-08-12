@@ -1,0 +1,45 @@
+schema_version: 1
+id: plurora/modular-simulation-renderer
+version: 1.0.0
+display_name: Plurora Modular Simulation Renderer
+description: Static sandboxed Web renderer and inspector for the modular simulation Work kit.
+license: AGPL-3.0-only
+entry:
+  kind: surface_bundle
+  bundle: bundle.mjs
+provides: []
+consumes: []
+contributes:
+  schemas: []
+  hooks: []
+  extension_points: []
+  surfaces:
+    - id: plurora/modular-simulation-renderer/play
+      version: 1.0.0
+      slot: play_renderer
+      title: Modular Simulation
+      description: Play the deterministic colony simulation through explicit capability calls.
+      allowed_capability_ids:
+        - plurora/modular-simulation/create_state
+        - plurora/modular-simulation/apply_input
+        - plurora/modular-simulation/render_state
+        - plurora/modular-simulation/export_save
+        - plurora/modular-simulation/request_ai_move
+      activation:
+        input_schema: {}
+      required_permissions: []
+    - id: plurora/modular-simulation-renderer/inspector
+      version: 1.0.0
+      slot: asset_editor
+      title: Simulation Inspector
+      description: Inspect and migrate portable simulation saves without direct Host or filesystem access.
+      allowed_capability_ids:
+        - plurora/modular-simulation/describe_contract
+        - plurora/modular-simulation/inspect_state
+        - plurora/modular-simulation/migrate_save
+        - plurora/modular-simulation/export_save
+      activation:
+        input_schema: {}
+      required_permissions: []
+permissions: {}
+sandbox_policy: {}

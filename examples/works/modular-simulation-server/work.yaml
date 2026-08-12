@@ -1,0 +1,15 @@
+schema: plurora.work-source.v1
+work:
+  id: example/modular-simulation-server
+  title: Modular Simulation Server
+  description: A fork of the simulation Work carrying an optional remote-server OperationalIntent.
+  assembly: assembly.yaml
+  entrypoints:
+    - id: server
+      intent_uri: plurora.shell.default/dedicated-server
+      port_id: server
+  rights: rights.yaml
+  transparency: transparency.yaml
+  operational_intent: operational-intent.yaml
+  annotations:
+    example.modular-simulation/fork_of: example/modular-simulation-kit

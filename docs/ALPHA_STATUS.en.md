@@ -8,10 +8,10 @@ For platform goals and principles, see [`CHARTER.md`](CHARTER.en.md) and [`archi
 
 ## Summary
 
-- **Conformance:** 475 named CLI conformance cases plus crate and service unit tests continue to pass; 214 v1 schemas validate (99 methods + 76 events + 39 top-level). Phase 7 adds five named Foreign Work cases, with eight cases total under the `phase7` tag.
+- **Conformance:** 483 named CLI conformance cases plus crate and service unit tests continue to pass; 214 v1 schemas validate (99 methods + 76 events + 39 top-level). Phase 8 adds seven named `modular-simulation` cases.
 - **Charter discipline:** content-free kernel; no privilege for first-party Packages; public protocol only; equal entry forms; capability handles, binding injection, Path A / Path B, the conformance kit, and generated SDKs are implemented; trusted paths block raw secrets and use manifest-declared `secret_ref` everywhere; permission grants rehydrate; network permissions are audited and redacted; generic streaming and cancel lifecycle; outbound execution has a boundary, deny-all by default; public HTTPS outbound uses the same host-policy / audit / redaction boundary; unary outbound, SSE/NDJSON/raw streams, and WebSocket all emit completion audit events.
 - **Code health:** the CLI, runtime domain behavior, protocol dispatch, in-process handlers, and the event store are all split by domain. We're not stacking more onto single files.
-- **Human-testing substrate:** Work sources safely pack into content-addressed WorkRevision, AssemblyRevision, and AssemblyLock artifacts. Install Lab produces an Installation candidate, while `host.installation.*` creates, updates, and removes Installations through a durable journal, idempotency claims, and revision CAS. Workspaces and Installations are separate, and linked-local sources are never deleted. RunRegistry, `host.run.*`, and Run lifecycle events use an independent durable journal; Library actions explicitly start, inspect, and stop Runs, while opening detail never starts one. Phase 5 implements ExposureRegistry, Powerbox candidate disclosure, lease/revoke, runtime-handle injection, and invalidation. Phase 6 implements the OperationalIntent/TargetInventory pure planner, `host.realization.*`, Docker/Agent execution, approval, receipts, effect checkpoints, restart recovery, stop/rollback/reconcile, and Web/CLI Realization controls. Phase 7 implements all six ForeignCapsule local-launch binding forms, Rights/Transparency disclosure, ordinary entitlement adapters, separate opaque-state backup/export rights, and dedicated-server/cross-Host Rights gates. The Surface bridge retains allowlists, stream ownership, redacted diagnostics, secret-input cleanup, and CSP/CORS.
+- **Human-testing substrate:** Work sources safely pack into content-addressed WorkRevision, AssemblyRevision, and AssemblyLock artifacts. Install Lab produces an Installation candidate, while `host.installation.*` creates, updates, and removes Installations through a durable journal, idempotency claims, and revision CAS. Workspaces and Installations are separate, and linked-local sources are never deleted. RunRegistry, `host.run.*`, and Run lifecycle events use an independent durable journal; Library actions explicitly start, inspect, and stop Runs, while opening detail never starts one. Phase 5 implements ExposureRegistry, Powerbox candidate disclosure, lease/revoke, runtime-handle injection, and invalidation. Phase 6 implements the OperationalIntent/TargetInventory pure planner, `host.realization.*`, Docker/Agent execution, approval, receipts, effect checkpoints, restart recovery, stop/rollback/reconcile, and Web/CLI Realization controls. Phase 7 implements all six ForeignCapsule local-launch binding forms, Rights/Transparency disclosure, ordinary entitlement adapters, separate opaque-state backup/export rights, and dedicated-server/cross-Host Rights gates. Phase 8 delivers the runnable `modular-simulation` Work kit, portable saves, a static renderer, optional AI Port, server fork, third-party Component replacement, and a subgraph-promotion flow that emits candidates only. The Surface bridge retains allowlists, stream ownership, redacted diagnostics, secret-input cleanup, and CSP/CORS.
 
 The repository now has a substantial operational surface, but neither the platform nor the official product is “finished.” Further construction addresses openness, plurality, advanced execution and protocol capability, long-term data evolution, and complete experiences for users and creators.
 
@@ -80,6 +80,7 @@ The repository now has a substantial operational surface, but neither the platfo
 | Capability | Status |
 |---|---|
 | `plurora work init/check/pack/inspect` | implemented |
+| non-persisting `plurora work promote-component` candidate workflow | implemented |
 | Work / Assembly source, Package, Foreign, and content-only normalization | implemented |
 | Recursive resolver, explicit Adapters, and Port / Binding diagnostics | implemented |
 | AssemblyLock plus complete content-addressed closure | implemented |
@@ -104,6 +105,7 @@ The repository now has a substantial operational surface, but neither the platfo
 | ForeignCapsule portable normalization + Installation-local launch binding | implemented |
 | Rights / Transparency disclosure and effect-time policy gates | implemented |
 | opaque-state backup / explicit export / restore input | implemented |
+| `modular-simulation` Work kit / local Run / portable save / server fork | implemented |
 
 Work packing and Installation creation are separate: pack produces immutable artifacts only; create/update/remove mutate the Host journal. Workspace locations are Host-local bindings and never enter portable Work identity.
 
@@ -164,6 +166,7 @@ All ordinary packages, no kernel privilege. They live in `packages/plurora/` and
 
 - `experience-runtime-lab` — the experience runtime contract: experience descriptors, state projection, checkpoint, recovery, and Play / Forge / Assist surface bindings.
 - `playable-creation-board` — the first real playable vertical slice. Package-owned board / module / constraint / marker state, 14 capabilities, 4 surfaces.
+- `modular-simulation` — the first Work kit suitable for continued creation: a deterministic colony reducer, portable save/migration, static play/inspector Surfaces, an optional Powerbox AI Port supplied by a separate ordinary provider Work, local Run, and remote-server Work fork, without a general 3D engine.
 - `experience-observability-lab` — package-owned observability: session health, package health, agent run health, proposal causal chain, cost / latency summaries, failure breadcrumbs, guardrail summaries.
 - `memory-lab` — long-term memory and knowledge: record, retrieve, retrieval trace, approval-gated update, correction, forget / redaction, branch view, provenance.
 - `sharing-lab` — sharing and distribution: composition bundle import / export, branch / session bundle manifests, package-set lockfiles, compatibility reports, AI disclosure metadata, read-only share manifests, async fork plans. No marketplace, no billing, no signing network.
@@ -178,7 +181,7 @@ All ordinary packages, no kernel privilege. They live in `packages/plurora/` and
 
 **Third-party replacement proofs**
 
-- `thirdparty/playable-seed`, `thirdparty/agent-runtime`, `thirdparty/agentic-forge`, `thirdparty/memory-lab` — show that each first-party Package can be replaced by a third party with no priority for the first-party version.
+- `thirdparty/playable-seed`, `thirdparty/agent-runtime`, `thirdparty/agentic-forge`, `thirdparty/memory-lab`, and `community/modular-simulation` — show that first-party Packages can be replaced by third parties with no publisher priority.
 
 The Forge profile (`profiles/forge-alpha.yaml`) autoloads these and the example fixture packages.
 
@@ -238,7 +241,7 @@ The platform user-facing chrome — Home, Settings, Installation flow, Installat
 ## Authoring flow
 
 - `plurora init-package` generates Python or TypeScript subprocess scaffolding. `--template` chooses the surface descriptors. `--language *-experience` without `--template` still generates the legacy 4-surface experience for back-compat.
-- `plurora work init/check/pack/inspect` provides the local Work/Assembly authoring flow: it safely reads `work.yaml` / `assembly.yaml` plus Package/Component sources, validates recursive Ports and Bindings, and emits content-addressed WorkRevision, AssemblyRevision, and authoring AssemblyLock artifacts. `pack` writes only to the ObjectStore; it never installs or runs the Work.
+- `plurora work init/check/pack/inspect` provides the local Work/Assembly authoring flow: it safely reads `work.yaml` / `assembly.yaml` plus Package/Component sources, validates recursive Ports and Bindings, and emits content-addressed WorkRevision, AssemblyRevision, and authoring AssemblyLock artifacts. `pack` writes only to the ObjectStore; it never installs or runs the Work. `promote-component` computes external Ports/state for a selected subgraph and emits a candidate nested Assembly plus diagnostics without persisting or publishing it.
 - `plurora package check` prints structured diagnostics: entry kind, trust level, capability count, surfaces by slot, permission summary, sandbox policy. Warns on packages with no capabilities or no surfaces.
 - `plurora package conformance` validates a generated package locally.
 - `plurora package reload <manifest>` loads the package into an in-memory runtime, restarts (subprocess only), shows before / after status and log counts, and unloads.
@@ -248,7 +251,7 @@ The platform user-facing chrome — Home, Settings, Installation flow, Installat
 
 ## Code organization
 
-- `crates/plurora-cli/src/main.rs` is a thin entry. CLI types live in `cli.rs`, commands under `commands/`, and package templates under `templates/`. The conformance runner and case registry are split: `conformance/runner.rs` owns `--list`, `--case`, `--tag`, `--fail-fast`, and `--slowest`; `conformance/registry/` registers the 475 `ConformanceCase { id, tags, run }` entries by domain.
+- `crates/plurora-cli/src/main.rs` is a thin entry. CLI types live in `cli.rs`, commands under `commands/`, and package templates under `templates/`. The conformance runner and case registry are split: `conformance/runner.rs` owns `--list`, `--case`, `--tag`, `--fail-fast`, and `--slowest`; `conformance/registry/` registers the 483 `ConformanceCase { id, tags, run }` entries by domain.
 - `crates/plurora-cli/src/schema_export/` owns v1 schema export; `src/bin/export-schemas.rs` is a thin entry. Generated files still come from the exporter only — SDKs and schemas are not hand-edited.
 - `crates/plurora-runtime/src/runtime/` splits runtime behavior into session, events, packages, capabilities, hooks, permissions, assets, branches, projections, and proposals. `runtime/protocol_dispatch.rs` is now the public router facade; concrete public-protocol handlers live under `runtime/protocol/` by domain. `runtime/mod.rs` keeps the public `Runtime<S>` API.
 - Protocol metadata and dispatch share a single source of truth (`PlatformMethod`), with a registry / dispatch consistency unit test.
@@ -259,7 +262,7 @@ These splits don't change behavior — they keep the codebase reviewable as more
 
 ## Conformance
 
-`cargo run -p plurora-cli -- conformance` runs 475 named CLI cases. Flags:
+`cargo run -p plurora-cli -- conformance` runs 483 named CLI cases. Flags:
 
 - `--list` — list ids and tags.
 - `--case <pattern>` — substring filter.

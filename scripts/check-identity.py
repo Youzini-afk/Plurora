@@ -509,8 +509,8 @@ def check_first_party_manifests() -> list[str]:
     errors: list[str] = []
     root = ROOT / "packages/plurora"
     manifests = sorted(root.glob("*/manifest.yaml"))
-    if len(manifests) != 34:
-        errors.append(f"expected 34 first-party manifests, found {len(manifests)}")
+    if len(manifests) != 36:
+        errors.append(f"expected 36 first-party manifests, found {len(manifests)}")
     for manifest in manifests:
         package_id, provides = manifest_identity(manifest)
         expected = f"plurora/{manifest.parent.name}"
@@ -597,7 +597,7 @@ def main() -> int:
     print(
         "Plurora identity check passed: "
         f"zero retired identities; 99 methods, 76 events, {len(EXPECTED_TOP_LEVEL_SCHEMAS)} top-level schemas; "
-        "34 first-party Package manifests."
+        "36 first-party Package manifests."
     )
     return 0
 

@@ -11,7 +11,7 @@ cargo test --workspace
 cargo run -p plurora-cli -- conformance
 ```
 
-当前矩阵记录已实现的 conformance 覆盖。具名 CLI 用例和 crate/service 单元测试共同支撑这些结果。当前 CLI conformance 总数：**470**。
+当前矩阵记录已实现的 conformance 覆盖。具名 CLI 用例和 crate/service 单元测试共同支撑这些结果。当前 CLI conformance 总数：**483**。
 
 ## Conformance Feedback Loop
 
@@ -89,6 +89,20 @@ cargo run -p plurora-cli -- conformance --slowest 3
 | `realization.public_event_identity_payload` | 7 个 Realization lifecycle event 的 registry identity 与 public payload schema | implemented |
 | `realization.plan_effect_free_apply_exact_approval` | plan 无 target effect；apply 固定 plan digest、approval、revision 与 idempotency | implemented |
 | `realization.rollback_persisted_plan_no_workspace` | rollback 只读取持久化 plan/revision，不接受 live workspace、source URL、raw secret 或 stderr | implemented |
+
+### Phase 8 Modular Simulation conformance cases
+
+以下七个具名用例覆盖第一个可继续创作的 Work kit 与非发布 promotion 流程：
+
+| Case id | 覆盖 | 状态 |
+|---|---|---|
+| `modular_simulation.work_kit_materializes` | 基础 Work 的 Component、五个根 Port 与 portable save StateSlot 形成完整闭包 | implemented |
+| `modular_simulation.reducer_and_portable_save` | 确定性 reducer 与 canonical SHA-256 portable save | implemented |
+| `modular_simulation.optional_ai_no_ambient_provider` | 无显式 Runtime Binding 时 AI 返回稳定 gap，零推理 | implemented |
+| `modular_simulation.renderer_static_surface` | play/inspector 由静态 `surface_bundle` 贡献 | implemented |
+| `modular_simulation.community_replacement_no_priority` | 第一方与社区 provider 歧义拒绝，显式社区选择正常 | implemented |
+| `modular_simulation.promotion_candidate_no_publish` | 子图提升产生 nested Assembly/candidate/diagnostics，不持久化或发布 | implemented |
+| `modular_simulation.fork_and_state_migration` | server Work fork 保留 OperationalIntent，v0 save 显式迁移到 v1 | implemented |
 
 Surface/static bundle 与 bridge 还覆盖以下稳定断言：
 
@@ -406,6 +420,6 @@ Surface/static bundle 与 bridge 还覆盖以下稳定断言：
 
 ## CLI 具名用例
 
-`cargo run -p plurora-cli -- conformance --list` 是具名用例的可执行事实源；当前输出 470 个 case id 与 tags。本文只维护会影响架构判断的覆盖矩阵，不复制一份容易漂移的完整列表。
+`cargo run -p plurora-cli -- conformance --list` 是具名用例的可执行事实源；当前输出 483 个 case id 与 tags。本文只维护会影响架构判断的覆盖矩阵，不复制一份容易漂移的完整列表。
 
 运行器支持 `--case`、`--tag`、`--fail-fast` 与 `--slowest`。任何列为 Host 必需的用例都必须通过，对应里程碑才能宣布完成。
