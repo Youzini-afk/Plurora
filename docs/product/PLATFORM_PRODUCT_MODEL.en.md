@@ -2,7 +2,7 @@
 
 > [English](./PLATFORM_PRODUCT_MODEL.en.md) · [中文](./PLATFORM_PRODUCT_MODEL.md)
 
-This document defines how the official Plurora distribution becomes a complete, usable product without promoting its product choices into mandatory ontology for the entire platform.
+This document defines how the official Plurora distribution becomes a complete, usable product without promoting its product choices into mandatory ontology for the entire platform. Platform principles are in [`../CHARTER.md`](../CHARTER.en.md). Layering is in [`../architecture/ARCHITECTURE.md`](../architecture/ARCHITECTURE.en.md).
 
 ## Product responsibility
 
@@ -153,4 +153,4 @@ A product is not better merely because it has more features. Ask whether:
 - work survives replacement of components, clients, or Hosts;
 - new capability preserves public boundaries and third-party space.
 
-Current implementation is recorded in [`../ALPHA_STATUS.md`](../ALPHA_STATUS.en.md): Exposure, Binding, Powerbox, and Managed Realization are implemented. Construction direction is in [`../roadmap/NEXT_STEPS.md`](../roadmap/NEXT_STEPS.en.md).
+Current implementation facts are in [`../ALPHA_STATUS.md`](../ALPHA_STATUS.en.md). Construction direction is in [`../roadmap/NEXT_STEPS.md`](../roadmap/NEXT_STEPS.en.md).

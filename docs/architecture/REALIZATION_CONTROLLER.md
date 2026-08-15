@@ -69,7 +69,7 @@ host-private/realization.effect-stopped
 host-private/realization.stopping
 ```
 
-Checkpoint 携带 stable action/request digest、observed resource 与结构化 receipt facts。它不属于 76 个 public platform event，也不进入 Runtime journal/SSE。
+Checkpoint 携带 stable action/request digest、observed resource 与结构化 receipt facts。它不属于 public platform event registry，也不进入 Runtime journal/SSE。
 
 - Applying + apply checkpoint：hydrate/same-key retry 只物化 receipt 并提交 Active，不重复 apply。
 - Stopping + stop checkpoint：只提交 Stopped，不重复 stop。

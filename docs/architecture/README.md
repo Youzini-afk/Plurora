@@ -6,10 +6,11 @@
 
 ## 平台形态与基底
 
-- [`VISION.md`](VISION.md) — 长期整体形态、开放性与技术方向
-- [`ARCHITECTURE.md`](ARCHITECTURE.md) — 分层模型、单向依赖、Host 正交关系与当前实现位置
-- [`CONSTITUTIONAL_SUBSTRATE.md`](CONSTITUTIONAL_SUBSTRATE.md) — 宪法基底拥有的机制，以及当前较宽 runtime 承载的职责
-- [`CONSTITUTION_V2.md`](CONSTITUTION_V2.md) — 候选长期宪法、不变量与演化约束；尚未替代 Contract V1
+先读 [`ARCHITECTURE.md`](ARCHITECTURE.md)。它是唯一持有完整分层图的文档。
+
+- [`VISION.md`](VISION.md) — 长期开放性与技术方向，不再重复分层图
+- [`CONSTITUTIONAL_SUBSTRATE.md`](CONSTITUTIONAL_SUBSTRATE.md) — 当前 runtime 过宽边界与迁回正确层的门槛
+- [`CONSTITUTION_V2.md`](CONSTITUTION_V2.md) — 候选长期宪法；尚未采纳，不在默认阅读路径
 
 ## Package、Component、Protocol 与运行时
 
@@ -29,9 +30,9 @@
 
 这些 Host 设计管理现实资源，但不进入宪法基底，也不拥有上层产品内容语义。
 
-## 外部生态与吸收边界
+## 外部生态参考（非默认路径）
 
-- [`PI_INTEGRATION.md`](PI_INTEGRATION.md) — pi agent 框架的组件 / 协议吸收边界
+- [`PI_INTEGRATION.md`](PI_INTEGRATION.md) — pi agent 框架的组件 / 协议吸收边界；属于生态参考，不是平台核心阅读路径
 
 ## 当前合同归属
 

@@ -2,11 +2,9 @@
 
 > [English](./OPERATIONS_DATA_RELEASE.en.md) · [中文](./OPERATIONS_DATA_RELEASE.md)
 
-状态：**运行安全基线已实现，剩余加固项继续受本文约束**。本文定义 Plurora Host 承载真实 Work 和远程 Target 时必须满足的数据、健康、诊断、升级和发行底线。
+本文定义 Plurora Host 承载真实 Work 和远程 Target 时必须满足的数据、健康、诊断、升级和发行底线。哪些已经落地、哪些仍是加固项，见 [`../ALPHA_STATUS.md`](../ALPHA_STATUS.md)。
 
-## 当前实现状态
-
-已经实现：
+## Host 必须满足的行为
 
 - Install Lab 的 store schema 不匹配不再删除数据；旧 store 被原子移动到带版本和随机后缀的保留目录，新 store 再初始化当前 marker。
 - `plurora host backup` 对位于 data dir 内、使用相对路径的 SQLite Host profile 创建离线目录快照。命令先取得持久 Host 控制面租约，排除显式 `cache`，使用 SQLite online backup API，并为所有文件写 SHA-256 manifest；原始 secret、key、objects、installations、profiles、journals 均在同一租约边界内复制。

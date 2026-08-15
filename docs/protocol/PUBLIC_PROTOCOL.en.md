@@ -69,32 +69,15 @@ Every method has:
 - `output`: a JSON value, possibly a stream.
 - `errors`: a structured error model with `code`, `message`, `details`.
 
-## Public methods
+## Where method semantics live
 
-The public contract exposes a bounded method set. Package-specific behavior remains Package-owned capabilities.
+Method IDs, params/result schemas, and implemented / partial / planned status are defined by [`../spec/PUBLIC_CONTRACT.md`](../spec/PUBLIC_CONTRACT.en.md) and `docs/spec/v1/schemas/`. This document keeps transport, the envelope, and details that must be interpreted at the transport layer.
 
-### Contexts
+The notes below are Host transport supplements, not a second method matrix.
 
-```text
-context.open      open a Context with labels and an active Package set
-context.close     close a Context
-context.fork      fork a Context at an event sequence
-context.branch.list list branch lineage records
-context.get       get Context metadata
-context.list      list Contexts visible to the caller
-```
+### SSE subscription
 
-The substrate stores no content-level Context state. Labels, active Package set, lineage, journal ordering, and authority scope are the bounded platform concerns.
-
-### Events
-
-```text
-journal.append      append an event under the caller's namespace
-journal.list        list events for a session by sequence range
-journal.subscribe   stream events as they are appended (resumable)
-```
-
-`journal.append` requires `events.append` in the caller's manifest. `journal.list` and `journal.subscribe` require `events.read` for Package principals. The current Host exposes HTTP SSE as a Host-dev stream:
+`journal.list` and `journal.subscribe` require `events.read` for Package principals. The current Host exposes HTTP SSE as a Host-dev stream:
 
 ```text
 GET /journal/subscribe/:session_id?after_sequence=42&kind_prefix=host/&writer_package_id=plurora/runtime
@@ -102,84 +85,9 @@ GET /journal/subscribe/:session_id?after_sequence=42&kind_prefix=host/&writer_pa
 
 `journal.list` accepts `session_id`, `after_sequence`, `limit`, `kind_prefix`, and `writer_package_id`.
 
-### Packages
+### Outbound transport gates
 
-```text
-host.package.list      list packages visible in the host
-host.package.describe  fetch a manifest snapshot
-host.package.load      load a package from a manifest reference
-host.package.unload    stop and remove a package
-host.package.status    current state and health
-host.package.restart   restart a package when its entry form supports restart
-host.package.logs      read captured package logs
-```
-
-Loading a package may be host-policy-restricted.
-
-### Capabilities
-
-```text
-capability.discover    enumerate capabilities, optionally filtered
-capability.describe    fetch input/output schemas and metadata
-capability.invoke      invoke a capability with input
-capability.stream      invoke a capability that streams
-capability.cancel      cancel an in-flight invocation
-```
-
-`invoke` resolves to a provider by capability ID, optional `provider_package_id`, optional version constraint, and the active Context Package set. If multiple providers match and the caller did not specify `provider_package_id`, the runtime returns an ambiguous-route error. The current Host supports exact versions or same-major `^x.y` constraints.
-
-### Extension points and hooks
-
-```text
-protocol.extension.list        list live extension points
-protocol.extension.describe    fetch payload schema and timing
-protocol.hook.list                   list subscribers to a point
-```
-
-The public contract does not expose arbitrary hook injection. Subscriptions are declared in Manifests and enter the live registry through Package lifecycle. The runtime currently dispatches only the four documented journal/capability points.
-
-### Objects
-
-```text
-object.put         store an asset blob under the caller's namespace
-object.get         fetch an asset by id
-object.list        list assets visible to the caller
-```
-
-The runtime records object metadata such as `mime`, `hash`, `size`, and `origin_package`. It verifies storage boundaries but does not interpret content.
-
-### Projections
-
-```text
-projection.register  register a generic projection definition
-projection.rebuild   rebuild projection state from event filters
-projection.get       fetch projection state
-projection.list      list projection records
-```
-
-The current runtime manages projection records and rebuild lifecycle without interpreting domain-state meaning. Shared Projection contracts belong to optional Protocols, concrete materializers are implemented by Components, and Contract V1 registers and distributes them through Package writers.
-
-### Health and identity
-
-```text
-host.info         protocol/registry versions, methods, profiles, layers, Protocol Commons, and transports
-identity.current    the calling principal (user, package, remote)
-host.ping         liveness
-host.diagnostics  local host diagnostics for package/capability/hook observability
-```
-
-### Outbound
-
-```text
-host.outbound.execute    unary HTTP-style outbound through the host executor
-host.outbound.stream     streaming outbound through SSE / NDJSON / raw frames
-host.outbound.websocket.open   open an outbound WebSocket stream and return connection_id
-host.outbound.websocket.send   send one outbound WebSocket frame
-host.outbound.websocket.close  close an outbound WebSocket connection
-host.outbound.audit      list redacted outbound audit records for a package
-```
-
-The outbound protocol has three outbound primitives: `execute` is a unary HTTP-style request, `stream` is an SSE / NDJSON / raw one-way stream, and `host.outbound.websocket.*` is bidirectional WebSocket. `websocket.open` is a streaming method that establishes a WSS connection and returns `connection_id`; `websocket.send` and `websocket.close` are unary methods. `connection_id` is also the `stream_id`; passing it to `capability.cancel` uses the same cancel/close path.
+The outbound protocol has three primitives: `host.outbound.execute` (unary HTTPS), `host.outbound.stream` (SSE / NDJSON / raw), and `host.outbound.websocket.*` (bidirectional WSS). `websocket.open` is a streaming method; the returned `connection_id` is also the `stream_id`. `capability.cancel` uses the same close path.
 
 Request/response shapes are defined by runtime types and protocol dispatch parsing, not repeated in full here: HTTP/stream types live in `crates/plurora-runtime/src/runtime/outbound.rs`, WebSocket types live in `crates/plurora-runtime/src/runtime/outbound_websocket.rs`, and protocol parsing lives in `crates/plurora-runtime/src/runtime/protocol_dispatch.rs`. Core fields include `capability_id`, `destination_host`, `method`, optional `path`, `body_shape`, `metadata`, `secret_headers`, `static_headers`, and `timeout_ms`; `stream` also accepts `stream_format` (`sse` / `ndjson` / `raw`) and frame/duration limits; `websocket.open` accepts destination host/path, optional subprotocols, headers, `secret_refs`, and connection/frame/byte limits.
 

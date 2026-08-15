@@ -2,7 +2,7 @@
 
 > [English](./ALPHA_STATUS.en.md) · [中文](./ALPHA_STATUS.md)
 
-A snapshot of Plurora's current implementation. It records what code, public contracts, and quality checks support, except where explicitly marked partial or deferred. It does not define why the platform exists or the only direction it may take.
+This is a contributor-facing implementation snapshot and the only narrative home for exact counts. It records what code, public contracts, and quality checks support, except where explicitly marked partial or deferred. It is not the public front page, and it does not define why the platform exists.
 
 For platform goals and principles, see [`CHARTER.md`](CHARTER.en.md) and [`architecture/VISION.md`](architecture/VISION.en.md). Official product responsibility is in [`product/PLATFORM_PRODUCT_MODEL.md`](product/PLATFORM_PRODUCT_MODEL.en.md); play-creation is only an optional profile. Construction direction is in [`roadmap/NEXT_STEPS.md`](roadmap/NEXT_STEPS.en.md).
 
@@ -270,7 +270,7 @@ These splits don't change behavior — they keep the codebase reviewable as more
 - `--fail-fast` — stop at the first failure.
 - `--slowest <N>` — report the slowest N.
 
-Every case has tags (runtime / event / capability / package / subprocess / first_party / network / outbound / stream / agentic / experience / memory / sharing / secret / assembly / replacement / surface / protocol / permission / hook / host / asset / projection / substrate / storage / live / external_source / source_intake / workspace_lab / retrieval, and so on). See [`performance/CONFORMANCE_FEEDBACK.md`](performance/CONFORMANCE_FEEDBACK.en.md).
+Every case has tags (runtime / event / capability / package / subprocess / first_party / network / outbound / stream / agentic / experience / memory / sharing / secret / assembly / replacement / surface / protocol / permission / hook / host / asset / projection / substrate / storage / live / external_source / source_intake / workspace_lab / retrieval, and so on). See [`performance/PERFORMANCE_AND_CODE_HEALTH.md`](performance/PERFORMANCE_AND_CODE_HEALTH.en.md) and [`spec/CONFORMANCE_MATRIX.md`](spec/CONFORMANCE_MATRIX.en.md).
 
 Plus crate and service unit tests via `cargo test --workspace`, and `npm run check --prefix clients/web` / `npm run build --prefix clients/web` for the web shell.
 

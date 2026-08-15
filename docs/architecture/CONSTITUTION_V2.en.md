@@ -2,10 +2,10 @@
 
 > [English](./CONSTITUTION_V2.en.md) · [中文](./CONSTITUTION_V2.md)
 
-> Status: candidate architecture. The current [`CHARTER.md`](../CHARTER.en.md) and
-> [`PUBLIC_CONTRACT.md`](../spec/PUBLIC_CONTRACT.en.md) remain the repository's
-> operative contract. This document supersedes those boundaries only after explicit
-> adoption; no implementation should claim v2 conformance before then.
+> Status: candidate architecture, **not adopted**, and not on the default reading path.
+> The operative contract remains [`CHARTER.md`](../CHARTER.en.md) and [`PUBLIC_CONTRACT.md`](../spec/PUBLIC_CONTRACT.en.md).
+> Non-negotiable principles live in the charter; this document does not restate them.
+> No implementation should claim v2 conformance before explicit adoption.
 
 ## Core promise
 

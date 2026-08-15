@@ -2,7 +2,7 @@
 
 > [English](./ALPHA_STATUS.en.md) · [中文](./ALPHA_STATUS.md)
 
-这是 Plurora 当前实现状态的快照。它记录代码、公开合同和质量检查已经支持什么，明确标注 partial 或 deferred 的除外；它不负责定义平台为什么存在或未来只能往哪里发展。
+这是面向贡献者的实现快照，也是仓库里精确统计数字的唯一叙述出口。它记录代码、公开合同和质量检查已经支持什么，明确标注 partial 或 deferred 的除外；它不是对外首页，也不负责定义平台为什么存在。
 
 平台目标与原则见 [`CHARTER.md`](CHARTER.md) 和 [`architecture/VISION.md`](architecture/VISION.md)；官方产品责任见 [`product/PLATFORM_PRODUCT_MODEL.md`](product/PLATFORM_PRODUCT_MODEL.md)，游创只是可选 Profile。建设方向见 [`roadmap/NEXT_STEPS.md`](roadmap/NEXT_STEPS.md)。
 
@@ -270,7 +270,7 @@ Forge profile (`profiles/forge-alpha.yaml`) 会自动加载这些包以及示例
 - `--fail-fast` 首个失败即停；
 - `--slowest <N>` 显示最慢 N 个。
 
-每个用例有 tag（runtime / event / capability / package / subprocess / first_party / network / outbound / stream / agentic / experience / memory / sharing / secret / assembly / replacement / surface / protocol / permission / hook / host / asset / projection / substrate / storage / live / external_source / source_intake / workspace_lab / retrieval 等）。详见 [`performance/CONFORMANCE_FEEDBACK.md`](performance/CONFORMANCE_FEEDBACK.md)。
+每个用例有 tag（runtime / event / capability / package / subprocess / first_party / network / outbound / stream / agentic / experience / memory / sharing / secret / assembly / replacement / surface / protocol / permission / hook / host / asset / projection / substrate / storage / live / external_source / source_intake / workspace_lab / retrieval 等）。详见 [`performance/PERFORMANCE_AND_CODE_HEALTH.md`](performance/PERFORMANCE_AND_CODE_HEALTH.md) 与 [`spec/CONFORMANCE_MATRIX.md`](spec/CONFORMANCE_MATRIX.md)。
 
 外加 `cargo test --workspace` 下的 crate 与 service 单测，以及 `npm run check --prefix clients/web` / `npm run build --prefix clients/web` 检查 Web shell。
 

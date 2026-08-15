@@ -2,7 +2,7 @@
 
 > [English](./TARGET_AGENT_PROTOCOL.en.md) · [中文](./TARGET_AGENT_PROTOCOL.md)
 
-状态：**Implemented**。Target Agent 是 Host Control Plane 的远程执行适配器，不是 remote package、通用 SSH shell、第二个 Host 或被执行应用的身份系统。身份、类型化 operation、artifact、Host-local Docker operation broker 与 authenticated reverse tunnel 已形成同一受控边界。Managed Realization 已把 OperationalIntent/TargetInventory 的稳定 plan、apply/stop/rollback/reconcile 接到 local 与 Agent 的同一 typed operation/receipt 路径；自动调度与 target-edge ingress 不在当前合同内。
+Target Agent 是 Host Control Plane 的远程执行适配器，不是 remote package、通用 SSH shell、第二个 Host 或被执行应用的身份系统。实现进度见 [`../ALPHA_STATUS.md`](../ALPHA_STATUS.md)。自动调度与 target-edge ingress 不在当前合同内。
 
 ## 三种远程边界
 

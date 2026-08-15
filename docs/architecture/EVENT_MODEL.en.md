@@ -26,7 +26,7 @@ The runtime assigns `id`, `sequence`, `timestamp`, and the effective writer iden
 
 ## Platform-owned event kinds
 
-The 76 platform-owned kinds are an explicit registry, not a magic string prefix. They use semantic owner namespaces such as:
+Platform-owned kinds are an explicit registry, not a magic string prefix. They use semantic owner namespaces such as:
 
 ```text
 context/opened
@@ -42,7 +42,7 @@ change/proposal.applied
 runtime/error
 ```
 
-Only writer `plurora/runtime` may append a registered platform-owned kind. The canonical 76-entry list and payload schemas are in [`../spec/v1/EVENT_KIND_REGISTRY.md`](../spec/v1/EVENT_KIND_REGISTRY.en.md). Exposure, Binding, and Realization public relays carry only typed journal projections; private intent, grant basis, runtime handles, and effect checkpoints never enter events.
+Only writer `plurora/runtime` may append a registered platform-owned kind. The canonical list and payload schemas are in [`../spec/v1/EVENT_KIND_REGISTRY.md`](../spec/v1/EVENT_KIND_REGISTRY.en.md). Exposure, Binding, and Realization public relays carry only typed journal projections; private intent, grant basis, runtime handles, and effect checkpoints never enter events.
 
 This explicit registry matters because platform events span Substrate, Host, Protocol, and runtime concerns. A single reserved prefix would hide ownership rather than clarify it.
 

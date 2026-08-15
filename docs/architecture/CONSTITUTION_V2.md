@@ -2,9 +2,9 @@
 
 > [English](./CONSTITUTION_V2.en.md) · [中文](./CONSTITUTION_V2.md)
 
-> 状态：候选架构。当前 [`CHARTER.md`](../CHARTER.md) 与
-> [`PUBLIC_CONTRACT.md`](../spec/PUBLIC_CONTRACT.md) 仍是仓库现行契约。
-> 本文只有在显式采纳后才取代其中的边界；采纳前不应宣称已有 v2 实现。
+> 状态：候选架构，**尚未采纳**，不在默认阅读路径。
+> 现行契约仍是 [`CHARTER.md`](../CHARTER.md) 与 [`PUBLIC_CONTRACT.md`](../spec/PUBLIC_CONTRACT.md)。
+> 不可妥协原则以章程为准，本文不再复述。采纳前不应宣称已有 v2 实现。
 
 ## 核心承诺
 

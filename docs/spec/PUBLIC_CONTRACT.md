@@ -2,7 +2,7 @@
 
 > [English](./PUBLIC_CONTRACT.en.md) · [中文](./PUBLIC_CONTRACT.md)
 
-本文档定义 Plurora 当前 v1 公开契约：方法、事件、错误、capability handle、Manifest 声明、schema、协商与 conformance。所有参与方使用同一套按 owner 分层的身份与行为规则；契约不暴露并行 alias surface。
+本文档定义 Plurora 当前 v1 公开契约：方法、事件、错误、capability handle、Manifest 声明、schema、协商与 conformance。传输与信封见 [`../protocol/PUBLIC_PROTOCOL.md`](../protocol/PUBLIC_PROTOCOL.md)。所有参与方使用同一套按 owner 分层的身份与行为规则；契约不暴露并行 alias surface。
 
 v1 的设计目标不是把某种内容形态写进核心机制，而是让组件、安全执行、审计、SDK 与第三方客户端拥有稳定边界。角色、世界、提示词、模型、消息、记忆等内容语义属于相应协议、组件或产品，不属于宪法基底。
 
@@ -21,7 +21,7 @@ v1 契约支持两种参与方式：
 
 路径 A 适合需要平台 authority、network、secret、audit 与 SDK 的 Package。路径 B 适合只需要托管、不需要平台 authority 的自包含应用与工具。
 
-## 公开方法矩阵（99）
+## 公开方法矩阵
 
 完整请求/响应 schema 位于 `docs/spec/v1/schemas/methods/`。方法名是稳定公开 API；v1 只允许 additive 变更。
 
@@ -217,7 +217,7 @@ Git 安装不是 transport primitive；它属于普通第一方 capability Packa
 | `protocol.extension.describe` | planned | 描述单个 extension point。 |
 | `protocol.hook.list` | partial | 列出 hook subscriptions。 |
 
-## 事件类型矩阵（76）
+## 事件类型矩阵
 
 完整 registry 见 [`v1/EVENT_KIND_REGISTRY.md`](v1/EVENT_KIND_REGISTRY.md)。事件 payload schema 位于 `docs/spec/v1/schemas/events/`。事件分组如下：
 
@@ -326,7 +326,7 @@ v1 仅允许 additive 变更：新增可选字段、新增方法、新增事件�
 - 错误码：[`v1/ERROR_CODES.md`](v1/ERROR_CODES.md)。
 - 事件 registry：[`v1/EVENT_KIND_REGISTRY.md`](v1/EVENT_KIND_REGISTRY.md)。
 
-214 个 schema 必须通过 `cargo run -p plurora-cli --bin validate-schemas`。
+全部导出 schema 必须通过 `cargo run -p plurora-cli --bin validate-schemas`。精确计数见 [`../ALPHA_STATUS.md`](../ALPHA_STATUS.md)。
 
 ## 内容无关不变量
 
@@ -367,7 +367,7 @@ requires:
 ```
 
 实际安装和解析由 `plurora/install-lab` 处理；宪法基底不负责依赖解析。
-详见 [`docs/guides/PACKAGE_INSTALLATION.md`](../guides/PACKAGE_INSTALLATION.md)。
+详见 [`docs/guides/INSTALLATION_MODEL.md`](../guides/INSTALLATION_MODEL.md)。
 
 Manifest 是审核与句柄铸造输入，不是运行时权威本身。运行时权威必须通过 bindings 和 capability handles 表达。
 
@@ -500,9 +500,9 @@ Surface contribution 是 Package 声明的 UI/UX 入口 descriptor。Runtime 保
 
 一个 v1 实现至少需要证明：
 
-1. 99 个方法 schema 可导出。
-2. 76 个事件 schema 可验证。
-3. 39 个顶层 schema 可验证。
+1. 方法 schema 可导出。
+2. 事件 schema 可验证。
+3. 顶层 schema 可验证。
 4. 方法 registry 与 dispatcher 一致。
 5. capability handle mint/attenuate/revoke/list 行为可测试。
 6. invoke instrumentation 生成生命周期事件。

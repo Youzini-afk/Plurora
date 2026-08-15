@@ -31,12 +31,11 @@
 
 ## 当前事实基线
 
-- 99 个精确公开 method ID 与 99 个 method schema。
-- 76 个显式平台 event kind 与 76 个 payload schema。
-- 39 个顶层 schema；共 214 个 schema。
+精确方法 / 事件 / schema 计数以 [`../ALPHA_STATUS.md`](../ALPHA_STATUS.md) 和 `docs/spec/v1/schemas/` 为准。
+
 - Contract Registry `0.1.0` 对每个 method 只暴露一个 wire ID，不提供 alias。
 - Method ID 通过第一个 dot segment 声明 owner。
-- 平台 event owner 由显式 registry 定义；76 个 kind 都要求 writer `plurora/runtime`。
+- 平台 event owner 由显式 registry 定义；平台 kind 都要求 writer `plurora/runtime`。
 - Package event 与 capability ID 仍位于精确 Package ID 的 slash namespace 下。
 - 显式 contract 与 Protocol Commons negotiation 在 dispatch 前完成，并 fail closed。
 

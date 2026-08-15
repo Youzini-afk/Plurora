@@ -91,3 +91,12 @@ linked-local 是用户可并发修改的目录。Host 不用 check-then-use 路�
 - 绕过公开 Host API 的本地 CLI 或第一方 Package 写入路径。
 
 Realization 生命周期见 [`../guides/REALIZATION.md`](../guides/REALIZATION.md)，设备授权见 [`HOST_RESOURCE_AUTHORITY.md`](HOST_RESOURCE_AUTHORITY.md)。
+
+## Workspace 操作平面
+
+Workspace 是 Host-local 可变源码位置，不进入 Work identity。
+
+- `managed`：受控副本在 `<data>/workspaces/<workspace-id>/source/`。
+- `linked_local`：指向用户已有目录；Host 没有删除该源的权威。linked-local source 永不删除。
+
+没有显式 Work source 的仓库先做静态 inspection，不会自动 install / build / 联网。真实文件 effect 必须经过 `Intent → ChangeSet → PolicyDecision → ChangeCommit → EffectReceipt`。Web 与 CLI 只走公开 Host API。打包与 Installation 采用见 [`../guides/INSTALLATION_MODEL.md`](../guides/INSTALLATION_MODEL.md)。

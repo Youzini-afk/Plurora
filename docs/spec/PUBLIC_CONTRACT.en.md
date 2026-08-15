@@ -2,7 +2,7 @@
 
 > [English](./PUBLIC_CONTRACT.en.md) · [中文](./PUBLIC_CONTRACT.md)
 
-This document specifies Plurora's current v1 public contract. It defines the operative boundary for methods, events, errors, capability handles, Manifest declarations, schemas, negotiation, and conformance. Every participant uses the same owner-based identities and behavioral rules; the contract exposes no parallel alias surface.
+This document specifies Plurora's current v1 public contract. It defines the operative boundary for methods, events, errors, capability handles, Manifest declarations, schemas, negotiation, and conformance. Transport and envelopes are in [`../protocol/PUBLIC_PROTOCOL.md`](../protocol/PUBLIC_PROTOCOL.en.md). Every participant uses the same owner-based identities and behavioral rules; the contract exposes no parallel alias surface.
 
 v1 does not put content semantics into core mechanisms. Characters, worlds, prompts, models, messages, memory, and similar concepts belong to their protocols, components, or products rather than the constitutional substrate.
 
@@ -21,7 +21,7 @@ The v1 contract supports two first-class participation modes:
 
 Path A is for Packages that need platform authority, network, secrets, audit, and SDK support. Path B is for self-contained applications and tools that need hosting but no platform authority.
 
-## Public method matrix (99)
+## Public method matrix
 
 Complete request/response schemas live under `docs/spec/v1/schemas/methods/`. Method names are stable public API. v1 only allows additive changes.
 
@@ -217,7 +217,7 @@ Git installation is not a transport primitive; it belongs in the ordinary first-
 | `protocol.extension.describe` | planned | Describe one extension point. |
 | `protocol.hook.list` | partial | List hook subscriptions. |
 
-## Event kind matrix (76)
+## Event kind matrix
 
 The full registry is [`v1/EVENT_KIND_REGISTRY.md`](v1/EVENT_KIND_REGISTRY.en.md). Event payload schemas live under `docs/spec/v1/schemas/events/`.
 
@@ -326,7 +326,7 @@ v1 only allows additive changes: optional fields, new methods, new events, new e
 - Error codes: [`v1/ERROR_CODES.md`](v1/ERROR_CODES.en.md).
 - Event registry: [`v1/EVENT_KIND_REGISTRY.md`](v1/EVENT_KIND_REGISTRY.en.md).
 
-All 214 schemas must pass `cargo run -p plurora-cli --bin validate-schemas`.
+Every exported schema must pass `cargo run -p plurora-cli --bin validate-schemas`. Exact counts live in [`../ALPHA_STATUS.md`](../ALPHA_STATUS.en.md).
 
 ## Content-free invariant
 
@@ -367,7 +367,7 @@ requires:
 ```
 
 Actual install and resolution are handled by `plurora/install-lab`; the constitutional substrate does not resolve dependencies.
-See [`docs/guides/PACKAGE_INSTALLATION.md`](../guides/PACKAGE_INSTALLATION.en.md).
+See [`docs/guides/INSTALLATION_MODEL.md`](../guides/INSTALLATION_MODEL.en.md).
 
 The manifest is audit and handle-minting input, not runtime authority. Runtime authority is expressed through bindings and capability handles.
 
@@ -500,9 +500,9 @@ First-party and third-party surfaces use the same descriptors, permission declar
 
 A v1 implementation must at least prove:
 
-1. 99 method schemas export.
-2. 76 event schemas validate.
-3. 39 top-level schemas validate.
+1. Method schemas export.
+2. Event schemas validate.
+3. Top-level schemas validate.
 4. Method registry and dispatcher are consistent.
 5. Capability handle mint/attenuate/revoke/list behavior is testable.
 6. Invoke instrumentation emits lifecycle events.

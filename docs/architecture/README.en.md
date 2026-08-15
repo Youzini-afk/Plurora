@@ -6,10 +6,11 @@ These documents cover Plurora's long-term layering, the current public-contract 
 
 ## Platform shape and substrate
 
-- [`VISION.md`](VISION.en.md) — intended long-term shape, openness, and technical direction
-- [`ARCHITECTURE.md`](ARCHITECTURE.en.md) — layers, one-way dependencies, orthogonal Host relationship, and current implementation placement
-- [`CONSTITUTIONAL_SUBSTRATE.md`](CONSTITUTIONAL_SUBSTRATE.en.md) — mechanisms owned by the constitutional substrate and responsibilities currently carried by the wider runtime
-- [`CONSTITUTION_V2.md`](CONSTITUTION_V2.en.md) — candidate long-term constitution, invariants, and evolution constraints; it does not yet replace Contract V1
+Start with [`ARCHITECTURE.md`](ARCHITECTURE.en.md). It is the only document that holds the full layering diagram.
+
+- [`VISION.md`](VISION.en.md) — long-term openness and technical direction; it no longer repeats the layering diagram
+- [`CONSTITUTIONAL_SUBSTRATE.md`](CONSTITUTIONAL_SUBSTRATE.en.md) — where the current runtime is too wide, and the bar for moving duties back
+- [`CONSTITUTION_V2.md`](CONSTITUTION_V2.en.md) — candidate long-term constitution; not adopted, not on the default path
 
 ## Packages, Components, Protocols, and runtime
 
@@ -29,9 +30,9 @@ These documents cover Plurora's long-term layering, the current public-contract 
 
 These Host designs manage real resources without entering the constitutional substrate or owning upper-layer product content semantics.
 
-## External ecosystem boundaries
+## External ecosystem notes (not the default path)
 
-- [`PI_INTEGRATION.md`](PI_INTEGRATION.en.md) — Component and Protocol absorption boundary for the pi agent framework
+- [`PI_INTEGRATION.md`](PI_INTEGRATION.en.md) — Component and Protocol absorption boundary for the pi agent framework; ecosystem reference, not core platform reading
 
 ## Ownership of the current contract
 

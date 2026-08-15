@@ -8,27 +8,7 @@ AI-native capability is important, but the platform does not define itself as ch
 
 ## Intended platform shape
 
-```text
-┌──────────────────────────────────────────────────────────┐
-│ Products / Experiences / Services                        │
-│ Apps, tools, worlds, games, agent workspaces, services   │
-├──────────────────────────────────────────────────────────┤
-│ Distributions / Shells / Clients                         │
-│ First-party and third-party Web, Desktop, CLI, mobile, IDE  │
-├──────────────────────────────────────────────────────────┤
-│ Protocol Commons / Components / Content                  │
-│ Competing protocols, replaceable components, compositions│
-├──────────────────────────────────────────────────────────┤
-│ Constitutional Substrate                                 │
-│ Identity, authority, objects, journal, causality, effects │
-└──────────────────────────────────────────────────────────┘
-
-Host Control Plane / Runtime Fabric crosses these layers:
-installation, processes, WASM, remote execution, files, secrets, networking,
-ports, deployment, backup, and diagnostics.
-```
-
-This is not a single mandatory top-to-bottom product stack. Distributions and products may choose different protocols, components, and Host capabilities. The non-optional boundary is explicit identity, authority, and public contracts.
+The layering diagram is maintained only in [`ARCHITECTURE.md`](ARCHITECTURE.en.md). What the vision needs to keep is this: distributions and products may choose different protocols, components, and Host capabilities. The non-optional boundary is explicit identity, authority, and public contracts.
 
 ## Openness in actual use
 

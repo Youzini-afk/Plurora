@@ -2,7 +2,7 @@
 
 > [English](./TARGET_AGENT_PROTOCOL.en.md) · [中文](./TARGET_AGENT_PROTOCOL.md)
 
-Status: **Implemented**. A Target Agent is a remote execution adapter for the Host Control Plane. It is not a remote package, general SSH shell, second Host, or application identity provider. Identity, typed operations, artifacts, the Host-local Docker operation broker, and the authenticated reverse tunnel form one controlled boundary. Managed Realization now connects stable OperationalIntent/TargetInventory plans and apply/stop/rollback/reconcile to the same local/Agent typed-operation and receipt path. Automatic placement and target-edge ingress remain outside this contract.
+A Target Agent is a remote execution adapter for the Host Control Plane. It is not a remote package, general SSH shell, second Host, or application identity provider. Implementation progress is in [`../ALPHA_STATUS.md`](../ALPHA_STATUS.en.md). Automatic placement and target-edge ingress remain outside this contract.
 
 ## Three remote boundaries
 

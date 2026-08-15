@@ -91,3 +91,12 @@ A linked-local directory is user-owned and may change concurrently. The Host nei
 - local CLI or first-party Package mutation paths that bypass the public Host API.
 
 See [`../guides/REALIZATION.en.md`](../guides/REALIZATION.en.md) for the Realization lifecycle and [`HOST_RESOURCE_AUTHORITY.en.md`](HOST_RESOURCE_AUTHORITY.en.md) for device authority.
+
+## Workspace operating plane
+
+A Workspace is a Host-local mutable source location and is not part of Work identity.
+
+- `managed`: a controlled copy under `<data>/workspaces/<workspace-id>/source/`.
+- `linked_local`: a binding to a directory the user already has. The Host has no authority to delete that source. Linked-local sources are never deleted.
+
+A repository without an explicit Work source is inspected statically first. It does not automatically install, build, or open the network. Real file effects must pass `Intent → ChangeSet → PolicyDecision → ChangeCommit → EffectReceipt`. Web and CLI use only the public Host API. Packing and Installation adoption are in [`../guides/INSTALLATION_MODEL.md`](../guides/INSTALLATION_MODEL.en.md).

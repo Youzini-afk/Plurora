@@ -2,11 +2,9 @@
 
 > [English](./OPERATIONS_DATA_RELEASE.en.md) · [中文](./OPERATIONS_DATA_RELEASE.md)
 
-Status: **The operational-safety baseline is implemented; remaining hardening stays governed by this contract**. This document defines the data, health, diagnostics, upgrade, and release baseline required while a Host carries real Works and remote Targets.
+This document defines the data, health, diagnostics, upgrade, and release baseline required while a Host carries real Works and remote Targets. What is already landed versus still hardening is recorded in [`../ALPHA_STATUS.md`](../ALPHA_STATUS.en.md).
 
-## Current implementation status
-
-Implemented:
+## Behavior a Host must satisfy
 
 - An Install Lab store schema mismatch no longer deletes data. The old store is atomically moved to a versioned, uniquely suffixed preservation directory before a fresh store receives the current marker.
 - `plurora host backup` creates an offline directory snapshot for a SQLite Host profile whose relative database path is inside the data directory. It first acquires the durable Host control-plane lease, excludes the explicit `cache`, uses SQLite's online backup API, and writes a SHA-256 manifest for secrets, keys, objects, installations, profiles, and journals copied under the same lease boundary.

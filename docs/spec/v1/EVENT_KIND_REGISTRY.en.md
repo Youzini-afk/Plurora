@@ -1,6 +1,6 @@
 # Event Kind Registry (v1)
 
-This table lists the 76 event kinds emitted exclusively by the Plurora platform runtime. Ordinary Package writers use their own Package ID namespace and cannot impersonate a platform-owned kind.
+This table lists the event kinds emitted exclusively by the Plurora platform runtime. Ordinary Package writers use their own Package ID namespace and cannot impersonate a platform-owned kind. Exact counts live in [`../../ALPHA_STATUS.md`](../../ALPHA_STATUS.en.md).
 
 | Event kind | Payload schema | Writer | Trigger | Status |
 |---|---|---|---|---|

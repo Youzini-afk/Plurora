@@ -69,7 +69,7 @@ host-private/realization.effect-stopped
 host-private/realization.stopping
 ```
 
-A checkpoint carries stable action/request digests, observed resources, and structured receipt facts. It is not one of the 76 public platform events and never enters Runtime journal/SSE.
+A checkpoint carries stable action/request digests, observed resources, and structured receipt facts. It is not in the public platform event registry and never enters Runtime journal/SSE.
 
 - Applying plus apply checkpoint: hydrate/same-key retry materializes receipts and commits Active without applying again.
 - Stopping plus stop checkpoint: commit Stopped without stopping again.

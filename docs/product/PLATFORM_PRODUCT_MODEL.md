@@ -2,7 +2,7 @@
 
 > [English](./PLATFORM_PRODUCT_MODEL.en.md) · [中文](./PLATFORM_PRODUCT_MODEL.md)
 
-本文定义 Plurora 官方发行版应该怎样成为一款完整、好用的产品，同时不把自己的产品选择提升为整个平台的强制本体。
+本文定义 Plurora 官方发行版应该怎样成为一款完整、好用的产品，同时不把自己的产品选择提升为整个平台的强制本体。平台原则见 [`../CHARTER.md`](../CHARTER.md)，分层见 [`../architecture/ARCHITECTURE.md`](../architecture/ARCHITECTURE.md)。
 
 ## 产品责任
 
@@ -153,4 +153,4 @@ Work 是便携逻辑作品，Installation 是某台 Host 对 exact Work/Lock 的
 - 更换组件、客户端或 Host 时是否保留工作；
 - 新功能是否保持公开边界和第三方空间。
 
-具体当前状态见 [`../ALPHA_STATUS.md`](../ALPHA_STATUS.md)：Exposure、Binding、Powerbox 与 Managed Realization 均已实现；建设方向见 [`../roadmap/NEXT_STEPS.md`](../roadmap/NEXT_STEPS.md)。
+当前实现事实见 [`../ALPHA_STATUS.md`](../ALPHA_STATUS.md)。建设方向见 [`../roadmap/NEXT_STEPS.md`](../roadmap/NEXT_STEPS.md)。

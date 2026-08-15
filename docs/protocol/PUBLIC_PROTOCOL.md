@@ -69,32 +69,15 @@ Host 附加 principal 与 transport context。调用者不能通过 request JSON
 - `output`：JSON 值，可能是流。
 - `errors`：包含 `code`、`message`、`details` 的结构化错误模型。
 
-## 公开方法
+## 方法语义在哪里
 
-公开契约只暴露有界的方法集；Package 特有行为仍由 Package capability 拥有。
+方法 ID、params/result schema 与 implemented / partial / planned 状态以 [`../spec/PUBLIC_CONTRACT.md`](../spec/PUBLIC_CONTRACT.md) 和 `docs/spec/v1/schemas/` 为准。本文只保留传输、信封，以及必须在传输层解释的细节。
 
-### Context
+下面几节是 Host 传输相关的补充，不是第二份方法矩阵。
 
-```text
-context.open      open a Context with labels and an active Package set
-context.close     close a Context
-context.fork      fork a Context at an event sequence
-context.branch.list list branch lineage records
-context.get       get Context metadata
-context.list      list Contexts visible to the caller
-```
+### SSE 订阅
 
-Substrate 不存储内容层面的 Context state。Label、active Package set、lineage、journal ordering 与 authority scope 是有界的平台职责。
-
-### 事件
-
-```text
-journal.append      append an event under the caller's namespace
-journal.list        list events for a session by sequence range
-journal.subscribe   stream events as they are appended (resumable)
-```
-
-`journal.append` 要求调用者清单中包含 `events.append`。`journal.list` 与 `journal.subscribe` 对 Package principal 要求 `events.read`。当前 Host 将 HTTP SSE 作为 Host-dev 流暴露：
+`journal.list` 与 `journal.subscribe` 对 Package principal 要求 `events.read`。当前 Host 将 HTTP SSE 作为 Host-dev 流暴露：
 
 ```text
 GET /journal/subscribe/:session_id?after_sequence=42&kind_prefix=host/&writer_package_id=plurora/runtime
@@ -102,84 +85,9 @@ GET /journal/subscribe/:session_id?after_sequence=42&kind_prefix=host/&writer_pa
 
 `journal.list` 接受 `session_id`、`after_sequence`、`limit`、`kind_prefix` 和 `writer_package_id`。
 
-### 包
+### Outbound 传输门闩
 
-```text
-host.package.list      list packages visible in the host
-host.package.describe  fetch a manifest snapshot
-host.package.load      load a package from a manifest reference
-host.package.unload    stop and remove a package
-host.package.status    current state and health
-host.package.restart   restart a package when its entry form supports restart
-host.package.logs      read captured package logs
-```
-
-加载包可能受 host 策略限制。
-
-### Capability
-
-```text
-capability.discover    enumerate capabilities, optionally filtered
-capability.describe    fetch input/output schemas and metadata
-capability.invoke      invoke a capability with input
-capability.stream      invoke a capability that streams
-capability.cancel      cancel an in-flight invocation
-```
-
-`invoke` 通过 capability ID、可选 `provider_package_id`、可选 version constraint 与 active Context Package set 解析 provider。多个 provider 匹配且调用者未指定 `provider_package_id` 时，runtime 返回 ambiguous-route error。当前 Host 支持精确版本或同 major 的 `^x.y` constraint。
-
-### 扩展点和钩子
-
-```text
-protocol.extension.list        list live extension points
-protocol.extension.describe    fetch payload schema and timing
-protocol.hook.list                   list subscribers to a point
-```
-
-公开契约不暴露任意 hook injection。Subscription 在 Manifest 中声明，并通过 Package lifecycle 进入 live registry。Runtime 当前只 dispatch 文档中的四个 journal/capability point。
-
-### Object
-
-```text
-object.put         store an asset blob under the caller's namespace
-object.get         fetch an asset by id
-object.list        list assets visible to the caller
-```
-
-Runtime 记录 `mime`、`hash`、`size` 与 `origin_package` 等 object metadata，校验 storage boundary，但不解释内容。
-
-### Projection
-
-```text
-projection.register  register a generic projection definition
-projection.rebuild   rebuild projection state from event filters
-projection.get       fetch projection state
-projection.list      list projection records
-```
-
-当前 runtime 管理 projection 记录和 rebuild 生命周期，但不解释领域状态语义。Projection 的共享合同属于可选 Protocol，具体 materializer 由 Component 实现；Contract V1 通过 Package writer 注册和分发它们。
-
-### 健康与身份
-
-```text
-host.info         protocol/registry versions, methods, profiles, layers, Protocol Commons, and transports
-identity.current    the calling principal (user, package, remote)
-host.ping         liveness
-host.diagnostics  local host diagnostics for package/capability/hook observability
-```
-
-### Outbound
-
-```text
-host.outbound.execute    unary HTTP-style outbound through the host executor
-host.outbound.stream     streaming outbound through SSE / NDJSON / raw frames
-host.outbound.websocket.open   open an outbound WebSocket stream and return connection_id
-host.outbound.websocket.send   send one outbound WebSocket frame
-host.outbound.websocket.close  close an outbound WebSocket connection
-host.outbound.audit      list redacted outbound audit records for a package
-```
-
-出站协议提供三个出站原语：`execute` 是一元 HTTP-style 请求，`stream` 是 SSE / NDJSON / raw 单向流，`host.outbound.websocket.*` 是双向 WebSocket。`websocket.open` 是 streaming 方法，建立 WSS 连接并返回 `connection_id`；`websocket.send` 和 `websocket.close` 是 unary 方法。`connection_id` 也是 `stream_id`，调用 `capability.cancel` 并传入该 id 会走同一条取消/关闭路径。
+出站协议提供三个原语：`host.outbound.execute`（一元 HTTPS）、`host.outbound.stream`（SSE / NDJSON / raw）、`host.outbound.websocket.*`（双向 WSS）。`websocket.open` 是 streaming 方法，返回的 `connection_id` 也是 `stream_id`；`capability.cancel` 走同一条关闭路径。
 
 请求/响应 shape 以运行时类型和协议分发解析为准，不在本文重复完整结构：HTTP/stream 类型见 `crates/plurora-runtime/src/runtime/outbound.rs`，WebSocket 类型见 `crates/plurora-runtime/src/runtime/outbound_websocket.rs`，协议解析见 `crates/plurora-runtime/src/runtime/protocol_dispatch.rs`。核心字段包括 `capability_id`、`destination_host`、`method`、可选 `path`、`body_shape`、`metadata`、`secret_headers`、`static_headers`、`timeout_ms`；`stream` 额外接受 `stream_format`（`sse` / `ndjson` / `raw`）与帧/时长上限；`websocket.open` 接受目标 host/path、可选 subprotocol、headers、`secret_refs` 和连接/帧/字节上限。
 

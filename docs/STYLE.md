@@ -116,7 +116,7 @@ Guide 应描述读者完成一项任务的当前路径，并在开头说明它�
 - 权限强制、secret、部署、恢复和迁移行为；
 - 某个兼容声明或外部集成覆盖范围。
 
-不要复制容易漂移的数字到过多文档。需要数字时，优先让状态文档引用单一来源。
+不要复制容易漂移的数字到过多文档。精确方法 / 事件 / schema / conformance 计数只写在 [`ALPHA_STATUS.md`](ALPHA_STATUS.md) 和被 `scripts/check-identity.py` 锚定的 spec 表里。其它文档指向这两个来源或 `plurora conformance --list`。
 
 ## 机械检查
 

@@ -1,6 +1,6 @@
 # 事件类型注册表（v1）
 
-本表列出 76 个只能由 Plurora 平台运行时发出的事件 kind。普通 Package writer 使用自己的 Package ID 命名空间，不能冒充平台拥有的事件。
+本表列出只能由 Plurora 平台运行时发出的事件 kind。普通 Package writer 使用自己的 Package ID 命名空间，不能冒充平台拥有的事件。完整计数见 [`../../ALPHA_STATUS.md`](../../ALPHA_STATUS.md)。
 
 | 事件类型 | Payload schema | Writer | 触发 | 状态 |
 |---|---|---|---|---|

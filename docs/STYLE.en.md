@@ -116,7 +116,7 @@ Check code, generated artifacts, or CI before documenting:
 - authority enforcement, secrets, deployment, recovery, and migration behavior;
 - compatibility or external-integration coverage.
 
-Avoid copying fast-drifting counts into many documents. When a number is needed, prefer a single source in status documentation.
+Avoid copying fast-drifting counts into many documents. Exact method / event / schema / conformance counts belong only in [`ALPHA_STATUS.md`](ALPHA_STATUS.en.md) and spec tables anchored by `scripts/check-identity.py`. Other documents should point at those sources or `plurora conformance --list`.
 
 ## Mechanical checks
 

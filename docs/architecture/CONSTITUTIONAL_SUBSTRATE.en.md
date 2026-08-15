@@ -9,95 +9,11 @@ This document separates two things:
 
 They do not yet coincide completely. To provide an operational platform, `plurora-core` and `plurora-runtime` also carry some Host, Protocol, and Shell responsibility. The long-term goal is to return responsibility to the correct layer while preserving explicit version boundaries, migration, and data readability.
 
-## Mechanisms owned by the constitutional substrate
+## What it owns and does not own
 
-### Identity and authenticated context
+The complete “owns / does not own” list lives in [`ARCHITECTURE.md`](ARCHITECTURE.en.md). This document only covers the gap between that list and the current implementation.
 
-- principals, caller identity, and authenticated invocation context;
-- generic context such as traces, parent invocation, tenant, or Host boundary;
-- stable identity that does not depend on display names, paths, or caller-supplied claims.
-
-### Authority
-
-- capability and authority minting, attenuation, delegation, leases, refresh, and revocation;
-- resource selectors, conditions, quotas, and expiration;
-- policy decisions and authority provenance;
-- reauthorization at effect boundaries for long-running work.
-
-A Manifest or protocol declaration is a request ceiling, not an actual grant.
-
-### Objects and verifiable references
-
-- content-addressed object storage;
-- open artifact descriptors;
-- digest, size, references, and integrity verification;
-- lossless preservation and transfer of unknown artifact types.
-
-Host paths, temporary URLs, process IDs, and database row numbers cannot become durable portable identity.
-
-### Journal, causality, and head primitives
-
-- stable, pageable append-only order inside a scope;
-- explicit causation, correlation, and parent references;
-- the minimal primitives needed for branches and heads;
-- historical facts that cannot be silently rewritten.
-
-Protocols own how a domain interprets events, merges branches, or defines a World or Document head.
-
-### Invocation, streams, and cancellation
-
-- capability and component invocation;
-- streaming frames, progress, and backpressure;
-- cancellation, deadlines, timeout, and terminal state;
-- idempotency keys, retry semantics, and invocation receipts.
-
-### Transaction and commit primitives
-
-- compare-and-swap;
-- preconditions;
-- atomic state update;
-- idempotency and explicit partial-failure semantics.
-
-The substrate does not freeze those primitives into one product's proposal or publishing workflow.
-
-### Effect receipts and audit
-
-- auditable records for external effects and nondeterministic behavior;
-- references to input, output, component, authority, policy, and approval;
-- explicit distinction among success, rejection, cancellation, timeout, and partial completion;
-- separation of historical replay from re-execution.
-
-A receipt records necessary references and decisions without copying raw secrets or unrelated user content.
-
-### Minimal component lifecycle
-
-- component-instance activation, health, deactivation, and failure boundary;
-- export and import bindings needed for invocation;
-- visible trust class and enforced-boundary claims.
-
-Package download, installation directories, and user-facing management belong to the Host and distribution rather than the substrate.
-
-### Protocol and version negotiation
-
-- explicit selection of protocol IDs, versions, and profiles;
-- requirements that do not allow silent downgrade;
-- exact Contract Registry identities, explicit profile/layer/Protocol negotiation, and versioned migration boundaries;
-- transport-independent behavioral semantics.
-
-## What the constitutional substrate does not own
-
-The substrate does not own:
-
-- Project, Home, Library, Play, Forge, Assistant, or Editor;
-- package registries, marketplaces, installation shelves, or update products;
-- workspaces, Docker, targets, exec, ports, proxies, deployment, or concrete backup products;
-- Chat, Message, Turn, Prompt, Model, Agent, or Memory;
-- World, Entity, Scene, Quest, Document, Game, or Simulation;
-- a concrete secret store, database, vector store, or model vendor;
-- one fixed proposal, approval, change, or publishing workflow;
-- any first-party component ID or UI state.
-
-Those concepts belong respectively to the Host, Protocol Commons, a distribution, or a product. They may be important and stable without belonging to the constitutional substrate.
+In one sentence: the substrate owns identity, authority, content-addressed objects, journal/causality, invoke/stream/cancel, CAS/idempotency, effect receipts, and protocol negotiation. It does not own Library, chat, agents, worlds, Docker, any official UI, or any first-party Package ID.
 
 ## Compatibility responsibilities carried by the current Contract V1 kernel
 
