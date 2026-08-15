@@ -11,8 +11,6 @@ If Docker is a runtime for containers, think of Plurora as a **runtime for digit
 
 The repository is in Foundation Alpha. Host, public contracts, Web/PWA, Desktop, CLI, and runnable authoring examples already form a substantial operational surface. Implementation detail lives in [`docs/ALPHA_STATUS.md`](docs/ALPHA_STATUS.en.md).
 
-![Plurora](clients/web/public/icons/plurora.svg)
-
 ## See the UI in five minutes
 
 You need Rust 1.78+, Node.js 20+, and Git. Compiling the Host from source on Windows also needs Visual Studio Build Tools (C++ desktop workload). WebView2 is only required for Desktop builds.

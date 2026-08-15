@@ -11,8 +11,6 @@
 
 仓库处于 Foundation Alpha：Host、公开合同、Web/PWA、Desktop、CLI 和可运行的创作示例已经形成较大可运行面。实现细节见 [`docs/ALPHA_STATUS.md`](docs/ALPHA_STATUS.md)。
 
-![Plurora](clients/web/public/icons/plurora.svg)
-
 ## 五分钟看到界面
 
 需要 Rust 1.78+、Node.js 20+ 和 Git。从源码编译 Host 在 Windows 上还需要 Visual Studio Build Tools（C++ 桌面工作负载）。WebView2 只在构建 Desktop 时需要。
