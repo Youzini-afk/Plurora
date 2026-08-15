@@ -79,7 +79,7 @@ The official Library reads visible Work, Installation, Run, Rights, and current 
 
 ## Related contracts
 
-- [`../spec/PUBLIC_CONTRACT.md`](../spec/PUBLIC_CONTRACT.en.md) — 99 methods, 76 events, and authority rules.
+- [`../spec/PUBLIC_CONTRACT.md`](../spec/PUBLIC_CONTRACT.en.md) — public methods, events, and authority rules.
 - [`../spec/v1/EVENT_KIND_REGISTRY.md`](../spec/v1/EVENT_KIND_REGISTRY.en.md) — Run, Exposure, Binding, and Realization lifecycle events.
 - [`INSTALLATION_MODEL.md`](INSTALLATION_MODEL.en.md) — Installation journal, state, and Work boundaries.
 - [`../architecture/HOST_RESOURCE_AUTHORITY.md`](../architecture/HOST_RESOURCE_AUTHORITY.en.md) — exact selectors and the `run` action.

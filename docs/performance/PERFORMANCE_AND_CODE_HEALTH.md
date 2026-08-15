@@ -69,7 +69,7 @@ Conformance 支持：
 - `--slowest <N>`：输出最慢 case。
 - per-case duration：每个 case 都打印耗时。
 
-新增 conformance case 时必须带 tag，避免反馈环重新变成不可筛选的巨型串行脚本。详见 [`CONFORMANCE_FEEDBACK.md`](./CONFORMANCE_FEEDBACK.md)。
+新增 conformance case 时必须带 tag，避免反馈环重新变成不可筛选的巨型串行脚本。`--list` 输出 `<case_id>  [<tag>, ...]`；`--case` 与 `--tag` 同时使用时是 AND。完整 tag 域见 [`../spec/CONFORMANCE_MATRIX.md`](../spec/CONFORMANCE_MATRIX.md)。
 
 ## 结构优化纪律
 

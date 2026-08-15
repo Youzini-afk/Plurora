@@ -45,7 +45,7 @@ historic Planned/Active → Applying replacement → RolledBack(active replaceme
 - rollback replacement apply 完成但旧版本 stop 暂时失败时，replacement 与 parent 的两个 checkpoint 都保留；同 key 重试从旧版本 stop 继续，不重新 apply replacement。
 - 没有 effect checkpoint 的未完成 Applying 不会被自动重放；重启后进入 `recovery_required`，需要显式 reconcile/stop/rollback。
 - build 已完成但 launch/route 未完整成功时，不会丢弃部分事实：已知 receipt 与仍可能存在的 workload identity 会进入 `recovery_required` 或 `outcome_unknown` revision，后续必须显式 reconcile；不能把它降格为无效果的普通失败。
-- private event 不计入 76 个平台事件，也不能通过 public journal/SSE 观察。
+- private event 不计入平台事件 registry，也不能通过 public journal/SSE 观察。
 
 这不能把外部系统与 Host journal 变成单一原子事务：如果外部 effect 已发生，而 control journal 本身同时不可写，Host 只能 fail closed 并要求 reconcile。Target operation 使用稳定 idempotency key，恢复不会从 live workspace 猜测输入。
 
@@ -107,3 +107,13 @@ Installation frame 只在 Work 声明 OperationalIntent 时显示 Realization wo
 - 开发闭环与 companion agent 生成的 ChangeSet/Plan 仍不能绕过本页 authority/effect boundary。
 
 机器可读契约见 [`../spec/PUBLIC_CONTRACT.md`](../spec/PUBLIC_CONTRACT.md)、[`../spec/v1/EVENT_KIND_REGISTRY.md`](../spec/v1/EVENT_KIND_REGISTRY.md) 与 `docs/spec/v1/schemas/`。
+
+## 附录：executor 与代理
+
+`host.exec.*`、`host.port.*` 与 `host.proxy.*` 是 HostAdmin/HostDev 的低层 adapter。普通 device 只调用 `host.realization.*`。
+
+Local Host 与远程 Target Agent 接收同一 typed operation（build / apply / observe / stop）。Docker 是当前第一个 backend：输入必须是带 `@sha256:` 的 OCI image，或已持久化的 build context。Docker 不是 Work 的必填概念。
+
+Executor 为 endpoint 创建 Host-owned loopback port lease，并注册绑定该 lease 的 HTTP route。默认 route 需要 Host 认证；只有 plan 明确选择 public policy 时才公开。Stop 只清理已记录资源，不扫描 live workspace。
+
+公开错误只返回稳定 code 与 next step。架构不变量见 [`../architecture/REALIZATION_CONTROLLER.md`](../architecture/REALIZATION_CONTROLLER.md) 与 [`../architecture/TARGET_AGENT_PROTOCOL.md`](../architecture/TARGET_AGENT_PROTOCOL.md)。

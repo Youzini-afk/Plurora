@@ -8,4 +8,4 @@ Platform and product stay separate — YdlTavern doesn't live in this repo and c
 
 - [`TAVERN_COMPAT.md`](TAVERN_COMPAT.en.md) — Plurora's side of the boundary with YdlTavern.
 
-For upstream TavernHeadless research, see [`../../integrations/tavern-headless/`](../../integrations/tavern-headless/). For generic capability packages distilled from Tavern lessons, see [`../guides/CREATIVE_CAPABILITY_KIT.md`](../guides/CREATIVE_CAPABILITY_KIT.en.md).
+For upstream TavernHeadless research and the generic capability-package mapping, see [`../../integrations/tavern-headless/`](../../integrations/tavern-headless/).

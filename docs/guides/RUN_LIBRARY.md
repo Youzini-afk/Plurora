@@ -81,7 +81,7 @@ Run-bound 激活会为这些已经 ready 的本地实现建立 Run context、节
 
 ## 相关契约
 
-- [`../spec/PUBLIC_CONTRACT.md`](../spec/PUBLIC_CONTRACT.md) — 99 methods、76 events 与 authority 约定。
+- [`../spec/PUBLIC_CONTRACT.md`](../spec/PUBLIC_CONTRACT.md) — 公开方法、事件与 authority 约定。
 - [`../spec/v1/EVENT_KIND_REGISTRY.md`](../spec/v1/EVENT_KIND_REGISTRY.md) — Run、Exposure、Binding、Realization lifecycle events。
 - [`INSTALLATION_MODEL.md`](INSTALLATION_MODEL.md) — Installation journal、state 与 Work 边界。
 - [`../architecture/HOST_RESOURCE_AUTHORITY.md`](../architecture/HOST_RESOURCE_AUTHORITY.md) — exact resource selector 与 `run` action。

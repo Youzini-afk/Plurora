@@ -69,7 +69,7 @@ Conformance supports:
 - `--slowest <N>`: print the slowest cases.
 - Per-case duration in normal output.
 
-New conformance cases must declare tags so the suite does not become an unfilterable serial script again. See [`CONFORMANCE_FEEDBACK.en.md`](./CONFORMANCE_FEEDBACK.en.md).
+New conformance cases must declare tags so the suite does not become an unfilterable serial script again. `--list` prints `<case_id>  [<tag>, ...]`. `--case` and `--tag` together are AND. Domain tags are in [`../spec/CONFORMANCE_MATRIX.md`](../spec/CONFORMANCE_MATRIX.en.md).
 
 ## Structure discipline
 

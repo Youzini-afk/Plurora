@@ -100,6 +100,6 @@ powerbox.candidates_effect_free_no_auto_select
 powerbox.launch_runtime_exact_run_pin
 ```
 
-当前公开合同为 99 methods、76 events、39 top-level、214 schemas；Realization 已实现且不改变 Powerbox 的 least-authority 边界。
+公开合同的精确规模见 [`../ALPHA_STATUS.md`](../ALPHA_STATUS.md)。Realization 不改变 Powerbox 的 least-authority 边界。
 
 相关文档：[`RUN_LIBRARY.md`](RUN_LIBRARY.md)、[`REALIZATION.md`](REALIZATION.md)、[`INSTALLATION_MODEL.md`](INSTALLATION_MODEL.md)、[`../architecture/HOST_RESOURCE_AUTHORITY.md`](../architecture/HOST_RESOURCE_AUTHORITY.md)、[`../spec/PUBLIC_CONTRACT.md`](../spec/PUBLIC_CONTRACT.md)。

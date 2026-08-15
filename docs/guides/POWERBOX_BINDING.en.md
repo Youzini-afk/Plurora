@@ -100,6 +100,6 @@ powerbox.candidates_effect_free_no_auto_select
 powerbox.launch_runtime_exact_run_pin
 ```
 
-The current public contract is 99 methods, 76 events, 39 top-level schemas, and 214 schemas total. Realization is implemented without weakening Powerbox's least-authority boundary.
+Exact public-contract size is recorded in [`../ALPHA_STATUS.md`](../ALPHA_STATUS.en.md). Realization does not weaken Powerbox's least-authority boundary.
 
 Related documents: [`RUN_LIBRARY.en.md`](RUN_LIBRARY.en.md), [`REALIZATION.en.md`](REALIZATION.en.md), [`INSTALLATION_MODEL.en.md`](INSTALLATION_MODEL.en.md), [`../architecture/HOST_RESOURCE_AUTHORITY.en.md`](../architecture/HOST_RESOURCE_AUTHORITY.en.md), and [`../spec/PUBLIC_CONTRACT.en.md`](../spec/PUBLIC_CONTRACT.en.md).

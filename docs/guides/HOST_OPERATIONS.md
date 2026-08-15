@@ -53,3 +53,15 @@ gh attestation verify <installer> -R Youzini-afk/Plurora
 ```
 
 当前没有配置平台 signing/notarization，draft release 不应被描述为已签名发行版。
+
+## 容器部署
+
+仓库根目录的 `Dockerfile` 构建 Web 静态资源与 `plurora` 二进制，并在同一端口提供静态文件和 Host API。这是快速验证路径，不是 Desktop 发布路径。把任何公网 URL 都当作不可信环境：使用一次性 volume，设置访问 token，不要在该 Host 里保存真实 secret。
+
+```sh
+plurora host serve --http 0.0.0.0:$PORT --data-dir /data \
+  --profile /data/profiles/default.yaml --static-dir /app/public \
+  --access-token "$PLURORA_HTTP_ACCESS_TOKEN"
+```
+
+建议设置 `PLURORA_HTTP_ACCESS_TOKEN`，并把 `PLURORA_REQUIRE_ACCESS_TOKEN=1` 用在公网。健康检查用 `GET /healthz`，持久化挂载到 `/data`。entrypoint 与环境变量见 `docker/entrypoint.sh`。

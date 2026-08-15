@@ -158,3 +158,22 @@ There are no compatibility aliases. Web Home and third-party clients use the sam
 ## Boundary with Run
 
 Installation `ready` means that the local adoption record and artifact closure are valid. It does not mean a process is running, a port is allocated, or an endpoint is exposed. `host.run.*` methods use a separate Run journal with starting → running → degraded → stopping → stopped (or failed / interrupted) states; opening Library or Installation detail never creates a Run. Run start activates only an installed, verified, uniquely matching local implementation from the AssemblyLock. Missing, ambiguous, unsupported-backend, or machine-resource requirements return structured gaps and next steps rather than implicit build/apply. A Run context is independent from a browser tab, so closing a tab does not stop it; stop releases only that Run activation and does not unload global Packages. Exposure/Binding uses the Host journal, exact provider/consumer Ports, and an optional Run pin; close, revoke, expiry, and version drift never rewrite the Installation lock. Realization compiles and executes managed resources with the Installation revision as a precondition and likewise never rewrites portable Work/Lock. See [`RUN_LIBRARY.en.md`](RUN_LIBRARY.en.md), [`POWERBOX_BINDING.en.md`](POWERBOX_BINDING.en.md), and [`REALIZATION.en.md`](REALIZATION.en.md).
+
+## Install operations
+
+Until `plurora` is on PATH, replace `plurora` below with `cargo run -p plurora-cli --`.
+
+```bash
+cargo run -p plurora-cli -- work init ./my-work --id example/my-work
+cargo run -p plurora-cli -- work check ./my-work
+cargo run -p plurora-cli -- work pack ./my-work
+cargo run -p plurora-cli -- installation create ./my-work --idempotency-key install-my-work-v1
+cargo run -p plurora-cli -- installation list
+cargo run -p plurora-cli -- installation info <installation-id>
+```
+
+`work pack` writes the ObjectStore only. `installation create` is what changes the Host journal. `ready` still does not mean a Run has started.
+
+Accepted sources: explicit `work.yaml` / `assembly.yaml`, a Package manifest (single-node Assembly), an ordinary source repository (Workspace / inspection first), a Foreign Capsule, or a content-only bundle. Multiple equivalent providers are reported as ambiguous; the resolver never auto-picks by publisher.
+
+A Workspace is a Host-local mutable source location and is not part of Work identity. Linked-local sources are never deleted. Controlled writes go through the Host development control plane; see [`../architecture/HOST_DEVELOPMENT_CONTROL_PLANE.md`](../architecture/HOST_DEVELOPMENT_CONTROL_PLANE.en.md).

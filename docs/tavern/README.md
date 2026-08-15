@@ -8,4 +8,4 @@
 
 - [`TAVERN_COMPAT.md`](TAVERN_COMPAT.md) —— Plurora 这边对 YdlTavern 的边界。
 
-TavernHeadless 上游调研记录见 [`../../integrations/tavern-headless/`](../../integrations/tavern-headless/)；从 Tavern 经验中抽出的通用能力包见 [`../guides/CREATIVE_CAPABILITY_KIT.md`](../guides/CREATIVE_CAPABILITY_KIT.md)。
+TavernHeadless 上游调研与通用能力包映射见 [`../../integrations/tavern-headless/`](../../integrations/tavern-headless/)。

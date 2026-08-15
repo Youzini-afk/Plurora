@@ -158,3 +158,22 @@ host/installation.removed
 ## 与 Run 的边界
 
 Installation `ready` 只表示本地采用记录与 artifact 闭包有效，不表示进程已经启动、端口已经分配或 endpoint 已暴露。`host.run.*` 使用独立 Run journal 建立 starting → running → degraded → stopping → stopped（或 failed / interrupted）生命周期；打开 Library 或 Installation 详情不会自动创建 Run。Run start 只激活已安装、已验证且唯一匹配 AssemblyLock 的本地实现；缺失、歧义、unsupported backend 或需要机器资源时返回结构化 gap 和 next step，不隐式 build/apply。Run 的 context 与浏览器 tab 独立，关闭 tab 不会 stop；stop 只释放该 Run 的 activation，不卸载全局 Package。Exposure/Binding 使用 Host journal、exact provider/consumer Port 与可选 Run pin，关闭、撤销、到期和版本漂移都不回写 Installation lock。Realization 以 Installation revision 为 precondition 编译并执行 managed resources，同样不会回写便携 Work/Lock。详见 [`RUN_LIBRARY.md`](RUN_LIBRARY.md)、[`POWERBOX_BINDING.md`](POWERBOX_BINDING.md) 与 [`REALIZATION.md`](REALIZATION.md)。
+
+## 安装操作
+
+在把 `plurora` 装进 PATH 之前，把下面的 `plurora` 换成 `cargo run -p plurora-cli --`。
+
+```bash
+cargo run -p plurora-cli -- work init ./my-work --id example/my-work
+cargo run -p plurora-cli -- work check ./my-work
+cargo run -p plurora-cli -- work pack ./my-work
+cargo run -p plurora-cli -- installation create ./my-work --idempotency-key install-my-work-v1
+cargo run -p plurora-cli -- installation list
+cargo run -p plurora-cli -- installation info <installation-id>
+```
+
+`work pack` 只写 ObjectStore。`installation create` 才改 Host journal。`ready` 仍不表示已经启动 Run。
+
+可接受来源：显式 `work.yaml` / `assembly.yaml`、Package manifest（单节点 Assembly）、普通源码仓库（先成为 Workspace / inspection）、Foreign Capsule、content-only bundle。多个同等 provider 会报歧义，不按 publisher 自动选择。
+
+Workspace 是 Host-local 可变源码位置，不进入 Work identity。`linked_local` 源码永不删除。受控写入走 Host development control plane，见 [`../architecture/HOST_DEVELOPMENT_CONTROL_PLANE.md`](../architecture/HOST_DEVELOPMENT_CONTROL_PLANE.md)。

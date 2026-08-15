@@ -53,3 +53,15 @@ gh attestation verify <installer> -R Youzini-afk/Plurora
 ```
 
 Platform signing/notarization is not configured yet, so the draft must not be represented as a signed release.
+
+## Container deploy
+
+The root `Dockerfile` builds the Web static assets and the `plurora` binary, then serves both on one port. This is a quick-validation path, not a Desktop release path. Treat any public URL as untrusted: use a disposable volume, set an access token, and do not store real secrets on that Host.
+
+```sh
+plurora host serve --http 0.0.0.0:$PORT --data-dir /data \
+  --profile /data/profiles/default.yaml --static-dir /app/public \
+  --access-token "$PLURORA_HTTP_ACCESS_TOKEN"
+```
+
+Set `PLURORA_HTTP_ACCESS_TOKEN` and use `PLURORA_REQUIRE_ACCESS_TOKEN=1` on the public internet. Health-check `GET /healthz` and mount persistence at `/data`. See `docker/entrypoint.sh` for the entrypoint and environment variables.
