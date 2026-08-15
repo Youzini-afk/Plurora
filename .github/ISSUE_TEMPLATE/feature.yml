@@ -1,0 +1,41 @@
+name: Feature
+description: Propose a capability that belongs on a public boundary
+title: "[feature] "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Say which layer this belongs to. Official product ideas should not silently rewrite the substrate.
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: Who needs this, and what can they not do today?
+    validations:
+      required: true
+  - type: dropdown
+    id: layer
+    attributes:
+      label: Layer
+      options:
+        - Official product / Shell
+        - Host control plane
+        - Public protocol / contract
+        - Package / Component
+        - Documentation
+        - Unsure
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposal
+      description: The smallest public change that would solve it. Prefer existing contracts over new ones.
+    validations:
+      required: true
+  - type: textarea
+    id: non-goals
+    attributes:
+      label: Non-goals
+      description: What this should not become (private API, first-party privilege, a new ontology, ...).

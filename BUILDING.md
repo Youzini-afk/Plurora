@@ -2,6 +2,23 @@
 
 Plurora is licensed under AGPL-3.0-only. See [LICENSE](./LICENSE) for terms.
 
+If you only want the Web UI, use the five-minute path below. You still need a C/C++ toolchain to compile the Host from source (Visual Studio Build Tools on Windows). You do not need WebView2 or Linux WebKit packages until you build Desktop. The longer getting-started narrative is in [`docs/guides/GETTING_STARTED.md`](docs/guides/GETTING_STARTED.md).
+
+## Five minutes to the UI
+
+```bash
+# Terminal 1
+cargo run -p plurora-cli -- host serve \
+  --http 127.0.0.1:8787 \
+  --profile profiles/forge-alpha.yaml
+
+# Terminal 2
+npm ci --prefix clients/web
+npm run dev --prefix clients/web
+```
+
+Open [http://127.0.0.1:1420](http://127.0.0.1:1420). Until `plurora` is on PATH, invoke every CLI command as `cargo run -p plurora-cli -- <subcommand>`.
+
 ## Source
 
 - Repository: https://github.com/Youzini-afk/Plurora
@@ -10,7 +27,7 @@ Plurora is licensed under AGPL-3.0-only. See [LICENSE](./LICENSE) for terms.
 ## Prerequisites
 
 ### All platforms
-- Rust stable (1.78+)
+- Rust stable (1.78+; see `rust-version` in `Cargo.toml`)
 - Node.js 20+
 - Git
 
@@ -66,16 +83,33 @@ Outputs installers in `clients/desktop/src-tauri/target/release/bundle/`:
 
 ## Run from source
 
+Web-only development (Host + Vite):
+
 ```bash
-# Terminal 1: host serve
+# Terminal 1
 cargo run -p plurora-cli -- host serve --http 127.0.0.1:8787 --profile profiles/forge-alpha.yaml
 
-# Terminal 2: web dev server
+# Terminal 2
+npm ci --prefix clients/web
 npm run dev --prefix clients/web
+```
 
-# OR Terminal 2: desktop app
+Desktop development needs the platform extras in Prerequisites, then:
+
+```bash
+npm ci --prefix clients/desktop
 npm run dev --prefix clients/desktop
 ```
+
+The Desktop wrapper starts its own loopback Host sidecar. Do not assume port `8787` in that mode.
+
+### If something fails
+
+- Host compile errors: confirm Rust 1.78+ with `rustc --version`.
+- `npm ci` fails: confirm Node 20+ with `node --version`, then retry from `clients/web`.
+- Browser cannot reach the Host: keep the Host terminal running and confirm it logged a listen address.
+- `installation` / `realization` CLI commands fail: start the Host first.
+- Desktop only: install the OS extras above (VS Build Tools + WebView2 on Windows).
 
 ## Releases
 

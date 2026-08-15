@@ -1,0 +1,49 @@
+name: Bug
+description: Report unexpected behavior in Host, CLI, Web, Desktop, or contracts
+title: "[bug] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Security issues must not be filed here. See [SECURITY.md](https://github.com/Youzini-afk/Plurora/blob/main/SECURITY.md).
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: What did you expect, and what occurred instead?
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps to reproduce
+      description: Shortest path. Do not paste raw secrets, tokens, or absolute user paths.
+      placeholder: |
+        1. cargo run -p plurora-cli -- host serve ...
+        2. ...
+    validations:
+      required: true
+  - type: dropdown
+    id: surface
+    attributes:
+      label: Surface
+      options:
+        - Host / CLI
+        - Web shell
+        - Desktop
+        - Contract / SDK
+        - Documentation
+        - Other
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version or commit
+      placeholder: main @ abc1234
+  - type: textarea
+    id: checks
+    attributes:
+      label: Checks already run
+      description: Optional. For example check-docs, a crate test, or a conformance case.

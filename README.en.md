@@ -2,160 +2,135 @@
 
 > [English](./README.en.md) · [中文](./README.md)
 
+[![CI](https://github.com/Youzini-afk/Plurora/actions/workflows/ci.yml/badge.svg)](https://github.com/Youzini-afk/Plurora/actions/workflows/ci.yml)
+[![License: AGPL-3.0-only](https://img.shields.io/badge/License-AGPL--3.0--only-blue.svg)](./LICENSE)
+
 **An open digital platform for people, AI, and software to create and operate together.**
 
-Plurora enables applications, tools, services, worlds, games, agents, creative environments, and forms not yet named to be created, composed, run, inspected, modified, moved, and replaced. The platform provides trusted common ground without prescribing what upper layers must become.
+If Docker is a runtime for containers, think of Plurora as a **runtime for digital works**: applications, tools, worlds, games, agents, creative environments, and forms not yet named can be created, composed, run, inspected, modified, moved, and replaced. The platform provides a public contract and a trusted substrate. The official Web / Desktop client is a replaceable shell, not the whole platform.
 
-```text
-┌──────────────────────────────────────────────────────────┐
-│ Products / Experiences / Services                        │
-├──────────────────────────────────────────────────────────┤
-│ Distributions / Shells / Clients                         │
-├──────────────────────────────────────────────────────────┤
-│ Protocol Commons / Components / Content                  │
-├──────────────────────────────────────────────────────────┤
-│ Constitutional Substrate                                 │
-└──────────────────────────────────────────────────────────┘
+The repository is in Foundation Alpha. Host, public contracts, Web/PWA, Desktop, CLI, and runnable authoring examples already form a substantial operational surface. Implementation detail lives in [`docs/ALPHA_STATUS.md`](docs/ALPHA_STATUS.en.md).
 
-Host Control Plane / Runtime Fabric crosses the layers to manage
-installation, execution, files, secrets, network, targets, Realization,
-backup, and diagnostics.
+![Plurora](clients/web/public/icons/plurora.svg)
+
+## See the UI in five minutes
+
+You need Rust 1.78+, Node.js 20+, and Git. Compiling the Host from source on Windows also needs Visual Studio Build Tools (C++ desktop workload). WebView2 is only required for Desktop builds.
+
+```bash
+# Terminal 1: start the Host
+cargo run -p plurora-cli -- host serve \
+  --http 127.0.0.1:8787 \
+  --profile profiles/forge-alpha.yaml
+
+# Terminal 2: start the Web shell
+npm ci --prefix clients/web
+npm run dev --prefix clients/web
 ```
+
+Open [http://127.0.0.1:1420](http://127.0.0.1:1420). Full steps, prerequisites, and troubleshooting are in [`docs/guides/GETTING_STARTED.md`](docs/guides/GETTING_STARTED.en.md). Desktop and release builds are in [`BUILDING.md`](BUILDING.md).
+
+## A few terms
+
+| Term | Meaning |
+|---|---|
+| **Work** | A portable digital work. Content-addressed; not yet an instance on a machine. |
+| **Installation** | A Host's record of adopting one Work. Installed does not mean running. |
+| **Run** | One explicitly started execution. Opening a detail page does not start or stop it. |
+| **Powerbox** | The explicit chooser used when connecting capabilities across Installations, like a permission prompt. |
+| **Realization** | Compile a Work into a plan, then apply it to a Target such as Docker or an Agent after approval. The plan itself has no side effects. |
+| **Constitutional substrate** | A small mechanism layer: identity, authority, objects, journal, invoke. It does not own chat, games, or any official UI. |
+| **Host** | The control plane for install, processes, files, secrets, network, backup, and diagnostics. |
+| **Shell** | A client such as Web, Desktop, or CLI. Third parties may replace any of them. |
+
+The causal chain is `Work → Installation → Run`, plus optional Powerbox connections and Realization. None of these steps happens implicitly.
 
 ## What we are building
 
-Plurora pursues five long-term goals:
+- **Open:** public source, protocols, data, and extension points; user export, migration, and deletion; no private first-party APIs.
+- **Plural:** no single application form, workflow, shell, model, or content ontology.
+- **Advanced:** technology that materially improves freedom, security, performance, and portability.
+- **Long-lived:** small stable layers, evolvable protocols, readable old data, and retirement for failed abstractions.
+- **Usable:** an official distribution that works after install, keeps simple paths simple, and recovers from failure.
 
-- **Open:** public source, protocols, data, and extension points; user export, migration, and deletion; no private APIs reserved for first-party code.
-- **Plural:** no single application form, workflow, shell, model, component, or content ontology.
-- **Advanced:** technology that materially improves freedom, security, performance, and portability rather than novelty for its own sake.
-- **Long-lived:** small stable layers, evolvable protocols, readable old data, and migration or retirement for failed abstractions.
-- **Usable:** an official distribution that works after installation, keeps simple paths simple, discloses complexity progressively, and recovers from failure.
-
-See [`docs/CHARTER.md`](docs/CHARTER.en.md) for the principles and [`docs/architecture/VISION.md`](docs/architecture/VISION.en.md) for the long-term shape.
+See [`docs/CHARTER.md`](docs/CHARTER.en.md) for the full principles.
 
 ## Platform and official product
 
-Plurora is more than a kernel and is not identical to the official Web/Desktop product. The current official distribution uses Library, Settings, Installation frames, Console, and contributed surfaces to provide a local managed Host, remote Hosts, installation, Runs, Powerbox, Managed Realization, authority, and data management.
+Plurora is more than a kernel and is not identical to the official Web/Desktop product. The current official distribution provides Library, Settings, Installation frames, local and remote Hosts, Runs, Powerbox, Realization, authority, and data management. Those are replaceable default product choices.
 
-Those are evolving default product choices rather than permanent ontology for the whole platform:
+- Third parties may replace clients, shells, components, protocols, models, and Hosts.
+- Work, Installation, and Run do not belong to the constitutional substrate.
+- Home / Play / Forge / Assist belong to optional product profiles.
+- First-party components and clients use only public boundaries available to third parties.
+- Foreign Work can launch opaquely on the local machine after Rights / Transparency disclosure; it still uses the public Host contract.
 
-- third parties may replace clients, shells, components, protocols, models, and Hosts;
-- Work, Installation, and Run identify a logical work, its instance on one Host, and one execution respectively; none belongs to the constitutional substrate;
-- Home / Play / Forge / Assist belong to optional product profiles rather than the constitutional substrate;
-- first-party components and clients use only public boundaries available to third parties.
-
-See [`docs/product/PLATFORM_PRODUCT_MODEL.md`](docs/product/PLATFORM_PRODUCT_MODEL.en.md) for general product responsibility. Play-creation is an optional opinionated profile described in [`docs/product/PLAY_CREATION_MODEL.md`](docs/product/PLAY_CREATION_MODEL.en.md).
-
-## Current status
-
-The repository is in Foundation Alpha. Contract V1, the Rust Host/runtime, HTTP/RPC/SSE, Package and Component lifecycle, Web/PWA, Tauri Desktop, CLI, Work packing, Installation updates, Run lifecycle, authority, objects and artifacts, model integration, controlled development, targets, Realization, and the `modular-simulation` authoring Work kit already form a substantial operational surface.
-
-The current Contract V1 exposes 99 exact owner-based method IDs, 76 platform events, and 39 top-level schemas (214 schemas total) across Substrate, Host, Protocol, and Shell responsibilities. Exposure/Binding/Powerbox, managed Realization, and Foreign Work controls are implemented. Implementation decomposition continues behind that public boundary without creating private first-party paths or parallel wire identities.
-
-See [`docs/ALPHA_STATUS.md`](docs/ALPHA_STATUS.en.md) for implemented, partial, and deferred state, and [`docs/roadmap/NEXT_STEPS.md`](docs/roadmap/NEXT_STEPS.en.md) for construction direction.
+See [`docs/product/PLATFORM_PRODUCT_MODEL.md`](docs/product/PLATFORM_PRODUCT_MODEL.en.md) for product responsibility. Play-creation is an optional opinionated profile in [`docs/product/PLAY_CREATION_MODEL.md`](docs/product/PLAY_CREATION_MODEL.en.md).
 
 ## Repository map
 
 ```text
-crates/
-  plurora-core/            current core types, schemas, identity, events, contracts
-  plurora-runtime/         runtime, component execution, dispatch, some Host work
-  plurora-service/         HTTP / RPC / SSE and Host service boundary
-  plurora-cli/             CLI, Host, scaffolding, contract, conformance tooling
-
-clients/web/           official React 19 + Tailwind v4 + Vite Web shell / PWA
-clients/desktop/       Tauri 2.x wrapper + managed Host sidecar
-
-packages/plurora/     first-party components and experiments via manifests
-profiles/              distribution / Host component and policy assemblies
-examples/              examples, fixtures, and third-party integration samples
-
-sdk/typescript/        TypeScript SDK and subprocess component tooling
-sdk/rust/              generated Rust contract SDK
-docs/                  charter, architecture, protocols, product, guides, status
-integrations/          external source and ecosystem integration research
+crates/                 Rust Host, runtime, service, CLI
+clients/web/            official React 19 + Tailwind v4 + Vite Web shell / PWA
+clients/desktop/        Tauri 2.x wrapper + managed Host sidecar
+packages/plurora/       first-party components loaded through ordinary manifests
+profiles/               Host component and policy assemblies
+examples/               examples, fixtures, and third-party samples
+sdk/                    TypeScript and generated Rust contract SDKs
+docs/                   charter, architecture, protocol, product, guides, status
 ```
 
 The directory layout describes the current implementation; crate names alone do not determine permanent architectural ownership.
 
-## Quick start
+## Common commands
 
-Start a Host:
-
-```bash
-cargo run -p plurora-cli -- host serve \
-  --http 127.0.0.1:8787 \
-  --profile profiles/forge-alpha.yaml
-```
-
-Check or build the Web shell:
+Until the binary is on PATH, invoke the CLI through Cargo:
 
 ```bash
-npm run check --prefix clients/web
-npm run build --prefix clients/web
-```
-
-Run tests and conformance:
-
-```bash
-cargo test --workspace
+cargo run -p plurora-cli -- work check examples/works/modular-simulation --json
+cargo run -p plurora-cli -- installation list
+cargo run -p plurora-cli -- realization plan --help
+cargo run -p plurora-cli -- play-create-demo
 cargo run -p plurora-cli -- conformance
 ```
 
-Inspect Work / Installation commands and manage an Installation through the public Host contract:
+To install `plurora` onto PATH:
 
 ```bash
-plurora work --help
-plurora work check examples/works/modular-simulation --json
-plurora work promote-component examples/works/modular-simulation --node simulation --assembly-id example/modular-simulation-core --json
-plurora installation list
-plurora installation info <installation-id>
-plurora installation create --help
-plurora installation update --help
-plurora installation remove --help
-plurora realization plan --help
-plurora realization apply --help
+cargo install --path crates/plurora-cli
 ```
 
-Run the blank play-creation example through public contracts:
+Most `installation` / `realization` commands need a running Host. Tests:
 
 ```bash
-cargo run -p plurora-cli -- play-create-demo
+cargo test --workspace
+npm run check --prefix clients/web
 ```
 
-See [`docs/guides/PACKAGE_AUTHORING_WALKTHROUGH.md`](docs/guides/PACKAGE_AUTHORING_WALKTHROUGH.en.md) for more commands and component-authoring flow.
+## What to read next
 
-## Documentation
-
-Major documents are available in English and Simplified Chinese and link to the other language at the top. The complete index is in [`docs/README.md`](docs/README.en.md).
+The full index is [`docs/README.md`](docs/README.en.md). Major documents are available in English and Simplified Chinese.
 
 | Goal | Read first |
 |---|---|
-| Understand platform goals | [`docs/CHARTER.md`](docs/CHARTER.en.md) → [`docs/architecture/VISION.md`](docs/architecture/VISION.en.md) |
-| Understand layering | [`docs/architecture/ARCHITECTURE.md`](docs/architecture/ARCHITECTURE.en.md) → [`docs/architecture/CONSTITUTIONAL_SUBSTRATE.md`](docs/architecture/CONSTITUTIONAL_SUBSTRATE.en.md) → [`docs/architecture/CAPABILITY_PACKAGE.md`](docs/architecture/CAPABILITY_PACKAGE.en.md) |
-| Understand the official product | [`docs/product/PLATFORM_PRODUCT_MODEL.md`](docs/product/PLATFORM_PRODUCT_MODEL.en.md) → [`docs/design/PLATFORM_UI_DESIGN.md`](docs/design/PLATFORM_UI_DESIGN.en.md) |
+| Run it in five minutes | [`docs/guides/GETTING_STARTED.md`](docs/guides/GETTING_STARTED.en.md) |
+| Write a first Package | [`docs/guides/PACKAGE_AUTHORING_WALKTHROUGH.md`](docs/guides/PACKAGE_AUTHORING_WALKTHROUGH.en.md) |
+| Understand platform goals | [`docs/CHARTER.md`](docs/CHARTER.en.md) → [`docs/architecture/ARCHITECTURE.md`](docs/architecture/ARCHITECTURE.en.md) |
+| Understand the official product | [`docs/product/PLATFORM_PRODUCT_MODEL.md`](docs/product/PLATFORM_PRODUCT_MODEL.en.md) |
 | Use public contracts | [`docs/protocol/PUBLIC_PROTOCOL.md`](docs/protocol/PUBLIC_PROTOCOL.en.md) → [`docs/spec/PUBLIC_CONTRACT.md`](docs/spec/PUBLIC_CONTRACT.en.md) |
-| Review long-term contract layering | [`docs/architecture/CONSTITUTION_V2.md`](docs/architecture/CONSTITUTION_V2.en.md) → [`docs/spec/CONTRACT_LAYERING_MATRIX.md`](docs/spec/CONTRACT_LAYERING_MATRIX.en.md) |
-| Write a first Package / Component | [`docs/guides/PACKAGE_AUTHORING_WALKTHROUGH.md`](docs/guides/PACKAGE_AUTHORING_WALKTHROUGH.en.md) |
-| Continue from a runnable Work kit, replace, or promote a component | [`docs/guides/MODULAR_SIMULATION.md`](docs/guides/MODULAR_SIMULATION.en.md) |
-| Pack Work / create Installation | [`docs/guides/PACKAGE_INSTALLATION.md`](docs/guides/PACKAGE_INSTALLATION.en.md) → [`docs/guides/INSTALLATION_MODEL.md`](docs/guides/INSTALLATION_MODEL.en.md) |
-| Use Library / start and stop Runs | [`docs/guides/RUN_LIBRARY.md`](docs/guides/RUN_LIBRARY.en.md) |
-| Use Powerbox / connect cross-Installation Ports | [`docs/guides/POWERBOX_BINDING.md`](docs/guides/POWERBOX_BINDING.en.md) |
-| Compile and apply Work to a Target | [`docs/guides/REALIZATION.md`](docs/guides/REALIZATION.en.md) |
-| Manage API keys / secrets | [`docs/guides/SECRET_MANAGEMENT.md`](docs/guides/SECRET_MANAGEMENT.en.md) |
-| Build agent / model / experience components | [`docs/guides/AGENT_PACKAGE_AUTHORING.md`](docs/guides/AGENT_PACKAGE_AUTHORING.en.md), [`docs/guides/MODEL_PROVIDER_INTEGRATION.md`](docs/guides/MODEL_PROVIDER_INTEGRATION.en.md), [`docs/guides/EXPERIENCE_RUNTIME_AUTHORING.md`](docs/guides/EXPERIENCE_RUNTIME_AUTHORING.en.md) |
-| Host third-party Web surfaces | [`docs/guides/SURFACE_HOSTING.md`](docs/guides/SURFACE_HOSTING.en.md) |
-| Review current status | [`docs/ALPHA_STATUS.md`](docs/ALPHA_STATUS.en.md) |
-| Review construction direction | [`docs/roadmap/NEXT_STEPS.md`](docs/roadmap/NEXT_STEPS.en.md) |
-| Write documentation | [`docs/STYLE.md`](docs/STYLE.en.md) |
+| Build Web / Desktop / Release | [`BUILDING.md`](BUILDING.md) |
+| Contribute | [`CONTRIBUTING.md`](CONTRIBUTING.en.md) |
+| Review current implementation facts | [`docs/ALPHA_STATUS.md`](docs/ALPHA_STATUS.en.md) |
 
-## Forms that can grow on Plurora
-
-Chat, world simulation, Tavern, game-engine bridges, IDEs, ordinary Web services, agent runtimes, document tools, node editors, and marketplaces may all become products, protocols, components, or distributions on the platform. None is the platform's only center, and none gains hidden authority by being official.
-
-YdlTavern is an independent integration project; see [`docs/tavern/TAVERN_COMPAT.md`](docs/tavern/TAVERN_COMPAT.en.md) for the boundary.
+Chat, world simulation, Tavern, game-engine bridges, IDEs, ordinary Web services, agent runtimes, document tools, and node editors may all become products or components on the platform. None is the platform's only center. YdlTavern is an independent integration project; see [`docs/tavern/TAVERN_COMPAT.md`](docs/tavern/TAVERN_COMPAT.en.md).
 
 ## License
 
-Plurora is licensed under the GNU Affero General Public License v3.0 only (`AGPL-3.0-only`). See [`LICENSE`](LICENSE). The boundary among first-party code, external dependencies, and third-party content is documented in [`docs/LICENSING.md`](docs/LICENSING.en.md).
+Plurora is licensed under the GNU Affero General Public License v3.0 only (`AGPL-3.0-only`). In plain language:
+
+- You may use it locally, read the source, and modify a private copy.
+- If you offer a modified Host or other first-party code to others over a network, you must make the corresponding source available.
+- Third-party Packages should declare their own licenses; running on Plurora does not by itself make them AGPL.
+- Contributions to first-party code in this repository are accepted under the same license.
+
+See [`LICENSE`](LICENSE) for the full text and [`docs/LICENSING.md`](docs/LICENSING.en.md) for the boundary. This is not legal advice.

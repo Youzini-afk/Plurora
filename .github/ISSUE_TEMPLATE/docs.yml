@@ -1,0 +1,32 @@
+name: Documentation
+description: Report a docs gap, drift, or bilingual mismatch
+title: "[docs] "
+labels: ["documentation"]
+body:
+  - type: textarea
+    id: location
+    attributes:
+      label: Document
+      description: Path or URL, including language (`.md` / `.en.md`).
+    validations:
+      required: true
+  - type: dropdown
+    id: kind
+    attributes:
+      label: Kind
+      options:
+        - Factual drift from code
+        - Missing getting-started or guide
+        - Chinese / English mismatch
+        - Broken navigation
+        - Internal tone or status table in a reader-facing doc
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: details
+    attributes:
+      label: What should change
+      description: Current text versus the fact or reader need.
+    validations:
+      required: true
